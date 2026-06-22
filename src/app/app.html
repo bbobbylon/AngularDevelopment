@@ -1,0 +1,96 @@
+<!-- Reading-progress bar — driven by scrollPct() signal via fromEvent -->
+<div class="scroll-bar" aria-hidden="true">
+  <div class="scroll-bar__fill" [style.width.%]="scrollPct()"></div>
+</div>
+
+<header class="topbar">
+  <a class="brand" routerLink="/">
+    <svg viewBox="0 0 223 236" width="26" height="26" aria-hidden="true">
+      <path fill="#0284c7" d="M111 0 0 39l17 146 94 51 94-51 17-146z" />
+      <path fill="#0369a1" d="M111 0v236l94-51 17-146z" />
+      <path
+        fill="#fff"
+        d="M111 26 42 184h26l14-35h58l14 35h26zm20 101H91l20-48z"
+      />
+    </svg>
+    <span>{{ title() }}</span>
+  </a>
+
+  <nav class="topbar__links">
+    <!-- routerLinkActive adds the CSS class when the route matches -->
+    <a routerLink="/"
+       routerLinkActive="topbar__link--active"
+       [routerLinkActiveOptions]="{ exact: true }">All concepts</a>
+    <a routerLink="/certification"
+       routerLinkActive="topbar__link--active">Certification</a>
+    <a routerLink="/practice"
+       routerLinkActive="topbar__link--active">Practice</a>
+    <a routerLink="/interview"
+       routerLinkActive="topbar__link--active">Interview Prep</a>
+    <a href="https://angular.dev" target="_blank" rel="noopener">angular.dev ↗</a>
+  </nav>
+
+  <button
+    class="theme-btn"
+    (click)="showShortcuts.update(v => !v)"
+    title="Keyboard shortcuts (?)"
+    aria-label="Show keyboard shortcuts"
+    style="font-size:.75rem;letter-spacing:.04em"
+  >
+    ?
+  </button>
+  <button
+    class="theme-btn"
+    (click)="toggleTheme()"
+    [attr.aria-label]="theme() === 'light' ? 'Switch to dark mode' : 'Switch to light mode'"
+    title="Toggle theme"
+  >
+    {{ theme() === 'light' ? '🌙' : '☀️' }}
+  </button>
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>
+
+<!-- Footer — powered by InjectionToken<AppConfig> + ProgressService -->
+<footer class="footer">
+  <span class="footer__brand">
+    {{ config.name }} · Angular {{ config.angularVersion }}
+  </span>
+  <span class="footer__stack">
+    @for (tech of config.builtWith; track tech; let last = $last) {
+      {{ tech }}@if (!last) { · }
+    }
+  </span>
+  <button class="ghost footer__reset" (click)="resetProgress()" title="Clear visited lessons">
+    Reset progress ({{ progress.visitedCount() }})
+  </button>
+</footer>
+
+<!-- Toast overlay — signal<Toast[]> drives this; each toast auto-dismisses -->
+<app-toasts />
+
+<!--
+  Keyboard shortcuts panel.
+  @defer (when showShortcuts()) — the overlay chunk is NOT bundled until the
+  user presses '?' for the first time. Demonstrates @defer when + a real feature.
+-->
+@defer (when showShortcuts()) {
+  <div class="shortcuts-backdrop" (click)="showShortcuts.set(false)" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+    <div class="shortcuts-panel" (click)="$event.stopPropagation()">
+      <div class="shortcuts-panel__head">
+        <h3>Keyboard shortcuts</h3>
+        <button class="ghost" (click)="showShortcuts.set(false)" aria-label="Close">✕</button>
+      </div>
+      <dl class="shortcuts-list">
+        <div class="shortcut"><dt><kbd>/</kbd></dt><dd>Focus lesson search</dd></div>
+        <div class="shortcut"><dt><kbd>?</kbd></dt><dd>Show / hide this panel</dd></div>
+        <div class="shortcut"><dt><kbd>Esc</kbd></dt><dd>Close panel or clear search</dd></div>
+      </dl>
+      <p class="shortcuts-note">This panel is deferred with <code>@defer (when showShortcuts())</code> — its JS is only fetched after you press <kbd>?</kbd>.</p>
+    </div>
+  </div>
+} @placeholder {
+  <!-- Placeholder is empty — panel only appears when opened -->
+}

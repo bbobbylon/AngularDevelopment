@@ -1,0 +1,332 @@
+/* ============================================================
+   Global theme for the Angular Concepts tutorial app.
+   Individual lessons rely on these shared classes so each
+   lesson file can focus on demonstrating its concept.
+   ============================================================ */
+
+:root {
+  /* ── Ocean / Hawaii / Spring palette ── */
+  --bg: #f0f9ff;
+  --bg-elevated: #e0f2fe;
+  --bg-card: #ffffff;
+  --surface: #ffffff;
+  --border: #bae6fd;
+  --text: #0c4a6e;
+  --text-muted: #4d88a8;
+  --accent: #0284c7;       /* ocean blue */
+  --accent-2: #0369a1;
+  --violet: #7c3aed;
+  --green: #059669;
+  --amber: #d97706;
+  --blue: #0ea5e9;
+  --code-bg: #1e293b;      /* dark panel — keeps code readable */
+  --radius: 12px;
+  --shadow: 0 4px 20px rgba(12, 74, 110, 0.10);
+  color-scheme: light;
+}
+
+/* ---- Dark mode (toggled via data-theme="dark" on <html>) ---- */
+[data-theme="dark"] {
+  --bg: #0a1628;
+  --bg-elevated: #0f1f3a;
+  --bg-card: #122040;
+  --surface: #122040;
+  --border: #1e3d66;
+  --text: #dff0ff;
+  --text-muted: #6ba8cc;
+  --accent: #38bdf8;
+  --accent-2: #0ea5e9;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+
+/* Smooth colour-scheme transitions */
+html {
+  transition: background-color 0.25s ease, color 0.15s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code,
+pre {
+  font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    Menlo, Consolas, monospace;
+}
+
+/* ---------- Lesson scaffolding ---------- */
+
+.lesson {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 8px 4px 64px;
+  animation: fade-in 0.25s ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lesson__eyebrow {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.lesson h1 {
+  font-size: 2rem;
+  margin: 0 0 8px;
+  line-height: 1.15;
+}
+
+.lesson h2 {
+  font-size: 1.25rem;
+  margin: 36px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lesson h3 {
+  font-size: 1.02rem;
+  margin: 24px 0 8px;
+}
+
+.lesson p {
+  color: var(--text);
+}
+
+.lesson ul,
+.lesson ol {
+  color: var(--text);
+}
+
+.lead {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+/* Live demo box */
+.demo {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+
+.demo__title {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo__title::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+/* Code snippet */
+.code {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 12px 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.code pre {
+  margin: 0;
+  white-space: pre;
+}
+
+/* Syntax highlight token colours — applied by the global highlighter in app.ts */
+.hl-kw  { color: #c792ea; }
+.hl-str { color: #c3e88d; }
+.hl-cmt { color: #546e7a; font-style: italic; }
+.hl-num { color: #f78c6c; }
+.hl-dec { color: #82aaff; }
+.hl-fn  { color: #82aaff; }
+
+/* Callouts */
+.note,
+.tip,
+.warn {
+  border-left: 3px solid var(--blue);
+  background: rgba(59, 158, 255, 0.08);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+  font-size: 0.95rem;
+}
+
+.tip {
+  border-color: var(--green);
+  background: rgba(46, 193, 107, 0.08);
+}
+
+.warn {
+  border-color: var(--amber);
+  background: rgba(245, 166, 35, 0.08);
+}
+
+/* Generic controls used in demos */
+button {
+  font: inherit;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--violet);
+  outline-offset: 1px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ---- View Transitions (withViewTransitions) ---- */
+@keyframes vt-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+::view-transition-new(root) {
+  animation: vt-fade-in 0.22s ease both;
+}
+::view-transition-old(root) {
+  animation: vt-fade-out 0.18s ease both;
+}
+
+/* ---- Tooltip (appTooltip directive) ---- */
+.app-tooltip {
+  position: absolute;
+  z-index: 9999;
+  transform: translateX(-50%);
+  background: #0c4a6e;
+  color: #e0f2fe;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  animation: vt-fade-in 0.12s ease;
+}
+.app-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: #0c4a6e;
+}
