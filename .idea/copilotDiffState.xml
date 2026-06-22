@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/angulartutorials/.prettierrc">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/angulartutorials/.prettierrc" />
+              <option name="originalContent" value="{&#10;  &quot;printWidth&quot;: 100,&#10;  &quot;tabWidth&quot;: 2,&#10;  &quot;useTabs&quot;: false,&#10;  &quot;semi&quot;: true,&#10;  &quot;singleQuote&quot;: true,&#10;  &quot;quoteProps&quot;: &quot;as-needed&quot;,&#10;  &quot;trailingComma&quot;: &quot;a&quot;,&#10;  &quot;bracketSpacing&quot;: true,&#10;  &quot;arrowParens&quot;: &quot;always&quot;,&#10;  &quot;endOfLine&quot;: &quot;lf&quot;,&#10;&#10;  &quot;htmlWhitespaceSensitivity&quot;: &quot;ignore&quot;,&#10;&#10;  &quot;overrides&quot;: [&#10;    {&#10;      &quot;files&quot;: &quot;*.html&quot;,&#10;      &quot;options&quot;: {&#10;        &quot;printWidth&quot;: 120&#10;      }&#10;    },&#10;    {&#10;      &quot;files&quot;: &quot;*.css&quot;,&#10;      &quot;options&quot;: {&#10;        &quot;singleQuote&quot;: false&#10;      }&#10;    }&#10;  ]&#10;}&#10;" />
+              <option name="updatedContent" value="{&#10;  &quot;printWidth&quot;: 100,&#10;  &quot;tabWidth&quot;: 2,&#10;  &quot;useTabs&quot;: false,&#10;  &quot;semi&quot;: true,&#10;  &quot;singleQuote&quot;: true,&#10;  &quot;quoteProps&quot;: &quot;as-needed&quot;,&#10;  &quot;trailingComma&quot;: &quot;a&quot;,&#10;  &quot;bracketSpacing&quot;: true,&#10;  &quot;arrowParens&quot;: &quot;always&quot;,&#10;  &quot;endOfLine&quot;: &quot;crlf&quot;,&#10;&#10;  &quot;htmlWhitespaceSensitivity&quot;: &quot;ignore&quot;,&#10;&#10;  &quot;overrides&quot;: [&#10;    {&#10;      &quot;files&quot;: &quot;*.html&quot;,&#10;      &quot;options&quot;: {&#10;        &quot;printWidth&quot;: 120&#10;      }&#10;    },&#10;    {&#10;      &quot;files&quot;: &quot;*.css&quot;,&#10;      &quot;options&quot;: {&#10;        &quot;singleQuote&quot;: false&#10;      }&#10;    }&#10;  ]&#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
