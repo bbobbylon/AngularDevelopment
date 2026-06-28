@@ -17,13 +17,13 @@ import { RouterLink } from '@angular/router';
 
       <h2>Enable it</h2>
       <div class="code"><pre>// app.config.ts
-import { provideRouter, withViewTransitions } from '@angular/router';
+import &#123; provideRouter, withViewTransitions &#125; from '@angular/router';
 
-export const appConfig: ApplicationConfig = {
+export const appConfig: ApplicationConfig = &#123;
   providers: [
     provideRouter(routes, withViewTransitions()),
   ],
-};</pre></div>
+&#125;;</pre></div>
       <p>
         That is the entire Angular-side setup. Every navigation now wraps in
         <code>document.startViewTransition()</code>: the browser freezes the old view,
@@ -60,10 +60,10 @@ export const appConfig: ApplicationConfig = {
         navigation — the classic "thumbnail expands into hero image" effect.
       </p>
       <div class="code"><pre>/* list page */
-.card-thumbnail { view-transition-name: hero-image; }
+.card-thumbnail &#123; view-transition-name: hero-image; &#125;
 
 /* detail page */
-.detail-hero    { view-transition-name: hero-image; }</pre></div>
+.detail-hero    &#123; view-transition-name: hero-image; &#125;</pre></div>
       <div class="note">
         <code>view-transition-name</code> must be unique per element per page; duplicate
         names disable the transition for those elements. For dynamic lists, set the name
@@ -71,22 +71,22 @@ export const appConfig: ApplicationConfig = {
       </div>
 
       <h2>Hook in from TypeScript</h2>
-      <div class="code"><pre>withViewTransitions({
-  onViewTransitionCreated: ({ transition, from, to }) => {
+      <div class="code"><pre>withViewTransitions(&#123;
+  onViewTransitionCreated: (&#123; transition, from, to &#125;) => &#123;
     // Skip animation for anchor-only navigations (same page, different hash)
-    if (from.url[0]?.path === to.url[0]?.path) {
+    if (from.url[0]?.path === to.url[0]?.path) &#123;
       transition.skipTransition();
-    }
-  },
-})</pre></div>
+    &#125;
+  &#125;,
+&#125;)</pre></div>
 
       <h2>Always respect reduced motion</h2>
-      <div class="code"><pre>@media (prefers-reduced-motion: reduce) {
+      <div class="code"><pre>@media (prefers-reduced-motion: reduce) &#123;
   ::view-transition-old(root),
-  ::view-transition-new(root) {
+  ::view-transition-new(root) &#123;
     animation-duration: 0.01ms !important;
-  }
-}</pre></div>
+  &#125;
+&#125;</pre></div>
       <div class="warn">
         Omitting the reduced-motion override means users with vestibular disorders or
         motion sensitivity experience forced animation on every page load. Always add it.

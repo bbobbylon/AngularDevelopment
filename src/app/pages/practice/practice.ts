@@ -1,5 +1,6 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { OptionsShuffler } from './practice-helpers';
 
 type Difficulty = 'junior' | 'mid' | 'senior';
 type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript';
@@ -26,7 +27,8 @@ const CHALLENGES: Challenge[] = [
     question: 'Which decorator turns a class into an Angular component?',
     options: ['@NgModule', '@Component', '@Injectable', '@Directive'],
     answer: 1,
-    explanation: '@Component marks a class as an Angular component and configures its template, styles, and selector. @NgModule configures a module, @Injectable marks a service, and @Directive creates a directive without a template.',
+    explanation: '@Component marks a class as an Angular component and configures its template, styles, and selector. Here\'s why the other answers are wrong: (A) @NgModule configures a module that groups components and services together. (C) @Injectable marks a service for dependency injection. (D) @Directive creates a reusable attribute or structural directive (like ngIf, ngFor) that adds behavior to elements without defining its own template.',
+    topicPath: 'components',
   },
   {
     id: 2, type: 'spot-the-bug', difficulty: 'junior', category: 'components',
@@ -86,7 +88,8 @@ count.set(5);
 count.update(n => n * 2);`,
     options: ['0', '5', '10', '25'],
     answer: 2,
-    explanation: 'signal(0) creates a signal with value 0. set(5) replaces it with 5. update(n => n * 2) reads the current value (5) and multiplies it by 2, resulting in 10.',
+    explanation: 'signal(0) creates a signal with initial value 0. set(5) replaces it entirely with 5. update(n => n * 2) reads the current value (5) and sets it to the result of the callback (5 * 2 = 10). Why others are wrong: (A) 0 is the initial value, not the final. (B) 5 is the value after set(), but before update(). (D) 25 would require 5 * 5, which doesn\'t match our logic.',
+    topicPath: 'signals',
   },
   {
     id: 6, type: 'spot-the-bug', difficulty: 'junior', category: 'signals',
@@ -152,7 +155,8 @@ cartStore.items.set([]);   // clears cart directly`,
       'switchMap() is for arrays; map() is for Observables',
     ],
     answer: 1,
-    explanation: 'map() transforms each emitted value (like Array.map for streams). switchMap() "switches" to a new inner Observable for each emission, cancelling any in-flight inner Observable. This makes switchMap() perfect for HTTP requests where you want to cancel the previous request if a new one arrives (e.g., typeahead search).',
+    explanation: 'map() transforms each emitted value (like Array.map for streams). switchMap() "switches" to a new inner Observable for each emission, cancelling any in-flight inner Observable. This makes switchMap() perfect for HTTP requests where you want to cancel the previous request if a new one arrives (e.g., typeahead search). Why others fail: (A) switchMap() isn\'t for filtering; use filter() for that. (C) They\'re completely different operators. (D) Both work with Observables; switchMap() is actually an upgrade for Observable-returning functions.',
+    topicPath: 'rxjs-operators',
   },
   {
     id: 10, type: 'spot-the-bug', difficulty: 'mid', category: 'rxjs',
@@ -2916,11 +2920,11 @@ function shuffle<T>(arr: T[]): T[] {
 
               @if (ch.options) {
                 <div class="options">
-                  @for (opt of ch.options; track $index) {
+                  @for (opt of getShuffledChallengeOptions(ch).options; track $index) {
                     <button class="opt"
                       [class.selected]="getState(ch.id).selected === $index && !getState(ch.id).answered"
-                      [class.correct]="getState(ch.id).answered && $index === ch.answer"
-                      [class.wrong]="getState(ch.id).answered && getState(ch.id).selected === $index && $index !== ch.answer"
+                      [class.correct]="getState(ch.id).answered && $index === getShuffledChallengeOptions(ch).correctIndex"
+                      [class.wrong]="getState(ch.id).answered && getState(ch.id).selected === $index && $index !== getShuffledChallengeOptions(ch).correctIndex"
                       [disabled]="getState(ch.id).answered"
                       (click)="selectOption(ch.id, $index)">
                       <span class="opt-letter">{{ letters[$index] }}</span>
@@ -2939,10 +2943,22 @@ function shuffle<T>(arr: T[]): T[] {
 
               @if (getState(ch.id).answered) {
                 <div class="explanation" [class.correct]="getState(ch.id).correct" [class.wrong]="!getState(ch.id).correct">
-                  <strong>{{ getState(ch.id).correct ? 'Correct!' : 'Not quite.' }}</strong>
-                  {{ ch.explanation }}
+                  <strong>{{ getState(ch.id).correct ? '✓ Correct!' : '✗ Not quite.' }}</strong>
+
+                  @if (!getState(ch.id).correct) {
+                    <div style="margin-top:8px;padding:8px;background:rgba(226,29,72,.08);border-radius:4px;font-size:.85rem">
+                      <strong>Correct answer: {{ getCorrectOptionLetter(ch) }}</strong>
+                    </div>
+                  }
+
+                  <div style="margin-top:12px">
+                    {{ ch.explanation }}
+                  </div>
+
                   @if (ch.topicPath) {
-                    <a [routerLink]="'/' + ch.topicPath" style="display:inline-block;margin-top:8px;font-size:.82rem;color:var(--blue)">Study this topic →</a>
+                    <a [routerLink]="'/' + ch.topicPath" target="_blank" style="display:inline-block;margin-top:12px;font-size:.82rem;color:var(--blue);text-decoration:underline">
+                      📚 Study this topic in detail →
+                    </a>
                   }
                 </div>
               }
@@ -2956,6 +2972,7 @@ function shuffle<T>(arr: T[]): T[] {
 export class Practice {
   private readonly states = signal<Record<number, { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }>>({});
   private readonly shuffledAll = signal(shuffle(CHALLENGES));
+  private readonly optionsShuffler = new OptionsShuffler();
 
   readonly activeCategory = signal<Category>('all');
   readonly activeDiff = signal<'all' | Difficulty>('all');
@@ -3004,6 +3021,33 @@ export class Practice {
     { id: 'senior', label: 'Senior' },
   ];
 
+  /**
+   * Get shuffled options for a challenge
+   * Options are shuffled once per session and reused for consistency
+   */
+  getShuffledChallengeOptions(ch: Challenge) {
+    if (!ch.options) return { options: [], correctIndex: -1 };
+    return this.optionsShuffler.getShuffledOptions(ch.id, ch.options, ch.answer as number);
+  }
+
+  /**
+   * Check if the selected option is correct (accounting for shuffled positions)
+   */
+  isAnswerCorrect(ch: Challenge, selectedIndex: number): boolean {
+    if (!ch.options) return false;
+    const shuffled = this.getShuffledChallengeOptions(ch);
+    return selectedIndex === shuffled.correctIndex;
+  }
+
+  /**
+   * Get the correct option letter for display (A, B, C, D)
+   */
+  getCorrectOptionLetter(ch: Challenge): string {
+    if (!ch.options) return '';
+    const shuffled = this.getShuffledChallengeOptions(ch);
+    return this.letters[shuffled.correctIndex] || '';
+  }
+
   getState(id: number) {
     return this.states()[id] ?? { selected: null, answered: false, correct: false, expanded: false };
   }
@@ -3027,7 +3071,7 @@ export class Practice {
   submit(ch: Challenge) {
     const cur = this.getState(ch.id);
     if (cur.answered || cur.selected === null) return;
-    const correct = cur.selected === ch.answer;
+    const correct = this.isAnswerCorrect(ch, cur.selected);
     this.states.update((s) => ({
       ...s,
       [ch.id]: { ...cur, answered: true, correct, expanded: true },
@@ -3041,6 +3085,7 @@ export class Practice {
   reshuffle() {
     this.shuffledAll.set(shuffle(CHALLENGES));
     this.states.set({});
+    this.optionsShuffler.reset();  // Reset option shuffles when reshuffling questions
   }
 
   typeLabel(type: ChallengeType): string {

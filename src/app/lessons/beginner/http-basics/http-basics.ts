@@ -32,10 +32,10 @@ providers: [provideHttpClient(withFetch())]</pre>
       <div class="code">
         <pre>private http = inject(HttpClient);
 
-load() {{ '{' }}
+load() &#123;
   this.http.get&lt;Post[]&gt;('https://jsonplaceholder.typicode.com/posts')
     .subscribe(posts =&gt; this.posts.set(posts));
-{{ '}' }}</pre>
+&#125;</pre>
       </div>
 
       <h2>Try it — a real GET request</h2>
@@ -73,7 +73,7 @@ load() {{ '{' }}
 
       <h2>The verbs</h2>
       <div class="code">
-        <pre>http.get&lt;T&gt;(url, {{ '{' }} params, headers {{ '}' }})
+        <pre>http.get&lt;T&gt;(url, &#123; params, headers &#125;)
 http.post&lt;T&gt;(url, body)
 http.put&lt;T&gt;(url, body)
 http.patch&lt;T&gt;(url, body)
@@ -83,7 +83,7 @@ http.delete&lt;T&gt;(url)</pre>
       <h2>Handling errors</h2>
       <div class="code">
         <pre>this.http.get&lt;Post[]&gt;(url).pipe(
-  catchError(err =&gt; {{ '{' }} console.error(err); return of([]); {{ '}' }})
+  catchError(err =&gt; &#123; console.error(err); return of([]); &#125;)
 ).subscribe(...)</pre>
       </div>
       <p>
@@ -95,10 +95,10 @@ http.delete&lt;T&gt;(url)</pre>
       <h2>Bridging to signals & cancellation</h2>
       <div class="code">
         <pre>// turn the Observable into a signal (auto-subscribes & cleans up):
-posts = toSignal(this.http.get&lt;Post[]&gt;(url), {{ '{' }} initialValue: [] {{ '}' }});
+posts = toSignal(this.http.get&lt;Post[]&gt;(url), &#123; initialValue: [] &#125;);
 
 // switchMap cancels the previous request when a new one starts (typeahead):
-results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(\`/search?q=\${{ '{' }}q{{ '}' }}\`)));</pre>
+results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(&#96;/search?q=&#36;&#123;q&#125;&#96;)));</pre>
       </div>
       <p>
         Because requests are Observables, unsubscribing <strong>cancels</strong> the

@@ -32,15 +32,15 @@ export class HeavyWidget {}
       </p>
 
       <h2>The four companion blocks</h2>
-      <div class="code"><pre>&#64;defer (on viewport) {
+      <div class="code"><pre>&#64;defer (on viewport) &#123;
   &lt;app-heavy-widget /&gt;           &lt;!-- ← only this is lazy-loaded --&gt;
-} &#64;placeholder {
+&#125; &#64;placeholder &#123;
   &lt;p&gt;Shown before loading starts&lt;/p&gt;   &lt;!-- stays in main bundle --&gt;
-} &#64;loading (after 100ms; minimum 500ms) {
+&#125; &#64;loading (after 100ms; minimum 500ms) &#123;
   &lt;p&gt;Fetching chunk…&lt;/p&gt;
-} &#64;error {
+&#125; &#64;error &#123;
   &lt;p&gt;Failed to load.&lt;/p&gt;
-}</pre></div>
+&#125;</pre></div>
       <p>
         Only the <code>&#64;defer</code> block is split out; everything in
         <code>&#64;placeholder</code> / <code>&#64;loading</code> / <code>&#64;error</code>
@@ -118,16 +118,16 @@ export class HeavyWidget {}
         }
       </div>
 
-      <h2>How this app uses @defer</h2>
-      <div class="code"><pre>@defer (on viewport; prefetch on idle) {
+      <h2>How this app uses &#64;defer</h2>
+      <div class="code"><pre>&#64;defer (on viewport; prefetch on idle) &#123;
   &lt;div class="grid"&gt;
     &lt;!-- lesson cards for each level --&gt;
   &lt;/div&gt;
-} @placeholder {
+&#125; &#64;placeholder &#123;
   &lt;div class="grid"&gt;
     &lt;!-- shimmer skeleton cards --&gt;
   &lt;/div&gt;
-}</pre></div>
+&#125;</pre></div>
       <p>
         Each level section's card grid is deferred. The shimmer skeleton is the
         placeholder that the viewport observer watches — when it scrolls into view,

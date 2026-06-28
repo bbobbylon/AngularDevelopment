@@ -24,7 +24,7 @@ export class SentenceCasePipe implements PipeTransform {
 // ── 3. Pure pipe — filterBy (array filter, same pattern as FilterLessonsPipe) ─
 @Pipe({ name: 'filterBy', standalone: true })
 export class FilterByPipe implements PipeTransform {
-  transform<T extends Record<string, unknown>>(items: T[], field: keyof T, query: string): T[] {
+  transform<T extends object>(items: T[], field: keyof T, query: string): T[] {
     const q = query.trim().toLowerCase();
     if (!q) return items;
     return items.filter((item) => String(item[field]).toLowerCase().includes(q));
@@ -78,14 +78,14 @@ interface Post  { id: number; title: string; date: string }
       </p>
 
       <h2>Anatomy</h2>
-      <div class="code"><pre>&#64;Pipe({{ '{' }} name: 'truncate', standalone: true {{ '}' }})   // pure by default
-export class TruncatePipe implements PipeTransform {{ '{' }}
-  transform(value: string, limit = 20, trail = '…'): string {{ '{' }}
+      <div class="code"><pre>&#64;Pipe(&#123; name: 'truncate', standalone: true &#125;)   // pure by default
+export class TruncatePipe implements PipeTransform &#123;
+  transform(value: string, limit = 20, trail = '…'): string &#123;
     return value.length > limit
       ? value.slice(0, limit).trimEnd() + trail
       : value;
-  {{ '}' }}
-{{ '}' }}
+  &#125;
+&#125;
 
 // In a component:
 imports: [TruncatePipe]
@@ -106,12 +106,12 @@ imports: [TruncatePipe]
       </div>
 
       <h2>Demo 2 — sentenceCase (pure)</h2>
-      <div class="code"><pre>&#64;Pipe({{ '{' }} name: 'sentenceCase', standalone: true {{ '}' }})
-export class SentenceCasePipe implements PipeTransform {{ '{' }}
-  transform(value: string): string {{ '{' }}
+      <div class="code"><pre>&#64;Pipe(&#123; name: 'sentenceCase', standalone: true &#125;)
+export class SentenceCasePipe implements PipeTransform &#123;
+  transform(value: string): string &#123;
     return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-  {{ '}' }}
-{{ '}' }}</pre></div>
+  &#125;
+&#125;</pre></div>
       <div class="demo">
         <p class="demo__title">Live</p>
         <input [(ngModel)]="rawText" placeholder="Type in any case…" style="width:100%;margin-bottom:10px" />
@@ -127,26 +127,26 @@ export class SentenceCasePipe implements PipeTransform {{ '{' }}
         the same pattern as the <code>FilterLessonsPipe</code> powering the home-page
         search in this app.
       </p>
-      <div class="code"><pre>&#64;Pipe({{ '{' }} name: 'filterBy', standalone: true {{ '}' }})
-export class FilterByPipe implements PipeTransform {{ '{' }}
+      <div class="code"><pre>&#64;Pipe(&#123; name: 'filterBy', standalone: true &#125;)
+export class FilterByPipe implements PipeTransform &#123;
   transform&lt;T extends Record&lt;string, unknown&gt;&gt;(
     items: T[], field: keyof T, query: string
-  ): T[] {{ '{' }}
+  ): T[] &#123;
     const q = query.trim().toLowerCase();
     if (!q) return items;
     return items.filter(i =&gt; String(i[field]).toLowerCase().includes(q));
-  {{ '}' }}
-{{ '}' }}
+  &#125;
+&#125;
 
 // Template:
-&#64;for (f of fruits | filterBy:'name':query(); track f.name) {{ '{' }} … {{ '}' }}</pre></div>
+&#64;for (f of fruits | filterBy:'name':query(); track f.name) &#123; … &#125;</pre></div>
       <div class="demo">
         <p class="demo__title">Live</p>
         <input [(ngModel)]="fruitQuery" placeholder="Filter fruits…" style="width:100%;margin-bottom:10px" />
         <div class="row" style="flex-wrap:wrap;gap:8px">
-          @for (f of fruits | filterBy:'name':fruitQuery(); track f.name) {
-            <span class="pill" [style.border-color]="f.color" [style.color]="f.color">
-              {{ f.name }}
+          @for (f of fruits | filterBy:'name':fruitQuery(); track f['name']) {
+            <span class="pill" [style.border-color]="f['color']" [style.color]="f['color']">
+              {{ f['name'] }}
             </span>
           } @empty {
             <span style="color:var(--text-muted);font-size:.85rem">No fruits match.</span>
@@ -160,19 +160,21 @@ export class FilterByPipe implements PipeTransform {{ '{' }}
         like in components. Here <code>RelativeTimePipe</code> injects Angular's built-in
         <code>DatePipe</code> as a fallback formatter.
       </p>
-      <div class="code"><pre>&#64;Pipe({{ '{' }} name: 'relativeTime', standalone: true {{ '}' }})
-export class RelativeTimePipe implements PipeTransform {{ '{' }}
+      <div class="code"><pre>&#64;Pipe(&#123; name: 'relativeTime', standalone: true &#125;)
+export class RelativeTimePipe implements PipeTransform &#123;
   private readonly datePipe = inject(DatePipe);   // ← inject inside a pipe
 
-  transform(isoDate: string): string {{ '{' }}
+  transform(isoDate: string): string &#123;
     const diff = Date.now() - new Date(isoDate).getTime();
     const mins = Math.floor(diff / 60_000);
-    if (mins &lt; 60) return \`\${mins}m ago\`;
+    if (mins &lt; 60) return &#96;&#36;&#123;mins&#125;m ago&#96;;
     return this.datePipe.transform(isoDate, 'mediumDate') ?? isoDate;
-  {{ '}' }}
-{{ '}' }}
+  &#125;
+&#125;
 
 // Add DatePipe to the component's providers array.</pre></div>
+
+
       <div class="demo">
         <p class="demo__title">Live</p>
         @for (post of posts; track post.id) {
@@ -191,13 +193,13 @@ export class RelativeTimePipe implements PipeTransform {{ '{' }}
         change-detection pass. Use it sparingly — only when you need to react to
         mutations inside an existing object or array reference.
       </p>
-      <div class="code"><pre>&#64;Pipe({{ '{' }} name: 'highlight', standalone: true, pure: false {{ '}' }})
-export class HighlightPipe implements PipeTransform {{ '{' }}
-  transform(value: string, term: string): string {{ '{' }}
+      <div class="code"><pre>&#64;Pipe(&#123; name: 'highlight', standalone: true, pure: false &#125;)
+export class HighlightPipe implements PipeTransform &#123;
+  transform(value: string, term: string): string &#123;
     if (!term) return value;
-    return value.replace(new RegExp(`(${{ '{' }}term{{ '}' }})`, 'gi'), '&lt;mark&gt;$1&lt;/mark&gt;');
-  {{ '}' }}
-{{ '}' }}
+    return value.replace(new RegExp(&#96;($&#123;term&#125;)&#96;, 'gi'), '&lt;mark&gt;$1&lt;/mark&gt;');
+  &#125;
+&#125;
 
 // Template: bind innerHTML because the pipe returns HTML
 &lt;p [innerHTML]="sentence | highlight: term()"&gt;&lt;/p&gt;</pre></div>
@@ -238,7 +240,7 @@ export class HighlightPipe implements PipeTransform {{ '{' }}
 
       <h2>Key takeaways</h2>
       <ul>
-        <li><code>&#64;Pipe({{ '{' }} name, standalone: true {{ '}' }})</code> + <code>transform(value, ...args)</code> is all you need.</li>
+        <li><code>&#64;Pipe(&#123; name, standalone: true &#125;)</code> + <code>transform(value, ...args)</code> is all you need.</li>
         <li>Pure pipes are memoized — they only re-run when the input reference changes.</li>
         <li>Pipes can <code>inject()</code> services: <code>DatePipe</code>, <code>HttpClient</code>, I18n services…</li>
         <li>For filtering reactive state, prefer <code>computed()</code> over impure pipes.</li>

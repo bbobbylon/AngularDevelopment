@@ -108,7 +108,7 @@ interface Person { name: string; role: string; }
 
 // Template
 &lt;ng-container [ngTemplateOutlet]="view() === 'compact' ? compactTpl : detailedTpl"
-              [ngTemplateOutletContext]="{ $implicit: item }" /&gt;</pre></div>
+              [ngTemplateOutletContext]="&#123; $implicit: item &#125;" /&gt;</pre></div>
 
       <h2>Demo 3 — swap layouts with a signal</h2>
       <div class="demo">
@@ -157,7 +157,7 @@ export class SlotHost &#123;
 
 // Parent
 &lt;ng-template #myRow let-who="who"&gt;
-  &lt;p&gt;Hello &#123;&#123; who &#125;&#125;!&lt;/p&gt;
+  &lt;p&gt;Hello {{ '{{' }} who {{ '}}' }}!&lt;/p&gt;
 &lt;/ng-template&gt;
 &lt;app-slot-host [template]="myRow" [ctx]="&#123; who: 'World' &#125;" /&gt;</pre></div>
 
@@ -198,7 +198,7 @@ export class SlotHost &#123;
         <li><code>&lt;ng-template&gt;</code> is a DOM blueprint — invisible until stamped by an outlet.</li>
         <li><code>[ngTemplateOutlet]</code> renders it; <code>[ngTemplateOutletContext]</code> injects variables.</li>
         <li><code>$implicit</code> → bare <code>let-x</code>; named key → <code>let-x="key"</code>.</li>
-        <li>Signal-driven template swapping replaces repeated <code>@if</code> blocks cleanly.</li>
+        <li>Signal-driven template swapping replaces repeated <code>&#64;if</code> blocks cleanly.</li>
         <li>Pass <code>TemplateRef</code> as an <code>input()</code> to build customizable shell components.</li>
         <li><code>viewChild&lt;TemplateRef&lt;unknown&gt;&gt;('ref')</code> captures a template in TypeScript.</li>
       </ul>
