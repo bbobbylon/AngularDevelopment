@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
 
 type Difficulty = 'junior' | 'mid' | 'senior';
-type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript';
+type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y';
 type ChallengeType = 'multiple-choice' | 'spot-the-bug' | 'predict-output' | 'fill-blank';
 
 interface Challenge {
@@ -3172,6 +3172,364 @@ export class TallyPipe implements PipeTransform {
     topicPath: 'rxjs-interop',
     explanation: 'B is correct. `takeUntilDestroyed()` needs a `DestroyRef`. Called with no argument it uses `inject(DestroyRef)`, which is only legal in an INJECTION CONTEXT — a constructor or a field initializer. If you set up a subscription later (e.g. in `ngOnInit`, which is not an injection context), inject a `DestroyRef` once via `private destroyRef = inject(DestroyRef)` and pass it explicitly: `takeUntilDestroyed(this.destroyRef)`. It auto-completes the stream when the component/service is destroyed, replacing manual `takeUntil(this.destroy$)` boilerplate. Why others fail: (A) outside an injection context the argless form throws. (C) ngOnDestroy is too late to set up a subscription. (D) it works in any injectable — components, services, directives.',
   },
+
+  // ─── BATCH 225-248: SECURITY, TESTING DEPTH, A11Y, JUNIOR ON-RAMPS ───────────
+  {
+    id: 225, type: 'spot-the-bug', difficulty: 'junior', category: 'security',
+    question: 'A user\'s comment contains an onerror script. Does this render a working XSS payload?',
+    code: `@Component({ template: '<div [innerHTML]="comment"></div>' })
+export class CommentView {
+  comment = '<img src=x onerror="stealCookies()">';
+}`,
+    options: [
+      'Yes — [innerHTML] injects raw markup, so the onerror handler runs',
+      'No — Angular\'s built-in DOM sanitizer strips the onerror handler (and scripts) before inserting; the <img> renders inert and the code never runs',
+      'Yes — you must manually escape the string first or it executes',
+      'No — because [innerHTML] silently ignores all <img> tags',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. Binding to `[innerHTML]` runs the value through Angular\'s sanitizer in the HTML security context, which removes dangerous constructs — inline event handlers like `onerror`, `<script>`, `javascript:` URLs — before the markup reaches the DOM. The image is inserted without the handler, so `stealCookies()` never fires. The real danger is deliberately DISABLING this with `DomSanitizer.bypassSecurityTrustHtml(userInput)`. Why others fail: (A/C) sanitization already neutralizes the payload without manual escaping. (D) the tag renders; only the unsafe attribute is stripped.',
+  },
+  {
+    id: 226, type: 'multiple-choice', difficulty: 'mid', category: 'security',
+    question: 'How does `{{ userComment }}` interpolation protect against XSS?',
+    options: [
+      'It runs the string through DOMPurify before rendering',
+      'It renders the value as TEXT — HTML-escaping <, >, & — so markup is shown literally and never parsed into DOM nodes',
+      'It blocks the render entirely if the string contains any HTML tags',
+      'It has no XSS protection; interpolation and [innerHTML] are equally risky',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. Interpolation writes to `textContent`, not `innerHTML`. Characters like `<` and `>` are escaped and displayed as literal text, so `<script>` shows up on screen as harmless characters rather than executing. This is why interpolation is safe by default — the danger only appears when you switch to `[innerHTML]` and bypass sanitization, or write to the DOM directly. Why others fail: (A) no third-party library is involved; it is plain text rendering. (C) tags are shown, not blocked. (D) interpolation is fundamentally safer than raw innerHTML.',
+  },
+  {
+    id: 227, type: 'multiple-choice', difficulty: 'senior', category: 'security',
+    question: 'When is `DomSanitizer.bypassSecurityTrustHtml(value)` dangerous?',
+    options: [
+      'Always — the method is deprecated and should never be called',
+      'When value contains ANY user-controlled data: bypassing tells Angular to skip sanitization, reintroducing XSS. Only bypass for constant, developer-authored, trusted markup',
+      'Only on Internet Explorer, where sanitization is unavailable',
+      'Never — Angular re-sanitizes bypassed values anyway',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. `bypassSecurityTrust*` marks a value as trusted and turns OFF Angular\'s sanitizer for it. That is safe only for markup you fully control and that contains no user/attacker input. The moment any user data flows into a bypassed value, you have a stored/reflected XSS hole. Prefer to restructure so you can bind the raw value (letting Angular sanitize it) or sanitize server-side with a strict allowlist. Why others fail: (A) it is not deprecated — it has legitimate narrow uses. (C) the risk is universal, not browser-specific. (D) once bypassed, Angular trusts it and does not re-sanitize.',
+  },
+  {
+    id: 228, type: 'multiple-choice', difficulty: 'mid', category: 'security',
+    question: 'What happens with `<a [href]="userUrl">` when userUrl is `"javascript:alert(1)"`?',
+    options: [
+      'The script runs when the link is clicked',
+      'Angular sanitizes the URL context and neutralizes the javascript: scheme (rewriting it to "unsafe:javascript:..."), so clicking does nothing',
+      'Angular throws a runtime error and blocks the whole component',
+      'The link works normally — URL binding is not sanitized',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. `[href]`, `[src]`, and similar URL bindings are sanitized in the URL security context. Dangerous schemes like `javascript:` are prefixed with `unsafe:`, producing an inert `unsafe:javascript:alert(1)` that the browser will not execute. Safe schemes (`http`, `https`, `mailto`, `tel`, relative paths) pass through unchanged. Why others fail: (A) the scheme is neutralized before it reaches the DOM. (C) it degrades gracefully, it does not crash. (D) URL bindings ARE sanitized by default.',
+  },
+  {
+    id: 229, type: 'multiple-choice', difficulty: 'senior', category: 'security',
+    question: 'How does Angular\'s HttpClient help defend against CSRF?',
+    options: [
+      'It encrypts every request body automatically',
+      'On mutating same-origin requests it reads the XSRF-TOKEN cookie and echoes it in an X-XSRF-TOKEN header, so the server can verify the request came from your app',
+      'It blocks all cross-origin requests by default',
+      'It adds an Authorization: Bearer header from localStorage',
+    ],
+    answer: 1,
+    topicPath: 'http-interceptors',
+    explanation: 'B is correct. Angular implements the cookie-to-header token pattern: it reads a token your server set in the `XSRF-TOKEN` cookie and sends it back in the `X-XSRF-TOKEN` header on mutating (POST/PUT/DELETE) same-origin requests. Because a malicious cross-site page cannot read your cookie to replay it in a custom header, the server can distinguish genuine requests. Configure names via `provideHttpClient(withXsrfConfiguration({ cookieName, headerName }))`. Why others fail: (A) it does not encrypt bodies (that is TLS). (C) it does not block cross-origin requests (that is CORS). (D) it does not manage bearer tokens for you.',
+  },
+  {
+    id: 230, type: 'spot-the-bug', difficulty: 'senior', category: 'security',
+    question: 'This "render user bio" feature is a stored-XSS hole. Why?',
+    code: `setBio(userBio: string) {
+  // userBio comes straight from the profile API (user-entered)
+  this.safeBio = this.sanitizer.bypassSecurityTrustHtml(userBio);
+}
+// template: <div [innerHTML]="safeBio"></div>`,
+    options: [
+      'bypassSecurityTrustHtml is fine; the bug is using [innerHTML] instead of interpolation',
+      'Calling bypassSecurityTrustHtml on USER-controlled input disables sanitization, so an attacker\'s markup executes. Bind userBio directly (Angular sanitizes it) or sanitize server-side with an allowlist',
+      'The bug is that safeBio should be a signal, not a plain field',
+      'There is no bug — bypassSecurityTrustHtml sanitizes the value first',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. `bypassSecurityTrustHtml` explicitly turns OFF Angular\'s sanitizer for that value. Feeding it user-entered content means any `<script>`/`onerror` an attacker saved in their bio runs for every viewer — classic stored XSS. The fix is to NOT bypass: bind `[innerHTML]="userBio"` so Angular sanitizes it, or if you must allow rich text, sanitize on the server with a strict tag/attribute allowlist. Why others fail: (A) `[innerHTML]` with sanitization is safe; bypassing is the actual bug. (C) signal vs field is irrelevant to the vulnerability. (D) bypassing does the opposite of sanitizing.',
+  },
+  {
+    id: 231, type: 'multiple-choice', difficulty: 'mid', category: 'security',
+    question: 'Why prefer template bindings / Renderer2 over `el.nativeElement.innerHTML = html`?',
+    options: [
+      'Direct DOM writes are slower to parse',
+      'Writing innerHTML through ElementRef bypasses Angular\'s sanitization (XSS risk) and breaks on non-DOM platforms like SSR; bindings and Renderer2 keep sanitization and platform-agnostic rendering',
+      'ElementRef is deprecated and will be removed',
+      'It is fine — nativeElement.innerHTML is sanitized just like [innerHTML]',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. Assigning to `nativeElement.innerHTML` writes raw HTML straight to the DOM with NO sanitization, so any embedded user data becomes an XSS vector. It also assumes a real DOM exists, which breaks server-side rendering and other platforms. Prefer `[innerHTML]`/`[textContent]` bindings (sanitized) or `Renderer2` methods, which are platform-agnostic. Why others fail: (A) performance is not the concern. (C) ElementRef is not deprecated, just to be used carefully. (D) the direct property assignment is NOT sanitized — only the `[innerHTML]` binding is.',
+  },
+  {
+    id: 232, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
+    question: 'Inside fakeAsync, what is the difference between `tick(1000)` and `flush()`?',
+    options: [
+      'They are identical aliases',
+      'tick(1000) advances the virtual clock exactly 1000ms (running callbacks due by then); flush() drains ALL pending macrotasks by advancing time as far as needed until the queue empties',
+      'tick() handles Promises while flush() handles only timers',
+      'flush() advances a fixed 1000ms and tick() advances 1ms',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. `fakeAsync` gives you a virtual clock. `tick(ms)` moves it forward by a precise amount and runs any timers/microtasks scheduled up to that point — use it to assert intermediate timing (e.g. a 300ms debounce). `flush()` repeatedly advances the clock until no timer macrotasks remain, settling everything at once — use it when you just want the async work to finish. `flushMicrotasks()` drains pending Promises without advancing timers. Why others fail: (A) they behave differently. (C) tick drains microtasks too. (D) flush has no fixed duration.',
+  },
+  {
+    id: 233, type: 'spot-the-bug', difficulty: 'senior', category: 'testing',
+    question: 'This fakeAsync test throws "1 periodic timer(s) still in the queue". Why, and how do you fix it?',
+    code: `it('polls the server', fakeAsync(() => {
+  component.startPolling();   // uses setInterval(...)
+  tick(1000);
+  expect(component.count).toBe(1);
+}));  // 💥 Error: 1 periodic timer(s) still in the queue`,
+    options: [
+      'tick() must be replaced with flush() to clear periodic timers',
+      'setInterval registers a PERIODIC task that is still pending when the test ends; fakeAsync requires the queue to be empty. Stop the interval (component.stop()) or call discardPeriodicTasks() before the test returns',
+      'fakeAsync cannot be used with setInterval at all — switch to a real async test',
+      'The interval needs to be created inside the tick() callback',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. `fakeAsync` asserts a clean timer queue at the end of the test to catch leaks. `setInterval` schedules a recurring (periodic) task that never completes on its own, so it is still queued when the test finishes → the error. Fix by tearing down the interval the way production would (`component.stop()` / `ngOnDestroy`), or explicitly call `discardPeriodicTasks()` to drop pending periodic timers before returning. Why others fail: (A) `flush()` also leaves the periodic timer re-scheduling, so it still throws. (C) fakeAsync works fine with intervals when you clean them up. (D) where the interval is created does not change the pending-queue check.',
+  },
+  {
+    id: 234, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'What does marble testing with RxJS TestScheduler give you?',
+    options: [
+      'A way to run Observables on a background thread for speed',
+      'ASCII "marble diagrams" (e.g. `-a-b-|`) to describe timed emissions and assert output diagrams synchronously via scheduler.run(), making time-based operators deterministic without real waiting',
+      'Automatic mocking of HttpClient requests',
+      'A replacement for fakeAsync that only works with Promises',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct. `TestScheduler` runs your stream against a VIRTUAL time frame described by marble strings: `-` is a frame of time, letters are emissions, `|` is complete, `#` is error. Inside `scheduler.run(({ cold, hot, expectObservable }) => ...)` you build inputs and assert the exact emission timing of `debounceTime`, `delay`, `retry`, etc. — all synchronously and deterministically, with no real clock. Why others fail: (A) it does not use threads. (C) HTTP mocking is HttpTestingController\'s job. (D) it targets Observables and virtual time, not just Promises.',
+  },
+  {
+    id: 235, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
+    question: 'What is the advantage of a Component Harness over `fixture.nativeElement.querySelector`?',
+    code: `const loader = TestbedHarnessEnvironment.loader(fixture);
+const button = await loader.getHarness(MatButtonHarness);
+await button.click();`,
+    options: [
+      'Harnesses render components 10x faster',
+      'They expose a semantic behavioral API (click(), getText(), isDisabled()) so tests survive DOM/markup refactors instead of breaking on class or tag changes',
+      'Harnesses only exist for testing forms',
+      'Harnesses remove the need for fixture.detectChanges() entirely',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. A harness wraps a component behind an intent-based API. Your test says `button.click()` / `await input.setValue(\'x\')` instead of querying `.mat-button` and dispatching events. When the internal DOM structure or CSS classes change, only the harness implementation updates — the tests stay green because they assert behavior, not markup. Angular Material ships harnesses for every component; you can build your own by extending `ComponentHarness`. Why others fail: (A) speed is comparable. (C) harnesses work for any component, not just forms. (D) harness methods trigger change detection internally but the concept is about stable, semantic queries.',
+  },
+  {
+    id: 236, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
+    question: 'Why obtain a service with `TestBed.inject(UserService)` rather than `new UserService(...)` in a test?',
+    options: [
+      'new UserService() is a syntax error inside a spec file',
+      'TestBed.inject resolves the service through Angular DI — wiring its dependencies and honoring any test provider overrides — and returns the same instance the component under test receives',
+      'TestBed.inject creates a fresh instance per call, which is what you want',
+      'They are equivalent; TestBed.inject is just shorter',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct. `TestBed.inject` goes through the configured injector, so the service is constructed with its real (or overridden/mocked) dependencies and you get the SAME singleton the components in that TestBed use. `new UserService(...)` forces you to manually build every constructor dependency, ignores any `{ provide, useValue }` mocks you set up, and produces an instance disconnected from the component tree. Why others fail: (A) `new` is legal, just usually wrong here. (C) inject returns the DI singleton, not a fresh instance each call. (D) they differ in dependency wiring and override behavior.',
+  },
+  {
+    id: 237, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'How do you replace a real service with a fake for the component under test?',
+    options: [
+      'Reassign the property: component[\'userService\'] = fake after creation',
+      'Register it in DI: providers: [{ provide: UserService, useValue: fakeUserService }] (or useClass), so every injection of UserService resolves to the fake',
+      'Import the fake instead of the real service in the spec file',
+      'Fakes are not supported; you must hit the real backend',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct. Provider overriding is the DI-native way to inject test doubles. In `configureTestingModule({ providers: [{ provide: UserService, useValue: fake }] })` (or `useClass: MockUserService`), any component/service that injects `UserService` gets the fake — including nested dependencies you never touch directly. For already-built modules use `TestBed.overrideProvider(UserService, { useValue: fake })` before creating the component. Why others fail: (A) reassigning a private field is brittle and misses nested injections. (C) importing does not change what DI resolves. (D) test doubles are the standard practice.',
+  },
+  {
+    id: 238, type: 'spot-the-bug', difficulty: 'junior', category: 'a11y',
+    question: 'This "button" is inaccessible. What is wrong and how do you fix it?',
+    code: `<div class="btn" (click)="save()">Save</div>`,
+    options: [
+      'Nothing — a click handler makes any element a button',
+      'A <div> is not keyboard-focusable, has no button role, and screen readers do not announce it as actionable. Use <button (click)="save()"> (or add role="button", tabindex="0", and an Enter/Space keydown handler)',
+      'The bug is the CSS class name; rename it to "button"',
+      'You must add (mouseover) alongside (click) for accessibility',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. A clickable `<div>` only responds to mouse clicks: keyboard users cannot Tab to it or activate it with Enter/Space, and assistive tech announces it as plain text, not a control. The right fix is the native `<button>`, which is focusable, keyboard-operable, and announced as a button for free. If a non-button element is unavoidable, you must manually add `role="button"`, `tabindex="0"`, and a keydown handler for Enter and Space. Why others fail: (A) a handler alone gives no keyboard/role semantics. (C) the class name is irrelevant to accessibility. (D) hover is not an accessibility affordance.',
+  },
+  {
+    id: 239, type: 'multiple-choice', difficulty: 'mid', category: 'a11y',
+    question: 'What makes an icon-only button `<button><svg>…</svg></button>` accessible?',
+    options: [
+      'Adding a title attribute to the <svg> only',
+      'Give the button an accessible name (aria-label="Delete" or visually-hidden text) since there is no visible label, and mark the decorative icon aria-hidden="true"',
+      'Wrapping it in a <div role="button">',
+      'Nothing — screen readers read the SVG path data aloud',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. A button with only an icon has no text for a screen reader to announce, so it reads as an unlabeled button. Provide an accessible name with `aria-label` (or a visually-hidden `<span>` with real text), and hide the purely decorative glyph from assistive tech with `aria-hidden="true"` on the icon. Why others fail: (A) `title` on the SVG is unreliable across screen readers and not a substitute for an accessible name. (C) a div wrapper adds nothing and loses native button semantics. (D) screen readers do not narrate SVG path data.',
+  },
+  {
+    id: 240, type: 'multiple-choice', difficulty: 'senior', category: 'a11y',
+    question: 'When a modal dialog opens, what must you manage for accessibility?',
+    options: [
+      'Only add a semi-transparent backdrop behind it',
+      'Move focus into the dialog, TRAP focus within it (Tab cycles inside, not to the page behind), and restore focus to the trigger on close; also set role="dialog" aria-modal="true"',
+      'Disable the keyboard entirely while the dialog is open',
+      'Nothing special — the browser handles modal focus automatically for <div> dialogs',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. An accessible modal takes focus on open, confines Tab/Shift+Tab to elements inside it so keyboard and screen-reader users cannot wander into the inert background, and returns focus to the element that opened it when it closes. Semantically it needs `role="dialog"` with `aria-modal="true"` and a label (`aria-labelledby`/`aria-label`). Angular CDK\'s `a11y` module (`cdkTrapFocus` / `FocusTrap`, `FocusMonitor`) implements this. Why others fail: (A) a backdrop is visual only, not a focus boundary. (C) disabling the keyboard breaks all keyboard users. (D) a plain `<div>` gets none of this for free.',
+  },
+  {
+    id: 241, type: 'multiple-choice', difficulty: 'mid', category: 'a11y',
+    question: 'How do you announce a dynamic status like "3 results found" to screen readers?',
+    options: [
+      'Show a toast with a bright color so it stands out',
+      'Put the message in an aria-live region (aria-live="polite") — or use Angular CDK\'s LiveAnnouncer.announce() — so assistive tech reads the change without moving focus',
+      'Call element.focus() on the results heading each time',
+      'Nothing is needed — screen readers re-read the whole page on any DOM change',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. Silent DOM updates are invisible to screen-reader users. An ARIA live region (`aria-live="polite"` announces when the user is idle; `"assertive"` interrupts) tells assistive tech to read out changes to that region automatically. Angular CDK\'s `LiveAnnouncer.announce(\'3 results found\')` manages a visually-hidden live region for you. Why others fail: (A) color is a purely visual cue. (C) yanking focus on every update is disorienting and hijacks the user\'s place. (D) screen readers do NOT re-read the page on arbitrary DOM changes.',
+  },
+  {
+    id: 242, type: 'multiple-choice', difficulty: 'mid', category: 'a11y',
+    question: 'How should animations respect users prone to motion sickness?',
+    options: [
+      'Make all animations shorter than 500ms',
+      'Honor the prefers-reduced-motion media query — gate non-essential motion behind @media (prefers-reduced-motion: no-preference), or disable Angular animations when the user prefers reduced motion',
+      'Only animate on desktop, never on mobile',
+      'Add a manual "turn off animations" toggle and nothing else',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. The OS-level `prefers-reduced-motion` setting signals users who experience discomfort from motion. Respect it by wrapping non-essential animation CSS in `@media (prefers-reduced-motion: no-preference)` (so it only runs when motion is welcome), or by disabling large parallax/slide/zoom effects in Angular when the query matches. Keep essential feedback but drop gratuitous motion. Why others fail: (A) shorter is still motion. (C) motion sensitivity is not platform-specific. (D) a custom toggle ignores the standard OS preference users already set.',
+  },
+  {
+    id: 243, type: 'spot-the-bug', difficulty: 'junior', category: 'components',
+    question: 'This button is always disabled, even when isDisabled is false. Why?',
+    code: `@Component({
+  template: '<button disabled="{{ isDisabled }}">Go</button>',
+})
+export class Toolbar {
+  isDisabled = false;
+}`,
+    options: [
+      'isDisabled must be a string, not a boolean',
+      'Attribute interpolation produces the STRING "false", and any non-empty disabled attribute disables the button. Use property binding: [disabled]="isDisabled"',
+      'You must add [(ngModel)] to two-way bind the disabled state',
+      'The template needs standalone: true to evaluate the interpolation',
+    ],
+    answer: 1,
+    topicPath: 'property-binding',
+    explanation: 'B is correct. `disabled="{{ isDisabled }}"` is attribute interpolation, which always yields a STRING. The presence of a `disabled` attribute with value `"false"` still disables the button — HTML boolean attributes are truthy whenever present with any value. Property binding `[disabled]="isDisabled"` sets the DOM property to the actual boolean, so `false` correctly enables the button (Angular removes the attribute). Why others fail: (A) isDisabled is correctly a boolean; the bug is the binding form. (C) ngModel is for form values, not this. (D) standalone has nothing to do with interpolation.',
+  },
+  {
+    id: 244, type: 'spot-the-bug', difficulty: 'junior', category: 'signals',
+    question: 'The template shows something like "() => …" instead of 0. What is missing?',
+    code: `@Component({ template: '<p>Count: {{ count }}</p>' })
+export class Counter {
+  count = signal(0);
+}`,
+    options: [
+      'signal(0) should be signal({ value: 0 })',
+      'A signal is a getter FUNCTION — you must call it to read its value: {{ count() }}. Writing {{ count }} renders the function itself, not 0',
+      'You must import CommonModule to display signals',
+      'The signal must be marked readonly before it renders',
+    ],
+    answer: 1,
+    topicPath: 'signals',
+    explanation: 'B is correct. Signals are accessed by CALLING them: `count()` returns the current value and registers the template as a reader so it updates on change. `{{ count }}` interpolates the signal function object itself (Angular stringifies it), not the number. The fix is `{{ count() }}`. This "forgot the parentheses" mistake is the most common signals gotcha. Why others fail: (A) `signal(0)` is the correct creation syntax. (C) signals render without CommonModule. (D) readonly affects writability, not whether it displays.',
+  },
+  {
+    id: 245, type: 'spot-the-bug', difficulty: 'junior', category: 'forms',
+    question: 'This input throws "Can\'t bind to \'ngModel\'". What is missing?',
+    code: `@Component({
+  standalone: true,
+  imports: [],
+  template: '<input [(ngModel)]="name" />',
+})
+export class NameField {
+  name = '';
+}`,
+    options: [
+      'ngModel is deprecated; you must use a Reactive FormControl',
+      'The two-way [(ngModel)] binding needs FormsModule — add it to the component\'s imports array',
+      'name must be declared as a signal for ngModel to work',
+      '[(ngModel)] must be written as [ngModel] with a separate (ngModelChange)',
+    ],
+    answer: 1,
+    topicPath: 'template-forms',
+    explanation: 'B is correct. `ngModel` is provided by `FormsModule`. In a standalone component you must add it to `imports: [FormsModule]`; otherwise Angular does not recognize the `ngModel` directive and reports "Can\'t bind to \'ngModel\' since it isn\'t a known property of \'input\'". Why others fail: (A) template-driven `ngModel` is fully supported, just not imported here. (C) `ngModel` works with a plain string property. (D) `[(ngModel)]` is valid banana-in-a-box sugar; splitting it does not fix the missing import.',
+  },
+  {
+    id: 246, type: 'spot-the-bug', difficulty: 'junior', category: 'components',
+    question: 'This @for block fails to compile. What is required?',
+    code: `@for (item of items) {
+  <li>{{ item.name }}</li>
+}`,
+    options: [
+      '@for must be written as *ngFor with a template',
+      'The built-in @for REQUIRES a track expression — add "; track item.id" (or "; track item"). It is mandatory, not optional',
+      'items must be a signal for @for to iterate it',
+      'You must add an @empty block or @for will not compile',
+    ],
+    answer: 1,
+    topicPath: 'control-flow-for',
+    explanation: 'B is correct. Unlike the old `*ngFor`, the built-in `@for` block makes the track expression MANDATORY: `@for (item of items; track item.id) { … }`. `track` tells Angular how to identify each item so it can reuse DOM nodes efficiently across updates; omitting it is a compile-time error. Use a stable unique id when available, or `track item` / `track $index` for primitive lists. Why others fail: (A) `@for` is the modern replacement for `*ngFor`, not the other way around. (C) `@for` iterates any iterable, not only signals. (D) `@empty` is optional; the missing `track` is the error.',
+  },
+  {
+    id: 247, type: 'multiple-choice', difficulty: 'junior', category: 'components',
+    question: 'When must you use `[prop]="expr"` instead of `prop="{{ expr }}"`?',
+    options: [
+      'Never — the two forms are always interchangeable',
+      'When the target expects a non-string (boolean, number, object) or a real DOM property — attribute interpolation always produces a string, so [disabled]="false" works but disabled="{{false}}" sets the truthy string "false"',
+      'Only when binding to custom components, never native elements',
+      'Only inside @if blocks',
+    ],
+    answer: 1,
+    topicPath: 'property-binding',
+    explanation: 'B is correct. `prop="{{ expr }}"` (attribute interpolation) coerces the result to a STRING, which is fine for text but wrong for booleans, numbers, and objects. Property binding `[prop]="expr"` passes the real typed value to the DOM property or `@Input()`. Classic trap: `[disabled]="isOpen"` sets the boolean, whereas `disabled="{{ isOpen }}"` always yields a non-empty string that keeps the control disabled. For plain string values either form works. Why others fail: (A) they diverge for non-string types. (C) the rule applies to native elements too (disabled, hidden, value). (D) it is unrelated to control-flow blocks.',
+  },
+  {
+    id: 248, type: 'spot-the-bug', difficulty: 'junior', category: 'components',
+    question: 'The page shows "[object Object]" where a name should be. Why?',
+    code: `@Component({ template: '<p>{{ user$ }}</p>' })
+export class Profile {
+  private http = inject(HttpClient);
+  user$ = this.http.get<{ name: string }>('/api/me');
+}`,
+    options: [
+      'http.get returns a Promise, so you must await it in the template',
+      'user$ is an Observable — interpolating it renders the object, not its value. Subscribe via the async pipe: {{ (user$ | async)?.name }}',
+      'The URL is wrong; /api/me returns nothing',
+      'You must call user$.value to read the current value',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-observables',
+    explanation: 'B is correct. `http.get(...)` returns an Observable, and interpolating the Observable object itself just stringifies it (`[object Object]`). Use the `async` pipe to subscribe, unwrap the emitted value, and auto-unsubscribe on destroy: `{{ (user$ | async)?.name }}` — or assign it with `@let user = user$ | async`. Why others fail: (A) HttpClient returns an Observable, not a Promise, and templates cannot await. (C) the request is fine; the display is the bug. (D) plain Observables have no synchronous `.value` (that is a BehaviorSubject).',
+  },
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -3236,7 +3594,7 @@ function shuffle<T>(arr: T[]): T[] {
       <span class="pill">Interactive Practice</span>
       <h1>Practice Challenges</h1>
       <p>
-        224 challenges across all levels — spot bugs, predict output, and answer
+        248 challenges across all levels — spot bugs, predict output, and answer
         multiple-choice questions. Every answer comes with a full explanation.
         Questions are randomized each session.
       </p>
@@ -3409,6 +3767,8 @@ export class Practice {
     { id: 'testing', label: 'Testing' },
     { id: 'performance', label: 'Performance' },
     { id: 'typescript', label: 'TypeScript' },
+    { id: 'security', label: 'Security' },
+    { id: 'a11y', label: 'Accessibility' },
   ];
 
   readonly diffFilters: { id: 'all' | Difficulty; label: string }[] = [
