@@ -25,9 +25,14 @@ const CHALLENGES: Challenge[] = [
   {
     id: 1, type: 'multiple-choice', difficulty: 'junior', category: 'components',
     question: 'Which decorator turns a class into an Angular component?',
-    options: ['@NgModule', '@Component', '@Injectable', '@Directive'],
+    options: [
+      '@NgModule — groups related components and services into a module',
+      '@Component — declares a reusable UI element with template and styles',
+      '@Injectable — marks a class available for dependency injection',
+      '@Directive — adds behavior to elements without creating a template',
+    ],
     answer: 1,
-    explanation: '@Component marks a class as an Angular component and configures its template, styles, and selector. Here\'s why the other answers are wrong: (A) @NgModule configures a module that groups components and services together. (C) @Injectable marks a service for dependency injection. (D) @Directive creates a reusable attribute or structural directive (like ngIf, ngFor) that adds behavior to elements without defining its own template.',
+    explanation: '@Component marks a class as an Angular component and configures its template, styles, and selector. It creates a self-contained, reusable UI building block. Why others fail: (A) @NgModule groups multiple components and services into a feature or shared module. (C) @Injectable enables any class (services, guards, resolvers) to be injected; not specific to components. (D) @Directive adds reusable behavior to existing elements without managing its own view.',
     topicPath: 'components',
   },
   {
@@ -41,13 +46,13 @@ export class GreetingComponent {
   name = 'World';
 }`,
     options: [
-      'The selector must start with "my-" not "app-"',
-      'The template is missing double curly braces: {{ name }} should be {{ "{{" }} name {{ "}}" }}',
-      'The component must implement OnInit',
-      'standalone: true is missing from the decorator',
+      'The selector must start with a custom prefix like "my-" instead of "app-"',
+      'The template correctly uses {{ name }} interpolation syntax (the question displays it escaped)',
+      'The component must implement the OnInit lifecycle hook interface',
+      'The standalone: true flag is missing from the @Component decorator',
     ],
     answer: 3,
-    explanation: 'Modern Angular uses standalone components. Without standalone: true in the @Component decorator, the component must be declared in an NgModule. In a standalone-first project, adding standalone: true (or standalone: false explicitly) makes the intent clear. The template interpolation {{ name }} is actually correct syntax — the question displays it escaped.',
+    explanation: 'Modern Angular uses standalone-first architecture. In projects without NgModules, components must declare standalone: true in their @Component decorator, either explicitly or implicitly through schema assumptions. The template syntax {{ name }} is correct. Why others fail: (A) Selectors can use any prefix; "app-" is conventional. (B) Interpolation is correct syntax. (C) OnInit is only required if you need lifecycle hooks.',
   },
   {
     id: 3, type: 'predict-output', difficulty: 'mid', category: 'components',
@@ -62,21 +67,21 @@ class Counter { count = 0; }
 fixture.nativeElement.querySelector('button').click();
 fixture.nativeElement.querySelector('button').click();
 fixture.detectChanges();`,
-    options: ['0', '1', '2', 'undefined'],
+    options: ['0 — count was never incremented before the query', '1 — detectChanges runs once after the second click', '2 — each click increments by 1, detectChanges re-renders', 'undefined — the span contains no text initially'],
     answer: 2,
-    explanation: 'Each click() increments count by 1. Two clicks make count = 2. fixture.detectChanges() re-renders the template with the updated value, so the span shows "2".',
+    explanation: 'Each click() increments count by 1. Two clicks make count = 2. fixture.detectChanges() triggers Angular\'s change detection and re-renders the template with the updated value, so the span text becomes "2". Why others fail: (A) Clicks happen before detectChanges. (B) detectChanges renders the final state. (D) The span displays the interpolated value once detectChanges runs.',
   },
   {
     id: 4, type: 'multiple-choice', difficulty: 'mid', category: 'components',
-    question: 'When does ngOnChanges fire?',
+    question: 'When does ngOnChanges fire relative to component initialization?',
     options: [
-      'Only on the first render',
-      'Every time change detection runs',
-      'Every time an @Input() value changes (before ngOnInit on first change)',
-      'Only when the component is destroyed',
+      'Only once during initial component creation, before ngOnInit runs',
+      'Every time change detection runs, regardless of whether @Input values change',
+      'Before ngOnInit on first render if inputs exist; then whenever an @Input reference changes',
+      'Only when the component is destroyed or an @Input is removed from the template',
     ],
     answer: 2,
-    explanation: 'ngOnChanges fires before ngOnInit on the first render (if there are inputs), and then every time an @Input() reference changes. It receives a SimpleChanges object with previous and current values. It does NOT fire for signal inputs — those are reactive by default.',
+    explanation: 'ngOnChanges fires before ngOnInit on the first render (if the component has @Input properties), then fires again whenever any @Input reference changes. It receives a SimpleChanges object showing previous and current values. Note: it does NOT fire for signal inputs — those are reactive by default and do not use ngOnChanges. Why others fail: (A) Fires on first render but also on subsequent @Input changes. (B) Fires on @Input changes, not on every CD pass. (D) Fires throughout the component lifecycle, not just at end.',
   },
 
   // --- SIGNALS ---
@@ -86,9 +91,14 @@ fixture.detectChanges();`,
     code: `const count = signal(0);
 count.set(5);
 count.update(n => n * 2);`,
-    options: ['0', '5', '10', '25'],
+    options: [
+      'count() returns 0 (the initial value before any modifications)',
+      'count() returns 5 (the value after set(), before update())',
+      'count() returns 10 (set to 5, then multiplied by 2)',
+      'count() returns 25 (5 squared due to update)',
+    ],
     answer: 2,
-    explanation: 'signal(0) creates a signal with initial value 0. set(5) replaces it entirely with 5. update(n => n * 2) reads the current value (5) and sets it to the result of the callback (5 * 2 = 10). Why others are wrong: (A) 0 is the initial value, not the final. (B) 5 is the value after set(), but before update(). (D) 25 would require 5 * 5, which doesn\'t match our logic.',
+    explanation: 'signal(0) creates a signal with initial value 0. set(5) replaces the value with 5. update(n => n * 2) reads the current value (5) and updates it to 5 * 2 = 10. So count() returns 10. Why others fail: (A) 0 is the initial state before modifications. (B) 5 was the intermediate value after set(), but before update() runs. (D) The callback multiplies by 2, not squares the value.',
     topicPath: 'signals',
   },
   {
@@ -100,32 +110,32 @@ const total = computed(() => {
   return price + tax;  // ???
 });`,
     options: [
-      'computed() must be assigned to a const, not let',
-      'price and tax are signals — they must be called as functions: price() and tax()',
-      'You cannot add a number signal and a decimal signal',
-      'computed() must return an Observable, not a plain value',
+      'computed() cannot be assigned to const; must use let with a specific generic type',
+      'price and tax are signals — must call as functions to read: price() + price() * tax()',
+      'Cannot add a numeric signal with a decimal signal due to type incompatibility',
+      'computed() must return an Observable<T>, not a plain numeric value',
     ],
     answer: 1,
-    explanation: 'Signals are functions — to read their current value you must call them: price() and tax(). Writing price + tax adds the signal function objects together (NaN), not their values. The fix: return price() + price() * tax();',
+    explanation: 'Signals are getter functions — to read their current value you must call them: price() and tax(). Writing price + tax tries to add the signal function objects together (resulting in NaN), not their values. The fix is: return price() + price() * tax() for the calculated total. Why others fail: (A) const is the correct declaration for computed. (C) Addition works on numbers regardless of integer or decimal type. (D) computed() returns a Signal<T>, not an Observable.',
   },
   {
     id: 7, type: 'multiple-choice', difficulty: 'mid', category: 'signals',
-    question: 'Which of these correctly describes the difference between computed() and effect()?',
+    question: 'What is the key difference between computed() and effect()?',
     options: [
-      'computed() is synchronous and returns a value; effect() runs side-effects when signals change',
-      'They are the same — effect() is just the async version of computed()',
-      'computed() is for templates only; effect() is for services',
-      'effect() returns a signal; computed() returns a plain value',
+      'computed() is lazy and memoized, returning a Signal<T>; effect() runs immediately with side effects on each dependency change',
+      'They are functionally identical; effect() is just the recommended async alternative to computed()',
+      'computed() works in templates; effect() works only in services and components',
+      'effect() returns a writable signal; computed() returns a read-only signal value',
     ],
     answer: 0,
-    explanation: 'computed() derives a new signal value from other signals — it is lazy and memoized. effect() runs arbitrary side-effect code (DOM writes, localStorage saves, logging) when its reactive dependencies change. computed() returns a Signal<T>; effect() returns an EffectRef.',
+    explanation: 'computed() derives a new signal value from other signals — it is lazy (only runs when read) and memoized (cached until dependencies change), returning Signal<T>. effect() runs arbitrary side-effect code (logging, DOM writes, API calls) whenever its reactive dependencies change. Use computed() for derived state; use effect() for imperative side effects. Why others fail: (B) They serve different purposes. (C) Both can be used in any context. (D) Both return their respective types.',
   },
   {
     id: 8, type: 'spot-the-bug', difficulty: 'senior', category: 'signals',
-    question: 'This store has a design problem. What is it?',
+    question: 'This store has a serious encapsulation problem. What is it?',
     code: `@Injectable({ providedIn: 'root' })
 export class CartStore {
-  readonly items = signal<Item[]>([]);  // public writable!
+  readonly items = signal<Item[]>([]);  // exposed writable signal!
 
   readonly total = computed(() =>
     this.items().reduce((s, i) => s + i.price, 0)
@@ -133,34 +143,34 @@ export class CartStore {
 }
 
 // In a component:
-cartStore.items.set([]);   // clears cart directly`,
+cartStore.items.set([]);   // can mutate store directly`,
     options: [
-      'signal() cannot be used in a service',
-      'items should be private with a readonly public signal via .asReadonly()',
-      'computed() cannot reference a signal from the same class',
-      'The store must extend an NgRx store base class',
+      'signal() cannot be used in services; must use BehaviorSubject instead',
+      'items should be private with a public readonly via .asReadonly() to prevent direct mutations',
+      'computed() is not allowed to reference signals from the same store class',
+      'Services with writable state must extend NgRx StoreModule or provide lifecycle hooks',
     ],
     answer: 1,
-    explanation: 'Exposing a writable signal publicly breaks encapsulation — any component can mutate store state directly, bypassing any validation or business logic. The fix: make it private readonly _items = signal([]) and expose readonly items = this._items.asReadonly(). Mutations should go through explicit methods like add(item) and remove(id).',
+    explanation: 'Exposing a writable signal publicly breaks encapsulation — any component can mutate store state directly, bypassing validation or business logic. The fix: make it private readonly _items = signal([]) and expose readonly items = this._items.asReadonly(). All mutations should go through explicit methods like add(item) and remove(id). Why others fail: (A) Signals work perfectly in services. (C) computed() can reference signals from the same class. (D) Signals are a simpler alternative to NgRx.',
   },
 
   // --- RxJS ---
   {
     id: 9, type: 'multiple-choice', difficulty: 'junior', category: 'rxjs',
-    question: 'What is the difference between map() and switchMap()?',
+    question: 'What is the key difference between map() and switchMap()?',
     options: [
-      'map() transforms each value; switchMap() is for filtering',
-      'map() transforms each value synchronously; switchMap() projects each value to a new Observable and cancels the previous one',
-      'They are identical operators with different names',
-      'switchMap() is for arrays; map() is for Observables',
+      'map() transforms values synchronously; switchMap() discards previous requests when a new one arrives',
+      'map() is for filtering streams; switchMap() is for transforming values',
+      'They are aliases for the same operator with different names',
+      'switchMap() works only with Observables; map() works with any iterable',
     ],
-    answer: 1,
-    explanation: 'map() transforms each emitted value (like Array.map for streams). switchMap() "switches" to a new inner Observable for each emission, cancelling any in-flight inner Observable. This makes switchMap() perfect for HTTP requests where you want to cancel the previous request if a new one arrives (e.g., typeahead search). Why others fail: (A) switchMap() isn\'t for filtering; use filter() for that. (C) They\'re completely different operators. (D) Both work with Observables; switchMap() is actually an upgrade for Observable-returning functions.',
+    answer: 0,
+    explanation: 'map() transforms each emitted value using a synchronous function (like Array.map for streams). switchMap() projects each value to a new inner Observable and automatically cancels/unsubscribes from the previous inner Observable, "switching" to the new one. This makes switchMap() essential for HTTP requests where you want to discard stale responses (e.g., typeahead search). Why others fail: (B) switchMap() is not for filtering; use filter() for that. (C) They are completely different operators with distinct use cases. (D) Both work with Observables; switchMap() is actually designed for Observable-returning functions.',
     topicPath: 'rxjs-operators',
   },
   {
     id: 10, type: 'spot-the-bug', difficulty: 'mid', category: 'rxjs',
-    question: 'This code has a memory leak. Where?',
+    question: 'This component has a memory leak. Where is it?',
     code: `@Component({ standalone: true, template: '...' })
 export class DataComponent implements OnInit {
   data = signal<User[]>([]);
@@ -169,54 +179,59 @@ export class DataComponent implements OnInit {
 
   ngOnInit() {
     this.userService.users$.subscribe(users => {
-      this.data.set(users);  // leak!
+      this.data.set(users);
     });
   }
 }`,
     options: [
-      'signal() cannot be set inside a subscribe callback',
-      'The subscription is never unsubscribed — it leaks when the component is destroyed',
-      'users$ must be piped through async before subscribing',
-      'ngOnInit must be async to use subscribe()',
+      'signal() cannot be modified inside a subscribe callback; must use signals() instead',
+      'The subscription is never unsubscribed; component destruction leaves the subscription active',
+      'users$ must be transformed with the async pipe before subscribing in TypeScript',
+      'ngOnInit cannot contain manual subscriptions; async operations must use async/await',
     ],
     answer: 1,
-    explanation: 'When the component is destroyed, the subscription to users$ keeps running, causing a memory leak and potential errors. Fix options: (1) Use takeUntilDestroyed(inject(DestroyRef)) to auto-unsubscribe, (2) use toSignal(this.userService.users$) which auto-unsubscribes, or (3) use the async pipe in the template.',
+    explanation: 'When the component is destroyed, the subscription to users$ keeps running, creating a memory leak and potential errors when updating a destroyed component. Fix options: (1) Use takeUntilDestroyed(inject(DestroyRef)) in the pipe. (2) Use toSignal(this.userService.users$) which auto-unsubscribes. (3) Use the async pipe in the template instead of manual subscribe. Why others fail: (A) Signals can be set in subscribe callbacks. (C) The async pipe is an alternative, not a requirement. (D) Manual subscriptions are fine if properly cleaned up.',
   },
   {
     id: 11, type: 'multiple-choice', difficulty: 'mid', category: 'rxjs',
-    question: 'Which flattening operator should you use for an HTTP search call that should cancel if the user types again?',
-    options: ['mergeMap', 'concatMap', 'exhaustMap', 'switchMap'],
-    answer: 3,
-    explanation: 'switchMap cancels the previous inner Observable when a new value arrives — perfect for typeahead search where you want to discard stale HTTP requests. mergeMap runs all concurrently (wrong — stale responses can arrive late). concatMap queues them (wrong — slow). exhaustMap ignores new values while one is in flight (right for form submit, wrong for search).',
+    question: 'Which flattening operator should you use for an HTTP search that cancels stale requests?',
+    options: [
+      'mergeMap — runs all requests concurrently and emits all results',
+      'concatMap — queues requests sequentially for guaranteed order',
+      'switchMap — cancels previous request and switches to the new one',
+      'exhaustMap — ignores new requests while one is in flight',
+    ],
+    answer: 2,
+    explanation: 'switchMap cancels the previous inner Observable when a new value arrives — perfect for typeahead search where you want to discard stale HTTP requests. If the user types again, the old request is cancelled and the new one runs. Why others fail: (A) mergeMap runs all concurrently, so stale responses can arrive late and overwrite newer data. (B) concatMap queues them sequentially, which is too slow for search. (D) exhaustMap ignores new requests while one is pending, which prevents rapid searches from working correctly.',
   },
   {
     id: 12, type: 'predict-output', difficulty: 'mid', category: 'rxjs',
-    question: 'What values does this Observable emit?',
+    question: 'What values does this Observable emit to console.log?',
     code: `of(1, 2, 3).pipe(
   filter(n => n % 2 !== 0),
   map(n => n * 10)
 ).subscribe(console.log);`,
-    options: ['1, 2, 3', '10, 20, 30', '10, 30', '1, 3'],
+    options: ['1, 2, 3 — all values are emitted unchanged', '10, 20, 30 — all values are multiplied by 10', '10, 30 — odd numbers filtered then multiplied', '1, 3 — filter keeps odds but map is not applied'],
     answer: 2,
-    explanation: 'filter(n => n % 2 !== 0) keeps only odd numbers: 1 and 3. map(n => n * 10) multiplies each by 10: 10 and 30. So console.log is called with 10, then 30.',
+    explanation: 'filter(n => n % 2 !== 0) keeps only odd numbers: 1 and 3. map(n => n * 10) multiplies each by 10: 10 and 30. So console.log is called twice with 10, then 30. Why others fail: (A) Filter removes the even number (2). (B) Filter removes 2 before map runs. (D) Map is definitely applied to filtered values.',
   },
 
   // --- FORMS ---
   {
     id: 13, type: 'multiple-choice', difficulty: 'junior', category: 'forms',
-    question: 'What is the difference between Template-driven and Reactive forms?',
+    question: 'What is the fundamental difference between Template-driven and Reactive forms?',
     options: [
-      'Template-driven forms are faster; reactive forms are more powerful',
-      'Template-driven forms use ngModel and are defined in the template; reactive forms define the structure in the class with FormControl/FormGroup',
-      'They are the same API with different syntax',
-      'Reactive forms work with signals; template-driven forms do not',
+      'Template-driven is faster; Reactive is more powerful and flexible',
+      'Template-driven uses ngModel and derives state from template; Reactive uses FormControl/FormGroup in component',
+      'They are equivalent; different teams just prefer different syntax',
+      'Reactive forms support signals; Template-driven only works with zones',
     ],
     answer: 1,
-    explanation: 'Template-driven forms (FormsModule, ngModel) derive the form model from the template — easy for simple forms but hard to test. Reactive forms (ReactiveFormsModule, FormControl/FormGroup/FormBuilder) define the structure in the component class — more explicit, easier to test, required for complex forms with dynamic controls.',
+    explanation: 'Template-driven forms (FormsModule, ngModel) let the template drive the form model — easier for simple forms but harder to test and validate. Reactive forms (ReactiveFormsModule, FormControl/FormGroup/FormBuilder) define the structure in the component class — explicit, testable, and required for complex forms with dynamic controls. Why others fail: (A) Speed is similar; power/flexibility is the real difference. (C) They are architecturally different approaches. (D) Both can work with signals or zones.',
   },
   {
     id: 14, type: 'spot-the-bug', difficulty: 'mid', category: 'forms',
-    question: 'Why is this reactive form always invalid even when the user fills in the field?',
+    question: 'Why does this reactive form validation fail when the user enters valid data?',
     code: `form = new FormGroup({
   email: new FormControl('', [Validators.required, Validators.email]),
 });
@@ -224,31 +239,31 @@ export class DataComponent implements OnInit {
 // template:
 // <input [formControl]="form.get('email')" />`,
     options: [
-      'FormGroup should be FormBuilder',
-      'The template uses [formControl] incorrectly — form.get("email") returns AbstractControl | null, not FormControl',
-      'Validators.email is not a real validator',
-      'The form needs ngSubmit to become valid',
+      'FormGroup requires FormBuilder; direct constructor is deprecated',
+      'form.get("email") returns AbstractControl | null; must cast or use type-safe accessor',
+      'Validators.email is not included in @angular/forms; must import separately',
+      'The form needs ngSubmit before change detection recognizes validation state',
     ],
     answer: 1,
-    explanation: 'form.get("email") returns AbstractControl | null, which is not directly assignable to [formControl] which expects FormControl. This causes a type error that may also break runtime binding. Fix: name the control explicitly: emailCtrl = this.form.get("email") as FormControl, then use [formControl]="emailCtrl".',
+    explanation: 'form.get("email") returns AbstractControl | null (could be undefined), but [formControl] expects FormControl<T>. This type mismatch causes binding issues. Fix: create a typed control variable: emailCtrl = this.form.get("email") as FormControl; then use [formControl]="emailCtrl". Better yet, use FormBuilder which is type-safe. Why others fail: (A) FormBuilder is recommended but direct constructor works. (C) Validators.email is built-in. (D) Validation runs regardless of ngSubmit.',
   },
 
   // --- ROUTING ---
   {
     id: 15, type: 'multiple-choice', difficulty: 'junior', category: 'routing',
-    question: 'What does a route guard\'s CanActivateFn return to allow navigation?',
+    question: 'What should a route guard\'s CanActivateFn return to allow navigation?',
     options: [
-      'null',
-      'true or a UrlTree to redirect',
-      'void',
-      'An Observable that never completes',
+      'null to indicate no decision has been made',
+      'true to allow, false to block, or UrlTree to redirect',
+      'void to indicate the guard is complete',
+      'An Observable that emits true or false',
     ],
     answer: 1,
-    explanation: 'A CanActivateFn returns true (or Promise/Observable of true) to allow navigation, false to block it, or a UrlTree (created via Router.createUrlTree()) to redirect instead. Returning false just blocks — returning a UrlTree redirects, which is the correct way to send unauthenticated users to /login.',
+    explanation: 'CanActivateFn returns: true (or Promise/Observable of true) to allow navigation, false to block it, or a UrlTree (created via Router.createUrlTree()) to redirect. Returning false just blocks the current route; returning a UrlTree redirects to another route — this is the correct way to send unauthenticated users to /login. Why others fail: (A) null/undefined is falsy and blocks. (C) void is not a valid guard return. (D) It can return an Observable, but not required.',
   },
   {
     id: 16, type: 'spot-the-bug', difficulty: 'mid', category: 'routing',
-    question: 'This guard has a bug that allows unauthenticated users through. What is it?',
+    question: 'This guard allows unauthenticated users through. What is the bug?',
     code: `export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   if (auth.isLoggedIn()) {
@@ -258,54 +273,53 @@ export class DataComponent implements OnInit {
   // missing return!
 };`,
     options: [
-      'inject() cannot be called inside a function guard',
-      'The guard returns undefined when the user is not logged in — Angular treats undefined as allowed',
-      'Router.navigate() should be Router.createUrlTree()',
-      'CanActivateFn must return an Observable',
+      'inject() cannot be called inside a function guard; must be in constructor',
+      'When isLoggedIn() is false, the function returns undefined, which Angular allows as truthy',
+      'Router.navigate() is async; must await or use createUrlTree() instead',
+      'CanActivateFn must return an Observable, not a synchronous boolean',
     ],
     answer: 1,
-    explanation: 'When isLoggedIn() is false, the function calls navigate() but then falls off the end and returns undefined. Angular treats undefined as truthy in some versions and allows navigation through. The fix: return inject(Router).createUrlTree([\'/login\']) which both redirects AND explicitly blocks the original route. Never call navigate() inside a guard — return a UrlTree instead.',
+    explanation: 'When isLoggedIn() is false, navigate() is called but the function falls off the end and returns undefined. Angular treats undefined as allowing navigation (falsy but not explicitly false). The fix: return inject(Router).createUrlTree(["/login"]) which both redirects AND explicitly blocks. Never call navigate() in a guard — return a UrlTree. Why others fail: (A) inject() works fine in function guards. (C) createUrlTree() is synchronous. (D) It can return Observable but sync boolean is fine.',
   },
 
   // --- TESTING ---
   {
     id: 17, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
-    question: 'Why should you call http.verify() in afterEach when using HttpTestingController?',
+    question: 'Why is httpMock.verify() important in afterEach with HttpTestingController?',
     options: [
-      'It closes the HTTP client connection',
-      'It fails the test if any HTTP requests were made but never flushed — preventing silent test failures',
-      'It resets the component state',
-      'It is optional and only needed for POST requests',
+      'It closes the HTTP connection and prevents port exhaustion',
+      'It asserts all expected requests were flushed; fails if requests were made but not handled',
+      'It resets component and service state between tests',
+      'It is optional for GET requests but required for POST/PUT',
     ],
     answer: 1,
-    explanation: 'http.verify() asserts that every HTTP request your code made during the test was explicitly handled (flushed or errored). If a request was made but not handled, verify() throws an error. This catches bugs like "the service made a request but the test never asserted it" — without verify(), such requests silently pass.',
+    explanation: 'httpMock.verify() asserts that every HTTP request made during the test was explicitly handled (flushed or errored). If a request was made but never handled, verify() throws, catching silent test failures. Without verify(), unhandled requests pass silently, hiding bugs. Place it in afterEach() to run after every test. Why others fail: (A) It does not close connections; that is handled by unsubscribe. (C) It does not reset state. (D) It is required for all request types, not just POST/PUT.',
   },
   {
     id: 18, type: 'spot-the-bug', difficulty: 'mid', category: 'testing',
-    question: 'This test always passes, even when it should fail. Why?',
+    question: 'Does this test correctly verify that users data loads?',
     code: `it('loads users', () => {
   let users: User[] | undefined;
   service.getUsers().subscribe(u => users = u);
 
   http.expectOne('/api/users').flush([{ id: 1, name: 'Ada' }]);
 
-  // missing detectChanges / tick!
   expect(users![0].name).toBe('Ada');
 });`,
     options: [
-      'The test is actually correct',
-      'flush() is asynchronous — users is still undefined when expect() runs',
-      'expectOne() should be match()',
-      'subscribe() requires async/await',
+      'No — HttpTestingController.flush() is asynchronous and users remains undefined',
+      'Yes — flush() is synchronous and immediately delivers the response',
+      'No — expectOne() should use match() for multiple requests',
+      'No — subscribe() requires fakeAsync() or async wrapper',
     ],
-    answer: 0,
-    explanation: 'Actually, this test is correct! HttpTestingController.flush() is synchronous — it immediately delivers the response and resolves the Observable synchronously. The subscribe callback runs, sets users, and then expect() correctly sees the value. The test passes for the right reasons.',
+    answer: 1,
+    explanation: 'This test is correct! HttpTestingController.flush() is synchronous — it immediately delivers the mocked response and resolves the Observable. The subscribe callback runs synchronously, setting users, and then expect() correctly sees the value. The test passes for the right reasons. Why others fail: (A) flush() is explicitly synchronous. (C) expectOne() is correct for single request. (D) fakeAsync is not required for HttpTestingController tests.',
   },
 
   // --- PERFORMANCE ---
   {
     id: 19, type: 'spot-the-bug', difficulty: 'mid', category: 'performance',
-    question: 'This template causes a major performance problem. What is it?',
+    question: 'This template causes poor performance. What is the issue?',
     code: `@Component({
   template: \`
     <ul>
@@ -322,50 +336,50 @@ class ProductList {
   }
 }`,
     options: [
-      'track item.id should be track $index',
-      'getFilteredItems() is called on every change-detection pass, even when items has not changed',
-      '@for cannot call methods — it must use a template variable',
-      'signal() is not allowed in a class that has a method',
+      'track item.id is incorrect; should use track $index for numeric indexing',
+      'getFilteredItems() method is called on every CD pass, filtering repeatedly even when items unchanged',
+      '@for cannot call methods; must use a template variable or pipe',
+      'signal() cannot be used in components with methods; violates reactive rules',
     ],
     answer: 1,
-    explanation: 'getFilteredItems() is a plain method call in the template. Angular calls it on every change-detection pass — potentially dozens of times per second. Fix: replace it with a computed signal: readonly filteredItems = computed(() => this.items().filter(i => i.active)). computed() is memoized — it only re-runs when items() changes.',
+    explanation: 'getFilteredItems() is a method call in the template. Angular invokes it on every change-detection pass — potentially dozens of times per second. Each call filters the entire array. Fix: replace with a computed signal: readonly filteredItems = computed(() => this.items().filter(i => i.active)). computed() is memoized — only re-runs when items changes. Why others fail: (A) track item.id is correct for identity tracking. (C) @for can call methods. (D) Signals and methods coexist fine.',
   },
   {
     id: 20, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
-    question: 'What is the correct way to set fetchpriority="high" on an LCP image in Angular?',
+    question: 'Which is the correct way to mark an LCP image with fetchpriority in Angular?',
     options: [
-      '<img src="/hero.jpg" fetchpriority="high">',
-      '<img ngSrc="/hero.jpg" width="1200" height="600" priority>',
-      '<img [src]="heroUrl" [fetchpriority]="\'high\'">',
-      'Angular does not support fetchpriority',
+      '<img src="/hero.jpg" fetchpriority="high"> — raw HTML attribute',
+      '<img ngSrc="/hero.jpg" width="1200" height="600" priority> — NgOptimizedImage with priority',
+      '<img [src]="heroUrl" [fetchpriority]="\'high\'"> — property binding for priority',
+      'Angular does not natively support fetchpriority; use plain HTML',
     ],
     answer: 1,
-    explanation: 'NgOptimizedImage (using ngSrc) is the correct Angular way. Adding the priority attribute tells NgOptimizedImage to add fetchpriority="high" AND a <link rel="preload"> in the document head — both critical for good LCP. The raw fetchpriority attribute works but misses the preload hint. Using [fetchpriority] as a property binding doesn\'t work because it\'s not a DOM property.',
+    explanation: 'NgOptimizedImage (ngSrc) with the priority attribute tells Angular to add both fetchpriority="high" and a <link rel="preload"> in the document head — both critical for LCP. This is the optimized, recommended approach. Why others fail: (A) Raw fetchpriority works but misses the preload hint and Angular\'s optimization. (C) [fetchpriority] property binding does not work because it is not a DOM property. (D) Angular has full support via NgOptimizedImage.',
   },
 
   // --- TYPESCRIPT ---
   {
     id: 21, type: 'predict-output', difficulty: 'junior', category: 'typescript',
-    question: 'What is the TypeScript type of result?',
+    question: 'What is the inferred TypeScript type of result?',
     code: `function identity<T>(value: T): T {
   return value;
 }
 const result = identity(42);`,
-    options: ['any', 'number', 'T', 'unknown'],
+    options: ['any — no type information is available', 'number — inferred from the argument type', 'T — the generic type variable', 'unknown — TypeScript cannot determine the type'],
     answer: 1,
-    explanation: 'TypeScript infers the generic type parameter T from the argument. identity(42) passes a number literal, so T is inferred as number. result has type number — not T (T is a placeholder resolved at call time, not a runtime concept).',
+    explanation: 'TypeScript infers the generic type parameter T from the argument. identity(42) passes the number literal 42, so T is inferred as number. result has type number (not T, which is a placeholder resolved at compile time). Why others fail: (A) T is inferred, not any. (C) T is a type parameter resolved at call time; result is number. (D) T is known through inference.',
   },
   {
     id: 22, type: 'multiple-choice', difficulty: 'mid', category: 'typescript',
-    question: 'What is the difference between interface and type in TypeScript?',
+    question: 'What are the key differences between interface and type?',
     options: [
-      'They are completely identical — use either',
-      'interface can be extended and merged; type can use union/intersection operators and conditional types',
-      'type is for primitives; interface is for objects only',
-      'interface is deprecated in modern TypeScript',
+      'They are identical; use whichever feels natural to you',
+      'interface supports declaration merging and extends; type supports unions and conditional types',
+      'type is for primitives; interface is only for object shapes',
+      'interface is deprecated; type is the modern standard',
     ],
     answer: 1,
-    explanation: 'Both describe object shapes, but: interface supports declaration merging (defining the same name twice merges them — useful for extending third-party types) and is extensible via extends. type supports unions (A | B), intersections (A & B), mapped types, and conditional types. In Angular, use interface for data models and type for unions/utility types.',
+    explanation: 'Both describe object shapes, but differ: interface supports declaration merging (redefine same name to extend it — useful for augmenting third-party types) and uses extends for inheritance. type supports unions (A | B), intersections (A & B), mapped types, and conditional types. In Angular: use interface for data models, type for unions/utility types. Why others fail: (A) They have distinct capabilities. (C) Both work with primitives and objects. (D) Both are current; interface is not deprecated.',
   },
   {
     id: 23, type: 'spot-the-bug', difficulty: 'mid', category: 'typescript',
@@ -377,13 +391,13 @@ const result = identity(42);`,
 const user = getUser(1);
 console.log(user.name);  // TS error!`,
     options: [
-      'getUser() should return a Promise',
-      'user could be undefined — TypeScript requires a null check before accessing .name',
-      'console.log does not work with objects',
-      'The arrow function needs a return type annotation',
+      'getUser() should return a Promise, not a union type',
+      'user could be undefined; TypeScript strict null checks prevent unsafe access',
+      'console.log does not accept objects; must convert to string',
+      'Arrow functions in arrays require explicit return type annotations',
     ],
     answer: 1,
-    explanation: 'getUser returns User | undefined. TypeScript\'s strict null checks prevent accessing .name on a potentially undefined value. Fix options: (1) if (user) console.log(user.name), (2) user?.name (optional chaining), or (3) user!.name (non-null assertion — only if you\'re certain it exists).',
+    explanation: 'getUser returns User | undefined. TypeScript\'s strict null checks prevent accessing .name on a potentially undefined value — this is a safety feature. Fix options: (1) if (user) console.log(user.name), (2) user?.name (optional chaining), or (3) user!.name (non-null assertion — only if certain it exists). Why others fail: (A) Union type is correct. (C) console.log accepts any type. (D) Arrow function return types do not require annotations.',
   },
   {
     id: 24, type: 'multiple-choice', difficulty: 'senior', category: 'typescript',
@@ -395,89 +409,89 @@ console.log(user.name);  // TS error!`,
 type User = { id: number; name: string };
 type ReadonlyUser = Readonly<User>;`,
     options: [
-      '{ id: number; name: string }  (unchanged)',
-      '{ readonly id: number; readonly name: string }',
-      '{ id: Readonly<number>; name: Readonly<string> }',
-      'A type error — readonly cannot be applied to primitive properties',
+      '{ id: number; name: string } — no changes applied',
+      '{ readonly id: number; readonly name: string } — all properties readonly',
+      '{ id: Readonly<number>; name: Readonly<string> } — wrapped in Readonly',
+      'A type error — readonly cannot apply to primitive properties',
     ],
     answer: 1,
-    explanation: 'Mapped types iterate over the keys of T using [K in keyof T]. This mapped type adds the readonly modifier to every property. ReadonlyUser becomes { readonly id: number; readonly name: string } — attempting to assign user.id = 5 will be a compile-time error. This is actually a built-in TypeScript utility type.',
+    explanation: 'Mapped types iterate keys with [K in keyof T]. This type adds readonly to every property. ReadonlyUser becomes { readonly id: number; readonly name: string }. Attempting user.id = 5 is a compile error. This is the actual TypeScript Readonly utility type. Why others fail: (A) readonly is applied. (C) readonly modifies properties, not wraps them. (D) readonly works on any property type.',
   },
   {
     id: 25, type: 'multiple-choice', difficulty: 'senior', category: 'components',
-    question: 'When using ChangeDetectionStrategy.OnPush, which of these will NOT trigger change detection?',
+    question: 'With ChangeDetectionStrategy.OnPush, which will NOT trigger re-check?',
     options: [
-      'An input reference changes',
-      'An event fires inside the component',
-      'A signal the template reads changes',
-      'An internal class property is mutated directly (e.g., this.items.push(x))',
+      'An @Input() reference is reassigned to a new object',
+      'An event fires inside the component or its children',
+      'A signal the template accesses changes value',
+      'An array property is mutated with push (same reference)',
     ],
     answer: 3,
-    explanation: 'OnPush components only re-check when: an @Input() reference changes, an event fires inside them, an async pipe emits, or a signal they read changes. Mutating an object/array in place (push, splice) does NOT change the reference — Angular sees the same object and skips the check. Always update immutably: this.items = [...this.items, x].',
+    explanation: 'OnPush components only re-check when: @Input references change, events fire, signals change, or async pipe emits. Mutating an array/object in place (push, splice, obj.prop = x) does NOT change the reference — Angular sees the same object and skips re-check. Always update immutably: this.items = [...this.items, newItem]. Why others fail: (A) Reference change triggers re-check. (B) Events trigger re-check. (C) Signal changes trigger re-check.',
   },
 
   // --- MORE COMPONENTS ---
   {
     id: 26, type: 'multiple-choice', difficulty: 'mid', category: 'components',
-    question: 'Which @defer trigger loads its content when the browser main thread is idle?',
+    question: 'Which @defer trigger loads deferred content when the browser is idle?',
     options: [
-      'on immediate',
-      'on idle',
-      'on viewport',
-      'on interaction',
+      'on immediate — loads as soon as the block is encountered',
+      'on idle — loads when requestIdleCallback fires (browser is quiet)',
+      'on viewport — loads when the placeholder scrolls into view',
+      'on interaction — loads on first click or focus in placeholder',
     ],
     answer: 1,
-    explanation: '"on idle" loads the lazy block when the browser fires a requestIdleCallback — it waits until the main thread has a quiet moment. "on immediate" loads instantly (no deferral). "on viewport" loads when the placeholder scrolls into view. "on interaction" loads on the first click or focus inside the placeholder. Use "on idle" for content that is helpful to have ready but not critical to the first render.',
+    explanation: '"on idle" triggers when the browser fires requestIdleCallback — waits for a quiet moment. "on immediate" loads instantly (no deferral). "on viewport" loads when placeholder scrolls into view. "on interaction" loads on first user interaction. Use "on idle" for helpful content not critical to first paint. Why others fail: (A) immediate has no deferral. (C) viewport is for visibility-based loading. (D) interaction requires user action.',
   },
   {
     id: 27, type: 'spot-the-bug', difficulty: 'senior', category: 'components',
-    question: 'This output declaration has a type mismatch. What is the bug?',
+    question: 'This output declaration has a type mismatch. What is wrong?',
     code: `@Component({ standalone: true, template: '<button (click)="save()">Save</button>' })
 export class EditorComponent {
   readonly saved = output<number>();
 
   save() {
-    this.saved.emit('done');  // ← bug here
+    this.saved.emit('done');
   }
 }`,
     options: [
-      'output() should use the @Output() decorator',
-      'emit() is called with a string but the output is typed as output<number>()',
-      'output() cannot be called inside a method',
+      'output() should use @Output() decorator instead',
+      'emit() is called with string "done" but output is typed as output<number>()',
+      'output() cannot be used inside methods; call it in the class body only',
       'The component must implement AfterViewInit to use output()',
     ],
     answer: 1,
-    explanation: 'output<number>() declares that the event emits a number. Calling emit(\'done\') passes a string — a compile-time type error. TypeScript will catch this immediately. Fix: emit the correct type, e.g. this.saved.emit(this.currentRevision) where currentRevision is a number. The output() function API (introduced in Angular 17) is fully typed, unlike EventEmitter which accepts any.',
+    explanation: 'output<number>() declares the event emits a number. Calling emit("done") passes a string — a compile-time type error. TypeScript will catch this. Fix: emit the correct type, e.g., this.saved.emit(42). The output() API (Angular 17+) is fully typed, unlike EventEmitter which accepts any. Why others fail: (A) output() is the modern API. (C) output() is called in class body; emit() is in methods. (D) No lifecycle requirement.',
   },
   {
     id: 28, type: 'multiple-choice', difficulty: 'senior', category: 'components',
-    question: 'What is the key architectural difference between @Component and @Directive?',
+    question: 'What is the architectural relationship between @Component and @Directive?',
     options: [
-      'Directives cannot use dependency injection; components can',
-      'A component is a directive with a template — it adds a view; a directive adds behavior to an existing element without creating its own view',
-      'Directives must be standalone; components can use NgModules',
-      'Components use attribute selectors; directives use element selectors',
+      '@Component and @Directive are completely separate decorators',
+      '@Component is @Directive + template — component renders DOM; directive augments existing elements',
+      '@Directive is a simplified version of @Component for small features',
+      'They are aliases; the framework automatically chooses based on usage',
     ],
     answer: 1,
-    explanation: 'Under the hood @Component extends @Directive — every component is a directive that also has a template and an encapsulated view. A directive augments an existing host element (adds classes, listens to events, manipulates the DOM) without rendering new DOM nodes. A component IS a directive with a template. Use a directive when you want to add reusable behavior to any element; use a component when you need to render new DOM structure.',
+    explanation: '@Component extends @Directive under the hood. Every component is a directive that additionally has a template and encapsulated view. @Directive augments an existing element (adds classes, listens to events, DOM manipulation) without creating new DOM. @Component creates and renders a self-contained view. Use @Directive for reusable behaviors; @Component for UI building blocks. Why others fail: (A) They have an inheritance relationship. (C) @Directive is not simplified; directives are powerful. (D) They are not aliases.',
   },
 
   // --- MORE SIGNALS ---
   {
     id: 29, type: 'multiple-choice', difficulty: 'mid', category: 'signals',
-    question: 'What does toSignal(obs$, { initialValue: [] }) guarantee that toSignal(obs$) alone does not?',
+    question: 'What does toSignal(obs$, { initialValue: [] }) guarantee that plain toSignal(obs$) does not?',
     options: [
-      'The Observable is subscribed eagerly before any component renders',
-      'The signal type is T instead of T | undefined, and it returns the initial value synchronously before the first emission',
-      'The signal auto-unsubscribes after exactly one emission',
-      'The Observable is shared (multicasted) across all callers',
+      'The Observable is eagerly subscribed before component renders',
+      'Return type is Signal<T[]> not Signal<T[] | undefined>; has initial value synchronously',
+      'The signal auto-unsubscribes after the first emission',
+      'The Observable is shared via multicasting to all subscribers',
     ],
     answer: 1,
-    explanation: 'toSignal() without initialValue returns Signal<T | undefined> because the Observable may not have emitted yet — reading the signal before the first emission returns undefined. With { initialValue: [] }, the return type is Signal<T[]> (no undefined) and the signal immediately holds the initial value. Use initialValue when your template cannot handle undefined, or when you need a non-nullable type in TypeScript code.',
+    explanation: 'toSignal() without initialValue returns Signal<T | undefined> because the Observable may not have emitted yet. Reading the signal before first emission returns undefined. With { initialValue: [] }, the return type is Signal<T[]> (no undefined) and the signal immediately holds the initial value. Use initialValue when your template cannot handle undefined. Why others fail: (A) Both subscribe eagerly. (C) Neither auto-unsubscribes after one emission. (D) Neither handles multicasting by default.',
   },
   {
     id: 30, type: 'spot-the-bug', difficulty: 'senior', category: 'signals',
-    question: 'This effect() will throw a runtime error. Why?',
+    question: 'This effect() will throw a runtime error. What causes it?',
     code: `@Component({ standalone: true, template: '{{ count() }}' })
 export class Counter {
   count = signal(0);
@@ -485,60 +499,60 @@ export class Counter {
   constructor() {
     effect(() => {
       console.log('count is', this.count());
-      this.count.set(this.count() + 1);  // ← error
+      this.count.set(this.count() + 1);
     });
   }
 }`,
     options: [
       'effect() cannot be created in a constructor',
-      'Reading count() and then calling count.set() inside the same effect creates an infinite reactive cycle — Angular detects and throws',
-      'computed() must be used instead of effect() for numeric derivations',
-      'effect() cannot call signal.set() at all',
+      'Reading count() then setting it in same effect causes infinite reactive cycle — Angular detects and throws',
+      'computed() must be used instead for numeric state derivation',
+      'effect() cannot call signal.set(); only read-only operations allowed',
     ],
     answer: 1,
-    explanation: 'The effect reads count() (registering a dependency) and then sets count — which triggers the effect again, which reads and sets again, infinitely. Angular detects this cycle and throws. Fix: if you need a derived value, use computed(). If you must write inside an effect, wrap the read in untracked(() => this.count()) so it does not become a dependency. Never write to a signal that the same effect reads.',
+    explanation: 'The effect reads count() (registering a dependency) then calls count.set(), which triggers the effect again → infinite loop. Angular detects this and throws. Fix: if you need derived state use computed(). If you must write in an effect, wrap the read in untracked(() => this.count()) so it is not a dependency. Never write to a signal that the same effect reads. Why others fail: (A) effect() works in constructors. (C) computed() is read-only. (D) set() is allowed.',
   },
   {
     id: 31, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
-    question: 'What does linkedSignal() offer that computed() cannot?',
+    question: 'What capability does linkedSignal() offer that computed() lacks?',
     options: [
-      'linkedSignal() links two signals so they always have identical values',
-      'linkedSignal() creates a writable signal whose value resets to a derived default when source signals change, but can also be independently overridden with .set()',
-      'linkedSignal() is the signals equivalent of shareReplay(1)',
-      'linkedSignal() bridges a signal to an Observable',
+      'linkedSignal() creates a permanent link between two signals',
+      'linkedSignal() is writable — defaults to derived value but can be overridden with .set()',
+      'linkedSignal() is the signal equivalent of RxJS shareReplay(1)',
+      'linkedSignal() converts a signal to an Observable automatically',
     ],
     answer: 1,
-    explanation: 'computed() is always read-only — you can never override it with .set(). linkedSignal() is BOTH reactive AND writable: when its source changes, the linked signal resets to its derivation result; but you can also call .set() to override it independently. Classic use case: a selectedItem signal that defaults to items()[0] whenever the list changes, but the user can pick a different item. computed() cannot model this because it has no write path.',
+    explanation: 'computed() is always read-only. linkedSignal() is BOTH reactive AND writable: when source changes, it resets to the derived value; but you can also call .set() to override it independently. Example: selectedItem defaults to items()[0] but the user can pick a different item. computed() cannot model this (no write path). Why others fail: (A) It is not permanent; resets on source change. (C) It is not about multicasting. (D) linkedSignal() stays as a signal.',
   },
 
   // --- MORE RxJS ---
   {
     id: 32, type: 'predict-output', difficulty: 'mid', category: 'rxjs',
-    question: 'If 3 components each subscribe to this service property, how many HTTP requests are made total?',
+    question: 'If 3 components subscribe to this service property, how many HTTP requests run?',
     code: `@Injectable({ providedIn: 'root' })
 export class UserService {
   readonly users$ = this.http.get<User[]>('/api/users');
   constructor(private http: HttpClient) {}
 }`,
-    options: ['1', '3', '0 — lazy, never fires until someone subscribes', 'Depends on Zone.js'],
+    options: ['1 request — shared across all subscriptions', '3 requests — one per subscription', '0 requests — cold observables never execute', 'Depends on Zone.js timer configuration'],
     answer: 1,
-    explanation: 'http.get() returns a cold Observable — each new subscription starts a fresh HTTP request from scratch. Three subscriptions = three separate HTTP requests to /api/users. Fix: add shareReplay(1) to make it hot: users$ = this.http.get(...).pipe(shareReplay(1)). This executes the request once, multicasts the response to all current subscribers, and replays it to any future subscribers.',
+    explanation: 'http.get() returns a cold Observable — each subscription starts a new HTTP request from scratch. Three subscriptions = three separate requests. Fix: add shareReplay(1): users$ = this.http.get(...).pipe(shareReplay(1)). This executes once, multicasts the response to all subscribers, and replays it to future subscribers. Why others fail: (A) Without shareReplay it is cold. (C) Cold observables DO execute when subscribed. (D) Zone.js does not affect this.',
   },
   {
     id: 33, type: 'multiple-choice', difficulty: 'senior', category: 'rxjs',
-    question: 'What is the difference between combineLatest() and zip()?',
+    question: 'What is the fundamental difference between combineLatest() and zip()?',
     options: [
-      'They are identical',
-      'combineLatest emits whenever ANY source emits (pairing with each source\'s latest value); zip emits only when ALL sources have emitted a new paired value at the same index',
-      'zip is for synchronous arrays; combineLatest is for async Observables',
-      'combineLatest is deprecated in favor of zip',
+      'They are interchangeable; different naming for the same operator',
+      'combineLatest emits on any source change; zip emits on paired values at same index',
+      'zip() is for arrays only; combineLatest() is for Observables',
+      'combineLatest is deprecated; zip is the modern replacement',
     ],
     answer: 1,
-    explanation: 'combineLatest([a$, b$]) emits a new combined value whenever EITHER source emits, using the most recent value from each. If a$ emits 10 times and b$ emits once, you still get 10 emissions (each using b\'s single value). zip([a$, b$]) waits for BOTH sources to emit their Nth value before emitting the Nth pair — it steps through emissions in lockstep. Use combineLatest for reactive state (filter + sort signals); use zip for one-to-one pairing of matched events.',
+    explanation: 'combineLatest([a$, b$]) emits whenever ANY source emits, using the latest value from each. If a$ emits 10 times and b$ emits once, you get 10 emissions. zip([a$, b$]) waits for BOTH sources to emit their Nth value before emitting the Nth pair — steps through in lockstep. Use combineLatest for reactive state; use zip for one-to-one event pairing. Why others fail: (A) They have different emission strategies. (C) Both work with Observables. (D) Both are current.',
   },
   {
     id: 34, type: 'spot-the-bug', difficulty: 'senior', category: 'rxjs',
-    question: 'This polling component has a memory leak. What causes it and what is the fix?',
+    question: 'This polling component has a memory leak. What is the cause?',
     code: `@Component({ standalone: true, template: '{{ status }}' })
 export class PollingComponent implements OnInit {
   status = 'idle';
@@ -551,31 +565,31 @@ export class PollingComponent implements OnInit {
   }
 }`,
     options: [
-      'interval() must be created outside the component',
-      'The subscription is never cleaned up — after the component is destroyed interval keeps firing and the callback writes to a dead component',
-      'switchMap() is the wrong operator to use with interval()',
-      'ngOnInit must be async to use subscribe()',
+      'interval() must be created outside the component class',
+      'Subscription never cleaned up; component destroyed but interval keeps firing forever',
+      'switchMap() is the wrong operator for interval polling',
+      'ngOnInit cannot contain manual subscriptions; must use async pipe',
     ],
     answer: 1,
-    explanation: 'When the component is destroyed the interval Observable keeps emitting every 5 seconds. Each tick fires an HTTP request and the callback writes this.status on a destroyed component — a leak and potential error. Fix: inject(DestroyRef) and add takeUntilDestroyed(): interval(5000).pipe(switchMap(...), takeUntilDestroyed(inject(DestroyRef))).subscribe(...). Alternatively, use a resource() which ties the request lifetime to the component automatically.',
+    explanation: 'When the component is destroyed, the interval Observable keeps emitting every 5 seconds. Each tick fires an HTTP request and updates a destroyed component — a leak. Fix: add takeUntilDestroyed(inject(DestroyRef)) to auto-unsubscribe: interval(5000).pipe(switchMap(...), takeUntilDestroyed(inject(DestroyRef))).subscribe(...). Or use resource() which ties lifetime to the component. Why others fail: (A) interval() works fine in components. (C) switchMap() is correct for polling. (D) Manual subscriptions are fine if cleaned up.',
   },
 
   // --- MORE FORMS ---
   {
     id: 35, type: 'multiple-choice', difficulty: 'mid', category: 'forms',
-    question: 'What is the correct way to add a new control to a FormArray at runtime?',
+    question: 'What is the correct way to add a control to FormArray at runtime?',
     options: [
-      'formArray.controls.push(new FormControl(\'\'))',
-      'formArray.add(new FormControl(\'\'))',
-      'formArray.push(new FormControl(\'\'))',
-      'formArray.append(new FormControl(\'\'))',
+      'formArray.controls.push(new FormControl("")) — mutate raw controls array',
+      'formArray.add(new FormControl("")) — use FormArray add method',
+      'formArray.push(new FormControl("")) — use FormArray push method',
+      'formArray.append(new FormControl("")) — use FormArray append method',
     ],
     answer: 2,
-    explanation: 'FormArray.push() appends a new AbstractControl AND triggers Angular\'s value/status change notifications. Pushing directly to .controls (the raw array property) bypasses the notification mechanism — the form\'s status, value, and validity will not update. Use push() to append, insert(index, control) for position-specific insertion, and removeAt(index) to remove. Always use FormArray\'s own methods, never mutate .controls directly.',
+    explanation: 'FormArray.push() appends a control AND triggers value/status notifications. Pushing directly to .controls bypasses the notification mechanism — form state does not update. Always use FormArray methods: push() to append, insert(index, control) for position-specific, removeAt(index) to remove. Never mutate .controls directly. Why others fail: (A) Bypasses notifications. (B) add() does not exist. (D) append() does not exist.',
   },
   {
     id: 36, type: 'spot-the-bug', difficulty: 'senior', category: 'forms',
-    question: 'This form code throws a runtime error. Why?',
+    question: 'Why does FormGroup.setValue() throw when given incomplete data?',
     code: `form = new FormGroup({
   firstName: new FormControl(''),
   lastName: new FormControl(''),
@@ -588,43 +602,43 @@ loadProfile(profile: UserProfile) {
   });
 }`,
     options: [
-      'setValue() does not exist on FormGroup — use set()',
-      'setValue() is strict and requires every FormGroup control to be provided — omitting lastName throws an error',
-      'FormGroup with two controls requires FormBuilder, not new FormGroup()',
-      'The object key must exactly match the template formControlName attribute',
+      'setValue() does not exist; must use set() method instead',
+      'setValue() is strict — requires all controls; omitting lastName throws error',
+      'FormGroup requires FormBuilder; direct constructor is unsupported',
+      'Object keys must match formControlName in template exactly',
     ],
     answer: 1,
-    explanation: 'setValue() is strict — it throws "Must supply a value for form control with name: \'lastName\'" if any control is omitted. patchValue() is the flexible alternative: it only updates the controls whose keys you provide and silently ignores missing ones. Rule of thumb: use setValue() when loading a full model object (all keys guaranteed); use patchValue() for partial updates like "just update the email field".',
+    explanation: 'setValue() is strict — throws "Must supply a value for form control with name: \'lastName\'" if any control is omitted. Use patchValue() for partial updates: it updates only provided keys, ignoring missing ones. Rule: use setValue() when loading a complete model (all keys guaranteed); use patchValue() for partial updates. Why others fail: (A) setValue() is correct. (C) FormBuilder is recommended but direct constructor works. (D) Object structure must match form structure, not template.',
   },
   {
     id: 37, type: 'multiple-choice', difficulty: 'senior', category: 'forms',
-    question: 'What does an async validator return while validation is still pending (e.g., an HTTP check is in flight)?',
+    question: 'What does an async validator emit while validation is pending?',
     options: [
-      'null — the same as a passing synchronous check',
-      'An Observable<ValidationErrors | null> or Promise<ValidationErrors | null> that resolves when complete; the control shows status PENDING while waiting',
-      'true (pending) or false (complete)',
-      'A special ValidationPending sentinel object',
+      'null — same as a passing synchronous validator',
+      'Observable<ValidationErrors | null>; control.status is "PENDING"; resolves to null (valid) or errors (invalid)',
+      'true (pending) or false (complete) status',
+      'A ValidationPending sentinel object',
     ],
     answer: 1,
-    explanation: 'Async validators return Observable<ValidationErrors | null> or Promise<ValidationErrors | null>. While the async operation is in progress, the FormControl\'s .status is "PENDING". When the Observable/Promise completes: null = valid, a ValidationErrors object = invalid. In templates you can check control.status === \'PENDING\' to show a spinner. To avoid hammering the server on every keystroke, apply debounceTime inside the validator: of(control.value).pipe(debounceTime(300), switchMap(v => this.api.checkUsername(v))).',
+    explanation: 'Async validators return Observable<ValidationErrors | null> or Promise<ValidationErrors | null>. While running, the FormControl.status is "PENDING". On completion: null = valid, ValidationErrors object = invalid. In templates: check control.status === "PENDING" to show a loading spinner. Apply debounceTime inside validators to avoid hammering the server on every keystroke. Why others fail: (A) Returns observable, not null. (C) Status is a string. (D) No sentinel needed.',
   },
 
   // --- MORE ROUTING ---
   {
     id: 38, type: 'multiple-choice', difficulty: 'mid', category: 'routing',
-    question: 'What happens when a CanMatchFn guard returns false, vs when a CanActivateFn returns false?',
+    question: 'When CanMatchFn returns false vs CanActivateFn returns false, what happens?',
     options: [
-      'They behave identically — both block navigation and show nothing',
-      'CanMatchFn returning false causes the router to skip this route and try the NEXT matching route; CanActivateFn returning false blocks the navigation entirely without trying other routes',
-      'CanMatchFn is only evaluated for lazy-loaded routes',
-      'CanActivateFn runs before CanMatchFn',
+      'Both block navigation to the current route without fallback',
+      'CanMatchFn skips route and tries next; CanActivateFn blocks entirely',
+      'CanMatchFn is only checked for lazy-loaded routes',
+      'CanActivateFn always runs before CanMatchFn evaluation',
     ],
     answer: 1,
-    explanation: 'CanMatchFn returning false makes the router treat this route as if it does not exist for the current URL — it moves on to the next route definition. This enables "role-based routing" where two routes have the same path but canMatch guards decide which one renders. CanActivateFn, when returning false, blocks the navigation and no other route is tried. Use canMatch for "show different views to different users"; use canActivate for "block access entirely or redirect to login".',
+    explanation: 'CanMatchFn returning false makes the router skip this route definition and try the next matching route — enables "role-based routing" with multiple routes at the same path. CanActivateFn returning false blocks the already-matched route; no fallback route is tried. Use canMatch for "different components, same URL"; use canActivate for "block access or redirect to login". Why others fail: (A) They behave differently. (C) CanMatchFn works on all routes. (D) Both run, but CanMatchFn runs first.',
   },
   {
     id: 39, type: 'spot-the-bug', difficulty: 'senior', category: 'routing',
-    question: 'This lazy-loaded route configuration has a fundamental mismatch. What is the bug?',
+    question: 'This lazy route configuration has a type mismatch. What is wrong?',
     code: `export const routes: Routes = [
   {
     path: 'settings',
@@ -634,31 +648,31 @@ loadProfile(profile: UserProfile) {
   },
 ];`,
     options: [
-      'import() cannot be used inside a routes array',
-      'loadComponent must resolve to a standalone component class — SettingsModule is an NgModule, not a component',
-      'The path must start with a slash: \'/settings\'',
-      'loadComponent requires a canActivate guard',
+      'import() cannot be used in a routes array; must be declared at module level',
+      'loadComponent expects a component class; SettingsModule is an NgModule',
+      'The path must start with a slash for lazy routes: "/settings"',
+      'loadComponent requires a canActivate guard to protect the route',
     ],
     answer: 1,
-    explanation: 'loadComponent was introduced for lazy-loading standalone components. It expects the import promise to resolve to a component class. Providing an NgModule class causes Angular to throw at runtime because it doesn\'t know how to render a module via loadComponent. Fix: for modules, use loadChildren: () => import(\'./settings/settings.module\').then(m => m.SettingsModule). For modern standalone, create a routes file and use loadChildren: () => import(\'./settings/settings.routes\').then(m => m.SETTINGS_ROUTES).',
+    explanation: 'loadComponent is for lazy-loading standalone components. It expects the promise to resolve to a component class, not an NgModule. Providing SettingsModule causes a runtime error. Fix: for modules use loadChildren: () => import("./settings/settings.module").then(m => m.SettingsModule); for standalone routes use loadChildren: () => import("./settings/settings.routes").then(m => m.SETTINGS_ROUTES). Why others fail: (A) import() works fine. (C) Paths do not need slashes. (D) Guards are optional.',
   },
 
   // --- MORE TESTING ---
   {
     id: 40, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
-    question: 'What does wrapping a test in fakeAsync() allow you to do?',
+    question: 'What does fakeAsync() allow you to do in a test?',
     options: [
-      'Run the test in a separate thread',
-      'Replace real async operations with a virtual synchronous clock, then advance time with tick(ms) or drain microtasks with flushMicrotasks()',
+      'Run tests in parallel on separate threads',
+      'Control time synchronously with tick(ms) and flushMicrotasks()',
       'Skip async setup in beforeEach',
-      'Intercept HTTP requests without HttpTestingController',
+      'Mock HTTP requests without HttpTestingController',
     ],
     answer: 1,
-    explanation: 'fakeAsync() patches all timer APIs (setTimeout, setInterval, Promise microtasks) so time can be controlled synchronously inside the test. Call tick(500) to advance the virtual clock 500ms — this runs any scheduled callbacks without actually waiting. Use flushMicrotasks() to drain pending Promises. This makes debounce, throttle, and retry-delay logic fully testable without async/await or done() callbacks. Without fakeAsync() you would have to actually wait real milliseconds.',
+    explanation: 'fakeAsync() patches all timer APIs (setTimeout, setInterval, Promises) to use a virtual clock. Inside the test, call tick(500) to advance time 500ms synchronously — this runs any scheduled callbacks. Use flushMicrotasks() to drain pending Promises. This makes debounce, throttle, and delay logic testable without actually waiting. Without fakeAsync you must use async/await or done() callbacks. Why others fail: (A) fakeAsync runs in the same thread. (C) Does not affect setup. (D) That is HttpTestingController\'s job.',
   },
   {
     id: 41, type: 'spot-the-bug', difficulty: 'senior', category: 'testing',
-    question: 'This test will always pass even when the component has a bug. Why?',
+    question: 'Why does this test pass even when the component is broken?',
     code: `it('shows the user name', () => {
   component.user = { name: 'Alice', email: 'alice@test.com' };
   const el = fixture.nativeElement.querySelector('.user-name');
@@ -666,110 +680,110 @@ loadProfile(profile: UserProfile) {
 });`,
     options: [
       'querySelector always returns null in unit tests',
-      'fixture.detectChanges() was never called — the DOM has not re-rendered with the new user value',
-      'component.user should be set via a signal',
-      'toContain should be toBe for text content checks',
+      'fixture.detectChanges() was never called — DOM is not re-rendered',
+      'component.user should be set via a signal instead',
+      'toContain should be toBe for exact text matching',
     ],
     answer: 1,
-    explanation: 'Assigning component.user changes the TypeScript value but does not run Angular\'s change detection. The DOM still shows whatever was rendered during the previous detectChanges() call (usually the initial empty state). If the initial state happened to have matching text, the test passes for the wrong reason. Fix: add fixture.detectChanges() after setting the property. This triggers change detection and updates the DOM before the assertion runs.',
+    explanation: 'Assigning component.user changes the TypeScript value but does not run change detection. The DOM still shows whatever was rendered from the previous detectChanges() call. The test passes only if the initial render happens to contain "Alice". Fix: call fixture.detectChanges() after setting the property to trigger re-render. This updates the DOM before the assertion. Why others fail: (A) querySelector works in tests. (C) Plain objects work; signals are optional. (D) toContain is correct for substring matching.',
   },
   {
     id: 42, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
-    question: 'What advantage do Angular Component Harnesses (CDK HarnessLoader) have over direct querySelector calls?',
+    question: 'What advantage do Angular Component Harnesses have over raw querySelector?',
     options: [
-      'Harnesses are 10x faster than querySelector',
-      'Harnesses expose a stable behavioral API (type, click, getValue) so tests survive internal DOM refactors — only breaking when user-visible behavior changes',
+      'Harnesses are 10x faster than DOM queries',
+      'Harnesses expose semantic API (type, click, getValue) so tests survive DOM refactors',
       'Harnesses only work with Angular Material components',
-      'Harnesses automatically generate accessibility attributes',
+      'Harnesses automatically add accessibility attributes',
     ],
     answer: 1,
-    explanation: 'querySelector tests are brittle — changing a div to a button, adding a wrapper, or renaming a CSS class breaks them even if the behavior is unchanged. Harnesses wrap the component behind a semantic API that abstracts the DOM structure. When you change the underlying markup, the harness implementation changes but the test stays the same. Angular Material ships harnesses for every component. For custom components, extend ComponentHarness to build your own. The principle is: test behaviors, not implementation details.',
+    explanation: 'querySelector tests are brittle — changing div to button, renaming a CSS class, or restructuring DOM breaks them even if behavior is unchanged. Harnesses wrap the component behind a semantic behavioral API. When you refactor the DOM, only the harness implementation changes; tests stay the same. Angular Material ships harnesses for every component. For custom components, extend ComponentHarness. Test behaviors, not implementation. Why others fail: (A) Speed is similar. (C) Harnesses work with any component. (D) Harnesses do not add attributes.',
   },
 
   // --- MORE PERFORMANCE ---
   {
     id: 43, type: 'multiple-choice', difficulty: 'mid', category: 'performance',
-    question: 'What does "prefetch on idle" do in an @defer block\'s trigger list?',
+    question: 'What does "prefetch on idle" do in an @defer block?',
     options: [
-      'Loads and renders the component immediately when the browser is idle',
-      'Downloads the lazy chunk during browser idle time so it is pre-cached — the render condition (e.g. on interaction) then triggers instantly without a download delay',
-      'Disables the deferred block on slow connections',
-      'Inlines the lazy chunk back into the main bundle',
+      'Loads and renders the deferred block as soon as browser is idle',
+      'Downloads the lazy chunk during idle time so rendering triggers instantly',
+      'Disables the deferred block on slow network connections',
+      'Inlines the deferred chunk back into the main bundle',
     ],
     answer: 1,
-    explanation: '@defer separates "when to prefetch" from "when to render". Example: @defer (on interaction; prefetch on idle) — the chunk downloads during idle time, before the user interacts, so the first interaction renders immediately without a network round-trip. Without prefetch, the first interaction has latency while the chunk downloads. This is Angular\'s built-in equivalent of <link rel="prefetch"> but scoped to a specific component. Combine with "on viewport" for below-fold content that should be ready when scrolled to.',
+    explanation: '@defer separates "when to prefetch" from "when to render". Example: @defer (on interaction; prefetch on idle) downloads the chunk during idle time before the user interacts, so interaction renders immediately without delay. Without prefetch, interaction has latency while downloading. This is Angular\'s equivalent of <link rel="prefetch"> scoped to a component. Combine with "on viewport" for below-fold content. Why others fail: (A) Renders only when trigger fires. (C) Prefetch happens regardless of connection. (D) Prefetch does not inline.',
   },
   {
     id: 44, type: 'spot-the-bug', difficulty: 'senior', category: 'performance',
-    question: 'This image will cause a CLS (Cumulative Layout Shift) problem and a dev-mode warning. What is missing?',
+    question: 'This image causes CLS and dev-mode warnings. What is missing?',
     code: `<img ngSrc="/assets/hero.webp" alt="Hero banner" priority />`,
     options: [
-      'ngSrc requires an absolute URL, not a relative path',
-      'width and height attributes are required — without them the browser cannot reserve space for the image before it loads, causing layout shift',
-      'priority conflicts with ngSrc on the same element',
-      '.webp images are not supported by NgOptimizedImage',
+      'ngSrc requires absolute URLs; relative paths are not supported',
+      'width and height attributes required — browser cannot reserve layout space',
+      'priority attribute conflicts with ngSrc',
+      '.webp format is not supported by NgOptimizedImage',
     ],
     answer: 1,
-    explanation: 'NgOptimizedImage requires explicit width and height on every image. These establish the aspect ratio so the browser reserves exact layout space before the image data arrives — preventing CLS. NgOptimizedImage throws an error in development mode if width and height are missing. Fix: <img ngSrc="/assets/hero.webp" width="1200" height="400" alt="Hero banner" priority />. The values set the intrinsic dimensions, not CSS display size — control display size with CSS separately.',
+    explanation: 'NgOptimizedImage requires explicit width and height on every image. These establish the aspect ratio so the browser reserves exact layout space before the image loads — preventing CLS (Cumulative Layout Shift). Without them, the image loads, DOM shifts, causing visual jank. NgOptimizedImage throws a dev-mode error if width/height are missing. Fix: <img ngSrc="/assets/hero.webp" width="1200" height="400" alt="Hero banner" priority />. Width/height set intrinsic dimensions, not CSS display size. Why others fail: (A) Relative paths work fine. (C) priority is required. (D) .webp is supported.',
   },
   {
     id: 45, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
-    question: 'What is the single most impactful technique for reducing an Angular app\'s initial JavaScript download?',
+    question: 'What is the single most impactful technique to reduce initial JS download?',
     options: [
-      'Setting optimization: false in angular.json to skip minification overhead',
-      'Route-level code splitting with loadComponent / loadChildren — only the code for the entry route is downloaded on first load',
-      'Removing TypeScript type annotations to reduce file size',
-      'Using OnPush on all components',
+      'Disable optimization in angular.json to reduce minification overhead',
+      'Route-level code splitting with loadComponent/loadChildren per lazy route',
+      'Remove TypeScript type annotations to shrink bundle',
+      'Use OnPush change detection on all components',
     ],
     answer: 1,
-    explanation: 'Route-level code splitting is the highest-ROI bundle optimization. Each lazy route becomes a separate chunk that is only downloaded when the user navigates there. The initial load serves only the app shell and the first route — everything else is deferred. Additional techniques: @defer for below-fold components, tree-shaking unused exports, and a custom preload strategy to load important routes in the background after the initial render. OnPush and signals improve runtime performance (fewer CD checks) but do not reduce bundle size.',
+    explanation: 'Route-level code splitting has the highest ROI. Each lazy route becomes a separate chunk downloaded only when the user navigates there. The initial load includes only the app shell and entry route. Everything else defers. Additional techniques: @defer for below-fold components, tree-shaking unused exports, custom preload strategy to load important routes in background. Why others fail: (A) Optimization improves performance. (C) Types are stripped at compile time. (D) OnPush improves runtime performance, not bundle size.',
   },
 
   // --- MORE TYPESCRIPT ---
   {
     id: 46, type: 'predict-output', difficulty: 'mid', category: 'typescript',
-    question: 'What is the TypeScript type of Keys in this code?',
+    question: 'What is the TypeScript type of Keys?',
     code: `const config = { host: 'localhost', port: 3000, debug: true };
 type Keys = keyof typeof config;`,
     options: [
-      'string',
-      '\'host\' | \'port\' | \'debug\'',
-      'string | number | boolean',
-      'never',
+      'string — any property name',
+      '"host" | "port" | "debug" — literal property names',
+      'string | number | boolean — value types',
+      'never — no valid keys',
     ],
     answer: 1,
-    explanation: 'keyof T produces a union of the literal property key names of type T. typeof config is { host: string; port: number; debug: boolean }, so keyof typeof config is \'host\' | \'port\' | \'debug\'. This is extremely useful for building generic, type-safe accessor functions: function get<T, K extends keyof T>(obj: T, key: K): T[K] — TypeScript infers the return type from the specific key passed in. Use it whenever you need to reference an object\'s key set at the type level.',
+    explanation: 'keyof T produces a union of literal property key names. typeof config is { host: string; port: number; debug: boolean }. keyof typeof config is "host" | "port" | "debug". This is useful for type-safe accessors: function get<T, K extends keyof T>(obj: T, key: K): T[K] — TypeScript infers the return type from the specific key. Use it to reference an object\'s keys at the type level. Why others fail: (A) keyof produces literal unions, not string. (C) keyof produces property names, not value types. (D) There are valid keys.',
   },
   {
     id: 47, type: 'multiple-choice', difficulty: 'senior', category: 'typescript',
-    question: 'What does "as const" do to an array literal that a plain type annotation does not?',
+    question: 'What does "as const" do to an array that a regular type annotation does not?',
     code: `const ROLES = ['admin', 'editor', 'viewer'] as const;`,
     options: [
       'Makes the array immutable at runtime (prevents push/splice)',
-      'Narrows the type to readonly [\'admin\', \'editor\', \'viewer\'] instead of string[], letting you derive a union type: typeof ROLES[number]',
-      'Converts the array to a const enum at compile time',
+      'Narrows type to readonly ["admin", "editor", "viewer"]; lets you derive union types',
+      'Converts array to a const enum at compile time',
       'Prevents the values from being tree-shaken',
     ],
     answer: 1,
-    explanation: 'Without "as const", ROLES has type string[] — TypeScript only knows it is an array of strings, not WHICH strings. With "as const", the type is readonly [\'admin\', \'editor\', \'viewer\'] — every literal is preserved. This lets you derive a union type: type Role = typeof ROLES[number] gives \'admin\' | \'editor\' | \'viewer\'. Without "as const" you would get string. This pattern is more tree-shake-friendly than const enums and is transparent at runtime.',
+    explanation: 'Without "as const", ROLES has type string[] — TypeScript only knows it is an array of strings, not which strings. With "as const", the type is readonly ["admin", "editor", "viewer"] — every literal is preserved. This lets you derive a union: type Role = typeof ROLES[number] gives "admin" | "editor" | "viewer". Without "as const" you would get string. This pattern is more tree-shake-friendly than const enums and transparent at runtime. Why others fail: (A) Does not make runtime immutable. (C) Not a const enum. (D) Does not prevent tree-shaking.',
   },
 
   // --- ARCHITECTURE ---
   {
     id: 48, type: 'multiple-choice', difficulty: 'senior', category: 'components',
-    question: 'If a service is provided in BOTH the root injector AND a component\'s providers array, which instance does that component\'s descendants receive?',
+    question: 'If a service is in BOTH root injector and component.providers, which instance do descendants get?',
     options: [
-      'The root singleton instance — root always wins',
-      'The component-scoped instance — the nearest injector in the tree wins',
-      'Both instances, merged into an array',
-      'Angular throws a compile error for duplicate providers',
+      'The root singleton instance — root always takes precedence',
+      'The component-scoped instance — nearest injector in the tree wins',
+      'Both instances merged into an array',
+      'Angular throws a duplicate provider error',
     ],
     answer: 1,
-    explanation: 'Angular\'s DI walks UP the injector tree and uses the FIRST match it finds. Providing a service in a component\'s providers creates a brand-new instance scoped to that component subtree — completely isolated from the root instance. Anything in that subtree that injects the service gets the local instance; everything outside gets the root instance. Use this to give a feature its own isolated service state (e.g., an edit dialog with its own FormStore that does not affect the global data).',
+    explanation: 'Angular\'s DI walks UP the injector tree and uses the FIRST match. Providing a service in component.providers creates a brand-new instance scoped to that subtree — completely isolated from the root instance. Descendants in that subtree get the local instance; everything outside gets the root instance. Use this to give a feature isolated state (e.g., edit dialog with its own FormStore that doesn\'t affect global data). Why others fail: (A) Nearest always wins. (C) DI does not merge instances. (D) Duplicates are allowed and useful.',
   },
   {
     id: 49, type: 'spot-the-bug', difficulty: 'senior', category: 'components',
-    question: 'Angular will throw a "cyclic dependency" error for these two services. Why?',
+    question: 'These two services cause a cyclic dependency error. Why?',
     code: `@Injectable({ providedIn: 'root' })
 export class AuthService {
   constructor(private router: RouterService) {}
@@ -780,25 +794,25 @@ export class RouterService {
   constructor(private auth: AuthService) {}
 }`,
     options: [
-      'providedIn: \'root\' services cannot use constructor injection',
-      'AuthService needs RouterService to construct, which needs AuthService to construct — an infinite instantiation loop',
+      'providedIn: "root" services cannot use constructor injection at all',
+      'AuthService needs RouterService to construct, which needs AuthService — infinite loop',
       'Services cannot reference each other at root scope',
       'Constructor parameters require an @Inject() decorator',
     ],
     answer: 1,
-    explanation: 'Circular dependencies deadlock Angular\'s DI: AuthService cannot be created until RouterService is created, but RouterService cannot be created until AuthService is created. Angular throws "Cannot instantiate cyclic dependency!" Fix: (1) Extract the shared logic into a third NavigationStateService that both can depend on. (2) Refactor so one service does not need the other. (3) Inject lazily inside a method using inject() (defers resolution past construction time). Circular dependencies usually signal a missing abstraction.',
+    explanation: 'Circular dependencies deadlock DI: AuthService cannot be created until RouterService is created, but RouterService cannot be created until AuthService is created. Angular throws "Cannot instantiate cyclic dependency!" Fix options: (1) Extract shared logic into a third NavigationStateService that both depend on. (2) Refactor so one does not need the other. (3) Lazy-inject using inject() inside a method (defers resolution past construction). Circular dependencies usually signal a missing abstraction. Why others fail: (A) Constructor injection works. (C) Services can reference each other if not circular. (D) @Inject() is optional here.',
   },
   {
     id: 50, type: 'multiple-choice', difficulty: 'senior', category: 'routing',
-    question: 'You want the same URL /dashboard to render AdminDashboard for admins and UserDashboard for regular users. Which guard type enables this pattern?',
+    question: 'You want /dashboard to render AdminDashboard or UserDashboard based on role. How?',
     options: [
-      'CanActivateFn — return true for admins, false for users',
-      'CanMatchFn — returning false from one route falls through to the next route definition, enabling role-based routing',
-      'CanLoadFn — prevents the chunk from loading for non-admins',
-      'Route resolvers — pre-fetch the user role and pass it to the component',
+      'CanActivateFn — return true for admins, false for users (blocks but does not redirect)',
+      'CanMatchFn — returning false skips route and tries next, enabling role-based routing',
+      'CanLoadFn — prevents chunk loading for non-admins',
+      'Route resolvers — pre-fetch user role and pass it to the component',
     ],
     answer: 1,
-    explanation: 'CanMatchFn returning false causes the router to skip that route entirely and try the next route definition in the array. So: [{ path: \'dashboard\', canMatch: [isAdmin], loadComponent: () => AdminDashboard }, { path: \'dashboard\', loadComponent: () => UserDashboard }]. Admins match the first route; non-admins fall through to the second. CanActivateFn blocks navigation but does not fall through — the router stays on the matched route and blocks it. CanMatchFn is the correct tool for "different components, same URL".',
+    explanation: 'CanMatchFn returning false causes the router to skip that route entirely and try the next route definition. So: [{ path: "dashboard", canMatch: [isAdmin], loadComponent: () => AdminDashboard }, { path: "dashboard", loadComponent: () => UserDashboard }]. Admins match the first route; non-admins fall through to the second. CanMatchFn is specifically designed for "different components, same URL" routing. Why others fail: (A) CanActivateFn blocks but does not try other routes. (C) CanLoadFn is for chunk loading, not routing. (D) Resolvers are for data, not component selection.',
   },
 
   // ─── COMPONENTS 51-65 ───────────────────────────────────────────────────────
