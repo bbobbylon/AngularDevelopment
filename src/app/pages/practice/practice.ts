@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
 
 type Difficulty = 'junior' | 'mid' | 'senior';
-type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y';
+type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y' | 'state' | 'i18n';
 type ChallengeType = 'multiple-choice' | 'spot-the-bug' | 'predict-output' | 'fill-blank';
 
 interface Challenge {
@@ -3530,6 +3530,374 @@ export class Profile {
     topicPath: 'rxjs-observables',
     explanation: 'B is correct. `http.get(...)` returns an Observable, and interpolating the Observable object itself just stringifies it (`[object Object]`). Use the `async` pipe to subscribe, unwrap the emitted value, and auto-unsubscribe on destroy: `{{ (user$ | async)?.name }}` — or assign it with `@let user = user$ | async`. Why others fail: (A) HttpClient returns an Observable, not a Promise, and templates cannot await. (C) the request is fine; the display is the bug. (D) plain Observables have no synchronous `.value` (that is a BehaviorSubject).',
   },
+
+  // ─── BATCH 249-272: STATE/ARCHITECTURE, RXJS & SIGNAL OUTPUTS, I18N, ANIMATION ─
+  {
+    id: 249, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'What does `@ngrx/signals` `signalStore()` give you?',
+    options: [
+      'A wrapper that converts NgRx actions/reducers into signals automatically',
+      'A lightweight signal-based store composed from features — withState (signal state), withComputed (derived signals), withMethods (updaters/effects), withHooks — that is DI-providable with no action/reducer boilerplate',
+      'A way to store signals in localStorage',
+      'A replacement for Angular DI',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. `signalStore()` builds a store by composing feature functions: `withState({...})` declares reactive state as signals, `withComputed(store => ({...}))` adds memoized derived signals, `withMethods(store => ({...}))` defines updaters and rxMethod-based effects, and `withHooks` runs onInit/onDestroy logic. The result is provided via DI (`providedIn` or a route/component provider) and gives fine-grained signal reactivity without the actions → reducers → effects → selectors ceremony of the classic Store. Why others fail: (A) it is a standalone store, not an action/reducer adapter. (C) persistence is a separate concern. (D) it uses DI, it does not replace it.',
+  },
+  {
+    id: 250, type: 'multiple-choice', difficulty: 'mid', category: 'state',
+    question: 'In classic NgRx Store, what is each building block responsible for?',
+    options: [
+      'Actions mutate state; reducers dispatch events; selectors run HTTP; effects render UI',
+      'Actions describe events; reducers are pure functions computing the next state from (state, action); selectors derive/memoize slices; effects handle async side effects and dispatch new actions',
+      'They are interchangeable layers you can use in any order',
+      'Reducers perform HTTP and selectors mutate the store',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. NgRx enforces unidirectional data flow: an **action** is a plain event object (`{ type, payload }`); a **reducer** is a pure `(state, action) => newState` function with no side effects; a **selector** derives and memoizes a view of state for components; an **effect** listens to actions, performs impure work (HTTP, router, storage), and emits follow-up actions. Why others fail: (A) it scrambles every responsibility. (C) the layers have strict, distinct roles. (D) reducers must be pure and selectors are read-only.',
+  },
+  {
+    id: 251, type: 'multiple-choice', difficulty: 'mid', category: 'state',
+    question: 'What defines a "presentational" (dumb) component?',
+    options: [
+      'It injects the store directly and manages global state',
+      'It receives data via inputs, emits events via outputs, holds no injected services or app state, and is easily reused/tested — while "smart"/container components wire services and manage state',
+      'It has no template, only logic',
+      'It must use OnPush and nothing else matters',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. The container/presentational split keeps most components pure: presentational components take everything through `input()`/`@Input()`, report user intent through `output()`/`@Output()`, and avoid injecting services or touching global state — making them trivial to reuse and test with plain inputs. Smart/container components sit above them, inject stores/services, orchestrate state, and pass data down. Why others fail: (A) that describes a smart/container component. (C) presentational components absolutely have templates — that is their job. (D) OnPush is a common pairing but not the defining trait.',
+  },
+  {
+    id: 252, type: 'spot-the-bug', difficulty: 'senior', category: 'state',
+    question: 'This NgRx reducer breaks memoized selectors and devtools. Why?',
+    code: `on(addItem, (state, { item }) => {
+  state.items.push(item);   // ← mutates existing state
+  return state;
+})`,
+    options: [
+      'Reducers cannot receive an action payload',
+      'Reducers must be PURE and return a NEW state object. Mutating state.items in place keeps the same reference, so memoized selectors and OnPush do not detect the change (and time-travel breaks). Return { ...state, items: [...state.items, item] }',
+      'push() is not a valid array method in reducers',
+      'You must call state.items = [...] instead of returning',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. NgRx relies on immutability: selectors are memoized by reference and OnPush change detection compares references, so a reducer must produce a brand-new state object rather than mutate the old one. `state.items.push(item)` mutates the existing array (same reference) and returns the same `state`, so downstream consumers see "no change" and the UI/selectors go stale — plus devtools time-travel is corrupted. Fix immutably: `return { ...state, items: [...state.items, item] }`. Why others fail: (A) the destructured payload is fine. (C) push is valid JS, just wrong here. (D) reassigning a field still mutates the shared object.',
+  },
+  {
+    id: 253, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'Why derive state with `createSelector` instead of computing it in the component?',
+    options: [
+      'createSelector runs the derivation on a Web Worker',
+      'createSelector MEMOIZES — it recomputes only when its input selectors\' outputs change by reference, returning the cached result otherwise, which avoids redundant work and unnecessary OnPush re-renders',
+      'It is required syntax; selectors cannot be plain functions',
+      'It automatically persists the derived value to storage',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. `createSelector(inputA, inputB, (a, b) => derive(a, b))` caches its last inputs and output. If the input selectors return the same references, it skips the projector and hands back the memoized value — so expensive derivations (filtering, sorting, joining slices) run only when their inputs actually change, and components bound to the selector do not re-render needlessly. Why others fail: (A) it runs on the main thread. (C) selectors CAN be plain functions; createSelector adds memoization. (D) it does not persist anything.',
+  },
+  {
+    id: 254, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'Why do side effects (HTTP calls) go in NgRx Effects rather than reducers?',
+    options: [
+      'Effects run faster than reducers',
+      'Reducers must be pure and synchronous — no side effects allowed. Effects isolate impure async work: they listen for an action, perform the HTTP call, and map success/failure to NEW actions, keeping state transitions predictable and testable',
+      'Reducers cannot access services at all, but effects can mutate state directly',
+      'Effects replace reducers entirely',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. A reducer is a pure function of `(state, action)`; putting an HTTP call in it would make it non-deterministic and un-testable and would break time-travel. Effects are the sanctioned home for impurity: an effect is an Observable that filters for a trigger action (`ofType`), does the async work, and dispatches result actions (`loadSuccess`/`loadFailure`) which reducers then handle purely. Why others fail: (A) performance is not the reason. (C) effects do NOT mutate state — they dispatch actions; only reducers change state. (D) effects and reducers are complementary, not substitutes.',
+  },
+  {
+    id: 255, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'When would you choose a signal-based store over the full NgRx Store?',
+    options: [
+      'Always — NgRx Store is deprecated',
+      'For local/feature state or small-to-medium apps, signals (or NgRx SignalStore) give reactivity with far less boilerplate; full Store pays off for strict event-sourcing, devtools time-travel, complex cross-cutting effects, and large teams needing enforced structure',
+      'Never — signals cannot hold shared application state',
+      'Only when the app has no HTTP calls',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. Choose by complexity, not fashion. Signal stores (a service with private writable signals + public readonly/computed + methods, or `@ngrx/signals`) cover most local and feature-level state with minimal ceremony and excellent ergonomics. The full NgRx Store earns its overhead when you need an auditable event log, time-travel debugging, elaborate coordinated effects, or a consistent structure imposed across a big team. Why others fail: (A) NgRx Store is not deprecated. (C) a root-provided signal service holds shared state fine. (D) HTTP presence is orthogonal — you can do HTTP with either.',
+  },
+  {
+    id: 256, type: 'spot-the-bug', difficulty: 'mid', category: 'state',
+    question: 'This store keeps drifting out of sync. What is the design flaw?',
+    code: `@Injectable({ providedIn: 'root' })
+export class CounterStore {
+  readonly count = signal(0);
+  readonly doubled = signal(0);          // ← stored derived state
+
+  increment() {
+    this.count.update(c => c + 1);
+    this.doubled.set(this.count() * 2);  // must remember to update both
+  }
+}`,
+    options: [
+      'signal(0) should be signal<number>(0) with an explicit type',
+      'doubled is DERIVED state stored as its own signal, so every mutation must manually keep it in sync — a desync bug waiting to happen. Make it computed: doubled = computed(() => this.count() * 2)',
+      'The store must extend a BaseStore class',
+      'increment() should return the new value',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. `doubled` is fully determined by `count`, yet it is stored separately and hand-synchronized inside `increment()`. Any other method (or a future one) that changes `count` without also setting `doubled` silently desyncs the two. The rule is: never store what you can derive. Replace it with `readonly doubled = computed(() => this.count() * 2)` — now it is always correct, lazily recomputed, and memoized. Why others fail: (A) the explicit generic is optional and unrelated. (C) no base class is needed. (D) returning a value does not solve the duplication.',
+  },
+  {
+    id: 257, type: 'predict-output', difficulty: 'mid', category: 'rxjs',
+    question: 'What is logged?',
+    code: `const a$ = new BehaviorSubject('a1');
+const b$ = new BehaviorSubject('b1');
+combineLatest([a$, b$]).subscribe(([a, b]) => console.log(a + b));
+a$.next('a2');
+b$.next('b2');`,
+    options: [
+      'a2b2 — only the final combination',
+      'a1b1, a2b1, a2b2 — emits initially, then on each source change using the latest of both',
+      'a1b1, a2b2 — only when both change together',
+      'a1b1 — combineLatest emits once and completes',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-operators',
+    explanation: 'B is correct. `combineLatest` emits once BOTH sources have produced a value, then re-emits whenever ANY source emits, always pairing the latest values. BehaviorSubjects start with values, so the initial emission is `a1b1`. `a$.next(\'a2\')` → `a2b1`. `b$.next(\'b2\')` → `a2b2`. Total: three emissions. Why others fail: (A) it emits on every change, not only the last. (C) it does not wait for simultaneous changes. (D) it stays subscribed and keeps emitting; it does not complete after one.',
+  },
+  {
+    id: 258, type: 'predict-output', difficulty: 'senior', category: 'rxjs',
+    question: 'In what order are values logged?',
+    code: `from([1, 2, 3]).pipe(
+  concatMap(n => of(n).pipe(delay(n === 1 ? 30 : 0)))
+).subscribe(console.log);`,
+    options: [
+      '2, 3, 1 — the delayed value arrives last',
+      '1, 2, 3 — concatMap runs each inner observable to completion before starting the next, preserving source order',
+      '3, 2, 1 — reverse order',
+      '1, 2, 3 emitted all at once with no delay',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-advanced',
+    explanation: 'B is correct. `concatMap` processes inner observables one at a time IN ORDER: it fully subscribes to the inner observable for 1 (waiting the 30ms delay) before it even starts the inner observable for 2, then 3. So the output is strictly `1, 2, 3` regardless of per-item delays. Contrast `mergeMap`, which subscribes to all inners concurrently — there 2 and 3 (0ms) would emit before 1 (30ms), giving `2, 3, 1`. Why others fail: (A/C) that is mergeMap-style concurrency, not concatMap. (D) the 30ms delay is honored; concatMap waits for it.',
+  },
+  {
+    id: 259, type: 'predict-output', difficulty: 'mid', category: 'rxjs',
+    question: 'What values are logged?',
+    code: `of(1, 1, 2, 2, 3, 1).pipe(
+  distinctUntilChanged()
+).subscribe(console.log);`,
+    options: [
+      '1, 2, 3 — all duplicates removed globally',
+      '1, 2, 3, 1 — only CONSECUTIVE duplicates are suppressed; the final 1 differs from the preceding 3',
+      '1, 1, 2, 2, 3, 1 — nothing is filtered',
+      '1 — it stops at the first repeat',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-operators',
+    explanation: 'B is correct. `distinctUntilChanged` compares each value to the PREVIOUS emitted one and drops it only if they are equal. So the runs `1,1` → `1`, `2,2` → `2`, then `3`, then a `1` again — which is NOT equal to the immediately preceding `3`, so it passes. Result: `1, 2, 3, 1`. To remove ALL duplicates ever seen (globally), you would need `distinct()` instead. Why others fail: (A) that is `distinct()`, not distinctUntilChanged. (C) consecutive dupes ARE removed. (D) it filters, it does not stop the stream.',
+  },
+  {
+    id: 260, type: 'predict-output', difficulty: 'mid', category: 'rxjs',
+    question: 'What is logged?',
+    code: `of(2, 4, 6, 7, 8).pipe(
+  takeWhile(n => n % 2 === 0)
+).subscribe(console.log);`,
+    options: [
+      '2, 4, 6, 8 — all even numbers, skipping the odd 7',
+      '2, 4, 6 — takeWhile completes the stream at the first value that fails the predicate (7) and does NOT emit it',
+      '2, 4, 6, 7 — the failing value is emitted before stopping',
+      '2 — it stops after the first value',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-operators',
+    explanation: 'B is correct. `takeWhile(pred)` emits values while the predicate holds and COMPLETES as soon as one fails — it does not skip and continue like `filter`. At `7` the predicate is false, so the stream completes right there and `7` (and everything after) is not emitted: output `2, 4, 6`. Pass `takeWhile(pred, true)` (inclusive) if you want the failing value emitted before completing. Why others fail: (A) that is `filter` behavior. (C) the default is exclusive, so 7 is not emitted. (D) it takes all leading passing values, not just the first.',
+  },
+  {
+    id: 261, type: 'predict-output', difficulty: 'senior', category: 'rxjs',
+    question: 'What does this log?',
+    code: `const clicks$ = new Subject<void>();
+const count$ = new BehaviorSubject(0);
+clicks$.pipe(withLatestFrom(count$)).subscribe(([_, c]) => console.log(c));
+
+count$.next(5);
+clicks$.next();   // a click
+count$.next(9);`,
+    options: [
+      '0, 5, 9 — every count change is logged',
+      '5 — withLatestFrom only emits when the SOURCE (clicks$) emits, pairing the latest count (5) at that moment; count$.next(9) alone does not trigger anything',
+      '5, 9 — both counts after the click',
+      'nothing — clicks$ has no value',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-advanced',
+    explanation: 'B is correct. `withLatestFrom` is driven by the SOURCE observable: it emits only when `clicks$` emits, attaching the most recent value of `count$` at that instant. When the click happens, `count$` is `5`, so it logs `5`. The earlier `count$.next(5)` did not emit (no click yet), and the later `count$.next(9)` does not emit either (withLatestFrom ignores changes in the "other" stream). Why others fail: (A/C) count changes alone never trigger the output. (D) clicks$ does emit (a void click); the count is what gets logged.',
+  },
+  {
+    id: 262, type: 'predict-output', difficulty: 'senior', category: 'signals',
+    question: 'What does choice() return at the end?',
+    code: `const options = signal(['a', 'b', 'c']);
+const choice = linkedSignal(() => options()[0]);
+
+choice.set('b');          // user overrides
+options.set(['x', 'y']);  // source changes
+console.log(choice());`,
+    options: [
+      "'b' — the manual override sticks permanently",
+      "'x' — linkedSignal RESETS to its derived value whenever the source changes, so after options.set it recomputes to options()[0] = 'x'",
+      "'a' — it always returns the original first option",
+      "'y' — it takes the last element",
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: "B is correct. `linkedSignal` is writable but also reactive: `choice.set('b')` overrides it to `'b'`, but the moment its source computation\'s dependencies change (`options.set([...])`), it RESETS to the freshly derived value `options()[0]`, which is now `'x'`. That is exactly the behavior `computed` cannot give you (computed is read-only) and a plain writable signal cannot give you (it would keep `'b'`). Why others fail: (A) the override is transient — it survives only until the source changes. (C) it re-derives from the current options, not the original. (D) the derivation takes index 0, not the last.",
+  },
+  {
+    id: 263, type: 'predict-output', difficulty: 'mid', category: 'signals',
+    question: 'What do the two logs print?',
+    code: `let runs = 0;
+const a = signal(1);
+const c = computed(() => { runs++; return a() * 2; });
+
+a.set(2);
+a.set(3);
+console.log(runs);        // (1)
+console.log(c(), runs);   // (2)`,
+    options: [
+      '(1) 2  then  (2) 6 2 — computed recomputes on each set',
+      '(1) 0  then  (2) 6 1 — computed is LAZY (never ran before first read) and MEMOIZED (the two sets collapse into a single computation on first read)',
+      '(1) 0  then  (2) 6 3 — it runs once per set plus the read',
+      '(1) 1  then  (2) 6 1 — it runs eagerly at creation',
+    ],
+    answer: 1,
+    topicPath: 'signals',
+    explanation: 'B is correct. A `computed` does not execute until it is READ. So after two `a.set(...)` calls with no read in between, `runs` is still `0` (log 1). The first `c()` triggers a single computation using the latest value `a() = 3` → returns `6` and increments `runs` to `1` (log 2 prints `6 1`). This is laziness + memoization: intermediate values are never computed, and the result is cached until a dependency changes. Why others fail: (A) it does not recompute per set. (C) it computed once, not per set. (D) computed is lazy, not eager at creation.',
+  },
+  {
+    id: 264, type: 'predict-output', difficulty: 'senior', category: 'signals',
+    question: 'How many times does this effect log, and with what value?',
+    code: `const a = signal(0);
+effect(() => console.log('run', a()));
+a.set(1);
+a.set(2);
+// ...synchronous code finishes, then the scheduler flushes`,
+    options: [
+      'Three times: run 0, run 1, run 2',
+      'Once: run 2 — effects run ASYNCHRONOUSLY and COALESCE multiple synchronous writes, so the single run reads the final value (2)',
+      'Twice: run 0 then run 2',
+      'Never — effects need change detection to run',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. An `effect` does not run synchronously at creation — its first execution is SCHEDULED. Because `a.set(1)` and `a.set(2)` both happen synchronously before the scheduler flushes, the writes coalesce and the effect runs a single time, reading the latest value `a() = 2`, logging `run 2`. This "glitch-free, coalesced" model means you never see intermediate values `0` or `1`. Why others fail: (A) writes are batched, not one-run-per-write. (C) there is no separate initial `run 0` because the flush happens after both sets. (D) effects are driven by their own scheduler, not manual change detection.',
+  },
+  {
+    id: 265, type: 'multiple-choice', difficulty: 'mid', category: 'i18n',
+    question: 'How do you mark static template text for translation in Angular\'s built-in i18n?',
+    options: [
+      'Wrap it in a translate() pipe on every element',
+      'Add the i18n attribute: <h1 i18n="meaning|description@@myId">Hello</h1>. The CLI (ng extract-i18n) collects marked text into a messages file; in TS code use the $localize tagged template',
+      'Rename the file to *.i18n.html',
+      'Set translate="yes" on the <body>',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. Angular\'s built-in i18n marks translatable content with the `i18n` attribute on the element (and `i18n-title`/`i18n-alt` for attributes). The optional value encodes `meaning|description@@customId` to give translators context and a stable id. Running `ng extract-i18n` pulls all marked messages into an XLIFF/XMB/JSON file for translation; for strings in TypeScript you use the `$localize\`...\`` tagged template. Why others fail: (A) built-in i18n is compile-time and attribute-driven, not a runtime pipe. (C) file naming does nothing. (D) the native `translate` attribute is unrelated to Angular i18n.',
+  },
+  {
+    id: 266, type: 'multiple-choice', difficulty: 'senior', category: 'i18n',
+    question: 'How do you correctly render "1 item" vs "5 items" across languages?',
+    options: [
+      'Concatenate: count + (count === 1 ? \' item\' : \' items\')',
+      'Use an ICU plural expression: { count, plural, =0 {No items} =1 {One item} other {{{count}} items} } — so each locale defines its own plural categories',
+      'Store both strings and pick one in the component',
+      'Always use the plural form; users understand it',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. Pluralization rules differ wildly between languages (some have separate forms for 0, 1, 2, few, many). Angular supports ICU MessageFormat inside i18n text: `{ count, plural, =0 {...} =1 {...} other {...} }`, and a sibling `{ gender, select, male {...} female {...} other {...} }` for enumerations. Translators can then supply the plural categories their language needs. Why others fail: (A) hand-rolled `=== 1` logic only works for English-like languages and breaks for others. (C) manual string selection reimplements ICU badly and is not translator-friendly. (D) using one form is grammatically wrong in most locales.',
+  },
+  {
+    id: 267, type: 'multiple-choice', difficulty: 'senior', category: 'i18n',
+    question: 'How does Angular\'s default (compile-time) i18n produce localized apps?',
+    options: [
+      'It translates strings at runtime by fetching JSON for the active locale',
+      'It builds a SEPARATE, fully-translated bundle per locale (the localize build option); each locale is a distinct deployment served from its own path/subdomain, with no runtime translation cost',
+      'It ships every language in one bundle and toggles with a signal',
+      'It requires a backend translation microservice',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. Angular\'s built-in i18n is compile-time: the CLI produces one optimized, pre-translated build per configured locale (via `i18n` config + `localize`), so `de`, `fr`, etc. are separate artifacts you deploy under different URLs. The upside is zero runtime translation overhead and full tree-shaking; the trade-off is N builds and no in-app language switching without reload. Runtime libraries like `ngx-translate`/Transloco take the opposite approach — one bundle, JSON loaded and swapped at runtime. Why others fail: (A/C) that describes runtime i18n libraries, not the built-in default. (D) no translation server is involved.',
+  },
+  {
+    id: 268, type: 'multiple-choice', difficulty: 'mid', category: 'i18n',
+    question: 'You translated all text, but DatePipe/CurrencyPipe still format as en-US. Why?',
+    options: [
+      'Those pipes cannot be localized',
+      'Locale-aware pipes use LOCALE_ID and need the locale DATA registered: import + registerLocaleData(localeFr) and provide LOCALE_ID (the localized build sets it); without it they fall back to en-US formatting',
+      'You must pass the locale string to every pipe manually every time',
+      'DatePipe reads the browser language automatically, so nothing is needed',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. Text translation and DATA formatting are separate. Pipes like `DatePipe`, `CurrencyPipe`, `DecimalPipe`, and `PercentPipe` format according to `LOCALE_ID`, and each non-`en-US` locale needs its CLDR data registered: `registerLocaleData(localeFr, \'fr\')` plus providing `{ provide: LOCALE_ID, useValue: \'fr\' }` (a localized production build wires this for you). Miss either and the pipes silently fall back to en-US. Why others fail: (A) they are specifically locale-aware. (C) you can pass a locale per call, but the point is the app-wide default via LOCALE_ID + data. (D) DatePipe does not auto-read navigator.language.',
+  },
+  {
+    id: 269, type: 'multiple-choice', difficulty: 'mid', category: 'components',
+    question: 'What are the pieces of an Angular animation defined in `animations: [...]`?',
+    options: [
+      'Just a CSS class toggled by a directive',
+      'trigger(\'name\', [ state(...), state(...), transition(\'open <=> closed\', animate(\'200ms\')) ]) — states define end styles, transitions define how to animate between them; bound in the template with [@name]="expr"',
+      'A single animate() call on the component selector',
+      'keyframes defined only in the global stylesheet',
+    ],
+    answer: 1,
+    topicPath: 'animations',
+    explanation: 'B is correct. Angular\'s animation DSL composes: `trigger(\'name\', [...])` names an animation and is attached in the template via `[@name]="expr"`; `state(\'open\', style({...}))` declares the styles for a named state; and `transition(\'open <=> closed\', animate(\'200ms ease\'))` describes the timed change between states (optionally with `keyframes`, `group`, `query`, `stagger`). Requires `provideAnimationsAsync()` (or the animations provider). Why others fail: (A) it is a full state machine, not a class toggle. (C) a lone `animate()` has no trigger/state binding. (D) keyframes live inside the trigger DSL, not (only) global CSS.',
+  },
+  {
+    id: 270, type: 'multiple-choice', difficulty: 'senior', category: 'components',
+    question: 'What do the `:enter` and `:leave` animation aliases target?',
+    options: [
+      'Mouse enter and leave hover events',
+      ':enter is an alias for the void => * transition (element entering the DOM) and :leave for * => void (element being removed); combined with query() and stagger() they animate list items in and out',
+      'Route entry and exit only',
+      'Focus and blur states',
+    ],
+    answer: 1,
+    topicPath: 'animations',
+    explanation: 'B is correct. When an element is added to or removed from the DOM (via `@if`, `@for`, `*ngIf`, etc.), Angular represents those with the special `void` state. `:enter` is shorthand for `transition(\':enter\', ...)` = `void => *` (appearing), and `:leave` = `* => void` (disappearing). Angular keeps a leaving element in the DOM until its `:leave` animation finishes. Wrapping a list in a trigger and using `query(\':enter\', stagger(50, animate(...)))` animates children in sequence. Why others fail: (A) those are `mouseenter`/`mouseleave` DOM events, unrelated. (C) enter/leave apply to any element insertion/removal, not just routes. (D) focus/blur are different events.',
+  },
+  {
+    id: 271, type: 'multiple-choice', difficulty: 'senior', category: 'routing',
+    question: 'What does `provideRouter(routes, withViewTransitions())` do?',
+    options: [
+      'It preloads all lazy routes on startup',
+      'It wraps each route navigation in the browser View Transitions API (document.startViewTransition), giving smooth animated transitions between pages with no manual animation code — progressively enhanced and styleable via ::view-transition pseudo-elements',
+      'It enables server-side rendering for routes',
+      'It adds a loading spinner between route changes',
+    ],
+    answer: 1,
+    topicPath: 'view-transitions',
+    explanation: 'B is correct. `withViewTransitions()` hooks the router into the native View Transitions API: on navigation Angular calls `document.startViewTransition()` so the browser snapshots the old and new DOM and cross-fades (or morphs shared elements via `view-transition-name`) between them. It is a progressive enhancement — where the API is unsupported the navigation just happens instantly — and you customize the animation with `::view-transition-old/new` CSS pseudo-elements. Why others fail: (A) preloading is a separate feature (`withPreloading`). (C) SSR is `provideServerRendering`, unrelated. (D) it animates the transition, it is not a spinner.',
+  },
+  {
+    id: 272, type: 'multiple-choice', difficulty: 'mid', category: 'performance',
+    question: 'Which CSS properties animate most smoothly, and why?',
+    options: [
+      'width and height, because they are simple numbers',
+      'transform and opacity — the compositor can animate them on the GPU without triggering layout or paint each frame; animating width/height/top/left forces reflow and causes jank',
+      'margin and padding, because they avoid repaints',
+      'It makes no difference which properties you animate',
+    ],
+    answer: 1,
+    topicPath: 'performance',
+    explanation: 'B is correct. Browsers run a pipeline of layout → paint → composite. `transform` and `opacity` can be handled purely in the COMPOSITE step on the GPU, so they animate at 60fps without recalculating geometry. Animating layout-affecting properties (`width`, `height`, `top`, `left`, `margin`) forces the browser to re-run layout and paint on every frame, which drops frames on complex pages. Prefer `transform: translate()/scale()` over positional/size changes, and hint with `will-change` sparingly. Why others fail: (A) width/height trigger layout — the opposite of smooth. (C) margin/padding also trigger layout. (D) property choice is one of the biggest factors in animation smoothness.',
+  },
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -3594,7 +3962,7 @@ function shuffle<T>(arr: T[]): T[] {
       <span class="pill">Interactive Practice</span>
       <h1>Practice Challenges</h1>
       <p>
-        248 challenges across all levels — spot bugs, predict output, and answer
+        272 challenges across all levels — spot bugs, predict output, and answer
         multiple-choice questions. Every answer comes with a full explanation.
         Questions are randomized each session.
       </p>
@@ -3769,6 +4137,8 @@ export class Practice {
     { id: 'typescript', label: 'TypeScript' },
     { id: 'security', label: 'Security' },
     { id: 'a11y', label: 'Accessibility' },
+    { id: 'state', label: 'State & Architecture' },
+    { id: 'i18n', label: 'i18n' },
   ];
 
   readonly diffFilters: { id: 'all' | Difficulty; label: string }[] = [
