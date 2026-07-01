@@ -2789,6 +2789,389 @@ addItem(item: Item) {
     topicPath: 'let-block',
     explanation: 'B is correct: `@let name = expression` (Angular 18+) evaluates the expression once and binds the result to a local name within the template scope. It solves the "double pipe" problem: instead of writing `(user$ | async)?.name` and `(user$ | async)?.email` (two subscriptions), write `@let user = user$ | async` once and reference `user.name`, `user.email`. Works with any expression — signal calls, pipe chains, method calls. A, C, D are wrong.',
   },
+
+  // ─── BATCH 201-224: MODERN APIS & DEEP DIVES ────────────────────────────────
+  {
+    id: 201, type: 'predict-output', difficulty: 'mid', category: 'signals',
+    question: 'What does count() return after b.set(20) runs?',
+    code: `const a = signal(1);
+const b = signal(10);
+const count = computed(() => a() + untracked(() => b()));
+
+count();      // first read → memoized
+a.set(2);     // a is tracked
+b.set(20);    // b was read via untracked
+console.log(count());`,
+    options: [
+      '22 — count re-runs and reads the new a (2) and new b (20)',
+      '12 — count last recomputed on a.set(2), reading a=2 and untracked b=10; b.set(20) does NOT invalidate it',
+      '11 — the initial value, because untracked freezes the computed',
+      '21 — a stays 1 but b updates to 20',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. `untracked(() => b())` reads b\'s CURRENT value but does NOT register b as a dependency. So `count` only recomputes when `a` changes. First read caches 1 + 10 = 11. `a.set(2)` invalidates count → it recomputes to 2 + untracked(b=10) = 12. `b.set(20)` is invisible to count (b is not a tracked dependency), so it never recomputes — `count()` returns the stale 12. This is the whole point of untracked: read a signal without subscribing to it. Why others fail: (A) count never re-reads b reactively. (C) untracked reads the live value, it does not freeze. (D) a was updated to 2, not left at 1.',
+  },
+  {
+    id: 202, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
+    question: 'What does the `onCleanup` callback passed into an effect do?',
+    code: `effect((onCleanup) => {
+  const id = setInterval(() => poll(), 1000);
+  onCleanup(() => clearInterval(id));
+});`,
+    options: [
+      'It runs a single time when the component is destroyed, exactly like ngOnDestroy',
+      'It registers teardown that runs before the effect\'s NEXT run and when the effect itself is destroyed — cleaning up the previous run',
+      'It cancels the effect permanently after the first execution',
+      'onCleanup is not a real API; effects never need manual cleanup',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. The function you pass to `onCleanup` runs (1) immediately before the effect re-executes due to a dependency change, and (2) when the effect is torn down (its injection context is destroyed). This lets each run clean up after itself — clear timers, unsubscribe, abort fetches — so you never stack duplicate intervals or leak subscriptions. Why others fail: (A) it also runs between re-runs, not only on final destroy. (C) it does not stop the effect; the effect keeps reacting. (D) side-effecting work (timers, listeners) absolutely needs cleanup.',
+  },
+  {
+    id: 203, type: 'multiple-choice', difficulty: 'mid', category: 'signals',
+    question: 'What does the `equal` option do in `signal(value, { equal: fn })`?',
+    options: [
+      'It runs once at creation to validate the initial value\'s type',
+      'It is called with (previous, next) on every set/update; if it returns true the value is treated as unchanged and dependents are NOT notified',
+      'It deep-clones the value before storing it to guarantee immutability',
+      'It converts the signal into a computed by deriving equality from other signals',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. `equal` is a custom equality function called on every write. If `equal(prev, next)` returns true, Angular considers the value unchanged, skips the update, and does NOT notify computeds/effects/templates — avoiding wasted recomputation and change detection. The default is `Object.is`, which treats a new array/object reference as different even when structurally identical; supplying a structural comparator (e.g. `_.isEqual`) stops needless updates. Why others fail: (A) it runs on every set, not just at creation. (C) it compares, it does not clone. (D) it does not turn a writable signal into a computed.',
+  },
+  {
+    id: 204, type: 'spot-the-bug', difficulty: 'senior', category: 'forms',
+    question: 'After reset(), value is `null` and breaks the string-typed consumer. Why, and how do you fix it?',
+    code: `const name = new FormControl('Ada');
+// ...later
+name.reset();
+const upper: string = name.value.toUpperCase(); // 💥 runtime + type error`,
+    options: [
+      'reset() is deprecated; use clear() which preserves the type',
+      'A default FormControl is nullable — reset() sets value back to null. Use { nonNullable: true } so reset() restores the initial value and the type is FormControl<string>',
+      'FormControl values are always strings; the error is unrelated to reset()',
+      'You must pass an empty string to reset(): reset(\'\') — but the type stays FormControl<string | null>',
+    ],
+    answer: 1,
+    topicPath: 'reactive-forms',
+    explanation: 'B is correct. By default `new FormControl(\'Ada\')` is typed `FormControl<string | null>` and `reset()` sets the value to `null` (not the initial value), so `name.value.toUpperCase()` throws at runtime and TypeScript flags the possible null. The fix is `new FormControl(\'Ada\', { nonNullable: true })` — now the type is `FormControl<string>` and `reset()` returns to the initial `\'Ada\'` instead of null. Why others fail: (A) there is no `clear()`; reset() is correct. (C) values are nullable by default, which is the whole problem. (D) passing `reset(\'\')` works at runtime but the declared type stays nullable, so the type error remains.',
+  },
+  {
+    id: 205, type: 'multiple-choice', difficulty: 'mid', category: 'forms',
+    question: 'What does `new FormControl(\'\', { updateOn: \'blur\' })` change?',
+    options: [
+      'It disables the control until the user focuses it',
+      'The control\'s value and validity update only when it loses focus (blur), not on every keystroke — reducing validation churn',
+      'It debounces value changes by a fixed 300ms',
+      'It makes the control update on every change AND on blur, whichever comes first',
+    ],
+    answer: 1,
+    topicPath: 'form-validation',
+    explanation: 'B is correct. `updateOn` controls when the model syncs from the view. `\'change\'` (default) updates on every input event; `\'blur\'` updates only when the field loses focus; `\'submit\'` updates only when the parent form is submitted. Using `\'blur\'` is ideal for expensive async validators (e.g. "is this email taken?") because it fires one validation when the user leaves the field instead of one per keystroke. Why others fail: (A) it does not disable anything. (C) it is event-based, not a timer/debounce. (D) it replaces change-based updating, it does not combine them.',
+  },
+  {
+    id: 206, type: 'predict-output', difficulty: 'mid', category: 'rxjs',
+    question: 'What values are logged?',
+    code: `of(1, 2, 3).pipe(
+  scan((acc, n) => acc + n, 0)
+).subscribe(console.log);`,
+    options: [
+      '6 — like reduce, only the final total is emitted',
+      '1, 3, 6 — scan emits the running accumulator after each value',
+      '0, 1, 3, 6 — the seed is emitted first',
+      '1, 2, 3 — scan passes values through unchanged',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-operators',
+    explanation: 'B is correct. `scan` is "reduce that emits every step". Starting from seed 0: 0+1=1 (emit 1), 1+2=3 (emit 3), 3+6... 3+3=6 (emit 6). So it logs 1, 3, 6. Use `scan` for running totals / accumulating state over a stream. Why others fail: (A) that is `reduce`, which emits only once on completion. (C) the seed itself is not emitted — the first emission is seed+first value; prepend `startWith(0)` if you want the 0. (D) scan transforms and accumulates; it does not pass values through.',
+  },
+  {
+    id: 207, type: 'multiple-choice', difficulty: 'senior', category: 'rxjs',
+    question: 'Why can `shareReplay(1)` leak, and what is the fix?',
+    code: `readonly ticks$ = interval(1000).pipe(shareReplay(1));`,
+    options: [
+      'It buffers every emission forever; cap it with take(1)',
+      'With the default config the source subscription stays alive even after all subscribers unsubscribe, so the interval never stops. Use shareReplay({ bufferSize: 1, refCount: true })',
+      'shareReplay always creates a new subscription per subscriber; switch to share()',
+      'It only works inside components; move it to a service to fix the leak',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-advanced',
+    explanation: 'B is correct. By default `shareReplay(1)` is NOT reference-counted: once it subscribes to the source it keeps that subscription open forever, so a hot source like `interval`/`fromEvent`/a WebSocket keeps running even after every consumer has unsubscribed — a leak. Passing `{ bufferSize: 1, refCount: true }` makes it drop the source subscription when the subscriber count hits zero (and re-subscribe when a new one arrives). Why others fail: (A) bufferSize 1 already caps the buffer; the leak is the source subscription, not the buffer. (C) sharing is exactly what it does; the issue is teardown. (D) location is irrelevant to the refCount behavior.',
+  },
+  {
+    id: 208, type: 'spot-the-bug', difficulty: 'senior', category: 'rxjs',
+    question: 'After one failed request the typeahead stops responding entirely. Why?',
+    code: `this.query$.pipe(
+  debounceTime(300),
+  switchMap(q => this.api.search(q)),
+  catchError(() => of([]))   // ← placement
+).subscribe(results => this.results.set(results));`,
+    options: [
+      'debounceTime must come after switchMap',
+      'catchError is on the OUTER stream — when a request errors it completes the whole pipeline, so no future keystrokes are processed. Move catchError INSIDE switchMap on the per-request observable',
+      'switchMap should be mergeMap so requests are not cancelled',
+      'of([]) is wrong; catchError must rethrow to keep the stream alive',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-advanced',
+    explanation: 'B is correct. An RxJS error terminates the observable it lives on. Here `catchError` sits on the OUTER `query$` chain, so the first failed search errors-then-completes the entire pipeline and the subscription dies — the typeahead goes silent. Put `catchError` on the INNER observable so only that one request recovers and the outer stream keeps flowing: `switchMap(q => this.api.search(q).pipe(catchError(() => of([]))))`. Why others fail: (A) debounceTime is correctly placed before switchMap. (C) switchMap is the right operator for search (cancels stale requests). (D) returning `of([])` to recover is correct — the bug is placement, not the recovery value.',
+  },
+  {
+    id: 209, type: 'predict-output', difficulty: 'senior', category: 'rxjs',
+    question: 'What does this forkJoin emit?',
+    code: `forkJoin({
+  user: of({ id: 1 }),
+  ticks: interval(1000)
+}).subscribe({
+  next: v => console.log('next', v),
+  complete: () => console.log('done')
+});`,
+    options: [
+      '{ user: {id:1}, ticks: 0 } after 1 second, then done',
+      'Nothing — forkJoin emits only when ALL sources COMPLETE, and interval never completes',
+      '{ user: {id:1} } immediately, ignoring the pending ticks',
+      'It errors because you cannot mix a finite and an infinite source',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-operators',
+    explanation: 'B is correct. `forkJoin` waits for every input observable to COMPLETE, then emits a single object of their LAST values. `interval(1000)` never completes, so forkJoin never emits `next` and never completes — the subscription just sits there. Use `combineLatest` if you want the latest values whenever any source emits, or make each source finite (e.g. `interval(1000).pipe(take(1))`). Why others fail: (A) forkJoin needs completion, not just a first value. (C) it never emits partial results. (D) mixing finite/infinite is legal — it simply never fires.',
+  },
+  {
+    id: 210, type: 'multiple-choice', difficulty: 'mid', category: 'components',
+    question: 'What does the transform enable here: `disabled = input(false, { transform: booleanAttribute })`?',
+    options: [
+      'It validates that only booleans can be assigned in TypeScript',
+      'It coerces attribute/string inputs to boolean so `<my-cmp disabled>` (bare attribute) becomes true, matching native boolean-attribute behavior',
+      'It makes the input two-way bindable',
+      'It runs the transform once on the initial value only',
+    ],
+    answer: 1,
+    topicPath: 'inputs',
+    explanation: 'B is correct. An input `transform` runs on every incoming value before it reaches the signal. `booleanAttribute` (built in, alongside `numberAttribute`) coerces the way native HTML boolean attributes do: a present-but-empty attribute (`<my-cmp disabled>`) and the string `"true"` become `true`; absence/`"false"` become `false`. This lets custom components accept `disabled` like real DOM elements. Why others fail: (A) it coerces at runtime, not just type-checks. (C) two-way binding is `model()`, not a transform. (D) the transform runs on every value change, not once.',
+  },
+  {
+    id: 211, type: 'spot-the-bug', difficulty: 'senior', category: 'components',
+    question: 'Why is `this.box()` undefined in the constructor?',
+    code: `@Component({ template: '<div #box>hi</div>' })
+export class Card {
+  box = viewChild<ElementRef>('box');
+
+  constructor() {
+    console.log(this.box());  // undefined
+  }
+}`,
+    options: [
+      'viewChild cannot query a plain div; it only finds components',
+      'The query resolves after the view is created — reading it in the constructor (before view init) returns undefined. Read it in an effect(), afterNextRender(), or ngAfterViewInit',
+      'You must use viewChild.required() or it always returns undefined',
+      'The #box reference needs to be exported with exportAs to be queryable',
+    ],
+    answer: 1,
+    topicPath: 'view-queries',
+    explanation: 'B is correct. Signal view queries are populated when Angular creates the component\'s view — which happens AFTER the constructor runs. So reading `this.box()` in the constructor returns `undefined`. Read it once the view exists: inside an `effect(() => { const el = this.box(); if (el) {...} })` (the effect re-runs when the query resolves), in `afterNextRender()`, or in `ngAfterViewInit`. Why others fail: (A) viewChild finds elements, directives, and components. (C) `.required()` throws if not found — it does not change WHEN the query resolves. (D) `exportAs` is for directive instances; a template ref var does not need it.',
+  },
+  {
+    id: 212, type: 'multiple-choice', difficulty: 'senior', category: 'components',
+    question: 'What does `model()` provide that `input()` does not?',
+    code: `value = model<string>('');   // vs  value = input<string>('')`,
+    options: [
+      'model() adds runtime validation to the value',
+      'model() is a writable two-way signal: setting it emits a `valueChange` event automatically, enabling [(value)] banana-in-a-box binding',
+      'model() makes the input required by default',
+      'model() converts the input into an Observable',
+    ],
+    answer: 1,
+    topicPath: 'outputs',
+    explanation: 'B is correct. `input()` is READ-ONLY inside the component. `model()` creates a WRITABLE signal AND, whenever you call `value.set(x)`/`value.update()`, Angular emits a matching `valueChange` output — which is exactly the contract `[(value)]="parentSignal"` relies on. It is the modern, signal-based replacement for the `@Input() x` + `@Output() xChange` pair. Why others fail: (A) it does not add validation. (C) use `model.required()` for required; plain `model()` is optional. (D) it stays a signal, not an Observable.',
+  },
+  {
+    id: 213, type: 'multiple-choice', difficulty: 'mid', category: 'routing',
+    question: 'What does `provideRouter(routes, withComponentInputBinding())` let you do?',
+    code: `{ path: 'user/:id', component: UserPage }
+// UserPage:
+id = input.required<string>();   // ← bound from the :id param`,
+    options: [
+      'Automatically lazy-loads every routed component',
+      'Binds route params, query params, and resolved data straight to component inputs with matching names — no ActivatedRoute injection needed',
+      'Validates that route params match the input types at runtime',
+      'Enables two-way binding between the URL and component state',
+    ],
+    answer: 1,
+    topicPath: 'route-params',
+    explanation: 'B is correct. `withComponentInputBinding()` wires router data into `@Input()`/`input()` properties by name: a path param `:id`, a matching query param `?id=`, and resolver data keyed `id` all flow into an `id` input. It removes the boilerplate of injecting `ActivatedRoute` and subscribing to `paramMap` for simple cases. Why others fail: (A) lazy loading is `loadComponent`/`loadChildren`, unrelated. (C) there is no runtime type validation — params arrive as strings. (D) it is one-way (URL → input), not two-way.',
+  },
+  {
+    id: 214, type: 'multiple-choice', difficulty: 'senior', category: 'routing',
+    question: 'How do you register an HTTP interceptor in modern (functional) Angular?',
+    options: [
+      'Add it to the AppModule providers with { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true }',
+      'provideHttpClient(withInterceptors([authInterceptor])) where authInterceptor is an HttpInterceptorFn: (req, next) => next(req)',
+      'Decorate the interceptor class with @Interceptor() and it auto-registers',
+      'Pass it to bootstrapApplication as a second argument',
+    ],
+    answer: 1,
+    topicPath: 'http-interceptors',
+    explanation: 'B is correct. Functional interceptors are plain functions of type `HttpInterceptorFn` — `(req, next) => next(modifiedReq)` — registered via `provideHttpClient(withInterceptors([authInterceptor, loggingInterceptor]))`. They run in array order, can use `inject()` inside for services, and are the standalone-first standard. Why others fail: (A) the `HTTP_INTERCEPTORS` multi-provider is the OLD DI-based approach — still supported via `withInterceptorsFromDi()`, but not the modern default. (C) there is no `@Interceptor()` decorator. (D) interceptors are configured through `provideHttpClient`, not a bootstrap argument.',
+  },
+  {
+    id: 215, type: 'predict-output', difficulty: 'mid', category: 'typescript',
+    question: 'What is the type of `p`?',
+    code: `const config = {
+  port: 3000,
+  host: 'localhost',
+} satisfies Record<string, string | number>;
+
+const p = config.port;`,
+    options: [
+      'string | number — widened to the Record value type',
+      'number — satisfies validates the shape WITHOUT widening the inferred property types',
+      'any — satisfies erases the specific types',
+      '3000 — the literal type is preserved exactly',
+    ],
+    answer: 1,
+    topicPath: 'ts-utility-types',
+    explanation: 'B is correct. `satisfies` checks that the value is assignable to `Record<string, string | number>` but keeps the NARROW inferred type of the literal. So `config.port` stays `number` (and `config.host` stays `string`), giving you both validation and precise types. Contrast with a type ANNOTATION `const config: Record<string, string | number> = {...}`, which widens `config.port` to `string | number`. Why others fail: (A) that is what an annotation would do, not satisfies. (C) satisfies never produces `any`. (D) object property inference widens `3000` to `number` (only `as const` keeps the literal `3000`).',
+  },
+  {
+    id: 216, type: 'multiple-choice', difficulty: 'senior', category: 'typescript',
+    question: 'What makes a discriminated union exhaustively checkable at compile time?',
+    code: `type Shape =
+  | { kind: 'circle'; r: number }
+  | { kind: 'square'; side: number };`,
+    options: [
+      'Marking every property readonly',
+      'A shared literal "tag" field (kind) lets TS narrow each case; a default branch assigning to `const _: never = shape` errors if a new variant is added but unhandled',
+      'Wrapping the union in an interface',
+      'Using an enum instead of string literals for kind',
+    ],
+    answer: 1,
+    topicPath: 'ts-narrowing',
+    explanation: 'B is correct. A common literal discriminant (`kind`) lets TypeScript narrow the union inside `switch (shape.kind)` so each branch sees the right member type. Add a `default` that assigns the value to a `never`: `const _exhaustive: never = shape;`. If someone later adds `{ kind: \'triangle\'; ... }` and forgets a case, `shape` is no longer `never` in the default branch and the assignment fails to compile — a free exhaustiveness check. Why others fail: (A) readonly affects mutability, not narrowing. (C) an interface cannot express a union of shapes. (D) an enum tag works too, but the enum itself is not what enables exhaustiveness — the never-assignment is.',
+  },
+  {
+    id: 217, type: 'multiple-choice', difficulty: 'mid', category: 'typescript',
+    question: 'Which built-in utility type makes every property of T optional?',
+    options: [
+      'Required<T>',
+      'Partial<T>',
+      'Readonly<T>',
+      'Pick<T, K>',
+    ],
+    answer: 1,
+    topicPath: 'ts-utility-types',
+    explanation: 'B is correct. `Partial<T>` maps every property to optional (`{ [K in keyof T]?: T[K] }`) — ideal for patch/update payloads and `patchValue`-style APIs. Know the family: `Required<T>` makes all properties required (the inverse); `Readonly<T>` makes them immutable; `Pick<T, K>` keeps only keys K; `Omit<T, K>` removes keys K; `Record<K, V>` builds an object type from a key set. Why others fail: (A) Required is the opposite. (C) Readonly changes mutability, not optionality. (D) Pick selects a subset of keys, it does not make them optional.',
+  },
+  {
+    id: 218, type: 'spot-the-bug', difficulty: 'mid', category: 'testing',
+    question: 'This test asserts too early for an async-loading component. What is missing?',
+    code: `it('shows loaded data', () => {
+  fixture.detectChanges();          // triggers ngOnInit → async load
+  const text = fixture.nativeElement.textContent;
+  expect(text).toContain('Loaded');  // fails: still "Loading..."
+});`,
+    options: [
+      'detectChanges() must be called twice in a row',
+      'The async work has not resolved yet — make the test async and `await fixture.whenStable()` before the second detectChanges() and assertion',
+      'querySelector should be used instead of textContent',
+      'ngOnInit cannot start async work; move it to the constructor',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. The first `detectChanges()` runs `ngOnInit`, which kicks off an async fetch — but the promise/HTTP response has not resolved by the next synchronous line, so the DOM still shows the loading state. Await stabilization, then re-render: `await fixture.whenStable(); fixture.detectChanges(); expect(...)`. Alternatives: `fakeAsync` + `tick()`/`flush()`, or flush a mock via `HttpTestingController`. Why others fail: (A) calling detectChanges twice does not make time pass for the pending async task. (C) the query method is irrelevant to the timing bug. (D) starting async work in ngOnInit is normal and correct.',
+  },
+  {
+    id: 219, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'What is the modern TestBed setup for testing a service that uses HttpClient?',
+    options: [
+      'imports: [HttpClient] and inject HttpClient directly with real requests',
+      'providers: [provideHttpClient(), provideHttpClientTesting()], then inject HttpTestingController to expect/flush requests',
+      'imports: [HttpClientModule] and spyOn(window, \'fetch\')',
+      'No setup needed; HttpClient is mocked automatically in TestBed',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct. The standalone-first pattern is `TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] })`. `provideHttpClientTesting()` swaps in a backend you drive with `HttpTestingController` — `httpMock.expectOne(url).flush(data)` to answer requests and `httpMock.verify()` in afterEach to assert none were left unhandled. Why others fail: (A) hitting the real network in a unit test is flaky and slow. (C) `HttpClientModule` + fetch spying is neither the module you\'d use nor how HttpClient works under the hood. (D) TestBed does not auto-mock HttpClient — you must provide the testing backend.',
+  },
+  {
+    id: 220, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
+    question: 'In a zoneless app (`provideZonelessChangeDetection()`), what triggers change detection?',
+    options: [
+      'Nothing — you must call detectChanges() manually everywhere',
+      'Signal reads in templates, the async pipe, template event handlers, and markForCheck() notify the scheduler directly — Zone.js no longer patches async APIs',
+      'Only HTTP responses, via a built-in interceptor',
+      'Every setTimeout and Promise, exactly like Zone.js but faster',
+    ],
+    answer: 1,
+    topicPath: 'zoneless',
+    explanation: 'B is correct. Without Zone.js, Angular no longer monkey-patches setTimeout/Promise/addEventListener to guess when to re-render. Instead, change detection is scheduled by explicit reactive signals: a signal used in a template changing, the async pipe emitting, a template `(event)` firing, or `ChangeDetectorRef.markForCheck()`. The practical consequence: a bare `setTimeout(() => this.plainField = x)` will NOT update the view unless it writes to a signal or calls markForCheck. Why others fail: (A) the listed reactive primitives schedule CD for you. (C) it is not limited to HTTP. (D) the whole point is that arbitrary async callbacks no longer auto-trigger CD.',
+  },
+  {
+    id: 221, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
+    question: 'What does `provideClientHydration()` do for a server-rendered (SSR) Angular app?',
+    options: [
+      'It re-renders the whole app on the client, replacing the server HTML',
+      'It enables non-destructive hydration — Angular reuses the server-rendered DOM instead of destroying and rebuilding it, removing the flicker and improving LCP/CLS',
+      'It disables JavaScript on the client for faster loads',
+      'It caches API responses in localStorage',
+    ],
+    answer: 1,
+    topicPath: 'hydration',
+    explanation: 'B is correct. Without hydration, Angular throws away the server-rendered DOM on bootstrap and re-creates it, causing a visible flash and layout shift. `provideClientHydration()` turns on non-destructive hydration: Angular walks the existing server DOM, attaches event listeners and state to it, and skips re-rendering — better LCP/CLS and no flicker. Add `withIncrementalHydration()` to hydrate `@defer` blocks lazily (e.g. on interaction/viewport). Why others fail: (A) that is the pre-hydration destructive behavior it eliminates. (C) it does not disable client JS. (D) it hydrates DOM; it is not an HTTP cache.',
+  },
+  {
+    id: 222, type: 'predict-output', difficulty: 'mid', category: 'performance',
+    question: 'With a PURE pipe, when does `transform()` re-run for `{{ items | tally }}`?',
+    code: `@Pipe({ name: 'tally' })            // pure by default
+export class TallyPipe implements PipeTransform {
+  transform(items: Item[]) { return items.length; }
+}
+
+// component: this.items.push(newItem);  // mutate in place`,
+    options: [
+      'On every change-detection cycle, regardless of the input',
+      'Only when the items REFERENCE changes; an in-place push does NOT re-run it (same array reference)',
+      'Never — pure pipes run exactly once',
+      'Whenever any signal in the component changes',
+    ],
+    answer: 1,
+    topicPath: 'custom-pipes',
+    explanation: 'B is correct. A pure pipe (the default) re-runs `transform` only when Angular detects a change to its INPUT by reference (or a changed primitive). `this.items.push(x)` mutates the existing array — the reference is unchanged — so the pipe does not re-run and the displayed count goes stale. Fix by replacing the reference (`this.items = [...this.items, x]`) or using a signal. An IMPURE pipe (`pure: false`) runs every CD cycle, which is why impure pipes must be cheap. Why others fail: (A) that describes an impure pipe. (C) it re-runs on every reference change, not just once. (D) pure-pipe re-evaluation is keyed on its input reference, not arbitrary signals.',
+  },
+  {
+    id: 223, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
+    question: 'What does the `resource()` API give you over a manual `toSignal(http.get(...))`?',
+    code: `user = resource({
+  request: () => ({ id: this.userId() }),
+  loader: ({ request, abortSignal }) =>
+    fetch(\`/api/users/\${request.id}\`, { signal: abortSignal }).then(r => r.json()),
+});`,
+    options: [
+      'Nothing — it is just shorter syntax for the same behavior',
+      'It ties an async load to a reactive request: it re-runs when request() changes, exposes value()/status()/error()/isLoading() signals, and aborts stale requests via abortSignal',
+      'It caches results permanently and never refetches',
+      'It converts an Observable into a Promise',
+    ],
+    answer: 1,
+    topicPath: 'resource-api',
+    explanation: 'B is correct. `resource()` models an async dependency reactively. Its `request` is a signal-computing function; whenever those signals change, the `loader` re-runs, and the previous in-flight request is cancelled through the provided `abortSignal`. It exposes fine-grained signals — `value()`, `status()` (idle/loading/resolved/error), `error()`, `isLoading()` — so templates can render loading/error/data states without manual bookkeeping. `toSignal(http.get(...))` gives you a single value with no built-in request-tracking, cancellation, or status. Why others fail: (A) it adds cancellation, status, and auto-refetch. (C) it refetches when the request changes; it is not a permanent cache. (D) it is not an Observable-to-Promise converter.',
+  },
+  {
+    id: 224, type: 'multiple-choice', difficulty: 'mid', category: 'rxjs',
+    question: 'Where can you call `takeUntilDestroyed()` with NO argument, and why?',
+    options: [
+      'Anywhere — it always finds the current component automatically',
+      'Only inside an injection context (constructor or field initializer), because it injects DestroyRef itself; elsewhere (e.g. ngOnInit) you must pass takeUntilDestroyed(this.destroyRef)',
+      'Only inside ngOnDestroy, after the component is torn down',
+      'Only in services, never in components',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-interop',
+    explanation: 'B is correct. `takeUntilDestroyed()` needs a `DestroyRef`. Called with no argument it uses `inject(DestroyRef)`, which is only legal in an INJECTION CONTEXT — a constructor or a field initializer. If you set up a subscription later (e.g. in `ngOnInit`, which is not an injection context), inject a `DestroyRef` once via `private destroyRef = inject(DestroyRef)` and pass it explicitly: `takeUntilDestroyed(this.destroyRef)`. It auto-completes the stream when the component/service is destroyed, replacing manual `takeUntil(this.destroy$)` boilerplate. Why others fail: (A) outside an injection context the argless form throws. (C) ngOnDestroy is too late to set up a subscription. (D) it works in any injectable — components, services, directives.',
+  },
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -2853,7 +3236,7 @@ function shuffle<T>(arr: T[]): T[] {
       <span class="pill">Interactive Practice</span>
       <h1>Practice Challenges</h1>
       <p>
-        200 challenges across all levels — spot bugs, predict output, and answer
+        224 challenges across all levels — spot bugs, predict output, and answer
         multiple-choice questions. Every answer comes with a full explanation.
         Questions are randomized each session.
       </p>
