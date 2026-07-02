@@ -4241,6 +4241,348 @@ export class WidthComponent {
     topicPath: 'typescript',
     explanation: 'B is correct. A mapped type `{ [K in keyof T]: … }` iterates every key of `T`; the optional `as` clause REMAPS each key to a new one, and template literal types build that new key from string pieces plus helpers like `Capitalize`. So the shown type turns `{ name: string; age: number }` into `{ onName: () => void; onAge: () => void }`. These are pure type-level computations — ideal for deriving handler or getter types from a model. Why others fail: (A) it is a compile-time type, not a runtime object. (C) it maps any object type, not just arrays. (D) no decorator or runtime is involved.',
   },
+  {
+    id: 297, type: 'multiple-choice', difficulty: 'junior', category: 'a11y',
+    question: 'When should an image have `alt=""` (empty) versus descriptive alt text?',
+    options: [
+      'alt is optional — screen readers skip images without it automatically',
+      'Informative images need alt text describing their CONTENT or PURPOSE; purely decorative images get alt="" so screen readers skip them — omitting alt entirely makes readers announce the raw file name instead',
+      'Every image must have a long, detailed alt describing every pixel',
+      'alt="" hides the image visually as well as from screen readers',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. `alt` communicates what a sighted user gets from the image: a product photo needs a description, an icon that duplicates adjacent text or a decorative flourish should carry `alt=""` — the EXPLICIT empty value tells assistive tech "intentionally skippable". Leaving `alt` off is worse than empty: many screen readers then read the src file name ("IMG-2024-final-v3.png"). Keep alt concise and purposeful, not exhaustive. Why others fail: (A) a missing attribute is not skipped — it degrades to the file name. (C) alt should convey purpose briefly, not pixel-level detail. (D) alt affects only assistive tech; the image still renders.',
+  },
+  {
+    id: 298, type: 'multiple-choice', difficulty: 'junior', category: 'a11y',
+    question: 'Why is a `placeholder` not a substitute for a `<label>` on form fields?',
+    options: [
+      'Placeholders are deprecated in HTML5',
+      'Placeholder text vanishes as soon as the user types (losing the field context), often fails contrast requirements, and is inconsistently exposed to screen readers — every input needs a programmatically associated label via <label for="id"> or wrapping',
+      'Labels are only required for checkboxes and radios',
+      'A placeholder works fine as long as it is written in capital letters',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. A visible, associated `<label for="email">` (matching the input `id`) or a wrapping label gives the field a persistent, accessible name: it stays visible while typing, screen readers announce it, and clicking it focuses the input (a bigger touch target). Placeholders disappear on input, are usually low-contrast grey, and are not reliably treated as the accessible name. Use placeholder only for a format EXAMPLE (a name@example.com style hint), never as the sole label. Why others fail: (A) placeholder is not deprecated — just misused. (C) all form controls need labels. (D) capitalization changes nothing about the problems.',
+  },
+  {
+    id: 299, type: 'fill-blank', difficulty: 'junior', category: 'a11y',
+    question: 'Complete the "skip link" that lets keyboard users jump past the navigation:',
+    code: `<body>
+  <a class="skip-link" ____>Skip to main content</a>
+  <nav><!-- 40 links… --></nav>
+  <main ____>…</main>
+</body>`,
+    options: [
+      '(click)="skip()" on the anchor and #main on <main>',
+      'href="#main-content" on the anchor and id="main-content" tabindex="-1" on <main> — the first focusable element on the page, visually hidden until focused, jumping focus past the nav',
+      'routerLink="/main" on the anchor and route path "main"',
+      'aria-skip="true" on the anchor and aria-target on <main>',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. A skip link is a plain same-page anchor: `<a href="#main-content">` as the FIRST focusable element, targeting `<main id="main-content" tabindex="-1">` (the tabindex lets a non-interactive element receive programmatic focus in all browsers). It is typically positioned off-screen and revealed on `:focus`, so keyboard and screen-reader users can bypass repeated navigation — WCAG 2.4.1 Bypass Blocks. Why others fail: (A) a click handler alone does not move focus reliably and #main is a template ref, not a fragment target. (C) routing to a different URL reloads context — a fragment is enough. (D) aria-skip/aria-target do not exist.',
+  },
+  {
+    id: 300, type: 'multiple-choice', difficulty: 'junior', category: 'a11y',
+    question: 'How should heading levels (h1–h6) be used on a page?',
+    options: [
+      'Pick whichever heading tag has the font size you want',
+      'As a logical outline: one h1 for the page topic, h2 for sections, h3 for subsections — no skipped levels — because screen-reader users navigate by heading structure; use CSS to adjust visual size, never the tag',
+      'Every heading on a page should be an h1 for SEO',
+      'Headings are purely decorative and interchangeable with styled divs',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. Headings form the document outline that screen-reader users jump through (a heading list is one of the most-used navigation methods). The hierarchy must be semantic: a single `h1` describing the page, `h2` sections, `h3` inside those — never jumping h1 → h4 because it "looks right". If a level looks too big, restyle it with CSS; the tag encodes STRUCTURE, the stylesheet encodes appearance. Why others fail: (A) choosing tags by font size breaks the outline. (C) multiple h1s dilute structure and modern SEO does not reward it. (D) a styled div is invisible to heading navigation.',
+  },
+  {
+    id: 301, type: 'multiple-choice', difficulty: 'mid', category: 'a11y',
+    question: 'What does WCAG AA require for text color contrast?',
+    options: [
+      'Any color combination is fine if the design team approves it',
+      'A contrast ratio of at least 4.5:1 for normal text and 3:1 for large text (≥24px, or ≥18.5px bold) against its background — measurable with DevTools or contrast checkers; UI component boundaries also need 3:1',
+      'Only black-on-white text is compliant',
+      'Contrast rules apply only to links, not body text',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. WCAG 2.x AA sets 4.5:1 minimum contrast for normal body text and relaxes to 3:1 for LARGE text (roughly 24px regular or 18.5px bold), because bigger glyphs are legible at lower contrast. Non-text UI essentials (input borders, focus indicators, icons) need 3:1 under 1.4.11. Grey-on-grey aesthetics commonly fail — check with the browser DevTools color picker, which shows the ratio and AA/AAA pass marks. Why others fail: (A) contrast is a measurable requirement, not a taste call. (C) many palettes pass — black/white is just the extreme. (D) the rule covers all meaningful text and UI parts.',
+  },
+  {
+    id: 302, type: 'fill-blank', difficulty: 'mid', category: 'a11y',
+    question: 'Complete the nav so assistive tech knows which page is the current one:',
+    code: `<nav>
+  <a routerLink="/home" routerLinkActive="active"
+     #rla="routerLinkActive"
+     ____>Home</a>
+</nav>`,
+    options: [
+      'aria-selected="true" hardcoded on the link',
+      '[attr.aria-current]="rla.isActive ? \'page\' : null" — the exported routerLinkActive state drives aria-current="page", so the active link is announced as "current page" and the attribute is removed (null) when inactive',
+      'disabled on the current link so it cannot be clicked',
+      'title="current" which all screen readers announce',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. The visual `.active` class means nothing to a screen reader — the semantic equivalent is `aria-current="page"` on the current nav link. Export the directive (`#rla="routerLinkActive"`) and bind `[attr.aria-current]="rla.isActive ? \'page\' : null"`: binding null REMOVES the attribute when the route is inactive. Recent Angular versions can set aria-current automatically via routerLinkActive, but the manual wiring shows the mechanism. Why others fail: (A) aria-selected belongs to tabs/options, not nav links — and hardcoding true on every link is wrong anyway. (C) disabling removes it from tab order; users should still be able to reach it. (D) title tooltips are unreliably exposed.',
+  },
+  {
+    id: 303, type: 'multiple-choice', difficulty: 'senior', category: 'a11y',
+    question: 'After a client-side route change in an Angular SPA, what accessibility gap must you close that a normal page load handles for free?',
+    options: [
+      'Nothing — the router fully replicates browser navigation semantics',
+      'Focus and announcement: a full page load resets focus and announces the new page title, but SPA navigation swaps DOM silently — move focus to the new view (tabindex="-1" + focus() on its heading) or announce via a live region, and set per-route titles',
+      'You must reload all stylesheets manually',
+      'You must re-register every event listener after navigation',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. In a classic multi-page site, navigation reloads the document: focus returns to the top and the screen reader announces the new page title. An SPA replaces router-outlet content with NO focus change and NO announcement — a screen-reader user may not know anything happened. Fixes: on NavigationEnd, focus the new view\'s main heading (give it `tabindex="-1"`, then call `.focus()`) or announce via an `aria-live` region (the CDK LiveAnnouncer helps), and set per-route titles with the route `title` property / TitleStrategy. Why others fail: (A) the router swaps DOM only — the semantics are your job. (C) styles persist fine. (D) Angular bindings survive navigation; that is not the issue.',
+  },
+  {
+    id: 304, type: 'multiple-choice', difficulty: 'junior', category: 'security',
+    question: 'Why must API keys and secrets never be put in Angular code or environment.ts?',
+    options: [
+      'Angular encrypts environment.ts so it is actually safe',
+      'Everything in a frontend bundle ships to the browser — any user can read secrets in DevTools or the JS source. environment.ts is for PUBLIC config (API URLs, feature flags); real secrets stay server-side behind an API you control',
+      'Secrets in environment.ts slow down the build',
+      'It is fine as long as the repository is private',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. The browser downloads your entire compiled bundle — minified, but fully readable. Any string in it (API keys, tokens, credentials) is extractable in seconds from the Network or Sources tab. `environment.ts` merely selects build-time constants; it offers zero secrecy. The pattern: the SPA calls YOUR backend, and the backend holds the secret and makes the privileged call. Public-by-design keys (e.g. a maps key locked to your domain) are the only exception. Why others fail: (A) nothing is encrypted — it is compiled in as plain text. (C) irrelevant to build speed. (D) repo privacy does not matter once the bundle is served to browsers.',
+  },
+  {
+    id: 305, type: 'multiple-choice', difficulty: 'junior', category: 'security',
+    question: 'A route guard (`canActivate`) hides the /admin page from non-admins. Is the data behind it safe?',
+    options: [
+      'Yes — if the route is blocked, the data is unreachable',
+      'No. Guards are client-side UX, not security: a user can call the API directly with fetch/curl or alter the JS. The SERVER must independently authenticate and authorize every request; the guard just avoids showing a page that would fail anyway',
+      'Yes, as long as the guard also checks a JWT expiry date',
+      'Only if you combine canActivate with canLoad',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. All frontend checks run in an environment the user fully controls — they can bypass the router entirely and hit /api/admin/users with curl, or edit the bundle in DevTools. Guards exist for UX (do not render a page that will 403) and for lazy-load gating, never as the enforcement layer. Real security = the server validating the caller\'s token and permissions on EVERY endpoint. Why others fail: (A) the API is a separate surface from the route. (C) client-side JWT checks are equally bypassable. (D) canLoad only prevents downloading the chunk — the API remains exposed.',
+  },
+  {
+    id: 306, type: 'fill-blank', difficulty: 'mid', category: 'security',
+    question: 'Complete this functional interceptor so every API request carries the auth token:',
+    code: `export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const token = inject(AuthStore).token();
+  if (!token) return next(req);
+  const authReq = ____;
+  return next(authReq);
+};`,
+    options: [
+      'req.headers.set("Authorization", token) — mutating the request in place',
+      'req.clone({ setHeaders: { Authorization: "Bearer " + token } }) — requests are immutable, so clone with setHeaders and pass the clone to next()',
+      'new HttpRequest("GET", req.url) rebuilt from scratch each time',
+      'next(req, { headers: token }) — passing headers as a second argument',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. `HttpRequest` is immutable — `req.headers.set(...)` returns a NEW headers object and does not change the outgoing request, a classic silent bug. The pattern is `req.clone({ setHeaders: { Authorization: \'Bearer \' + token } })` and forwarding the clone. Functional interceptors (`HttpInterceptorFn`, registered via `provideHttpClient(withInterceptors([...]))`) can use `inject()` for dependencies. Consider skipping the header for non-API or public URLs. Why others fail: (A) mutation is a no-op on an immutable request. (C) rebuilding loses the body, params, and method generality. (D) next() takes only the request.',
+  },
+  {
+    id: 307, type: 'multiple-choice', difficulty: 'mid', category: 'security',
+    question: 'How does a Content-Security-Policy (CSP) header complement Angular\'s built-in sanitization?',
+    options: [
+      'CSP replaces sanitization, so Angular skips it when a CSP is present',
+      'Defense in depth: sanitization stops untrusted values from becoming active markup INSIDE the app, while CSP is a browser-enforced policy that blocks whole classes of injection at load time — inline scripts, eval, and script/style sources not on your allowlist — so even a missed XSS often cannot execute or exfiltrate',
+      'CSP only affects cookies, not scripts',
+      'CSP is configured in angular.json and shipped inside the bundle',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. They operate at different layers. Angular sanitizes interpolated/bound values so script tags or javascript: payloads are neutralized in templates. CSP is an HTTP response header (`Content-Security-Policy: script-src \'self\'; …`) the BROWSER enforces: forbidding inline script execution, eval, and loading from unlisted origins. If an XSS slips through anyway, a strict CSP usually prevents the payload from running or phoning home. Angular supports strict CSP via nonces (`ngCspNonce` / the `CSP_NONCE` token) for its inline styles. Why others fail: (A) both stay active — layers, not alternatives. (C) CSP governs scripts, styles, frames, connects, and more. (D) it is a server/header concern, not a bundle setting.',
+  },
+  {
+    id: 308, type: 'spot-the-bug', difficulty: 'senior', category: 'security',
+    question: 'This post-login redirect is an open-redirect vulnerability. Why?',
+    code: `// /login?returnUrl=... handling
+onLoginSuccess() {
+  const returnUrl =
+    this.route.snapshot.queryParamMap.get('returnUrl') ?? '/';
+  window.location.href = returnUrl;   // redirect wherever it says
+}`,
+    options: [
+      'queryParamMap cannot read the returnUrl parameter',
+      'returnUrl is attacker-controllable: a phishing link like /login?returnUrl=https://evil.example sends freshly authenticated users to a hostile site. Validate it is an internal path (starts with a single "/", not "//") and navigate with router.navigateByUrl instead of location.href',
+      'window.location.href is too slow — use setTimeout',
+      'The ?? operator should be || or the default never applies',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. An open redirect lets an attacker craft a link on YOUR trusted domain that bounces victims to theirs — ideal for phishing ("please log in again") right after a real login. Because the value comes from the URL, treat it as hostile: accept only relative internal paths (starts with `/`, reject `//` and protocol-relative tricks, or match against a route allowlist) and use `router.navigateByUrl(returnUrl)`, which stays inside the SPA rather than performing a raw browser navigation to an arbitrary absolute URL. Why others fail: (A) queryParamMap reads it fine — that is the problem. (C) performance is irrelevant. (D) ?? correctly defaults on null.',
+  },
+  {
+    id: 309, type: 'multiple-choice', difficulty: 'mid', category: 'security',
+    question: 'How do you prevent your Angular app from being loaded in a hostile iframe (clickjacking)?',
+    options: [
+      'Add [preventIframe]="true" to the root component',
+      'Send the CSP frame-ancestors directive (e.g. frame-ancestors \'none\' or \'self\') — or the legacy X-Frame-Options header — from the SERVER, so browsers refuse to render the page inside disallowed frames; it cannot be done from Angular code',
+      'Obfuscate the JavaScript bundle so iframes cannot parse it',
+      'Use HTTPS, which automatically blocks framing',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. Clickjacking overlays your real UI (in an invisible iframe) under fake controls, tricking users into clicking privileged buttons. The defense is response headers the BROWSER enforces before your code runs: `Content-Security-Policy: frame-ancestors \'none\'` (modern, supersedes) or `X-Frame-Options: DENY/SAMEORIGIN` (legacy). Configure them on the web server/CDN serving index.html. JavaScript frame-busting is bypassable and not recommended alone. Why others fail: (A) no such Angular API — by the time Angular runs, the frame already loaded. (C) obfuscation does not affect framing. (D) HTTPS secures transport, not embedding.',
+  },
+  {
+    id: 310, type: 'multiple-choice', difficulty: 'junior', category: 'security',
+    question: 'What is the practical risk of outdated npm dependencies in an Angular project, and the first-line tooling?',
+    options: [
+      'Old packages only risk slower builds, nothing else',
+      'Dependencies (and their transitive tree) run with full privilege in your build and in users\' browsers, so a known CVE or hijacked package is YOUR vulnerability — audit with npm audit, update on a cadence (ng update for Angular itself), and pin versions via the committed package-lock.json',
+      'npm prevents vulnerable packages from being installed at all',
+      'Only devDependencies can contain vulnerabilities',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. A frontend app is mostly other people\'s code: hundreds of transitive packages execute in your CI and ship to every user. Known vulnerabilities (XSS in a widget library, prototype pollution in a util) and supply-chain attacks (malicious patch versions) flow straight in. Baseline hygiene: `npm audit` in CI, regular `ng update` for the framework, a committed lockfile so installs are reproducible, and skepticism toward tiny unmaintained packages. Why others fail: (A) the risk is security, not just speed. (C) npm warns but does not block. (D) runtime deps ship to users; dev deps threaten your build pipeline — both matter.',
+  },
+  {
+    id: 311, type: 'fill-blank', difficulty: 'junior', category: 'i18n',
+    question: 'Complete the component code so this string is translatable with Angular\'s built-in i18n:',
+    code: `@Component({ template: '<h1>{{ title }}</h1>' })
+export class Banner {
+  title = ____;
+}`,
+    options: [
+      'translate("Welcome back!") from a global translate() function',
+      '$localize`Welcome back!` — the tagged template literal from @angular/localize marks strings in TypeScript code for extraction and compile-time replacement, just as the i18n attribute does for template text',
+      'i18n("Welcome back!") imported from @angular/core',
+      'new TranslatedString("Welcome back!")',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. The i18n attribute only covers TEMPLATE text; strings born in TypeScript (titles, toasts, validation messages) use the $localize tagged template literal from @angular/localize. `ng extract-i18n` collects these into the translation file alongside template messages, and each locale build substitutes the translated text at compile time. You can attach metadata the same way as in templates: $localize with a `:meaning|description@@id:` prefix before the text. Why others fail: (A) translate() is the ngx-translate library pattern, not built-in i18n. (C) there is no i18n() function in core. (D) no such class exists.',
+  },
+  {
+    id: 312, type: 'multiple-choice', difficulty: 'junior', category: 'i18n',
+    question: 'How do you translate an element ATTRIBUTE like title or placeholder, not just its text content?',
+    options: [
+      'Attributes cannot be translated in Angular i18n',
+      'Prefix the attribute name with i18n-: e.g. <input placeholder="Search" i18n-placeholder> or <img title="Our logo" i18n-title> — each i18n-x marks attribute x for extraction, optionally with its own meaning|description@@id metadata',
+      'Wrap the whole element in an <i18n> tag',
+      'Move every attribute string into the component class first',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. The bare `i18n` attribute marks an element\'s CONTENT; user-visible attributes (placeholder, title, aria-label, alt) each get their own marker by prefixing: `i18n-placeholder`, `i18n-title`, `i18n-aria-label`. The extractor then includes those attribute values as separate translation units, and the same `meaning|description@@customId` metadata syntax applies (`i18n-title="tooltip|Header logo tooltip@@logoTitle"`). Why others fail: (A) they are fully supported via the prefix. (C) no <i18n> element exists. (D) unnecessary — though class strings would then use $localize.',
+  },
+  {
+    id: 313, type: 'multiple-choice', difficulty: 'mid', category: 'i18n',
+    question: 'In `<h1 i18n="site header|Greeting on the landing page@@homeGreeting">Hello</h1>`, what are the three parts of the i18n value?',
+    options: [
+      'Three alternative translations of the text',
+      'meaning|description@@customId — the MEANING ("site header") disambiguates identical texts that translate differently, the DESCRIPTION guides the translator, and @@homeGreeting fixes a stable unit id so translations survive text changes',
+      'locale|region@@currency configuration for pipes',
+      'CSS class, style, and element id to apply after translation',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. The full syntax is `i18n="meaning|description@@id"`. The MEANING partitions translation units: two "Hello" texts with different meanings become separate units (a greeting vs. a button label may translate differently); texts with the SAME meaning share one translation. The DESCRIPTION is free-form context for the human translator. The `@@id` pins a custom stable identifier — without it Angular generates an id from the content, which CHANGES whenever the text changes, orphaning existing translations. Why others fail: (A) translations live in the locale files, not inline. (C) locale data is a separate mechanism. (D) nothing here touches CSS.',
+  },
+  {
+    id: 314, type: 'fill-blank', difficulty: 'mid', category: 'i18n',
+    question: 'Complete the ICU expression so the message adapts to the user\'s gender:',
+    code: `<span i18n>
+  { gender, ____ }
+</span>
+<!-- goal: "She replied" / "He replied" / "They replied" -->`,
+    options: [
+      'plural, =0 {She} =1 {He} other {They} — numeric branches per gender',
+      'select, female {She replied} male {He replied} other {They replied} — ICU select chooses a branch by matching the expression\'s STRING value, whereas plural is specialized for numeric counts',
+      'switch, case female: … — like a TypeScript switch statement',
+      'Gender is not supported — use three *ngIf blocks instead',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. ICU messages have two flavors: `plural` for NUMBERS (with locale-aware categories like one/few/many plus exact `=0` matches) and `select` for arbitrary STRING values: `{gender, select, female {She replied} male {He replied} other {They replied}}`. The `other` branch is required as the fallback. Translators receive the whole ICU block and can restructure it per language — which per-branch *ngIf markup would prevent. Why others fail: (A) plural matches numeric categories, not strings like "female". (C) there is no switch keyword in ICU. (D) select exists precisely for this.',
+  },
+  {
+    id: 315, type: 'multiple-choice', difficulty: 'senior', category: 'i18n',
+    question: 'Built-in compile-time i18n vs a runtime library like ngx-translate — what is the core trade-off?',
+    options: [
+      'They are functionally identical, so the choice is cosmetic',
+      'Compile-time (@angular/localize) bakes each locale into its own optimized bundle: no runtime cost and build-time message checking — but switching language means loading a different build. Runtime libraries keep ONE bundle and swap JSON at runtime: instant in-app language toggle, but string keys are unchecked and resolved on the fly',
+      'ngx-translate is faster because it skips translation entirely',
+      'Built-in i18n only supports two locales per application',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. @angular/localize replaces messages during the build, producing per-locale bundles (dist/fr/, dist/de/) served by URL or Accept-Language — zero translation work in the browser, plain templates, and missing-translation failures at BUILD time. The cost: an in-app language switcher requires navigating to another build. Runtime libraries (ngx-translate, Transloco) load locale JSON dynamically and interpolate through a pipe/service — seamless switching and lazy locale loading, but a runtime dependency, pipe overhead, and typo-prone keys with no compile check. Choose by whether live switching is a hard requirement. Why others fail: (A) the architectures differ fundamentally. (C) it still translates — at runtime. (D) built-in i18n supports any number of locales.',
+  },
+  {
+    id: 316, type: 'multiple-choice', difficulty: 'junior', category: 'state',
+    question: 'Two sibling components each keep their own `cartItems` copy and they keep disagreeing. What is the fix?',
+    options: [
+      'Have each component poll the other every second to compare arrays',
+      'Lift the state to a single shared source of truth — a service with a signal (or store) that both components read via computed values and mutate through its methods — so there is one owner and every view derives from it',
+      'Pass the array back and forth with @Input and @Output on every change',
+      'Store the array in a global window.cart variable',
+    ],
+    answer: 1,
+    topicPath: 'state',
+    explanation: 'B is correct. Duplicated state ALWAYS drifts — each copy updates on its own schedule. The remedy is one owner: a root-provided CartStore whose `items = signal<Item[]>([])` is mutated only through store methods like `add(item)`. Components inject the store, render `computed` projections, and call its methods to change data. This is the core of every state-management pattern: single source of truth, derive do not store. Why others fail: (A) polling is a race-condition band-aid. (C) sibling-to-sibling @Input/@Output chains must route through a common parent and re-introduce copies. (D) window globals are untracked, untyped, and invisible to change detection.',
+  },
+  {
+    id: 317, type: 'multiple-choice', difficulty: 'junior', category: 'state',
+    question: 'A value must travel from a component to its great-great-grandchild. What is the alternative to passing @Input through every layer ("prop drilling")?',
+    options: [
+      'Use document.querySelector to reach the descendant directly',
+      'Provide a shared service (often signal-based) at an ancestor level or root; the descendant injects it and reads the value directly — DI hands data across any component distance without the intermediate layers knowing',
+      'Emit a global CustomEvent on window and listen everywhere',
+      'Merge the five components into one so no inputs are needed',
+    ],
+    answer: 1,
+    topicPath: 'state',
+    explanation: 'B is correct. Threading an @Input through components that only forward it couples every intermediate layer to data it does not use — each rename touches five files. Dependency injection is Angular\'s built-in answer: put the state in a service (providedIn: \'root\', or in a feature component\'s `providers` to scope it to that subtree), and ANY descendant injects it directly. Signals make the shared value reactive for free. Inputs remain right for genuinely parent-to-child, presentational data. Why others fail: (A) DOM queries bypass Angular\'s data flow and break encapsulation. (C) window events are stringly-typed and leak listeners. (D) merging destroys reuse and testability.',
+  },
+  {
+    id: 318, type: 'multiple-choice', difficulty: 'mid', category: 'state',
+    question: 'What is the Facade pattern in Angular state management?',
+    options: [
+      'A decorator that hides a component from change detection',
+      'A service that fronts the state layer with a small intent-based API — components read its exposed signals/observables and call methods like addToCart(item), never touching store internals — so the underlying implementation (NgRx, signals, plain service) can change without rewriting components',
+      'A component with no template used only for routing',
+      'An HTTP interceptor that caches every GET request',
+    ],
+    answer: 1,
+    topicPath: 'state',
+    explanation: 'B is correct. A facade is an injectable that exposes WHAT the feature can do (queries as signals/observables, commands as methods) and hides HOW state is managed (dispatching actions, selecting slices, calling APIs). Components become thin — inject the facade, bind its view model, invoke intents — and gain painless testing (mock one facade instead of a store) plus freedom to migrate the state layer later. The risk to watch: a lazy facade that just re-exports the store 1:1 adds indirection without abstraction. Why others fail: (A) not a change-detection tool. (C) that describes a shell/container route component. (D) unrelated to HTTP caching.',
+  },
+  {
+    id: 319, type: 'multiple-choice', difficulty: 'mid', category: 'state',
+    question: 'Why store collections NORMALIZED — entities keyed by id plus an ids array — instead of a plain nested array?',
+    options: [
+      'Arrays cannot be stored in NgRx or signal stores',
+      'O(1) lookup and update by id (entities[id]) instead of array searches, no duplicated copies of the same entity nested inside others (one place to update), and stable references that keep memoized selectors and OnPush efficient — @ngrx/entity automates the shape',
+      'Normalization compresses the data to save memory',
+      'It is only needed when using a REST API',
+    ],
+    answer: 1,
+    topicPath: 'state',
+    explanation: 'B is correct. Normalization treats client state like a tiny relational DB: each entity type keyed by id (`entities: Record<id, Item>`), relations stored AS ids, plus an `ids: []` array preserving order. Updating one todo is a single spread on `entities[id]` — no deep array surgery; and because an author embedded in 40 posts exists ONCE, an author rename cannot miss stale copies. Selectors then join/denormalize for the view, and @ngrx/entity / withEntities generate the adapters. Why others fail: (A) arrays store fine — they just scale badly for updates. (C) memory use is similar; correctness and update ergonomics are the win. (D) the shape helps regardless of transport.',
+  },
+  {
+    id: 320, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'What is an OPTIMISTIC update, and what must the implementation always include?',
+    options: [
+      'Updating the UI only after the server confirms, to be safe',
+      'Applying the change to local state IMMEDIATELY (UI feels instant), then sending the request — with a ROLLBACK path that restores the previous state (and informs the user) if the server rejects it; suited to high-success, low-stakes actions like likes and toggles',
+      'Retrying failed requests forever until they succeed',
+      'Batching all writes and syncing once per minute',
+    ],
+    answer: 1,
+    topicPath: 'state',
+    explanation: 'B is correct. Optimistic UI assumes success: snapshot the prior value, mutate the store first, fire the HTTP call, and on error restore the snapshot and surface a toast — e.g. save `const prev = this.items()`, apply the update, and in catchError call `this.items.set(prev)` before notifying. The rollback (plus idempotent server handling for retries) is NOT optional — without it a failed call leaves the UI lying. Use the pessimistic (wait-for-server) flow for payments and destructive actions. Why others fail: (A) that is the pessimistic approach. (C) blind retries can duplicate effects and never resolve conflicts. (D) batching is a different strategy with its own consistency issues.',
+  },
 ];
 
 export function shuffle<T>(arr: T[]): T[] {
