@@ -24,6 +24,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/practice/practice').then((m) => m.Practice),
   },
   {
+    path: 'mock-exam',
+    title: 'Mock Exam · Angular Concepts',
+    loadComponent: () => import('./pages/mock-exam/mock-exam').then((m) => m.MockExam),
+  },
+  {
     path: 'interview',
     title: 'Interview Prep · Angular Concepts',
     loadComponent: () => import('./pages/interview/interview').then((m) => m.Interview),
