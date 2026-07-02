@@ -51,7 +51,12 @@ interface HistoryEntry {
   category: Category;
   difficulty: 'all' | Difficulty;
   secondsUsed: number;
+  /** Per-category results for this attempt; absent on entries saved before this field existed. */
+  categories?: Record<string, { correct: number; total: number }>;
 }
+
+/** Minimum questions seen in a category (across attempts) before it can be called weak. */
+const WEAK_MIN_SAMPLE = 3;
 
 /** localStorage key for past exam results (bump the suffix to invalidate old data). */
 const HISTORY_KEY = 'angular-mock-exam-history-v1';
@@ -99,6 +104,10 @@ function saveHistory(entries: HistoryEntry[]): void {
     .config-summary strong { font-size: 1.5rem; display: block; }
     .config-summary span { font-size: .8rem; color: var(--text-muted); }
     .warn { color: #b45309; font-size: .86rem; margin: 8px 0 0; }
+    .weak-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; padding: 12px 14px; border: 1px solid #f59e0b; background: rgba(245,158,11,.07); border-radius: 12px; font-size: .86rem; }
+    .weak-title { color: #b45309; font-weight: 600; }
+    .chip.weak { border-color: #f59e0b; color: #b45309; }
+    .chip.weak.active { background: #f59e0b; color: #fff; }
 
     .primary-btn { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 11px 24px; background: #6366f1; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: .95rem; font-weight: 600; }
     .primary-btn:disabled { opacity: .5; cursor: default; }
@@ -254,6 +263,17 @@ function saveHistory(entries: HistoryEntry[]): void {
             <p class="warn">No questions match those filters — widen your selection.</p>
           } @else if (effectiveCount() < selectedCount() && selectedCount() !== totalAvailable) {
             <p class="warn">Only {{ effectiveCount() }} questions available for this focus/level.</p>
+          }
+
+          @if (weakAreas().length > 0) {
+            <div class="weak-box">
+              <span class="weak-title">📉 Weak areas from your attempts — tap to focus:</span>
+              @for (w of weakAreas(); track w.id) {
+                <button class="chip weak" [class.active]="selectedCategory() === w.id" (click)="selectedCategory.set(w.id)">
+                  {{ w.label }} · {{ w.pct }}%
+                </button>
+              }
+            </div>
           }
 
           <div>
@@ -544,6 +564,34 @@ export class MockExam implements OnDestroy {
   // --- attempt history (persisted) ---
   readonly history = signal<HistoryEntry[]>(loadHistory());
 
+  /**
+   * Categories scoring under the pass mark, aggregated across all recorded
+   * attempts — the "study this next" suggestion on the config screen. Needs a
+   * minimum sample per category so one unlucky question is not called a weakness.
+   */
+  readonly weakAreas = computed(() => {
+    const agg = new Map<string, { correct: number; total: number }>();
+    for (const h of this.history()) {
+      if (!h.categories) continue; // entries saved before per-category tracking
+      for (const [id, r] of Object.entries(h.categories)) {
+        const cur = agg.get(id) ?? { correct: 0, total: 0 };
+        cur.correct += r.correct;
+        cur.total += r.total;
+        agg.set(id, cur);
+      }
+    }
+    return [...agg.entries()]
+      .filter(([, r]) => r.total >= WEAK_MIN_SAMPLE)
+      .map(([id, r]) => ({
+        id: id as Category,
+        label: this.categoryLabel(id as Category),
+        pct: Math.round((r.correct / r.total) * 100),
+      }))
+      .filter((a) => a.pct < PASS_MARK)
+      .sort((a, b) => a.pct - b.pct)
+      .slice(0, 3);
+  });
+
   clearHistory(): void {
     this.history.set([]);
     saveHistory([]);
@@ -662,6 +710,9 @@ export class MockExam implements OnDestroy {
       category: this.selectedCategory(),
       difficulty: this.selectedDiff(),
       secondsUsed: this.examTotalSeconds() - this.secondsLeft(),
+      categories: Object.fromEntries(
+        this.categoryBreakdown().map((r) => [r.id, { correct: r.correct, total: r.total }]),
+      ),
     };
     const next = [entry, ...this.history()].slice(0, HISTORY_LIMIT);
     this.history.set(next);
