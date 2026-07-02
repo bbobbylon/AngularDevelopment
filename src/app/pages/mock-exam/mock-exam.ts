@@ -40,6 +40,45 @@ function formatClock(totalSeconds: number): string {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
+/** One completed exam attempt, persisted so the config screen can show progress. */
+interface HistoryEntry {
+  /** Epoch ms of when the exam was submitted. */
+  when: number;
+  scorePercent: number;
+  correct: number;
+  total: number;
+  passed: boolean;
+  category: Category;
+  difficulty: 'all' | Difficulty;
+  secondsUsed: number;
+}
+
+/** localStorage key for past exam results (bump the suffix to invalidate old data). */
+const HISTORY_KEY = 'angular-mock-exam-history-v1';
+/** Keep only the most recent attempts so storage stays bounded. */
+const HISTORY_LIMIT = 20;
+
+/** Load past attempts; returns [] when storage is unavailable (SSR/private mode) or corrupt. */
+function loadHistory(): HistoryEntry[] {
+  try {
+    if (typeof localStorage === 'undefined') return [];
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? (JSON.parse(raw) as HistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Persist attempts, swallowing quota/permission errors so the UI never breaks on a write. */
+function saveHistory(entries: HistoryEntry[]): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  } catch {
+    // ignore — storage full or blocked
+  }
+}
+
 @Component({
   selector: 'app-mock-exam',
   imports: [RouterLink],
@@ -49,9 +88,9 @@ function formatClock(totalSeconds: number): string {
     .exam-hero p { max-width: 620px; margin: 0 auto; color: var(--text-muted); }
     .pill { display: inline-block; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; background: rgba(99,102,241,.12); color: #6366f1; font-weight: 600; }
 
-    .config-card, .q-card, .review-card { max-width: 760px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+    .config-card, .q-card, .review-card, .history-section, .breakdown { max-width: 760px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
     .config-card { padding: 24px 28px 28px; }
-    .config-card h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 20px 0 10px; }
+    .config-card h3, .history-head h3, .breakdown h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 20px 0 10px; }
     .config-card h3:first-child { margin-top: 0; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; cursor: pointer; font-size: .84rem; color: var(--text); }
@@ -131,7 +170,35 @@ function formatClock(totalSeconds: number): string {
     .explanation { margin: 4px 0 0; padding: 12px 16px; border-radius: 10px; font-size: .86rem; line-height: 1.55; background: var(--bg, rgba(127,127,127,.06)); }
     .topic-link { display: inline-block; margin-top: 10px; font-size: .82rem; color: var(--blue); text-decoration: underline; }
 
+    .history-section { margin: 20px auto 60px; padding: 20px 28px; }
+    .history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .history-head h3 { margin: 0; }
+    .ghost-btn.small { padding: 4px 12px; font-size: .78rem; }
+    .history-row, .bd-row { display: flex; align-items: center; gap: 12px; }
+    .history-row { padding: 9px 0; border-top: 1px solid var(--border); font-size: .86rem; }
+    .h-result { font-size: .7rem; font-weight: 700; letter-spacing: .06em; padding: 2px 8px; border-radius: 12px; flex-shrink: 0; }
+    .h-result.pass { background: rgba(34,197,94,.15); color: #16a34a; }
+    .h-result.fail { background: rgba(239,68,68,.12); color: #ef4444; }
+    .h-score { font-weight: 700; min-width: 44px; }
+    .h-detail { color: var(--text-muted); flex: 1; }
+    .h-when { color: var(--text-muted); font-size: .78rem; flex-shrink: 0; }
+
+    .breakdown { margin: 20px auto 0; padding: 20px 28px; }
+    .breakdown h3 { margin: 0 0 12px; }
+    .bd-row { padding: 5px 0; }
+    .bd-label { width: 150px; flex-shrink: 0; font-size: .86rem; text-align: right; }
+    .bd-bar-outer { flex: 1; height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; }
+    .bd-bar-inner { height: 100%; background: #22c55e; border-radius: 5px; transition: width .4s; }
+    .bd-bar-inner.low { background: #ef4444; }
+    .bd-score { width: 44px; flex-shrink: 0; font-size: .84rem; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+    .rev-filters { display: flex; gap: 8px; max-width: 760px; margin: 20px auto 0; padding: 0 24px; }
+    .rev-empty { text-align: center; color: var(--text-muted); padding: 32px; }
+
     @media (max-width: 560px) {
+      .history-row { flex-wrap: wrap; row-gap: 2px; }
+      .h-when { width: 100%; }
+      .bd-label { width: 96px; font-size: .78rem; }
       .exam-bar { flex-wrap: wrap; gap: 10px; }
       .timer { margin-left: auto; }
       .submit-btn { order: 3; flex: 1; }
@@ -194,6 +261,23 @@ function formatClock(totalSeconds: number): string {
             <a routerLink="/practice" class="link-back">or use self-paced Practice</a>
           </div>
         </div>
+
+        @if (history().length > 0) {
+          <div class="history-section">
+            <div class="history-head">
+              <h3>Previous attempts</h3>
+              <button class="ghost-btn small" (click)="clearHistory()">Clear</button>
+            </div>
+            @for (h of history(); track h.when) {
+              <div class="history-row">
+                <span class="h-result" [class.pass]="h.passed" [class.fail]="!h.passed">{{ h.passed ? 'PASS' : 'FAIL' }}</span>
+                <span class="h-score">{{ h.scorePercent }}%</span>
+                <span class="h-detail">{{ h.correct }}/{{ h.total }} · {{ categoryLabel(h.category) }} · {{ h.difficulty === 'all' ? 'All levels' : h.difficulty }} · {{ formatUsed(h.secondsUsed) }}</span>
+                <span class="h-when">{{ formatWhen(h.when) }}</span>
+              </div>
+            }
+          </div>
+        }
       }
 
       @case ('active') {
@@ -273,8 +357,42 @@ function formatClock(totalSeconds: number): string {
           </div>
         </div>
 
+        @if (categoryBreakdown().length > 1) {
+          <div class="breakdown">
+            <h3>By category</h3>
+            @for (row of categoryBreakdown(); track row.id) {
+              <div class="bd-row">
+                <span class="bd-label">{{ row.label }}</span>
+                <div class="bd-bar-outer">
+                  <div class="bd-bar-inner" [class.low]="row.pct < passMark" [style.width.%]="row.pct"></div>
+                </div>
+                <span class="bd-score">{{ row.correct }}/{{ row.total }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="rev-filters">
+          <button class="chip" [class.active]="reviewFilter() === 'all'" (click)="reviewFilter.set('all')">
+            All ({{ questions().length }})
+          </button>
+          <button class="chip" [class.active]="reviewFilter() === 'incorrect'" (click)="reviewFilter.set('incorrect')">
+            ✗ Incorrect ({{ incorrectTotal() }})
+          </button>
+          @if (flaggedTotal() > 0) {
+            <button class="chip" [class.active]="reviewFilter() === 'flagged'" (click)="reviewFilter.set('flagged')">
+              🚩 Flagged ({{ flaggedTotal() }})
+            </button>
+          }
+        </div>
+
         <div class="review-list">
-          @for (ch of questions(); track ch.id; let i = $index) {
+          @if (reviewItems().length === 0) {
+            <div class="rev-empty">Nothing here — {{ reviewFilter() === 'incorrect' ? 'every answer was correct 🎉' : 'no questions were flagged' }}.</div>
+          }
+          @for (item of reviewItems(); track item.ch.id) {
+            @let ch = item.ch;
+            @let i = item.i;
             <div class="review-card" [class.ok]="isCorrect(ch)" [class.no]="!isCorrect(ch)">
               <div class="rev-head">
                 <span class="rev-num">Q{{ i + 1 }}</span>
@@ -386,6 +504,65 @@ export class MockExam implements OnDestroy {
   });
   readonly passed = computed(() => this.scorePercent() >= PASS_MARK);
 
+  /** Which review cards to show: everything, only misses, or only flagged. */
+  readonly reviewFilter = signal<'all' | 'incorrect' | 'flagged'>('all');
+
+  /** Questions paired with their original exam position, filtered for review. */
+  readonly reviewItems = computed(() => {
+    const filter = this.reviewFilter();
+    return this.questions()
+      .map((ch, i) => ({ ch, i }))
+      .filter(({ ch }) => {
+        if (filter === 'incorrect') return !this.isCorrect(ch);
+        if (filter === 'flagged') return this.isFlagged(ch.id);
+        return true;
+      });
+  });
+  readonly incorrectTotal = computed(() => this.questions().filter((ch) => !this.isCorrect(ch)).length);
+  readonly flaggedTotal = computed(() => this.questions().filter((ch) => this.isFlagged(ch.id)).length);
+
+  /** Per-category correct/total for the exam just taken, worst score first. */
+  readonly categoryBreakdown = computed(() => {
+    const byCat = new Map<string, { correct: number; total: number }>();
+    for (const ch of this.questions()) {
+      const row = byCat.get(ch.category) ?? { correct: 0, total: 0 };
+      row.total++;
+      if (this.isCorrect(ch)) row.correct++;
+      byCat.set(ch.category, row);
+    }
+    return [...byCat.entries()]
+      .map(([id, r]) => ({
+        id,
+        label: this.categoryFilters.find((c) => c.id === id)?.label ?? id,
+        correct: r.correct,
+        total: r.total,
+        pct: Math.round((r.correct / r.total) * 100),
+      }))
+      .sort((a, b) => a.pct - b.pct);
+  });
+
+  // --- attempt history (persisted) ---
+  readonly history = signal<HistoryEntry[]>(loadHistory());
+
+  clearHistory(): void {
+    this.history.set([]);
+    saveHistory([]);
+  }
+
+  formatWhen(when: number): string {
+    return new Date(when).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  }
+
+  formatUsed(seconds: number): string {
+    return formatClock(seconds);
+  }
+
+  categoryLabel(id: Category): string {
+    return this.categoryFilters.find((c) => c.id === id)?.label ?? id;
+  }
+
   // --- lifecycle ---
   start(): void {
     const pool = shuffle(this.availableForFilters());
@@ -470,9 +647,25 @@ export class MockExam implements OnDestroy {
     this.confirmingSubmit.set(false);
   }
   finish(): void {
+    if (this.phase() !== 'active') return; // timer + button can race; record once
     this.stopTimer();
     this.confirmingSubmit.set(false);
+    this.reviewFilter.set('all');
     this.phase.set('review');
+
+    const entry: HistoryEntry = {
+      when: Date.now(),
+      scorePercent: this.scorePercent(),
+      correct: this.correctCount(),
+      total: this.questions().length,
+      passed: this.passed(),
+      category: this.selectedCategory(),
+      difficulty: this.selectedDiff(),
+      secondsUsed: this.examTotalSeconds() - this.secondsLeft(),
+    };
+    const next = [entry, ...this.history()].slice(0, HISTORY_LIMIT);
+    this.history.set(next);
+    saveHistory(next);
   }
 
   // --- scoring ---
