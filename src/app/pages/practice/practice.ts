@@ -85,7 +85,7 @@ function saveProgress(states: PracticeStates): void {
       <span class="pill">Interactive Practice</span>
       <h1>Practice Challenges</h1>
       <p>
-        320 challenges across all levels — spot bugs, predict output, and answer
+        344 challenges across all levels — spot bugs, predict output, and answer
         multiple-choice questions. Every answer comes with a full explanation.
         Questions are randomized each session.
       </p>
