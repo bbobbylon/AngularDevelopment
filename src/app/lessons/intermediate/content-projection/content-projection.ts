@@ -59,7 +59,8 @@ export class TabPanel {
 @Component({
   selector: 'app-tab-group',
   standalone: true,
-  imports: [TabLabel, TabPanel],
+  // No template imports: TabLabel/TabPanel match in the PROJECTING component's
+  // template — TabGroup only queries them via contentChildren().
   template: `
     <div class="tg">
       <div class="tg__bar" role="tablist">

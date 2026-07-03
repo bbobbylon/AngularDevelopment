@@ -64,7 +64,8 @@ interface Post  { id: number; title: string; date: string }
 
 @Component({
   selector: 'app-lesson-custom-pipes',
-  imports: [RouterLink, FormsModule, TruncatePipe, SentenceCasePipe, FilterByPipe, RelativeTimePipe, HighlightPipe, DatePipe],
+  imports: [RouterLink, FormsModule, TruncatePipe, SentenceCasePipe, FilterByPipe, RelativeTimePipe, HighlightPipe],
+  // DatePipe is provided (not template-imported): RelativeTimePipe inject()s it.
   providers: [DatePipe],
   template: `
     <article class="lesson">

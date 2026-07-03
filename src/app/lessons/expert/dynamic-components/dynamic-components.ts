@@ -68,7 +68,9 @@ export class SuccessPanel {
 @Component({
   selector: 'app-lesson-dynamic-components',
   standalone: true,
-  imports: [RouterLink, NgComponentOutlet, InfoPanel, WarningPanel, SuccessPanel],
+  // Panels are instantiated via NgComponentOutlet (runtime class references),
+  // so they do not belong in template imports.
+  imports: [RouterLink, NgComponentOutlet],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Expert · Architecture</span>

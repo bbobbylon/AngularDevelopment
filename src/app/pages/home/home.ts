@@ -56,7 +56,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
           <div class="tool-card__icon">⚡</div>
           <div class="tool-card__body">
             <h3>Practice Challenges</h3>
-            <p>200+ exercises: spot the bug, predict output, multiple choice. Randomized every session with per-answer explanations.</p>
+            <p>368 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam and a spaced-repetition review queue for everything you miss.</p>
             <span class="tool-card__cta">Start practicing →</span>
           </div>
         </a>
