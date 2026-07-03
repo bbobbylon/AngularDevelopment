@@ -9,6 +9,7 @@ import {
   type Difficulty,
 } from '../practice/practice-data';
 import { OptionsShuffler } from '../practice/practice-helpers';
+import { recordMisses } from '../practice/review-queue';
 
 /**
  * Timed Mock Exam — a certification-style assessment built on top of the shared
@@ -164,6 +165,8 @@ function saveHistory(entries: HistoryEntry[]): void {
     .result-hero.fail .result-badge { background: #ef4444; color: #fff; }
     .result-score { font-size: 3.2rem; font-weight: 800; margin: 12px 0 4px; }
     .result-hero p { color: var(--text-muted); margin: 0 0 20px; }
+    .queued-note { font-size: .86rem; }
+    .queued-note a { color: var(--blue); text-decoration: underline; }
     .result-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 
     .review-list { max-width: 760px; margin: 24px auto 60px; display: flex; flex-direction: column; gap: 16px; padding: 0 24px; }
@@ -371,6 +374,12 @@ function saveHistory(entries: HistoryEntry[]): void {
           <span class="result-badge">{{ passed() ? 'PASS' : 'FAIL' }}</span>
           <div class="result-score">{{ scorePercent() }}%</div>
           <p>{{ correctCount() }} / {{ questions().length }} correct · {{ elapsedLabel() }} used · pass mark {{ passMark }}%</p>
+          @if (missedQueued() > 0) {
+            <p class="queued-note">
+              🔁 {{ missedQueued() }} missed question{{ missedQueued() === 1 ? '' : 's' }} added to your
+              <a routerLink="/review">review queue</a>
+            </p>
+          }
           <div class="result-actions">
             <button class="primary-btn" (click)="retake()">Take Another →</button>
             <a routerLink="/practice" class="link-back">Self-paced Practice</a>
@@ -564,6 +573,9 @@ export class MockExam implements OnDestroy {
   // --- attempt history (persisted) ---
   readonly history = signal<HistoryEntry[]>(loadHistory());
 
+  /** How many misses from the exam just finished went into the review queue. */
+  readonly missedQueued = signal(0);
+
   /**
    * Categories scoring under the pass mark, aggregated across all recorded
    * attempts — the "study this next" suggestion on the config screen. Needs a
@@ -717,6 +729,14 @@ export class MockExam implements OnDestroy {
     const next = [entry, ...this.history()].slice(0, HISTORY_LIMIT);
     this.history.set(next);
     saveHistory(next);
+
+    // Feed answered-but-wrong questions to the spaced-repetition queue.
+    // Skipped questions are excluded so a timed-out exam does not flood it.
+    const missed = this.questions()
+      .filter((ch) => this.isAnswered(ch.id) && !this.isCorrect(ch))
+      .map((ch) => ch.id);
+    recordMisses(missed);
+    this.missedQueued.set(missed.length);
   }
 
   // --- scoring ---

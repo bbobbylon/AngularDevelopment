@@ -2,6 +2,7 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
 import { CHALLENGES, shuffle, type Challenge, type Category, type ChallengeType, type Difficulty } from './practice-data';
+import { dueCount, loadQueue, recordMisses } from './review-queue';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
 type PracticeStates = Record<number, { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }>;
@@ -37,8 +38,9 @@ function saveProgress(states: PracticeStates): void {
     .practice-hero { text-align: center; padding: 48px 24px 32px; }
     .practice-hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); margin: 12px 0; }
     .practice-hero p { max-width: 640px; margin: 0 auto 16px; color: var(--text-muted); }
-    .exam-cta { display: inline-block; margin: 0 auto 24px; padding: 9px 20px; border-radius: 20px; background: #6366f1; color: #fff; font-size: .88rem; font-weight: 600; text-decoration: none; }
+    .exam-cta { display: inline-block; margin: 0 6px 24px; padding: 9px 20px; border-radius: 20px; background: #6366f1; color: #fff; font-size: .88rem; font-weight: 600; text-decoration: none; }
     .exam-cta:hover { filter: brightness(1.08); }
+    .review-cta { background: transparent; border: 1px solid #6366f1; color: #6366f1; }
     .stats-row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
     .stat-box { text-align: center; padding: 12px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
     .stat-box strong { display: block; font-size: 1.6rem; }
@@ -90,6 +92,9 @@ function saveProgress(states: PracticeStates): void {
         Questions are randomized each session.
       </p>
       <a routerLink="/mock-exam" class="exam-cta">⏱ Try the timed Mock Exam →</a>
+      <a routerLink="/review" class="exam-cta review-cta">
+        🔁 Review queue{{ reviewDue() > 0 ? ' (' + reviewDue() + ' due)' : '' }}
+      </a>
       <div class="stats-row">
         <div class="stat-box">
           <strong>{{ totalVisible() }}</strong>
@@ -221,6 +226,9 @@ export class Practice {
   private readonly shuffledAll = signal(shuffle(CHALLENGES));
   private readonly optionsShuffler = new OptionsShuffler();
 
+  /** How many spaced-repetition items are due — shown on the Review CTA. */
+  readonly reviewDue = signal(dueCount(loadQueue()));
+
   constructor() {
     // Persist progress to localStorage whenever it changes (keyed by challenge id).
     effect(() => saveProgress(this.states()));
@@ -332,6 +340,10 @@ export class Practice {
       ...s,
       [ch.id]: { ...cur, answered: true, correct, expanded: true },
     }));
+    if (!correct) {
+      // Feed the spaced-repetition queue so /review resurfaces this later.
+      this.reviewDue.set(dueCount(recordMisses([ch.id])));
+    }
   }
 
   reset() {
