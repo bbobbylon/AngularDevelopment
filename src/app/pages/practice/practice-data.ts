@@ -4906,6 +4906,388 @@ export class Banner {
     topicPath: 'routing',
     explanation: 'B is correct. Two separate switches govern this. First, the router by default ignores navigation to the exact current url — `withRouterConfig({ onSameUrlNavigation: \'reload\' })` (or the same option per-navigate) makes it process the navigation anyway. Second, even a processed navigation only re-runs guards/resolvers when something RELEVANT changed — the route-level `runGuardsAndResolvers: \'always\'` (or `\'paramsOrQueryParamsChange\'`, or a custom predicate) widens that trigger. Together they enable in-place data refresh through the router pipeline. Why others fail: (A) it is configurable, not impossible. (C) a full reload throws away the SPA session — the heavyweight last resort. (D) returning false CANCELS navigation; it refreshes nothing.',
   },
+  {
+    id: 345, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
+    question: 'You need a writable "selected item" signal that automatically RESETS whenever the options list it depends on changes, but that the user can also set freely in between. Which primitive fits?',
+    options: [
+      'computed() — derive the selection from the list',
+      'linkedSignal(() => this.options()[0]) — a WRITABLE signal whose value re-derives from the source computation every time the source changes, but that accepts local .set()/.update() calls between source emissions; the previous-state overload lets you keep the old selection when it is still valid',
+      'An effect() that watches the list and calls selection.set() when it changes',
+      'A plain signal plus a manual subscription to the list',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. `linkedSignal` exists precisely for "local state that follows a source": it behaves like a computed on source changes (re-running the computation, resetting the selection) yet stays writable for user interaction. The advanced form — `linkedSignal({ source, computation: (src, previous) => … })` — even receives the previous value so you can PRESERVE the current selection when it still exists in the new list. Why others fail: (A) computed is read-only, so the user could never change the selection. (C) an effect that writes signals to derive state is the classic anti-pattern — it introduces an extra change-detection turn and a glitch window where list and selection disagree. (D) signals are not observables; there is no subscription API, and hand-wiring one via toObservable adds complexity linkedSignal removes.',
+  },
+  {
+    id: 346, type: 'predict-output', difficulty: 'senior', category: 'signals',
+    question: 'What does this log?',
+    code: `const count = signal(1);
+const double = computed(() => {
+  console.log('computing');
+  return count() * 2;
+});
+count.set(2);
+count.set(3);
+console.log(double());
+console.log(double());`,
+    options: [
+      '"computing" three times (once per value), then 6, 6',
+      '"computing" once, then 6, then 6 — computed is LAZY (the body never runs on set(), only on first read) and MEMOIZED (the second read returns the cached 6 without re-running)',
+      '"computing", 6, "computing", 6 — every read recomputes',
+      '"computing", 2, then 6, 6',
+    ],
+    answer: 1,
+    topicPath: 'signals',
+    explanation: 'B is correct. A `computed` does no work when its dependencies change — the two `set()` calls only mark it STALE. The body executes on the first actual read (`double()`), logging "computing" once and returning `3 * 2 = 6`. The second read finds the cached value still fresh (count has not changed since) and returns 6 without re-executing, so nothing else logs. This lazy + memoized contract is why you can build large computed graphs cheaply: unread branches cost nothing, and diamond-shaped dependencies evaluate once. Why others fail: (A) assumes eager recomputation on every set — that is Rx `map`, not signals. (C) assumes no memoization; repeated reads of a fresh computed are cache hits. (D) the first read happens AFTER both sets, so the intermediate value 2 (from count=1... doubled) is never produced.',
+  },
+  {
+    id: 347, type: 'spot-the-bug', difficulty: 'senior', category: 'signals',
+    question: 'This component keeps a running total. What is wrong with the approach?',
+    code: `export class Cart {
+  readonly items = signal<Item[]>([]);
+  readonly total = signal(0);
+
+  constructor() {
+    effect(() => {
+      this.total.set(
+        this.items().reduce((sum, i) => sum + i.price, 0),
+      );
+    });
+  }
+}`,
+    options: [
+      'effect() cannot read signals — it must take them as arguments',
+      'Derived state is being produced through an effect: total should be `computed(() => this.items().reduce(…))`. The effect version creates a glitch window where items and total disagree, schedules an extra change-detection pass for the second write, and effects are explicitly documented as a last resort for state propagation',
+      'reduce() cannot be used inside reactive contexts',
+      'The effect needs to be wrapped in untracked() to avoid an infinite loop',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. Anything that is a pure function of other signals belongs in `computed` — it is synchronous (no frame where `items` is new but `total` is stale), lazy, memoized, and cannot loop. The effect version updates `total` only after the effect flushes, so any computed or template reading both during that window sees inconsistent state, and the second signal write triggers another round of change detection. The Angular docs call this out directly: do not use effects to propagate state; use them for OUTWARD side effects — logging, localStorage, imperative DOM/chart APIs. Why others fail: (A) reading signals is exactly how effects track dependencies. (C) any plain JS is fine inside reactive contexts. (D) there is no loop here — the effect does not read `total` — and untracked changes tracking, not writability.',
+  },
+  {
+    id: 348, type: 'spot-the-bug', difficulty: 'mid', category: 'signals',
+    question: 'Clicking "add" never updates the list on screen. Why?',
+    code: `export class Todos {
+  readonly todos = signal<string[]>([]);
+
+  add(todo: string) {
+    this.todos().push(todo);
+  }
+}
+// template: @for (t of todos(); track t) { <li>{{ t }}</li> }`,
+    options: [
+      '@for cannot iterate over signal values',
+      'The array is MUTATED in place: todos() returns the current array and push() changes its contents, but no set()/update() ever runs, so the signal never notifies anyone. Fix: this.todos.update(list => [...list, todo]) — produce a new reference through the signal API',
+      'The track expression must be $index for string arrays',
+      'signal<string[]> is invalid — arrays require signal.array()',
+    ],
+    answer: 1,
+    topicPath: 'signals',
+    explanation: 'B is correct. Signals notify when their value is SET through `.set()` or `.update()`; the default equality is reference-based (`Object.is`), and mutating the existing array bypasses the write path entirely — the graph never learns anything happened. `this.todos.update(list => [...list, todo])` creates a fresh array and pushes it through the signal, so the template re-renders. Treat signal-held objects and arrays as immutable; that is also what makes OnPush and zoneless scheduling reliable. Why others fail: (A) @for over `todos()` is the standard pattern. (C) `track t` vs `track $index` affects DOM reuse, not whether an update is detected. (D) there is no signal.array() — plain signal<T[]> is correct.',
+  },
+  {
+    id: 349, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
+    question: 'What must you know before writing `readonly ticks = toSignal(interval(1000))` in a component?',
+    options: [
+      'toSignal waits for the first template read before subscribing',
+      'toSignal subscribes IMMEDIATELY and needs an injection context (it registers DestroyRef cleanup to unsubscribe when the component dies), and until the observable emits, the signal reads `undefined` — unless you supply { initialValue } or use { requireSync: true } with a synchronous source like a BehaviorSubject',
+      'It throws unless the observable completes',
+      'It re-subscribes to the observable on every signal read',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-interop',
+    explanation: 'B is correct — three separate contracts in one API. (1) Eager subscription: the interval starts on construction, not on first read. (2) Injection context: `toSignal` grabs `DestroyRef` to tear the subscription down automatically; call it in a field initializer/constructor or pass an injector, otherwise it throws. (3) The type is honest about timing: `Signal<number | undefined>` because a signal must ALWAYS have a value to read while the observable may not have emitted yet — `initialValue` fills the gap, and `requireSync: true` narrows the type when the source emits synchronously (BehaviorSubject, startWith), throwing if it actually does not. Why others fail: (A) subscription is eager, one of the main behavioral differences from the async pipe. (C) completion is fine — the signal keeps the last value. (D) one subscription for the signal lifetime; reads are cache reads.',
+  },
+  {
+    id: 350, type: 'fill-blank', difficulty: 'mid', category: 'signals',
+    question: 'Complete the signal-input declarations: the parent MUST provide a user, and size accepts "sm"/"md" strings but is stored as a number:',
+    code: `export class UserCard {
+  user = ____<User>();
+  size = input(16, { ____: (v: 'sm' | 'md') => (v === 'sm' ? 12 : 16) });
+}`,
+    options: [
+      'signal.required for the first blank and coerce for the second',
+      'input.required for the first blank and transform for the second — input.required<User>() has no default and makes the compiler reject any usage of the component that does not bind [user]; transform runs on every bound value before it is stored, so the template binds strings while the class reads a number signal',
+      '@Input({ required }) for the first blank and map for the second',
+      'input.mandatory for the first blank and parse for the second',
+    ],
+    answer: 1,
+    topicPath: 'inputs',
+    explanation: 'B is correct. Signal inputs come in two flavors: `input<T>(default)` and `input.required<T>()` — required inputs take no default (there is nothing to read before the parent binds) and missing bindings are a template TYPE-CHECK error, not a runtime surprise. The `transform` option converts the value the parent binds into the value the component stores — the classic examples being booleanAttribute/numberAttribute coercion or, as here, mapping a size keyword to pixels; the input signal then reads as the TRANSFORMED type. Why others fail: (A) signal.required does not exist — signals always need initial values; inputs are the special case. (C) decorator @Input is the legacy API and its option is `required: true`, not bare `required` — and it gives you a plain property, not a signal. (D) input.mandatory and parse are invented names.',
+  },
+  {
+    id: 351, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
+    question: 'What does the resource()/httpResource() API give you over calling HttpClient yourself in ngOnInit?',
+    options: [
+      'Nothing — it is only syntax sugar for subscribe()',
+      'A signal-native async primitive: its params function tracks signals, so when they change the previous in-flight request is ABORTED (AbortSignal) and a new one starts; it exposes value/status/error/isLoading as signals for the template, offers reload() for manual refresh, and local .set() lets you optimistically overwrite the value',
+      'It caches every response in localStorage automatically',
+      'It turns HTTP calls synchronous so templates never need loading states',
+    ],
+    answer: 1,
+    topicPath: 'resource-api',
+    explanation: 'B is correct. `resource({ params, loader })` models the whole lifecycle of "async data that depends on reactive state": the params computation is tracked, each change cancels the outdated request via the provided AbortSignal (race-condition-free by construction — the switchMap of the signal world), and the result surfaces as signals — `value()`, `status()`, `error()`, `isLoading()` — that templates and computeds consume directly. `reload()` refetches on demand and setting `value` locally supports optimistic UI. `httpResource(() => url)` is the HttpClient-backed shorthand. Why others fail: (A) cancellation, status tracking, and reactivity are real behavior you would otherwise hand-write. (C) no persistence layer is involved. (D) the API embraces loading states — it just represents them as signals instead of booleans you juggle manually.',
+  },
+  {
+    id: 352, type: 'multiple-choice', difficulty: 'senior', category: 'signals',
+    question: 'A filter signal holds an object and is set to a structurally identical NEW object on every keystroke, re-running an expensive downstream computed each time. Best fix?',
+    options: [
+      'Wrap the computed body in untracked() so it stops updating',
+      'Give the signal a custom equality function — signal(initial, { equal: (a, b) => a.query === b.query && a.page === b.page }) — because the default comparison is Object.is (reference identity), so a fresh object literal ALWAYS counts as a change even when nothing inside it differs; with structural equality, equivalent writes stop propagating entirely',
+      'Debounce the keystrokes; equality cannot be customized',
+      'Convert the object to a JSON string signal so comparison works',
+    ],
+    answer: 1,
+    topicPath: 'signals-advanced',
+    explanation: 'B is correct. Every signal (and computed) accepts `{ equal }`: when a write produces a value the function deems equal to the current one, the signal keeps the OLD value and notifies nobody — the dependency graph downstream never wakes up. That is precisely the tool for object-valued signals where semantic equality differs from reference equality. Note the flip side: with a custom equal, in-place mutations are even more invisible, so immutability discipline still applies. Why others fail: (A) untracked would DETACH the computed from its dependency — it stops updating even for real changes. (C) debouncing reduces frequency but every surviving write still spuriously propagates; and equality IS customizable. (D) JSON.stringify per write is a slow, fragile (key-order-dependent) way to get what `equal` expresses directly.',
+  },
+  {
+    id: 353, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
+    question: 'How does a STANDALONE component enter TestBed, and how do you replace one of its heavyweight child components in a test?',
+    options: [
+      'declarations: [UserCard] — same as NgModule components',
+      'Standalone components go in imports: [UserCard] (they are self-describing, carrying their own template dependencies), and to swap a real child for a stub you use TestBed.overrideComponent(UserCard, { remove: { imports: [RealChart] }, add: { imports: [FakeChart] } })',
+      'They cannot be TestBed-tested; only constructor unit tests work',
+      'providers: [UserCard] — components are injectables',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. A standalone component is imported, not declared — `declarations` is for NgModule-owned classes and putting a standalone component there is an error. Because the component brings its OWN imports array, stubbing a child is no longer a module concern: `TestBed.overrideComponent` surgically removes the real child from the component\'s imports metadata and adds a fake with the same selector/inputs. Providers can be overridden the same way or with TestBed.overrideProvider. Why others fail: (A) declarations rejects standalone classes. (C) TestBed fully supports standalone — it is the primary path now. (D) providers is for injectables; a component in providers is just a useless factory registration, not a renderable declaration.',
+  },
+  {
+    id: 354, type: 'predict-output', difficulty: 'senior', category: 'testing',
+    question: 'What does this fakeAsync test log?',
+    code: `it('advances virtual time', fakeAsync(() => {
+  let msg = 'none';
+  setTimeout(() => (msg = 'first'), 1000);
+  setTimeout(() => (msg = 'second'), 3000);
+  tick(2000);
+  console.log(msg);
+  flush();
+  console.log(msg);
+}));`,
+    options: [
+      '"none" then "none" — timers never fire in fakeAsync',
+      '"first" then "second" — tick(2000) advances the VIRTUAL clock past the 1000ms timer (running it synchronously) but not the 3000ms one; flush() then drains all remaining pending timers regardless of their delay',
+      '"first" then "first" — flush() only flushes microtasks',
+      'It throws: you cannot mix tick() and flush() in one test',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. Inside `fakeAsync`, time is a number Angular controls: `setTimeout` registers into a virtual queue and nothing fires until you move the clock. `tick(2000)` moves it to t=2000 — the 1000ms callback runs synchronously during the call (msg = "first"), the 3000ms one stays pending. `flush()` says "run whatever timers remain, however far ahead they are", executing the second callback (msg = "second"). One more rule: a fakeAsync test that ENDS with pending timers throws — flush(), discardPeriodicTasks(), or enough tick() calls must clean the queue. Why others fail: (A) timers fire fine — under your control. (C) flushMicrotasks() is the microtask-only variant; flush() targets the timer queue. (D) mixing tick and flush is routine.',
+  },
+  {
+    id: 355, type: 'spot-the-bug', difficulty: 'mid', category: 'testing',
+    question: 'This HttpTestingController test fails with "Expected one matching request, found none". Why?',
+    code: `it('loads users', () => {
+  const users$ = service.getUsers(); // returns http.get<User[]>('/api/users')
+
+  const req = httpTesting.expectOne('/api/users');
+  req.flush([{ id: 1 }, { id: 2 }]);
+});`,
+    options: [
+      'expectOne needs the full absolute URL including host',
+      'Nobody SUBSCRIBED: HttpClient observables are cold, so http.get() alone sends nothing — the request only leaves when users$.subscribe() (or firstValueFrom(users$)) runs, so expectOne finds an empty backend. Subscribe first, then expectOne, then flush, and assert on the emitted value',
+      'flush() must be called before expectOne()',
+      'The fake body must be JSON.stringify-ed before flushing',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct. Cold observables do work per subscriber, and HttpClient is strictly cold: `getUsers()` merely BUILDS the request description. Until something subscribes, `HttpTestingController` has recorded zero requests, so `expectOne` correctly reports none. The working shape is: subscribe (stashing results or using firstValueFrom + await after flush), THEN expectOne, THEN req.flush(body) — flush makes the response arrive and the subscriber assertion run. Finish with httpTesting.verify() in afterEach so stray unexpected requests fail loudly. Why others fail: (A) relative URLs match fine — expectOne matches what the app requested. (C) flush belongs to the TestRequest that expectOne returns; the order cannot invert. (D) flush takes the deserialized body directly.',
+  },
+  {
+    id: 356, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'A component test asserts DOM immediately after clicking a button and passes with zone.js but shows STALE DOM in a zoneless app. What is the robust pattern?',
+    options: [
+      'Add an arbitrary setTimeout before asserting',
+      'Let change detection run like production: enable fixture.autoDetectChanges() (or configure the TestBed default), await fixture.whenStable() after the interaction, and then assert — in zoneless scheduling, CD is a coalesced, scheduled reaction to the signal/event notification, so synchronous DOM reads right after the click are one render behind',
+      'Call detectChanges() twice in a row — the second one always catches up',
+      'Zoneless apps cannot be tested against the DOM; test class members only',
+    ],
+    answer: 1,
+    topicPath: 'zoneless',
+    explanation: 'B is correct. Zoneless removes the "zone saw your click and synchronously ran app-wide CD" behavior tests silently relied on; instead a click handler notifies the scheduler, which renders shortly after. Tests should mirror that: automatic change detection plus `await fixture.whenStable()` gives you the post-render DOM deterministically, and works identically in zone and zoneless apps (which also makes it the right migration-proof style). Manual `detectChanges()` still works but can PAPER OVER real scheduling bugs — the test forces a render the app might never perform. Why others fail: (A) sleeping is flaky and slow — whenStable resolves exactly when work settles. (C) double detectChanges is cargo-culting; the reliable primitive is awaiting stability. (D) DOM testing is fully supported zoneless — only the flush mechanism changed.',
+  },
+  {
+    id: 357, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'A service effect() persists a signal to localStorage. The unit test sets the signal and asserts localStorage on the next line — and fails. Why, and what is the fix?',
+    options: [
+      'Effects cannot run in TestBed at all',
+      'Effects do not run synchronously on write — they are SCHEDULED and flushed with change detection. In a TestBed unit test with no fixture render, nothing ever flushes them, so the write never happens. Call TestBed.tick() (or fixture.detectChanges() in a component test) after setting the signal, then assert',
+      'localStorage is read-only inside tests',
+      'Signals must be declared with { effects: true } to be observable',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. An effect marks itself dirty when a dependency changes and runs at the next FLUSH point — during change detection for component effects, at scheduler ticks for root/injector effects. A bare `TestBed.inject(MyService)` test has no fixture and never renders, so the flush never comes; the assertion runs before the effect body ever has. `TestBed.tick()` triggers application synchronization (running pending effects); in component tests, `fixture.detectChanges()`/`whenStable` does it as a side effect of rendering. The same scheduling rule explains why the effect also did not run at construction time in the test. Why others fail: (A) effects run fine in TestBed once something flushes. (C) localStorage works normally (jsdom/browser). (D) there is no such option — every signal is trackable.',
+  },
+  {
+    id: 358, type: 'fill-blank', difficulty: 'mid', category: 'testing',
+    question: 'Complete the test so the signal-input receives a value and the DOM reflects it:',
+    code: `const fixture = TestBed.createComponent(UserCard);
+fixture.componentRef.____('user', { name: 'Ada' });
+____;
+expect(fixture.nativeElement.textContent).toContain('Ada');`,
+    options: [
+      'setProperty for the first blank and fixture.autoDetect() for the second',
+      'setInput for the first blank and fixture.detectChanges() (or await fixture.whenStable()) for the second — setInput is the ONLY supported way to drive a signal input from a test (they are read-only InputSignals, not assignable fields), and it also marks OnPush components dirty and runs input transforms, after which a render must flush the change to the DOM',
+      'user.set for the first blank and TestBed.flush() for the second',
+      'Direct assignment (componentInstance.user = …) for the first blank and nothing for the second',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. `input()` produces an `InputSignal` — reading it calls it like a function, and there is no setter on the instance, so `componentInstance.user = value` is a type error (and with decorator inputs it silently skipped transforms and OnPush marking anyway). `fixture.componentRef.setInput(name, value)` goes through the real input pipeline: transform functions run, `markForCheck`-equivalent dirtying happens, and ngOnChanges fires for decorator inputs. Then the DOM assertion needs a render — `detectChanges()` or auto-detect + `await whenStable()`. Why others fail: (A) setProperty targets DOM properties via the renderer, and autoDetect is enabled BEFORE interactions, not called as a flush. (C) input signals expose no .set — only the component template/parent or setInput feed them. (D) assignment fails on read-only signal inputs — exactly the situation setInput exists for.',
+  },
+  {
+    id: 359, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'Why drive UI-library widgets through component test harnesses (MatButtonHarness etc.) instead of querying their DOM directly?',
+    options: [
+      'Harnesses run tests in a real browser while CSS queries cannot',
+      'A harness is a stable, semantic API over a component\'s INTERNAL DOM: your test says harness.open() / getValue() instead of depending on class names and nesting that the library may change in any minor release; the same harness code runs against unit tests and e2e via different HarnessEnvironments, and every interaction auto-waits for change detection and async work to settle',
+      'They make tests faster by skipping rendering entirely',
+      'They are required — Material components throw when queried directly',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct — the CDK harness contract has three payoffs. Stability: the harness ships WITH the component, so when mat-select\'s internal markup changes, the harness is updated by the library and your `selectHarness.clickOptions(…)` keeps working, where a `.mat-select-trigger` query silently rots. Portability: `TestbedHarnessEnvironment` and e2e environments implement the same `HarnessLoader` interface, so page-object logic is written once. Determinism: each harness interaction flushes change detection and awaits stability before returning, killing a whole class of "assert before render" flakes — including in zoneless apps. Why others fail: (A) environment choice is orthogonal — TestBed harness tests run in the same runner as other unit tests. (C) rendering still happens; nothing is skipped. (D) direct queries work, they are just brittle — harnesses are a convention, not an enforcement.',
+  },
+  {
+    id: 360, type: 'spot-the-bug', difficulty: 'senior', category: 'testing',
+    question: 'This test is green today — and would STAY green if the filtering logic broke completely. What is the flaw?',
+    code: `it('emits only active items', () => {
+  service.activeItems$.subscribe(items => {
+    expect(items.every(i => i.active)).toBe(true);
+  });
+});`,
+    options: [
+      'subscribe() is not allowed inside it() blocks',
+      'The test passes VACUOUSLY if the observable never emits synchronously: the callback (and its expect) simply never runs, and a test with zero executed assertions is green. Make emission mandatory — const items = await firstValueFrom(service.activeItems$) then assert — so silence becomes a timeout failure instead of a false pass',
+      'every() cannot be used inside expect()',
+      'The subscription leaks memory, which fails the suite eventually',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct — the assertion lives inside a callback whose execution is OPTIONAL. If `activeItems$` becomes async (a delay, a switchMap to HTTP), or errors, or never emits, the subscribe callback does not run before the synchronous test body ends, no expectation executes, and the runner reports success. `await firstValueFrom(obs)` inverts the contract: no emission → rejected promise → failed test; the value comes back to the test body where assertions are guaranteed to run. Alternatives with the same property: done callbacks (fail by timeout), expect.assertions(1) (Vitest/Jest, fails when the count is off), or marble testing. Why others fail: (A) subscribing in tests is legal, just assertion-unsafe as shown. (C) any boolean expression works in expect. (D) one dangling test subscription is untidy but will not fail anything — which is exactly the problem.',
+  },
+  {
+    id: 361, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
+    question: 'A heavy chart component sits below the fold. Which @defer configuration loads it best?',
+    options: [
+      '@defer (on immediate) — load everything up front so it is ready',
+      '@defer (on viewport; prefetch on idle) with an @placeholder sizing the slot: the chart compiles into its OWN lazy chunk excluded from the initial bundle, the browser downloads that chunk during idle time after load, and the component only instantiates (and starts doing work) when the placeholder actually scrolls into view',
+      '@defer (when isVisible()) polling a scroll listener you write yourself',
+      'Wrap it in @if (false) and flip the flag in ngAfterViewInit',
+    ],
+    answer: 1,
+    topicPath: 'deferrable-views',
+    explanation: 'B is correct — and the separation of the two triggers is the senior detail. `on viewport` (an IntersectionObserver on the @placeholder content) gates INSTANTIATION, keeping main-thread work out of startup. `prefetch on idle` gates only the network FETCH, so by the time the user scrolls down, the JavaScript is usually already in cache — no spinner at the moment of visibility. The placeholder both reserves layout (avoiding CLS) and provides the element the observer watches. Dependencies must be otherwise-unreferenced (no @ViewChild into the deferred block, no eager import elsewhere) or they stay in the main bundle. Why others fail: (A) on immediate still splits the chunk but downloads AND instantiates at startup — the work you were avoiding. (C) hand-rolled visibility tracking recreates `on viewport` worse, and @defer (when …) never code-splits reactively better than triggers. (D) @if hides rendering but the import keeps the chart in the initial bundle.',
+  },
+  {
+    id: 362, type: 'spot-the-bug', difficulty: 'mid', category: 'performance',
+    question: 'Sorting this list makes row components lose their expanded/edit state, and profiling shows every row re-rendering. The data items have stable ids. What is wrong?',
+    code: `@for (user of sortedUsers(); track $index) {
+  <app-user-row [user]="user" />
+}`,
+    options: [
+      '@for cannot render component elements, only plain HTML',
+      'track $index keys DOM by POSITION, not identity: after a sort, position 0 is still "the same item" to Angular, so instead of MOVING the existing row components it keeps them in place and rebinds every [user] input — internal row state (expansion, focus, form edits) now belongs to the wrong data. Use track user.id so rows follow their data',
+      'The track expression must be a function, not a property access',
+      'sortedUsers() must return a readonly array for tracking to work',
+    ],
+    answer: 1,
+    topicPath: 'control-flow-for',
+    explanation: 'B is correct. The track expression is the identity key for DOM reuse. With `$index`, a reorder looks like "every position kept its identity but all the DATA changed" — Angular rebinds N inputs, child components re-run their input-driven logic, and any state living inside a row (an open accordion, a half-typed input, focus) stays at its old POSITION while its data moves elsewhere: the classic wrong-row bug. With `track user.id`, the same reorder is "identities moved" — Angular moves the existing DOM nodes, zero rebinds, state travels with its item. $index is only right when items truly have no identity (static lists, primitive duplicates). Why others fail: (A) @for renders components fine. (C) property access is the normal form — trackBy FUNCTIONS were the old NgFor API. (D) mutability of the array is irrelevant to tracking.',
+  },
+  {
+    id: 363, type: 'multiple-choice', difficulty: 'mid', category: 'performance',
+    question: 'What do you get by switching <img src="hero.jpg"> to <img ngSrc="hero.jpg" width="800" height="400" priority>?',
+    options: [
+      'Automatic conversion of the image to WebP on the client',
+      'NgOptimizedImage enforces performance best practices: required width/height reserve layout space (no CLS), non-priority images lazy-load with async decoding by default, priority marks the LCP image with fetchpriority="high" plus a preload link, srcset generation and CDN loaders come built in — and it errors loudly when you misuse it (e.g. missing dimensions, priority image that is lazy)',
+      'It inlines the image as base64 into the bundle',
+      'It only works with Angular-hosted CDNs',
+    ],
+    answer: 1,
+    topicPath: 'performance',
+    explanation: 'B is correct. The directive encodes the Core-Web-Vitals checklist a performance reviewer would apply by hand. Dimensions (or fill mode) prevent layout shift; below-the-fold images get loading="lazy" decoding="async" for free; the ONE above-the-fold hero gets `priority`, which flips it to eager + fetchpriority=high and (with SSR) emits a <link rel="preload">, directly attacking LCP. Loader functions integrate image CDNs so srcset/sizes emit automatically, and dev-mode diagnostics warn about oversized or distorted images. Client-side format conversion is not something a directive can do — that is the CDN\'s job via the loader. Why others fail: (A) format negotiation happens at the server/CDN. (C) nothing is inlined; URLs are rewritten. (D) any host works — loaders exist for generic and custom CDNs.',
+  },
+  {
+    id: 364, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
+    question: 'In a zoneless application, what actually causes change detection to run?',
+    options: [
+      'A polling loop Angular runs every animation frame',
+      'Explicit notifications only: a signal written that a template reads, an AsyncPipe receiving a value, markForCheck() (directly or via things built on it), and template/host event listeners completing — each schedules a COALESCED render pass. Consequently, a setTimeout or fetch callback that only mutates a plain class field updates nothing until one of those signals fires',
+      'Every macrotask, exactly like zone.js but implemented natively',
+      'Only router navigations and HTTP responses',
+    ],
+    answer: 1,
+    topicPath: 'zoneless',
+    explanation: 'B is correct. Zone.js made EVERY async completion a CD trigger — safe but wasteful (a mousemove that changes nothing still runs app-wide dirty checking). Zoneless inverts the contract: the framework renders when something it can SEE changes — signal writes into read signals, AsyncPipe emissions, explicit markForCheck, listener callbacks — and the scheduler coalesces bursts into one pass. The migration hazard is exactly the plain-field case: `setTimeout(() => this.count++)` renders under zone.js by accident and never renders zoneless; the fix is making state reactive (signals) rather than sprinkling markForCheck. This is also why OnPush-with-signals apps migrate almost for free. Why others fail: (A) no polling — idle apps do zero work, part of the point. (C) reproducing zone semantics without zones is what zoneless deliberately abandons. (D) router/HTTP matter only insofar as they end in signal/AsyncPipe/listener updates like everything else.',
+  },
+  {
+    id: 365, type: 'multiple-choice', difficulty: 'senior', category: 'performance',
+    question: 'With SSR + incremental hydration (withIncrementalHydration and @defer hydrate triggers), what happens to a section marked @defer (hydrate on interaction)?',
+    options: [
+      'It is skipped during server rendering and appears blank until clicked',
+      'The server renders its REAL HTML, which stays visible but inert as a static island; its JavaScript is not downloaded or executed during initial hydration, and only when the user interacts does Angular fetch the chunk, hydrate that subtree in place (no re-render flicker), and replay the triggering event so the click is not lost',
+      'It hydrates immediately — hydrate triggers only affect dev builds',
+      'The section renders twice: once on the server and once from scratch on the client',
+    ],
+    answer: 1,
+    topicPath: 'hydration',
+    explanation: 'B is correct. Incremental hydration decouples "visible" from "interactive": full HTML arrives from the server (SEO and perceived performance keep their SSR benefits), but the deferred subtree\'s code is excluded from the initial client work — less JS parsed, less hydration CPU, better TTI/INP on the pages that need it most. `hydrate on interaction/viewport/idle` etc. choose the wake-up moment; hydration happens IN PLACE against the existing DOM (the non-destructive kind), and event replay (withEventReplay) captures the interaction that arrived before hydration finished and re-dispatches it after, so the triggering click actually does something. Why others fail: (A) blank-until-clicked describes plain @defer WITHOUT SSR hydration triggers — incremental hydration exists to avoid exactly that. (C) hydrate triggers are the production feature, not a dev toggle. (D) re-rendering from scratch is destructive hydration, the legacy fallback this replaces.',
+  },
+  {
+    id: 366, type: 'multiple-choice', difficulty: 'mid', category: 'performance',
+    question: 'A template shows {{ calculateTotal() }} where calculateTotal is a component METHOD looping over the cart. Why do performance guides flag this, and what replaces it?',
+    options: [
+      'Method calls in templates are compile errors in strict mode',
+      'The template has no way to know when the method\'s result might change, so it re-executes on EVERY change-detection cycle of that view — keystrokes, mouseovers, unrelated updates — multiplying an O(n) loop across the app\'s entire CD traffic. Replace it with a memoized reactive value: total = computed(() => …) reading cart signals (or a pure pipe when the input is a template value), which recomputes only when a dependency actually changes',
+      'Methods run outside the zone so the total never updates',
+      'It is fine — Angular caches template method results automatically',
+    ],
+    answer: 1,
+    topicPath: 'performance',
+    explanation: 'B is correct. An interpolated method call is an opaque expression: change detection must re-evaluate it every pass because anything could have changed its result. On default (non-OnPush, zone) components that means every async event app-wide re-runs your loop; even under OnPush it runs on every check of that component. `computed()` flips the model — the dependency graph knows EXACTLY when cart items changed and memoizes otherwise, so template reads between changes are cache hits. Pure pipes solve the same problem via input-reference memoization when the source is a bound value rather than a signal. (Cheap property-access getters are fine; it is per-check WORK that hurts.) Why others fail: (A) legal, merely costly. (C) template expressions run during CD, inside the zone — updating is not the issue, over-updating is. (D) no such caching exists for method calls; that is precisely what computed/pipes add.',
+  },
+  {
+    id: 367, type: 'multiple-choice', difficulty: 'mid', category: 'performance',
+    question: 'A zone-based app draws on a canvas from a mousemove listener and profiling shows change detection running hundreds of times per second. The drawing touches no template state. Fix?',
+    options: [
+      'Throttle the listener to one event per second and accept choppy drawing',
+      'Register the listener via ngZone.runOutsideAngular(() => canvas.addEventListener(\'mousemove\', draw)) so the zone never sees those events and no CD is scheduled; when a mousemove occasionally DOES need to update component state, wrap just that state change in zone.run() — or store it in a signal, which schedules its own precise update',
+      'Set the whole component to ChangeDetectionStrategy.OnPush — that stops event-driven CD',
+      'Move the canvas into a Web Worker; DOM listeners cannot be optimized',
+    ],
+    answer: 1,
+    topicPath: 'performance',
+    explanation: 'B is correct. Zone.js patches addEventListener, so every mousemove ends with an application-wide tick even though nothing data-bound changed. `runOutsideAngular` executes the registration in the parent zone: events still fire, the canvas still draws at 60fps, but Angular is never notified — CD cost drops to zero for the hot path. The escape hatch composes with re-entry: `zone.run()` for the rare state-affecting event, or better, write a signal (signals do not need the zone at all — they notify the scheduler directly, which is also why this whole pattern dissolves under zoneless). Why others fail: (A) trades UX for a problem that has a free solution. (C) OnPush skips the component\'s own re-render but the zone still triggers app ticks; template listeners also mark OnPush components dirty anyway. (D) workers cannot touch the DOM/canvas element directly (barring OffscreenCanvas plumbing) — vast machinery for a one-line fix.',
+  },
+  {
+    id: 368, type: 'spot-the-bug', difficulty: 'senior', category: 'performance',
+    question: 'Users report the app getting slower the longer they navigate around. This dashboard component is on the busiest route. Find the leak:',
+    code: `@Component({ /* … */ })
+export class Dashboard {
+  readonly now = signal(new Date());
+
+  constructor() {
+    interval(1000).subscribe(() =>
+      this.now.set(new Date()),
+    );
+  }
+}`,
+    options: [
+      'signal(new Date()) allocates too much memory per tick',
+      'The interval subscription is NEVER torn down: interval never completes, and nothing unsubscribes on destroy, so every visit to the route leaks a live subscription that keeps ticking, holds the destroyed component (and its injector tree) reachable, and stacks CPU work forever. Fix: interval(1000).pipe(takeUntilDestroyed()).subscribe(…) in the constructor (injection context), or hold the Subscription and clean up via DestroyRef.onDestroy',
+      'Signals must not be written from inside subscribe callbacks',
+      'interval() drifts over time and must be replaced with setInterval',
+    ],
+    answer: 1,
+    topicPath: 'rxjs-interop',
+    explanation: 'B is correct — the textbook Angular memory leak, made worse by living on a hot route. Each navigation constructs a new Dashboard, each constructor opens an infinite subscription, and destruction does NOT magically unsubscribe: the closure captures `this`, the retained component keeps its whole object graph alive (GC cannot collect it), and after N visits N timers run every second — the "slower over time" signature. `takeUntilDestroyed()` is the modern one-liner: called in an injection context it grabs DestroyRef automatically and completes the stream when the component is destroyed; the explicit alternatives are `inject(DestroyRef).onDestroy(() => sub.unsubscribe())` or the classic ngOnDestroy. (A timer this simple could also just be an effect-free `afterNextRender` + setInterval with cleanup, but the subscription discipline is the exam point.) Why others fail: (A) allocation per second is trivial; retention is the problem. (C) writing signals from subscriptions is normal and fine. (D) drift is real but cosmetic here — it neither leaks nor slows the app.',
+  },
 ];
 
 export function shuffle<T>(arr: T[]): T[] {
