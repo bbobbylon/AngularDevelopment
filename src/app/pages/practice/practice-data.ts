@@ -4528,7 +4528,7 @@ export class Banner {
       'Store the array in a global window.cart variable',
     ],
     answer: 1,
-    topicPath: 'state',
+    topicPath: 'state-management',
     explanation: 'B is correct. Duplicated state ALWAYS drifts — each copy updates on its own schedule. The remedy is one owner: a root-provided CartStore whose `items = signal<Item[]>([])` is mutated only through store methods like `add(item)`. Components inject the store, render `computed` projections, and call its methods to change data. This is the core of every state-management pattern: single source of truth, derive do not store. Why others fail: (A) polling is a race-condition band-aid. (C) sibling-to-sibling @Input/@Output chains must route through a common parent and re-introduce copies. (D) window globals are untracked, untyped, and invisible to change detection.',
   },
   {
@@ -4541,7 +4541,7 @@ export class Banner {
       'Merge the five components into one so no inputs are needed',
     ],
     answer: 1,
-    topicPath: 'state',
+    topicPath: 'state-management',
     explanation: 'B is correct. Threading an @Input through components that only forward it couples every intermediate layer to data it does not use — each rename touches five files. Dependency injection is Angular\'s built-in answer: put the state in a service (providedIn: \'root\', or in a feature component\'s `providers` to scope it to that subtree), and ANY descendant injects it directly. Signals make the shared value reactive for free. Inputs remain right for genuinely parent-to-child, presentational data. Why others fail: (A) DOM queries bypass Angular\'s data flow and break encapsulation. (C) window events are stringly-typed and leak listeners. (D) merging destroys reuse and testability.',
   },
   {
@@ -4554,7 +4554,7 @@ export class Banner {
       'An HTTP interceptor that caches every GET request',
     ],
     answer: 1,
-    topicPath: 'state',
+    topicPath: 'state-management',
     explanation: 'B is correct. A facade is an injectable that exposes WHAT the feature can do (queries as signals/observables, commands as methods) and hides HOW state is managed (dispatching actions, selecting slices, calling APIs). Components become thin — inject the facade, bind its view model, invoke intents — and gain painless testing (mock one facade instead of a store) plus freedom to migrate the state layer later. The risk to watch: a lazy facade that just re-exports the store 1:1 adds indirection without abstraction. Why others fail: (A) not a change-detection tool. (C) that describes a shell/container route component. (D) unrelated to HTTP caching.',
   },
   {
@@ -4567,7 +4567,7 @@ export class Banner {
       'It is only needed when using a REST API',
     ],
     answer: 1,
-    topicPath: 'state',
+    topicPath: 'state-management',
     explanation: 'B is correct. Normalization treats client state like a tiny relational DB: each entity type keyed by id (`entities: Record<id, Item>`), relations stored AS ids, plus an `ids: []` array preserving order. Updating one todo is a single spread on `entities[id]` — no deep array surgery; and because an author embedded in 40 posts exists ONCE, an author rename cannot miss stale copies. Selectors then join/denormalize for the view, and @ngrx/entity / withEntities generate the adapters. Why others fail: (A) arrays store fine — they just scale badly for updates. (C) memory use is similar; correctness and update ergonomics are the win. (D) the shape helps regardless of transport.',
   },
   {
@@ -4580,7 +4580,7 @@ export class Banner {
       'Batching all writes and syncing once per minute',
     ],
     answer: 1,
-    topicPath: 'state',
+    topicPath: 'state-management',
     explanation: 'B is correct. Optimistic UI assumes success: snapshot the prior value, mutate the store first, fire the HTTP call, and on error restore the snapshot and surface a toast — e.g. save `const prev = this.items()`, apply the update, and in catchError call `this.items.set(prev)` before notifying. The rollback (plus idempotent server handling for retries) is NOT optional — without it a failed call leaves the UI lying. Use the pessimistic (wait-for-server) flow for payments and destructive actions. Why others fail: (A) that is the pessimistic approach. (C) blind retries can duplicate effects and never resolve conflicts. (D) batching is a different strategy with its own consistency issues.',
   },
   {
@@ -5287,6 +5287,409 @@ export class Dashboard {
     answer: 1,
     topicPath: 'rxjs-interop',
     explanation: 'B is correct — the textbook Angular memory leak, made worse by living on a hot route. Each navigation constructs a new Dashboard, each constructor opens an infinite subscription, and destruction does NOT magically unsubscribe: the closure captures `this`, the retained component keeps its whole object graph alive (GC cannot collect it), and after N visits N timers run every second — the "slower over time" signature. `takeUntilDestroyed()` is the modern one-liner: called in an injection context it grabs DestroyRef automatically and completes the stream when the component is destroyed; the explicit alternatives are `inject(DestroyRef).onDestroy(() => sub.unsubscribe())` or the classic ngOnDestroy. (A timer this simple could also just be an effect-free `afterNextRender` + setInterval with cleanup, but the subscription discipline is the exam point.) Why others fail: (A) allocation per second is trivial; retention is the problem. (C) writing signals from subscriptions is normal and fine. (D) drift is real but cosmetic here — it neither leaks nor slows the app.',
+  },
+  {
+    id: 369, type: 'multiple-choice', difficulty: 'junior', category: 'i18n',
+    question: 'What does adding the i18n attribute to an element actually do?',
+    code: `<h1 i18n="site header|Greeting shown on the landing page@@homeGreeting">
+  Welcome back!
+</h1>`,
+    options: [
+      'It translates the text at runtime by calling a translation API with the browser language',
+      'It MARKS the element\'s content for extraction: `ng extract-i18n` collects it (with the meaning|description@@id metadata) into a translation file, and at BUILD time Angular replaces the text with the translation for each configured locale — the attribute itself ships no runtime behavior and is stripped from the output',
+      'It enables right-to-left layout for the element when the locale requires it',
+      'It restricts the element to only render for international (non-English) users',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. Angular\'s built-in i18n is a compile-time pipeline: mark text with `i18n` (the syntax is `meaning|description@@customId` — the meaning disambiguates identical source strings, the description helps translators, the @@id keeps the unit stable when text changes), run `ng extract-i18n` to produce an XLF/XMB file, hand it to translators, then build once per locale with the translated file. Because substitution happens during the build, the shipped bundle contains only the final strings — no dictionary lookups, no flash of untranslated text. Why others fail: (A) nothing happens at runtime; there is no API call and no dynamic switching in the built-in flow. (C) direction comes from the `dir` attribute/locale data, not from marking text. (D) i18n never conditions rendering — every user sees the element, in their build\'s language.',
+  },
+  {
+    id: 370, type: 'multiple-choice', difficulty: 'mid', category: 'i18n',
+    question: 'What does this ICU expression render, and why is it better than an @if chain?',
+    code: `<span i18n>{count, plural,
+  =0 {no messages}
+  one {one message}
+  other {{{count}} messages}
+}</span>`,
+    options: [
+      'It only saves typing — an @if/@else chain compiles to identical output',
+      'It selects the branch by the LOCALE\'S plural rules: `one`/`other` are CLDR plural categories, not literal numbers, so a language like Polish (which needs `few` and `many` forms) can add its categories IN THE TRANSLATION FILE without any template change — an @if chain hardcodes English\'s two-form grammar into component logic that translators cannot touch',
+      'It memoizes the string so change detection skips the span',
+      'ICU syntax is deprecated in favor of the plural pipe',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct — the point of ICU plurals is that plural GRAMMAR is locale-specific. English has two forms (one/other), Arabic has six, Polish needs few/many; CLDR defines the categories per language and the ICU message carries all branches as ONE translation unit, so the translator supplies whatever forms their language needs. `=0` style exact matches layer on top for special-casing. An @if chain freezes the source language\'s rules into the template: a Polish translator has nowhere to put the `few` form because the branching lives in code, not in the translatable message. ICU `select` does the same for non-numeric variants (gender, status). Why others fail: (A) the outputs differ fundamentally — one is a single translatable unit with locale-driven branching, the other is untranslatable control flow around fragments. (C) ICU has no change-detection semantics. (D) ICU is the current, supported mechanism; there is no plural pipe in Angular.',
+  },
+  {
+    id: 371, type: 'spot-the-bug', difficulty: 'mid', category: 'i18n',
+    question: 'The template is fully marked with i18n, yet German users still see English text in the toast. Where is the leak?',
+    code: `@Component({ /* … */ })
+export class Cart {
+  private readonly toast = inject(ToastService);
+
+  remove(item: CartItem): void {
+    this.toast.show('Removed ' + item.name + ' from your cart');
+  }
+}`,
+    options: [
+      'ToastService must be provided in the root injector for translations to load',
+      'The string is assembled in TYPESCRIPT, so template extraction never sees it — `ng extract-i18n` only walks templates and `$localize` calls. Fix: this.toast.show($localize`:@@cartRemoved:Removed \${item.name}:itemName: from your cart`) so the message (with its placeholder) becomes a real translation unit',
+      'String concatenation with + is not allowed in zoneless applications',
+      'The i18n attribute is missing from the component decorator',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. Template `i18n` attributes cover only what lives in templates; any user-facing string born in TypeScript — toasts, dialog titles, validation messages, document.title — must be tagged with the `$localize` template literal (from @angular/localize) to enter the extraction pipeline. `$localize` supports the same `:meaning|description@@id:` prefix and NAMED placeholders (`\${expr}:name:`), which matters because translators must be able to REORDER the placeholder: German might say "…aus dem Warenkorb entfernt: NAME". The original concatenation is doubly broken — invisible to extraction AND word-order-locked. Why others fail: (A) injector scope has nothing to do with extraction. (C) concatenation is legal everywhere; it is just untranslatable. (D) there is no i18n field on @Component — marking happens per string, not per class.',
+  },
+  {
+    id: 372, type: 'multiple-choice', difficulty: 'senior', category: 'i18n',
+    question: 'How does built-in Angular i18n actually DELIVER multiple languages to production, and what is the main trade-off?',
+    options: [
+      'One bundle contains every language and a runtime switch flips between them instantly',
+      'The CLI produces ONE BUILD PER LOCALE (dist/app/de/, dist/app/fr/ …), each with translations baked in at compile time; the server or CDN routes users to the right directory. Trade-off: zero runtime cost and full AOT optimization, but switching language means LOADING A DIFFERENT APP — you redirect, you cannot flip in place, and N locales mean N deployed builds',
+      'Translations are fetched as JSON on startup and applied by a global pipe',
+      'Each lazy route downloads only its own language file on demand',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct. With `"localize": true` (or an array of locales) in angular.json, the build compiles the app once, then generates a per-locale variant by substituting translation units into the templates — the docs call this build-time inlining. Deployment is directory-per-locale behind content negotiation (Accept-Language redirect, path prefix like /de/, or user preference cookie). The strengths and the constraint are two sides of one fact: because strings are inlined, there is no translation lookup at runtime and dead branches per locale can be optimized, but the running app knows only its own language — in-place switching requires a full navigation to the other build. Teams that need live switching typically reach for runtime libraries (Transloco/ngx-translate) and accept dictionary lookups instead. Why others fail: (A) describes runtime i18n libraries, not the built-in pipeline. (C) same — built-in i18n fetches nothing at startup. (D) locale granularity is per-app, not per-route; lazy chunks within the German build are still all-German.',
+  },
+  {
+    id: 373, type: 'fill-blank', difficulty: 'mid', category: 'i18n',
+    question: 'Complete the template so the title ATTRIBUTE (not just the text content) gets translated:',
+    code: `<button
+  title="Download the yearly report"
+  ______
+  i18n>
+  Download
+</button>`,
+    options: [
+      'i18n-title — attributes are marked with the i18n-<attributeName> prefix, each becoming its own translation unit (optionally with its own meaning|description@@id metadata)',
+      '[title.i18n]="true" — attribute translation uses a binding flag',
+      'translate="title" — a translate attribute lists which attributes to localize',
+      'i18n="title" — the i18n attribute takes the attribute name as its value',
+    ],
+    answer: 0,
+    topicPath: 'i18n',
+    explanation: 'A is correct — `i18n-title` is the marker for translating the title attribute, and the pattern generalizes: `i18n-alt` for image alt text, `i18n-placeholder` for inputs, `i18n-aria-label` for accessibility labels. Each i18n-x attribute creates a separate unit in the extraction file and accepts the same `meaning|description@@customId` value syntax as element-content i18n. Forgetting these is the classic "the page is translated but tooltips, alts and aria-labels are still English" bug — attribute text is invisible on screen-reading the page casually, so it slips through review, and for aria-label it is an accessibility failure for non-English screen-reader users. Why others fail: (B) there is no i18n binding flag syntax. (C) a translate attribute belongs to third-party runtime libraries, not built-in i18n. (D) the plain i18n attribute\'s VALUE is the meaning/description/id metadata for the element\'s CONTENT — it does not name attributes.',
+  },
+  {
+    id: 374, type: 'multiple-choice', difficulty: 'senior', category: 'i18n',
+    question: 'A Swiss-German build (locale de-CH) shows dates as 3/15/2026 and currency as $ instead of CHF formats. The DatePipe and CurrencyPipe are used correctly. What is missing?',
+    options: [
+      'Pipes must be given the locale on every call: date:"medium":"":"de-CH"',
+      'The locale DATA was never registered/configured: formatting pipes read LOCALE_ID and look up CLDR data that only en-US ships by default. In a localized build, setting the locale in angular.json ("localize": ["de-CH"]) registers both automatically; in a manual setup you need registerLocaleData(localeDeCh) plus providing LOCALE_ID — without the data the pipes silently fall back to en-US patterns',
+      'DatePipe and CurrencyPipe only support English; use Intl.DateTimeFormat directly',
+      'The server must send a Content-Language: de-CH header for pipes to switch',
+    ],
+    answer: 1,
+    topicPath: 'i18n',
+    explanation: 'B is correct — formatting is a two-part contract: LOCALE_ID tells pipes WHICH locale to use, and registered CLDR locale data tells them HOW that locale formats dates, numbers and currencies (day order, separators, currency symbol placement — de-CH uses apostrophe-grouped numbers like 1\'234.50). Angular ships only en-US data by default to keep bundles lean, so an unregistered locale silently degrades to US formats. The i18n build pipeline wires both for you per locale build; hand-rolled setups (or runtime-i18n apps) must call `registerLocaleData(localeDeCh)` (data imported from @angular/common/locales/de-CH) and provide LOCALE_ID — and CurrencyPipe additionally defaults its currency CODE from DEFAULT_CURRENCY_CODE, which you set to CHF. Why others fail: (A) per-call locale arguments work but still require the locale data to be registered, and repeating the locale at every call site is exactly what LOCALE_ID exists to avoid. (C) the pipes are Intl/CLDR-driven and support every registered locale. (D) HTTP headers never reach pipe internals.',
+  },
+  {
+    id: 375, type: 'multiple-choice', difficulty: 'junior', category: 'a11y',
+    question: 'A code review flags this "button". What is actually broken about it for keyboard and screen-reader users?',
+    code: `<div class="btn" (click)="save()">Save</div>`,
+    options: [
+      'Nothing — (click) works the same on any element, so this is purely a style preference',
+      'Everything native <button> provides is missing: the div is not focusable (no Tab stop), does not activate on Enter/Space, and exposes no button ROLE, so a screen reader announces it as plain text "Save" with no hint it is interactive. Rebuilding that (tabindex="0", role="button", keydown handlers for Enter AND Space with scroll-prevention) is strictly worse than writing <button type="button">',
+      'The div fires click twice on touch devices, double-saving',
+      'Divs cannot receive (click) bindings in zoneless applications',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct — this is the canonical "use the platform" lesson. Native <button> ships focusability, Enter/Space activation (with Space correctly suppressing page scroll), the implicit `button` role, form semantics (`type`), and correct disabled behavior, all tested across every browser and assistive technology. The clickable div has none of that: keyboard-only users cannot reach it, and screen-reader users hear undifferentiated text. The ARIA spec\'s own first rule is to prefer the native element over retrofitting role+tabindex+key handlers — every hand-rolled piece is a place to get Space-vs-Enter or focus styling subtly wrong. Angular-specific note: (click) on a div binds fine, which is exactly why templates like this pass code review — the framework cannot know the element\'s semantics are wrong. Why others fail: (A) (click) firing is the ONLY thing that works; the accessibility contract is absent. (C) double-fire on touch is not a div-vs-button issue. (D) zoneless changes scheduling, not event binding.',
+  },
+  {
+    id: 376, type: 'spot-the-bug', difficulty: 'mid', category: 'a11y',
+    question: 'The toolbar looks perfect, but a screen-reader user hears only "button… button… button". Fix the root cause:',
+    code: `<button type="button" (click)="edit()">
+  <mat-icon>edit</mat-icon>
+</button>
+<button type="button" (click)="remove()">
+  <mat-icon>delete</mat-icon>
+</button>`,
+    options: [
+      'mat-icon requires the fontIcon input instead of text content',
+      'Icon-only buttons have NO accessible name: nothing in the subtree is text a screen reader can announce (the icon ligature text is decorative). Give each an explicit name — aria-label="Edit" / aria-label="Delete" (marked i18n-aria-label for translation) — and hide the icon glyph from the accessibility tree with aria-hidden="true" so the ligature word is not read out',
+      'Buttons may not contain custom elements; move the icons outside',
+      'The buttons need tabindex="0" to be announced correctly',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. An element\'s accessible name is computed from (in priority order) aria-labelledby, aria-label, then text content; an icon-only button yields either nothing or — worse with ligature icon fonts — the raw ligature text like "delete" being announced in some configurations while others get silence. `aria-label` supplies a stable, translatable name (remember `i18n-aria-label`), and `aria-hidden="true"` on the mat-icon keeps the decorative glyph from double-announcing. A visually-hidden <span class="cdk-visually-hidden">Edit</span> is an equivalent fix that also benefits voice-control users, who can then say the visible-ish name. This is one of the most common real-world audit findings because the UI looks completely fine. Why others fail: (A) fontIcon changes how the glyph renders, not the name computation. (C) buttons can contain any phrasing content including components. (D) native buttons are already focusable and focus order is not the problem — the NAME is.',
+  },
+  {
+    id: 377, type: 'multiple-choice', difficulty: 'mid', category: 'a11y',
+    question: 'You are building a custom modal dialog (no Material/CDK Dialog). Which keyboard/focus behavior is REQUIRED, and what does the Angular CDK give you for it?',
+    options: [
+      'Dialogs only need a close button; focus management is a nice-to-have',
+      'Focus must move INTO the dialog on open, be TRAPPED inside while it is open (Tab from the last element wraps to the first, never escaping into the obscured page), and RETURN to the trigger element on close; Escape should dismiss. The CDK a11y package provides cdkTrapFocus / FocusTrapFactory for the trap, and its focus-monitor/initial-focus options handle where focus lands',
+      'Set tabindex="-1" on everything behind the dialog by walking the DOM yourself',
+      'Add autofocus to the first input; browsers handle the rest of the contract',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct — this is the WAI-ARIA dialog pattern, and every piece exists because of what happens without it: if focus stays on the trigger, a screen-reader user "opens" a dialog they cannot find; if Tab escapes the dialog, keyboard users interact with controls they cannot see behind the overlay; if focus is not restored on close, the user is dumped at the document top and loses their place. The CDK ships the hard parts: `cdkTrapFocus` (with cdkTrapFocusAutoCapture to capture and later restore focus) implements the wrap-around trap, and pairing it with role="dialog", aria-modal="true" and an aria-labelledby pointing at the title completes the semantics. Escape-to-close and click-outside remain yours to wire. (Using CDK Dialog/Overlay gets all of this pre-assembled — the exam point is knowing WHAT the contract is.) Why others fail: (A) without focus management the dialog is unusable non-visually, not merely less polished. (C) hiding the background from the TAB ORDER is what the trap does, but you also need aria-modal/inert semantics — hand-walking the DOM misses dynamically added content and is exactly the wheel CDK invented. (D) autofocus addresses only the entry half of the contract, and unreliably.',
+  },
+  {
+    id: 378, type: 'multiple-choice', difficulty: 'senior', category: 'a11y',
+    question: 'After an async save, a toast appears for 4 seconds: <div class="toast">Saved!</div>. Sighted users see it; screen-reader users get nothing. What is the correct mechanism?',
+    options: [
+      'Move focus onto the toast so the screen reader is forced to read it',
+      'A LIVE REGION: content changes inside an element with aria-live="polite" (or role="status") are announced WITHOUT moving focus — the region must exist in the DOM BEFORE the message is inserted so the mutation is observed. The CDK\'s LiveAnnouncer wraps this: inject it and call announce("Saved!"), and it maintains a persistent visually-hidden live region for you',
+      'Add aria-label="Saved!" to the toast div when it appears',
+      'Screen readers automatically read any element added to the DOM',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. Live regions solve the "something changed elsewhere on the page" problem: focus stays where the user is working, and the assistive tech inserts the announcement into its speech queue — `polite` waits for the current utterance, `assertive` (role="alert") interrupts and is reserved for urgent errors. The pre-existing-element requirement is the classic gotcha: injecting a div that ALREADY contains aria-live text often goes unannounced because the accessibility tree never saw a change WITHIN a tracked region; you render the empty region up front and swap its text content. `LiveAnnouncer` from @angular/cdk/a11y encapsulates all of this behind announce(message, politeness), which is why toast/snackbar services should call it (Material\'s MatSnackBar already does). Why others fail: (A) stealing focus from a form to a transient toast is hostile — focus loss mid-typing — and focus is not required for announcement. (C) aria-label names an element; changing it does not generate an announcement on a non-focused div. (D) DOM insertion is silent by default — that is precisely the problem live regions exist to solve.',
+  },
+  {
+    id: 379, type: 'multiple-choice', difficulty: 'mid', category: 'a11y',
+    question: 'In an SPA, clicking a routerLink swaps the page content — but a screen-reader user hears NOTHING and their focus is still on the old nav link. What is the established remediation?',
+    options: [
+      'Nothing is needed: the Title service updating document.title triggers a full announcement',
+      'Manage focus on navigation yourself: after the route activates, move focus to the new view\'s main heading or a skip-target container (tabindex="-1" so it is programmatically focusable without joining the tab order) — typically via Router events or afterNextRender — so the screen reader\'s reading cursor lands at the start of the new content and announces it; pairing this with an announced page title covers both cues a full page load gives for free',
+      'Set aria-live="assertive" on <router-outlet> so all route changes interrupt',
+      'Use full page reloads for every navigation; SPAs cannot be accessible',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. A real page load gives screen-reader users two signals: the new title is announced and the reading cursor resets to document top. Router navigation gives neither — the DOM under the outlet changed but focus and the reading position still sit on the clicked link, so the user must explore to discover anything happened. The pattern: give the main content region (or its h1) tabindex="-1", subscribe to NavigationEnd (or use an afterNextRender hook in the routed component), and call .focus() on it — tabindex="-1" is the key detail, making the element focusable by SCRIPT but not adding a Tab stop for keyboard users. Angular sets the document title per route via the title property; announcing it through a LiveAnnouncer complements the focus move. Why others fail: (A) title changes alone are not reliably announced by screen readers during SPA navigation. (C) firing assertive announcements of entire page contents on every navigation is unusable noise, and router-outlet\'s replaced content is not a well-formed live-region update. (D) SPAs are perfectly accessible WITH focus management — that is the remediation, not surrender.',
+  },
+  {
+    id: 380, type: 'fill-blank', difficulty: 'junior', category: 'a11y',
+    question: 'Complete the template so the input has a proper, clickable, screen-reader-announced label:',
+    code: `<label ______>Email address</label>
+<input id="email" type="email" [formControl]="email" />`,
+    options: [
+      'for="email" — the label\'s for attribute matching the input\'s id creates the programmatic association: screen readers announce "Email address" when the input gains focus, and clicking the label focuses the input (bigger touch target for free)',
+      '[label]="email" — bind the label to the FormControl instance',
+      'aria-label="email" — labels reference inputs through aria-label',
+      'name="email" — the label\'s name attribute pairs it with the control',
+    ],
+    answer: 0,
+    topicPath: 'a11y',
+    explanation: 'A is correct — `for`/`id` pairing is the foundational form-accessibility association (wrapping the input inside the label is the equivalent implicit form). It does three jobs at once: the accessible NAME of the input becomes the label text, clicking/tapping the label focuses the control (a real usability win on mobile), and voice-control users can target the field by its visible name. Common Angular-specific slips: generating non-unique ids in @for loops (association silently binds to the FIRST match) and placeholder-as-label designs, which fail because placeholders vanish on input and are not reliably announced. When a visible label is truly impossible, aria-label on the INPUT is the fallback — but the visible+associated label is strictly better. Why others fail: (B) there is no label binding to FormControl; reactive forms and accessibility wiring are separate concerns. (C) aria-label goes on the control itself and replaces, not references, a visible label. (D) name participates in form submission, not labeling.',
+  },
+  {
+    id: 381, type: 'multiple-choice', difficulty: 'junior', category: 'security',
+    question: 'A user saves their display name as <img src=x onerror="alert(1)">. The template renders {{ user.displayName }}. What happens?',
+    options: [
+      'The alert fires — interpolation inserts the string as HTML, which is why you must sanitize inputs yourself',
+      'Nothing fires: interpolation and property bindings treat values as TEXT, not markup — Angular assigns the string via textContent-style APIs, so the browser renders the literal characters "<img src=x onerror=…>" and no element is ever created. Templates are compiled, not string-concatenated, which eliminates the classic injection-by-interpolation XSS class by construction',
+      'Angular throws a runtime error refusing to render strings containing angle brackets',
+      'The image element is created but Angular removes the onerror attribute',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct — this is Angular\'s baseline XSS posture: {{ }} and [property] bindings NEVER interpret the bound value as HTML. The malicious payload displays as harmless text because it goes through DOM text APIs, not innerHTML parsing. The distinct, second layer is sanitization, which only enters when you explicitly ask Angular to treat a value as markup — [innerHTML]="…" — at which point the value is sanitized per CONTEXT (HTML strips script-capable constructs like onerror handlers; URL contexts like [href] get javascript: schemes neutralized). Option D describes THAT innerHTML path, not interpolation. The escape hatches (bypassSecurityTrustHtml etc.) exist for values you can vouch for and are where audits focus. Why others fail: (A) inverts the model — interpolation is the SAFE path precisely because no HTML parsing occurs. (C) no error; angle brackets are ordinary text. (D) applies to [innerHTML] sanitization, not to {{ }} — with interpolation no <img> exists at all.',
+  },
+  {
+    id: 382, type: 'spot-the-bug', difficulty: 'mid', category: 'security',
+    question: 'This renders user-submitted forum posts "with formatting support". Find the vulnerability:',
+    code: `@Component({
+  template: \`<article [innerHTML]="trustedBody"></article>\`,
+})
+export class Post {
+  private readonly sanitizer = inject(DomSanitizer);
+  readonly post = input.required<ForumPost>();
+
+  get trustedBody(): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(this.post().body);
+  }
+}`,
+    options: [
+      'getters cannot return SafeHtml; convert it to a computed signal',
+      'bypassSecurityTrustHtml on USER INPUT is a self-inflicted XSS hole: it wraps the raw string in SafeHtml, telling Angular "skip sanitization, I vouch for this" — so any <script>-adjacent payload (onerror handlers, javascript: URLs) in a post executes in every reader\'s browser. Remove the bypass entirely: [innerHTML]="post().body" already runs DomSanitizer, which strips dangerous constructs while keeping benign formatting tags',
+      'innerHTML must be spelled [innerHtml] with a lowercase t',
+      'The input() should be a plain @Input() when used with DomSanitizer',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. The bypass* family exists for app-CONTROLLED values that the sanitizer would mangle — an iframe URL you construct yourself, SVG markup you author — never for content that originated in another user\'s hands. The name is the warning: you are asserting trust Angular cannot verify, and with forum posts you are asserting it about your attackers. Stored XSS like this is worse than reflected: the payload persists and fires for every visitor, harvesting sessions or acting as the victim. The fix is deleting code — plain [innerHTML] binding sends the string through sanitization, keeping <b>, <a href="https://…"> etc. while stripping event handlers and script vectors. If posts are markdown, render to HTML server-side with a strict allowlist and still bind without bypass. Defense in depth: a Content-Security-Policy and Trusted Types catch the bypasses code review misses. Why others fail: (A) getters returning SafeHtml are legal (though a computed would memoize) — style, not security. (C) [innerHTML] is correct casing. (D) signal inputs vs decorator inputs is irrelevant to the vulnerability.',
+  },
+  {
+    id: 383, type: 'multiple-choice', difficulty: 'senior', category: 'security',
+    question: 'Your API uses cookie-based sessions. How does Angular\'s HttpClient participate in CSRF/XSRF defense, and what must the SERVER do for it to work?',
+    options: [
+      'HttpClient blocks all cross-origin requests by default, which fully prevents CSRF',
+      'HttpClient implements the cookie-to-header double-submit pattern: if a cookie named XSRF-TOKEN exists, it copies the value into an X-XSRF-TOKEN header on mutating same-origin requests (POST/PUT/DELETE — not GET/HEAD, and not absolute cross-origin URLs). The server must SET that non-HttpOnly cookie and VERIFY header equals cookie: an attacking site can make the browser SEND cookies but cannot READ them to forge the header. Configure names via withXsrfConfiguration()',
+      'JWT in an Authorization header requires the same XSRF machinery',
+      'Enabling withCredentials on every request is the CSRF protection',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct, and the mechanism only clicks once you see WHY reading matters more than sending: CSRF exists because browsers attach cookies to cross-site requests automatically, so a hostile page can trigger authenticated POSTs blind. The token cookie is deliberately NOT HttpOnly — page JavaScript (Angular\'s HttpXsrfInterceptor) must read it to mirror it into the header, and same-origin policy stops the attacker\'s page from doing that read. Server-side responsibilities: issue the token cookie (e.g. Spring Security\'s CookieCsrfTokenRepository.withHttpOnlyFalse()), and reject mutating requests where header and cookie disagree. Angular skips GET/HEAD (safe methods should have no side effects to forge) and absolute URLs to other origins (mirroring the token there would LEAK it). Why others fail: (A) HttpClient enforces no such blocking — CORS is a server-declared browser policy and does not stop simple form POSTs anyway. (C) header-borne JWTs are not auto-attached by browsers, so classic CSRF does not apply — the trade is XSS theft risk instead. (D) withCredentials makes cross-origin requests CARRY cookies — closer to enabling the attack surface than defending it.',
+  },
+  {
+    id: 384, type: 'predict-output', difficulty: 'mid', category: 'security',
+    question: 'A user profile contains website: "javascript:stealCookies()". What does the rendered link actually do?',
+    code: `<!-- profile.website === "javascript:stealCookies()" -->
+<a [href]="profile.website">My site</a>`,
+    options: [
+      'Clicking the link executes stealCookies() — attribute bindings are not sanitized',
+      'Angular sanitizes the URL CONTEXT: the href is rewritten to the string "unsafe:javascript:stealCookies()" (with a console warning in dev), so clicking navigates to an unknown "unsafe:" scheme and does nothing — the script never runs. Binding into a security-sensitive context (URL here, HTML for innerHTML, resource-URL for iframe src) triggers the matching sanitizer automatically',
+      'The link renders but Angular removes the href attribute entirely, leaving dead text',
+      'A runtime NG0904 error is thrown during change detection',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct — this demonstrates CONTEXT-AWARE sanitization. Angular\'s template compiler knows [href] is a URL security context, so bound values pass through URL sanitization at render: safe schemes (https, http, mailto, tel…) pass untouched; javascript: and data:text/html get the `unsafe:` prefix, defusing them while leaving forensic evidence in the DOM. Each context has its own rules — [innerHTML] gets HTML sanitization, [style.xyz] historically style checks, and RESOURCE URL contexts like <iframe src> accept NO sanitization at all (there is no safe way to sanitize an arbitrary document to embed), which is why iframes demand either a static string or an explicit bypassSecurityTrustResourceUrl. The correct app-level fix for user "website" fields is validating/normalizing to https?:// at input time, not trusting the defusal. Why others fail: (A) attribute/property bindings in security contexts ARE sanitized — that is the core mechanism. (C) the attribute survives with the prefixed value, not removed. (D) sanitization degrades gracefully; no error is thrown for plain URL contexts.',
+  },
+  {
+    id: 385, type: 'multiple-choice', difficulty: 'senior', category: 'security',
+    question: 'Security wants defense-in-depth so that even a bypassSecurityTrustHtml misuse cannot inject script. Which platform mechanism does Angular integrate with for this?',
+    options: [
+      'X-Frame-Options: DENY on every response covers DOM injection',
+      'A Content-Security-Policy with Trusted Types: `require-trusted-types-for \'script\'` makes the BROWSER reject any string assigned to injection sinks (innerHTML, script src…) unless it is a TrustedHTML object from an allowed policy. Angular ships policies — angular for its own sanitized writes and angular#unsafe-bypass specifically gating the bypassSecurityTrust* APIs — so you can allow the first while refusing the second, turning a code-review rule into a browser-ENFORCED guarantee',
+      'Enabling strict template type checking (strictTemplates) rejects unsafe HTML at compile time',
+      'Switching to zoneless change detection removes the DOM sinks scripts inject through',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. Trusted Types moves XSS defense from convention to platform enforcement: with the CSP directive active, `element.innerHTML = someString` THROWS unless the value was produced by a registered policy, no matter how the string got there. Angular\'s renderer routes its sanitized output through its `angular` policy, so a normal app runs cleanly with `trusted-types angular; require-trusted-types-for \'script\'` — and because the bypass APIs use the separate `angular#unsafe-bypass` policy name, OMITTING that name from the header means every bypassSecurityTrust* call site fails loudly in the browser: the exact backstop asked for. Rollout is observable via Content-Security-Policy-Report-Only. Third-party libs that write raw HTML will also surface, which is a feature. Why others fail: (A) X-Frame-Options addresses clickjacking (framing), unrelated to script injection. (C) strictTemplates checks TYPES; a string is a string whether malicious or not. (D) change-detection strategy has zero relationship to DOM injection sinks.',
+  },
+  {
+    id: 386, type: 'multiple-choice', difficulty: 'mid', category: 'security',
+    question: 'Where should an SPA keep its session credential — localStorage JWT or HttpOnly cookie — and what is the actual trade-off?',
+    options: [
+      'localStorage, because cookies are legacy technology that SPAs have moved past',
+      'The trade is WHICH attack you structurally block: an HttpOnly cookie is unreadable by JavaScript, so XSS cannot EXFILTRATE the session (you then owe CSRF defense, since browsers attach it automatically — see the XSRF token pattern); a localStorage JWT is immune to classic CSRF (nothing auto-attaches) but ANY successful XSS reads and ships it, and it cannot be revoked before expiry. Security guidance generally favors HttpOnly + SameSite cookies with CSRF tokens, because XSS-with-token-theft is the harsher failure mode',
+      'Both are equivalent because an attacker with XSS can act as the user either way',
+      'sessionStorage fixes localStorage\'s problems because it clears when the tab closes',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct — and knowing WHY option C is only half-true is the senior discriminator. Yes, XSS on a cookie-based app lets the attacker fire authenticated requests from the victim\'s browser (session riding). But token EXFILTRATION is strictly worse: the stolen JWT works from the attacker\'s own infrastructure, outlives the page, survives the victim closing the tab, and keeps working until expiry with no server-side session to kill. HttpOnly caps the blast radius to the duration of the injected script\'s execution. The full modern posture: HttpOnly + Secure + SameSite=Lax/Strict cookie, CSRF token (Angular\'s XSRF support), short-lived access + rotating refresh, and CSP to make XSS itself unlikely. Why others fail: (A) fashion is not a threat model; cookies with modern flags are the hardened option. (C) equivalence collapses exactly at exfiltration/revocation, as above. (D) sessionStorage narrows persistence, but it is still script-readable — same XSS theft, plus broken "remember me".',
+  },
+  {
+    id: 387, type: 'multiple-choice', difficulty: 'junior', category: 'state',
+    question: 'A cart count must show in the header, the product page, and a checkout badge. Passing it through inputs is getting painful. What is the idiomatic Angular solution?',
+    options: [
+      'Keep threading inputs/outputs through every intermediate component — explicitness beats convenience',
+      'A shared @Injectable({ providedIn: "root" }) service holding the state as a signal: any component injects CartService and reads cart.count() in its template — one instance app-wide (root injector), no prop-drilling through components that do not care, and every reader updates automatically when the signal changes. This "signal in a service" is the baseline Angular state-management pattern before reaching for any library',
+      'Store the count in localStorage and poll it in each component\'s constructor',
+      'Emit the count through a global window event that components listen for',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. Inputs/outputs are the right tool for parent-child conversation, but state needed by SIBLINGS scattered across the tree turns intermediate components into dumb couriers (prop drilling) — they gain inputs they only forward, and every re-plumbing touches files with no stake in the data. `providedIn: "root"` gives a tree-shakable singleton; a signal makes reads reactive with fine-grained updates (only templates actually reading count() re-render). Convention: keep the writable signal private and expose `readonly count = this._count.asReadonly()` plus intention-revealing methods (addItem), so mutations stay auditable. Why others fail: (A) explicit is good BETWEEN parent and child; through five indifferent layers it is just coupling. (C) localStorage is persistence, not reactivity — polling is a code smell and cross-component sync via storage is fragile. (D) window events bypass DI and types, leak listeners, and fight change detection instead of joining it.',
+  },
+  {
+    id: 388, type: 'multiple-choice', difficulty: 'mid', category: 'state',
+    question: 'Review this store. Why is this shape — private writable, public readonly, mutations as methods — the recommended discipline?',
+    code: `@Injectable({ providedIn: 'root' })
+export class TodoStore {
+  private readonly _todos = signal<Todo[]>([]);
+
+  readonly todos = this._todos.asReadonly();
+  readonly remaining = computed(() =>
+    this._todos().filter(t => !t.done).length);
+
+  add(title: string): void {
+    this._todos.update(list => [...list, { id: crypto.randomUUID(), title, done: false }]);
+  }
+}`,
+    options: [
+      'It is purely stylistic; exposing the WritableSignal directly behaves identically',
+      'It enforces unidirectional data flow at the TYPE level: consumers get a Signal<Todo[]> they can read and react to but cannot .set()/.update(), so every mutation must route through named store methods — the only places that need auditing, breakpointing, or validating. Derived values (remaining) live as computed next to the source, and updates use immutable patterns so the default equality check propagates changes correctly',
+      'asReadonly() creates a defensive deep copy on every read, preventing all mutation',
+      'Signals in services require this pattern or they do not trigger change detection',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. Exposing the WritableSignal means ANY component can `todos.set([])` from anywhere — after a few features, "who cleared the list?" has forty possible answers. The readonly projection makes illegal writes a compile error, shrinking the mutation surface to the store\'s methods, where invariants (ids assigned, business rules applied) live in exactly one place. Two supporting details are load-bearing: `update` with spread produces a NEW array because signals compare with Object.is — an in-place push would leave the reference equal and nothing downstream would re-run; and `computed` keeps derivations colocated, cached, and impossible to forget to recalculate. This shape is also the on-ramp to the SignalStore idea: same discipline, more machinery. Why others fail: (A) behavior differs exactly when someone writes from outside — the readonly type FORBIDS it. (C) asReadonly is a zero-cost capability restriction, not a copy; the inner array is the same object (another reason for immutable updates). (D) signals trigger CD regardless of encapsulation; the pattern is about maintainability, not correctness of rendering.',
+  },
+  {
+    id: 389, type: 'spot-the-bug', difficulty: 'senior', category: 'state',
+    question: 'Clicking "complete" updates the database, but the remaining-count in the header never changes. The store method is below. Why does nothing react?',
+    code: `complete(id: string): void {
+  const list = this._todos();
+  const todo = list.find(t => t.id === id);
+  if (todo) {
+    todo.done = true;
+    this._todos.set(list);
+  }
+}`,
+    options: [
+      'find() returns a copy, so the mutation edits a throwaway object',
+      'The state was mutated IN PLACE and then set() received the SAME array reference: signals use Object.is equality, so set(list) where list === current is a no-op — no notification, no recomputation of computed(), no template update. The data is even "correct" in memory, which is why debugging prints look fine. Fix: produce new references along the changed path — this._todos.update(l => l.map(t => t.id === id ? { ...t, done: true } : t))',
+      'set() cannot be called with a variable; it requires an inline literal',
+      'Signals cannot hold arrays of objects; switch the store to a BehaviorSubject',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct — the single most common signals-in-practice bug. The write path mutated `todo.done` (visible to anything holding the reference, hence the confusing console.log evidence) and then handed the unchanged ARRAY reference back to set(). The signal asks "did the value change?" with Object.is(old, new), gets true→false... no: gets `true` (same reference), and skips notifying dependents entirely — remaining\'s computed never re-runs, effects never fire, OnPush templates never refresh. The immutable-update discipline (map + object spread) is not aesthetic: NEW references are the change-detection signal itself. Alternatives with the same property: structural-sharing helpers (immer via produce returning new objects). Note that a custom `equal` option can change comparison semantics per signal, but reference discipline remains the sane default. Why others fail: (A) find() returns the actual element reference, not a copy — the mutation DID land, which is the trap. (C) set() takes any expression. (D) BehaviorSubject.next(sameRef) has the same reference-identity blindness downstream with distinctUntilChanged; the fix is immutability, not a different container.',
+  },
+  {
+    id: 390, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'When does adopting a state-management LIBRARY (NgRx Store / SignalStore) genuinely pay for itself over the signal-in-a-service pattern?',
+    options: [
+      'Immediately, in every app — a store library is a professionalism baseline',
+      'When the COORDINATION problems it solves actually exist: many features writing overlapping state (serialized actions + pure reducers give an auditable, devtools-replayable event log), complex async orchestration (effects centralize cancel/retry/race handling outside components), and large teams needing one enforced convention instead of N bespoke services. For a handful of independent stores with simple writes, the action/reducer/selector indirection is pure ceremony — SignalStore sits in between, adding structure (entities, patchState, lifecycle hooks) without the event-sourcing layer',
+      'Only when you need server-side rendering, which plain services cannot support',
+      'Never — signals made all state libraries obsolete',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct — this is an engineering-judgment question, and the honest answer names the FORCES rather than a team allegiance. Event-sourced stores (NgRx Store) shine when you need to answer "what sequence of events produced this state?" — devtools time-travel, action logs for debugging production incidents, strict unidirectionality that survives 30 contributors. Those benefits are real and so is their price: every trivial write becomes action + reducer case + possibly effect + selector, files multiply, and newcomers learn a meta-framework. The signal-service pattern covers a surprising share of real apps; NgRx SignalStore is the middle path (structured, opinionated, signal-native, less boilerplate). Choosing SMALLEST-tool-that-solves-the-problem is the senior signal here. Why others fail: (A) cargo-culting infrastructure ahead of need is how simple apps rot. (C) SSR works fine with plain services (TransferState is orthogonal). (D) signals changed the REACTIVITY substrate; coordination, auditability and convention problems still exist at scale — SignalStore existing is NgRx agreeing.',
+  },
+  {
+    id: 391, type: 'predict-output', difficulty: 'mid', category: 'state',
+    question: 'What logs, in what order, when run() executes? (Assume an injection context.)',
+    code: `const source = signal(1);
+const double = computed(() => {
+  console.log('computing');
+  return source() * 2;
+});
+
+function run(): void {
+  source.set(2);
+  source.set(3);
+  console.log('before read');
+  console.log(double());
+  console.log(double());
+}`,
+    options: [
+      'computing, computing, before read, computing, 6, computing, 6 — every set recomputes, every read recomputes',
+      'before read, computing, 6, 6 — computeds are LAZY (no work happens on set, only invalidation) and CACHED (the first read after a change recomputes once; the second read returns the memo). The intermediate value 2 is never observed at all — signals are glitch-free pull-based state, not an event stream: only the value AT READ TIME exists to consumers',
+      'computing, before read, 6, 6 — the computed runs eagerly once at creation',
+      'before read, computing, 6, computing, 6 — caching only applies inside templates',
+    ],
+    answer: 1,
+    topicPath: 'signals',
+    explanation: 'B is correct, and each logged line teaches a rule. Nothing logs at creation or on either set(): a computed does ZERO work until someone reads it — writes merely mark it stale (push invalidation, pull recomputation). "before read" prints, then the first double() call finds the memo stale, runs the callback ("computing"), caches 6, returns it. The second double() finds nothing stale and returns cached 6 silently. That source was briefly 2 is invisible — unlike an RxJS stream, which would have EMITTED both 2 and 3 to subscribers, signals model "current state", so intermediate values between reads simply never happened. This laziness+memoization is why liberally layering computeds is cheap and why they must stay side-effect-free (they may run never, once, or often). Why others fail: (A) describes eager push semantics signals deliberately avoid. (C) no eager initial run exists; creation just wires the graph. (D) caching is intrinsic to computed, identical in templates and imperative code.',
+  },
+  {
+    id: 392, type: 'multiple-choice', difficulty: 'senior', category: 'state',
+    question: 'This component copies store state into local fields "so the template is simpler" — and now search results go stale when another tab of the app adds a product. What principle was violated?',
+    code: `export class ProductSearch {
+  private readonly store = inject(ProductStore);
+
+  products: Product[] = [];
+  query = '';
+
+  ngOnInit(): void {
+    this.products = this.store.products();
+  }
+
+  get results(): Product[] {
+    return this.products.filter(p => p.name.includes(this.query));
+  }
+}`,
+    options: [
+      'ngOnInit is the wrong lifecycle hook; copying in ngAfterViewInit would stay fresh',
+      'Single source of truth: ngOnInit took a one-time SNAPSHOT of the signal\'s value, forking the state — the store moves on, the copy does not, and no mechanism reconciles them. DERIVE instead of duplicating: keep query as a signal and make results a computed(() => this.store.products().filter(…)) — reading the store signal INSIDE the computed subscribes it to changes, so results can never disagree with the store',
+      'Signals cannot be read in ngOnInit; reads are only tracked in templates',
+      'The store should push updates into each component\'s fields via a refresh() method',
+    ],
+    answer: 1,
+    topicPath: 'state-management',
+    explanation: 'B is correct. `this.store.products()` OUTSIDE a reactive context returns a plain array value — a photograph, not a subscription. From that line on the app has two versions of the truth, and every stale-data bug is some flavor of this fork. The rewrite eliminates the copy rather than synchronizing it: `readonly query = signal(\'\')` and `readonly results = computed(() => this.store.products().filter(p => p.name.includes(this.query())))` — the computed re-derives when EITHER dependency changes, there is nothing to refresh, and the template reads results(). The rule generalizes: store MINIMAL source state; everything expressible as a function of it should be computed, not copied (the getter here also re-filtered on every CD cycle without caching — computeds memoize). Why others fail: (A) any lifecycle hook that copies produces the same fork, just timed differently. (C) signal reads work anywhere; only TRACKING requires a reactive context (computed/effect/template) — which is exactly why the snapshot did not subscribe. (D) push-refresh reinvents change propagation manually and scales as O(components × stores) wiring; deriving gets it from the reactive graph for free.',
   },
 ];
 

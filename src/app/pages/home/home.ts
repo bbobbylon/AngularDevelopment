@@ -56,7 +56,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
           <div class="tool-card__icon">⚡</div>
           <div class="tool-card__body">
             <h3>Practice Challenges</h3>
-            <p>368 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam and a spaced-repetition review queue for everything you miss.</p>
+            <p>392 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam, flashcard drills, and a spaced-repetition review queue for everything you miss.</p>
             <span class="tool-card__cta">Start practicing →</span>
           </div>
         </a>
@@ -74,6 +74,22 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <h3>Project Walkthroughs</h3>
             <p>3 full-stack builds: Task Manager, Auth Flow, and Data Dashboard. Step-by-step with live demos.</p>
             <span class="tool-card__cta">Build something real →</span>
+          </div>
+        </a>
+        <a class="tool-card tool-card--tasks" routerLink="/coding-tasks">
+          <div class="tool-card__icon">🛠️</div>
+          <div class="tool-card__body">
+            <h3>Coding-Task Simulator</h3>
+            <p>Timeboxed practical-exam briefs: build it in your editor, then verify against a requirements checklist and model solution.</p>
+            <span class="tool-card__cta">Take on a build task →</span>
+          </div>
+        </a>
+        <a class="tool-card tool-card--progress" routerLink="/progress">
+          <div class="tool-card__icon">📊</div>
+          <div class="tool-card__body">
+            <h3>Progress Dashboard</h3>
+            <p>Lessons, practice accuracy by category, mock-exam history, review queue, and coding tasks — your whole journey on one page.</p>
+            <span class="tool-card__cta">See where you stand →</span>
           </div>
         </a>
         <a class="tool-card tool-card--cert" routerLink="/certification">
@@ -307,6 +323,8 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
       .tool-card--practice:hover { border-color: #f59e0b; }
       .tool-card--interview:hover { border-color: #6366f1; }
       .tool-card--projects:hover  { border-color: #22c55e; }
+      .tool-card--tasks:hover     { border-color: #0ea5e9; }
+      .tool-card--progress:hover  { border-color: #a855f7; }
       .tool-card--cert:hover      { border-color: #e74694; }
       .tool-card__icon {
         font-size: 1.6rem;
@@ -333,6 +351,8 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
       .tool-card--practice .tool-card__cta { color: #f59e0b; }
       .tool-card--interview .tool-card__cta { color: #6366f1; }
       .tool-card--projects .tool-card__cta  { color: #22c55e; }
+      .tool-card--tasks .tool-card__cta     { color: #0ea5e9; }
+      .tool-card--progress .tool-card__cta  { color: #a855f7; }
       .tool-card--cert .tool-card__cta      { color: #e74694; }
 
       .filters {

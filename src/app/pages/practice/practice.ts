@@ -87,7 +87,7 @@ function saveProgress(states: PracticeStates): void {
       <span class="pill">Interactive Practice</span>
       <h1>Practice Challenges</h1>
       <p>
-        368 challenges across all levels — spot bugs, predict output, and answer
+        392 challenges across all levels — spot bugs, predict output, and answer
         multiple-choice questions. Every answer comes with a full explanation.
         Questions are randomized each session.
       </p>
@@ -95,6 +95,7 @@ function saveProgress(states: PracticeStates): void {
       <a routerLink="/review" class="exam-cta review-cta">
         🔁 Review queue{{ reviewDue() > 0 ? ' (' + reviewDue() + ' due)' : '' }}
       </a>
+      <a routerLink="/flashcards" class="exam-cta review-cta">🃏 Flashcard drills</a>
       <div class="stats-row">
         <div class="stat-box">
           <strong>{{ totalVisible() }}</strong>

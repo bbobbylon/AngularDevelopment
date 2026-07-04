@@ -34,6 +34,21 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/review/review').then((m) => m.Review),
   },
   {
+    path: 'progress',
+    title: 'Progress Dashboard · Angular Concepts',
+    loadComponent: () => import('./pages/progress/progress').then((m) => m.Progress),
+  },
+  {
+    path: 'coding-tasks',
+    title: 'Coding-Task Simulator · Angular Concepts',
+    loadComponent: () => import('./pages/coding-tasks/coding-tasks').then((m) => m.CodingTasks),
+  },
+  {
+    path: 'flashcards',
+    title: 'Flashcard Drills · Angular Concepts',
+    loadComponent: () => import('./pages/flashcards/flashcards').then((m) => m.Flashcards),
+  },
+  {
     path: 'interview',
     title: 'Interview Prep · Angular Concepts',
     loadComponent: () => import('./pages/interview/interview').then((m) => m.Interview),
