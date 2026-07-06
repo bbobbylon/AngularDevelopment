@@ -6,6 +6,7 @@ import { fromEvent, merge } from 'rxjs';
 import { filter, map, throttleTime } from 'rxjs/operators';
 import { APP_CONFIG } from './core/app-config.token';
 import { ProgressService } from './core/progress.service';
+import { dueCount, loadQueue } from './pages/practice/review-queue';
 import { ToastService } from './core/toast.service';
 import { highlight } from './shared/highlighter';
 import { ToastsComponent } from './shared/toasts.component';
@@ -24,6 +25,14 @@ export class App {
 
   /** Scroll progress (0–100) for the reading-progress bar. */
   protected readonly scrollPct = signal(0);
+
+  /**
+   * Spaced-repetition items due now — the badge on the Review nav link.
+   * localStorage is not reactive, so the count is re-read on every
+   * NavigationEnd: answering questions anywhere updates it on the next
+   * route change, which is exactly when the nav is glanced at.
+   */
+  protected readonly reviewDue = signal(dueCount(loadQueue()));
 
   /** Injected via InjectionToken — no class needed for plain config objects. */
   protected readonly config = inject(APP_CONFIG);
@@ -50,6 +59,10 @@ export class App {
         const url = (e as NavigationEnd).urlAfterRedirects;
         const lessonId = url.split('?')[0].replace(/^\//, '');
         if (lessonId) this.progress.markVisited(lessonId);
+
+        // Refresh the Review badge — misses/reviews on the page just left
+        // may have changed what is due.
+        this.reviewDue.set(dueCount(loadQueue()));
 
         // Re-apply syntax highlighting after each navigation.
         setTimeout(() => {

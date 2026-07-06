@@ -56,7 +56,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
           <div class="tool-card__icon">⚡</div>
           <div class="tool-card__body">
             <h3>Practice Challenges</h3>
-            <p>392 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam, flashcard drills, and a spaced-repetition review queue for everything you miss.</p>
+            <p>424 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam, flashcard drills, and a spaced-repetition review queue for everything you miss.</p>
             <span class="tool-card__cta">Start practicing →</span>
           </div>
         </a>
@@ -82,6 +82,22 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <h3>Coding-Task Simulator</h3>
             <p>Timeboxed practical-exam briefs: build it in your editor, then verify against a requirements checklist and model solution.</p>
             <span class="tool-card__cta">Take on a build task →</span>
+          </div>
+        </a>
+        <a class="tool-card tool-card--api" routerLink="/api-playground">
+          <div class="tool-card__icon">📡</div>
+          <div class="tool-card__body">
+            <h3>API Playground</h3>
+            <p>Fire real HTTP requests and dissect every step — headers, auth, interceptors, request/response bodies — with live data at each stage.</p>
+            <span class="tool-card__cta">Dissect a request →</span>
+          </div>
+        </a>
+        <a class="tool-card tool-card--examday" routerLink="/exam-day">
+          <div class="tool-card__icon">🎓</div>
+          <div class="tool-card__body">
+            <h3>Exam-Day Readiness</h3>
+            <p>The full dress rehearsal: a timed 20-question exam plus two build briefs in one sitting, with a single READY / NOT YET verdict.</p>
+            <span class="tool-card__cta">Run the readiness check →</span>
           </div>
         </a>
         <a class="tool-card tool-card--progress" routerLink="/progress">
@@ -247,8 +263,21 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         margin: 0 auto;
       }
       .hero {
+        position: relative;
         text-align: center;
-        padding: 24px 0 12px;
+        padding: 32px 0 16px;
+      }
+      /* Soft ambient glow behind the hero — the modern "aurora" backdrop */
+      .hero::before {
+        content: '';
+        position: absolute;
+        inset: -60px -120px auto;
+        height: 360px;
+        background:
+          radial-gradient(520px 240px at 30% 10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+          radial-gradient(520px 240px at 70% 0%, color-mix(in srgb, var(--violet) 12%, transparent), transparent 70%);
+        pointer-events: none;
+        z-index: -1;
       }
       .hero h1 {
         font-size: clamp(1.8rem, 4vw, 2.8rem);
@@ -274,9 +303,19 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         flex-direction: column;
         align-items: center;
       }
+      .stat {
+        padding: 10px 18px;
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--bg-card) 65%, transparent);
+        border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+        backdrop-filter: blur(6px);
+      }
       .stat strong {
         font-size: 1.8rem;
-        color: var(--accent);
+        background: linear-gradient(135deg, var(--accent), var(--violet));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
       }
       .stat span {
         font-size: 0.8rem;
@@ -304,56 +343,83 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         gap: 14px;
         margin-bottom: 12px;
       }
+      /* Per-card accent — one variable drives the top bar, icon tile,
+         CTA color, hover border and tinted hover shadow. */
+      .tool-card--practice  { --card-accent: #f59e0b; }
+      .tool-card--interview { --card-accent: #6366f1; }
+      .tool-card--projects  { --card-accent: #22c55e; }
+      .tool-card--tasks     { --card-accent: #0ea5e9; }
+      .tool-card--api       { --card-accent: #14b8a6; }
+      .tool-card--examday   { --card-accent: #ef4444; }
+      .tool-card--progress  { --card-accent: #a855f7; }
+      .tool-card--cert      { --card-accent: #e74694; }
+
       .tool-card {
+        position: relative;
         display: flex;
         gap: 14px;
-        padding: 18px 20px;
-        border-radius: 14px;
+        padding: 22px 20px 18px;
+        border-radius: 20px;
         border: 1px solid var(--border);
         background: var(--bg-card);
         text-decoration: none;
         color: var(--text);
-        transition: transform .12s, border-color .12s;
+        overflow: hidden;
         align-items: flex-start;
+        transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      }
+      .tool-card::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: linear-gradient(90deg,
+          var(--card-accent),
+          color-mix(in srgb, var(--card-accent) 40%, transparent));
       }
       .tool-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-4px);
         text-decoration: none;
+        border-color: color-mix(in srgb, var(--card-accent) 55%, var(--border));
+        box-shadow: 0 14px 34px color-mix(in srgb, var(--card-accent) 22%, transparent);
       }
-      .tool-card--practice:hover { border-color: #f59e0b; }
-      .tool-card--interview:hover { border-color: #6366f1; }
-      .tool-card--projects:hover  { border-color: #22c55e; }
-      .tool-card--tasks:hover     { border-color: #0ea5e9; }
-      .tool-card--progress:hover  { border-color: #a855f7; }
-      .tool-card--cert:hover      { border-color: #e74694; }
+      .tool-card:active { transform: translateY(-1px); }
       .tool-card__icon {
-        font-size: 1.6rem;
-        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        font-size: 1.45rem;
         line-height: 1;
-        margin-top: 2px;
+        flex-shrink: 0;
+        background: linear-gradient(135deg,
+          color-mix(in srgb, var(--card-accent) 22%, var(--bg-card)),
+          color-mix(in srgb, var(--card-accent) 8%, var(--bg-card)));
+        border: 1px solid color-mix(in srgb, var(--card-accent) 30%, transparent);
+        transition: transform .2s ease;
       }
+      .tool-card:hover .tool-card__icon { transform: scale(1.08) rotate(-3deg); }
       .tool-card__body h3 {
         margin: 0 0 6px;
         font-size: 1rem;
-        font-weight: 600;
+        font-weight: 650;
+        letter-spacing: -0.01em;
       }
       .tool-card__body p {
         margin: 0 0 10px;
         font-size: .83rem;
         color: var(--text-muted);
-        line-height: 1.45;
+        line-height: 1.5;
       }
       .tool-card__cta {
         font-size: .8rem;
-        font-weight: 600;
-        color: var(--accent);
+        font-weight: 650;
+        color: var(--card-accent);
+        transition: gap .15s ease;
       }
-      .tool-card--practice .tool-card__cta { color: #f59e0b; }
-      .tool-card--interview .tool-card__cta { color: #6366f1; }
-      .tool-card--projects .tool-card__cta  { color: #22c55e; }
-      .tool-card--tasks .tool-card__cta     { color: #0ea5e9; }
-      .tool-card--progress .tool-card__cta  { color: #a855f7; }
-      .tool-card--cert .tool-card__cta      { color: #e74694; }
+      .tool-card:hover .tool-card__cta { text-decoration: underline; text-underline-offset: 3px; }
 
       .filters {
         display: flex;
@@ -425,15 +491,16 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         display: block;
         background: var(--bg-card);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
+        border-radius: 16px;
         padding: 16px;
         text-decoration: none;
         color: var(--text);
-        transition: transform 0.12s ease, border-color 0.12s ease;
+        transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
       }
       .card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
         border-color: var(--accent);
+        box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 15%, transparent);
         text-decoration: none;
       }
       .card--soon {

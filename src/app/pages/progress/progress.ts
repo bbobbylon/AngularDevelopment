@@ -26,6 +26,13 @@ import { CODING_TASKS } from '../coding-tasks/coding-tasks-data';
  * corrupt data. If a key's -v suffix is ever bumped, update it here too.
  */
 interface PracticeState { answered: boolean; correct: boolean; }
+interface ReadinessEntry {
+  when: number;
+  examScore: number;
+  tasksDone: number;
+  tasksTotal: number;
+  ready: boolean;
+}
 interface ExamAttempt {
   when: number;
   scorePercent: number;
@@ -38,6 +45,7 @@ interface ExamAttempt {
 const PRACTICE_KEY = 'angular-practice-progress-v1';
 const EXAM_HISTORY_KEY = 'angular-mock-exam-history-v1';
 const CODING_TASKS_KEY = 'angular-coding-tasks-v1';
+const EXAM_DAY_HISTORY_KEY = 'angular-exam-day-history-v1';
 
 /** Minimum questions seen in a category across exams before it can be called weak. */
 const WEAK_MIN_SAMPLE = 3;
@@ -61,6 +69,24 @@ function readJson<T>(key: string, fallback: T): T {
     .pg-hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); margin: 12px 0; }
     .pg-hero p { max-width: 620px; margin: 0 auto; color: var(--text-muted); }
     .pill { display: inline-block; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; background: rgba(99,102,241,.12); color: #6366f1; font-weight: 600; }
+
+    .score-panel { display: flex; gap: 28px; align-items: center; max-width: 760px; margin: 24px auto 8px; padding: 24px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; flex-wrap: wrap; justify-content: center; }
+    .ring { width: 140px; height: 140px; flex-shrink: 0; }
+    .ring-track { fill: none; stroke: var(--border); stroke-width: 10; }
+    .ring-fill { fill: none; stroke: #6366f1; stroke-width: 10; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 60px 60px; transition: stroke-dashoffset .8s ease; }
+    .ring-num { font-size: 30px; font-weight: 800; fill: var(--text); text-anchor: middle; }
+    .ring-sub { font-size: 11px; fill: var(--text-muted); text-anchor: middle; }
+    .score-info { flex: 1; min-width: 260px; }
+    .score-grade { margin: 0 0 6px; font-size: 1.3rem; }
+    .score-note { font-size: .82rem; color: var(--text-muted); line-height: 1.55; margin: 0 0 14px; }
+    .insight-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .insight { padding: 8px 14px; border: 1px solid var(--border); border-radius: 12px; }
+    .insight strong { display: block; font-size: .95rem; }
+    .insight span { font-size: .72rem; color: var(--text-muted); }
+    .insight.good { border-color: rgba(34,197,94,.5); }
+    .insight.good strong { color: #16a34a; }
+    .insight.bad { border-color: rgba(239,68,68,.5); }
+    .insight.bad strong { color: #dc2626; }
 
     .stats-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 24px auto; max-width: 900px; padding: 0 24px; }
     .stat-box { text-align: center; padding: 14px 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); min-width: 110px; }
@@ -110,6 +136,36 @@ function readJson<T>(key: string, fallback: T): T {
       </p>
     </div>
 
+    <div class="score-panel">
+      <svg class="ring" viewBox="0 0 120 120" role="img" [attr.aria-label]="'Readiness score ' + readinessScore() + ' percent'">
+        <circle class="ring-track" cx="60" cy="60" r="52" />
+        <circle class="ring-fill" cx="60" cy="60" r="52"
+          [style.strokeDasharray]="ringCircumference"
+          [style.strokeDashoffset]="ringOffset()" />
+        <text x="60" y="56" class="ring-num">{{ readinessScore() }}</text>
+        <text x="60" y="74" class="ring-sub">/ 100</text>
+      </svg>
+      <div class="score-info">
+        <h2 class="score-grade">{{ readinessGrade() }}</h2>
+        <p class="score-note">
+          A weighted blend of lesson coverage, practice coverage &amp; accuracy,
+          best mock-exam score, coding tasks and review-queue mastery — only
+          areas you have touched count, so it never punishes an untried tool.
+        </p>
+        <div class="insight-row">
+          <div class="insight"><strong>{{ totalAnswered() }}</strong><span>total questions faced</span></div>
+          <div class="insight"><strong>{{ examPassRate() }}%</strong><span>exam pass rate</span></div>
+          <div class="insight"><strong>{{ reviewMastered() }}</strong><span>mastered via review</span></div>
+          @if (strongestCategory(); as strongest) {
+            <div class="insight good"><strong>{{ strongest.label }}</strong><span>strongest · {{ strongest.percent }}%</span></div>
+          }
+          @if (weakestCategory(); as weakest) {
+            <div class="insight bad"><strong>{{ weakest.label }}</strong><span>focus here · {{ weakest.percent }}%</span></div>
+          }
+        </div>
+      </div>
+    </div>
+
     <div class="stats-row">
       <div class="stat-box accent"><strong>{{ practiceAnswered() }}</strong><span>challenges answered</span></div>
       <div class="stat-box" [class.good]="practiceAccuracy() >= 70"><strong>{{ practiceAccuracy() }}%</strong><span>practice accuracy</span></div>
@@ -134,6 +190,27 @@ function readJson<T>(key: string, fallback: T): T {
         <div class="metric-line"><span>In the queue</span><strong>{{ reviewQueueSize() }}</strong></div>
         <div class="metric-line"><span>Mastered</span><strong class="good">{{ reviewMastered() }}</strong></div>
         <a routerLink="/review" class="go-link">{{ reviewDue() > 0 ? 'Clear what is due →' : 'Open the review queue →' }}</a>
+      </div>
+
+      <div class="panel">
+        <h2>🎓 Exam-Day Readiness</h2>
+        <p class="sub">The full dress rehearsal: timed exam + build briefs.</p>
+        @if (readinessChecks().length === 0) {
+          <p class="empty">No readiness checks run yet — the one number that says "book it".</p>
+        } @else {
+          @for (check of recentReadiness(); track check.when) {
+            <div class="attempt">
+              <span class="when">{{ check.when | date: 'MMM d, y · HH:mm' }}</span>
+              <span>exam {{ check.examScore }}% · tasks {{ check.tasksDone }}/{{ check.tasksTotal }}</span>
+              <span class="badge" [class.pass]="check.ready" [class.fail]="!check.ready">
+                {{ check.ready ? 'READY' : 'NOT YET' }}
+              </span>
+            </div>
+          }
+        }
+        <a routerLink="/exam-day" class="go-link">
+          {{ readinessChecks().length === 0 ? 'Run the readiness check →' : 'Run another check →' }}
+        </a>
       </div>
 
       <div class="panel">
@@ -302,6 +379,71 @@ export class Progress {
       .sort((a, b) => a.percent - b.percent);
   });
 
+  // --- readiness score (weighted blend; untouched areas are excluded and the
+  //     remaining weights renormalized, so a fresh tool never drags the score) ---
+  readonly ringCircumference = 2 * Math.PI * 52;
+
+  readonly readinessScore = computed(() => {
+    const parts: { value: number; weight: number; hasData: boolean }[] = [
+      { value: this.lessonsPercent(), weight: 0.1, hasData: this.lessonsVisited() > 0 },
+      { value: this.practiceCoverage(), weight: 0.15, hasData: this.practiceAnswered() > 0 },
+      { value: this.practiceAccuracy(), weight: 0.2, hasData: this.practiceAnswered() > 0 },
+      { value: this.bestExam(), weight: 0.25, hasData: this.examAttempts().length > 0 },
+      { value: this.tasksPercent(), weight: 0.15, hasData: this.tasksDone() > 0 },
+      {
+        value: this.reviewHealth(),
+        weight: 0.15,
+        hasData: this.reviewQueueSize() + this.reviewMastered() > 0,
+      },
+    ];
+    const active = parts.filter((p) => p.hasData);
+    if (active.length === 0) return 0;
+    const totalWeight = active.reduce((sum, p) => sum + p.weight, 0);
+    return Math.round(active.reduce((sum, p) => sum + p.value * (p.weight / totalWeight), 0));
+  });
+
+  readonly ringOffset = computed(
+    () => this.ringCircumference * (1 - this.readinessScore() / 100),
+  );
+
+  readonly readinessGrade = computed(() => {
+    const score = this.readinessScore();
+    if (score >= 80) return '🎓 Exam-ready';
+    if (score >= 60) return '🔥 Almost there';
+    if (score >= 30) return '📈 Building momentum';
+    return '🌱 Just getting started';
+  });
+
+  /** Share of ever-missed questions that graduated out of the review queue. */
+  readonly reviewHealth = computed(() => {
+    const total = this.reviewQueueSize() + this.reviewMastered();
+    return total === 0 ? 0 : Math.round((this.reviewMastered() / total) * 100);
+  });
+
+  // --- insight tiles ---
+  /** Practice answers + every question faced across recorded mock exams. */
+  readonly totalAnswered = computed(
+    () => this.practiceAnswered() + this.examAttempts().reduce((sum, a) => sum + a.total, 0),
+  );
+  readonly examPassRate = computed(() => {
+    const attempts = this.examAttempts();
+    return attempts.length === 0 ? 0 : Math.round((this.passCount() / attempts.length) * 100);
+  });
+  /** Best/worst practice category with a meaningful sample (3+ answered). */
+  readonly strongestCategory = computed(() => {
+    const qualified = this.categoryStats().filter((c) => c.total >= 3);
+    return qualified.length === 0 ? null : qualified[qualified.length - 1];
+  });
+  readonly weakestCategory = computed(() => {
+    const qualified = this.categoryStats().filter((c) => c.total >= 3);
+    // categoryStats is sorted worst-first; only flag a real weakness.
+    return qualified.length === 0 || qualified[0].percent >= 70 ? null : qualified[0];
+  });
+
+  // --- exam-day readiness ---
+  readonly readinessChecks = computed(() => readJson<ReadinessEntry[]>(EXAM_DAY_HISTORY_KEY, []));
+  readonly recentReadiness = computed(() => this.readinessChecks().slice(0, 3));
+
   // --- review queue ---
   readonly reviewDue = computed(() => dueCount(this.reviewQueue));
   readonly reviewQueueSize = computed(() => Object.keys(this.reviewQueue).length);
@@ -318,10 +460,11 @@ export class Progress {
   /** Display labels matching the filter chips on the Practice/Mock Exam pages. */
   private categoryLabel(id: string): string {
     const labels: Record<string, string> = {
-      components: 'Components', signals: 'Signals', rxjs: 'RxJS', forms: 'Forms',
+      components: 'Components', templates: 'Templates & HTML', styling: 'Styling & CSS',
+      signals: 'Signals', rxjs: 'RxJS', forms: 'Forms',
       routing: 'Routing', testing: 'Testing', performance: 'Performance',
       typescript: 'TypeScript', security: 'Security', a11y: 'Accessibility',
-      state: 'State & Architecture', i18n: 'i18n',
+      state: 'State & Architecture', i18n: 'i18n', tooling: 'Tooling & Config',
     };
     return labels[id] ?? id;
   }

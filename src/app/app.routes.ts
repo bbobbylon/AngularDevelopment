@@ -44,6 +44,17 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/coding-tasks/coding-tasks').then((m) => m.CodingTasks),
   },
   {
+    path: 'api-playground',
+    title: 'API Playground · Angular Concepts',
+    loadComponent: () =>
+      import('./pages/api-playground/api-playground').then((m) => m.ApiPlayground),
+  },
+  {
+    path: 'exam-day',
+    title: 'Exam-Day Readiness · Angular Concepts',
+    loadComponent: () => import('./pages/exam-day/exam-day').then((m) => m.ExamDay),
+  },
+  {
     path: 'flashcards',
     title: 'Flashcard Drills · Angular Concepts',
     loadComponent: () => import('./pages/flashcards/flashcards').then((m) => m.Flashcards),

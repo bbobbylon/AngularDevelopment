@@ -476,6 +476,8 @@ export class MockExam implements OnDestroy {
   readonly categoryFilters: { id: Category; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'components', label: 'Components' },
+    { id: 'templates', label: 'Templates & HTML' },
+    { id: 'styling', label: 'Styling & CSS' },
     { id: 'signals', label: 'Signals' },
     { id: 'rxjs', label: 'RxJS' },
     { id: 'forms', label: 'Forms' },
@@ -487,6 +489,7 @@ export class MockExam implements OnDestroy {
     { id: 'a11y', label: 'Accessibility' },
     { id: 'state', label: 'State & Architecture' },
     { id: 'i18n', label: 'i18n' },
+    { id: 'tooling', label: 'Tooling & Config' },
   ];
 
   readonly diffFilters: { id: 'all' | Difficulty; label: string }[] = [

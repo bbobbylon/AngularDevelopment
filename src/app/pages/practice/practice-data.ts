@@ -7,7 +7,7 @@
  * features never drift out of sync. Add or edit challenges in this file only.
  */
 export type Difficulty = 'junior' | 'mid' | 'senior';
-export type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y' | 'state' | 'i18n';
+export type Category = 'all' | 'components' | 'templates' | 'styling' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y' | 'state' | 'i18n' | 'tooling';
 export type ChallengeType = 'multiple-choice' | 'spot-the-bug' | 'predict-output' | 'fill-blank';
 
 export interface Challenge {
@@ -3912,7 +3912,7 @@ a.set(2);
       'Attribute directives can only be applied to input elements',
     ],
     answer: 1,
-    topicPath: 'directives',
+    topicPath: 'structural-directives',
     explanation: 'B is correct. A STRUCTURAL directive changes DOM structure — it is desugared from the `*` shorthand (`*ngIf="x"`) into an `<ng-template>` and works by injecting `TemplateRef` and `ViewContainerRef` and calling `createEmbeddedView`/`clear`. An ATTRIBUTE directive has no `*`, sits on an existing element like a normal attribute (`[ngClass]`, `[ngStyle]`, or your own `appHighlight`), and alters that element via `ElementRef`/`Renderer2` or host bindings. Why others fail: (A) reverses the two definitions. (C) the `*` is meaningful sugar, not optional. (D) attribute directives apply to any element.',
   },
   {
@@ -3925,7 +3925,7 @@ a.set(2);
       'They require ViewChild to reach the host element',
     ],
     answer: 1,
-    topicPath: 'directives',
+    topicPath: 'attribute-directives',
     explanation: 'B is correct. `@HostBinding(\'class.active\') isActive = true` mirrors a field onto a DOM class/attr/style/property of the HOST, and `@HostListener(\'mouseenter\') onEnter() {}` binds a host (or window/document) event to a method. A classic highlight directive combines them: listen for `mouseenter`/`mouseleave` and toggle a `@HostBinding(\'style.background\')`. The modern equivalent is the `host: {}` metadata object. Why others fail: (A) neither performs DI. (C) both work in `@Directive` — that is their primary home. (D) the host is implicit, so no `ViewChild` is needed.',
   },
   {
@@ -3948,7 +3948,7 @@ export class DelayDirective {
       'The setTimeout makes it a memory leak that crashes the app immediately',
     ],
     answer: 1,
-    topicPath: 'directives',
+    topicPath: 'structural-directives',
     explanation: 'B is correct. `ViewContainerRef` is additive — every `createEmbeddedView` appends another instance of the template. Because the setter never clears the container (or cancels the previous `setTimeout`), each change to `appDelay` stacks a fresh copy of the content. A correct version clears first: `this.vcr.clear(); this.timer = setTimeout(() => this.vcr.createEmbeddedView(this.tpl), ms);` and clears `this.timer` in `ngOnDestroy`. Why others fail: (A) there is no automatic dedup. (C) injecting `TemplateRef`/`ViewContainerRef` is exactly how structural directives work. (D) the timeout is not an instant crash — the defect is duplicated views.',
   },
   {
@@ -3961,7 +3961,7 @@ export class DelayDirective {
       'Two separate components that the compiler merges',
     ],
     answer: 1,
-    topicPath: 'directives',
+    topicPath: 'structural-directives',
     explanation: 'B is correct. The `*` prefix is shorthand: Angular lifts the host element into an `<ng-template>` and moves the directive onto it. `*ngIf="user as u"` becomes roughly `<ng-template [ngIf]="user" let-u="ngIf"><div>{{ u.name }}</div></ng-template>`. The `as` clause captures the directive exported context value into a template input variable — which is why the element is NOT rendered (and `u` does not exist) when the condition is falsy. Why others fail: (A) `ngIf` adds/removes from the DOM rather than hiding with CSS (that is `[hidden]`). (C) it is a runtime template, not a compile-time ternary. (D) no component merging occurs.',
   },
   {
@@ -3974,7 +3974,7 @@ export class DelayDirective {
       'You must import both directives separately for the element to work',
     ],
     answer: 1,
-    topicPath: 'directives',
+    topicPath: 'structural-directives',
     explanation: 'B is correct. Each `*` structural directive claims the element by lifting it into its own `<ng-template>`; two on the same element would need competing templates, so the compiler forbids it. The classic pre-v17 fix is `<ng-container *ngIf="show"><li *ngFor="let x of items">…</li></ng-container>` (a grouping element that renders no extra DOM). Modern control flow sidesteps it entirely because `@if`/`@for` are block syntax that nests: `@if (show) { @for (x of items; track x.id) { <li>…</li> } }`. Why others fail: (A) ordering is not the issue. (C) both still exist, though `@if`/`@for` are now preferred. (D) importing does not lift the one-structural-directive rule.',
   },
   {
@@ -3987,7 +3987,7 @@ export class DelayDirective {
       'Component providers are global while root is local',
     ],
     answer: 1,
-    topicPath: 'dependency-injection',
+    topicPath: 'di-providers',
     explanation: 'B is correct. `providedIn: \'root\'` puts the provider in the root injector, so the whole app shares a single lazily-created instance, and if nothing injects it the class is tree-shaken away. Declaring `providers: [Svc]` on a component creates a new instance in that component element injector — a distinct copy handed to the component and every descendant, overriding the root instance for that subtree (useful for per-feature or per-dialog state). Why others fail: (A) their scoping differs fundamentally. (C) root is a singleton, not per-component. (D) reversed — root is app-wide, component providers are local.',
   },
   {
@@ -4000,7 +4000,7 @@ export class DelayDirective {
       'It automatically makes the provided value observable',
     ],
     answer: 1,
-    topicPath: 'dependency-injection',
+    topicPath: 'di-providers',
     explanation: 'B is correct. Angular DI keys must exist at runtime. Classes qualify because they are runtime values, but a TypeScript `interface`/`type` is erased during compilation and cannot be a key. `new InjectionToken<Config>(\'desc\')` creates a unique, collision-proof token that also carries `<Config>` so `inject(APP_CONFIG)` is typed. Tokens also support `{ multi: true }` to gather many providers into an array (as `HTTP_INTERCEPTORS` does). Why others fail: (A) performance is not the reason. (C) tokens hold any value, including objects and functions. (D) a token adds no observability.',
   },
   {
@@ -4013,7 +4013,7 @@ export class DelayDirective {
       '@Self means a private service and @SkipSelf means a public one',
     ],
     answer: 1,
-    topicPath: 'dependency-injection',
+    topicPath: 'di-advanced',
     explanation: 'B is correct. Angular resolves a dependency by walking up the injector tree, and the resolution modifiers change where that walk starts and stops: `@Self()` looks ONLY in the current (element) injector and throws if the token is absent there; `@SkipSelf()` ignores the current injector and begins at its parent; `@Optional()` returns `null` instead of throwing; `@Host()` stops the search at the host component boundary. They compose — `@Optional() @SkipSelf()` is the classic guard against a directive resolving a token from itself. Why others fail: (A) singleton-ness depends on where you provide, not these flags. (C) unrelated to change detection. (D) they are not access modifiers.',
   },
   {
@@ -4026,7 +4026,7 @@ export class DelayDirective {
       'inject() automatically makes every dependency optional',
     ],
     answer: 1,
-    topicPath: 'dependency-injection',
+    topicPath: 'services-di',
     explanation: 'B is correct. `inject(Foo)` reads from the current injection context instead of a constructor signature, so it works in property initializers (`private http = inject(HttpClient)`), in functional guards/resolvers/interceptors, and in shared functions — and it removes the `super(...)` ceremony when extending a base class. The catch: it must be called in an injection context (constructor, field initializer, or `runInInjectionContext`), otherwise it throws `NG0203`. Why others fail: (A) constructor injection still works. (C) it uses the same injector, no bypass. (D) you still pass `{ optional: true }` for optional dependencies.',
   },
   {
@@ -4039,7 +4039,7 @@ export class DelayDirective {
       'useExisting works only with an InjectionToken, never a class',
     ],
     answer: 1,
-    topicPath: 'dependency-injection',
+    topicPath: 'di-providers',
     explanation: 'B is correct. `useExisting` constructs nothing — it points one token at another provider so both resolve to the identical instance. `{ provide: Logger, useClass: BetterLogger }` instead instantiates a distinct `BetterLogger` for the `Logger` token, so you would have two objects if `BetterLogger` is also provided directly. The provider recipes are: `useClass` (instantiate a class), `useValue` (a ready object/constant), `useExisting` (alias to another token), and `useFactory` (call a function, optionally with `deps`). Why others fail: (A) they differ in instance sharing. (C) it reuses, never news up. (D) it can alias any token type.',
   },
   {
@@ -4125,7 +4125,7 @@ export class WidthComponent {
       '99 only',
     ],
     answer: 1,
-    topicPath: 'rxjs',
+    topicPath: 'rxjs-operators',
     explanation: 'B is correct. An RxJS error is terminal: when `map` throws on `2`, the source errors and stops — values after the failure (`3`) are never emitted. `catchError` intercepts the error and switches to the returned observable (`of(99)`), which emits `99` then completes. So the output is `1, 99`. To keep processing later values you must move the try/handling INSIDE a per-item inner observable (e.g. `mergeMap(x => of(x).pipe(map(...), catchError(...)))`) so one failure does not kill the outer stream. Why others fail: (A) ignores the throw. (C) `3` cannot appear — the source already errored. (D) `1` is emitted before the error.',
   },
   {
@@ -4138,7 +4138,7 @@ export class WidthComponent {
       'It retries only 4xx client errors',
     ],
     answer: 1,
-    topicPath: 'rxjs',
+    topicPath: 'rxjs-advanced',
     explanation: 'B is correct. `retry` responds to an error by unsubscribing and re-subscribing to the SOURCE — for an HttpClient call that fires the request again. The object form `{ count, delay }` bounds the attempts and inserts a wait (a number for fixed backoff, or a function returning an observable for exponential/conditional backoff). After the final failed attempt the error passes through to the consumer. Why others fail: (A) it does not cache. (C) retries are sequential, not parallel. (D) `retry` retries ALL errors unless your `delay` callback filters by status.',
   },
   {
@@ -4151,7 +4151,7 @@ export class WidthComponent {
       'It only affects error handling',
     ],
     answer: 1,
-    topicPath: 'rxjs',
+    topicPath: 'rxjs-advanced',
     explanation: 'B is correct. A Scheduler is a policy for dispatching work: it decides the clock and context in which an observable emits. `observeOn(asyncScheduler)` pushes emissions onto the macrotask queue (setTimeout-like), `asapScheduler` onto the microtask queue, `queueScheduler` runs synchronously in a trampoline, and `animationFrameScheduler` aligns with `requestAnimationFrame`. Operators like `delay`, `throttleTime`, and `interval` accept a scheduler, and `TestScheduler` uses virtual time so marble tests run instantly and deterministically. Why others fail: (A) it schedules delivery, not operator selection. (C) most observables run synchronously with no explicit scheduler. (D) it governs timing broadly, not just errors.',
   },
   {
@@ -4173,7 +4173,7 @@ export class WidthComponent {
       'HttpClient errors cannot be caught at all',
     ],
     answer: 1,
-    topicPath: 'rxjs',
+    topicPath: 'rxjs-advanced',
     explanation: 'B is correct. `catchError` REPLACES the errored stream with whatever observable you return. Returning `EMPTY` yields a stream that emits nothing and completes normally, so downstream the error is gone — `next` and `error` both stay silent and the observable just completes. If the UI must react to failure, either handle it inside `catchError` (call `this.showError()` there and return a fallback value) or re-throw with `return throwError(() => err)` so the subscriber error callback still runs. Why others fail: (A) `EMPTY` completes, it does not throw. (C) the object-form observer is valid. (D) HTTP errors are ordinary RxJS errors and are catchable.',
   },
   {
@@ -4186,7 +4186,7 @@ export class WidthComponent {
       'Only on successful completion, never on error',
     ],
     answer: 1,
-    topicPath: 'rxjs',
+    topicPath: 'rxjs-operators',
     explanation: 'B is correct. `finalize` registers teardown that fires once the subscription ends by ANY path: normal completion, an error, or the consumer unsubscribing (including via `takeUntil` or an async pipe tearing down). That makes it ideal for `finalize(() => this.loading.set(false))` so a spinner clears whether the call succeeded or failed. Note it runs AFTER the error/complete notification propagates. Why others fail: (A) it runs on teardown, not per value. (C) it runs at the end, not before emissions. (D) it also runs on error and unsubscribe — that is its entire purpose.',
   },
   {
@@ -4199,7 +4199,7 @@ export class WidthComponent {
       'A runtime object with password deleted',
     ],
     answer: 1,
-    topicPath: 'typescript',
+    topicPath: 'ts-utility-types',
     explanation: 'B is correct. `Omit<T, K>` builds a type from `T` minus the keys in `K` (it is defined as `Pick<T, Exclude<keyof T, K>>`). `Omit<User, \'password\'>` is `User` without the `password` field — handy for API responses or form models that must not carry a secret. Its complement `Pick<T, K>` keeps only the listed keys. Both are compile-time only. Why others fail: (A) making one field optional is `Partial`-like, not removal. (C) that is `Pick<User, \'password\'>`. (D) types are erased — no runtime object is created.',
   },
   {
@@ -4212,7 +4212,7 @@ export class WidthComponent {
       'T and K must be the same type',
     ],
     answer: 1,
-    topicPath: 'typescript',
+    topicPath: 'ts-generics',
     explanation: 'B is correct. `K extends keyof T` constrains `key` to the union of `T`\'s property names, and the indexed access type `T[K]` returns exactly the type stored at that key. So for `user: { name: string; age: number }`, `get(user, \'age\')` is `number`, `get(user, \'name\')` is `string`, and `get(user, \'missing\')` fails to compile — full type safety with no casts or `any`. Why others fail: (A) arbitrary strings are rejected by the constraint. (C) the return is precisely typed, not `any`. (D) `K` is a key of `T`, not equal to `T`.',
   },
   {
@@ -4225,12 +4225,12 @@ export class WidthComponent {
       'It disables type checking on the union members',
     ],
     answer: 1,
-    topicPath: 'typescript',
+    topicPath: 'ts-narrowing',
     explanation: 'B is correct. A discriminated union pairs each member with a common singleton-typed field (the discriminant, here `kind`). When you branch on that field, TypeScript narrows to the matching member — inside `case \'circle\'` only `r` is accessible, inside `case \'square\'` only `side`. Assigning the value in the `default` branch to `const _exhaustive: never = shape` turns a forgotten case into a compile error, so adding a new shape forces you to handle it. Why others fail: (A) the members stay separate, narrowed by the tag. (C) plain object types suffice — no classes needed. (D) it strengthens checking, not disables it.',
   },
   {
     id: 296, type: 'multiple-choice', difficulty: 'senior', category: 'typescript',
-    question: 'What does a mapped type with template-literal key remapping, like `{ [K in keyof T as `on${Capitalize<string & K>}`]: () => void }`, generate?',
+    question: 'What does a mapped type with template-literal key remapping, like `{ [K in keyof T as \`on\${Capitalize<string & K>}\`]: () => void }`, generate?',
     options: [
       'A runtime object populated with event handlers',
       'A new TYPE that transforms each key K of T into a renamed key via the as clause and a template literal type — e.g. keys name and age become onName and onAge, each typed () => void; mapped types iterate keys with [K in keyof T] and the as clause remaps them',
@@ -4238,7 +4238,7 @@ export class WidthComponent {
       'It requires a decorator to run',
     ],
     answer: 1,
-    topicPath: 'typescript',
+    topicPath: 'ts-mapped-conditional',
     explanation: 'B is correct. A mapped type `{ [K in keyof T]: … }` iterates every key of `T`; the optional `as` clause REMAPS each key to a new one, and template literal types build that new key from string pieces plus helpers like `Capitalize`. So the shown type turns `{ name: string; age: number }` into `{ onName: () => void; onAge: () => void }`. These are pure type-level computations — ideal for deriving handler or getter types from a model. Why others fail: (A) it is a compile-time type, not a runtime object. (C) it maps any object type, not just arrays. (D) no decorator or runtime is involved.',
   },
   {
@@ -4593,7 +4593,7 @@ export class Banner {
       'A shortcut for creating a FormControl behind the scenes in reactive forms',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'template-forms',
     explanation: 'B is correct. `[( )]` is pure sugar: `[(x)]="prop"` expands to `[x]="prop" (xChange)="prop = $event"`. Knowing the desugared form matters because you can use the halves independently — e.g. `[ngModel]="name" (ngModelChange)="name = $event.trim()"` to normalize input, something the combined syntax cannot express. The same convention powers custom two-way bindings: an input `value` paired with an output `valueChange` (or the `model()` signal API). Why others fail: (A) it is mechanical sugar, fully expressible longhand. (C) it binds through the directive, not the raw attribute. (D) ngModel belongs to template-driven forms; it does create internal state but not a reactive-forms FormControl you declare.',
   },
   {
@@ -4606,7 +4606,7 @@ export class Banner {
       'Never — invalid controls should just be silently ignored',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'form-validation',
     explanation: 'B is correct. A pristine, untouched form is full of empty required fields — all technically invalid — so gating messages on interaction state is the standard UX: `control.touched` (user focused then left the field) or `control.dirty` (user changed the value). Read the specific failure from the errors object: `email.errors?.[\'required\']` vs `email.errors?.[\'email\']` to show the right message. On submit, `form.markAllAsTouched()` reveals everything still invalid. Why others fail: (A) errors on load punish the user before any input. (C) waiting until after successful submit is too late — an invalid form should not submit at all. (D) silent invalid fields leave users stuck.',
   },
   {
@@ -4619,7 +4619,7 @@ export class Banner {
       'Remove the control from the FormGroup entirely',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. In reactive forms the FormControl is the single source of truth for the control\'s state, including disabled-ness. Declare it with the boxed value `{ value: \'\', disabled: true }` or toggle at runtime with `control.disable()` / `control.enable()`. Binding the DOM `[disabled]` attribute alongside `formControlName` creates two owners of one state — Angular logs a warning about exactly this. Remember the side effect: disabled controls are EXCLUDED from `form.value` (use `getRawValue()` to include them). Why others fail: (A) that is the template-driven approach and triggers the warning with reactive forms. (C) readonly is a different concept (editable vs focusable) and not a FormControl API. (D) removing the control loses its value and validators entirely.',
   },
   {
@@ -4632,7 +4632,7 @@ export class Banner {
       'ngModel, ngForm, ngSubmit — the reactive forms directives',
     ],
     answer: 0,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'A is correct. `FormControl` tracks one value + validation state (one input/select/checkbox). `FormGroup` composes controls into a keyed object (`{ name, email }`) whose value is the object of child values. `FormArray` holds an ordered, growable list (e.g. multiple phone numbers) you `push()`/`removeAt()`. All three extend `AbstractControl`, so value/validity/statusChanges work uniformly, and they nest: a FormArray of FormGroups of FormControls models a table of rows. Why others fail: (B) they are TypeScript model classes, not HTML elements. (C) MVC is unrelated. (D) ngModel/ngForm belong to TEMPLATE-driven forms.',
   },
   {
@@ -4645,7 +4645,7 @@ export class Banner {
       'Write them as HTML attributes only: required minlength="8"',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'form-validation',
     explanation: 'B is correct. The second FormControl argument accepts a single validator or an array; all run on every value change and their errors MERGE into one object — e.g. an empty field gives `{ required: true }`, a short password `{ minlength: { requiredLength: 8, actualLength: 3 } }`. Note some built-ins are factories you CALL (`Validators.minLength(8)`, `Validators.pattern(/…/)`) while others are used bare (`Validators.required`, `Validators.email`) — passing `Validators.minLength` uncalled is a classic bug. Why others fail: (A) arrays of validators are standard. (C) validators do not chain fluently. (D) attributes only feed template-driven forms; reactive validators live in the class.',
   },
   {
@@ -4658,7 +4658,7 @@ export class Banner {
       'ngSubmit automatically validates and blocks invalid forms for you',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. Native forms submit on submit-button click OR Enter in an input — `(ngSubmit)` hooks that unified event, so keyboard users are covered for free, and Angular\'s form directives suppress the browser\'s default page-reloading POST. A `(click)` on the button captures only mouse/keyboard activation of that one button and leaves Enter-in-field either dead or triggering an unhandled native submit. Still guard inside: `if (this.form.invalid) { this.form.markAllAsTouched(); return; }` — nothing blocks invalid submission automatically. Why others fail: (A) it is best practice, not enforced. (C) click handlers work, they are just incomplete. (D) validation gating is your code\'s job.',
   },
   {
@@ -4671,7 +4671,7 @@ export class Banner {
       'Nested FormGroups are not supported; flatten the form',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. `AbstractControl.get()` accepts a dot-delimited path (`\'address.street\'`) or array path (`[\'address\', \'street\']`) and returns the control or null — the classic access pattern. With the typed forms API, chaining `form.controls.address.controls.street` is fully type-safe and non-null, which many teams now prefer. In the template, nesting is declared structurally: a container with `formGroupName="address"` scopes the inner `formControlName="street"`. Why others fail: (A) controls are not promoted to properties of the group instance. (C) there is no find-by-name search. (D) nesting is a core, fully supported feature.',
   },
   {
@@ -4684,7 +4684,7 @@ export class Banner {
       'valueChanges.pipe(mergeMap(...)) so every keystroke\'s request completes',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. Each operator solves a real defect: `debounceTime(300)` stops a request per keystroke; `distinctUntilChanged()` skips re-querying when the settled value is the same (e.g. type + delete a char); `switchMap` maps to the HTTP call AND cancels the previous in-flight request, killing the out-of-order-response bug where slow results for "ang" overwrite fresh results for "angular". Render with the async pipe or `toSignal`. Why others fail: (A) raw keyup floods the API and races responses. (C) polling wastes requests and is not type-ahead. (D) `mergeMap` keeps stale requests alive — their late responses can clobber newer ones.',
   },
   {
@@ -4701,7 +4701,7 @@ export class Banner {
       'control.setErrors({ noSpaces: true }) and return nothing',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'form-validation',
     explanation: 'B is correct. The `ValidatorFn` contract: take the control, return `null` for VALID or a `ValidationErrors` object (`{ noSpaces: true }`, or richer like `{ noSpaces: { position: 3 } }`) for invalid. The key becomes addressable in templates (`errors?.[\'noSpaces\']`) and merges with other validators\' errors. Guard against null values (after `reset()`). Factories that need parameters return a ValidatorFn: `forbidden(name: string): ValidatorFn => (c) => …`. Why others fail: (A) booleans are not the contract — Angular expects errors-object-or-null. (C) validators return, never throw. (D) calling setErrors inside a validator fights the forms engine, which overwrites errors from validator returns each run.',
   },
   {
@@ -4714,7 +4714,7 @@ export class Banner {
       'formControlName creates the control; [formControl] only reads it',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. `formControlName="email"` is a lookup: it requires an ancestor `[formGroup]="form"` (or `formGroupName`) and resolves the string against that group\'s controls — using it without a parent group throws the classic "formControlName must be used with a parent formGroup directive" error. `[formControl]="emailCtrl"` binds an actual FormControl reference, perfect for standalone inputs (search fields, filters) that do not belong to any form. Both connect the same way once resolved. Why others fail: (A) formControlName outside a group errors. (C) both are current API. (D) neither creates controls — you create them in the class; the directives just connect.',
   },
   {
@@ -4731,7 +4731,7 @@ export class Banner {
       'It only breaks when the form is submitted twice',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. `ngModel` (template-driven) and `formControlName`/`formControl` (reactive) are two different state-management systems; putting both on one input gives the value two competing owners with different update timing. Angular deprecated the combination in v6 with a prominent console warning, and modern versions reject it — the documented migration is to choose one API. If a component field must mirror the value, derive it: subscribe to `valueChanges` or read the control, do not attach ngModel. Why others fail: (A) the sync is exactly what is NOT defined. (C) neither cleanly wins — behavior was undefined-ish, which is why it was banned. (D) the conflict exists from the first render, not on submit.',
   },
   {
@@ -4744,7 +4744,7 @@ export class Banner {
       'Synchronous access to future values before the user types them',
     ],
     answer: 1,
-    topicPath: 'forms',
+    topicPath: 'reactive-forms',
     explanation: 'B is correct. Before v18, `valueChanges` and `statusChanges` covered value/validity, but touched/pristine transitions were unobservable (teams monkey-patched markAsTouched). `control.events` unifies everything as typed event classes on one stream: `events.pipe(filter(e => e instanceof TouchedChangeEvent))` reacts to blur-driven state, `PristineChangeEvent` to dirtiness, and on a root FormGroup you also see form submit/reset events. Each event carries its source control. Why others fail: (A) it is a superset with typed wrappers, not an alias. (C) validators are untouched. (D) nothing predicts future input.',
   },
   {
@@ -4757,7 +4757,7 @@ export class Banner {
       'The wildcard must be first so errors are caught early',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. The router walks the config in array order and takes the first route whose path matches — there is no specificity scoring. Practical consequences: `products/new` must precede `products/:id` (otherwise "new" is captured as an id), and `{ path: \'**\' }` is the universal fallback that must sit at the very END; anything after it is unreachable. The same logic applies within each children array. Why others fail: (A) no automatic specificity — that is CSS thinking. (C) nothing is alphabetical. (D) a leading wildcard would match EVERY url and hide your entire app.',
   },
   {
@@ -4770,7 +4770,7 @@ export class Banner {
       'It enables query parameters on the redirect',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. Route matching consumes url segments by PREFIX by default. The empty path `\'\'` is a prefix of every url — `/products/42` starts with nothing — so a prefix-matched empty redirect would fire on every navigation (Angular throws at config time for exactly this misconfiguration). `pathMatch: \'full\'` restricts the match to when no unconsumed segments remain, i.e. the user is genuinely at the root. Non-empty redirects usually keep prefix matching. Why others fail: (A) omitting it on an empty redirect is a config error. (C) client-side redirects have no HTTP status. (D) query params are unrelated (they are preserved by default on redirects).',
   },
   {
@@ -4786,7 +4786,7 @@ export class Banner {
       '(click)="window.location = \'/products/\' + product.id"',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'route-params',
     explanation: 'B is correct. The property-bound array form `[routerLink]="[\'/products\', product.id]"` composes the url from segments — dynamic values slot in as real values (numbers, strings) with proper encoding, and you can append `[queryParams]="{ ref: \'list\' }"`. A static string form (`routerLink="/about"`) suits fixed links only. Why others fail: (A) a raw href works but triggers a FULL page reload, discarding SPA state — and misses the router\'s base-href handling. (C) an unbracketed routerLink is a literal string; "product.id" is not evaluated. (D) window.location is a hard navigation and untestable inline code.',
   },
   {
@@ -4799,7 +4799,7 @@ export class Banner {
       'They behave identically since both render anchors',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. The entire point of an SPA is client-side navigation: `routerLink` prevents the default anchor behavior and asks the Router to swap views — no page reload, state (stores, form data, scroll positions per strategy) survives, and navigation is near-instant. Crucially it still renders an actual `href` on the anchor, so middle-click/ctrl-click open-in-new-tab, link previews, and crawlers all work. Reserve raw `href` for EXTERNAL urls. Why others fail: (A) href is fine — for external links. (C) it applies to all internal routes. (D) the rendered anchor looks similar but the click behavior differs completely.',
   },
   {
@@ -4812,7 +4812,7 @@ export class Banner {
       'One app can contain only a single router-outlet ever',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. `<router-outlet>` marks WHERE routed content appears; the router instantiates the active component as a sibling node immediately after the outlet (inspect the DOM — the component tag sits next to `<router-outlet>`, not inside it). Everything else in the hosting template persists across navigations, which is how shells (header/nav/footer) work. Nesting: a route with `children` renders them into an outlet inside the PARENT route\'s component. Multiple named outlets (`name="sidebar"`) enable auxiliary routes. Why others fail: (A) sibling, not inside — a common DOM-inspection surprise. (C) data fetching is resolvers/services. (D) apps regularly have nested and named outlets.',
   },
   {
@@ -4825,7 +4825,7 @@ export class Banner {
       'Use a resolver to re-fetch the params after navigating',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'route-params',
     explanation: 'B is correct. By default a navigation replaces the query string with whatever `queryParams` you pass (or nothing) — filters vanish. `queryParamsHandling: \'preserve\'` keeps the existing params and IGNORES newly passed ones; `\'merge\'` unions them with your new `queryParams` taking precedence — the right choice when adding a tab/sort key on top of live filters. The same option exists on `[routerLink]` via `queryParamsHandling`. Why others fail: (A) the default drops them — that is the very problem. (C) localStorage works but reinvents a built-in and breaks shareable urls. (D) resolvers fetch data; they do not restore urls.',
   },
   {
@@ -4838,7 +4838,7 @@ export class Banner {
       'navigateByUrl() bypasses all route guards',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. `router.navigate([\'products\', id], { relativeTo: this.route, queryParams: {...} })` builds a UrlTree from parts and supports RELATIVE navigation — its power tool. `router.navigateByUrl(\'/products/42?tab=specs\')` treats the string as the complete new url (always absolute; extras like queryParams are ignored because they belong in the string). Both return `Promise<boolean>` and both run guards/resolvers. The login `returnUrl` pattern is the classic navigateByUrl use. Why others fail: (A) both are current, different-shaped APIs. (C) both are async promises. (D) nothing bypasses guards — they run for every router-initiated navigation.',
   },
   {
@@ -4851,7 +4851,7 @@ export class Banner {
       'paramMap contains numbers while queryParamMap contains strings',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'route-params',
     explanation: 'B is correct. Route params are placeholders YOU declared in the route config (`path: \'products/:id\'`) and belong to a specific matched route; query params are the free-form `?sort=price&page=2` tail, readable from any ActivatedRoute since they apply url-wide. Both are string-valued (convert ids with Number()) and both come as `snapshot.paramMap` / `snapshot.queryParamMap` for one-shot reads or observables for same-component navigations. `withComponentInputBinding()` can map BOTH kinds onto component inputs. Why others fail: (A) they cover disjoint url sections. (C) query strings work with any location strategy. (D) everything in a url is a string.',
   },
   {
@@ -4864,7 +4864,7 @@ export class Banner {
       'Add a <title> element inside each component template',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. Since v14 the Router owns titles: `title: \'Products · Shop\'` on the route, or `title: resolveProductTitle` (a ResolveFn returning a string, so /products/:id can show the product name). For app-wide formatting, extend `TitleStrategy` and provide it — one class appends " · MyApp" everywhere instead of repeating it per route. This also fixes the SPA accessibility gap where screen readers announce the new title on navigation. Why others fail: (A) works but scatters the concern and misses non-component routes; the Title service predates the route-based API. (C) index.html only sets the initial title. (D) a <title> tag inside body markup is invalid HTML and ignored.',
   },
   {
@@ -4877,7 +4877,7 @@ export class Banner {
       'You must generate a physical HTML file per route at build time',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'routing-basics',
     explanation: 'B is correct. Client-side routes exist only in JavaScript. In-app navigation never asks the server, but a hard refresh or shared link DOES — and a static server looks for a literal `/products/42` file, finds nothing, and 404s. The fix is a server-side rewrite/fallback rule (`try_files $uri /index.html` in nginx, `_redirects` on Netlify, etc.) so every app path serves index.html. `withHashLocation()` sidesteps it because the fragment is never sent to servers — at the cost of ugly #-urls and weaker SEO. Why others fail: (A) the router never runs — the failure is before the app loads. (C) SSR also solves it but is not required. (D) prerendering is one option, not a requirement.',
   },
   {
@@ -4890,7 +4890,7 @@ export class Banner {
       'Force every navigation to recreate all components',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'router-children-lazy',
     explanation: 'B is correct. By default the router destroys the outgoing component and creates the incoming one (except param-only changes on the same route, which reuse the instance). A custom `RouteReuseStrategy` overrides five hooks — `shouldDetach`, `store`, `shouldAttach`, `retrieve`, `shouldReuseRoute` — so you can stash a detached component tree (typically keyed by route path in a Map) and reattach it later: the back-to-search-results-without-refetching pattern. Watch memory (stored trees are alive) and lifecycle expectations (no ngOnInit on reattach). Why others fail: (A) mapping one component to many paths is just route config. (C) HTTP caching is interceptors/services. (D) recreation is already the default.',
   },
   {
@@ -4903,7 +4903,7 @@ export class Banner {
       'Set every guard to return false once to force a refresh',
     ],
     answer: 1,
-    topicPath: 'routing',
+    topicPath: 'route-guards',
     explanation: 'B is correct. Two separate switches govern this. First, the router by default ignores navigation to the exact current url — `withRouterConfig({ onSameUrlNavigation: \'reload\' })` (or the same option per-navigate) makes it process the navigation anyway. Second, even a processed navigation only re-runs guards/resolvers when something RELEVANT changed — the route-level `runGuardsAndResolvers: \'always\'` (or `\'paramsOrQueryParamsChange\'`, or a custom predicate) widens that trigger. Together they enable in-place data refresh through the router pipeline. Why others fail: (A) it is configurable, not impossible. (C) a full reload throws away the SPA session — the heavyweight last resort. (D) returning false CANCELS navigation; it refreshes nothing.',
   },
   {
@@ -5690,6 +5690,453 @@ function run(): void {
     answer: 1,
     topicPath: 'state-management',
     explanation: 'B is correct. `this.store.products()` OUTSIDE a reactive context returns a plain array value — a photograph, not a subscription. From that line on the app has two versions of the truth, and every stale-data bug is some flavor of this fork. The rewrite eliminates the copy rather than synchronizing it: `readonly query = signal(\'\')` and `readonly results = computed(() => this.store.products().filter(p => p.name.includes(this.query())))` — the computed re-derives when EITHER dependency changes, there is nothing to refresh, and the template reads results(). The rule generalizes: store MINIMAL source state; everything expressible as a function of it should be computed, not copied (the getter here also re-filtered on every CD cycle without caching — computeds memoize). Why others fail: (A) any lifecycle hook that copies produces the same fork, just timed differently. (C) signal reads work anywhere; only TRACKING requires a reactive context (computed/effect/template) — which is exactly why the snapshot did not subscribe. (D) push-refresh reinvents change propagation manually and scales as O(components × stores) wiring; deriving gets it from the reactive graph for free.',
+  },
+
+  // --- TEMPLATES (HTML in Angular) ---
+  {
+    id: 393, type: 'multiple-choice', difficulty: 'junior', category: 'templates',
+    question: 'What is the difference between binding `[src]="url"` and writing `src="{{ url }}"` on an <img>?',
+    options: [
+      '[src] is one-time; interpolation updates live',
+      'Both keep the image in sync with url — [src] sets the DOM PROPERTY directly, while src="{{ url }}" interpolates into the attribute; property binding is preferred because it handles non-string values and avoids a brief unresolved-attribute state',
+      'src="{{ url }}" is a compile error on native elements',
+      'They differ only for custom components, never for native elements',
+    ],
+    answer: 1,
+    topicPath: 'property-binding',
+    explanation: 'B is correct. Both stay in sync with the component field. `[src]="url"` assigns to the element\'s src PROPERTY with the actual value (any type); `src="{{ url }}"` builds a STRING and Angular then sets the property from it. Property binding is the guideline default: it skips stringification, works for booleans/objects (e.g. [disabled]="isBusy"), and cannot render a literal "{{ url }}" flash in unsupported contexts. Why others fail: (A) both are live bindings. (C) interpolation in attribute position is valid syntax. (D) the distinction applies to native elements too.',
+  },
+  {
+    id: 394, type: 'spot-the-bug', difficulty: 'mid', category: 'templates',
+    question: 'This table cell never spans two columns. Why?',
+    code: `<!-- span = 2 in the component -->
+<td [colspan]="span">Total</td>`,
+    options: [
+      'colspan must be uppercase: [colSpan] never works either way',
+      'There is no colspan DOM property to bind — colspan is an ATTRIBUTE, so it needs the attribute-binding syntax [attr.colspan]="span"; property binding only works for real element properties',
+      'Numbers cannot be bound in templates; span must be a string',
+      '<td> elements do not support Angular bindings at all',
+    ],
+    answer: 1,
+    topicPath: 'property-binding',
+    explanation: 'B is correct. Angular property binding writes to DOM properties, and it is a compile-time error (or silent miss) when no such property exists. colspan lives only as an HTML attribute (the property is actually colSpan, with different casing — the classic tell that attributes ≠ properties). The reliable form is `[attr.colspan]="span"`, which calls setAttribute under the hood. The same rule covers aria-* (`[attr.aria-label]`) and data-* attributes. Why others fail: (A) [colSpan] happens to exist as a property, but the general fix — and what the exam wants — is attr. binding for attribute-only targets. (C) numbers bind fine; attr binding stringifies them. (D) every element supports bindings.',
+  },
+  {
+    id: 395, type: 'multiple-choice', difficulty: 'mid', category: 'templates',
+    question: 'What does <ng-container> render into the DOM, and when do you reach for it?',
+    options: [
+      'A <div> with display: contents applied',
+      'NOTHING — it is a grouping element that exists only in the template, used to apply structural directives/control flow to several siblings (or inside a <table>) without adding a wrapper element that would break layout or valid HTML nesting',
+      'A comment node that slows rendering measurably',
+      'It renders a <ng-container> custom element the browser ignores',
+    ],
+    answer: 1,
+    topicPath: 'structural-directives',
+    explanation: 'B is correct. <ng-container> is purely logical: Angular uses it to anchor directives and then renders only its CHILDREN. The two canonical uses: grouping several elements under one *ngIf without a wrapper <div> (which could break flex/grid layout), and putting control flow inside markup where extra elements are INVALID — e.g. between <table> and <tr>, where a <div> would be ejected by the parser. Why others fail: (A) no element is emitted at all, so no display: contents trick is needed. (C) it leaves at most a comment anchor — negligible. (D) no custom element reaches the DOM.',
+  },
+  {
+    id: 396, type: 'multiple-choice', difficulty: 'mid', category: 'templates',
+    question: 'What does a template reference variable point at — #box on a <div> versus #search on an <app-search> component?',
+    options: [
+      'Always the raw DOM element in both cases',
+      'On a plain element it is the DOM element (HTMLDivElement); on a component it is the COMPONENT INSTANCE — and a directive can be targeted explicitly with #x="exportAsName". The variable is then usable anywhere in the same template (and in the class via viewChild)',
+      'Always the component class of the current template',
+      'Template variables are strings holding the element id',
+    ],
+    answer: 1,
+    topicPath: 'view-queries',
+    explanation: 'B is correct. The reference resolves by what it sits on: plain element → element instance (so #input lets you write input.value in an event handler), component host → the component instance (so #search exposes its public API, e.g. search.clear()). When several directives share the host, `#x="ngForm"`-style exportAs picks WHICH one you get — that is exactly how template-driven forms hand out the NgForm. viewChild(\'box\') reads the same reference from the class. Why others fail: (A)/(C) the target depends on the host, and (D) they are real object references, not id strings.',
+  },
+  {
+    id: 397, type: 'predict-output', difficulty: 'junior', category: 'templates',
+    question: 'user is undefined during the first render. What does this template show and log?',
+    code: `<p>{{ user?.name }}</p>
+<p>{{ user!.email }}</p>  <!-- non-null assertion -->`,
+    options: [
+      'Both lines throw a template error immediately',
+      'The first <p> renders empty (safe navigation short-circuits undefined to nothing); the second THROWS at runtime — the ! assertion only silences the TYPE-CHECKER, it provides zero runtime protection reading .email of undefined',
+      'Both render the string "undefined"',
+      'The safe-navigation line renders "null"; the assertion line renders empty',
+    ],
+    answer: 1,
+    topicPath: 'interpolation',
+    explanation: 'B is correct. `?.` is a RUNTIME guard: when user is null/undefined the whole expression evaluates to undefined and interpolation renders it as an empty string — no error. `!` is the opposite kind of tool: a COMPILE-TIME promise to the type-checker that user is non-null, erased entirely from the emitted code — so at runtime the property read executes on undefined and throws. The exam point: ?. changes behavior, ! only changes type-checking. Why others fail: (A) the first line is explicitly safe. (C) interpolation renders null/undefined as empty string, not the word "undefined". (D) reversed.',
+  },
+  {
+    id: 398, type: 'multiple-choice', difficulty: 'senior', category: 'templates',
+    question: 'A CMS sends HTML strings that you render with [innerHTML]="post.html". A <script> tag and an onclick attribute are in the payload. What happens?',
+    options: [
+      'The script executes — innerHTML is a direct XSS hole in Angular',
+      'Angular SANITIZES values bound to innerHTML: the script tag and inline event handlers are stripped (with a console warning), safe markup like <b> survives; only DomSanitizer.bypassSecurityTrustHtml can opt out, which shifts full XSS responsibility to you',
+      'Angular throws and renders nothing at all',
+      'The HTML renders as escaped text, tags visible to the user',
+    ],
+    answer: 1,
+    topicPath: 'security',
+    explanation: 'B is correct. Angular treats values crossing into dangerous sinks (innerHTML, style, URLs) by CONTEXT: an innerHTML binding runs through the built-in sanitizer, which whitelists safe tags and removes executable content — <script>, on* handlers, javascript: URLs. The page shows the formatting but cannot execute the payload. bypassSecurityTrustHtml exists for content you can vouch for (already sanitized server-side) and is the audit-me keyword in reviews. Why others fail: (A) the sanitizer is precisely what prevents this. (C) it strips rather than throws. (D) escaping-to-text is what INTERPOLATION does — {{ post.html }} would show the tags; [innerHTML] renders them.',
+  },
+  {
+    id: 399, type: 'multiple-choice', difficulty: 'mid', category: 'templates',
+    question: 'What problem does the template @let block solve, e.g. @let total = items().length * price();?',
+    options: [
+      'It declares a component class field from the template',
+      'It names an expression ONCE for reuse below it in the template — avoiding repeated evaluation/repetition of long expressions (or repeated async-pipe subscriptions), with the variable staying up to date like any binding and scoped to the block it is declared in',
+      'It is a compile-time constant frozen at first render',
+      'It replaces @if — @let renders conditionally when truthy',
+    ],
+    answer: 1,
+    topicPath: 'let-block',
+    explanation: 'B is correct. @let gives a template-local name to any expression: subsequent bindings read `total` instead of re-writing the expression, and it re-evaluates when its dependencies change — it is a live alias, not a snapshot. It especially shines for `@let user = user$ | async` (one subscription, one name, no *ngIf-as-a-variable hack) and for narrowing long optional chains. Scope is lexical: available after its declaration within the same block. Why others fail: (A) it never touches the class. (C) it stays reactive across change detection. (D) it declares a value and renders nothing conditionally — that is @if\'s job.',
+  },
+  {
+    id: 400, type: 'multiple-choice', difficulty: 'junior', category: 'templates',
+    question: 'Why does the Angular style guide favor <button (click)="save()"> over <div (click)="save()"> for a save action?',
+    options: [
+      'Divs cannot host Angular event bindings',
+      'A real <button> is semantic HTML: keyboard focusable and activatable (Enter/Space), announced as a button by screen readers, and supports disabled — a clickable div gets NONE of that for free and needs tabindex, role and key handlers bolted on to approximate it',
+      'Buttons render faster than divs in change detection',
+      'The (click) syntax only compiles on form controls',
+    ],
+    answer: 1,
+    topicPath: 'a11y',
+    explanation: 'B is correct. The template is still HTML, and element choice carries behavior contracts: <button> participates in the tab order, fires click for Enter/Space presses, exposes an implicit role="button" to assistive tech, and honors the disabled attribute. The div version silently works for mouse users only — the accessibility bugs surface later as keyboard traps and silent screen readers. Recreating it needs tabindex="0", role="button", a keydown handler and aria-disabled — four attributes to badly imitate one element. Why others fail: (A) any element can bind (click). (C) rendering cost is identical. (D) event bindings compile on every element.',
+  },
+
+  // --- STYLING (CSS in Angular) ---
+  {
+    id: 401, type: 'multiple-choice', difficulty: 'junior', category: 'styling',
+    question: 'A rule `p { color: red; }` sits in one component\'s styles. Why do <p> elements in OTHER components stay uncolored?',
+    options: [
+      'Angular renames every <p> tag to a unique element name',
+      'Default EMULATED view encapsulation scopes component CSS: Angular adds a per-component attribute (_ngcontent-xxx) to the component\'s elements and rewrites each selector to require it — so the rule can only ever match this component\'s own template',
+      'Component styles only apply to elements with [ngStyle]',
+      'The styles array is documentation-only; real CSS must be global',
+    ],
+    answer: 1,
+    topicPath: 'components',
+    explanation: 'B is correct. With ViewEncapsulation.Emulated (the default) the compiler stamps the component\'s DOM with a generated attribute and rewrites `p { … }` into `p[_ngcontent-xxx] { … }`. The effect: styles cannot leak OUT of the component (and outside page styles that do not use such attributes still cascade IN unless more specific). This is why each component can use generic selectors fearlessly. Why others fail: (A) tags are untouched; attributes are added. (C) ngStyle is an unrelated binding API. (D) component styles are fully real CSS, just scoped.',
+  },
+  {
+    id: 402, type: 'multiple-choice', difficulty: 'junior', category: 'styling',
+    question: 'Which binding conditionally applies the "active" class when isActive is true?',
+    options: [
+      '<li class="active={{ isActive }}">',
+      '<li [class.active]="isActive"> — the class binding adds or removes exactly that one class as the expression flips; for several classes at once, [class]="{ active: isActive, big: isBig }" takes an object map',
+      '<li className="isActive">',
+      '<li (class)="active: isActive">',
+    ],
+    answer: 1,
+    topicPath: 'class-style-binding',
+    explanation: 'B is correct. `[class.name]="boolExpr"` is the surgical form — one class, toggled by one boolean, coexisting peacefully with the element\'s static class attribute. The object-map form ([class]="{…}") and [ngClass] handle multiple conditional classes. Why others fail: (A) interpolates the literal text "active=true" INTO the class attribute value — a garbage class name. (C) className is not an Angular binding and the string "isActive" would be applied literally. (D) parentheses are event-binding syntax; classes are not events.',
+  },
+  {
+    id: 403, type: 'multiple-choice', difficulty: 'mid', category: 'styling',
+    question: 'What changes when a component sets encapsulation: ViewEncapsulation.None?',
+    options: [
+      'Its template stops rendering styles entirely',
+      'Its styles are injected into the document as-is — UNscoped globals: nothing is rewritten with _ngcontent attributes, so its rules hit matching elements ANYWHERE on the page (useful for theme/layout components, dangerous for generic selectors like p or button)',
+      'It switches to native Shadow DOM isolation',
+      'Child components can no longer receive inputs',
+    ],
+    answer: 1,
+    topicPath: 'components',
+    explanation: 'B is correct. None removes the scoping step: the component\'s CSS lands in a plain <style> tag with the selectors untouched, exactly as if written in styles.css. Legitimate uses: a design-system root that intentionally publishes global rules, or styling content Angular cannot attribute-stamp. The risk is selector collision — `button { … }` now restyles every button in the app, loading-order dependent. ShadowDom is the third mode: real shadow-root isolation where outside styles cannot cascade in at all. Why others fail: (A) styles still render — globally. (C) that is ViewEncapsulation.ShadowDom, the opposite direction. (D) encapsulation is a CSS concern; inputs are unaffected.',
+  },
+  {
+    id: 404, type: 'multiple-choice', difficulty: 'mid', category: 'styling',
+    question: 'In component CSS, what does the :host selector target — and what does :host(.compact) add?',
+    options: [
+      'The <body> element hosting the Angular app',
+      ':host styles the component\'s OWN element (<app-card> itself — which its inner rules cannot otherwise reach); :host(.compact) applies only when that host element ALSO carries the compact class, letting parents restyle the component by classing its tag',
+      'The first child element of the template',
+      'The router outlet the component was rendered into',
+    ],
+    answer: 1,
+    topicPath: 'components',
+    explanation: 'B is correct. A component\'s scoped styles match elements INSIDE its template; the tag itself (<app-card>) belongs to the parent\'s markup, so it needs the special :host selector — the standard place for `:host { display: block; }` (custom elements default to inline!). The functional form :host(.selector) matches conditionally on the host, so `<app-card class="compact">` can flip an internal layout without any input plumbing. :host-context(.dark) extends the idea to ANCESTOR conditions — theme switches. Why others fail: (A)/(C)/(D) :host is precisely the component\'s own element, nothing broader or narrower.',
+  },
+  {
+    id: 405, type: 'spot-the-bug', difficulty: 'senior', category: 'styling',
+    question: 'A parent tries to restyle a child component\'s internals and it does not work. What is the accepted fix?',
+    code: `/* parent.component.css */
+app-fancy-list .item-title {
+  color: purple;      /* never applies */
+}`,
+    options: [
+      'Increase specificity until it wins: app-fancy-list div .item-title',
+      'Encapsulation blocks parent CSS from matching the child\'s scoped internals; instead of piercing (::ng-deep is deprecated), expose an explicit styling API — a CSS custom property the child consumes (.item-title { color: var(--item-title-color, inherit) }) that the parent simply sets on the child element',
+      'Move the rule into index.html so it loads before Angular',
+      'Set encapsulation: ShadowDom on the parent to gain access',
+    ],
+    answer: 1,
+    topicPath: 'components',
+    explanation: 'B is correct. The parent\'s scoped rule compiles to `app-fancy-list[_ngcontent-parent] .item-title[_ngcontent-parent]` — but the child\'s internals carry the CHILD\'s attribute, so the selector can never match. That is encapsulation working as designed. The maintainable escape hatch is a contract, not a crowbar: CSS custom properties INHERIT through encapsulation boundaries, so the child declares which knobs exist (var(--item-title-color)) and any ancestor sets them (`app-fancy-list { --item-title-color: purple; }`). ::ng-deep pierces everything, is deprecated, and leaks the rule to every descendant forever. Why others fail: (A) specificity is irrelevant — the attribute requirement makes the match impossible. (C) load order does not change scoping attributes. (D) ShadowDom on the parent isolates it MORE, not less.',
+  },
+  {
+    id: 406, type: 'multiple-choice', difficulty: 'mid', category: 'styling',
+    question: 'What is the difference between the styles in a component\'s `styles`/`styleUrls` and the ones in the global `src/styles.css`?',
+    options: [
+      'None — the build concatenates them into one stylesheet',
+      'Global styles load once, apply to the WHOLE document unscoped, and are listed in angular.json\'s "styles" array; component styles ship with the component (lazy-loaded with it), are scoped by encapsulation, and are added/kept per component type — the design-token + scoped-rules split follows from this',
+      'Component styles override global styles regardless of specificity',
+      'Global styles cannot use CSS variables',
+    ],
+    answer: 1,
+    topicPath: 'class-style-binding',
+    explanation: 'B is correct. Two delivery mechanisms with different scopes: styles.css (registered under "styles" in angular.json) is document-wide plain CSS — the right home for resets, design tokens (:root { --brand: … }), and typography. Component styles are code-split with their component (a lazily-loaded page\'s CSS arrives only when visited) and are attribute-scoped so they cannot leak. The idiomatic architecture: global tokens + component-scoped consumption via var(). Why others fail: (A) they are bundled and injected differently. (C) the cascade still follows normal specificity and order — scoping ADDS specificity but does not create a special override tier. (D) globals are where shared CSS variables usually LIVE.',
+  },
+  {
+    id: 407, type: 'multiple-choice', difficulty: 'senior', category: 'styling',
+    question: 'Why are CSS custom properties (var(--x)) THE theming mechanism that plays well with view encapsulation?',
+    options: [
+      'They are the only CSS feature Angular does not sanitize',
+      'Custom properties INHERIT down the DOM like normal inherited CSS — encapsulation rewrites SELECTORS but never blocks inheritance — so a token set on :root or [data-theme=dark] flows into every component, and each component consumes it with var(--token, fallback) without exposing its internals',
+      'Angular compiles var() into component inputs automatically',
+      'They bypass the browser cascade entirely for speed',
+    ],
+    answer: 1,
+    topicPath: 'class-style-binding',
+    explanation: 'B is correct. Encapsulation works by rewriting selectors so parent rules cannot MATCH child internals — but it does not (and cannot) stop value INHERITANCE, and custom properties inherit by definition. So the theme lives at the top (`:root { --surface: #fff }`, flipped by `[data-theme=dark] { --surface: #111 }`), and every component writes `background: var(--surface)` in its own scoped CSS. Components keep their internals private while still following the theme — this exact app\'s light/dark toggle works this way. Why others fail: (A) sanitization concerns bindings, not stylesheet features. (C) no such compilation exists. (D) they participate in the cascade normally; the win is inheritance, not bypass.',
+  },
+  {
+    id: 408, type: 'predict-output', difficulty: 'mid', category: 'styling',
+    question: 'width is the number 250 in the component. What ends up on the element?',
+    code: `<div class="bar"
+     [style.width.px]="width"
+     [style.opacity]="0.5">`,
+    options: [
+      'A crash — style bindings require strings with units',
+      'style="width: 250px; opacity: 0.5" — the .px unit suffix tells Angular to append the unit to the numeric value, and each [style.prop] binding manages its own property (merging with, and beating, any static style attribute on conflicts)',
+      'Only opacity applies; width needs [ngStyle]',
+      'width: 250 (unitless, ignored by the browser) — the suffix syntax does not exist',
+    ],
+    answer: 1,
+    topicPath: 'class-style-binding',
+    explanation: 'B is correct. Style bindings accept unit suffixes — [style.width.px], [style.font-size.em], [style.margin.%] — appending the unit to a plain number, which keeps component code numeric and free of string concatenation. Each binding targets one property; on conflicts, the more specific [style.prop] binding wins over a [style] object binding, which wins over the static style attribute. Why others fail: (A)/(D) the suffix syntax is real and exists precisely so numbers work. (C) [ngStyle] is an alternative for maps, not a requirement.',
+  },
+
+  // --- TOOLING (angular.json, tsconfig, package.json) ---
+  {
+    id: 409, type: 'multiple-choice', difficulty: 'junior', category: 'tooling',
+    question: 'In package.json, why is @angular/core under "dependencies" while @angular/cli sits in "devDependencies"?',
+    options: [
+      'Alphabetical convention — the split carries no meaning',
+      'dependencies are needed by the shipped app (framework code that ends up in the bundle); devDependencies are build-time tools (CLI, compilers, test runners) that never ship to users — the split documents intent and lets production installs (npm install --omit=dev) skip tooling',
+      'devDependencies are optional and may fail to install',
+      'Packages in devDependencies cannot be imported from TypeScript',
+    ],
+    answer: 1,
+    topicPath: 'terminal-and-npm',
+    explanation: 'B is correct. The runtime/tooling split: @angular/core code is compiled INTO your bundles — it is a real dependency of the artifact. @angular/cli, @angular/compiler-cli, typescript, vitest/karma exist only to BUILD and TEST; a server doing `npm ci --omit=dev` for a deploy pipeline can skip them entirely. For a frontend app the bundler makes the distinction less enforced than for a Node library — but it still documents intent and trims CI installs. Why others fail: (A) the sections have defined semantics. (C) both install identically by default. (D) imports work from either at dev time; the difference is deployment.',
+  },
+  {
+    id: 410, type: 'multiple-choice', difficulty: 'junior', category: 'tooling',
+    question: 'What does the "scripts" block in package.json do — e.g. "start": "ng serve"?',
+    options: [
+      'Lists JavaScript files to inject into index.html',
+      'Defines named commands run with npm run <name> (npm start for the reserved names): each runs in a shell with node_modules/.bin on the PATH, which is why "ng" works there without a global CLI install',
+      'Configures the Angular compiler\'s entry scripts',
+      'Registers service workers for the production build',
+    ],
+    answer: 1,
+    topicPath: 'terminal-and-npm',
+    explanation: 'B is correct. scripts are the project\'s command palette: `npm start` → ng serve, `npm test` → ng test, `npm run build` → ng build. npm prepends node_modules/.bin to PATH for the child shell, so the locally-installed ng binary resolves — every collaborator and CI machine runs the exact pinned CLI version, no global install needed (that is also why `npx ng` works ad hoc). Why others fail: (A) script/style INJECTION is angular.json\'s "scripts"/"styles" arrays — a classic name collision the exam probes. (C)/(D) unrelated to npm scripts.',
+  },
+  {
+    id: 411, type: 'multiple-choice', difficulty: 'junior', category: 'tooling',
+    question: 'What is angular.json?',
+    options: [
+      'The npm manifest listing dependencies and scripts',
+      'The CLI WORKSPACE configuration: projects and their architect targets (build/serve/test), which builder runs each target, and its options — output paths, global styles/scripts, assets, budgets, environment-specific configurations',
+      'The TypeScript compiler configuration',
+      'A runtime config the browser fetches on bootstrap',
+    ],
+    answer: 1,
+    topicPath: 'cli-project-structure',
+    explanation: 'B is correct. angular.json is how `ng build` knows WHAT to do: for each project it maps target names to a builder (e.g. @angular/build:application) plus options — entry points, index.html, tsconfig to use, assets to copy, the global "styles"/"scripts" arrays, size budgets, and named configurations like production/development that ng build -c selects. package.json says what to install; angular.json says how to build; tsconfig says how to compile TS. Why others fail: (A) that is package.json. (C) that is tsconfig.json. (D) it is consumed at build time only — nothing in the browser reads it.',
+  },
+  {
+    id: 412, type: 'multiple-choice', difficulty: 'mid', category: 'tooling',
+    question: 'In package.json, what is the difference between "^20.1.0" and "~20.1.0" — and what does package-lock.json add?',
+    options: [
+      '^ means beta releases; ~ means stable releases only',
+      '^ accepts any compatible MINOR/patch (>=20.1.0 <21.0.0); ~ accepts only PATCHES (>=20.1.0 <20.2.0). The lockfile then records the exact resolved version of every package in the tree so npm ci reproduces the identical install everywhere — ranges express intent, the lock guarantees reality',
+      'They are interchangeable; npm ignores the prefix',
+      '^ pins the exact version; ~ allows anything newer',
+    ],
+    answer: 1,
+    topicPath: 'terminal-and-npm',
+    explanation: 'B is correct. Under semver (major.minor.patch), ^ trusts the package to keep minors backward-compatible, ~ trusts only patch releases. But ranges alone make installs time-dependent — the same package.json can resolve differently next month. package-lock.json freezes the ENTIRE resolved tree (including transitive dependencies) with integrity hashes; `npm ci` installs exactly that. Commit the lockfile — deleting it to "fix" an install is how works-on-my-machine bugs are born. Why others fail: (A) prefixes are about version RANGES, not stability channels. (C) npm honors them precisely. (D) reversed and wrong — exact pinning is no prefix at all.',
+  },
+  {
+    id: 413, type: 'multiple-choice', difficulty: 'mid', category: 'tooling',
+    question: 'You install a CSS framework and add its stylesheet to the "styles" array in angular.json. What did that do, and why did the dev server need a restart?',
+    options: [
+      'It imported the CSS into every component\'s scoped styles',
+      'The "styles" array defines the GLOBAL stylesheets the builder compiles into the styles bundle for the whole document; angular.json is read once at startup, so unlike source files it is not watched — config edits need a server restart',
+      'It only added a <link> for production builds',
+      'Nothing — third-party CSS must be imported in main.ts',
+    ],
+    answer: 1,
+    topicPath: 'cli-project-structure',
+    explanation: 'B is correct. Entries in build options "styles" (and their sibling "scripts" for JS libraries) are bundled globally and injected into index.html — unscoped, document-wide, exactly right for a framework\'s base stylesheet. The builder reads angular.json when it boots; the file watcher covers your SOURCE tree, not the workspace config, hence the restart ritual after editing it. Alternative route: @import the library in styles.css (which IS watched). Why others fail: (A) global styles are never scoped into components. (C) it applies to serve and build alike. (D) main.ts imports work for JS; CSS belongs in styles.css or the styles array.',
+  },
+  {
+    id: 414, type: 'multiple-choice', difficulty: 'mid', category: 'tooling',
+    question: 'What do the "budgets" in angular.json\'s production configuration enforce?',
+    options: [
+      'Monetary cost limits for cloud deployments',
+      'Bundle SIZE thresholds checked at build time — e.g. type "initial" with maximumWarning/maximumError: exceed the warning and the build prints a warning, exceed the error and the build FAILS, turning bundle bloat into a CI failure instead of a slow app discovered in production',
+      'Time limits on how long ng build may run',
+      'Memory limits for the dev server process',
+    ],
+    answer: 1,
+    topicPath: 'performance',
+    explanation: 'B is correct. Budgets make performance a build contract: "initial" guards the eagerly-loaded bundle set (what every user downloads before first paint), "anyComponentStyle" catches a single component\'s CSS ballooning, and each has warn/error tiers. Because exceeding maximumError breaks the build, a PR that accidentally imports a heavy library eagerly gets caught by CI, not by users. This app raised its style budget deliberately — a conscious decision, which is the point: budgets force the conversation. Why others fail: (A)/(C)/(D) budgets measure ARTIFACT bytes, nothing about money, time or memory.',
+  },
+  {
+    id: 415, type: 'multiple-choice', difficulty: 'mid', category: 'tooling',
+    question: 'A fresh workspace has tsconfig.json, tsconfig.app.json and tsconfig.spec.json. How do they relate?',
+    options: [
+      'Three independent configs that must be kept in sync by hand',
+      'tsconfig.json is the base ("solution") config holding shared compilerOptions (strict, target, angularCompilerOptions); tsconfig.app.json and tsconfig.spec.json EXTEND it, narrowing scope — app compiles main.ts and excludes *.spec.ts, spec includes test files and test typings (its "types" adds the runner\'s globals)',
+      'Only tsconfig.app.json is real; the others are legacy stubs',
+      'They correspond to dev, staging and production builds',
+    ],
+    answer: 1,
+    topicPath: 'cli-project-structure',
+    explanation: 'B is correct. The "extends" chain keeps one source of truth for compiler strictness while letting each COMPILATION UNIT define its own file set: the app build must not compile test files (they would bloat and could break the build — and spec-only types like describe/it do not exist there), while the test build needs exactly those globals via its "types" entry. angular.json points each architect target at the right tsconfig — build → app, test → spec. Add a shared option in the base; add file-set concerns in the leaf. Why others fail: (A) extends exists precisely to avoid manual sync. (C) all three are active. (D) environments are angular.json configurations, not tsconfigs.',
+  },
+  {
+    id: 416, type: 'multiple-choice', difficulty: 'senior', category: 'tooling',
+    question: 'What does "strictTemplates": true under angularCompilerOptions add on top of TypeScript\'s "strict": true?',
+    options: [
+      'Nothing — it is an alias for the same flag',
+      'It extends strict TYPE-CHECKING INTO TEMPLATES: input binding types must match, template expressions are fully checked (including $event and #ref types, async-pipe nullability, @for variables), so a template typo or wrong-typed [input] fails the BUILD instead of misbehaving at runtime',
+      'It forces every template into a separate .html file',
+      'It enables runtime assertions in production templates',
+    ],
+    answer: 1,
+    topicPath: 'why-typescript-angular',
+    explanation: 'B is correct. TypeScript\'s strict flag governs .ts code; templates are compiled by ANGULAR\'s compiler, which has its own checking dial. With strictTemplates, the compiler type-checks binding expressions against component types: `[user]="userName"` (string into a User input) is a compile error, `(input)="onInput($event)"` checks the real event type, and misspelled members in interpolation are caught. Without it, whole classes of template bugs surface only when a user clicks. It is on in new CLI workspaces and is the single highest-value compiler option to verify in an existing repo. Why others fail: (A) different compilers, different flags. (C) inline vs file templates are both checked. (D) all checking is compile-time.',
+  },
+  {
+    id: 417, type: 'multiple-choice', difficulty: 'senior', category: 'tooling',
+    question: 'How does `ng build --configuration production` change what gets built, mechanically?',
+    options: [
+      'It only sets NODE_ENV and hopes libraries react',
+      'It selects the named entry under the build target\'s "configurations" in angular.json, which OVERRIDES the default options for that run — enabling optimization/minification, output hashing for cache busting, budgets, and (classically) fileReplacements swapping environment files — while development keeps sourcemaps and skips optimization',
+      'It runs the same build twice and diffs the output',
+      'Production builds use a different framework version',
+    ],
+    answer: 1,
+    topicPath: 'cli-project-structure',
+    explanation: 'B is correct. "configurations" are named option-override sets on a target; -c production merges that set over the target\'s base options. Modern defaults: production turns on optimization (minify, tree-shake, CSS optimization), outputHashing: "all" (immutable-cacheable file names), extractLicenses and budget enforcement; development keeps fast rebuilds with sourcemaps. fileReplacements is the traditional environment mechanism (environment.ts → environment.prod.ts). serve borrows via "buildTarget". defaultConfiguration decides what plain `ng build` means — production in recent CLIs. Why others fail: (A) it is declarative config selection, not env vars. (C)/(D) one build, one framework.',
+  },
+  {
+    id: 418, type: 'spot-the-bug', difficulty: 'senior', category: 'tooling',
+    question: 'CI builds fail with "Cannot find name describe" — locally everything compiles. The developer recently "cleaned up" a tsconfig. What was the likely change?',
+    code: `// tsconfig.app.json (after the cleanup)
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "outDir": "./out-tsc/app" },
+  "files": ["src/main.ts"]
+  // "exclude": ["src/**/*.spec.ts"]  <- removed as "redundant"
+}`,
+    options: [
+      'Nothing here matters; CI needs a newer Node version',
+      'Removing the spec exclusion let the APP compilation sweep in test files (via include defaults/imports), and the app tsconfig has no test "types" — so describe/it have no declarations there. Test files must stay OUT of tsconfig.app.json; they belong to tsconfig.spec.json, whose "types" provides the runner globals',
+      'describe must be imported from @angular/core in every spec',
+      '"files" and "extends" cannot be used together',
+    ],
+    answer: 1,
+    topicPath: 'cli-project-structure',
+    explanation: 'B is correct. The two leaf tsconfigs exist to keep two DIFFERENT file sets compiling with two different ambient type sets: the app compilation must never see *.spec.ts (their globals come from the test runner\'s type package, listed only in tsconfig.spec.json\'s "types"). With the exclude gone, spec files enter the app program — and every describe/it/expect is an unknown identifier there. It often "works locally" because the dev only ran ng serve with a warm cache or an editor using the spec config. Why others fail: (A) it is a TypeScript program-membership issue, not Node. (C) test globals are ambient, not framework imports. (D) they combine fine — files pins entry points, extends inherits options.',
+  },
+
+  // --- TESTING (.spec.ts files) ---
+  {
+    id: 419, type: 'multiple-choice', difficulty: 'junior', category: 'testing',
+    question: 'ng generate component user-card created user-card.spec.ts alongside the .ts/.html/.css. What is that file?',
+    options: [
+      'A backup copy the CLI keeps for rollbacks',
+      'The component\'s UNIT TEST file: a describe() suite with it() cases run by ng test, colocated with the component so tests live and move with the code they verify — the CLI seeds it with a TestBed setup and a "should create" smoke test',
+      'A TypeScript specification the compiler validates the component against',
+      'An end-to-end test that drives the full app in a browser',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. The .spec.ts suffix is the test-file convention tsconfig.spec.json and the test runner are wired to pick up. Colocation is deliberate: the test sits next to the component (not in a parallel test/ tree), so renames, moves and reviews keep them together — the file structure itself nags you when a component has no spec. The generated seed compiles the component via TestBed and asserts it constructs; your real behavioral tests replace that placeholder. Why others fail: (A) nothing CLI-generated is a backup. (C) the type-checker uses types, not spec files. (D) e2e tests live in a separate project/tooling; specs are fast, isolated unit tests.',
+  },
+  {
+    id: 420, type: 'multiple-choice', difficulty: 'junior', category: 'testing',
+    question: 'In a spec file, what are describe, it and expect respectively?',
+    options: [
+      'Angular decorators registered by TestBed',
+      'describe(name, fn) groups related tests into a suite; each it(name, fn) is ONE test case whose name should read as a behavior sentence; expect(actual) starts an assertion completed by a matcher like .toBe(expected) — the runner reports pass/fail per it()',
+      'Three aliases for console.log used in tests',
+      'Keywords TypeScript itself understands only in .spec.ts files',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. This trio is the near-universal test grammar (Jasmine, Jest and Vitest all share it): suites nest via describe for organization, it names ONE observable behavior ("clamps at zero on -"), and expect(...).matcher(...) performs the check — .toBe (Object.is), .toEqual (deep), .toContain, .toThrow. They are global functions provided by the runner, whose type declarations come in via tsconfig.spec.json\'s "types" — which is why they exist in specs and are compile errors in app code. Why others fail: (A) they predate and sit outside Angular. (C) they control test execution and reporting. (D) TypeScript knows them only through those type declarations, not as language keywords.',
+  },
+  {
+    id: 421, type: 'multiple-choice', difficulty: 'mid', category: 'testing',
+    question: 'Why does the generated spec create the component inside beforeEach with TestBed.configureTestingModule?',
+    options: [
+      'A quirk kept for backwards compatibility with AngularJS',
+      'beforeEach re-runs before EVERY it(), giving each test a FRESH TestBed module and component fixture — no state leaking between tests (test order becomes irrelevant); TestBed builds a real Angular environment where the component gets DI, lifecycle hooks and a rendered DOM, with providers swappable for fakes',
+      'Components can only be instantiated once per file',
+      'It caches the component so all tests share one instance for speed',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. Two ideas compose here. Isolation: beforeEach means test #3 gets the same pristine component as test #1 — a test that passes alone and fails in the suite (or vice versa) is almost always shared state, and this pattern eliminates it. Realism with control: TestBed compiles the component into a real module-like environment (imports: [MyComponent] for standalone), wires DI so inject() works, and its providers array is where you substitute { provide: ApiService, useValue: fake } — the seam that makes components testable without real HTTP. Why others fail: (A) it is current practice. (C) you can create many. (D) sharing an instance is exactly the anti-pattern beforeEach prevents.',
+  },
+  {
+    id: 422, type: 'predict-output', difficulty: 'mid', category: 'testing',
+    question: 'The name renders into the <h1>. What does this test print?',
+    code: `const fixture = TestBed.createComponent(Greeting);
+fixture.componentInstance.name = 'Ada';
+console.log('1:', fixture.nativeElement.querySelector('h1').textContent);
+fixture.detectChanges();
+console.log('2:', fixture.nativeElement.querySelector('h1').textContent);`,
+    options: [
+      '1: Hello Ada — 2: Hello Ada; binding is synchronous',
+      '1: (empty) — 2: Hello Ada. The fixture does NOT auto-render: until the first detectChanges() the template has never been bound (no interpolation ran), and each subsequent state change also needs an explicit detectChanges() before DOM assertions',
+      'A runtime error: componentInstance is read-only in tests',
+      '1: Hello — 2: Hello Ada; the static part renders eagerly',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. TestBed hands YOU the change-detection trigger so tests can assert intermediate states deterministically. createComponent instantiates the class and creates the DOM skeleton, but no binding has executed — interpolations are empty until the first detectChanges(), which also fires ngOnInit. After that, mutations still need explicit detectChanges() calls (in zone-based test setups) because nothing is watching. The practical rhythm burned into every component test: arrange → detectChanges → act → detectChanges → assert. Signal-based components with zoneless auto-detection relax this, but the fixture contract is what specs are written against. Why others fail: (A) rendering is explicitly manual in tests. (C) componentInstance is a normal writable instance. (D) not even static template parts are flushed before the first CD run.',
+  },
+  {
+    id: 423, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'What does wrapping a test in fakeAsync(() => { … }) with tick() enable, versus using real async/await?',
+    options: [
+      'It runs the test in a Web Worker for isolation',
+      'fakeAsync patches timers into a VIRTUAL clock: setTimeout/debounce/interval work but only advance when YOU call tick(ms) — a 300ms debounce test completes instantly and deterministically (tick(300)), with no real waiting and no flakiness; flush() drains everything pending',
+      'It silently converts all promises to synchronous functions everywhere',
+      'It is required for any test that touches HttpClient',
+    ],
+    answer: 1,
+    topicPath: 'testing-components',
+    explanation: 'B is correct. Time is the classic source of slow, flaky tests. Inside a fakeAsync zone, scheduled timers and microtasks land in a controlled queue; tick(300) says "pretend 300ms elapsed" and runs exactly what is due — the debounced search test asserts nothing fired at tick(299) and everything at tick(1) more, in microseconds of real time. flush() runs all pending timers; forgetting to drain them fails the test with "timers still in queue" — a feature, catching leaked intervals. Real async/await tests wait wall-clock time and can race. Why others fail: (A) no workers involved. (C) promises resolve via the controlled microtask queue, not synchronously-everywhere. (D) HttpTestingController is synchronous already — fakeAsync is about TIME, not HTTP.',
+  },
+  {
+    id: 424, type: 'multiple-choice', difficulty: 'senior', category: 'testing',
+    question: 'How does provideHttpClientTesting() + HttpTestingController let a service spec verify HTTP behavior without a network?',
+    options: [
+      'It spins up a local mock server on port 4200',
+      'It swaps HttpClient\'s backend for a test double that records requests instead of sending them: the spec triggers the service call, expectOne(url) asserts exactly one matching request left (and returns its details for header/body assertions), flush(fakeData) answers it, and verify() in afterEach fails the test if unexpected requests remain',
+      'It records real API responses once and replays them forever',
+      'It makes HttpClient return undefined so tests skip HTTP paths',
+    ],
+    answer: 1,
+    topicPath: 'testing-services-http',
+    explanation: 'B is correct. The providers pair (provideHttpClient(), provideHttpClientTesting()) replaces the real backend, so the service under test runs its genuine request-building code — URL, params, headers, interceptors — while nothing touches the network. The controller inverts control: the TEST decides when and how each request resolves, including error cases via req.flush(body, { status: 500, statusText: … }) that are nearly impossible to produce reliably against a live API. expectOne doubles as an assertion (two identical requests = failure = caught duplicate-call bug), and httpMock.verify() closes the loop on requests your code made that the test never expected. Why others fail: (A)/(C) no server, no recording — pure in-memory doubles. (D) requests are captured, not nulled.',
   },
 ];
 

@@ -87,7 +87,7 @@ function saveProgress(states: PracticeStates): void {
       <span class="pill">Interactive Practice</span>
       <h1>Practice Challenges</h1>
       <p>
-        392 challenges across all levels — spot bugs, predict output, and answer
+        424 challenges across all levels — spot bugs, predict output, and answer
         multiple-choice questions. Every answer comes with a full explanation.
         Questions are randomized each session.
       </p>
@@ -266,6 +266,8 @@ export class Practice {
   readonly categoryFilters: { id: Category; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'components', label: 'Components' },
+    { id: 'templates', label: 'Templates & HTML' },
+    { id: 'styling', label: 'Styling & CSS' },
     { id: 'signals', label: 'Signals' },
     { id: 'rxjs', label: 'RxJS' },
     { id: 'forms', label: 'Forms' },
@@ -277,6 +279,7 @@ export class Practice {
     { id: 'a11y', label: 'Accessibility' },
     { id: 'state', label: 'State & Architecture' },
     { id: 'i18n', label: 'i18n' },
+    { id: 'tooling', label: 'Tooling & Config' },
   ];
 
   readonly diffFilters: { id: 'all' | Difficulty; label: string }[] = [

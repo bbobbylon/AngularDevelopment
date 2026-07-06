@@ -710,4 +710,626 @@ export const appConfig: ApplicationConfig = {
       'Grading hinges on the immutability and error-transparency contracts. HttpRequest is immutable BY DESIGN so that a retried request is identical to the original — mutating req in place is both impossible (readonly) and conceptually wrong; clone({ setHeaders }) is the sanctioned path. The /auth/ skip prevents the classic login-loop: a stale token attached to the login call itself 401s, which logs you out of the login page. Rethrowing NON-401 errors is what keeps component-level error handling working — an interceptor that swallows errors turns every failed request into a silent hang downstream. The functional style (HttpInterceptorFn + inject) is the current API; withInterceptors places it in the ordered chain, and 401-vs-403 discrimination (unauthenticated vs unauthorized) is the follow-up a grader will probe.',
     topicPath: 'http-interceptors',
   },
+  {
+    id: 9,
+    title: 'Custom truncate pipe with word-boundary logic',
+    difficulty: 'junior',
+    category: 'Pipes',
+    timeboxMinutes: 15,
+    scenario:
+      'Build a standalone truncate pipe: {{ text | truncate:25 }} shortens long text to at most the given number of characters and appends an ellipsis (…). The limit is optional and defaults to 50, strings already within the limit pass through untouched, and the cut must land on a word boundary — never mid-word.',
+    requirements: [
+      'The pipe is standalone, named truncate, and implements PipeTransform',
+      'transform takes an optional limit parameter defaulting to 50',
+      'Strings at or under the limit are returned unchanged (no stray ellipsis)',
+      'Longer strings are cut at the last word boundary before the limit, then … is appended',
+      'The pipe stays pure (no pure: false) — and you can say why that is correct here',
+    ],
+    starterCode: `import { Pipe, PipeTransform } from '@angular/core';
+
+@Pipe({ name: 'truncate' })
+export class TruncatePipe implements PipeTransform {
+  transform(value: string): string {
+    // TODO
+    return value;
+  }
+}
+
+// Usage to make work:
+// {{ post.body | truncate:25 }}
+// {{ post.body | truncate }}      <- default limit 50`,
+    hints: [
+      'An optional parameter with a default gives you both call forms: transform(value: string, limit = 50).',
+      'slice(0, limit) first, then lastIndexOf(" ") on the slice to back up to the previous word boundary.',
+      'Pure pipes re-run only when the input REFERENCE changes. Strings are immutable primitives, so a changed string is always a new reference — purity costs you nothing and skips re-running on every change-detection pass.',
+    ],
+    solutionCode: `import { Pipe, PipeTransform } from '@angular/core';
+
+@Pipe({ name: 'truncate' })
+export class TruncatePipe implements PipeTransform {
+  transform(value: string, limit = 50): string {
+    if (!value || value.length <= limit) return value;
+    const cut = value.slice(0, limit);
+    const lastSpace = cut.lastIndexOf(' ');
+    return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut) + '…';
+  }
+}`,
+    explanation:
+      'The grading points: the early return for short strings (a pipe that appends … to everything fails the pass-through requirement), the word-boundary back-off (slice then lastIndexOf, with the lastSpace > 0 guard so a single long word still truncates instead of returning empty), and the default parameter making the limit optional. The purity question is the conceptual check: pipes are pure by default and only re-execute when the input reference changes — since strings are immutable, every new value IS a new reference, so pure is both correct and fast. Reaching for pure: false here is the classic overkill answer; it would re-run the pipe on every change-detection cycle for zero benefit.',
+    topicPath: 'custom-pipes',
+  },
+  {
+    id: 10,
+    title: 'Hover-highlight attribute directive',
+    difficulty: 'mid',
+    category: 'Directives',
+    timeboxMinutes: 25,
+    scenario:
+      'Build an [appHighlight] attribute directive: while the pointer hovers the host element its background becomes the configured color, and it clears on leave. The color is passed through the selector itself — appHighlight="tomato" — and an empty value falls back to gold. Use host metadata and signals, not @HostListener/@HostBinding decorators or manual addEventListener.',
+    requirements: [
+      'Standalone directive with selector [appHighlight]',
+      'The color input is ALIASED to the selector, so appHighlight="tomato" configures it — no second attribute',
+      'mouseenter/mouseleave are wired via the host metadata object, and hover state lives in a signal',
+      'The background binds via host metadata too, falling back to gold when the input is empty, and clearing (null) when not hovered',
+      'It works on any element: <p appHighlight>, <button appHighlight="teal">',
+    ],
+    starterCode: `import { Directive } from '@angular/core';
+
+@Directive({
+  selector: '[appHighlight]',
+})
+export class Highlight {
+  // TODO: aliased color input + hover state + host bindings
+}
+
+// Usage to make work:
+// <p appHighlight>Hovers gold (default)</p>
+// <button appHighlight="teal">Hovers teal</button>`,
+    hints: [
+      'input() takes an options object with an alias: input("", { alias: "appHighlight" }).',
+      'The host object maps events and bindings declaratively: { "(mouseenter)": "…", "[style.backgroundColor]": "…" }.',
+      'Binding null to a style REMOVES it — the ternary should produce null in the not-hovered branch, not an empty string.',
+    ],
+    solutionCode: `import { Directive, input, signal } from '@angular/core';
+
+@Directive({
+  selector: '[appHighlight]',
+  host: {
+    '(mouseenter)': 'hovered.set(true)',
+    '(mouseleave)': 'hovered.set(false)',
+    '[style.backgroundColor]': 'hovered() ? (color() || "gold") : null',
+  },
+})
+export class Highlight {
+  /** Aliased to the selector: appHighlight="tomato" sets this input. */
+  readonly color = input('', { alias: 'appHighlight' });
+  readonly hovered = signal(false);
+}
+
+/* Parent:
+@Component({
+  imports: [Highlight],
+  template: \`
+    <p appHighlight>Hovers gold (default)</p>
+    <button appHighlight="teal">Hovers teal</button>
+  \`,
+})
+export class Demo {}
+*/`,
+    explanation:
+      'Three grader checkpoints. First, the alias trick: aliasing the input to the selector name is the idiomatic pattern for single-input directives (ngModel, routerLink all do it) — it is what lets appHighlight="teal" both attach the directive and configure it. Second, host metadata over decorators: the host object is the current style guide recommendation (@HostListener/@HostBinding still work but the metadata form is declarative, tree-shakes better, and keeps all host interaction visible in one place). Third, the null branch: style bindings remove the style when the expression is null/undefined, which is how the highlight cleanly disappears on mouseleave — an empty-string background is a subtle bug (it overrides inherited backgrounds with "nothing"). Renderer2/addEventListener answers work but miss the point of the declarative API.',
+    topicPath: 'attribute-directives',
+  },
+  {
+    id: 11,
+    title: 'Multi-slot card with content projection',
+    difficulty: 'mid',
+    category: 'Components',
+    timeboxMinutes: 25,
+    scenario:
+      'Build a reusable <app-card> shell with three projection slots: a title area, a default body, and a footer. Parents target the title and footer with attributes (card-title, card-footer); anything unmatched flows into the body. When a parent projects no title, the card shows "Untitled card" as fallback content.',
+    requirements: [
+      'app-card is standalone and renders three <ng-content> slots',
+      'Title and footer slots select on ATTRIBUTES: select="[card-title]" and select="[card-footer]"',
+      'Content matching neither selector lands in the default (unselected) slot',
+      'The title slot renders fallback content ("Untitled card") when nothing is projected into it',
+      'A demo parent projects into all three slots to prove the routing',
+    ],
+    starterCode: `import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-card',
+  template: \`
+    <div class="card">
+      <!-- TODO: header slot / body slot / footer slot -->
+    </div>
+  \`,
+})
+export class Card {}
+
+// Parent usage to make work:
+// <app-card>
+//   <h3 card-title>Quarterly report</h3>
+//   <p>Body paragraph one…</p>
+//   <p>Body paragraph two…</p>
+//   <button card-footer>Read more</button>
+// </app-card>`,
+    hints: [
+      'select takes a CSS selector — [card-title] matches any element carrying that attribute.',
+      'The slot WITHOUT a select attribute is the catch-all: every unmatched top-level node projects there.',
+      'Fallback content goes between the ng-content tags: <ng-content select="[card-title]">Untitled card</ng-content> — it renders only when nothing matches.',
+    ],
+    solutionCode: `import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-card',
+  template: \`
+    <div class="card">
+      <header class="card-head">
+        <ng-content select="[card-title]">Untitled card</ng-content>
+      </header>
+      <section class="card-body">
+        <ng-content />
+      </section>
+      <footer class="card-foot">
+        <ng-content select="[card-footer]" />
+      </footer>
+    </div>
+  \`,
+  styles: [\`
+    .card { border: 1px solid #ddd; border-radius: 12px; overflow: hidden; }
+    .card-head { padding: 12px 16px; background: #f8f8f8; font-weight: 600; }
+    .card-body { padding: 16px; }
+    .card-foot { padding: 10px 16px; border-top: 1px solid #eee; }
+  \`],
+})
+export class Card {}
+
+/* Parent:
+@Component({
+  imports: [Card],
+  template: \`
+    <app-card>
+      <h3 card-title>Quarterly report</h3>
+      <p>Body paragraph one…</p>
+      <p>Body paragraph two…</p>
+      <button card-footer>Read more</button>
+    </app-card>
+  \`,
+})
+export class Demo {}
+*/`,
+    explanation:
+      'Projection routing is a first-match system: each top-level projected node is tested against the selected slots and falls through to the unselected catch-all — which is why BOTH body paragraphs land in the middle slot without any selector. Attribute selectors (select="[card-title]") are preferred over element selectors for slots because they compose with any element (h1 today, div tomorrow) instead of forcing a tag. The fallback content between the ng-content tags is the modern (v18+) answer to "did anyone project a title?" — the old workaround was wrapping the slot in a div and sniffing children in AfterContentInit, an order of magnitude more code. One trap a grader probes: projected content belongs to the PARENT (its bindings, its lifecycle) — ng-content is a rendering slot, not a component boundary, so wrapping a slot in @if does not lazily create the projected nodes.',
+    topicPath: 'content-projection',
+  },
+  {
+    id: 12,
+    title: 'Typed configuration with an InjectionToken',
+    difficulty: 'senior',
+    category: 'Dependency Injection',
+    timeboxMinutes: 30,
+    scenario:
+      'Give an app typed, injectable configuration: an InjectionToken<ApiConfig> carrying { baseUrl, version } with a tree-shakable root default, consumed via inject() in an ApiService that builds request URLs from it, and overridable per-environment (or per-test) with a single provider entry. No string tokens, no config imports inside the service.',
+    requirements: [
+      'API_CONFIG is an InjectionToken<ApiConfig> — the interface types every consumer and provider',
+      'The token declares a providedIn: "root" factory default, so zero providers are needed for the happy path',
+      'ApiService reads it with inject(API_CONFIG) — no constructor parameter decorators',
+      'buildUrl(path) composes baseUrl + version + path purely from the injected config',
+      'A test or bootstrap override swaps the config with { provide: API_CONFIG, useValue: … } and a wrong shape fails to compile',
+    ],
+    starterCode: `import { Injectable } from '@angular/core';
+
+export interface ApiConfig {
+  baseUrl: string;
+  version: string;
+}
+
+// TODO: the token with a root-level default factory
+
+@Injectable({ providedIn: 'root' })
+export class ApiService {
+  // TODO: inject the token and implement buildUrl
+  buildUrl(path: string): string {
+    return path;
+  }
+}
+
+// Must support:
+// apiService.buildUrl('users/7')  -> 'https://api.example.com/v1/users/7'
+// TestBed override:
+// { provide: API_CONFIG, useValue: { baseUrl: 'http://localhost:3000', version: 'v2' } }`,
+    hints: [
+      'new InjectionToken<ApiConfig>("API_CONFIG", { providedIn: "root", factory: () => ({ … }) }) — the factory IS the default value.',
+      'Interfaces vanish at runtime, which is exactly why they cannot be DI tokens themselves — the token object is the runtime handle, the generic is the compile-time contract.',
+      'In a spec: TestBed.configureTestingModule({ providers: [{ provide: API_CONFIG, useValue: fake }] }) — the explicit provider wins over the token default.',
+    ],
+    solutionCode: `import { Injectable, InjectionToken, inject } from '@angular/core';
+
+export interface ApiConfig {
+  baseUrl: string;
+  version: string;
+}
+
+export const API_CONFIG = new InjectionToken<ApiConfig>('API_CONFIG', {
+  providedIn: 'root',
+  factory: () => ({ baseUrl: 'https://api.example.com', version: 'v1' }),
+});
+
+@Injectable({ providedIn: 'root' })
+export class ApiService {
+  private readonly config = inject(API_CONFIG);
+
+  buildUrl(path: string): string {
+    return \`\${this.config.baseUrl}/\${this.config.version}/\${path}\`;
+  }
+}
+
+/* Override — per environment bootstrap or per test:
+providers: [
+  { provide: API_CONFIG, useValue: { baseUrl: 'http://localhost:3000', version: 'v2' } },
+]
+
+TypeScript enforces the shape:
+{ provide: API_CONFIG, useValue: { baseUrl: 123 } }   // compile error
+*/`,
+    explanation:
+      'The senior insight is WHY the token exists: interfaces are erased at compile time, so "inject the ApiConfig interface" is impossible — the InjectionToken is the runtime stand-in, and its generic parameter is what makes every useValue and every inject() call type-checked. The factory default is the tree-shakable pattern: no NgModule/bootstrap provider entry needed, and apps that never inject it pay nothing. The override mechanics are plain DI precedence — an explicit provider at any level beats the token default, which is what makes per-test fakes one line. Graders probe two failure modes: hardcoding config inside the service (now untestable without patching globals) and using a string token ("api.config"), which typos silently at runtime instead of failing at compile time.',
+    topicPath: 'di-providers',
+  },
+  {
+    id: 13,
+    title: 'Component spec: render, interact, assert',
+    difficulty: 'mid',
+    category: 'Testing',
+    timeboxMinutes: 30,
+    scenario:
+      'You are handed a working signal-based Counter component (shown in the starter). Write its spec: verify the initial render, that clicking + increments the DISPLAYED value, and that clicking - at zero clamps rather than going negative. Assert against the DOM, not just component fields, and detect changes correctly around each interaction.',
+    requirements: [
+      'TestBed.configureTestingModule imports the standalone component; the fixture is created fresh in beforeEach',
+      'The initial-render test asserts "Count: 0" from the rendered DOM (nativeElement / By.css)',
+      'The increment test simulates a real click on the + button and calls fixture.detectChanges() BEFORE asserting',
+      'A separate test proves decrement at 0 stays at 0 (the clamp)',
+      'Buttons are located by their rendered text or a data-testid — not by brittle nth-child positions',
+    ],
+    starterCode: `// counter.ts (GIVEN — do not modify)
+import { Component, signal } from '@angular/core';
+
+@Component({
+  selector: 'app-counter',
+  template: \`
+    <p>Count: {{ count() }}</p>
+    <button (click)="decrement()">-</button>
+    <button (click)="increment()">+</button>
+  \`,
+})
+export class Counter {
+  readonly count = signal(0);
+  increment(): void { this.count.update((c) => c + 1); }
+  decrement(): void { this.count.update((c) => Math.max(0, c - 1)); }
+}
+
+// counter.spec.ts — TODO: write the spec
+describe('Counter', () => {
+  // …
+});`,
+    hints: [
+      'Standalone components go in imports, not declarations: TestBed.configureTestingModule({ imports: [Counter] }).',
+      'Find buttons robustly: fixture.debugElement.queryAll(By.css("button")).find(b => b.nativeElement.textContent.trim() === "+").',
+      'The fixture does not auto-detect: click, THEN fixture.detectChanges(), THEN read the paragraph text.',
+    ],
+    solutionCode: `import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { Counter } from './counter';
+
+describe('Counter', () => {
+  let fixture: ComponentFixture<Counter>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [Counter] }).compileComponents();
+    fixture = TestBed.createComponent(Counter);
+    fixture.detectChanges(); // initial render
+  });
+
+  function text(): string {
+    return fixture.nativeElement.querySelector('p').textContent.trim();
+  }
+
+  function button(label: string): HTMLButtonElement {
+    return fixture.debugElement
+      .queryAll(By.css('button'))
+      .find((b) => b.nativeElement.textContent.trim() === label)!.nativeElement;
+  }
+
+  it('renders the initial count', () => {
+    expect(text()).toBe('Count: 0');
+  });
+
+  it('increments the displayed count on +', () => {
+    button('+').click();
+    fixture.detectChanges();
+    expect(text()).toBe('Count: 1');
+  });
+
+  it('clamps at zero on -', () => {
+    button('-').click();
+    fixture.detectChanges();
+    expect(text()).toBe('Count: 0');
+  });
+});`,
+    explanation:
+      'What separates a passing spec from a good one here: asserting the DOM. A test that calls component.increment() and expects component.count() === 1 never proves the template binding works — the certification rubric explicitly wants the rendered output checked. The detectChanges choreography is the other core skill: the click handler updates the signal, but the fixture re-renders only when you ask (outside zoneless auto-detect setups), so click → detectChanges → assert is the rhythm. Locating buttons by text keeps the spec resilient to template reshuffles; nth-child selectors are the flaky-test smell graders dock. The clamp test earns its own it() because it encodes a REQUIREMENT, not an implementation detail — if someone later removes Math.max, exactly one clearly-named test goes red.',
+    topicPath: 'testing-components',
+  },
+  {
+    id: 14,
+    title: 'Defer a heavy chart with @defer',
+    difficulty: 'mid',
+    category: 'Performance',
+    timeboxMinutes: 20,
+    scenario:
+      'A dashboard renders a heavy <app-sales-chart> far below the fold. Keep its code out of the initial bundle and its rendering off the critical path: defer it until it scrolls into view, show a fixed-height skeleton before then, show a loading indicator (minimum 500ms, to avoid a flash) while the chunk downloads, handle load failure, and prefetch the chunk during browser idle time so the swap feels instant.',
+    requirements: [
+      'The chart renders inside @defer (on viewport) — not at page load',
+      '@placeholder shows a fixed-height skeleton so the page does not jump when the chart swaps in',
+      '@loading (minimum 500ms) shows while the deferred chunk loads',
+      '@error renders a fallback if the chunk fails to load',
+      'prefetch on idle fetches the chunk early WITHOUT rendering it — and the chart component is referenced nowhere else eagerly (otherwise it silently joins the main bundle)',
+    ],
+    starterCode: `import { Component } from '@angular/core';
+import { SalesChart } from './sales-chart';
+
+@Component({
+  selector: 'app-dashboard',
+  imports: [SalesChart],
+  template: \`
+    <h1>Dashboard</h1>
+    <p>KPIs, tables, and 2000px of content above the fold…</p>
+
+    <!-- TODO: defer this -->
+    <app-sales-chart />
+  \`,
+})
+export class Dashboard {}`,
+    hints: [
+      'The full shape: @defer (on viewport; prefetch on idle) { … } @placeholder { … } @loading (minimum 500ms) { … } @error { … }.',
+      'on viewport needs something IN the viewport to observe — the @placeholder block serves as that anchor.',
+      'Deferability is a compiler decision: the component must be standalone and referenced ONLY inside @defer blocks. One stray eager reference (even in the same file) and it is bundled eagerly with no warning.',
+    ],
+    solutionCode: `import { Component } from '@angular/core';
+import { SalesChart } from './sales-chart';
+
+@Component({
+  selector: 'app-dashboard',
+  imports: [SalesChart],
+  template: \`
+    <h1>Dashboard</h1>
+    <p>KPIs, tables, and 2000px of content above the fold…</p>
+
+    @defer (on viewport; prefetch on idle) {
+      <app-sales-chart />
+    } @placeholder {
+      <div class="chart-skeleton" style="height: 320px">Chart loads when visible…</div>
+    } @loading (minimum 500ms) {
+      <div class="chart-skeleton" style="height: 320px">Loading chart…</div>
+    } @error {
+      <p role="alert">The chart failed to load. Refresh to retry.</p>
+    }
+  \`,
+})
+export class Dashboard {}`,
+    explanation:
+      'Two distinct wins are being tested and they are not the same thing: @defer splits the CODE (SalesChart lands in its own lazy chunk, shrinking the initial bundle) AND delays the RENDER (no chart work until the trigger fires). prefetch on idle decouples fetching from rendering — the chunk downloads during idle time, so when the user scrolls down the swap is instant, but the rendering cost is still deferred. The placeholder doubles as the IntersectionObserver anchor for on viewport and its fixed height prevents layout shift (a Core Web Vitals point graders watch). minimum 500ms on @loading prevents the 50ms spinner flash on fast connections. The silent killer requirement is the last one: the compiler only makes a component deferrable if every reference to it is inside @defer blocks — a single eager reference elsewhere quietly pulls it into the main bundle, which is why you verify with the build stats, not by trusting the template.',
+    topicPath: 'deferrable-views',
+  },
+  {
+    id: 15,
+    title: 'Star rating as a ControlValueAccessor',
+    difficulty: 'senior',
+    category: 'Forms',
+    timeboxMinutes: 40,
+    scenario:
+      'Take a star-rating widget and make it a first-class form control: usable with formControlName inside a reactive form, initialized by the form value, propagating clicks back to the form, marking itself touched on blur, and honoring form.disable(). Implement ControlValueAccessor and register it with NG_VALUE_ACCESSOR.',
+    requirements: [
+      'The component implements ControlValueAccessor: writeValue, registerOnChange, registerOnTouched, setDisabledState',
+      'It provides itself via NG_VALUE_ACCESSOR with multi: true (and forwardRef or an arrow provider)',
+      'Form → view: writeValue updates the rendered stars when the form sets a value',
+      'View → form: clicking star N calls the registered onChange(N); leaving the widget calls onTouched (touched/dirty semantics work)',
+      'form.disable() visibly disables the stars and blocks clicks — no (click) handlers firing while disabled',
+    ],
+    starterCode: `import { Component, signal } from '@angular/core';
+
+// Make this work:
+// <form [formGroup]="form">
+//   <app-star-rating formControlName="rating" />
+// </form>
+// this.form = fb.group({ rating: [3] });
+// this.form.controls.rating.disable();
+
+@Component({
+  selector: 'app-star-rating',
+  template: \`
+    @for (star of [1, 2, 3, 4, 5]; track star) {
+      <button type="button" (click)="rate(star)">
+        {{ star <= value() ? '★' : '☆' }}
+      </button>
+    }
+  \`,
+})
+export class StarRating {
+  readonly value = signal(0);
+  rate(star: number): void {
+    this.value.set(star);
+  }
+}`,
+    hints: [
+      'The provider: { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => StarRating), multi: true } — multi because many CVAs can coexist in one injector.',
+      'Store the callbacks: registerOnChange hands you the function the FORM wants called on every user change; default them to no-ops so the component also works outside a form.',
+      'writeValue must NOT call onChange — it is the form talking to you, and echoing it back can loop. Track touched with a (focusout) on a wrapper so tabbing away marks the control touched.',
+    ],
+    solutionCode: `import { Component, forwardRef, signal } from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
+@Component({
+  selector: 'app-star-rating',
+  providers: [
+    { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => StarRating), multi: true },
+  ],
+  template: \`
+    <span (focusout)="markTouched()">
+      @for (star of [1, 2, 3, 4, 5]; track star) {
+        <button type="button"
+          [disabled]="disabled()"
+          [attr.aria-label]="'Rate ' + star + ' of 5'"
+          (click)="rate(star)">
+          {{ star <= value() ? '★' : '☆' }}
+        </button>
+      }
+    </span>
+  \`,
+  styles: [\`button { border: none; background: none; cursor: pointer; font-size: 1.3rem; } button:disabled { cursor: default; opacity: .45; }\`],
+})
+export class StarRating implements ControlValueAccessor {
+  readonly value = signal(0);
+  readonly disabled = signal(false);
+
+  private onChange: (value: number) => void = () => {};
+  private onTouched: () => void = () => {};
+
+  // --- form -> view ---
+  writeValue(value: number | null): void {
+    this.value.set(value ?? 0);
+  }
+  setDisabledState(isDisabled: boolean): void {
+    this.disabled.set(isDisabled);
+  }
+
+  // --- plumbing: the form hands us its callbacks ---
+  registerOnChange(fn: (value: number) => void): void {
+    this.onChange = fn;
+  }
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  // --- view -> form ---
+  rate(star: number): void {
+    if (this.disabled()) return;
+    this.value.set(star);
+    this.onChange(star);
+  }
+  markTouched(): void {
+    this.onTouched();
+  }
+}`,
+    explanation:
+      'CVA is a two-way protocol and the grading follows the directions of data flow. Form → view: writeValue (initial value, setValue/reset) and setDisabledState (form.disable()) — crucially writeValue must not re-emit through onChange, or setValue loops and dirties the control the form just cleaned. View → form: the component never talks to the FormControl directly; it calls the callbacks the form REGISTERED, which is what keeps the widget reusable in template-driven forms too. The no-op defaults matter — they let the component render outside any form without null checks. NG_VALUE_ACCESSOR is multi: true because the injector collects accessors and formControlName picks the match; forwardRef breaks the class-referencing-itself-in-its-own-decorator cycle. The senior follow-up a grader asks: why does [disabled] on the button beat a CSS-only disable? Because setDisabledState must actually prevent interaction (clicks on pointer-events:none elements still fire via keyboard), and real <button disabled> is the accessible answer.',
+    topicPath: 'control-value-accessor',
+  },
+  {
+    id: 16,
+    title: 'OnPush todo list with immutable updates',
+    difficulty: 'senior',
+    category: 'Change Detection',
+    timeboxMinutes: 35,
+    scenario:
+      'Build a parent/child todo pair where the child list renders with ChangeDetectionStrategy.OnPush and receives the todos through an input. Add and toggle must update the child correctly WITHOUT any markForCheck/detectChanges calls — meaning every mutation in the parent has to produce new references. Include (in a comment) the one-sentence reason a push()-based version renders stale under OnPush.',
+    requirements: [
+      'TodoList (child) sets changeDetection: ChangeDetectionStrategy.OnPush and takes todos via input()',
+      'Toggling fires an output from the child; the PARENT owns all state changes',
+      'add() replaces the array: [...todos, newTodo] — no push()',
+      'toggle(id) maps to a new array AND a new object for the toggled todo ({ ...t, done: !t.done })',
+      'No manual CD anywhere (no markForCheck, no detectChanges) — and a comment states why mutation breaks OnPush',
+    ],
+    starterCode: `import { Component } from '@angular/core';
+
+export interface Todo { id: number; title: string; done: boolean; }
+
+// Child: render the list, emit toggles. Must be OnPush.
+@Component({
+  selector: 'app-todo-list',
+  template: \`
+    <!-- TODO: @for over todos, click toggles -->
+  \`,
+})
+export class TodoList {
+  // TODO
+}
+
+// Parent: owns the array; add + toggle immutably.
+@Component({
+  selector: 'app-todos',
+  template: \`
+    <input #box placeholder="New todo" />
+    <button (click)="add(box.value); box.value = ''">Add</button>
+    <!-- TODO: <app-todo-list … /> -->
+  \`,
+})
+export class Todos {
+  // TODO
+}`,
+    hints: [
+      'OnPush skips a component unless (among other triggers) an INPUT REFERENCE changed — Object.is comparison, so a pushed-into array is "the same" input.',
+      'toggle needs two new references: the array (so the child re-renders) and the toggled item (so anything OnPush keyed on the item also updates).',
+      'Signal inputs pair naturally with OnPush: input() in the child, and the parent state in a signal it updates with .update(list => …).',
+    ],
+    solutionCode: `import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+
+export interface Todo { id: number; title: string; done: boolean; }
+
+@Component({
+  selector: 'app-todo-list',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <ul>
+      @for (todo of todos(); track todo.id) {
+        <li>
+          <label>
+            <input type="checkbox" [checked]="todo.done" (change)="toggled.emit(todo.id)" />
+            <span [style.textDecoration]="todo.done ? 'line-through' : null">{{ todo.title }}</span>
+          </label>
+        </li>
+      } @empty {
+        <li>Nothing to do 🎉</li>
+      }
+    </ul>
+  \`,
+})
+export class TodoList {
+  readonly todos = input.required<Todo[]>();
+  readonly toggled = output<number>();
+}
+
+@Component({
+  selector: 'app-todos',
+  imports: [TodoList],
+  template: \`
+    <input #box placeholder="New todo" />
+    <button (click)="add(box.value); box.value = ''">Add</button>
+    <app-todo-list [todos]="todos()" (toggled)="toggle($event)" />
+  \`,
+})
+export class Todos {
+  // Why immutability: OnPush re-checks the child only when an input's REFERENCE
+  // changes (Object.is) — todos.push(...) keeps the same array reference, so the
+  // child is skipped and renders stale data.
+  private nextId = 1;
+  readonly todos = signal<Todo[]>([]);
+
+  add(title: string): void {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    this.todos.update((list) => [...list, { id: this.nextId++, title: trimmed, done: false }]);
+  }
+
+  toggle(id: number): void {
+    this.todos.update((list) =>
+      list.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
+    );
+  }
+}`,
+    explanation:
+      'This is the OnPush contract in one artifact: an OnPush component is re-checked when an input reference changes, one of its own template events fires, or a signal it reads changes — and nothing else. todos.push() fails the first clause (same array reference, Object.is says "unchanged", child skipped), which is THE classic stale-view bug and exactly what the required comment must articulate. The fix is structural sharing: a new array for every list change, plus a new object for the changed item — untouched items keep their references, which also keeps @for (track todo.id) cheap since unchanged rows are not re-created. Child events still render correctly even under OnPush (the event-fired clause), which sometimes masks the bug in demos — graders check add() specifically because it has no child event to hide behind. The unidirectional shape (input down, output up, parent owns mutations) is the architecture point: the child stays a pure projection of its inputs, trivially testable and reusable.',
+    topicPath: 'onpush',
+  },
 ];

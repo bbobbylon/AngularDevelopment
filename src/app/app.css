@@ -63,6 +63,26 @@
   text-decoration: none;
 }
 
+/* Review link hosts the due-count badge */
+.topbar__review {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
 /* routerLinkActive sets this class on the matching nav link */
 .topbar__link--active {
   color: var(--accent) !important;

@@ -25,6 +25,14 @@
        routerLinkActive="topbar__link--active">Certification</a>
     <a routerLink="/practice"
        routerLinkActive="topbar__link--active">Practice</a>
+    <a routerLink="/review"
+       routerLinkActive="topbar__link--active"
+       class="topbar__review">
+      Review
+      @if (reviewDue() > 0) {
+        <span class="nav-badge" [attr.aria-label]="reviewDue() + ' reviews due'">{{ reviewDue() }}</span>
+      }
+    </a>
     <a routerLink="/interview"
        routerLinkActive="topbar__link--active">Interview Prep</a>
     <a href="https://angular.dev" target="_blank" rel="noopener">angular.dev ↗</a>
