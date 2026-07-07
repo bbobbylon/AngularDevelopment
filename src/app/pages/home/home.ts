@@ -460,7 +460,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
       h2[data-level='typescript']   { color: #0ea5e9; }
       h2[data-level='beginner']     { color: #059669; }
       h2[data-level='intermediate'] { color: #d97706; }
-      h2[data-level='expert']       { color: #0284c7; }
+      h2[data-level='expert']       { color: #4f46e5; }
       h2[data-level='projects']     { color: #14b8a6; }
       .progress {
         font-size: 0.8rem;
@@ -683,7 +683,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         border-radius: 999px;
         border: 1px solid transparent;
       }
-      .chip--blue   { background: rgba(2, 132, 199, 0.12);  border-color: rgba(2,132,199,.3);  color: #0284c7; }
+      .chip--blue   { background: rgba(99, 102, 241, 0.12); border-color: rgba(99,102,241,.3); color: #6366f1; }
       .chip--teal   { background: rgba(20, 184, 166, 0.12); border-color: rgba(20,184,166,.3); color: #0d9488; }
       .chip--violet { background: rgba(124, 58, 237, 0.12); border-color: rgba(124,58,237,.3); color: #7c3aed; }
       .chip--green  { background: rgba(5, 150, 105, 0.12);  border-color: rgba(5,150,105,.3);  color: #059669; }

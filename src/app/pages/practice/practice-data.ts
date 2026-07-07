@@ -10,6 +10,33 @@ export type Difficulty = 'junior' | 'mid' | 'senior';
 export type Category = 'all' | 'components' | 'templates' | 'styling' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y' | 'state' | 'i18n' | 'tooling';
 export type ChallengeType = 'multiple-choice' | 'spot-the-bug' | 'predict-output' | 'fill-blank';
 
+/** Filter chip lists shared by the Practice, Mock Exam and Flashcards pages. */
+export const CATEGORY_FILTERS: { id: Category; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'components', label: 'Components' },
+  { id: 'templates', label: 'Templates & HTML' },
+  { id: 'styling', label: 'Styling & CSS' },
+  { id: 'signals', label: 'Signals' },
+  { id: 'rxjs', label: 'RxJS' },
+  { id: 'forms', label: 'Forms' },
+  { id: 'routing', label: 'Routing' },
+  { id: 'testing', label: 'Testing' },
+  { id: 'performance', label: 'Performance' },
+  { id: 'typescript', label: 'TypeScript' },
+  { id: 'security', label: 'Security' },
+  { id: 'a11y', label: 'Accessibility' },
+  { id: 'state', label: 'State & Architecture' },
+  { id: 'i18n', label: 'i18n' },
+  { id: 'tooling', label: 'Tooling & Config' },
+];
+
+export const DIFF_FILTERS: { id: 'all' | Difficulty; label: string }[] = [
+  { id: 'all', label: 'All levels' },
+  { id: 'junior', label: 'Junior' },
+  { id: 'mid', label: 'Mid' },
+  { id: 'senior', label: 'Senior' },
+];
+
 export interface Challenge {
   id: number;
   type: ChallengeType;

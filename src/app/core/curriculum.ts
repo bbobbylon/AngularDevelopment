@@ -278,6 +278,17 @@ export const CURRICULUM: Lesson[] = [
       ),
   },
   {
+    id: 'workspace-config',
+    title: 'Workspace Configuration',
+    summary: 'package.json, angular.json and the tsconfig family — which knob lives where.',
+    level: 'beginner',
+    category: 'Getting Started',
+    loadComponent: () =>
+      import('../lessons/beginner/workspace-config/workspace-config').then(
+        (m) => m.WorkspaceConfig,
+      ),
+  },
+  {
     id: 'components',
     title: 'Components',
     summary: 'The @Component decorator, selectors, templates, styles and standalone components.',
@@ -665,6 +676,17 @@ export const CURRICULUM: Lesson[] = [
     loadComponent: () =>
       import('../lessons/intermediate/ng-template-outlet/ng-template-outlet').then(
         (m) => m.NgTemplateOutletLesson,
+      ),
+  },
+  {
+    id: 'view-encapsulation',
+    title: 'View Encapsulation & Component Styles',
+    summary: 'Emulated/None/ShadowDom, :host and :host-context, and custom-property theming.',
+    level: 'intermediate',
+    category: 'Components & Templates',
+    loadComponent: () =>
+      import('../lessons/intermediate/view-encapsulation/view-encapsulation').then(
+        (m) => m.ViewEncapsulationLesson,
       ),
   },
   {

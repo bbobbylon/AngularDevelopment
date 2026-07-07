@@ -16,7 +16,7 @@
 }
 .scroll-bar__fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--blue));
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
   transition: width 80ms linear;
   border-radius: 0 2px 2px 0;
 }
@@ -29,9 +29,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  background: rgba(240, 249, 255, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
 .brand {

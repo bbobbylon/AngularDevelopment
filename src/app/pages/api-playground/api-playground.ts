@@ -28,7 +28,9 @@ type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type StepState = 'idle' | 'active' | 'done' | 'error';
 
 const BASE_URL = 'https://jsonplaceholder.typicode.com';
-const STEP_DELAY_MS = 550;
+/** Pause on each lifecycle step so its data can actually be read — the
+ *  playground is a teaching device, not a benchmark. */
+const STEP_DELAY_MS = 2600;
 
 interface HeaderRow {
   name: string;
@@ -239,6 +241,12 @@ const STEP_META: { title: string; blurb: string }[] = [
             <input placeholder="demo-123" [value]="customHeaderValue()" (input)="customHeaderValue.set($any($event.target).value)" spellcheck="false" />
           </div>
 
+          <h3>Step pacing</h3>
+          <div class="chip-row">
+            <button class="chip" [class.active]="!instant()" (click)="instant.set(false)">🐢 Guided (~2.5s per step)</button>
+            <button class="chip" [class.active]="instant()" (click)="instant.set(true)">⚡ Instant</button>
+          </div>
+
           <button class="send-btn" [disabled]="running() || (hasBody() && !bodyValid())" (click)="send()">
             {{ running() ? 'Request in flight…' : '🚀 Send request' }}
           </button>
@@ -358,6 +366,8 @@ export class ApiPlayground {
   readonly customHeaderName = signal('');
   readonly customHeaderValue = signal('');
   readonly activePreset = signal('GET list');
+  /** ⚡ mode collapses the per-step pause for repeat runs. */
+  readonly instant = signal(false);
 
   readonly hasBody = computed(() => ['POST', 'PUT', 'PATCH'].includes(this.method()));
   readonly bodyValid = computed(() => {
@@ -479,7 +489,7 @@ export class ApiPlayground {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, this.instant() ? 200 : ms));
   }
 
   /** Advance to a step: mark it active, auto-expand it, pace the reveal. */

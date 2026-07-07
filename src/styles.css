@@ -5,38 +5,39 @@
    ============================================================ */
 
 :root {
-  /* ── Ocean / Hawaii / Spring palette ── */
-  --bg: #f0f9ff;
-  --bg-elevated: #e0f2fe;
+  /* ── Modern neutral (zinc) + indigo/violet palette ── */
+  --bg: #fafafa;
+  --bg-elevated: #f1f1f3;
   --bg-card: #ffffff;
   --surface: #ffffff;
-  --border: #bae6fd;
-  --text: #0c4a6e;
-  --text-muted: #4d88a8;
-  --accent: #0284c7;       /* ocean blue */
-  --accent-2: #0369a1;
+  --border: #e4e4e7;
+  --text: #18181b;
+  --text-muted: #6b6b76;
+  --accent: #6366f1;       /* indigo */
+  --accent-2: #8b5cf6;     /* violet */
   --violet: #7c3aed;
-  --green: #059669;
-  --amber: #d97706;
-  --blue: #0ea5e9;
-  --code-bg: #1e293b;      /* dark panel — keeps code readable */
+  --green: #10b981;
+  --amber: #f59e0b;
+  --blue: #4f46e5;         /* link color — deep indigo */
+  --code-bg: #1e1e2e;      /* dark panel — keeps code readable */
   --radius: 12px;
-  --shadow: 0 4px 20px rgba(12, 74, 110, 0.10);
+  --shadow: 0 4px 20px rgba(24, 24, 27, 0.08);
   color-scheme: light;
 }
 
 /* ---- Dark mode (toggled via data-theme="dark" on <html>) ---- */
 [data-theme="dark"] {
-  --bg: #0a1628;
-  --bg-elevated: #0f1f3a;
-  --bg-card: #122040;
-  --surface: #122040;
-  --border: #1e3d66;
-  --text: #dff0ff;
-  --text-muted: #6ba8cc;
-  --accent: #38bdf8;
-  --accent-2: #0ea5e9;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --bg: #0b0b0f;
+  --bg-elevated: #17171c;
+  --bg-card: #141419;
+  --surface: #141419;
+  --border: #27272e;
+  --text: #f4f4f5;
+  --text-muted: #9d9dab;
+  --accent: #818cf8;
+  --accent-2: #a78bfa;
+  --blue: #a5b4fc;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 
@@ -310,8 +311,8 @@ textarea:focus {
   position: absolute;
   z-index: 9999;
   transform: translateX(-50%);
-  background: #0c4a6e;
-  color: #e0f2fe;
+  background: #18181b;
+  color: #f4f4f5;
   font-size: 0.72rem;
   line-height: 1.4;
   padding: 5px 10px;
@@ -328,5 +329,5 @@ textarea:focus {
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-bottom-color: #0c4a6e;
+  border-bottom-color: #18181b;
 }

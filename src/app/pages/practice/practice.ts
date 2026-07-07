@@ -1,7 +1,7 @@
 import { Component, computed, effect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
-import { CHALLENGES, shuffle, type Challenge, type Category, type ChallengeType, type Difficulty } from './practice-data';
+import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Challenge, type Category, type ChallengeType, type Difficulty } from './practice-data';
 import { dueCount, loadQueue, recordMisses } from './review-queue';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
@@ -263,31 +263,8 @@ export class Practice {
 
   readonly letters = ['A', 'B', 'C', 'D'];
 
-  readonly categoryFilters: { id: Category; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'components', label: 'Components' },
-    { id: 'templates', label: 'Templates & HTML' },
-    { id: 'styling', label: 'Styling & CSS' },
-    { id: 'signals', label: 'Signals' },
-    { id: 'rxjs', label: 'RxJS' },
-    { id: 'forms', label: 'Forms' },
-    { id: 'routing', label: 'Routing' },
-    { id: 'testing', label: 'Testing' },
-    { id: 'performance', label: 'Performance' },
-    { id: 'typescript', label: 'TypeScript' },
-    { id: 'security', label: 'Security' },
-    { id: 'a11y', label: 'Accessibility' },
-    { id: 'state', label: 'State & Architecture' },
-    { id: 'i18n', label: 'i18n' },
-    { id: 'tooling', label: 'Tooling & Config' },
-  ];
-
-  readonly diffFilters: { id: 'all' | Difficulty; label: string }[] = [
-    { id: 'all', label: 'All levels' },
-    { id: 'junior', label: 'Junior' },
-    { id: 'mid', label: 'Mid' },
-    { id: 'senior', label: 'Senior' },
-  ];
+  readonly categoryFilters = CATEGORY_FILTERS;
+  readonly diffFilters = DIFF_FILTERS;
 
   /**
    * Get shuffled options for a challenge

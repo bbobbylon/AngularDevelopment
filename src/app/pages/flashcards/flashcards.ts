@@ -1,6 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CHALLENGES, shuffle, type Category, type Challenge, type Difficulty } from '../practice/practice-data';
+import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Category, type Challenge, type Difficulty } from '../practice/practice-data';
 import { recordMisses } from '../practice/review-queue';
 
 /**
@@ -248,31 +248,8 @@ export class Flashcards {
   readonly deckSize = signal<number | 'all'>(20);
   readonly deckSizes = DECK_SIZES;
 
-  readonly categoryFilters: { id: Category; label: string }[] = [
-    { id: 'all', label: 'All' },
-    { id: 'components', label: 'Components' },
-    { id: 'templates', label: 'Templates & HTML' },
-    { id: 'styling', label: 'Styling & CSS' },
-    { id: 'signals', label: 'Signals' },
-    { id: 'rxjs', label: 'RxJS' },
-    { id: 'forms', label: 'Forms' },
-    { id: 'routing', label: 'Routing' },
-    { id: 'testing', label: 'Testing' },
-    { id: 'performance', label: 'Performance' },
-    { id: 'typescript', label: 'TypeScript' },
-    { id: 'security', label: 'Security' },
-    { id: 'a11y', label: 'Accessibility' },
-    { id: 'state', label: 'State & Architecture' },
-    { id: 'i18n', label: 'i18n' },
-    { id: 'tooling', label: 'Tooling & Config' },
-  ];
-
-  readonly diffFilters: { id: 'all' | Difficulty; label: string }[] = [
-    { id: 'all', label: 'All levels' },
-    { id: 'junior', label: 'Junior' },
-    { id: 'mid', label: 'Mid' },
-    { id: 'senior', label: 'Senior' },
-  ];
+  readonly categoryFilters = CATEGORY_FILTERS;
+  readonly diffFilters = DIFF_FILTERS;
 
   /** Cards matching the current filters — the population a deck is drawn from. */
   readonly pool = computed(() => {
