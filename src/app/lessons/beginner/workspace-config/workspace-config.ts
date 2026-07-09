@@ -240,6 +240,8 @@ const CONFIG_TASKS: ConfigTask[] = [
         Drill this with the <a routerLink="/practice">Tooling &amp; Config challenges</a>
         or see the real files in this very repo — it is a standard CLI workspace.
       </p>
+
+      <p><a routerLink="/components">Next: Components →</a></p>
     </article>
   `,
 })

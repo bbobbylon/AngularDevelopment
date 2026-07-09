@@ -156,13 +156,14 @@ parity  = computed(() =&gt; this.count() % 2 === 0 ? 'even' : 'odd');</pre>
         <li>Reading a signal inside a reactive context auto-subscribes you; treat values as immutable.</li>
       </ul>
 
-      <p><a routerLink="/services-di">← Services &amp; DI</a> &nbsp;·&nbsp; <a routerLink="/signals-advanced">Advanced Signals →</a></p>
+      <p><a routerLink="/services-di">← Services &amp; DI</a> &nbsp;·&nbsp; <a routerLink="/signals-advanced">Advanced Signals</a> &nbsp;·&nbsp; <a routerLink="/routing-basics">Next: Routing Basics →</a></p>
     </article>
   `,
   styles: [
     `
       .log {
         background: var(--code-bg);
+        color: var(--code-fg);
         border: 1px solid var(--border);
         border-radius: 8px;
         padding: 12px 12px 12px 32px;

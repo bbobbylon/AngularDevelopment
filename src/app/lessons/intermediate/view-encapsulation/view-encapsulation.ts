@@ -205,6 +205,8 @@ p { color: red; }`,
         or revisit <a routerLink="/class-style-binding">Class &amp; Style Binding</a> for
         the binding syntax side.
       </p>
+
+      <p><a routerLink="/di-providers">Next: DI Providers In Depth →</a></p>
     </article>
   `,
 })

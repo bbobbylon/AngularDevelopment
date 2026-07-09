@@ -157,6 +157,7 @@ export class LifecycleChild
     `
       .log {
         background: var(--code-bg);
+        color: var(--code-fg);
         border: 1px solid var(--border);
         border-radius: 8px;
         padding: 12px 12px 12px 32px;

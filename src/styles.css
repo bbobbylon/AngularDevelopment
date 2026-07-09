@@ -20,6 +20,8 @@
   --amber: #f59e0b;
   --blue: #4f46e5;         /* link color — deep indigo */
   --code-bg: #1e1e2e;      /* dark panel — keeps code readable */
+  --code-fg: #d4d4e4;      /* fixed light text for the dark code panel — NEVER inherit
+                              --text here: in light mode that is near-black on near-black */
   --radius: 12px;
   --shadow: 0 4px 20px rgba(24, 24, 27, 0.08);
   color-scheme: light;
@@ -177,6 +179,7 @@ pre {
 /* Code snippet */
 .code {
   background: var(--code-bg);
+  color: var(--code-fg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 18px;
