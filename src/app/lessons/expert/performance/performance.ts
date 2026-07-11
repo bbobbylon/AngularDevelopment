@@ -22,10 +22,6 @@ type Tab = 'load' | 'runtime' | 'webvitals' | 'images' | 'profiling';
     .vital-card .target { font-size: .8rem; font-weight: 600; color: #22c55e; }
     .vital-card p { margin: 4px 0 0; font-size: .8rem; color: var(--text-muted); }
     .perf-demo { font-family: monospace; font-size: .82rem; }
-    .bar-wrap { background: #1e1e2e; border-radius: 8px; padding: 12px 16px; margin: 8px 0; }
-    .bar { height: 18px; border-radius: 4px; transition: width .3s; display: flex; align-items: center; padding: 0 8px; font-size: .75rem; color: #fff; margin: 4px 0; }
-    .bar-lazy { background: #22c55e; }
-    .bar-eager { background: #ef4444; }
   `],
   template: `
     <article class="lesson">

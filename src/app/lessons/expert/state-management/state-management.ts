@@ -71,6 +71,9 @@ class TodoStore {
     .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
     .filter-row button { padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: .85rem; }
     .filter-row button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+    .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+    .qa div { padding: 10px 14px; font-size: .9rem; }
   `],
   template: `
     <article class="lesson">
@@ -227,9 +230,11 @@ export const TodoStore = signalStore(
   withComputed((s) =&gt; ({{ '{' }}
     remaining: computed(() =&gt; s.todos().filter(t =&gt; !t.done).length),
   {{ '}' }})),
-  withMethods((s, patchState = inject(patchState)) =&gt; ({{ '{' }}
-    add: (title: string) =&gt;
-      patchState(s, {{ '{' }} todos: [...s.todos(), mk(title)] {{ '}' }}),
+  withMethods((store) =&gt; ({{ '{' }}
+    add(title: string) {{ '{' }}
+      // patchState is imported from '&#64;ngrx/signals' — shallow-merges a partial
+      patchState(store, {{ '{' }} todos: [...store.todos(), mk(title)] {{ '}' }});
+    {{ '}' }},
   {{ '}' }}))
 );</pre>
       </div>
@@ -304,6 +309,75 @@ export class TodoEffects {{ '{' }}
           <td class="good"><code>effect()</code> is for side-effects triggered reactively; use it in <code>constructor</code></td>
         </tr>
       </table>
+
+      <h2>Async state — resource() and linkedSignal()</h2>
+      <p>
+        Server data is state too, and hand-rolling <code>loading/error/data</code>
+        triples in every store is boilerplate. Two signal-era primitives cover the
+        common shapes:
+      </p>
+      <div class="code">
+        <pre>// resource(): request params in, async loader out — with status signals built in
+readonly userId = signal(1);
+readonly user = resource({{ '{' }}
+  params: () =&gt; ({{ '{' }} id: this.userId() {{ '}' }}),          // reactive — re-fetches on change
+  loader: ({{ '{' }} params {{ '}' }}) =&gt; fetch('/api/users/' + params.id).then(r =&gt; r.json()),
+{{ '}' }});
+// user.value() · user.isLoading() · user.error() — no manual triple
+
+// linkedSignal(): writable state that RESETS when a source changes
+readonly options = input.required&lt;string[]&gt;();
+readonly selected = linkedSignal(() =&gt; this.options()[0]);
+// user picks an option → selected.set(...)  (writable!)
+// options input changes → selected resets to the new first option</pre>
+      </div>
+      <p>
+        Rule of thumb: <code>computed</code> for pure derivations,
+        <code>linkedSignal</code> when the derived value must also be user-writable,
+        <code>resource</code>/<code>httpResource</code> when the derivation is
+        asynchronous. All three slot straight into the store pattern above.
+      </p>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why must the store expose <code>asReadonly()</code> signals instead of the writable ones?</summary>
+        <div>Encapsulation of invariants: with a writable signal any component could
+        <code>set()</code> arbitrary state, bypassing validation, derived-state
+        assumptions and the "one entry-point per action" audit trail. Read-only
+        projections make the named methods the only mutation path — the same reason
+        Redux only allows dispatching actions.</div>
+      </details>
+      <details class="qa">
+        <summary>A computed selector doesn't update after <code>this._items().push(x)</code>. Why?</summary>
+        <div>Signals compare by reference: <code>push</code> mutates the same array,
+        so the signal's value never "changed" and no consumer is notified. Immutable
+        updates (<code>update(l =&gt; [...l, x])</code>) produce a new reference —
+        that's what triggers <code>computed</code> recomputation and view marking.</div>
+      </details>
+      <details class="qa">
+        <summary>Feature store vs root store — how do you scope a store to one feature, and what's the lifetime difference?</summary>
+        <div><code>providedIn: 'root'</code> = one app-wide instance, lives forever.
+        Listing the store in a component's <code>providers</code> (or a lazy route's
+        <code>providers</code>) scopes one instance to that subtree/feature — created
+        with it, destroyed with it. Wizard/cart-per-page state belongs at feature
+        scope; auth/theme at root.</div>
+      </details>
+      <details class="qa">
+        <summary>When is classic NgRx genuinely worth its boilerplate over a signal store?</summary>
+        <div>When you need the action log itself: time-travel debugging, audit
+        requirements, many developers coordinating on shared state slices, or complex
+        cross-cutting side-effects modeled as effects listening to the same actions.
+        For most apps below that bar, the signal store gives the same guarantees with
+        a fraction of the ceremony.</div>
+      </details>
+      <details class="qa">
+        <summary>Where do side effects (persistence, analytics) belong in a signal store?</summary>
+        <div>In an <code>effect()</code> created in the store's constructor (an
+        injection context), reading the public signals — like the localStorage sync
+        above. Not inside mutation methods (they'd run imperatively and get skipped by
+        other mutation paths), and never in components (every consumer would duplicate
+        the side effect).</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>
