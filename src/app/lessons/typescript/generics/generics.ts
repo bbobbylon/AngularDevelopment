@@ -130,7 +130,7 @@ prop({{ '{' }} name: 'Ada', age: 36 {{ '}' }}, 'age');   // returns number; 'foo
       <div class="code"><pre>function fetchJson&lt;T&gt;(url: string): Promise&lt;T&gt; {{ '{' }}
   return fetch(url).then(r =&gt; r.json());   // json() returns any — T is NEVER checked
 {{ '}' }}
-const user = await fetchJson&lt;User&gt;('/api/user');  // feels safe. Is exactly `as User`.</pre></div>
+const user = await fetchJson&lt;User&gt;('/api/user');  // feels safe. Is exactly \`as User\`.</pre></div>
       <p>
         When <code>T</code> appears only in the return type, inference has nothing
         to solve from — the caller just asserts whatever they like. Nothing at

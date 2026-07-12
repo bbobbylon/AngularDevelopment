@@ -102,7 +102,7 @@ NonNullable&lt;string | null&gt;   // string  — Exclude&lt;T, null | undefined
 ReturnType&lt;typeof makeUser&gt;       // User
 Parameters&lt;typeof makeUser&gt;       // [name: string, age: number] — a labeled tuple
 ConstructorParameters&lt;typeof C&gt;   // tuple of a constructor's params
-InstanceType&lt;typeof C&gt;            // what `new C()` produces
+InstanceType&lt;typeof C&gt;            // what \`new C()\` produces
 Awaited&lt;Promise&lt;Promise&lt;number&gt;&gt;&gt; // number — unwraps RECURSIVELY, like await does</pre></div>
       <ul>
         <li>These are conditional types using <code>infer</code> — e.g. <code>ReturnType&lt;T&gt; = T extends (...a: any) =&gt; infer R ? R : never</code>. The compiler pattern-matches the function type and captures a piece of it.</li>
