@@ -110,6 +110,40 @@ import { RouterLink } from '@angular/router';
         provide the locale, or those pipes throw at runtime.
       </div>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Forgetting to import the pipe.</strong> Standalone components must list each pipe
+          in <code>imports</code> (e.g. <code>DatePipe</code>) — a missing import gives "no pipe found".</li>
+        <li><strong>Mutating an array and expecting a re-run.</strong> Pure pipes only re-run when the
+          input <em>reference</em> changes. <code>arr.push(x)</code> won't trigger it — assign a new
+          array.</li>
+        <li><strong>Writing a stateful "impure" pipe.</strong> Impure pipes run every CD cycle and wreck
+          perf; do filtering/sorting in the component (a computed signal), not a pipe.</li>
+        <li><strong>Locale pipes without locale data.</strong> <code>date</code>/<code>currency</code>/
+          <code>number</code> throw for non-default locales unless you
+          <code>registerLocaleData()</code> and provide <code>LOCALE_ID</code>.</li>
+        <li><strong>Misreading the digits format.</strong> <code>'1.2-2'</code> is
+          <em>minInteger.minFraction-maxFraction</em> — not "1 to 2".</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>What does "pure pipe" mean, and why does it matter?</summary>
+        <div>Angular memoizes the result and only re-runs <code>transform()</code> when the input
+        reference changes — so pipes are cheap on every change-detection pass. Mutating in place skips
+        the re-run.</div>
+      </details>
+      <details class="qa">
+        <summary>Decode <code>number: '1.2-2'</code>.</summary>
+        <div>At least 1 integer digit, at least 2 and at most 2 fraction digits — i.e.
+        <em>minIntegerDigits.minFractionDigits-maxFractionDigits</em>.</div>
+      </details>
+      <details class="qa">
+        <summary>Where should list filtering/sorting live — a pipe or the component?</summary>
+        <div>The component (a <code>computed</code> signal). A filtering pipe would have to be impure and
+        run every cycle. Keep pipes pure and for display formatting.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Syntax: <code>value | pipeName: arg1 : arg2</code> — args can be bound/dynamic.</li>
@@ -135,6 +169,9 @@ import { RouterLink } from '@angular/router';
         width: 220px;
         color: var(--text-muted);
       }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
     `,
   ],
 })

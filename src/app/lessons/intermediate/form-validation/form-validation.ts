@@ -121,6 +121,40 @@ ctrl.updateValueAndValidity();</pre>
         <code>ng-pending</code> — handy for styling without extra logic.
       </div>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Cross-field validator on a control.</strong> It belongs on the
+          <code>FormGroup</code> — a single control can't see its siblings. Read the error from
+          <code>form.errors</code>, not the control's.</li>
+        <li><strong>Showing errors immediately.</strong> Gate on <code>touched</code>/<code>dirty</code>
+          so users aren't warned before typing.</li>
+        <li><strong>Reading a missing error key.</strong> <code>errors</code> is <code>null</code>
+          when valid — use <code>errors?.['required']</code>, never <code>errors['required']</code>.</li>
+        <li><strong>setErrors clobbers other errors.</strong> <code>setErrors</code> replaces the
+          whole object; merge if you must keep existing keys, and call
+          <code>updateValueAndValidity()</code> after imperative changes.</li>
+        <li><strong>A validator with side effects.</strong> Validators must be pure and
+          synchronous (async ones are a separate slot) — no HTTP, no state mutation.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Where does a "passwords match" validator go?</summary>
+        <div>On the <code>FormGroup</code> (its <code>validators</code> option), because it needs
+        both sibling controls. Read the result from <code>form.errors</code>.</div>
+      </details>
+      <details class="qa">
+        <summary>What does a validator return?</summary>
+        <div><code>null</code> when valid, or a <code>ValidationErrors</code> object
+        (<code>&#123; keyName: true &#125;</code>) when invalid. Keys from multiple validators
+        merge.</div>
+      </details>
+      <details class="qa">
+        <summary>How do you set an error from a server response?</summary>
+        <div><code>control.setErrors(&#123; taken: true &#125;)</code> — then optionally
+        <code>updateValueAndValidity()</code>. It stays until the control revalidates.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Compose built-in validators in the control's validator array.</li>
@@ -133,8 +167,13 @@ ctrl.updateValueAndValidity();</pre>
     </article>
   `,
   styles: [
-    `.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }
-     .err { color: var(--accent); font-size: 0.8rem; }`,
+    `
+      .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }
+      .err { color: var(--accent); font-size: 0.8rem; }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
   ],
 })
 export class FormValidation {

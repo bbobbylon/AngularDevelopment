@@ -1,8 +1,13 @@
 name: Build and Push Docker Image
 
 on:
+  # Image is published on version tags (e.g. v1.2.3) and on-demand only.
+  # It intentionally does NOT run on every push to a branch: pushing to
+  # Docker Hub requires the DOCKER_USERNAME / DOCKER_PASSWORD secrets, and
+  # firing on every commit turned every push into a failed run (and a
+  # failure email) whenever those secrets are absent. The site itself ships
+  # via the GitHub Pages workflow, so per-commit image builds add no value.
   push:
-    branches: [ main, master ]
     tags: [ 'v*' ]
   workflow_dispatch:
     inputs:

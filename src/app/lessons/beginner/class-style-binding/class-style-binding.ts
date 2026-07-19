@@ -93,12 +93,46 @@ import { RouterLink } from '@angular/router';
         </div>
       </div>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Thinking <code>[class]</code> wipes the static <code>class</code>.</strong> It
+          doesn't — bound and static classes merge. Same for <code>[style]</code>.</li>
+        <li><strong>Forgetting the unit suffix.</strong> <code>[style.width]="8"</code> sets
+          <code>width: 8</code> (invalid); use <code>[style.width.px]="8"</code> or bind a full
+          string <code>"8px"</code>.</li>
+        <li><strong>Reaching for <code>ngClass</code>/<code>ngStyle</code> in new code.</strong> The
+          native <code>[class]</code>/<code>[style]</code> bindings are faster and need no import.</li>
+        <li><strong>Fighting specificity.</strong> When <code>[class.active]</code> and a key inside
+          <code>[class]</code> target the same class, the specific binding wins — don't set the same
+          class from two places.</li>
+        <li><strong>camelCase vs kebab-case.</strong> In binding syntax use camelCase
+          (<code>[style.fontSize.px]</code>); inside a bound <em>object</em> either works
+          (<code>{{ '{' }} 'font-size': … {{ '}' }}</code>).</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Does <code>[class]="{{ '{' }}…{{ '}' }}"</code> replace the static <code>class</code> attribute?</summary>
+        <div>No. Bound classes merge with the static <code>class</code>. The static ones stay applied;
+        the binding only adds/removes its own keys.</div>
+      </details>
+      <details class="qa">
+        <summary>How do you set a pixel width from a number?</summary>
+        <div><code>[style.width.px]="n"</code> — the <code>.px</code> suffix appends the unit. Without a
+        unit the value is invalid CSS.</div>
+      </details>
+      <details class="qa">
+        <summary><code>[class.x]</code> vs <code>ngClass</code> — which for new code?</summary>
+        <div>Prefer the native <code>[class.x]</code> / <code>[class]</code> bindings: no directive
+        import, and they're faster. <code>ngClass</code>/<code>ngStyle</code> are the legacy equivalents.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>[class.x]</code> / <code>[style.x]</code> toggle or set a single thing.</li>
         <li><code>[class]</code> / <code>[style]</code> accept objects/arrays/strings for many at once.</li>
         <li>Style bindings support unit suffixes like <code>.px</code> and <code>.%</code>.</li>
-        <li><code>ngClass</code> / <code>ngStyle</code> are the older directive equivalents.</li>
+        <li>Bound classes/styles merge with static ones; <code>ngClass</code>/<code>ngStyle</code> are legacy.</li>
       </ul>
 
       <p><a routerLink="/control-flow-if">Next: Control Flow — &#64;if →</a></p>
@@ -129,6 +163,9 @@ import { RouterLink } from '@angular/router';
         background: rgba(221, 0, 49, 0.15);
         border-color: var(--accent);
       }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
     `,
   ],
 })

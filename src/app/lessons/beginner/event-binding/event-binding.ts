@@ -4,6 +4,13 @@ import { RouterLink } from '@angular/router';
 @Component({
   selector: 'app-lesson-event-binding',
   imports: [RouterLink],
+  styles: [
+    `
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
+  ],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Beginner · Data Binding</span>
@@ -103,6 +110,42 @@ track(e: MouseEvent) {{ '{' }} this.pos.set({{ '{' }} x: e.offsetX, y: e.offsetY
         separated by <code>;</code> — note <code>box.value = ''</code> above. Keep
         them short; complex logic belongs in a method.
       </p>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>No <code>.prevent</code>/<code>.stop</code> modifiers.</strong> Call
+          <code>$event.preventDefault()</code> / <code>stopPropagation()</code> in a handler;
+          returning <code>false</code> does nothing.</li>
+        <li><strong>Heavy work in <code>(mousemove)</code>/<code>(scroll)</code>.</strong> They
+          fire constantly and each runs change detection — throttle, or move the work off the
+          hot path.</li>
+        <li><strong><code>$event</code> is the emitted value for outputs.</strong> For a
+          component <code>output()</code> it's <em>not</em> a DOM event — don't call
+          <code>preventDefault()</code> on it.</li>
+        <li><strong>Complex logic inline.</strong> Statements can assign and chain with
+          <code>;</code>, but keep them short — real logic belongs in a method.</li>
+        <li><strong>Key name casing.</strong> Pseudo-events match <code>event.key</code> as
+          lowercase words: <code>(keyup.enter)</code>, <code>(keydown.arrowup)</code>, not
+          <code>Enter</code>/<code>ArrowUp</code>.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>How do you stop a form from reloading the page on submit?</summary>
+        <div>There's no <code>.prevent</code> modifier — bind <code>(submit)="save($event)"</code>
+        and call <code>$event.preventDefault()</code> inside <code>save</code>.</div>
+      </details>
+      <details class="qa">
+        <summary>What is <code>$event</code> for <code>(click)</code> vs a component output?</summary>
+        <div>For DOM events it's the native event (e.g. <code>MouseEvent</code>). For an
+        <code>output()</code> it's the emitted value.</div>
+      </details>
+      <details class="qa">
+        <summary>How do you run something on Ctrl/⌘+S?</summary>
+        <div>Pseudo-event combos: <code>(keydown.control.s)</code> or
+        <code>(keydown.meta.s)</code> — and <code>preventDefault()</code> to stop the browser
+        save dialog.</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>

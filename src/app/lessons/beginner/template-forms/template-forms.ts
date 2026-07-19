@@ -110,6 +110,38 @@ import { RouterLink } from '@angular/router';
         empty in the very first <code>ngOnInit</code>.
       </div>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Missing <code>name</code> attribute.</strong> <code>ngModel</code> without a
+          <code>name</code> inside a <code>&lt;form&gt;</code> throws — the name is the key it registers
+          under.</li>
+        <li><strong>Forgetting <code>FormsModule</code>.</strong> No import → <code>ngModel</code> isn't a
+          known property and the template won't compile.</li>
+        <li><strong>Reading <code>f.value</code> too early.</strong> The model assembles over a tick, so
+          it can be empty in the first <code>ngOnInit</code>.</li>
+        <li><strong>Showing errors before interaction.</strong> Gate messages on
+          <code>touched</code>/<code>dirty</code> so users aren't warned before typing.</li>
+        <li><strong>Using it for complex forms.</strong> Dynamic controls, cross-field validation, and
+          testability are where reactive forms win — template-driven suits simple, static forms.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why does <code>ngModel</code> need a <code>name</code> inside a form?</summary>
+        <div>The <code>name</code> is the key the control registers under on the parent <code>ngForm</code>
+        — <code>form.value</code> is built from those names. Omitting it throws.</div>
+      </details>
+      <details class="qa">
+        <summary>What do <code>#f="ngForm"</code> and <code>#name="ngModel"</code> give you?</summary>
+        <div>Template reference vars exposing the form directive and a single control's state
+        (<code>valid</code>, <code>touched</code>, <code>errors</code>, <code>value</code>).</div>
+      </details>
+      <details class="qa">
+        <summary>Template-driven vs reactive — when each?</summary>
+        <div>Template-driven for small, mostly-static forms. Reactive for dynamic controls, cross-field
+        validation, or unit-testable logic (model lives in the class).</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Import <code>FormsModule</code>; drive everything from the template with <code>ngModel</code>.</li>
@@ -133,6 +165,9 @@ import { RouterLink } from '@angular/router';
         color: var(--accent);
         font-size: 0.8rem;
       }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
     `,
   ],
 })

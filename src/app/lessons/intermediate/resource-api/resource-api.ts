@@ -11,6 +11,16 @@ interface User {
 @Component({
   selector: 'app-lesson-resource-api',
   imports: [RouterLink],
+  styles: [
+    `
+      table.cmp { width: 100%; border-collapse: collapse; font-size: .82rem; margin: 12px 0; }
+      table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+      table.cmp th { background: var(--bg-elevated); }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
+  ],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Intermediate · Signals</span>
@@ -85,6 +95,48 @@ userResource.reload()     // re-run the loader manually</pre>
         <code>undefined</code> from a param means "no request"
         (<code>idle</code>), which is how you defer loading until inputs are ready.
       </div>
+
+      <h2>resource() vs the alternatives</h2>
+      <table class="cmp">
+        <tr><th>Tool</th><th>Gives you</th><th>Reach for it when</th></tr>
+        <tr><td><code>resource()</code></td><td>value + status + error + isLoading signals, auto re-fetch, cancellation</td><td>reactive reads keyed off a signal (an id, a filter) with real loading/error UI</td></tr>
+        <tr><td><code>toSignal(http$)</code></td><td>a signal of the latest value</td><td>a one-shot fetch you just want as a signal; no built-in status/error</td></tr>
+        <tr><td>manual <code>subscribe()</code></td><td>full RxJS control</td><td>complex streams (debounce, combine, retry) — but you manage state + teardown</td></tr>
+        <tr><td>route <a routerLink="/resolvers">resolver</a></td><td>data before the route activates</td><td>small, critical data that must be present on first paint (blocks navigation)</td></tr>
+      </table>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Reading params non-reactively.</strong> The <code>params</code> callback must
+          read signals so the loader re-runs — a plain variable won't trigger re-fetch.</li>
+        <li><strong>Ignoring <code>abortSignal</code>.</strong> Wire it into <code>fetch</code>
+          (or <code>rxResource</code>) so stale requests are actually cancelled.</li>
+        <li><strong>Expecting <code>value()</code> to always be set.</strong> It's
+          <code>undefined</code> while loading/idle — guard with <code>hasValue()</code> or
+          <code>isLoading()</code>.</li>
+        <li><strong>Observable loader in <code>resource()</code>.</strong> Use
+          <code>rxResource</code> with a <code>stream</code> for Observable sources.</li>
+        <li><strong>Forgetting the "no request" signal.</strong> Return <code>undefined</code>
+          from a param to stay <code>idle</code> until inputs are ready.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>How does a resource know to re-fetch?</summary>
+        <div>Its <code>params</code> callback reads signals; when any change, the loader re-runs
+        and the previous request is aborted.</div>
+      </details>
+      <details class="qa">
+        <summary><code>resource()</code> vs a route resolver?</summary>
+        <div><code>resource()</code> shows the route immediately and streams data in with
+        loading/error signals. A resolver blocks navigation until small, critical data is
+        ready.</div>
+      </details>
+      <details class="qa">
+        <summary>My loader is an Observable — which API?</summary>
+        <div><code>rxResource</code> from <code>&#64;angular/core/rxjs-interop</code>; pass a
+        <code>stream</code> instead of a <code>loader</code>.</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>

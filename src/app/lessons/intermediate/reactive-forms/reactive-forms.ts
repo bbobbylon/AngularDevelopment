@@ -104,6 +104,39 @@ this.form.valueChanges.subscribe(...); // Observable of changes</pre>
         <li>Import <code>ReactiveFormsModule</code> (not <code>FormsModule</code>).</li>
       </ul>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong><code>value</code> omits disabled controls.</strong> Use
+          <code>getRawValue()</code> for a complete object including disabled fields.</li>
+        <li><strong><code>setValue</code> needs every field.</strong> It throws on a partial
+          object — use <code>patchValue</code> for partial updates.</li>
+        <li><strong>Disabling via the template.</strong> <code>[disabled]</code> on a
+          <code>formControlName</code> input warns — set disabled in the model
+          (<code>disable()</code> / the control config).</li>
+        <li><strong>Controls are nullable and reset to <code>null</code>.</strong> Use
+          <code>fb.nonNullable</code> when a reset should restore the initial value.</li>
+        <li><strong>Wrong module.</strong> Reactive forms need
+          <code>ReactiveFormsModule</code>, not <code>FormsModule</code> — mismatched imports
+          give "no known property formControlName".</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary><code>patchValue</code> vs <code>setValue</code>?</summary>
+        <div><code>patchValue</code> updates a subset; <code>setValue</code> requires the full
+        shape and throws if a field is missing.</div>
+      </details>
+      <details class="qa">
+        <summary>Why is a disabled field missing from <code>form.value</code>?</summary>
+        <div>By design — disabled controls are excluded. Use <code>getRawValue()</code> to
+        include them.</div>
+      </details>
+      <details class="qa">
+        <summary>When choose reactive over template-driven forms?</summary>
+        <div>Dynamic controls, cross-field validation, heavy testing, or a typed model in the
+        class. Template-driven suits simple, mostly-static forms.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>FormBuilder.group()</code> defines a typed form model in the class.</li>
@@ -116,7 +149,12 @@ this.form.valueChanges.subscribe(...); // Observable of changes</pre>
     </article>
   `,
   styles: [
-    `.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }`,
+    `
+      .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
   ],
 })
 export class ReactiveForms {

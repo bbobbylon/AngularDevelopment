@@ -91,11 +91,45 @@ interface Task {
         <li><code>$count</code> — total length of the collection</li>
       </ul>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Omitting <code>track</code>.</strong> Unlike the old <code>*ngFor</code>,
+          <code>track</code> is <em>required</em> — the template won't compile without it.</li>
+        <li><strong><code>track $index</code> on a reorderable list.</strong> Angular then keys rows
+          by position, so a sort or middle-insert re-renders and can desync form/checkbox state.
+          Track a stable id instead.</li>
+        <li><strong>Tracking a non-unique value.</strong> Duplicate track keys throw at runtime.
+          For primitive arrays with possible dupes, fall back to <code>$index</code>.</li>
+        <li><strong>Colliding aliases in nested loops.</strong> Give each level its own
+          <code>let i = $index</code> alias; reusing the same name shadows the outer one.</li>
+        <li><strong>Expecting <code>&#64;empty</code> to fire on <code>null</code>.</strong> It renders
+          for an empty iterable; a <code>null</code>/<code>undefined</code> collection errors — default
+          to <code>[]</code>.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why is <code>track</code> mandatory in <code>&#64;for</code>?</summary>
+        <div>It lets Angular match items to DOM nodes across updates and reuse them instead of
+        recreating. Because it's central to correctness and perf, the compiler requires it.</div>
+      </details>
+      <details class="qa">
+        <summary>When is <code>track $index</code> acceptable?</summary>
+        <div>For static lists that never reorder or filter in the middle, or primitive arrays with
+        duplicate values where no stable id exists.</div>
+      </details>
+      <details class="qa">
+        <summary>What renders when the collection is empty?</summary>
+        <div>The optional <code>&#64;empty</code> block. It fires only for an empty iterable — not for
+        <code>null</code>, which throws.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>&#64;for (x of xs; track x.id)</code> repeats a template — track is required.</li>
         <li><code>&#64;empty</code> renders when the collection is empty.</li>
         <li>Implicit vars (<code>$index</code>, <code>$first</code>, …) are aliased with <code>let</code>.</li>
+        <li>Track a stable id for reorderable lists; <code>$index</code> only for static ones.</li>
       </ul>
 
       <p><a routerLink="/control-flow-switch">Next: Control Flow — &#64;switch →</a></p>
@@ -122,6 +156,9 @@ interface Task {
       .meta.even {
         background: var(--bg-elevated);
       }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
     `,
   ],
 })

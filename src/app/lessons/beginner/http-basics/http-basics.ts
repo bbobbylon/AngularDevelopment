@@ -12,6 +12,13 @@ interface Post {
 @Component({
   selector: 'app-lesson-http-basics',
   imports: [RouterLink],
+  styles: [
+    `
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
+  ],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Beginner · HTTP</span>
@@ -106,6 +113,40 @@ results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(&#96;/search?q=&#36;
         — no wasted responses. The <code>async</code> pipe and <code>toSignal</code>
         unsubscribe for you.
       </p>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Forgetting to subscribe.</strong> <code>http.get()</code> is a <em>cold</em>
+          Observable — no request fires until <code>subscribe()</code>, the <code>async</code>
+          pipe, or <code>toSignal</code>.</li>
+        <li><strong>Subscribing multiple times.</strong> Each subscription is a new HTTP call.
+          Share with <code>toSignal</code>/<code>async</code> or <code>shareReplay</code>.</li>
+        <li><strong>Manual subscriptions that leak.</strong> A hand-rolled
+          <code>.subscribe()</code> should be cleaned up (<code>takeUntilDestroyed()</code>);
+          <code>async</code>/<code>toSignal</code> do it for you.</li>
+        <li><strong>Swallowing errors.</strong> <code>catchError</code> that returns a value
+          hides failures — branch on <code>err.status</code> and surface real problems.</li>
+        <li><strong>Not typing the response.</strong> <code>get&lt;Post[]&gt;()</code> gives you
+          compile-time safety; <code>get()</code> returns <code>Object</code>.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Nothing happens when I call <code>http.get()</code>. Why?</summary>
+        <div>It returns a cold Observable — it only runs on <code>subscribe()</code> (or via the
+        <code>async</code> pipe / <code>toSignal</code>).</div>
+      </details>
+      <details class="qa">
+        <summary>How do you cancel an in-flight request?</summary>
+        <div>Unsubscribe — with <code>withFetch()</code> it aborts via <code>AbortController</code>.
+        <code>switchMap</code> does this automatically for typeaheads;
+        <code>async</code>/<code>toSignal</code> unsubscribe on destroy.</div>
+      </details>
+      <details class="qa">
+        <summary>What type is the error in <code>catchError</code>?</summary>
+        <div>An <code>HttpErrorResponse</code> with <code>status</code>, <code>message</code>, and
+        the parsed <code>error</code> body. Branch on <code>status</code> for 401/404/500.</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>

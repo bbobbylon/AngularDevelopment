@@ -149,6 +149,39 @@ this.rate.emit(payload);</pre>
         keeps the contract one-directional and clear.
       </p>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Thinking <code>$event</code> is a DOM event.</strong> In an output binding it's the
+          <em>emitted value</em> (your payload type), not a browser event.</li>
+        <li><strong>Naming outputs <code>onX</code>.</strong> Name them for the event
+          (<code>rate</code>, <code>saved</code>); the <code>on</code> prefix belongs on the parent's
+          handler, not the output.</li>
+        <li><strong>Shadowing native events.</strong> Avoid output names like <code>click</code>/
+          <code>change</code> — they collide with real DOM events on the host.</li>
+        <li><strong>Treating <code>output()</code> like a Subject.</strong> It has no
+          <code>.subscribe()</code> and can't be fed from outside — it's emit-only by design. Use an
+          RxJS <code>Subject</code> + <code>outputFromObservable</code> if you need a stream source.</li>
+        <li><strong>Manual unsubscribe.</strong> Output bindings are torn down with the component — no
+          cleanup needed (unlike a hand-rolled <code>EventEmitter.subscribe()</code>).</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>What is <code>$event</code> in <code>(rate)="onRate($event)"</code>?</summary>
+        <div>The value passed to <code>rate.emit(...)</code> — here a <code>RateEvent</code>. Output
+        <code>$event</code> is the payload, not a DOM event.</div>
+      </details>
+      <details class="qa">
+        <summary>How does two-way <code>[(x)]</code> binding relate to outputs?</summary>
+        <div>It desugars to an input <code>x</code> plus an output <code>xChange</code>. <code>model()</code>
+        generates exactly that pair.</div>
+      </details>
+      <details class="qa">
+        <summary><code>output()</code> vs <code>&#64;Output() EventEmitter</code>?</summary>
+        <div>Same wiring for parents. <code>output()</code> is preferred — it's emit-only (no external
+        <code>subscribe</code>/<code>next</code>), keeping the child→parent contract one-directional.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>output&lt;T&gt;()</code> creates a typed event emitter on a child.</li>
@@ -160,6 +193,13 @@ this.rate.emit(payload);</pre>
       <p><a routerLink="/services-di">Next: Services &amp; Dependency Injection →</a></p>
     </article>
   `,
+  styles: [
+    `
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
+  ],
 })
 export class Outputs {
   protected readonly last = signal<RateEvent | null>(null);

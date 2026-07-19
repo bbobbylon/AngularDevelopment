@@ -4,6 +4,16 @@ import { RouterLink } from '@angular/router';
 @Component({
   selector: 'app-lesson-property-binding',
   imports: [RouterLink],
+  styles: [
+    `
+      table.cmp { width: 100%; border-collapse: collapse; font-size: .84rem; margin: 12px 0; }
+      table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+      table.cmp th { background: var(--bg-elevated); }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
+  ],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Beginner · Data Binding</span>
@@ -90,6 +100,47 @@ import { RouterLink } from '@angular/router';
         and <code>[src]</code>, stripping <code>javascript:</code> URLs and scripts.
         Concatenating untrusted strings into the DOM yourself bypasses that — don't.
       </div>
+
+      <h2>Property vs attribute vs interpolation</h2>
+      <table class="cmp">
+        <tr><th>Syntax</th><th>Sets</th><th>Value type</th><th>Use for</th></tr>
+        <tr><td><code>[prop]="x"</code></td><td>live DOM property / component input</td><td>the real type of <code>x</code></td><td>almost everything</td></tr>
+        <tr><td><code>[attr.name]="x"</code></td><td>HTML attribute</td><td>stringified; <code>null</code> removes it</td><td>ARIA, colspan, SVG, data-*</td></tr>
+        <tr><td><code>prop="{{ '{{' }} x {{ '}}' }}"</code></td><td>attribute → often reflected to property</td><td>always a string</td><td>plain text attributes only</td></tr>
+      </table>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong><code>disabled="false"</code> still disables.</strong> Attribute presence is
+          what counts — use <code>[disabled]="false"</code> to actually enable.</li>
+        <li><strong>Passing a number as a string.</strong> <code>size="48"</code> binds
+          <code>'48'</code>; <code>[size]="48"</code> binds the number.</li>
+        <li><strong>Using <code>[attr.*]</code> where a property exists.</strong> Prefer the
+          property; reach for <code>[attr.*]</code> only when there's no DOM property.</li>
+        <li><strong>Binding untrusted HTML/URLs.</strong> Angular sanitizes
+          <code>[innerHTML]</code>/<code>[href]</code>/<code>[src]</code>; hand-concatenating
+          into the DOM bypasses that — don't.</li>
+        <li><strong>Expecting <code>null</code> to blank a property.</strong> On
+          <code>[attr.*]</code> it removes the attribute; on a property it sets the literal
+          <code>null</code>.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why does <code>disabled="false"</code> still disable the button?</summary>
+        <div>It's an <em>attribute</em> — presence alone disables. Bind the <em>property</em>:
+        <code>[disabled]="false"</code> sets the live DOM property to false.</div>
+      </details>
+      <details class="qa">
+        <summary>When do you need <code>[attr.*]</code> instead of <code>[prop]</code>?</summary>
+        <div>When there's no matching DOM property — ARIA (<code>aria-*</code>),
+        <code>colspan</code>, SVG attributes, custom <code>data-*</code>.</div>
+      </details>
+      <details class="qa">
+        <summary><code>[size]="48"</code> vs <code>size="48"</code> on a component input?</summary>
+        <div>The first passes the number <code>48</code>; the second passes the string
+        <code>'48'</code> (no brackets = literal attribute string).</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>

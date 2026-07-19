@@ -88,11 +88,46 @@ remove(i){{ '{' }} this.items.removeAt(i); {{ '}' }}</pre>
         resetting to <code>null</code>.
       </div>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Tracking by <code>$index</code>.</strong> With <code>track $index</code>, removing a
+          middle row makes Angular reuse the wrong DOM/control and inputs "jump". Track the control
+          instance (<code>track item</code>) instead.</li>
+        <li><strong>Forgetting the group wrapper.</strong> An array <em>of groups</em> needs
+          <code>[formGroupName]="i"</code> inside <code>formArrayName</code>; an array of simple
+          controls uses <code>[formControlName]="i"</code>. Mixing them throws.</li>
+        <li><strong>Casting to the wrong type.</strong> <code>form.get('items')</code> returns
+          <code>AbstractControl</code> — cast to <code>FormArray</code> (or
+          <code>FormArray&lt;FormGroup&gt;</code>) or <code>.controls</code>/<code>.push</code> won't exist.</li>
+        <li><strong><code>value</code> drops disabled rows.</strong> Same rule as any form —
+          <code>getRawValue()</code> includes disabled controls; <code>value</code> omits them.</li>
+        <li><strong>Rebuilding instead of mutating.</strong> Reach for <code>push</code>/<code>removeAt</code>/
+          <code>clear</code>; reassigning a brand-new array breaks existing bindings and validity state.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why track by the control instance, not <code>$index</code>?</summary>
+        <div>Indices shift when you remove a row, so <code>track $index</code> re-associates controls
+        with the wrong DOM and values appear to jump. The control instance is stable.</div>
+      </details>
+      <details class="qa">
+        <summary>Array of groups vs array of controls — how does binding differ?</summary>
+        <div>Groups: <code>[formGroupName]="i"</code> then <code>formControlName</code> inside. Simple
+        controls: <code>[formControlName]="i"</code> directly on the array item.</div>
+      </details>
+      <details class="qa">
+        <summary>How do you clear every row at once?</summary>
+        <div><code>this.items.clear()</code> — then <code>push</code> fresh ones if needed. It's cheaper
+        and safer than <code>removeAt</code> in a loop.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>FormArray</code> = a dynamic, ordered list of controls/groups.</li>
         <li>Mutate with <code>push</code>, <code>removeAt</code>, <code>insert</code>, <code>clear</code>.</li>
         <li>Bind with <code>formArrayName</code> + indexed <code>formGroupName</code>/<code>formControlName</code>.</li>
+        <li>Track by the control instance so rows survive add/remove correctly.</li>
       </ul>
 
       <p><a routerLink="/router-children-lazy">Next: Child Routes &amp; Lazy Loading →</a></p>
@@ -100,7 +135,10 @@ remove(i){{ '{' }} this.items.removeAt(i); {{ '}' }}</pre>
   `,
   styles: [
     `.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }
-     .line { display: flex; gap: 8px; margin-bottom: 8px; }`,
+     .line { display: flex; gap: 8px; margin-bottom: 8px; }
+     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+     .qa div { padding: 10px 14px; font-size: .9rem; }`,
   ],
 })
 export class FormArrays {

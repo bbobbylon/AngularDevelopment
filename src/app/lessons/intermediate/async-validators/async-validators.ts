@@ -95,6 +95,38 @@ function uniqueUsername(): AsyncValidatorFn {
         keystroke.
       </div>
 
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Not completing the Observable.</strong> Like resolvers, it must emit and
+          <em>complete</em>, or the control stays <code>PENDING</code> forever. HTTP calls
+          complete; <code>switchMap</code> off a <code>timer</code> is the usual pattern.</li>
+        <li><strong>A request per keystroke.</strong> Debounce (<code>timer</code>/<code>switchMap</code>)
+          or set <code>updateOn: 'blur'</code>; <code>switchMap</code> also cancels stale checks.</li>
+        <li><strong>Putting it in the sync slot.</strong> Async validators go in
+          <code>asyncValidators</code>, not <code>validators</code>.</li>
+        <li><strong>Submitting while PENDING.</strong> The form is invalid during the check —
+          <code>[disabled]="form.invalid"</code> keeps submit off until it resolves.</li>
+        <li><strong>Forgetting sync gates run first.</strong> Async validators only run after
+          sync ones pass, so an empty required field never hits the server.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>The spinner never stops — control stuck on PENDING. Why?</summary>
+        <div>The async validator's Observable never completed. Complete it (HTTP does, or use
+        <code>timer().pipe(switchMap(...))</code>, or <code>first()</code>).</div>
+      </details>
+      <details class="qa">
+        <summary>How do you avoid a server call on every keystroke?</summary>
+        <div>Debounce with <code>timer(ms)</code> + <code>switchMap</code>, or set the control's
+        <code>updateOn: 'blur'</code>.</div>
+      </details>
+      <details class="qa">
+        <summary>Do async validators run before sync ones?</summary>
+        <div>No — only after all sync validators pass, so you don't hit the server for an
+        obviously invalid value.</div>
+      </details>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Async validators return <code>Observable&lt;ValidationErrors | null&gt;</code> (or a Promise).</li>
@@ -107,7 +139,12 @@ function uniqueUsername(): AsyncValidatorFn {
     </article>
   `,
   styles: [
-    `.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }`,
+    `
+      .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
   ],
 })
 export class AsyncValidators {

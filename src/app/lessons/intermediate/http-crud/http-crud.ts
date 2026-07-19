@@ -16,6 +16,13 @@ const API = 'https://jsonplaceholder.typicode.com/posts';
 @Component({
   selector: 'app-lesson-http-crud',
   imports: [RouterLink, JsonPipe],
+  styles: [
+    `
+      .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+      .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+      .qa div { padding: 10px 14px; font-size: .9rem; }
+    `,
+  ],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Intermediate · HTTP</span>
@@ -78,6 +85,40 @@ http.get(url, {{ '{' }} responseType: 'text' {{ '}' }});</pre>
         <code>timeout(5000)</code> add resilience. Because the result is an Observable,
         nothing is sent until you subscribe — and unsubscribing aborts the request.
       </div>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong><code>HttpParams</code> is immutable.</strong> <code>set()</code>/<code>append()</code>
+          return a <em>new</em> instance — <code>params.set('a', 1)</code> alone does nothing;
+          reassign it.</li>
+        <li><strong>PUT vs PATCH.</strong> PUT replaces the whole resource; PATCH sends only the
+          changed fields. Sending a partial body with PUT can wipe omitted fields.</li>
+        <li><strong>Body vs options argument order.</strong> Write verbs take
+          <code>(url, body, options)</code>; GET/DELETE take <code>(url, options)</code> — easy
+          to pass options where the body goes.</li>
+        <li><strong>No error handling on writes.</strong> A failed POST/PUT should surface;
+          <code>catchError</code> that quietly returns a fake value hides data loss.</li>
+        <li><strong>Per-call auth headers.</strong> Cross-cutting headers belong in an
+          interceptor, not repeated at every call site.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why did <code>params.set('page', 2)</code> not change the URL?</summary>
+        <div><code>HttpParams</code> is immutable — <code>set</code> returns a new instance you
+        must assign/pass. The original is unchanged.</div>
+      </details>
+      <details class="qa">
+        <summary>PUT or PATCH to change one field?</summary>
+        <div>PATCH — it sends only that field. PUT replaces the entire resource, so omitted
+        fields may be cleared.</div>
+      </details>
+      <details class="qa">
+        <summary>How do you read response headers or status, not just the body?</summary>
+        <div>Pass <code>&#123; observe: 'response' &#125;</code> — you get the full
+        <code>HttpResponse</code> with <code>status</code>, <code>headers</code> and
+        <code>body</code>.</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>
