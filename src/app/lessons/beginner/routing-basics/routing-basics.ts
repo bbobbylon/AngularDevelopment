@@ -1,5 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+
+/** A route entry for the live matcher demo. */
+interface DemoRoute {
+  path: string;
+  label: string;
+  full?: boolean; // pathMatch: 'full' (only the empty-path route needs it here)
+}
 
 @Component({
   selector: 'app-lesson-routing-basics',
@@ -95,6 +102,51 @@ goToUser(id: number) {{ '{' }}
         <code>TitleStrategy</code> to customise how they're applied.
       </div>
 
+      <h2>Live #2 — the matcher: first match wins</h2>
+      <p>
+        The router walks the table top-to-bottom and stops at the <strong>first</strong> route
+        that matches the URL. Type a path below and watch which entry wins — reorder in your head
+        and you'll see why a stray <code>**</code> or a bare <code>''</code> in the wrong place can
+        swallow everything:
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — enter a URL path</p>
+        <div class="row" style="margin-bottom:12px">
+          <span>/</span>
+          <input [value]="testUrl()" (input)="testUrl.set($any($event.target).value)"
+                 placeholder="e.g. users/7/edit" style="width:200px" />
+        </div>
+        <table class="matcher">
+          @for (r of demoRoutes; track r.path) {
+            <tr [class.hit]="matchedPath() === r.path">
+              <td><code>{{ r.path === '' ? "'' (empty)" : r.path }}</code>{{ r.full ? ' · full' : '' }}</td>
+              <td>{{ r.label }}</td>
+              <td>{{ matchedPath() === r.path ? '✅ matched' : '' }}</td>
+            </tr>
+          }
+        </table>
+      </div>
+
+      <h2>Under the hood — how a URL is matched</h2>
+      <p>
+        The router splits both the URL and each route's <code>path</code> into
+        <strong>segments</strong> on <code>/</code>, then compares them left to right. A literal
+        segment must equal the URL's; a <code>:param</code> segment matches any single segment and
+        captures its value; <code>**</code> matches all remaining segments. By default matching is
+        <strong>prefix</strong>: <code>path: 'users'</code> matches <code>/users</code>,
+        <code>/users/7</code> and deeper, because the route only needs to match the <em>start</em>.
+        That's usually what you want for parent routes with children — but it's a trap for redirects.
+      </p>
+
+      <h2>Exam pitfalls</h2>
+      <ul>
+        <li><strong><code>pathMatch: 'full'</code> on empty-path redirects.</strong> <code>{{ '{' }} path: '', redirectTo: 'home' {{ '}' }}</code> with the default prefix match redirects <em>every</em> URL (they all start with <code>''</code>). Add <code>pathMatch: 'full'</code> so only the exact empty path redirects.</li>
+        <li><strong>Order matters — wildcard last.</strong> A <code>**</code> or a greedy prefix route placed early wins before more specific ones ever get a chance.</li>
+        <li><strong><code>href</code> triggers a full page reload.</strong> Use <code>routerLink</code> for in-app navigation; <code>href</code> re-downloads the whole app.</li>
+        <li><strong>Home link stays "active" everywhere.</strong> <code>routerLinkActive</code> uses prefix matching too — add <code>[routerLinkActiveOptions]="{{ '{' }} exact: true {{ '}' }}"</code> to the <code>/</code> link.</li>
+        <li><strong>Leading slash = absolute.</strong> <code>routerLink="/users"</code> is absolute; <code>routerLink="users"</code> is relative to the current route. Mixing them up navigates somewhere surprising.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Routes map a <code>path</code> to a <code>component</code> (or a lazy <code>loadComponent</code>).</li>
@@ -126,7 +178,40 @@ goToUser(id: number) {{ '{' }}
         color: #fff;
         text-decoration: none;
       }
+      .matcher { width: 100%; border-collapse: collapse; font-size: .85rem; }
+      .matcher td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+      .matcher tr.hit { background: rgba(46, 193, 107, 0.12); }
+      .matcher tr.hit td:first-child { border-left: 3px solid var(--green, #2ec16b); }
     `,
   ],
 })
-export class RoutingBasics {}
+export class RoutingBasics {
+  protected readonly testUrl = signal('users/7/edit');
+
+  /** The demo table, in match order (top wins). */
+  protected readonly demoRoutes: DemoRoute[] = [
+    { path: '', label: 'HomeComponent', full: true },
+    { path: 'about', label: 'AboutComponent' },
+    { path: 'users/:id/edit', label: 'UserEditComponent' },
+    { path: 'users/:id', label: 'UserComponent' },
+    { path: '**', label: 'NotFoundComponent (404)' },
+  ];
+
+  /** The path of the first route that matches the typed URL (first match wins). */
+  protected readonly matchedPath = computed(() => {
+    const segs = this.testUrl().split('/').filter(Boolean);
+    for (const r of this.demoRoutes) {
+      if (this.routeMatches(r, segs)) return r.path;
+    }
+    return null;
+  });
+
+  private routeMatches(route: DemoRoute, url: string[]): boolean {
+    if (route.path === '**') return true; // wildcard matches anything
+    const routeSegs = route.path.split('/').filter(Boolean);
+    // Empty path with pathMatch:'full' only matches the empty URL.
+    if (routeSegs.length === 0) return route.full ? url.length === 0 : true;
+    if (routeSegs.length !== url.length) return false; // exact segment count here
+    return routeSegs.every((seg, i) => seg.startsWith(':') || seg === url[i]);
+  }
+}

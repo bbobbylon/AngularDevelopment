@@ -1,7 +1,13 @@
 import { Component, OnDestroy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Subject, Subscription, of } from 'rxjs';
-import { debounceTime, distinctUntilChanged, map, switchMap } from 'rxjs/operators';
+import { Subject, Subscription, of, timer } from 'rxjs';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  mergeMap,
+  switchMap,
+} from 'rxjs/operators';
 
 @Component({
   selector: 'app-lesson-rxjs-operators',
@@ -105,6 +111,47 @@ exhaustMap:     --a1-a2----------c1-c2           ignore new while one is in flig
         so you only bundle the ones you import.
       </div>
 
+      <h2>Live #2 — switchMap cancels, mergeMap keeps all</h2>
+      <p>
+        Press <strong>Fire</strong> a few times quickly. Each press starts a ~700ms async task
+        tagged with its number. <code>switchMap</code> cancels any in-flight task when a new one
+        starts — so only the <em>last</em> of a burst finishes. <code>mergeMap</code> lets them
+        all run — so every task finishes. This is exactly why <code>switchMap</code> is right for
+        search but <strong>wrong for saving data</strong>:
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — fired: <code>{{ fired().join(', ') || '—' }}</code></p>
+        <div class="row" style="margin-bottom:12px">
+          <button (click)="fire()">Fire task #{{ fired().length + 1 }}</button>
+          <button class="ghost" (click)="resetRace()">reset</button>
+        </div>
+        <table class="t">
+          <tr><th>Operator</th><th>Tasks that actually completed</th></tr>
+          <tr><td><code>switchMap</code></td><td><code>{{ switchOut().join(', ') || '(waiting…)' }}</code> <span style="color:var(--text-muted)">← stale ones were cancelled</span></td></tr>
+          <tr><td><code>mergeMap</code></td><td><code>{{ mergeOut().join(', ') || '(waiting…)' }}</code> <span style="color:var(--text-muted)">← all ran to completion</span></td></tr>
+        </table>
+      </div>
+
+      <h2>Under the hood — an operator is just a function</h2>
+      <p>
+        A pipeable operator is a plain function with the shape
+        <code>(source: Observable&lt;T&gt;) =&gt; Observable&lt;R&gt;</code>. <code>pipe(a, b, c)</code>
+        simply feeds the source through <code>a</code>, its output through <code>b</code>, and so on —
+        it's function composition, nothing more. Crucially, all of this is still <strong>lazy</strong>:
+        building a pipe wires up the machinery but runs no code. Only <code>subscribe()</code> pulls
+        values through. And because operators are standalone imports, the bundler tree-shakes the ones
+        you never use.
+      </p>
+
+      <h2>Exam pitfalls</h2>
+      <ul>
+        <li><strong>Nothing happens without <code>subscribe()</code>.</strong> A pipe with no subscriber (and no <code>async</code> pipe / <code>toSignal</code>) never executes.</li>
+        <li><strong><code>switchMap</code> for writes loses data.</strong> A second save cancels the first in-flight request. Use <code>concatMap</code> (ordered) or <code>mergeMap</code> (parallel) for mutations; reserve <code>switchMap</code> for reads where only the latest matters.</li>
+        <li><strong><code>catchError</code> in the wrong place.</strong> On the outer stream it kills the whole pipeline; put it on the <em>inner</em> stream so one failure doesn't deaden the source.</li>
+        <li><strong>Nested subscribes.</strong> <code>a$.subscribe(x =&gt; b$.subscribe(...))</code> is an anti-pattern — you lose cancellation and error propagation. Flatten with a <code>*Map</code> operator instead.</li>
+        <li><strong><code>debounceTime</code> without <code>distinctUntilChanged</code></strong> still re-fires when the settled value equals the previous one (e.g. type, delete, retype the same query).</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Operators chain in <code>.pipe()</code>; each returns a new Observable, never mutating the source.</li>
@@ -129,20 +176,42 @@ export class RxjsOperators implements OnDestroy {
   protected readonly result = signal('—');
 
   private readonly query$ = new Subject<string>();
-  private readonly sub: Subscription;
+  private readonly subs = new Subscription();
+
+  // --- Live #2: switchMap vs mergeMap race ---
+  private fireId = 0;
+  private readonly switch$ = new Subject<number>();
+  private readonly merge$ = new Subject<number>();
+  protected readonly fired = signal<number[]>([]);
+  protected readonly switchOut = signal<number[]>([]);
+  protected readonly mergeOut = signal<number[]>([]);
 
   constructor() {
-    this.sub = this.query$
-      .pipe(
-        debounceTime(400),
-        distinctUntilChanged(),
-        switchMap((q) => {
-          this.searches.update((n) => n + 1);
-          // simulate an API returning a transformed result
-          return of(q).pipe(map((s) => (s ? `found "${s}"` : '—')));
-        }),
-      )
-      .subscribe((r) => this.result.set(r));
+    this.subs.add(
+      this.query$
+        .pipe(
+          debounceTime(400),
+          distinctUntilChanged(),
+          switchMap((q) => {
+            this.searches.update((n) => n + 1);
+            // simulate an API returning a transformed result
+            return of(q).pipe(map((s) => (s ? `found "${s}"` : '—')));
+          }),
+        )
+        .subscribe((r) => this.result.set(r)),
+    );
+
+    // Each fired id starts a 700ms "task"; switchMap cancels stale ones, mergeMap keeps all.
+    this.subs.add(
+      this.switch$
+        .pipe(switchMap((id) => timer(700).pipe(map(() => id))))
+        .subscribe((id) => this.switchOut.update((a) => [...a, id])),
+    );
+    this.subs.add(
+      this.merge$
+        .pipe(mergeMap((id) => timer(700).pipe(map(() => id))))
+        .subscribe((id) => this.mergeOut.update((a) => [...a, id])),
+    );
   }
 
   protected onType(value: string) {
@@ -150,7 +219,21 @@ export class RxjsOperators implements OnDestroy {
     this.query$.next(value);
   }
 
+  protected fire() {
+    const id = ++this.fireId;
+    this.fired.update((a) => [...a, id]);
+    this.switch$.next(id);
+    this.merge$.next(id);
+  }
+
+  protected resetRace() {
+    this.fireId = 0;
+    this.fired.set([]);
+    this.switchOut.set([]);
+    this.mergeOut.set([]);
+  }
+
   ngOnDestroy() {
-    this.sub.unsubscribe();
+    this.subs.unsubscribe();
   }
 }

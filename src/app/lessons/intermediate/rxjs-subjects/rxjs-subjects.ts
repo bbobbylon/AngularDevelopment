@@ -1,6 +1,12 @@
 import { Component, OnDestroy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BehaviorSubject, ReplaySubject, Subject, Subscription } from 'rxjs';
+import {
+  AsyncSubject,
+  BehaviorSubject,
+  ReplaySubject,
+  Subject,
+  Subscription,
+} from 'rxjs';
 
 @Component({
   selector: 'app-lesson-rxjs-subjects',
@@ -101,6 +107,56 @@ export class NotificationBus {{ '{' }}
         through (debounce a search box, buffer clicks, etc.).
       </div>
 
+      <h2>Live #2 — the four flavors, one late subscriber</h2>
+      <p>
+        This is the whole point of the four types. Emit a few values into all four subjects,
+        optionally <em>complete</em> them, then add a late subscriber and see exactly what each
+        one delivers on join:
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — emitted so far: <code>{{ emitted().join(', ') || '—' }}</code>{{ done() ? ' (completed)' : '' }}</p>
+        <div class="row" style="margin-bottom:12px">
+          <button (click)="emitAll()" [disabled]="done()">Emit next</button>
+          <button class="ghost" (click)="completeAll()" [disabled]="done()">complete()</button>
+          <button (click)="subscribeLate()" [disabled]="lateJoined2()">Add late subscriber</button>
+          <button class="ghost" (click)="resetFlavors()">reset</button>
+        </div>
+        <table class="t">
+          <tr><th>Flavor</th><th>Late subscriber received</th></tr>
+          <tr><td><code>Subject</code></td><td><code>{{ show(lateSubject()) }}</code></td></tr>
+          <tr><td><code>BehaviorSubject(0)</code></td><td><code>{{ show(lateBehavior()) }}</code></td></tr>
+          <tr><td><code>ReplaySubject(2)</code></td><td><code>{{ show(lateReplay()) }}</code></td></tr>
+          <tr><td><code>AsyncSubject</code></td><td><code>{{ show(lateAsync()) }}</code></td></tr>
+        </table>
+        <p style="color:var(--text-muted);font-size:.85rem">
+          Plain <code>Subject</code> gives the latecomer nothing already-emitted;
+          <code>BehaviorSubject</code> replays just the current value; <code>ReplaySubject(2)</code>
+          replays the last two; <code>AsyncSubject</code> stays silent until you press
+          <code>complete()</code>, then delivers only the final value.
+        </p>
+      </div>
+
+      <h2>Under the hood — how multicast works</h2>
+      <p>
+        A Subject keeps an internal <strong>list of observers</strong>. Calling
+        <code>next(v)</code> simply loops that list and pushes <code>v</code> to each one — that's
+        the entire multicast mechanism. A plain Observable has no such list: its subscribe callback
+        re-runs per subscriber, which is why it's unicast. The flavors differ only in what they do
+        <em>at subscribe time</em>: <code>BehaviorSubject</code> immediately emits its stored current
+        value, <code>ReplaySubject</code> replays a buffer, <code>AsyncSubject</code> waits for
+        completion. Once a Subject completes or errors, its observer list is cleared and it will
+        never emit again.
+      </p>
+
+      <h2>Exam pitfalls</h2>
+      <ul>
+        <li><strong>next() after complete() is silently ignored.</strong> A completed Subject is dead; new subscribers get only the completion notification (or, for BehaviorSubject/ReplaySubject, the buffered value then completion).</li>
+        <li><strong>Exposing the raw Subject.</strong> Return <code>.asObservable()</code> so consumers can't <code>next()</code> or <code>complete()</code> your stream from outside.</li>
+        <li><strong><code>BehaviorSubject</code> requires an initial value</strong> — that's why new subscribers always get something. A plain <code>Subject</code> has none.</li>
+        <li><strong>Reading <code>.value</code> everywhere.</strong> It's handy but pulls you out of the reactive flow; overusing it is a code smell — prefer piping, or a signal.</li>
+        <li><strong>Leaks.</strong> A Subject is an infinite hot stream; subscribers must unsubscribe (<code>async</code> pipe, <code>takeUntilDestroyed</code>) or they pile up.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>A Subject is an Observable you can also push into; it <strong>multicasts</strong> to all subscribers.</li>
@@ -127,13 +183,25 @@ export class RxjsSubjects implements OnDestroy {
 
   private subs = new Subscription();
 
+  // --- Live #2: the four flavors ---
+  private subjectF = new Subject<number>();
+  private behaviorF = new BehaviorSubject<number>(0);
+  private replayF = new ReplaySubject<number>(2);
+  private asyncF = new AsyncSubject<number>();
+  private flavorSubs = new Subscription();
+
+  protected readonly emitted = signal<number[]>([]);
+  protected readonly done = signal(false);
+  protected readonly lateJoined2 = signal(false);
+  protected readonly lateSubject = signal<number[]>([]);
+  protected readonly lateBehavior = signal<number[]>([]);
+  protected readonly lateReplay = signal<number[]>([]);
+  protected readonly lateAsync = signal<number[]>([]);
+
   constructor() {
     // Subscriber A joins immediately.
     this.subs.add(this.value$.subscribe((v) => this.a.update((arr) => [...arr, v])));
     this.subs.add(this.value$.subscribe((v) => this.current.set(v)));
-    // Keep references to the other Subject types so they are demonstrated/imported.
-    void new Subject<void>();
-    void new ReplaySubject<number>(2);
   }
 
   protected emit() {
@@ -145,7 +213,55 @@ export class RxjsSubjects implements OnDestroy {
     this.subs.add(this.value$.subscribe((v) => this.b.update((arr) => [...arr, v])));
   }
 
+  /** Format a late-subscriber result array for display. */
+  protected show(arr: number[]): string {
+    if (!this.lateJoined2()) return '— (add a late subscriber)';
+    return arr.length ? arr.join(', ') : '(nothing)';
+  }
+
+  protected emitAll() {
+    const v = this.emitted().length + 1;
+    this.emitted.update((a) => [...a, v]);
+    this.subjectF.next(v);
+    this.behaviorF.next(v);
+    this.replayF.next(v);
+    this.asyncF.next(v);
+  }
+
+  protected completeAll() {
+    this.subjectF.complete();
+    this.behaviorF.complete();
+    this.replayF.complete();
+    this.asyncF.complete(); // AsyncSubject only emits its final value now
+    this.done.set(true);
+  }
+
+  protected subscribeLate() {
+    this.lateJoined2.set(true);
+    this.flavorSubs.add(this.subjectF.subscribe((v) => this.lateSubject.update((a) => [...a, v])));
+    this.flavorSubs.add(this.behaviorF.subscribe((v) => this.lateBehavior.update((a) => [...a, v])));
+    this.flavorSubs.add(this.replayF.subscribe((v) => this.lateReplay.update((a) => [...a, v])));
+    this.flavorSubs.add(this.asyncF.subscribe((v) => this.lateAsync.update((a) => [...a, v])));
+  }
+
+  protected resetFlavors() {
+    this.flavorSubs.unsubscribe();
+    this.flavorSubs = new Subscription();
+    this.subjectF = new Subject<number>();
+    this.behaviorF = new BehaviorSubject<number>(0);
+    this.replayF = new ReplaySubject<number>(2);
+    this.asyncF = new AsyncSubject<number>();
+    this.emitted.set([]);
+    this.done.set(false);
+    this.lateJoined2.set(false);
+    this.lateSubject.set([]);
+    this.lateBehavior.set([]);
+    this.lateReplay.set([]);
+    this.lateAsync.set([]);
+  }
+
   ngOnDestroy() {
     this.subs.unsubscribe();
+    this.flavorSubs.unsubscribe();
   }
 }

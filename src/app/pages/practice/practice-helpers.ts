@@ -42,28 +42,6 @@ export function shuffleOptions(options: string[], correctAnswerIndex: number): S
 }
 
 /**
- * Generate explanation for why other answers are wrong
- * This should be customized for each question type
- */
-export interface WrongAnswerExplanation {
-  option: string;
-  reason: string;
-}
-
-/**
- * Structure for enhanced challenge feedback
- */
-export interface ChallengeFeedback {
-  isCorrect: boolean;
-  explanation: string;
-  wrongAnswerReasons?: WrongAnswerExplanation[];
-  topicLink?: {
-    path: string;
-    label: string;
-  };
-}
-
-/**
  * Memoizes shuffled options so they don't change on re-renders
  * Maps challenge ID to its shuffled options
  */
@@ -94,29 +72,4 @@ export class OptionsShuffler {
   resetChallenge(id: number): void {
     this.cache.delete(id);
   }
-}
-
-/**
- * Sample function to generate wrong answer reasons
- * Should be customized per question domain
- */
-export function generateWrongAnswerReasons(
-  question: string,
-  options: string[],
-  correctIndex: number
-): WrongAnswerExplanation[] {
-  const reasons: WrongAnswerExplanation[] = [];
-
-  options.forEach((option, index) => {
-    if (index !== correctIndex) {
-      // This is a placeholder - real implementation would analyze each option
-      // and provide specific, educational reasons why it's wrong
-      reasons.push({
-        option,
-        reason: 'This answer is incorrect. Review the explanation above for the correct concept.',
-      });
-    }
-  });
-
-  return reasons;
 }

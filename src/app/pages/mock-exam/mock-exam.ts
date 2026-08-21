@@ -181,6 +181,7 @@ function saveHistory(entries: HistoryEntry[]): void {
     .review-card.ok .rev-mark { color: #22c55e; }
     .review-card.no .rev-mark { color: #ef4444; }
     .skipped { font-size: .82rem; color: #b45309; margin: -6px 0 10px; }
+    .correct-callout { margin: 0 0 10px; padding: 8px 12px; border-radius: 6px; background: rgba(239,68,68,.1); font-size: .85rem; font-weight: 600; }
     .explanation { margin: 4px 0 0; padding: 12px 16px; border-radius: 10px; font-size: .86rem; line-height: 1.55; background: var(--bg, rgba(127,127,127,.06)); }
     .topic-link { display: inline-block; margin-top: 10px; font-size: .82rem; color: var(--blue); text-decoration: underline; }
 
@@ -448,6 +449,10 @@ function saveHistory(entries: HistoryEntry[]): void {
 
               @if (!isAnswered(ch.id)) { <div class="skipped">Not answered</div> }
 
+              @if (!isCorrect(ch)) {
+                <div class="correct-callout">Correct answer: {{ correctOptionLetter(ch) }}</div>
+              }
+
               <div class="explanation">{{ ch.explanation }}</div>
               @if (ch.topicPath) {
                 <a [routerLink]="'/' + ch.topicPath" class="topic-link">📚 Study this topic →</a>
@@ -646,6 +651,11 @@ export class MockExam implements OnDestroy {
   shuffledOptions(ch: Challenge): { options: string[]; correctIndex: number } {
     if (!ch.options) return { options: [], correctIndex: -1 };
     return this.shuffler.getShuffledOptions(ch.id, ch.options, ch.answer as number);
+  }
+
+  /** Letter (A/B/C/D) of the correct option, for the per-wrong-answer callout. */
+  correctOptionLetter(ch: Challenge): string {
+    return this.letters[this.shuffledOptions(ch).correctIndex] ?? '';
   }
 
   // --- active interactions ---

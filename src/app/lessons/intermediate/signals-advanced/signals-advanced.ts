@@ -115,6 +115,21 @@ selected = linkedSignal({{ '{' }}
         Use <code>untracked</code> to break unwanted dependencies, not as a habit.
       </div>
 
+      <h2>Under the hood — a pull-based, glitch-free graph</h2>
+      <p>
+        Signals form a <strong>dependency graph</strong> of producers (writable signals) and
+        consumers (<code>computed</code>, <code>effect</code>, views). When you read a signal
+        <em>inside</em> a reactive context, Angular records an edge: "this consumer depends on that
+        producer." That's why dependencies are dynamic — an <code>if</code> branch that isn't
+        taken this run creates no edge, and <code>untracked()</code> deliberately skips recording one.
+      </p>
+      <ul>
+        <li><strong>Pull, not push.</strong> Writing a signal doesn't eagerly recompute anything — it just bumps a version number and marks dependents "dirty". A <code>computed</code> only re-runs when someone actually <em>reads</em> it and finds a dependency changed. Untouched computeds cost nothing.</li>
+        <li><strong>Memoized.</strong> A <code>computed</code> caches its last value and returns it until a dependency's version changes — so reading it ten times runs the formula at most once.</li>
+        <li><strong>Glitch-free.</strong> Because evaluation is synchronous and pull-based, a reader never observes a half-updated graph (an intermediate "glitch") the way a chain of <code>effect</code>s copying values can.</li>
+        <li><strong>Equality gates propagation.</strong> After recomputing, a signal compares new vs old with its <code>equal</code> fn (reference by default). If equal, dependents are <em>not</em> notified — the ripple stops early.</li>
+      </ul>
+
       <h2>Common mistakes</h2>
       <table class="t">
         <tr>

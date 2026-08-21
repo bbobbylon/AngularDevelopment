@@ -78,6 +78,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
     .verdict.ok { background: rgba(34,197,94,.1); border: 1px solid #22c55e; }
     .verdict.no { background: rgba(239,68,68,.08); border: 1px solid #ef4444; }
     .verdict strong { display: block; margin-bottom: 6px; }
+    .correct-callout { margin: 0 0 10px; padding: 8px 12px; border-radius: 6px; background: rgba(239,68,68,.1); font-size: .85rem; font-weight: 600; }
     .schedule-note { display: inline-block; margin-top: 10px; font-size: .8rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(99,102,241,.1); color: #6366f1; }
     .topic-link { display: inline-block; margin-top: 10px; margin-left: 10px; font-size: .82rem; color: var(--blue); text-decoration: underline; }
     .q-actions { display: flex; justify-content: flex-end; }
@@ -188,6 +189,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
             } @else {
               <div class="verdict" [class.ok]="lastCorrect()" [class.no]="!lastCorrect()">
                 <strong>{{ lastCorrect() ? '✓ Correct!' : '✗ Not quite.' }}</strong>
+                @if (!lastCorrect()) {
+                  <div class="correct-callout">Correct answer: {{ correctOptionLetter(ch) }}</div>
+                }
                 {{ ch.explanation }}
                 <br>
                 <span class="schedule-note">{{ scheduleNote() }}</span>
@@ -300,6 +304,11 @@ export class Review {
   shuffledOptions(ch: Challenge): { options: string[]; correctIndex: number } {
     if (!ch.options) return { options: [], correctIndex: -1 };
     return this.shuffler.getShuffledOptions(ch.id, ch.options, ch.answer as number);
+  }
+
+  /** Letter (A/B/C/D) of the correct option, for the per-wrong-answer callout. */
+  correctOptionLetter(ch: Challenge): string {
+    return this.letters[this.shuffledOptions(ch).correctIndex] ?? '';
   }
 
   submit(ch: Challenge): void {

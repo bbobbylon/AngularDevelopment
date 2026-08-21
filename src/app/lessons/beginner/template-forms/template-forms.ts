@@ -1,8 +1,15 @@
 import { JsonPipe } from '@angular/common';
-import { Component, signal } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+/**
+ * Lesson: template-driven forms — ngModel/ngForm build the form model FOR you
+ * from the template. This page shows the live control-registration mechanics,
+ * how the framework tracks validity/touched/dirty as CSS classes, how a plain
+ * WritableSignal can sit inside a two-way ngModel binding, and exactly what
+ * ControlValueAccessor is doing under the hood so none of it feels like magic.
+ */
 @Component({
   selector: 'app-lesson-template-forms',
   imports: [RouterLink, FormsModule, JsonPipe],
@@ -12,21 +19,46 @@ import { RouterLink } from '@angular/router';
       <h1>Template-Driven Forms</h1>
       <p class="lead">
         Template-driven forms keep the logic in the template using
-        <code>ngModel</code>. Angular builds the form model for you behind the
-        scenes — great for simple forms. (Reactive forms, covered later, move that
-        model into the component for complex cases.)
+        <code>ngModel</code>. You never construct a <code>FormControl</code> or
+        <code>FormGroup</code> yourself — Angular walks the DOM, finds every
+        <code>ngModel</code>-decorated element, and assembles a matching control
+        tree behind the scenes. Great for small, mostly-static forms. (Reactive
+        forms, covered later, move that model explicitly into the component
+        class for complex, dynamic, or heavily-tested cases.)
       </p>
 
       <h2>Setup</h2>
-      <p>Import <code>FormsModule</code> into the component:</p>
-      <div class="code">
-        <pre>import {{ '{' }} FormsModule {{ '}' }} from '&#64;angular/forms';
-// imports: [FormsModule]</pre>
-      </div>
+      <p>Import <code>FormsModule</code> into the component that owns the form:</p>
+      <div class="code"><pre>{{ setupSample }}</pre></div>
+
+      <h3>Line-by-line</h3>
+      <ul class="linebyline">
+        <li>
+          <code>import {{ '{' }} FormsModule {{ '}' }} from '&#64;angular/forms';</code>
+          — pulls in the <em>directive bundle</em> that ships <code>NgModel</code>,
+          <code>NgForm</code>, <code>NgModelGroup</code>, and the attribute-based
+          validators (<code>required</code>, <code>minlength</code>, <code>maxlength</code>,
+          <code>pattern</code>, <code>email</code>). It is a small standalone-friendly
+          module, distinct from <code>ReactiveFormsModule</code>.
+        </li>
+        <li>
+          <code>imports: [FormsModule]</code> in the standalone <code>&#64;Component</code>
+          metadata — this is what actually makes <code>ngModel</code> a legal template
+          attribute <em>on this component</em>. Standalone components don't inherit
+          directives from anywhere else; every template needs its own import list.
+        </li>
+        <li>
+          Omit the import and the template still "compiles" syntactically, but
+          Angular's compiler doesn't recognize <code>ngModel</code> as a known
+          property, so you get an <code>NG8002: Can't bind to 'ngModel'</code> error
+          at build time — a very common first-timer mistake covered again in
+          <a href="#pitfalls">Exam pitfalls</a> below.
+        </li>
+      </ul>
 
       <h2>Try it</h2>
       <div class="demo">
-        <p class="demo__title">Live</p>
+        <p class="demo__title">Live — a real template-driven form</p>
         <form #f="ngForm" (ngSubmit)="submit(f.value)">
           <div class="field">
             <label for="name">Name (required, min 2)</label>
@@ -76,6 +108,99 @@ import { RouterLink } from '@angular/router';
         }
       </div>
 
+      <h2>Anatomy of the name field</h2>
+      <p>
+        The <strong>name</strong> field above is the smallest complete example of
+        every moving part in a template-driven control. Here it is in isolation:
+      </p>
+      <div class="code"><pre>{{ anatomySample }}</pre></div>
+
+      <h3>Line-by-line</h3>
+      <table class="linebyline-table">
+        <tr><th>Line / attribute</th><th>What it does here</th></tr>
+        <tr>
+          <td><code>#f="ngForm"</code> on <code>&lt;form&gt;</code></td>
+          <td>
+            Every <code>&lt;form&gt;</code> in an app with <code>FormsModule</code>
+            imported gets the <code>NgForm</code> directive attached automatically
+            (it matches the <code>form</code> element selector, no explicit
+            attribute needed). <code>#f="ngForm"</code> just grabs a template
+            reference to that directive instance so the template can read
+            <code>f.value</code>, <code>f.valid</code>, and call <code>f.resetForm()</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>(ngSubmit)="submit(f.value)"</code></td>
+          <td>
+            <code>NgForm</code> listens for the native <code>submit</code> event,
+            calls <code>preventDefault()</code> for you (so the page never
+            hard-navigates/reloads), and re-emits it as <code>ngSubmit</code>. Using
+            <code>(ngSubmit)</code> instead of <code>(submit)</code> is what gets
+            you that automatic <code>preventDefault()</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>name="name"</code></td>
+          <td>
+            The key the control registers under on the parent form. <code>f.value</code>
+            ends up as <code>{{ '{' }} name: ..., email: ..., plan: ... {{ '}' }}</code>
+            — the object shape is built entirely from these <code>name</code> strings,
+            not from the element's <code>id</code> (which is only there for the
+            <code>&lt;label for&gt;</code> association and has no meaning to Angular).
+          </td>
+        </tr>
+        <tr>
+          <td><code>ngModel</code> (bare, no brackets)</td>
+          <td>
+            This is the directive selector itself. Bare <code>ngModel</code> (no
+            <code>[ngModel]</code>/<code>[(ngModel)]</code>) still creates and
+            registers a <code>FormControl</code> — it just means "manage this
+            control, but don't push a value <em>into</em> it from the component."
+            One-way-out only: the form model reads from the DOM, nothing writes
+            back into the DOM from the class.
+          </td>
+        </tr>
+        <tr>
+          <td><code>required</code>, <code>minlength="2"</code></td>
+          <td>
+            Plain HTML validation attributes. <code>NgModel</code> detects them via
+            Angular's built-in validator directives (<code>RequiredValidator</code>,
+            <code>MinLengthValidator</code>, etc., all shipped inside
+            <code>FormsModule</code>) and folds their results into the control's
+            <code>errors</code> object — no separate "validators array" to wire up
+            like in reactive forms.
+          </td>
+        </tr>
+        <tr>
+          <td><code>#name="ngModel"</code></td>
+          <td>
+            A template reference to <em>this control's</em> <code>NgModel</code>
+            directive instance, exposing <code>name.invalid</code>,
+            <code>name.touched</code>, <code>name.dirty</code>, and
+            <code>name.errors</code> for the error-message logic just below it.
+          </td>
+        </tr>
+        <tr>
+          <td><code>&#64;if (name.invalid &amp;&amp; name.touched)</code></td>
+          <td>
+            Gates the error block on <em>both</em> conditions. <code>invalid</code>
+            alone would show "Name is required" on a completely untouched, empty
+            field the instant the page loads — <code>touched</code> only becomes
+            <code>true</code> after a <code>blur</code> event, so the message waits
+            until the user has actually interacted with (and left) the field.
+          </td>
+        </tr>
+        <tr>
+          <td><code>name.errors?.['required']</code></td>
+          <td>
+            <code>errors</code> is <code>null</code> when the control is valid, so
+            the optional-chain <code>?.</code> is load-bearing — without it,
+            reading <code>['required']</code> off <code>null</code> throws the
+            moment the field becomes valid.
+          </td>
+        </tr>
+      </table>
+
       <h2>How it works</h2>
       <ul>
         <li><code>ngModel</code> + a <code>name</code> registers a control on the parent <code>ngForm</code>.</li>
@@ -86,43 +211,214 @@ import { RouterLink } from '@angular/router';
       </ul>
 
       <h2>ngModel variations</h2>
-      <div class="code">
-        <pre>&lt;input name="q" ngModel /&gt;                  // one-way into the form model
-&lt;input name="q" [(ngModel)]="query" /&gt;      // two-way to a component field
-&lt;input ngModel #x="ngModel" /&gt;              // standalone — no parent &lt;form&gt;
+      <div class="code"><pre>{{ variationsSample }}</pre></div>
 
-&lt;div ngModelGroup="address"&gt;                // nest controls into a sub-group
-  &lt;input name="city" ngModel /&gt;            // → form.value.address.city
-&lt;/div&gt;</pre>
-      </div>
+      <h3>Line-by-line</h3>
+      <ul class="linebyline">
+        <li>
+          <code>&lt;input name="q" ngModel /&gt;</code> — bare <code>ngModel</code>,
+          one-way <strong>into</strong> the form model only. The DOM value flows up
+          to <code>f.value.q</code>; nothing flows back down from the component.
+          Use this when the component only cares about the value at submit time.
+        </li>
+        <li>
+          <code>&lt;input name="q" [(ngModel)]="query" /&gt;</code> — the "banana in a
+          box" syntax, sugar for <code>[ngModel]="query" (ngModelChange)="query = $event"</code>.
+          Now it's genuinely two-way: setting <code>this.query</code> in the class
+          updates the input's displayed value, and typing updates
+          <code>this.query</code> on every keystroke (via the <code>input</code>
+          event under the hood).
+        </li>
+        <li>
+          <code>&lt;input ngModel #x="ngModel" /&gt;</code> — a <strong>standalone</strong>
+          control with no surrounding <code>&lt;form&gt;</code>. It still gets a
+          working <code>FormControl</code> and template reference
+          (<code>x.value</code>, <code>x.valid</code>, …); it simply never rolls up
+          into a parent <code>NgForm</code>'s <code>value</code> object. Handy for a
+          single search box that doesn't need the ceremony of a full form.
+        </li>
+        <li>
+          <code>&lt;div ngModelGroup="address"&gt;</code> — nests every
+          <code>ngModel</code> control inside it under an <code>address</code> key,
+          so <code>form.value</code> becomes <code>{{ '{' }} address: {{ '{' }} city: ... {{ '}' }} {{ '}' }}</code>
+          instead of a flat object. It mirrors <code>FormGroup</code> nesting from
+          the reactive-forms world, purely through template structure.
+        </li>
+        <li>
+          <code>&lt;input name="city" ngModel /&gt;</code> inside that group — same
+          rules as any other control, it just registers on the
+          <code>NgModelGroup</code> instead of directly on the root
+          <code>NgForm</code>, which is why its value lands at
+          <code>form.value.address.city</code> rather than <code>form.value.city</code>.
+        </li>
+      </ul>
       <p>
-        Angular reflects control state as CSS classes you can style:
+        Angular also reflects control state as CSS classes you can style directly
+        — no JavaScript needed for basic error styling:
         <code>ng-valid</code>/<code>ng-invalid</code>,
         <code>ng-touched</code>/<code>ng-untouched</code>,
-        <code>ng-dirty</code>/<code>ng-pristine</code> — so error styling can be pure CSS.
+        <code>ng-dirty</code>/<code>ng-pristine</code>. A common pattern is
+        <code>input.ng-invalid.ng-touched {{ '{' }} border-color: red; {{ '}' }}</code> — invalid
+        AND touched, so pristine required fields don't turn red on page load.
       </p>
+
+      <h2>Live demo — a signal living inside a two-way ngModel binding</h2>
+      <p>
+        Template-driven forms predate signals, but the two integrate cleanly:
+        write <code>[(ngModel)]="mySignal"</code> — the <strong>bare signal, no
+        call parentheses</strong> — and Angular's template compiler recognizes the
+        two-way-binding target as a writable signal, so it reads the current value
+        for you and rewires the write-back to <code>mySignal.set(newValue)</code>
+        instead of an illegal reassignment. Pair the signal with a
+        <code>computed()</code> and you get form state that recalculates itself on
+        every keystroke, with no manual subscriptions and no
+        <code>(ngModelChange)</code> handler to write.
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — username strength derived with computed()</p>
+        <div class="field">
+          <label for="uname">Username</label>
+          <input id="uname" name="uname" [(ngModel)]="username" placeholder="Type here…" />
+        </div>
+        <div class="row">
+          <span class="pill">length: {{ usernameLength() }}</span>
+          <span class="pill">strength: {{ usernameStrength() }}</span>
+        </div>
+        <p class="note">
+          <code>username</code> is a plain <code>WritableSignal&lt;string&gt;</code>.
+          Every keystroke calls <code>username.set(...)</code> through the two-way
+          binding; <code>usernameLength</code> and <code>usernameStrength</code> are
+          <code>computed()</code> signals that re-derive automatically because they
+          read <code>username()</code> — nothing here is wired up imperatively.
+        </p>
+      </div>
+      <div class="code"><pre>{{ signalFormSample }}</pre></div>
+
+      <h3>Line-by-line</h3>
+      <ul class="linebyline">
+        <li>
+          <code>protected readonly username = signal('');</code> — a plain
+          writable signal, not a form control. Template-driven forms don't know or
+          care that the backing store is a signal; from <code>NgModel</code>'s
+          point of view it's just a value that can be read and written.
+        </li>
+        <li>
+          <code>[(ngModel)]="username"</code> — the <strong>bare</strong> signal
+          reference is the whole trick. Writing <code>[(ngModel)]="username()"</code>
+          (with a call) targets the signal's current <em>value</em> — a plain
+          string — and the write-back would need to reassign that call expression,
+          which the compiler rejects outright as an unsupported two-way-binding
+          target. Leaving off the parentheses lets the compiler see the target
+          itself is a <code>WritableSignal</code>, so it reads it for the current
+          value and rewires the write-back to <code>username.set($event)</code>
+          instead of a plain assignment.
+        </li>
+        <li>
+          <code>readonly usernameLength = computed(() =&gt; this.username().length);</code>
+          — <code>computed()</code> instead of a plain getter because it
+          <em>memoizes</em>: it only recalculates when <code>username</code>
+          actually changes, and — critically — reading it in the template
+          registers the template as a dependent, so Angular knows precisely when
+          to re-render this binding.
+        </li>
+        <li>
+          <code>readonly usernameStrength = computed(() =&gt; ...)</code> — derives
+          from <code>usernameLength()</code>, not from <code>username()</code>
+          directly. Computed signals can depend on other computed signals; Angular
+          builds the dependency graph from whichever signals are actually read
+          during the computation, so this stays lazy and correct without you
+          declaring the dependency anywhere explicitly.
+        </li>
+      </ul>
 
       <div class="tip">
         Reach for <strong>template-driven</strong> forms for small, mostly-static
         forms. Prefer <strong>reactive</strong> forms when you need dynamic
-        controls, complex validation, or unit-testable form logic. Template forms are
-        asynchronous — the model is assembled over a tick, so <code>f.value</code> may be
-        empty in the very first <code>ngOnInit</code>.
+        controls, complex/cross-field validation, or unit-testable form logic
+        without a rendered DOM. Template forms are asynchronous — the model is
+        assembled over a tick, so <code>f.value</code> may be empty in the very
+        first <code>ngOnInit</code>.
       </div>
 
-      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <h2>Under the hood</h2>
+      <p>
+        Nothing about <code>ngModel</code> is special-cased magic — it's ordinary
+        Angular directive machinery, composed of three cooperating pieces that
+        exam questions love to ask about individually:
+      </p>
+      <div class="code"><pre>{{ underTheHoodSample }}</pre></div>
+      <ul>
+        <li>
+          <strong><code>ControlValueAccessor</code></strong> is the bridge between
+          the DOM and Angular's form model. For a plain <code>&lt;input&gt;</code>,
+          Angular's built-in <code>DefaultValueAccessor</code> implements
+          <code>writeValue()</code> (model → DOM, sets <code>.value</code>),
+          <code>registerOnChange()</code> (DOM → model, wires the <code>input</code>
+          event to notify Angular), and <code>registerOnTouched()</code> (wires
+          <code>blur</code>). Custom form controls (a star-rating widget, a color
+          picker) implement this same interface to plug into <code>ngModel</code>
+          and reactive forms identically.
+        </li>
+        <li>
+          <strong>Control creation is asynchronous.</strong> <code>NgModel</code>
+          registers itself with the parent <code>NgForm</code> in
+          <code>ngOnChanges</code>, but that registration is deferred with a
+          <code>Promise.resolve().then(...)</code> (a microtask) to avoid the
+          "expression changed after it was checked" error that would fire if the
+          form's value changed synchronously during its own creation pass. That
+          microtask delay is exactly why <code>f.value</code> can read as
+          <code>{{ '{' }}{{ '}' }}</code> (empty) if you inspect it inside
+          <code>ngOnInit</code> — the controls haven't finished registering yet.
+        </li>
+        <li>
+          <strong>Validators compose into one function.</strong> Each attribute
+          validator (<code>RequiredValidator</code>, <code>EmailValidator</code>, …)
+          contributes a small pure function; Angular combines them with
+          <code>Validators.compose()</code> into a single validator that runs on
+          every value change and populates <code>control.errors</code>. That's why
+          <code>errors</code> can hold multiple keys at once — e.g.
+          <code>{{ '{' }} required: true {{ '}' }}</code> — even though only one
+          validator directive is failing at a time in practice.
+        </li>
+        <li>
+          <strong>Status changes propagate as an observable.</strong> Every
+          control exposes <code>statusChanges</code> and <code>valueChanges</code>
+          observables under the hood; the CSS classes (<code>ng-valid</code>,
+          <code>ng-dirty</code>, …) and the <code>invalid</code>/<code>touched</code>
+          getters you read in the template are just synchronous snapshots of that
+          same underlying state machine.
+        </li>
+      </ul>
+
+      <h2 id="pitfalls">Exam pitfalls</h2>
       <ul>
         <li><strong>Missing <code>name</code> attribute.</strong> <code>ngModel</code> without a
-          <code>name</code> inside a <code>&lt;form&gt;</code> throws — the name is the key it registers
-          under.</li>
+          <code>name</code> inside a <code>&lt;form&gt;</code> throws at runtime — the name is the key it
+          registers under, so Angular has no way to place the value in <code>form.value</code>.</li>
         <li><strong>Forgetting <code>FormsModule</code>.</strong> No import → <code>ngModel</code> isn't a
-          known property and the template won't compile.</li>
-        <li><strong>Reading <code>f.value</code> too early.</strong> The model assembles over a tick, so
-          it can be empty in the first <code>ngOnInit</code>.</li>
-        <li><strong>Showing errors before interaction.</strong> Gate messages on
-          <code>touched</code>/<code>dirty</code> so users aren't warned before typing.</li>
-        <li><strong>Using it for complex forms.</strong> Dynamic controls, cross-field validation, and
-          testability are where reactive forms win — template-driven suits simple, static forms.</li>
+          known property and the template fails to compile with <code>NG8002</code>.</li>
+        <li><strong>Reading <code>f.value</code> too early.</strong> Control registration happens in a
+          microtask, so it can be empty (<code>{{ '{' }}{{ '}' }}</code>) in the component's own
+          <code>ngOnInit</code> — a classic "why is my form empty" trick question.</li>
+        <li><strong>Showing errors before interaction.</strong> Gating only on <code>invalid</code>
+          (forgetting <code>touched</code>/<code>dirty</code>) shows every validation message the instant
+          the page renders, before the user has typed anything.</li>
+        <li><strong><code>[(ngModel)]="signalName()"</code> with a call.</strong> Adding the
+          <code>()</code> when two-way-binding to a signal does not compile — the write-back would need to
+          reassign a call expression, which the compiler rejects outright. Bind the bare
+          <code>signalName</code> and Angular rewires the write-back to <code>.set()</code> for you.</li>
+        <li><strong>Confusing <code>name</code> with <code>id</code>.</strong> <code>id</code> is only for
+          the <code>&lt;label for&gt;</code> pairing and accessibility — it has zero effect on
+          <code>form.value</code>. Only <code>name</code> (and <code>ngModelGroup</code> nesting) shapes
+          the value object.</li>
+        <li><strong>Using it for complex, dynamic forms.</strong> Adding/removing controls at runtime,
+          cross-field validation, and unit testing without rendering the DOM are exactly where reactive
+          forms win — template-driven forms suit small, mostly-static shapes.</li>
+        <li><strong>Two-way binding vs one-way.</strong> A question that shows
+          <code>&lt;input name="q" ngModel /&gt;</code> and asks "will typing update the component's
+          <code>query</code> field?" — the answer is no unless it's
+          <code>[(ngModel)]="query"</code>; bare <code>ngModel</code> only feeds <code>f.value</code>, not
+          a component property.</li>
       </ul>
 
       <h2>Exam corner</h2>
@@ -141,12 +437,30 @@ import { RouterLink } from '@angular/router';
         <div>Template-driven for small, mostly-static forms. Reactive for dynamic controls, cross-field
         validation, or unit-testable logic (model lives in the class).</div>
       </details>
+      <details class="qa">
+        <summary>What does <code>[(ngModel)]="username"</code> actually compile to, and why no parentheses?</summary>
+        <div>Two-way binding to a bare writable signal desugars to
+        <code>[ngModel]="username()" (ngModelChange)="username.set($event)"</code> — Angular reads the
+        current value for the input side and rewrites the write-back to <code>.set()</code>. Writing
+        <code>username()</code> as the binding target instead targets the signal's plain string
+        <em>value</em>, and the write-back would need to reassign that call expression — the compiler
+        rejects it as an unsupported two-way-binding target.</div>
+      </details>
+      <details class="qa">
+        <summary>Why can <code>f.value</code> be an empty object inside <code>ngOnInit</code>?</summary>
+        <div>Controls register with their parent <code>NgForm</code> via a microtask (deferred with
+        <code>Promise.resolve().then()</code>) to sidestep an "expression changed after checked" error.
+        <code>ngOnInit</code> runs synchronously before that microtask flushes, so the form can still look
+        empty at that point.</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>
-        <li>Import <code>FormsModule</code>; drive everything from the template with <code>ngModel</code>.</li>
-        <li>Template reference vars expose <code>ngForm</code> and <code>ngModel</code> state.</li>
-        <li>Validation uses HTML-attribute validators and the control's <code>errors</code>/state.</li>
+        <li>Import <code>FormsModule</code>; drive everything from the template with <code>ngModel</code> — no manually-constructed <code>FormControl</code>/<code>FormGroup</code>.</li>
+        <li>Template reference vars (<code>#f="ngForm"</code>, <code>#ctrl="ngModel"</code>) expose form and control state directly in markup.</li>
+        <li>Validation uses HTML-attribute validators composed into the control's <code>errors</code>/state — gate error UI on <code>touched</code> or <code>dirty</code>, not just <code>invalid</code>.</li>
+        <li><code>[(ngModel)]="signal"</code> — bind the bare signal (no call) to two-way bind it; Angular rewires the write-back to <code>.set()</code> automatically.</li>
+        <li>Under the hood: <code>ControlValueAccessor</code> bridges DOM ↔ model, registration is deferred to a microtask, and validators compose into one function feeding <code>statusChanges</code>.</li>
       </ul>
 
       <p><a routerLink="/ngmodules">Next: NgModules Explained →</a></p>
@@ -168,6 +482,11 @@ import { RouterLink } from '@angular/router';
       .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
       .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
       .qa div { padding: 10px 14px; font-size: .9rem; }
+      .linebyline { display: flex; flex-direction: column; gap: 8px; padding-left: 1.1em; }
+      .linebyline li { line-height: 1.5; }
+      .linebyline-table { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 12px 0; }
+      .linebyline-table th, .linebyline-table td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+      .linebyline-table th { background: var(--bg-elevated); }
     `,
   ],
 })
@@ -177,4 +496,89 @@ export class TemplateForms {
   protected submit(value: unknown) {
     this.submitted.set(value);
   }
+
+  // Live demo: a WritableSignal driving a two-way ngModel binding, with two
+  // computed() signals derived from it — see "Live demo — a signal living
+  // inside a two-way ngModel binding" above.
+  protected readonly username = signal('');
+  protected readonly usernameLength = computed(() => this.username().length);
+  protected readonly usernameStrength = computed(() => {
+    const len = this.usernameLength();
+    if (len === 0) return 'empty';
+    if (len < 4) return 'weak';
+    if (len < 8) return 'ok';
+    return 'strong';
+  });
+
+  readonly setupSample = `import { FormsModule } from '@angular/forms';
+
+@Component({
+  selector: 'app-signup-form',
+  imports: [FormsModule],   // standalone component opts in here
+  template: \`...\`,
+})
+export class SignupForm {}`;
+
+  readonly anatomySample = `<form #f="ngForm" (ngSubmit)="submit(f.value)">
+  <input
+    name="name"
+    ngModel
+    required
+    minlength="2"
+    #name="ngModel"
+  />
+  @if (name.invalid && name.touched) {
+    @if (name.errors?.['required']) { Name is required. }
+    @if (name.errors?.['minlength']) { At least 2 characters. }
+  }
+</form>`;
+
+  readonly variationsSample = `<input name="q" ngModel />                  // one-way into the form model
+<input name="q" [(ngModel)]="query" />      // two-way to a component field
+<input ngModel #x="ngModel" />              // standalone — no parent <form>
+
+<div ngModelGroup="address">                // nest controls into a sub-group
+  <input name="city" ngModel />            // -> form.value.address.city
+</div>`;
+
+  readonly signalFormSample = `protected readonly username = signal('');
+
+readonly usernameLength = computed(() => this.username().length);
+readonly usernameStrength = computed(() => {
+  const len = this.usernameLength();
+  if (len === 0) return 'empty';
+  if (len < 4) return 'weak';
+  if (len < 8) return 'ok';
+  return 'strong';
+});
+
+// template — bind the BARE signal, no call parentheses:
+// <input name="uname" [(ngModel)]="username" />
+// desugars to:
+// [ngModel]="username()" (ngModelChange)="username.set($event)"`;
+
+  readonly underTheHoodSample = `// 1) The DOM <-> model bridge: ControlValueAccessor
+interface ControlValueAccessor {
+  writeValue(value: any): void;                 // model -> DOM
+  registerOnChange(fn: (value: any) => void): void; // DOM -> model
+  registerOnTouched(fn: () => void): void;       // DOM blur -> "touched"
+}
+// <input> gets Angular's built-in DefaultValueAccessor for free.
+
+// 2) Registration is deferred to a microtask (NgModel#ngOnChanges, simplified)
+ngOnChanges() {
+  if (this._isFirstChange) {
+    Promise.resolve().then(() => {
+      this.formDirective.addControl(this); // avoids "changed after checked"
+    });
+  }
+}
+
+// 3) Validators compose into one function
+const validator = Validators.compose([
+  requiredValidator,
+  minLengthValidator,
+]);
+control.setValidators(validator);
+// -> control.errors, control.valid, control.statusChanges all derive from this`;
 }

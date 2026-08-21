@@ -9,6 +9,7 @@ import { RouterLink } from '@angular/router';
       table.cmp { width: 100%; border-collapse: collapse; font-size: .84rem; margin: 12px 0; }
       table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
       table.cmp th { background: var(--bg-elevated); }
+      table.cmp td:first-child { white-space: nowrap; font-family: ui-monospace, Menlo, Consolas, monospace; }
       .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
       .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
       .qa div { padding: 10px 14px; font-size: .9rem; }
@@ -44,6 +45,36 @@ import { RouterLink } from '@angular/router';
         <pre>&lt;button [disabled]="disabled()"&gt;Save&lt;/button&gt;
 &lt;img [src]="url()" [alt]="caption()" /&gt;</pre>
       </div>
+
+      <h3>Line-by-line</h3>
+      <table class="cmp">
+        <tr><th>Code</th><th>What it does &amp; why</th></tr>
+        <tr>
+          <td>[disabled]="disabled()"</td>
+          <td>Calls the <code>disabled</code> signal (invoking it with <code>()</code> reads its current
+            <code>boolean</code> value) and writes that value straight onto the button element's live
+            <code>.disabled</code> <strong>property</strong> — not the <code>disabled</code> attribute.
+            Every time the signal changes, Angular re-runs this binding and assigns the new value via
+            the renderer (conceptually <code>el.disabled = value</code>). Because it's a real property
+            assignment, the button's interactive state flips instantly, with no attribute string parsing
+            involved.</td>
+        </tr>
+        <tr>
+          <td>[src]="url()"</td>
+          <td><code>src</code> is one of a handful of properties Angular treats as
+            <strong>security-sensitive</strong>. Before the value reaches the DOM, it is routed through the
+            <code>DomSanitizer</code>'s URL security context, which strips dangerous schemes like
+            <code>javascript:</code>. This happens automatically for <em>every</em> <code>[src]</code>
+            binding — you don't opt in, and you can't accidentally opt out except by using
+            <code>bypassSecurityTrustUrl</code> explicitly.</td>
+        </tr>
+        <tr>
+          <td>[alt]="caption()"</td>
+          <td>A second, independent property binding on the same element — proof you can stack as many
+            <code>[prop]="expr"</code> bindings as an element has properties. <code>alt</code> is a plain
+            string property with no sanitization pass, used here purely for accessible descriptive text.</td>
+        </tr>
+      </table>
 
       <div class="note">
         <code>[disabled]="false"</code> actually removes the disabled state. With
@@ -84,6 +115,30 @@ import { RouterLink } from '@angular/router';
 &lt;span [attr.aria-label]="label()"&gt;...&lt;/span&gt;</pre>
       </div>
 
+      <h3>Line-by-line</h3>
+      <table class="cmp">
+        <tr><th>Code</th><th>What it does &amp; why</th></tr>
+        <tr>
+          <td>[attr.colspan]="span()"</td>
+          <td>The <code>attr.</code> prefix tells Angular to compile this as an <strong>attribute
+            binding</strong>, not a property binding: it stringifies <code>span()</code> and calls
+            <code>setAttribute('colspan', String(span()))</code> on the element. If <code>span()</code>
+            ever evaluated to <code>null</code>/<code>undefined</code>, Angular would call
+            <code>removeAttribute('colspan')</code> instead — the attribute disappears entirely, which is
+            a behavior <code>[prop]</code> bindings don't have (a property bound to <code>null</code> just
+            stores the literal <code>null</code>).</td>
+        </tr>
+        <tr>
+          <td>[attr.aria-label]="'rating ' + span() + ' of 5'"</td>
+          <td>ARIA attributes have <strong>no</strong> DOM property equivalent at all — there is no
+            <code>element.ariaLabel</code> you could bind with plain <code>[prop]</code> syntax (well —
+            there actually is an experimental <code>ariaLabel</code> reflection in very new browsers, but
+            it isn't reliable enough to depend on), so <code>[attr.*]</code> is the only correct tool here.
+            The expression concatenates a live string every time <code>span()</code> changes, and the
+            attribute is re-stringified on each change.</td>
+        </tr>
+      </table>
+
       <h2>Binding to component inputs & shorthand</h2>
       <p>
         The same <code>[prop]</code> syntax passes values into a child component's
@@ -94,6 +149,46 @@ import { RouterLink } from '@angular/router';
 &lt;app-avatar size="48" /&gt;                            // without [], "48" is the string '48'
 &lt;img bind-src="url()" /&gt;                            // canonical form of [src]</pre>
       </div>
+
+      <h3>Line-by-line</h3>
+      <table class="cmp">
+        <tr><th>Code</th><th>What it does &amp; why</th></tr>
+        <tr>
+          <td>[user]="currentUser()"</td>
+          <td>Because <code>&lt;app-avatar&gt;</code> is a component, not a native element, the compiler
+            resolves <code>[user]</code> against <code>AvatarComponent</code>'s own <code>@Input()</code>/
+            <code>input()</code> metadata at <strong>compile time</strong> (with strict templates on —
+            the default in this app's tsconfig style). If there's no <code>user</code> input, or
+            <code>currentUser()</code>'s type doesn't match the input's declared type, that's a build
+            error, not a silent runtime no-op. At runtime the value is written straight onto the child's
+            input (a signal <code>set()</code> for a signal input, or a plain field assignment for a
+            decorator input).</td>
+        </tr>
+        <tr>
+          <td>[size]="48"</td>
+          <td>Everything inside <code>[ ]="…"</code> is a real TypeScript expression, evaluated in the
+            component's context — so <code>48</code> here is the <strong>number</strong> <code>48</code>,
+            not text. This is true for component inputs exactly the same way it's true for native DOM
+            properties.</td>
+        </tr>
+        <tr>
+          <td>&lt;app-avatar size="48" /&gt;</td>
+          <td>No brackets means this is a plain HTML attribute, so Angular passes the literal
+            <strong>string</strong> <code>'48'</code>. If the <code>size</code> input is typed
+            <code>number</code>, strict template type-checking flags this as an error at build time;
+            without strict mode it silently becomes a string where a number was expected — a classic
+            "why is my math broken" bug and a favorite exam trap.</td>
+        </tr>
+        <tr>
+          <td>bind-src="url()"</td>
+          <td>The canonical, non-bracket spelling of property binding — <code>bind-src="expr"</code> is
+            <strong>100% equivalent</strong> to <code>[src]="expr"</code>. It exists for template
+            environments where square brackets in markup are awkward (some server-side templating
+            pipelines, very old tooling); you'll almost never see it in real Angular code, but an exam
+            question can absolutely ask you to recognize it.</td>
+        </tr>
+      </table>
+
       <div class="warn">
         Property binding is also a <strong>security boundary</strong>: Angular sanitizes
         values bound to risky properties like <code>[innerHTML]</code>, <code>[href]</code>
@@ -109,6 +204,63 @@ import { RouterLink } from '@angular/router';
         <tr><td><code>prop="{{ '{{' }} x {{ '}}' }}"</code></td><td>attribute → often reflected to property</td><td>always a string</td><td>plain text attributes only</td></tr>
       </table>
 
+      <h2>Under the hood</h2>
+      <p>
+        The template compiler (Ivy) turns every <code>[prop]="expr"</code> and
+        <code>[attr.name]="expr"</code> into an <strong>update instruction</strong> baked into the
+        component's generated update function — one of the reasons Angular templates are fast: there's
+        no runtime parsing of your markup, only pre-compiled function calls that run each check.
+      </p>
+      <div class="code"><pre>{{ underTheHoodSample }}</pre></div>
+      <ul>
+        <li>
+          <strong>Property bindings call <code>setProperty</code>, not <code>setAttribute</code>.</strong>
+          <code>[disabled]="disabled()"</code> compiles to roughly
+          <code>ɵɵproperty('disabled', ctx.disabled())</code>, which — after a strict-equality check
+          against the previous value avoids redundant work — hands off to the <code>Renderer2</code>,
+          which does the equivalent of <code>el.disabled = value</code> directly on the DOM node object.
+          The <code>disabled</code> HTML attribute in the markup is never touched.
+        </li>
+        <li>
+          <strong>Attribute bindings call <code>setAttribute</code> / <code>removeAttribute</code>.</strong>
+          <code>[attr.colspan]="span()"</code> compiles to roughly
+          <code>ɵɵattribute('colspan', ctx.span())</code>, which stringifies the value and calls
+          <code>setAttribute</code> — or <code>removeAttribute</code> when the value is
+          <code>null</code>/<code>undefined</code>. This is the exact mechanism behind "binding
+          <code>null</code> to <code>[attr.*]</code> removes the attribute."
+        </li>
+        <li>
+          <strong>Component inputs are resolved at compile time, not by string-matching at runtime.</strong>
+          When the compiler sees <code>[user]</code> on <code>&lt;app-avatar&gt;</code>, it looks up
+          <code>AvatarComponent</code>'s input metadata (collected from its <code>@Input()</code>
+          decorators or <code>input()</code> calls) and emits a binding that targets that exact input —
+          which is also how the compiler can catch a typo'd input name as a build error instead of a
+          silent no-op.
+        </li>
+        <li>
+          <strong>Sanitization is keyed on the specific tag + property pair.</strong> Angular ships a
+          built-in table of "trust-sensitive" combinations (<code>&lt;img [src]&gt;</code>,
+          <code>&lt;a [href]&gt;</code>, <code>[innerHTML]</code> on any element, <code>[style]</code> in
+          some cases, and more). When a binding matches one of those, the compiled instruction routes the
+          value through <code>DomSanitizer</code> for that <code>SecurityContext</code> (URL, HTML,
+          RESOURCE_URL, …) before it ever reaches <code>setProperty</code>. This is not opt-in — you can't
+          accidentally skip it, only deliberately bypass it with <code>bypassSecurityTrust*</code>, which
+          you should treat as "I personally vouch this string is safe."
+        </li>
+        <li>
+          <strong>Aside — <code>colspan</code> secretly does have a camelCase property.</strong>
+          <code>HTMLTableCellElement</code> exposes a real DOM property called <code>colSpan</code>
+          (capital <code>S</code>) that reflects the <code>colspan</code> attribute, so
+          <code>[colSpan]="span()"</code> would technically also work. It's grouped with the
+          "attribute-only" examples above because most learners are taught (and exams often expect)
+          <code>[attr.colspan]</code>, and because the general rule — "no matching camelCase DOM
+          property → use <code>[attr.*]</code>" — is genuinely true for ARIA and most SVG attributes. The
+          lesson: don't assume every lowercase-attribute-with-no-obvious-property case is attribute-only;
+          when in doubt, <code>[attr.*]</code> is always safe, and a real property binding is only wrong
+          if the property doesn't exist.
+        </li>
+      </ul>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong><code>disabled="false"</code> still disables.</strong> Attribute presence is
@@ -123,6 +275,17 @@ import { RouterLink } from '@angular/router';
         <li><strong>Expecting <code>null</code> to blank a property.</strong> On
           <code>[attr.*]</code> it removes the attribute; on a property it sets the literal
           <code>null</code>.</li>
+        <li><strong>Checking DevTools' HTML source instead of the live property.</strong>
+          <code>[value]="url()"</code> updates the input's live <code>.value</code> property, but the
+          <code>value</code> attribute in the markup (what "View Source" / <code>outerHTML</code> shows)
+          typically stays frozen at whatever it was initially — that's expected, not a bug. Inspect the
+          property (DevTools' "Properties" tab, or <code>el.value</code> in the console), not the
+          attribute, when you're debugging a property binding.</li>
+        <li><strong>Assuming every lowercase attribute has no camelCase property counterpart.</strong>
+          Some do (<code>colspan</code>/<code>colSpan</code>, <code>readonly</code>/<code>readOnly</code>,
+          <code>tabindex</code>/<code>tabIndex</code>, <code>maxlength</code>/<code>maxLength</code>);
+          <code>[attr.*]</code> is only strictly <em>required</em> when no DOM property exists at all —
+          true for ARIA and most SVG-specific attributes.</li>
       </ul>
 
       <h2>Exam corner</h2>
@@ -141,6 +304,20 @@ import { RouterLink } from '@angular/router';
         <div>The first passes the number <code>48</code>; the second passes the string
         <code>'48'</code> (no brackets = literal attribute string).</div>
       </details>
+      <details class="qa">
+        <summary>You bind <code>[value]="url()"</code>, but the browser DevTools "Elements" panel still shows the old attribute value. Is the binding broken?</summary>
+        <div>No — this is expected. <code>[value]</code> writes to the live DOM <em>property</em>, and
+        the <code>value</code> <em>attribute</em> in markup generally does not auto-update to reflect it.
+        Check the actual property (DevTools "Properties" tab, or <code>inputEl.value</code> in the
+        console) instead of the HTML source.</div>
+      </details>
+      <details class="qa">
+        <summary>Does <code>[colSpan]="n"</code> (camelCase, no <code>attr.</code>) work on a <code>&lt;td&gt;</code>?</summary>
+        <div>Yes — <code>HTMLTableCellElement</code> has a real <code>colSpan</code> DOM property that
+        reflects the <code>colspan</code> attribute, so a plain property binding works. It's still common
+        (and usually clearer) to write <code>[attr.colspan]</code>, but exams sometimes test whether you
+        know the camelCase property secretly exists.</div>
+      </details>
 
       <h2>Key takeaways</h2>
       <ul>
@@ -148,6 +325,11 @@ import { RouterLink } from '@angular/router';
         <li>Prefer property binding; it reflects the live state, not just the initial markup.</li>
         <li>Use <code>[attr.name]="expr"</code> when there is no matching DOM property.</li>
         <li>Binding <code>null</code>/<code>undefined</code> to <code>[attr.*]</code> removes the attribute.</li>
+        <li>Under the hood, property bindings compile to a <code>setProperty</code>-style instruction and
+          attribute bindings to a <code>setAttribute</code>/<code>removeAttribute</code> one — different
+          instructions, which is why their <code>null</code> handling differs.</li>
+        <li>Sanitization on <code>[src]</code>/<code>[href]</code>/<code>[innerHTML]</code> is automatic
+          and keyed on the specific tag + property; it isn't something you opt into.</li>
       </ul>
 
       <p><a routerLink="/event-binding">Next: Event Binding →</a></p>
@@ -158,4 +340,27 @@ export class PropertyBinding {
   protected readonly disabled = signal(false);
   protected readonly url = signal('https://angular.dev/assets/images/press-kit/angular_icon_gradient.gif');
   protected readonly span = signal(2);
+
+  readonly underTheHoodSample = `// roughly what the compiler generates for:
+// <button [disabled]="disabled()">
+// <img [src]="url()" [alt]="caption()">
+
+function PropertyBinding_UpdateBlock(rf, ctx) {
+  if (rf & 2 /* Update */) {
+    ɵɵadvance();                                  // move to <button>'s node slot
+    ɵɵproperty('disabled', ctx.disabled());       // setProperty-style: el.disabled = value
+
+    ɵɵadvance();                                  // move to <img>'s node slot
+    ɵɵproperty('src', ɵɵsanitizeUrl(ctx.url()));  // sanitized BEFORE setProperty
+    ɵɵproperty('alt', 'preview of ' + ctx.url());
+  }
+}
+
+// compare with an attribute binding, e.g. [attr.colspan]="span()":
+function AttrBinding_UpdateBlock(rf, ctx) {
+  if (rf & 2 /* Update */) {
+    ɵɵadvance();
+    ɵɵattribute('colspan', ctx.span());  // el.setAttribute / el.removeAttribute(null)
+  }
+}`;
 }
