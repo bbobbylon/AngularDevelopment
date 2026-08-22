@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, afterEveryRender, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
@@ -130,7 +130,7 @@ import { RouterLink } from '@angular/router';
       </p>
       <div class="demo">
         <p class="demo__title">Live — instrumented run counters</p>
-        <p>Method call: <strong>{{ noisyDouble() }}</strong> · ran <span class="pill">{{ noisyRuns }}</span> times</p>
+        <p>Method call: <strong>{{ noisyDouble() }}</strong> · ran <span class="pill">{{ noisyRunsDisplay }}</span> times</p>
         <p>computed(): <strong>{{ computedDouble() }}</strong> · ran <span class="pill">{{ computedRuns }}</span> times</p>
         <div class="row" style="margin-top: 12px">
           <button (click)="bumpSeed()">seed.update(+1) — bumps BOTH counters</button>
@@ -143,7 +143,9 @@ import { RouterLink } from '@angular/router';
           counter climbs. <code>computedDouble()</code>'s counter holds still, because
           its cached value is still valid: <code>seed</code>, the only signal it read
           last time, hasn't changed. Click the seed button and both counters move
-          together.
+          together. (The "ran … times" pill lags by one click — it's a snapshot taken
+          after each render finishes, not a live read of the counter itself, which is
+          what keeps this demo from throwing <code>ExpressionChangedAfterItHasBeenCheckedError</code>.)
         </p>
       </div>
       <div class="code"><pre>{{ noisyVsComputedSample }}</pre></div>
@@ -441,10 +443,23 @@ export class Interpolation {
 
   /** Plain (non-signal) counter — safe to mutate for demo instrumentation; it notifies nobody. */
   protected noisyRuns = 0;
+  /**
+   * What the template actually shows. Angular's dev-mode double-check re-invokes
+   * `noisyDouble()` a second time within the same tick (to verify nothing changed), so
+   * `noisyRuns` itself is already one increment ahead of what the first pass rendered by the
+   * time that second pass re-reads it — binding straight to `noisyRuns` would make the two
+   * passes disagree and throw ExpressionChangedAfterItHasBeenCheckedError. Snapshotting it
+   * once per full render (below, via `afterEveryRender`) keeps it stable for the whole tick.
+   */
+  protected noisyRunsDisplay = 0;
   /** Called directly from the template; re-executes on every change-detection pass that reaches it. */
   protected noisyDouble(): number {
     this.noisyRuns++;
     return this.seed() * 2;
+  }
+
+  constructor() {
+    afterEveryRender(() => { this.noisyRunsDisplay = this.noisyRuns; });
   }
 
   protected computedRuns = 0;
