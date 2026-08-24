@@ -5,22 +5,23 @@ import { LEVELS, CategoryGroup, LevelGroup } from '../../core/lesson.model';
 import { ProgressService } from '../../core/progress.service';
 import { FilterLessonsPipe } from '../../shared/filter-lessons.pipe';
 import { FilterTabsComponent, TabOption } from '../../shared/filter-tabs.component';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, FilterLessonsPipe, FilterTabsComponent, TooltipDirective],
+  imports: [RouterLink, FilterLessonsPipe, FilterTabsComponent, TooltipDirective, RevealOnScrollDirective],
   template: `
     <header class="hero">
-      <span class="pill">Angular 21 · Standalone · Signals</span>
-      <h1>From Zero to Angular Expert, in One Place</h1>
-      <p class="lead">
+      <span class="pill" appReveal>Angular 21 · Standalone · Signals</span>
+      <h1 appReveal [appRevealDelay]="80">From Zero to Angular Expert, in One Place</h1>
+      <p class="lead" appReveal [appRevealDelay]="160">
         A complete, hands-on curriculum that starts at absolute zero and takes you through
         Foundations, TypeScript, Beginner, Intermediate and Expert Angular — plus interactive
         practice challenges, interview prep, and real project walkthroughs. Everything you
         need to land a senior Angular role.
       </p>
-      <div class="stats">
+      <div class="stats" appReveal [appRevealDelay]="240">
         <div class="stat">
           <strong>{{ animTotal() }}</strong>
           <span>concepts</span>
@@ -50,9 +51,9 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
 
     <!-- Tools section -->
     <section class="tools-section">
-      <h2 class="tools-heading">Go Beyond Reading — Build & Practice</h2>
+      <h2 class="tools-heading" appReveal>Go Beyond Reading — Build & Practice</h2>
       <div class="tools-grid">
-        <a class="tool-card tool-card--practice" routerLink="/practice">
+        <a class="tool-card tool-card--practice" routerLink="/practice" appReveal [appRevealDelay]="0">
           <div class="tool-card__icon">⚡</div>
           <div class="tool-card__body">
             <h3>Practice Challenges</h3>
@@ -60,7 +61,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">Start practicing →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--interview" routerLink="/interview">
+        <a class="tool-card tool-card--interview" routerLink="/interview" appReveal [appRevealDelay]="60">
           <div class="tool-card__icon">🎯</div>
           <div class="tool-card__body">
             <h3>Interview Prep</h3>
@@ -68,7 +69,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">Study interview Q&A →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--projects" routerLink="/task-manager">
+        <a class="tool-card tool-card--projects" routerLink="/task-manager" appReveal [appRevealDelay]="120">
           <div class="tool-card__icon">🏗️</div>
           <div class="tool-card__body">
             <h3>Project Walkthroughs</h3>
@@ -76,7 +77,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">Build something real →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--tasks" routerLink="/coding-tasks">
+        <a class="tool-card tool-card--tasks" routerLink="/coding-tasks" appReveal [appRevealDelay]="180">
           <div class="tool-card__icon">🛠️</div>
           <div class="tool-card__body">
             <h3>Coding-Task Simulator</h3>
@@ -84,7 +85,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">Take on a build task →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--api" routerLink="/api-playground">
+        <a class="tool-card tool-card--api" routerLink="/api-playground" appReveal [appRevealDelay]="240">
           <div class="tool-card__icon">📡</div>
           <div class="tool-card__body">
             <h3>API Playground</h3>
@@ -92,7 +93,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">Dissect a request →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--examday" routerLink="/exam-day">
+        <a class="tool-card tool-card--examday" routerLink="/exam-day" appReveal [appRevealDelay]="300">
           <div class="tool-card__icon">🎓</div>
           <div class="tool-card__body">
             <h3>Exam-Day Readiness</h3>
@@ -100,7 +101,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">Run the readiness check →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--progress" routerLink="/progress">
+        <a class="tool-card tool-card--progress" routerLink="/progress" appReveal [appRevealDelay]="360">
           <div class="tool-card__icon">📊</div>
           <div class="tool-card__body">
             <h3>Progress Dashboard</h3>
@@ -108,7 +109,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
             <span class="tool-card__cta">See where you stand →</span>
           </div>
         </a>
-        <a class="tool-card tool-card--cert" routerLink="/certification">
+        <a class="tool-card tool-card--cert" routerLink="/certification" appReveal [appRevealDelay]="420">
           <div class="tool-card__icon">📋</div>
           <div class="tool-card__body">
             <h3>Certification Prep</h3>
@@ -120,7 +121,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
     </section>
 
     <!-- Project overview (resume / demo snapshot) -->
-    <section class="about">
+    <section class="about" appReveal>
       <div class="about__header">
         <h2 class="about__title">Project Overview</h2>
         <p class="about__sub">Built as a portfolio project demonstrating end-to-end Angular 21 engineering — from architecture to UX.</p>
@@ -212,11 +213,11 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
 
     @for (lvl of filtered; track lvl.id) {
       <section class="level">
-        <div class="level__head">
+        <div class="level__head" appReveal>
           <h2 [attr.data-level]="lvl.id">{{ lvl.label }}</h2>
           <span class="progress">{{ lvl.built }}/{{ lvl.total }} ready</span>
         </div>
-        <p class="level__blurb">{{ lvl.blurb }}</p>
+        <p class="level__blurb" appReveal [appRevealDelay]="60">{{ lvl.blurb }}</p>
 
         @defer (on viewport; prefetch on idle) {
           <div class="grid">
@@ -225,7 +226,9 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
                 <a class="card"
                    [class.card--soon]="!lesson.loadComponent"
                    [class.card--visited]="progress.isVisited(lesson.id)"
-                   [routerLink]="lesson.id">
+                   [routerLink]="lesson.id"
+                   appReveal
+                   [appRevealDelay]="($index % 4) * 70">
                   <span class="card__cat">{{ cat.name }}</span>
                   <div class="card__top">
                     <span class="card__title">{{ lesson.title }}</span>
@@ -376,6 +379,25 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
         background: linear-gradient(90deg,
           var(--card-accent),
           color-mix(in srgb, var(--card-accent) 40%, transparent));
+      }
+      /* Diagonal light sweep on hover — a second pseudo-element so it doesn't fight ::before's accent bar */
+      .tool-card::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg,
+          transparent 40%,
+          color-mix(in srgb, var(--card-accent) 16%, transparent) 50%,
+          transparent 60%);
+        background-size: 250% 250%;
+        background-position: 120% 0%;
+        opacity: 0;
+        transition: opacity .2s ease, background-position .7s ease;
+        pointer-events: none;
+      }
+      .tool-card:hover::after {
+        opacity: 1;
+        background-position: -20% 0%;
       }
       .tool-card:hover {
         transform: translateY(-4px);

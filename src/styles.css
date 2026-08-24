@@ -309,6 +309,23 @@ textarea:focus {
   animation: vt-fade-out 0.18s ease both;
 }
 
+/* ---- Scroll reveal (appReveal directive) ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.55s ease var(--reveal-delay, 0ms),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms);
+}
+.reveal--visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    transition: none;
+  }
+}
+
 /* ---- Tooltip (appTooltip directive) ---- */
 .app-tooltip {
   position: absolute;
