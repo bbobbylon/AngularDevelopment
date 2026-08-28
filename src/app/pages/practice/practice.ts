@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
 import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Challenge, type Category, type ChallengeType, type Difficulty } from './practice-data';
 import { dueCount, loadQueue, recordMisses } from './review-queue';
+import { downloadTextFile } from '../../shared/download-file';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
 type PracticeStates = Record<number, { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }>;
@@ -132,6 +133,7 @@ function saveProgress(states: PracticeStates): void {
       }
       <button class="reset-btn" (click)="reshuffle()" style="margin-left:auto">🔀 Shuffle</button>
       @if (answeredCount() > 0) {
+        <button class="reset-btn" (click)="exportResults()">⬇ Export results</button>
         <button class="reset-btn" (click)="reset()">Reset all</button>
       }
     </div>
@@ -329,6 +331,38 @@ export class Practice {
 
   reset() {
     this.states.set({});
+  }
+
+  /** Downloads a Markdown summary of every answered challenge in this session. */
+  exportResults(): void {
+    const answered = this.visibleChallenges().filter((ch) => this.getState(ch.id).answered);
+    const when = Date.now();
+    const lines: string[] = [];
+
+    lines.push(`# Practice Session Results — ${new Date(when).toLocaleString()}`, '');
+    lines.push(`**Score:** ${this.scorePercent()}% (${this.correctCount()}/${this.answeredCount()} correct)`, '');
+    lines.push('## Question review', '');
+
+    for (const ch of answered) {
+      const state = this.getState(ch.id);
+      const shuffled = this.getShuffledChallengeOptions(ch);
+      lines.push(`### ${ch.category} · ${ch.difficulty} — ${state.correct ? '✓ Correct' : '✗ Incorrect'}`);
+      lines.push(ch.question);
+      if (ch.code) lines.push('', '```', ch.code, '```');
+      lines.push('');
+      shuffled.options.forEach((opt, idx) => {
+        const marks = [
+          idx === shuffled.correctIndex ? 'correct' : null,
+          state.selected === idx ? 'your answer' : null,
+        ].filter(Boolean);
+        const tag = marks.length ? ` (${marks.join(', ')})` : '';
+        lines.push(`- ${this.letters[idx]}) ${opt}${tag}`);
+      });
+      lines.push('', `Explanation: ${ch.explanation}`, '');
+    }
+
+    const stamp = new Date(when).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    downloadTextFile(`practice-results_${stamp}.md`, lines.join('\n'));
   }
 
   reshuffle() {

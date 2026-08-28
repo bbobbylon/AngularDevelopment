@@ -6,6 +6,7 @@ import { ProgressService } from '../../core/progress.service';
 import { CHALLENGES, type Category } from '../practice/practice-data';
 import { dueCount, loadMastered, loadQueue } from '../practice/review-queue';
 import { CODING_TASKS } from '../coding-tasks/coding-tasks-data';
+import { downloadTextFile } from '../../shared/download-file';
 
 /**
  * Progress Dashboard — one read-only page aggregating every study store in the
@@ -69,6 +70,7 @@ function readJson<T>(key: string, fallback: T): T {
     .pg-hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); margin: 12px 0; }
     .pg-hero p { max-width: 620px; margin: 0 auto; color: var(--text-muted); }
     .pill { display: inline-block; font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; background: rgba(99,102,241,.12); color: #6366f1; font-weight: 600; }
+    .ghost-btn { padding: 8px 18px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); cursor: pointer; font-size: .88rem; }
 
     .score-panel { display: flex; gap: 28px; align-items: center; max-width: 760px; margin: 24px auto 8px; padding: 24px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; flex-wrap: wrap; justify-content: center; }
     .ring { width: 140px; height: 140px; flex-shrink: 0; }
@@ -134,6 +136,7 @@ function readJson<T>(key: string, fallback: T): T {
         Everything you have studied, answered, drilled and built — in one place.
         Each section links to the tool that owns it.
       </p>
+      <button class="ghost-btn" style="margin-top:14px" (click)="exportReport()">⬇ Export Full Report</button>
     </div>
 
     <div class="score-panel">
@@ -456,6 +459,69 @@ export class Progress {
   readonly tasksPercent = computed(() =>
     this.tasksTotal === 0 ? 0 : Math.round((this.tasksDone() / this.tasksTotal) * 100),
   );
+
+  /** Downloads a Markdown snapshot of the whole dashboard — every section on the page, in the same order. */
+  exportReport(): void {
+    const when = Date.now();
+    const lines: string[] = [];
+
+    lines.push(`# Angular Study Progress Report — ${new Date(when).toLocaleString()}`, '');
+    lines.push(`**Readiness score:** ${this.readinessScore()}/100 — ${this.readinessGrade()}`);
+    lines.push(`${this.totalAnswered()} total questions faced · ${this.examPassRate()}% exam pass rate · ${this.reviewMastered()} mastered via review`);
+    if (this.strongestCategory()) lines.push(`Strongest: ${this.strongestCategory()!.label} (${this.strongestCategory()!.percent}%)`);
+    if (this.weakestCategory()) lines.push(`Focus area: ${this.weakestCategory()!.label} (${this.weakestCategory()!.percent}%)`);
+    lines.push('');
+
+    lines.push('## Lessons', '');
+    lines.push(`${this.lessonsVisited()} of ${this.lessonsBuilt} visited (${this.lessonsPercent()}%)`, '');
+
+    lines.push('## Review queue', '');
+    lines.push(`Due now: ${this.reviewDue()} · In queue: ${this.reviewQueueSize()} · Mastered: ${this.reviewMastered()}`, '');
+
+    lines.push('## Exam-Day readiness checks', '');
+    if (this.readinessChecks().length === 0) {
+      lines.push('No readiness checks run yet.', '');
+    } else {
+      for (const check of this.readinessChecks()) {
+        lines.push(`- ${new Date(check.when).toLocaleString()} — exam ${check.examScore}% · tasks ${check.tasksDone}/${check.tasksTotal} — ${check.ready ? 'READY' : 'NOT YET'}`);
+      }
+      lines.push('');
+    }
+
+    lines.push('## Coding tasks', '');
+    lines.push(`${this.tasksDone()} of ${this.tasksTotal} completed (${this.tasksPercent()}%)`, '');
+
+    lines.push('## Practice challenges', '');
+    lines.push(`${this.practiceAnswered()} of ${this.challengeTotal} answered · ${this.practiceCorrect()} correct (${this.practiceAccuracy()}%) · bank coverage ${this.practiceCoverage()}%`, '');
+    if (this.categoryStats().length > 0) {
+      lines.push('Accuracy by category (answered questions only):', '');
+      for (const cat of this.categoryStats()) {
+        lines.push(`- ${cat.label}: ${cat.correct}/${cat.total} (${cat.percent}%)`);
+      }
+      lines.push('');
+    }
+
+    lines.push('## Mock exams', '');
+    if (this.examAttempts().length === 0) {
+      lines.push('No mock exams taken yet.', '');
+    } else {
+      lines.push(`${this.examAttempts().length} attempts · best ${this.bestExam()}% · average ${this.avgExam()}% · ${this.passCount()} passed`, '');
+      for (const attempt of this.examAttempts()) {
+        lines.push(`- ${new Date(attempt.when).toLocaleString()} — ${attempt.correct}/${attempt.total} (${attempt.scorePercent}%) — ${attempt.passed ? 'PASS' : 'FAIL'}`);
+      }
+      lines.push('');
+      if (this.weakCategories().length > 0) {
+        lines.push(`Weak areas across attempts (<${this.weakThreshold}% on ${this.weakMinSample}+ questions):`, '');
+        for (const weak of this.weakCategories()) {
+          lines.push(`- ${weak.label}: ${weak.percent}%`);
+        }
+        lines.push('');
+      }
+    }
+
+    const stamp = new Date(when).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    downloadTextFile(`progress-report_${stamp}.md`, lines.join('\n'));
+  }
 
   /** Display labels matching the filter chips on the Practice/Mock Exam pages. */
   private categoryLabel(id: string): string {

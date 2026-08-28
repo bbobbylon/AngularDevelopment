@@ -12,6 +12,7 @@ import {
 } from '../practice/practice-data';
 import { OptionsShuffler } from '../practice/practice-helpers';
 import { recordMisses } from '../practice/review-queue';
+import { downloadTextFile } from '../../shared/download-file';
 
 /**
  * Timed Mock Exam — a certification-style assessment built on top of the shared
@@ -385,6 +386,7 @@ function saveHistory(entries: HistoryEntry[]): void {
           }
           <div class="result-actions">
             <button class="primary-btn" (click)="retake()">Take Another →</button>
+            <button class="ghost-btn" (click)="exportResults()">⬇ Export Results</button>
             <a routerLink="/practice" class="link-back">Self-paced Practice</a>
           </div>
         </div>
@@ -742,6 +744,47 @@ export class MockExam implements OnDestroy {
     this.stopTimer();
     this.secondsLeft.set(0);
     this.phase.set('config');
+  }
+
+  /** Downloads a Markdown summary of the exam just finished — score, category breakdown, and a per-question review with explanations. */
+  exportResults(): void {
+    const when = Date.now();
+    const lines: string[] = [];
+
+    lines.push(`# Mock Exam Results — ${new Date(when).toLocaleString()}`, '');
+    lines.push(`**Score:** ${this.scorePercent()}% (${this.correctCount()}/${this.questions().length}) — ${this.passed() ? 'PASS' : 'FAIL'} (pass mark ${this.passMark}%)`);
+    lines.push(`**Time used:** ${this.elapsedLabel()} of ${formatClock(this.examTotalSeconds())}`);
+    lines.push(`**Focus:** ${this.categoryLabel(this.selectedCategory())} · ${this.selectedDiff() === 'all' ? 'All levels' : this.selectedDiff()}`, '');
+
+    if (this.categoryBreakdown().length > 1) {
+      lines.push('## By category', '');
+      for (const row of this.categoryBreakdown()) {
+        lines.push(`- ${row.label}: ${row.correct}/${row.total} (${row.pct}%)`);
+      }
+      lines.push('');
+    }
+
+    lines.push('## Question review', '');
+    this.questions().forEach((ch, i) => {
+      const shuffled = this.shuffledOptions(ch);
+      const ok = this.isCorrect(ch);
+      lines.push(`### Q${i + 1} — ${this.categoryLabel(ch.category)} · ${ch.difficulty} — ${ok ? '✓ Correct' : this.isAnswered(ch.id) ? '✗ Incorrect' : '⚠ Not answered'}`);
+      lines.push(ch.question);
+      if (ch.code) lines.push('', '```', ch.code, '```');
+      lines.push('');
+      shuffled.options.forEach((opt, idx) => {
+        const marks = [
+          idx === shuffled.correctIndex ? 'correct' : null,
+          this.answers()[ch.id] === idx ? 'your answer' : null,
+        ].filter(Boolean);
+        const tag = marks.length ? ` (${marks.join(', ')})` : '';
+        lines.push(`- ${this.letters[idx]}) ${opt}${tag}`);
+      });
+      lines.push('', `Explanation: ${ch.explanation}`, '');
+    });
+
+    const stamp = new Date(when).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    downloadTextFile(`mock-exam-results_${stamp}.md`, lines.join('\n'));
   }
 
   ngOnDestroy(): void {

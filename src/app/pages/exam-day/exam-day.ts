@@ -5,6 +5,7 @@ import { CHALLENGES, shuffle, type Challenge } from '../practice/practice-data';
 import { OptionsShuffler } from '../practice/practice-helpers';
 import { recordMisses } from '../practice/review-queue';
 import { CODING_TASKS, type CodingTask } from '../coding-tasks/coding-tasks-data';
+import { downloadTextFile } from '../../shared/download-file';
 
 /**
  * Exam-Day Readiness Check — the closest simulation of the real certification
@@ -391,6 +392,7 @@ function formatClock(totalSeconds: number): string {
 
             <div style="margin-top:20px">
               <button class="primary-btn" (click)="backToIdle()">Done</button>
+              <button class="ghost-btn" (click)="exportResults(r)">⬇ Export Results</button>
               @if (!r.ready) {
                 <a routerLink="/progress" class="link-back">see weak areas →</a>
               }
@@ -521,6 +523,52 @@ export class ExamDay implements OnDestroy {
 
   backToIdle(): void {
     this.phase.set('idle');
+  }
+
+  /** Downloads a Markdown summary of the readiness check just evaluated — verdict, both legs, and the exam leg's per-question review. */
+  exportResults(r: ReadinessResult): void {
+    const when = r.when;
+    const lines: string[] = [];
+
+    lines.push(`# Exam-Day Readiness Check — ${new Date(when).toLocaleString()}`, '');
+    lines.push(`**Verdict:** ${r.ready ? 'READY' : 'NOT YET'} (pass bar: exam ≥ ${this.passMark}% and ${this.tasksRequired}/${this.tasksRequired} briefs completed)`);
+    lines.push(`**Timed exam:** ${r.examScore}% (${r.examCorrect}/${r.examTotal})`);
+    lines.push(`**Build briefs:** ${r.tasksDone}/${r.tasksTotal} completed`, '');
+
+    const tasks = this.assignedTasks();
+    if (tasks.length > 0) {
+      lines.push('## Assigned briefs', '');
+      for (const task of tasks) {
+        lines.push(`- ${this.doneTaskIds().has(task.id) ? '✅' : '⬜'} ${task.title} (${task.difficulty}, ${task.category})`);
+      }
+      lines.push('');
+    }
+
+    const qs = this.questions();
+    if (qs.length > 0) {
+      lines.push('## Exam leg — question review', '');
+      qs.forEach((ch, i) => {
+        const shuffled = this.shuffledOptions(ch);
+        const ok = this.isCorrect(ch);
+        const answered = this.answers()[ch.id] !== undefined;
+        lines.push(`### Q${i + 1} — ${ch.category} · ${ch.difficulty} — ${ok ? '✓ Correct' : answered ? '✗ Incorrect' : '⚠ Not answered'}`);
+        lines.push(ch.question);
+        if (ch.code) lines.push('', '```', ch.code, '```');
+        lines.push('');
+        shuffled.options.forEach((opt, idx) => {
+          const marks = [
+            idx === shuffled.correctIndex ? 'correct' : null,
+            this.answers()[ch.id] === idx ? 'your answer' : null,
+          ].filter(Boolean);
+          const tag = marks.length ? ` (${marks.join(', ')})` : '';
+          lines.push(`- ${this.letters[idx]}) ${opt}${tag}`);
+        });
+        lines.push('', `Explanation: ${ch.explanation}`, '');
+      });
+    }
+
+    const stamp = new Date(when).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    downloadTextFile(`exam-day-results_${stamp}.md`, lines.join('\n'));
   }
 
   // --- exam leg interactions ---
