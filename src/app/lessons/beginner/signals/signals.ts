@@ -132,6 +132,45 @@ parity  = computed(() =&gt; this.count() % 2 === 0 ? 'even' : 'odd');</pre>
         </p>
       </div>
 
+      <h2>Under the hood</h2>
+      <p>
+        A signal is not magic — it's a small object holding a value plus a
+        <strong>version counter</strong> and a set of subscribed "consumers"
+        (a <code>computed</code>, an <code>effect</code>, or a template binding).
+      </p>
+      <ul>
+        <li>
+          <strong>Reading tracks, writing bumps the version.</strong> Calling
+          <code>count()</code> inside a reactive context (a <code>computed</code>
+          body, an <code>effect</code>, or template evaluation) registers that
+          context as a consumer. Calling <code>.set()</code>/<code>.update()</code>
+          bumps the signal's version and marks every registered consumer
+          <em>dirty</em> — it does not run them synchronously.
+        </li>
+        <li>
+          <strong><code>computed</code> is lazy, so "dirty" just means "maybe stale."</strong>
+          Marking it dirty schedules nothing; the next time something actually
+          <em>reads</em> the computed, it checks whether any dependency's version
+          changed and only then re-runs the formula. Read a computed that nobody
+          ever reads again, and its function may never re-run at all.
+        </li>
+        <li>
+          <strong><code>effect</code> runs are scheduled, not immediate.</strong> Angular
+          batches effect execution into the app's next change-detection pass (a
+          microtask), so several <code>.set()</code> calls in the same synchronous
+          block only trigger one effect run with the final values — not one run
+          per <code>set</code>.
+        </li>
+        <li>
+          <strong>This is also how OnPush + zoneless change detection works.</strong>
+          A template binding is itself a consumer. When a signal it read changes
+          version, Angular marks <em>only that component</em> for a re-check —
+          not the whole tree — which is the fine-grained update <a routerLink="/onpush">OnPush</a>
+          relies on and why apps can drop Zone.js entirely once everything reactive
+          is signal-driven.
+        </li>
+      </ul>
+
       <h2>Common mistakes</h2>
       <table class="t">
         <tr><td>Forgetting the <code>()</code></td><td><code>{{ '{{' }} count {{ '}}' }}</code> shows the function itself; you need <code>{{ '{{' }} count() {{ '}}' }}</code> to read the value.</td></tr>

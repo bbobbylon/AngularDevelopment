@@ -93,6 +93,70 @@ import { RouterLink } from '@angular/router';
         </div>
       </div>
 
+      <h2>Try it — when bindings collide</h2>
+      <p>
+        What wins when a per-class binding and a map binding both target the same class name?
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — [class.x] always beats a same-named key inside [class]</p>
+        <div class="row" style="margin-bottom:14px">
+          <label>
+            <input
+              type="checkbox"
+              [checked]="objectWantsActive()"
+              (change)="objectWantsActive.set($any($event.target).checked)"
+            />
+            [class] object requests box--active
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              [checked]="perClassActive()"
+              (change)="perClassActive.set($any($event.target).checked)"
+            />
+            [class.box--active] override
+          </label>
+        </div>
+        <div
+          class="box"
+          [class]="{ 'box--active': objectWantsActive() }"
+          [class.box--active]="perClassActive()"
+        >
+          box--active applied = {{ perClassActive() }} ([class] object says {{ objectWantsActive() }})
+        </div>
+      </div>
+      <div class="code">
+        <pre>&lt;div [class]="{{ '{' }} 'box--active': objectWantsActive() {{ '}' }}"
+     [class.box--active]="perClassActive()"&gt;...&lt;/div&gt;
+&lt;!-- resolved class always follows perClassActive(), regardless of objectWantsActive() --&gt;</pre>
+      </div>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>Angular doesn't rebuild <code>className</code> from scratch.</strong> Each
+          binding source — the static <code>class</code> attribute, a <code>[class]</code> map,
+          per-class <code>[class.x]</code> bindings, <code>ngClass</code> — is compiled into its own
+          styling instruction; the renderer merges them and, on each change-detection pass, diffs the
+          new value against the last one.</li>
+        <li><strong>Only the changed classes are patched.</strong> Angular calls
+          <code>classList.add</code>/<code>classList.remove</code> (or
+          <code>style.setProperty</code>/<code>removeProperty</code>) for just the entries that
+          actually changed — it never touches classes/styles that came from a different binding
+          source.</li>
+        <li><strong>Static class and bindings coexist because they're separate layers.</strong> The
+          literal <code>class="box"</code> is applied once at creation; bound classes are layered on
+          top independently, which is why a <code>[class]</code> object that never mentions
+          <code>box</code> can't remove it.</li>
+        <li><strong>Collisions resolve by binding kind, not DOM order.</strong> When two bindings
+          target the same class, Angular resolves it at the styling layer by priority — a per-class
+          <code>[class.x]</code> binding always wins over a same-named key inside a <code>[class]</code>
+          map — before the browser's CSS cascade/specificity ever gets involved.</li>
+        <li><strong>Unit suffixes are string concatenation, not validation.</strong>
+          <code>[style.width.px]="8"</code> just becomes <code>style.setProperty('width', '8px')</code>;
+          Angular does no unit checking, so binding a value that's already a string
+          (<code>[style.width.px]="'8em'"</code>) produces the nonsensical <code>"8empx"</code>.</li>
+      </ul>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong>Thinking <code>[class]</code> wipes the static <code>class</code>.</strong> It
@@ -174,4 +238,6 @@ export class ClassStyleBinding {
   protected readonly size = signal(20);
   protected readonly color = signal('#7c4dff');
   protected readonly state = signal<'ok' | 'warn' | 'error'>('ok');
+  protected readonly objectWantsActive = signal(true);
+  protected readonly perClassActive = signal(false);
 }

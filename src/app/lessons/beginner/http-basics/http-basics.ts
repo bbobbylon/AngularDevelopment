@@ -1,12 +1,17 @@
 import { HttpClient } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { catchError, of } from 'rxjs';
+import { Subject, catchError, of, switchMap } from 'rxjs';
 
 interface Post {
   id: number;
   title: string;
   body: string;
+}
+
+interface RandomUser {
+  id: number;
+  name: string;
 }
 
 @Component({
@@ -114,6 +119,54 @@ results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(&#96;/search?q=&#36;
         unsubscribe for you.
       </p>
 
+      <h2>Try it — cancelling in-flight requests</h2>
+      <div class="demo">
+        <p class="demo__title">Live — rapid clicks cancel the previous request (switchMap)</p>
+        <div class="row" style="margin-bottom:12px">
+          <button (click)="loadRandomUser()">Fetch random user</button>
+          <span class="pill">requests started: {{ requestCount() }}</span>
+          <span class="pill">responses applied: {{ responseCount() }}</span>
+        </div>
+        <p style="color:var(--text-muted)">
+          Click rapidly a few times — <code>switchMap</code> unsubscribes the previous request
+          as soon as a new one starts, so even though several may still be in flight, only the
+          <strong>last</strong> response is ever applied.
+        </p>
+        @if (lastUserName(); as name) {
+          <div class="code"><pre>last applied: {{ name }}</pre></div>
+        }
+      </div>
+      <div class="note">
+        <code>requestCount</code> can climb faster than <code>responseCount</code> — the gap is
+        every request that got superseded and unsubscribed before its response arrived.
+      </div>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>The request isn't built until <code>subscribe()</code> runs.</strong>
+          <code>http.get()</code> returns a cold Observable whose subscribe callback is what
+          actually constructs the <code>HttpRequest</code> and dispatches it — subscribing twice
+          creates two independent requests that flow through the pipeline separately.</li>
+        <li><strong>Interceptors form a linked chain of handlers.</strong> Each provided
+          interceptor wraps the next <code>HttpHandler</code>; calling <code>next.handle(req)</code>
+          passes control down the chain to the final backend, then the response bubbles back up
+          through the same interceptors in reverse — so one interceptor can transform both the
+          outgoing request and the incoming response.</li>
+        <li><strong>Requests are immutable — interceptors clone to change them.</strong> You can't
+          mutate a request's headers/body in place, so an auth interceptor calls
+          <code>req.clone({{ '{' }} setHeaders: {{ '{' }} … {{ '}' }} {{ '}' }})</code> to attach a
+          token, producing a new request object for the next handler.</li>
+        <li><strong>The body is parsed based on <code>responseType</code>.</strong> The default is
+          <code>'json'</code> (the raw body is run through <code>JSON.parse</code>); asking for
+          <code>{{ '{' }} responseType: 'text' {{ '}' }}</code> or <code>'blob'</code> skips that
+          parsing entirely — mismatching this against what the server actually sends is a common
+          source of parse errors.</li>
+        <li><strong>Unsubscribing tears down the network call itself.</strong> With
+          <code>withFetch()</code> the teardown logic calls <code>AbortController.abort()</code>;
+          with XHR it calls <code>xhr.abort()</code> — this is why <code>switchMap</code> genuinely
+          cancels the previous request instead of just ignoring its response.</li>
+      </ul>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong>Forgetting to subscribe.</strong> <code>http.get()</code> is a <em>cold</em>
@@ -165,6 +218,29 @@ export class HttpBasics {
   protected readonly posts = signal<Post[]>([]);
   protected readonly state = signal<'idle' | 'loading' | 'done' | 'error'>('idle');
 
+  protected readonly requestCount = signal(0);
+  protected readonly responseCount = signal(0);
+  protected readonly lastUserName = signal<string | null>(null);
+  private readonly loadUser$ = new Subject<void>();
+
+  constructor() {
+    // switchMap unsubscribes the previous inner request the instant a new one starts.
+    this.loadUser$
+      .pipe(
+        switchMap(() => {
+          const id = Math.floor(Math.random() * 10) + 1;
+          return this.http
+            .get<RandomUser>(`https://jsonplaceholder.typicode.com/users/${id}`)
+            .pipe(catchError(() => of<RandomUser | null>(null)));
+        }),
+      )
+      .subscribe((user) => {
+        if (!user) return;
+        this.responseCount.update((c) => c + 1);
+        this.lastUserName.set(user.name);
+      });
+  }
+
   protected load() {
     this.state.set('loading');
     this.http
@@ -178,5 +254,10 @@ export class HttpBasics {
         this.posts.set(posts.slice(0, 5));
         this.state.set('done');
       });
+  }
+
+  protected loadRandomUser() {
+    this.requestCount.update((c) => c + 1);
+    this.loadUser$.next();
   }
 }

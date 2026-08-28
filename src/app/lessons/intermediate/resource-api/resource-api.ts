@@ -96,6 +96,32 @@ userResource.reload()     // re-run the loader manually</pre>
         (<code>idle</code>), which is how you defer loading until inputs are ready.
       </div>
 
+      <h2>Try it — optimistic local write</h2>
+      <div class="demo">
+        <p class="demo__title">Live — edit the cached value without a network call</p>
+        <div class="row" style="margin-bottom:12px">
+          <input
+            [value]="draftName()"
+            (input)="draftName.set($any($event.target).value)"
+            placeholder="new name"
+          />
+          <button (click)="saveLocal()" [disabled]="!userResource.hasValue()">Save locally</button>
+          <button class="ghost" (click)="userResource.reload()">Reload from server</button>
+        </div>
+        <p class="row">
+          <span class="pill">status: {{ userResource.status() }}</span>
+        </p>
+        @if (userResource.hasValue()) {
+          <div class="code"><pre>name: {{ userResource.value().name }}</pre></div>
+        }
+      </div>
+      <div class="note">
+        <code>value</code> is a <strong>writable</strong> signal — <code>.set()</code>/<code>.update()</code>
+        it directly to patch the cache without re-running the loader. Status flips to
+        <code>'local'</code> and stays there until the next <code>reload()</code> or param
+        change re-syncs from the network.
+      </div>
+
       <h2>resource() vs the alternatives</h2>
       <table class="cmp">
         <tr><th>Tool</th><th>Gives you</th><th>Reach for it when</th></tr>
@@ -104,6 +130,29 @@ userResource.reload()     // re-run the loader manually</pre>
         <tr><td>manual <code>subscribe()</code></td><td>full RxJS control</td><td>complex streams (debounce, combine, retry) — but you manage state + teardown</td></tr>
         <tr><td>route <a routerLink="/resolvers">resolver</a></td><td>data before the route activates</td><td>small, critical data that must be present on first paint (blocks navigation)</td></tr>
       </table>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>The <code>params</code> callback runs in a reactive context.</strong> Angular
+          tracks every signal it reads while producing the request value — much like
+          <code>effect()</code> — and reruns the loader whenever any of them change, not on a
+          timer or a manual trigger.</li>
+        <li><strong>Stale loads are aborted, not just ignored.</strong> Each loader call gets its
+          own <code>abortSignal</code> tied to that request's generation; when a newer request
+          supersedes it, that signal fires so a well-behaved <code>fetch</code> actually cancels
+          the network call instead of the response just being discarded client-side.</li>
+        <li><strong>Why it's still <code>&#64;experimental</code>.</strong> The shape is stable enough
+          to use, but the loader/stream split and how resources interact with SSR and hydration are
+          still being finalized — the API surface can still shift in a minor release.</li>
+        <li><strong><code>rxResource</code> cancels by unsubscribing, not aborting.</strong> Instead
+          of awaiting one Promise per request, it resubscribes to a fresh Observable from
+          <code>stream</code> on every params change and unsubscribes the previous one — push-based
+          cancellation that naturally supports operators like <code>retry</code> or
+          <code>debounceTime</code> that a raw <code>loader</code> can't.</li>
+        <li><strong>Writing <code>value</code> doesn't touch the loader.</strong>
+          <code>userResource.value.set(...)</code> patches the cached signal in place; it's a pure
+          local mutation, so it can't re-trigger <code>params</code>/<code>loader</code> tracking.</li>
+      </ul>
 
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
@@ -164,10 +213,17 @@ export class ResourceApi {
     },
   });
 
+  protected readonly draftName = signal('');
+
   protected next() {
     this.userId.update((n) => Math.min(10, n + 1));
   }
   protected prev() {
     this.userId.update((n) => Math.max(1, n - 1));
+  }
+  protected saveLocal() {
+    const current = this.userResource.value();
+    if (!current || !this.draftName().trim()) return;
+    this.userResource.value.set({ ...current, name: this.draftName().trim() });
   }
 }

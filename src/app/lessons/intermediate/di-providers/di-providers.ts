@@ -20,6 +20,9 @@ class EmailNotifier extends Notifier {
   }
 }
 
+/** A multi-provider token — several providers accumulate into one array. */
+const PLUGINS = new InjectionToken<string[]>('PLUGINS');
+
 /**
  * Lesson: DI providers in depth.
  *
@@ -34,7 +37,12 @@ class EmailNotifier extends Notifier {
   selector: 'app-lesson-di-providers',
   imports: [RouterLink],
   // Component-level providers — these win over root providers for this subtree.
-  providers: [{ provide: Notifier, useClass: EmailNotifier }],
+  providers: [
+    { provide: Notifier, useClass: EmailNotifier },
+    { provide: PLUGINS, useValue: 'spellcheck', multi: true },
+    { provide: PLUGINS, useValue: 'autosave', multi: true },
+    { provide: PLUGINS, useValue: 'analytics', multi: true },
+  ],
   template: `
     <article class="lesson">
       <span class="lesson__eyebrow">Intermediate · Dependency Injection</span>
@@ -106,6 +114,51 @@ class EmailNotifier extends Notifier {
       </p>
       <div class="code"><pre>{{ multiSample }}</pre></div>
 
+      <h2>Live — multi providers on this very component</h2>
+      <div class="demo">
+        <p class="demo__title">Live</p>
+        <div class="code"><pre>{{ multiLiveSample }}</pre></div>
+        <p>
+          <code>inject(PLUGINS)</code> here resolves to an <strong>array</strong>, not the
+          last value winning:
+        </p>
+        <p class="row">
+          @for (plugin of plugins; track plugin) {
+            <span class="pill">{{ plugin }}</span>
+          }
+        </p>
+      </div>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>Tree-shakable vs explicit registration.</strong>
+          <code>providedIn: 'root'</code> attaches the provider definition to the service
+          class itself (a hidden static field the compiler generates) — if nothing ever
+          <code>inject()</code>s it, the bundler drops the class entirely. Providers listed in
+          a <code>providers</code> array are referenced directly by component metadata, so
+          they're always included whether used or not.</li>
+        <li><strong>One instance per injector, cached — not one instance per app.</strong> A
+          lazy-loaded route or a component that lists a provider gets its <em>own</em> cached
+          instance the first time something in that subtree injects the token; it never sees
+          the root instance, which is why "shared" state silently forks when the same
+          provider is accidentally re-listed lower in the tree.</li>
+        <li><strong><code>providers</code> vs <code>viewProviders</code>.</strong> A plain
+          <code>providers</code> entry is visible to a component's own template <em>and</em>
+          to content projected into it via <code>&lt;ng-content&gt;</code>; a
+          <code>viewProviders</code> entry is visible only to the component's own view —
+          projected content can't see it. Same injector tree, different visibility rule.</li>
+        <li><strong>Circular dependencies need <code>forwardRef</code>.</strong> If a token
+          isn't defined yet at the point a class references it (two services that inject each
+          other, or a token referencing the class that will provide it), wrap the reference in
+          <code>forwardRef(() =&gt; Token)</code> so it's resolved lazily instead of at
+          module-evaluation time.</li>
+        <li><strong>Resolution happens once, synchronously, at construction.</strong> DI isn't
+          reactive — <code>inject()</code> runs during the injector's construction of that
+          class and the result is cached forever after. Registering a different provider later
+          has no effect on instances Angular already built; only destroying and recreating the
+          injector (e.g. the component) picks up the change.</li>
+      </ul>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong>Missing <code>deps</code> on <code>useFactory</code>.</strong> The factory's
@@ -173,6 +226,7 @@ export class DiProviders {
   protected readonly config = inject(APP_CONFIG);
   private readonly notifier = inject(Notifier);
   protected readonly out = signal('');
+  protected readonly plugins = inject(PLUGINS);
 
   protected notify() {
     this.out.set(this.notifier.send('Build passed'));
@@ -202,4 +256,13 @@ parent = inject(FormGroup, { skipSelf: true });         // the parent's instance
   protected readonly multiSample = `provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor,  multi: true
 provide: HTTP_INTERCEPTORS, useClass: LoggingInterceptor, multi: true
 // inject(HTTP_INTERCEPTORS) → [AuthInterceptor, LoggingInterceptor]`;
+
+  protected readonly multiLiveSample = `// three providers, same token, all multi: true
+providers: [
+  { provide: PLUGINS, useValue: 'spellcheck', multi: true },
+  { provide: PLUGINS, useValue: 'autosave',   multi: true },
+  { provide: PLUGINS, useValue: 'analytics',  multi: true },
+]
+
+plugins = inject(PLUGINS);   // ['spellcheck', 'autosave', 'analytics']`;
 }

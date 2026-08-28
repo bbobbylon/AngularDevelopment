@@ -193,6 +193,55 @@ export class SlotHost &#123;
         was defined.
       </div>
 
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong><code>TemplateRef</code> is a compiled, uninstantiated view factory.</strong>
+          <code>&lt;ng-template&gt;</code> compiles to a function that knows how to produce a view
+          (nodes plus bindings) but produces nothing by itself — nothing exists in the DOM until a
+          <code>ViewContainerRef</code> calls <code>createEmbeddedView()</code> on it.</li>
+        <li><strong><code>NgTemplateOutlet</code> is a thin wrapper around that call.</strong>
+          Internally it holds a <code>ViewContainerRef</code> on its host and calls
+          <code>viewContainerRef.createEmbeddedView(templateRef, context)</code>; pointing
+          <code>[ngTemplateOutlet]</code> at a different <code>TemplateRef</code> destroys the old
+          embedded view and creates a new one from the new template.</li>
+        <li><strong>The context object is passed by reference, not copied per key.</strong>
+          <code>[ngTemplateOutletContext]</code> hands the whole object to the embedded view;
+          <code>let-x="key"</code> reads <code>context.key</code>, and the bare
+          <code>let-x</code> shorthand reads <code>context.$implicit</code>. Because it's the
+          same object reference, mutating a property (instead of replacing the object) updates the
+          render without recreating the view.</li>
+        <li><strong>Swapping context is cheap; swapping the template isn't.</strong> When only the
+          context object's identity changes and the <code>TemplateRef</code> stays the same,
+          Angular doesn't recreate the embedded view — it re-runs change detection on the
+          already-created view with the new context. Change the <code>TemplateRef</code> itself
+          and the old view is destroyed and a new one built.</li>
+        <li><strong>This is the exact primitive <code>&#64;if</code>/<code>&#64;for</code> compile
+          down to.</strong> Built-in control-flow blocks are compiled into the same
+          <code>createEmbeddedView</code>/<code>ViewContainerRef</code> machinery —
+          <code>NgTemplateOutlet</code> just exposes that machinery at the template-author level
+          instead of hiding it inside a compiled block.</li>
+      </ul>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Forgetting <code>[ngTemplateOutletContext]</code>.</strong> Without it, every
+          <code>let-x</code> in the template resolves to <code>undefined</code> — the outlet still
+          renders, just with empty variables.</li>
+        <li><strong>Named context keys must match exactly.</strong>
+          <code>let-badge="badge"</code> reads <code>context.badge</code>; typo the key on either
+          side and you silently get <code>undefined</code>, not a compile error.</li>
+        <li><strong>Only one unnamed <code>let-x</code> per template.</strong> The bare shorthand
+          always binds to <code>$implicit</code> — you can't have two different unnamed variables
+          pulling from two different context keys on the same template.</li>
+        <li><strong>A falsy <code>[ngTemplateOutlet]</code> renders nothing.</strong>
+          <code>null</code>/<code>undefined</code> is a valid "no template" value — handy for
+          optional slots, but easy to mistake for a bug when it's really a typo'd template
+          reference.</li>
+        <li><strong>Passing a <code>TemplateRef</code> into a child doesn't render it.</strong> An
+          <code>input()</code> of type <code>TemplateRef</code> just hands over the blueprint —
+          the child still needs its own <code>NgTemplateOutlet</code> to stamp it out.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>&lt;ng-template&gt;</code> is a DOM blueprint — invisible until stamped by an outlet.</li>

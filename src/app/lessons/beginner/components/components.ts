@@ -13,6 +13,9 @@ import { RouterLink } from '@angular/router';
     <div class="gc">
       <span class="gc__avatar">{{ initial() }}</span>
       <p class="gc__msg">Hello, <strong>{{ name() }}</strong> 👋</p>
+      <button class="gc__bump" (click)="claps.set(claps() + 1)">
+        👏 {{ claps() }}
+      </button>
     </div>
   `,
   styles: [
@@ -38,6 +41,11 @@ import { RouterLink } from '@angular/router';
       }
       .gc__msg {
         margin: 0;
+        flex: 1;
+      }
+      .gc__bump {
+        font-size: 0.8rem;
+        padding: 4px 10px;
       }
     `,
   ],
@@ -45,6 +53,7 @@ import { RouterLink } from '@angular/router';
 export class GreetingCard {
   readonly name = input('Ada');
   readonly initial = computed(() => this.name().charAt(0).toUpperCase() || '?');
+  protected readonly claps = signal(0);
 }
 
 @Component({
@@ -105,6 +114,27 @@ export class GreetingCard {{ '{' }}
         The <code>app-</code> prefix is configured in <code>angular.json</code>.
       </div>
 
+      <h2>Every instance owns its own state</h2>
+      <p>
+        Each <code>&lt;app-greeting-card&gt;</code> tag above got its own
+        <code>GreetingCard</code> <strong>instance</strong> — a separate object with its
+        own fields, created fresh from the class. Click the 👏 button on one card; watch
+        the others stay at zero:
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — three instances, three independent counters</p>
+        <div class="row">
+          <app-greeting-card name="Ada" />
+          <app-greeting-card name="Grace" />
+          <app-greeting-card name="Linus" />
+        </div>
+        <p style="margin: 12px 0 0; color: var(--text-muted); font-size: .85rem">
+          One class, three instances, three separate <code>claps</code> signals in
+          memory. Nothing you click on Ada's card can touch Grace's — that isolation is
+          exactly what makes a component a reusable, self-contained unit.
+        </p>
+      </div>
+
       <h2>templateUrl & styleUrl</h2>
       <p>
         For larger components you split the HTML and CSS into their own files
@@ -133,6 +163,58 @@ selector: 'app-card, [appCard]'   // multiple — match either form</pre>
         <li><code>Emulated</code> (default) — scoped via attribute rewriting, no Shadow DOM.</li>
         <li><code>ShadowDom</code> — real browser Shadow DOM isolation.</li>
         <li><code>None</code> — styles become global. Use deliberately, rarely.</li>
+      </ul>
+      <p>
+        The full mechanics — the emitted CSS for each mode, <code>:host</code>, and the
+        custom-property theming pattern for reaching a child's internals — are their own
+        lesson: <a routerLink="/view-encapsulation">View Encapsulation</a>.
+      </p>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>The decorator is consumed at build time, not runtime.</strong> The
+          Angular compiler reads <code>&#64;Component</code>'s metadata and the template
+          string once, ahead of time (AOT), and emits a compiled <em>component
+          definition</em> (<code>ɵcmp</code>) attached to the class — a template
+          <em>function</em> made of low-level instructions (<code>ɵɵelementStart</code>,
+          <code>ɵɵtext</code>, …), not the HTML string you wrote. By the time your app
+          runs in the browser, there is no template parser left to invoke.</li>
+        <li><strong>A component class is a factory, not a singleton.</strong> Every tag
+          match creates a fresh instance via Angular's dependency injector, which is why
+          the three <code>GreetingCard</code>s above each got an independent
+          <code>claps</code> signal — same class, three separate objects living in the
+          view tree.</li>
+        <li><strong>The class is plain data + methods; reactivity is bolted on by
+          Angular.</strong> <code>signal()</code> and <code>input()</code> don't know
+          anything about rendering — they're just reactive containers. It's the compiled
+          template function, re-run by change detection, that reads them and patches the
+          DOM. Swap <code>signal</code> for a plain field and the class still works in
+          TypeScript; it just stops updating the screen.</li>
+        <li><strong>A directive is a component missing a template.</strong> Structurally
+          they're the same construct — a decorated class the compiler processes the same
+          way — <code>&#64;Directive</code> just skips the "produce a view" half. That's
+          why a component technically <em>is</em> a directive with a template attached.</li>
+      </ul>
+
+      <h2>Exam pitfalls</h2>
+      <ul>
+        <li><strong>Forgetting to import a child.</strong> Using
+          <code>&lt;app-greeting-card&gt;</code> without adding <code>GreetingCard</code>
+          to the parent's <code>imports</code> array fails at compile time —
+          <code>NG8001: 'app-greeting-card' is not a known element</code>. Standalone
+          components declare every dependency they use themselves.</li>
+        <li><strong><code>template</code> and <code>templateUrl</code> are mutually
+          exclusive.</strong> Specifying both throws
+          <code>NG1001: Component has both template and templateUrl</code> at build
+          time — pick exactly one per component.</li>
+        <li><strong><code>styles</code> is a string array, <code>styleUrl</code> is a
+          single string.</strong> Multiple external files use the plural
+          <code>styleUrls: [...]</code>; mixing up singular/plural or array/string shape
+          across Angular versions is a common exam trap.</li>
+        <li><strong>The selector prefix is a lint convention, not a compiler rule.</strong>
+          Angular will happily compile <code>selector: 'greeting-card'</code> with no
+          <code>app-</code> prefix — it's the default <code>angular.json</code> lint
+          config (and the style guide) that flags it, not a hard error.</li>
       </ul>
 
       <h2>Key takeaways</h2>

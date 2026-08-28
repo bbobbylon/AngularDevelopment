@@ -116,6 +116,35 @@ import { RouterLink } from '@angular/router';
         common "my query is always undefined" cause.
       </div>
 
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>Queries resolve during a dedicated view-check pass.</strong> After Angular
+          renders (or re-renders) a view, it walks the query metadata compiled onto the
+          component definition and populates results — that's why <code>ngAfterViewInit</code>
+          (and a signal re-read) see them, but the constructor and <code>ngOnInit</code> run
+          before that pass and see nothing.</li>
+        <li><strong><code>static: true</code> opts into first-pass resolution — with a real
+          constraint.</strong> <code>&#64;ViewChild('ref', &#123; static: true &#125;)</code>
+          tells Angular the target can never be removed by a structural directive, so it's
+          resolved once during the <em>first</em> change-detection pass and is already
+          readable in <code>ngOnInit</code>. Ask for <code>static: true</code> on something
+          conditionally rendered and you get a stale or <code>undefined</code> reference the
+          moment it's absent.</li>
+        <li><strong><code>static: false</code> (the decorator default) re-resolves after every
+          check.</strong> This is the behavior signal queries always use — necessary for
+          anything inside <code>&#64;if</code>/<code>*ngIf</code>/<code>&#64;for</code>/
+          <code>&#64;defer</code>, since the node may not exist during the first pass at all.</li>
+        <li><strong><code>read</code> changes which token the same match returns.</strong> The
+          query engine matches a node by template reference, directive type, or component type,
+          then looks up whichever injectable token <code>read</code> names on that node's
+          injector — <code>ElementRef</code>, <code>ViewContainerRef</code>, a directive
+          instance — without changing what was matched.</li>
+        <li><strong>Signal queries are a reactive wrapper over the same resolution pass.</strong>
+          <code>viewChild()</code> schedules its signal to update whenever that pass runs, which
+          is why it "just works" for conditional content with no <code>static</code> flag to
+          choose — there's no first-pass/after-pass distinction left to configure.</li>
+      </ul>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong>Reading in the constructor.</strong> Undefined there — use a handler,

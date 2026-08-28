@@ -60,6 +60,25 @@ import { RouterLink } from '@angular/router';
         token. Put retry before auth and you may replay a request with a stale header.
       </div>
 
+      <h2>Short-circuiting: skip <code>next()</code> entirely</h2>
+      <p>
+        An interceptor doesn't have to call <code>next(req)</code> at all — it just has to
+        return an <code>Observable</code> of the right shape, so a caching interceptor can
+        serve a cached response directly. The request never reaches the network, and no
+        later interceptor in the chain runs either:
+      </p>
+      <div class="demo">
+        <p class="demo__title">Live — cache miss vs. cache hit</p>
+        <div class="row" style="margin-bottom:12px">
+          <button (click)="fetchCached(false)">Fetch → cache miss</button>
+          <button class="ghost" (click)="fetchCached(true)">Fetch → cache hit (short-circuit)</button>
+        </div>
+        @if (cacheLog().length) {
+          <div class="code"><pre>{{ cacheLogText() }}</pre></div>
+        }
+      </div>
+      <div class="code"><pre>{{ shortCircuitSample }}</pre></div>
+
       <h2>Per-request config with <code>HttpContext</code></h2>
       <p>
         A type-safe channel to pass metadata from the call site to an interceptor — without
@@ -76,6 +95,38 @@ import { RouterLink } from '@angular/router';
         <tr><td>Inject services</td><td class="ok"><code>inject()</code> directly — it runs in an injection context</td><td>constructor injection</td></tr>
         <tr><td>Boilerplate</td><td class="ok">minimal</td><td>a class + a multi-provider per interceptor</td></tr>
       </table>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>The chain is composed once, not iterated per request.</strong>
+          <code>withInterceptors([a, b, c])</code> nests them at bootstrap into
+          <code>a(req, r =&gt; b(r, r2 =&gt; c(r2, backendHandle)))</code> — each interceptor
+          only ever holds a reference to the closure it was handed as <code>next</code>, never
+          the whole array. That closure nesting <em>is</em> the onion; it's why array order
+          fixes wrap order.</li>
+        <li><strong>Requests are cold, end to end.</strong> Nothing in the chain runs until
+          your code subscribes to the <code>HttpClient</code> call (directly, via
+          <code>async</code>, or <code>firstValueFrom</code>). Subscribe to the same call
+          twice and every interceptor re-enters from scratch — there's no built-in
+          deduplication or caching of an in-flight request.</li>
+        <li><strong>The innermost <code>next</code> is <code>HttpBackend</code>, not another
+          interceptor.</strong> After the last interceptor in the array calls
+          <code>next(req)</code>, that call lands on Angular's backend — XHR by default, or
+          <code>fetch</code> if <code>withFetch()</code> is configured. Interceptors never see
+          the raw XHR/fetch call, only the <code>HttpRequest</code>/<code>HttpEvent</code>
+          abstraction.</li>
+        <li><strong>Short-circuiting isn't a special API.</strong> An interceptor's signature
+          is just <code>(req) =&gt; Observable&lt;HttpEvent&gt;</code>, and so is
+          <code>next</code> itself — <code>next(req)</code> and <code>of(cachedResponse)</code>
+          are both ordinary, type-correct return values. That's exactly why TypeScript can't
+          catch a forgotten <code>next()</code> call: nothing about the type signature
+          requires calling it.</li>
+        <li><strong>Legacy and functional interceptors can coexist.</strong>
+          <code>provideHttpClient(withInterceptorsFromLegacy(), withInterceptors([...]))</code>
+          folds <code>HTTP_INTERCEPTORS</code>-based classes and functional interceptors into
+          one composed chain — the same out-in-order/back-in-reverse rule applies across the
+          mixed set.</li>
+      </ul>
 
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
@@ -170,6 +221,24 @@ export class HttpInterceptors {
     this.log.set(lines);
   }
 
+  protected readonly cacheLog = signal<string[]>([]);
+  protected readonly cacheLogText = () => this.cacheLog().join('\n');
+
+  protected fetchCached(hit: boolean) {
+    const lines = hit
+      ? [
+          '→ REQUEST  GET /api/profile',
+          '  └ [cache]  hit → return of(cachedResponse)   ⛔ next() never called',
+          '← RESPONSE 200 OK  { name: "Ada" }  (served from cache, 0ms — no network, no later interceptors)',
+        ]
+      : [
+          '→ REQUEST  GET /api/profile',
+          '  └ [cache]  miss → return next(req)',
+          '← RESPONSE 200 OK  { name: "Ada" }  (from the network — now cached for next time)',
+        ];
+    this.cacheLog.set(lines);
+  }
+
   protected readonly basicSample = `import { HttpInterceptorFn } from '@angular/common/http';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
@@ -195,6 +264,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       return throwError(() => err);
     }),
   );`;
+
+  protected readonly shortCircuitSample = `export const cacheInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.method !== 'GET') return next(req);
+
+  const cached = cache.get(req.url);
+  if (cached) return of(cached);   // ⛔ short-circuit — next() never runs, no network call
+
+  return next(req).pipe(tap((event) => cache.set(req.url, event)));
+};`;
 
   protected readonly contextSample = `export const SKIP_AUTH = new HttpContextToken(() => false);
 

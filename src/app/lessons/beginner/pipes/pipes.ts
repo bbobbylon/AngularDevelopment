@@ -3,6 +3,7 @@ import {
   DatePipe,
   DecimalPipe,
   JsonPipe,
+  KeyValuePipe,
   LowerCasePipe,
   PercentPipe,
   SlicePipe,
@@ -25,6 +26,7 @@ import { RouterLink } from '@angular/router';
     DatePipe,
     JsonPipe,
     SlicePipe,
+    KeyValuePipe,
   ],
   template: `
     <article class="lesson">
@@ -95,6 +97,29 @@ import { RouterLink } from '@angular/router';
         <code>&#64;for</code> over an object's entries.
       </div>
 
+      <h2>Iterating objects with keyvalue</h2>
+      <div class="demo">
+        <p class="demo__title">Live</p>
+        <button class="ghost" (click)="sorted.set(!sorted())" style="margin-bottom:12px">
+          {{ sorted() ? 'Sorted by key' : 'Insertion order' }}
+        </button>
+        <ul>
+          @for (entry of (settings() | keyvalue: (sorted() ? undefined : noSort)); track entry.key) {
+            <li><code>{{ entry.key }}</code>: {{ entry.value }}</li>
+          }
+        </ul>
+      </div>
+      <div class="code">
+        <pre>{{ '{{' }} obj | keyvalue {{ '}}' }}             &lt;!-- sorted by key, default --&gt;
+{{ '{{' }} obj | keyvalue: noSort {{ '}}' }}      &lt;!-- pass a compareFn to keep insertion order --&gt;</pre>
+      </div>
+      <p style="color:var(--text-muted);font-size:.85rem">
+        <code>keyvalue</code> turns an object (or <code>Map</code>) into an array of
+        <code>&#123; key, value &#125;</code> pairs so <code>&#64;for</code> can iterate it —
+        plain objects aren't themselves iterable. It re-sorts on every call unless you
+        supply your own stable compare function.
+      </p>
+
       <h2>Purity & performance</h2>
       <p>
         Built-in pipes are <strong>pure</strong>: Angular memoizes the result and only
@@ -144,6 +169,36 @@ import { RouterLink } from '@angular/router';
         run every cycle. Keep pipes pure and for display formatting.</div>
       </details>
 
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>A pipe is just a class with a <code>transform()</code> method.</strong>
+          <code>&#64;Pipe(&#123; name: 'uppercase' &#125;)</code> registers the class; Angular
+          instantiates it once per binding site and calls
+          <code>pipeInstance.transform(value, ...args)</code> — there's no special runtime
+          magic beyond that.</li>
+        <li><strong>Pure vs impure controls how often that call happens.</strong> A pure pipe
+          (the default) only re-runs <code>transform()</code> when the input or its arguments
+          change by reference/primitive equality. An impure pipe (<code>pure: false</code>)
+          re-runs on <em>every</em> change-detection cycle — every keystroke, every timer tick,
+          every unrelated signal update — which is why a stateful filtering/sorting pipe left
+          impure can quietly wreck performance on a large list.</li>
+        <li><strong><code>| async</code> subscribes and unsubscribes for you.</strong> The first
+          time a template evaluates <code>obs$ | async</code>, the pipe calls
+          <code>.subscribe()</code> internally; when the view hosting it is destroyed (an
+          <code>&#64;if</code> toggles off, or the component itself is destroyed) the pipe's own
+          <code>ngOnDestroy</code> calls <code>.unsubscribe()</code> — that's the entire trick
+          behind "no manual subscription management".</li>
+        <li><strong><code>keyvalue</code>'s default sort is itself just a pipe transform</strong>
+          running <code>Array.sort()</code> over <code>Object.keys()</code>/<code>Map</code>
+          entries on every invocation — which is why swapping in a no-op compare function (as
+          above) is the standard way to preserve insertion order.</li>
+        <li><strong>Locale-aware pipes wrap the platform <code>Intl</code> API</strong>, not
+          hand-rolled formatting logic. <code>DatePipe</code>/<code>CurrencyPipe</code>/
+          <code>DecimalPipe</code> call into <code>Intl.DateTimeFormat</code>/
+          <code>Intl.NumberFormat</code> under <code>LOCALE_ID</code> — which is also why missing
+          locale data throws at the <code>Intl</code> layer, not inside Angular.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Syntax: <code>value | pipeName: arg1 : arg2</code> — args can be bound/dynamic.</li>
@@ -180,4 +235,9 @@ export class Pipes {
   protected readonly num = signal(1234.5);
   protected readonly now = signal(new Date());
   protected readonly sample = signal({ id: 1, tags: ['a', 'b'], active: true });
+
+  protected readonly settings = signal({ theme: 'dark', locale: 'en-US', beta: true });
+  protected readonly sorted = signal(true);
+  /** A no-op compare function: keeps keyvalue's output in insertion order. */
+  protected readonly noSort = (): number => 0;
 }

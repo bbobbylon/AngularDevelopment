@@ -56,6 +56,22 @@ import { map } from 'rxjs';
         </p>
       </div>
 
+      <h2>Live — snapshot vs observable, side by side</h2>
+      <div class="demo">
+        <p class="demo__title">Live — click the theme links above, then compare these two rows</p>
+        <ul>
+          <li><code>route.snapshot.queryParamMap.get('theme')</code> — read once, on init:
+            <strong>{{ snapshotTheme }}</strong></li>
+          <li><code>route.queryParamMap</code> observable — re-reads on every navigation:
+            <strong>{{ theme() ?? '(none)' }}</strong></li>
+        </ul>
+        <p style="color:var(--text-muted);font-size:.85rem">
+          The snapshot row is frozen forever at whatever the URL was when this component was
+          created; the observable row keeps updating as you click the links. This is the exact
+          bug from the warning above, made visible on the same page.
+        </p>
+      </div>
+
       <h2>Setting query params: <code>queryParamsHandling</code></h2>
       <p>
         When you navigate, what happens to the query params already in the URL depends on
@@ -91,6 +107,34 @@ import { map } from 'rxjs';
         <code>'42'</code>, not <code>42</code> — convert with <code>Number(id)</code> and
         validate, guarding the <code>null</code> case before parsing.
       </div>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>Reuse is a policy, not an accident.</strong> The default
+          <code>RouteReuseStrategy.shouldReuseRoute</code> returns <code>true</code> whenever
+          the matched route <em>config</em> (the path template) is unchanged, regardless of
+          param values — that's precisely why <code>/users/1</code> → <code>/users/2</code>
+          keeps the same <code>UserPage</code> instance while navigating to a different route
+          destroys and recreates it.</li>
+        <li><strong><code>paramMap</code> is multicast on the surviving <code>ActivatedRoute</code>.</strong>
+          Because the router keeps the same <code>ActivatedRoute</code> object across a
+          reused navigation, a subscription started once in <code>ngOnInit</code> keeps
+          receiving every later param change — no need to re-subscribe per navigation.</li>
+        <li><strong>Only the reused node's params are swapped.</strong> The router resolves a
+          whole new <code>ActivatedRouteSnapshot</code> tree per navigation, diffs it against
+          the current tree, and reuses matching branches wholesale — the retained node just
+          gets new <code>params</code>/<code>queryParams</code>/<code>data</code> pushed onto
+          it, with no <code>ngOnDestroy</code>/<code>ngOnInit</code> cycle in between.</li>
+        <li><strong>There's no typed route syntax.</strong> A path like
+          <code>users/:id</code> matches any segment verbatim — the router never validates or
+          coerces it, so <code>/users/abc</code> matches just as well as <code>/users/1</code>.
+          That's the actual reason params are always strings: nothing upstream ever had a
+          number to give you.</li>
+        <li><strong>Query params live on the URL tree, not the route match.</strong> Changing
+          <code>?sort=</code> alone doesn't change which route/component activates — only the
+          path segments decide that — which is also why a query-param-only navigation can
+          reuse the component even under a stricter reuse strategy.</li>
+      </ul>
 
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
@@ -158,6 +202,9 @@ export class RouteParams {
 
   protected readonly theme = toSignal(this.route.queryParamMap.pipe(map((p) => p.get('theme'))));
   protected readonly sort = toSignal(this.route.queryParamMap.pipe(map((p) => p.get('sort'))));
+
+  // Read once, at construction — deliberately NOT reactive, to demonstrate the staleness trap.
+  protected readonly snapshotTheme = this.route.snapshot.queryParamMap.get('theme') ?? '(none)';
 
   protected readonly readSample = `{ path: 'users/:id', component: UserPage }
 <a [routerLink]="['/users', user.id]">View</a>

@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
+  FormControl,
   ReactiveFormsModule,
   ValidationErrors,
   ValidatorFn,
@@ -115,6 +116,27 @@ ctrl.updateValueAndValidity();</pre>
         validators) or <code>null</code> when valid.
       </p>
 
+      <h2>updateOn: 'change' vs 'blur'</h2>
+      <div class="demo">
+        <p class="demo__title">Live — clear a box, then look at its status before clicking away</p>
+        <div class="field">
+          <label>Live validation (<code>updateOn: 'change'</code>, the default)</label>
+          <input [formControl]="liveField" />
+          <small class="pill">status: {{ liveField.status }}</small>
+        </div>
+        <div class="field">
+          <label>Deferred validation (<code>updateOn: 'blur'</code>)</label>
+          <input [formControl]="blurField" />
+          <small class="pill">status: {{ blurField.status }}</small>
+        </div>
+      </div>
+      <p style="color:var(--text-muted);font-size:.85rem">
+        Clear the first box and its status flips to <code>INVALID</code> immediately, on every
+        keystroke. Clear the second box — the status stays <code>VALID</code> (stale) until you
+        tab or click away, because with <code>updateOn: 'blur'</code> the control only reruns
+        validation on the <code>blur</code> DOM event, not on every <code>input</code> event.
+      </p>
+
       <div class="tip">
         Control states drive CSS classes too: <code>ng-valid</code>,
         <code>ng-invalid</code>, <code>ng-touched</code>, <code>ng-dirty</code>,
@@ -155,6 +177,35 @@ ctrl.updateValueAndValidity();</pre>
         <code>updateValueAndValidity()</code>. It stays until the control revalidates.</div>
       </details>
 
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>A validator is just a function <code>(control) =&gt; ValidationErrors | null</code>.</strong>
+          <code>Validators.required</code> and friends are all plain functions matching
+          <code>ValidatorFn</code>; the custom <code>hasDigit()</code> above isn't special syntax —
+          it's the exact same signature, which is why validators compose so easily.</li>
+        <li><strong><code>valueChanges</code> and <code>statusChanges</code> are Observables</strong>,
+          not bespoke Angular machinery — every <code>AbstractControl</code> exposes them as
+          RxJS streams. The reactive-forms directives (<code>formControlName</code>,
+          <code>formGroup</code>, …) are themselves just subscribers wired up for you at bind
+          time.</li>
+        <li><strong>Sync validators run first, every time; async validators only run once every
+          sync validator returns <code>null</code>.</strong> Each control keeps two separate
+          validator queues internally. <code>updateValueAndValidity()</code> runs the synchronous
+          queue immediately, and only if the control comes out <code>VALID</code> from that pass
+          does it kick off the async queue, flipping status to <code>PENDING</code> until every
+          async validator resolves.</li>
+        <li><strong><code>updateOn</code> decides which DOM event triggers that
+          <code>updateValueAndValidity()</code> call</strong> — <code>'change'</code> (default)
+          hooks the <code>input</code> event, <code>'blur'</code> hooks <code>blur</code>,
+          <code>'submit'</code> waits for the form's submit event. It changes <em>when</em>
+          validators run, never <em>what</em> they check.</li>
+        <li><strong><code>setErrors()</code> bypasses the validator pipeline entirely.</strong> It
+          writes directly to <code>control.errors</code>, which is why it clobbers the whole
+          object instead of merging — the next <code>updateValueAndValidity()</code> call (from a
+          value change, a blur, …) throws that away and rebuilds <code>errors</code> from the
+          validator functions again.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Compose built-in validators in the control's validator array.</li>
@@ -191,4 +242,10 @@ export class FormValidation {
   protected ctrl(name: string): AbstractControl {
     return this.form.get(name)!;
   }
+
+  protected readonly liveField = new FormControl('x', { validators: [Validators.required] });
+  protected readonly blurField = new FormControl('x', {
+    validators: [Validators.required],
+    updateOn: 'blur',
+  });
 }

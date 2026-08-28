@@ -1135,15 +1135,15 @@ export class ChartComponent implements OnInit {
   },
   {
     id: 71, type: 'multiple-choice', difficulty: 'mid', category: 'signals',
-    question: 'What are the three status values a `resource()` can have?',
+    question: 'What type are the values of a `resource()`\'s `status` signal (`ResourceStatus`)?',
     options: [
       "Just three: \"loading\", \"loaded\", and \"error\"",
-      "\"idle\", \"loading\", \"resolved\", \"error\", \"refreshing\" — five string values",
-      "Idle, Loading, Resolved, Error, Refreshing (the ResourceStatus enum)",
+      "Six lowercase string literals: \"idle\" | \"error\" | \"loading\" | \"reloading\" | \"resolved\" | \"local\"",
+      "Idle, Loading, Resolved, Error, Refreshing — a `ResourceStatus` TypeScript enum",
       "Just three: \"pending\", \"complete\", and \"failed\"",
     ],
-    answer: 2,
-    explanation: 'Angular\'s `resource()` API exposes a `status` signal with the `ResourceStatus` enum values: `Idle` (not yet fetched), `Loading` (initial fetch in progress), `Resolved` (data available), `Error` (fetch failed), `Refreshing` (re-fetching while existing data is shown). Check `resource.isLoading()` as a convenience boolean. A and D use wrong names. B gets the count right but uses string names incorrectly.',
+    answer: 1,
+    explanation: '`ResourceStatus` is a union of six lowercase string literals — `\'idle\'` (no request yet), `\'loading\'` (first fetch in flight), `\'reloading\'` (re-fetching while a value is already present), `\'resolved\'` (fetch succeeded), `\'error\'` (fetch failed), `\'local\'` (value was set directly via `.set()`/`.update()` rather than fetched). It is a string-literal type, not a TypeScript `enum` — there is no capitalized `Idle`/`Loading`/etc. Check `resource.isLoading()` for a convenience boolean instead of comparing `status()` yourself. A and D under-count and use the wrong names; C invents an enum that does not exist.',
   },
   {
     id: 72, type: 'multiple-choice', difficulty: 'senior', category: 'signals',

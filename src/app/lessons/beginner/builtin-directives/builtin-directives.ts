@@ -143,6 +143,28 @@ trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
         </div>
       </div>
 
+      <h2>Demo 2 — *ngFor's local template variables</h2>
+      <div class="demo">
+        <p class="demo__title">first / last / even / odd, live</p>
+        <ul class="list">
+          <li
+            *ngFor="let f of fruits(); let i = index; let isFirst = first; let isLast = last; let isEven = even"
+            [ngClass]="{ active: isFirst || isLast }"
+            [ngStyle]="{ background: isEven ? 'var(--bg-elevated)' : 'transparent' }"
+          >
+            {{ i + 1 }}. {{ f }}
+            <span *ngIf="isFirst" class="pill">first</span>
+            <span *ngIf="isLast" class="pill">last</span>
+            <span class="pill">{{ isEven ? 'even' : 'odd' }}</span>
+          </li>
+        </ul>
+        <p style="margin-top:10px;color:var(--text-muted);font-size:.85rem">
+          <code>index</code>, <code>first</code>, <code>last</code>, <code>even</code> and
+          <code>odd</code> are all local template variables <code>*ngFor</code> exposes per
+          iteration — no extra computation needed in the component.
+        </p>
+      </div>
+
       <h2>ng-container &amp; ng-template</h2>
       <p>
         <code>&lt;ng-container&gt;</code> is a grouping element that leaves <em>no</em> node
@@ -167,6 +189,37 @@ trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
         <tr><td><code>[ngSwitch]</code> + <code>*ngSwitchCase</code></td><td><code>&#64;switch</code> + <code>&#64;case</code></td></tr>
         <tr><td><code>&lt;ng-container *ngIf&gt;</code></td><td>(no wrapper needed — blocks aren't elements)</td></tr>
       </table>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>Structural directives desugar to <code>&lt;ng-template&gt;</code>.</strong>
+          The <code>*</code> shorthand is sugar the compiler expands into a
+          <code>&lt;ng-template&gt;</code> wrapping the host element, with the directive's input
+          bound via microsyntax. The directive itself calls
+          <code>viewContainerRef.createEmbeddedView(templateRef)</code> to insert or remove that
+          view — that's the mechanism, not magic CSS hiding.</li>
+        <li><strong><code>&#64;if</code>/<code>&#64;for</code>/<code>&#64;switch</code> aren't
+          directives at all.</strong> They're built-in control-flow blocks the compiler emits
+          straight into the component's template function — no directive class, no injector
+          lookup, no <code>CommonModule</code> needed. That's exactly why forgetting to import
+          <code>NgIf</code> breaks <code>*ngIf</code>, but there's nothing to "import" for
+          <code>&#64;if</code>.</li>
+        <li><strong><code>NgFor</code> keeps a live embedded view per item and reconciles by
+          identity.</strong> Each change-detection run it diffs the new iterable against the
+          previous one — by <code>trackBy</code> if you supplied one, otherwise by object
+          reference — and only creates, moves or destroys the embedded views that actually
+          changed.</li>
+        <li><strong><code>[ngClass]</code>/<code>[ngStyle]</code> diff-and-patch; they don't
+          replace the attribute.</strong> Each cycle they compute which class/style entries
+          changed since last time and call <code>renderer.addClass</code>/<code>removeClass</code>
+          (or <code>setStyle</code>/<code>removeStyle</code>) only for those deltas — the static
+          <code>class</code>/<code>style</code> attribute is left alone and merged with, never
+          overwritten wholesale.</li>
+        <li><strong><code>&lt;ng-container&gt;</code> compiles to a comment node, not an
+          element.</strong> It never creates a DOM element at all — the compiler emits an anchor
+          comment, so a structural directive has somewhere to attach without introducing a
+          wrapper into the rendered HTML.</li>
+      </ul>
 
       <h2>Common mistakes</h2>
       <table class="t">

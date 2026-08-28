@@ -113,6 +113,34 @@ type Shape =
       </p>
       <div class="code"><pre>{{ migrationSample }}</pre></div>
 
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>One embedded view per branch.</strong> <code>&#64;switch</code> compiles the
+          same way as an <code>&#64;if</code>/<code>&#64;else if</code> chain: each
+          <code>&#64;case</code>/<code>&#64;default</code> becomes its own conditional
+          template function, and only the matching branch is ever instantiated as an
+          embedded view — its component tree is the only one created and the only one that
+          enters change detection.</li>
+        <li><strong>Not a jump table — a sequence of <code>===</code> checks.</strong> The
+          switch expression is evaluated once, then compared top-to-bottom against each
+          <code>&#64;case</code> literal by strict equality until one matches (or
+          <code>&#64;default</code> catches the rest). There's no compiled lookup table like a
+          low-level switch statement might use.</li>
+        <li><strong>Switching away destroys, it doesn't hide.</strong> Because non-matching
+          branches are never instantiated, moving from <code>'loading'</code> to
+          <code>'success'</code> runs the spinner component's <code>ngOnDestroy</code> and
+          constructs the results component fresh — unlike <code>[hidden]</code>, which never
+          removes anything from the DOM.</li>
+        <li><strong>No directive instance at runtime.</strong> Legacy <code>*ngSwitch</code>/
+          <code>*ngSwitchCase</code> are real directives holding a <code>ViewContainerRef</code>
+          and toggling embedded views imperatively. <code>&#64;switch</code> is compiled
+          directly into conditional instructions by the template compiler — there's no
+          <code>NgSwitch</code> object to inject or override.</li>
+        <li><strong><code>&#64;default</code> is just another branch.</strong> It has no special
+          runtime behavior beyond being the branch selected when no <code>&#64;case</code>
+          strictly matches — it's compiled the same way as every other branch.</li>
+      </ul>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong>Strict <code>===</code>, including for objects.</strong>

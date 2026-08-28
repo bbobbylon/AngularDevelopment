@@ -142,6 +142,35 @@ export class LifecycleChild
         (a signal write, or <code>queueMicrotask</code>).
       </div>
 
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>Hooks are plain method calls, not events.</strong> There's no
+          <code>EventEmitter</code> or observable underneath — Angular's change-detection
+          tree walk simply invokes <code>instance.ngOnInit()</code>,
+          <code>instance.ngDoCheck()</code>, etc. directly, in a fixed order, on every
+          component that implements them. Naming the method right (<code>ngOnInit</code>,
+          not <code>OnInit</code>) is what makes it get called — the interface itself is
+          TypeScript-only and erased at runtime.</li>
+        <li><strong>The tree walk explains the parent/child ordering.</strong> Angular
+          checks components top-down (parent creates &amp; initialises its children as it
+          renders them), which is why a child's <code>ngOnInit</code> always runs before
+          its own <code>ngAfterViewInit</code> — but the "view ready" hooks
+          (<code>ngAfterViewInit</code>/<code>ngAfterViewChecked</code>) fire bottom-up: a
+          parent's view isn't "complete" until every child's view is, so children report
+          in first.</li>
+        <li><strong><code>ngOnChanges</code> only sees decorator <code>&#64;Input()</code>s.</strong>
+          It's populated by Angular's binding-diff machinery, which only tracks the inputs
+          it set up in the compiled template instructions — a signal written internally,
+          or a value read via a plain <code>@Input</code>-less field, never appears in
+          <code>SimpleChanges</code>. That's one reason <code>input()</code>-based
+          components lean on <code>computed()</code>/<code>effect()</code> instead.</li>
+        <li><strong><code>ngDoCheck</code> fires on every CD pass, app-wide, once
+          <em>anything</em> triggers it</strong> — a click anywhere, an HTTP response, a
+          timer — not just when this component's own data changes. That's what makes it
+          expensive to implement carelessly and why the "Try it" log above grows fast even
+          from unrelated interactions.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li>Hooks let you run code at specific moments of a component's life.</li>

@@ -91,6 +91,40 @@ interface Task {
         <li><code>$count</code> — total length of the collection</li>
       </ul>
 
+      <h2>track by id vs. track by $index</h2>
+      <div class="demo">
+        <p class="demo__title">Live — type a note in a box or two, then Shuffle</p>
+        <button class="ghost" (click)="shuffleLetters()" style="margin-bottom:12px">Shuffle</button>
+        <div class="row" style="gap: 24px; align-items: flex-start">
+          <div style="flex: 1">
+            <p class="demo__title">track letter.id</p>
+            @for (letter of letters(); track letter.id) {
+              <div class="row" style="margin-bottom: 6px">
+                <span class="pill">{{ letter.ch }}</span>
+                <input placeholder="note" style="flex:1" />
+              </div>
+            }
+          </div>
+          <div style="flex: 1">
+            <p class="demo__title">track $index</p>
+            @for (letter of letters(); track $index) {
+              <div class="row" style="margin-bottom: 6px">
+                <span class="pill">{{ letter.ch }}</span>
+                <input placeholder="note" style="flex:1" />
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+      <p style="color:var(--text-muted);font-size:.85rem">
+        Type something into a couple of the "note" boxes, then click Shuffle. On the left
+        (<code>track letter.id</code>) Angular matches each DOM node to its data item and moves
+        the node, so your note travels with the same letter. On the right
+        (<code>track $index</code>) Angular matches by position, so the input stays put and now
+        holds whichever letter landed in that slot — the note appears to "jump" to a different
+        letter.
+      </p>
+
       <h2>Pitfalls that show up in exams &amp; code review</h2>
       <ul>
         <li><strong>Omitting <code>track</code>.</strong> Unlike the old <code>*ngFor</code>,
@@ -123,6 +157,34 @@ interface Task {
         <div>The optional <code>&#64;empty</code> block. It fires only for an empty iterable — not for
         <code>null</code>, which throws.</div>
       </details>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong><code>&#64;for</code> is native block syntax, not a directive.</strong> Unlike
+          <code>*ngFor</code> (a structural <em>directive</em> that the <code>*</code>
+          micro-syntax desugars to an <code>&lt;ng-template&gt;</code>), <code>&#64;for</code> is
+          compiled directly into repeat/track instructions by the Angular compiler — that's part
+          of why <code>track</code> can be enforced at compile time instead of merely
+          recommended.</li>
+        <li><strong><code>track</code> drives a keyed diff, not a naive re-render.</strong> On
+          each update Angular computes the new collection's track keys, matches them against the
+          previous run's keys, and only creates/moves/destroys the DOM nodes whose keys actually
+          changed — the same reconciliation idea keyed lists use in other frameworks.</li>
+        <li><strong>Why <code>track</code> became mandatory.</strong> <code>*ngFor</code>'s
+          <code>trackBy</code> was an easy-to-forget optional input; without it Angular defaulted
+          to identity-by-index, which silently broke on reorders. Making <code>track</code> a
+          required part of the <code>&#64;for</code> grammar turns that footgun into a
+          compile-time error instead of a runtime perf/state bug.</li>
+        <li><strong><code>$index</code>/<code>$first</code>/<code>$last</code>/<code>$count</code>/
+          <code>$even</code>/<code>$odd</code> are implicit template context variables</strong>,
+          not properties on your data — the <code>&#64;for</code> block computes them fresh for
+          the current iteration, and they only exist inside that block's <code>let</code>
+          aliasing, which is why nested loops need distinct alias names to avoid shadowing.</li>
+        <li><strong><code>&#64;empty</code> is a sibling branch, not a fallback value.</strong> It
+          renders only when the bound collection's length is 0; a <code>null</code>/
+          <code>undefined</code> collection skips both branches and throws, because
+          <code>&#64;for</code> needs an actual iterable to diff against.</li>
+      </ul>
 
       <h2>Key takeaways</h2>
       <ul>
@@ -187,5 +249,16 @@ export class ControlFlowFor {
 
   protected shuffle() {
     this.tasks.update((t) => [...t].sort(() => Math.random() - 0.5));
+  }
+
+  protected readonly letters = signal([
+    { id: 1, ch: 'A' },
+    { id: 2, ch: 'B' },
+    { id: 3, ch: 'C' },
+    { id: 4, ch: 'D' },
+  ]);
+
+  protected shuffleLetters() {
+    this.letters.update((l) => [...l].sort(() => Math.random() - 0.5));
   }
 }
