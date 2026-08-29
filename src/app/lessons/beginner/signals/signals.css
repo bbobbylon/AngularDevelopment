@@ -4,12 +4,22 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 12px 12px 32px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.82rem;
   max-height: 180px;
   overflow: auto;
   margin: 0 0 10px;
 }
-.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
-.t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-.t td:first-child { width: 240px; }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 240px;
+}

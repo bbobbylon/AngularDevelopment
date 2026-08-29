@@ -1,4 +1,12 @@
-import { Directive, DestroyRef, ElementRef, Renderer2, afterNextRender, inject, input } from '@angular/core';
+import {
+  Directive,
+  DestroyRef,
+  ElementRef,
+  Renderer2,
+  afterNextRender,
+  inject,
+  input,
+} from '@angular/core';
 
 /**
  * Fades + slides an element in the moment it scrolls into view (IntersectionObserver,

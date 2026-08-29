@@ -14,6 +14,7 @@ the guards that hold the content together. The bar for a lesson here is higher t
 
 - [1. Adding a lesson](#1-adding-a-lesson)
 - [2. The depth standard](#2-the-depth-standard)
+- [2A. The retention standard](#2a-the-retention-standard)
 - [3. Lesson file anatomy](#3-lesson-file-anatomy)
 - [4. Adding practice questions](#4-adding-practice-questions)
 - [5. Option-length balancing](#5-option-length-balancing)
@@ -62,13 +63,13 @@ its place by doing the three things the docs do not.
 ### 2.1 Demonstrate, don't assert
 
 Every lesson needs at least one demo the reader can operate, and the demo should make
-the *consequence* visible rather than the feature. The difference:
+the _consequence_ visible rather than the feature. The difference:
 
-| Weak | Strong |
-|---|---|
-| A button that increments a signal | Two counters side by side, one signal and one plain field, with a render counter proving only one updates |
-| Prose saying `OnPush` compares by reference | Two buttons — mutate and replace — and a child that visibly ignores the first |
-| A note that async validators debounce | Two identical fields, one debounced, each with a request counter. The gap is a number |
+| Weak                                        | Strong                                                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| A button that increments a signal           | Two counters side by side, one signal and one plain field, with a render counter proving only one updates |
+| Prose saying `OnPush` compares by reference | Two buttons — mutate and replace — and a child that visibly ignores the first                             |
+| A note that async validators debounce       | Two identical fields, one debounced, each with a request counter. The gap is a number                     |
 
 If a claim can be turned into something the reader can make happen, turn it into that.
 
@@ -108,6 +109,65 @@ capabilities leaves the reader unable to choose.
 A short lesson with three sharp demos beats a long one restating the API surface.
 `scripts/measure-lessons.mjs` reports sizes, but line count is a weak proxy — judge by
 whether §2.1–§2.4 are satisfied.
+
+---
+
+## 2A. The retention standard
+
+Depth is a comprehension tool. It is not a retention tool, and this app exists to get
+someone through an exam, which is a memory problem as much as an understanding one. A
+reader who follows a 400-line lesson while reading it can still fail to recall it two
+weeks later.
+
+So a lesson also has to be **built to stick**. The bar, in full, lives in `.claude/CLAUDE.md`
+under "The Zero-to-Hero standard". The short version: teach the same idea in more than one
+mode, give it a picture, give it an analogy, make the reader commit to an answer before you
+give them one, and leave them one sentence they will still have in a fortnight.
+
+### 2A.1 The teaching components
+
+`src/app/shared/teaching/` exists so this is a matter of importing something rather than
+inventing markup. Import from the barrel:
+
+```ts
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+```
+
+| Component        | Use it for                                        | Rough budget per lesson |
+| ---------------- | ------------------------------------------------- | ----------------------- |
+| `<app-remember>` | The one sentence that must survive                | exactly 1               |
+| `<app-predict>`  | Ask before telling — commit, then reveal          | 1–2                     |
+| `<app-quiz>`     | Active recall with explained wrong answers        | 1–2                     |
+| `<app-flow>`     | A step diagram — sequences, pipelines, lifecycles | 1                       |
+| `<app-compare>`  | Before/after, old API/new API, wrong/right        | as needed               |
+| `<app-faq>`      | The doubts a learner hesitates to ask out loud    | 1, 3–5 items            |
+
+The budgets matter. Three `<app-remember>` boxes highlight nothing, and a page of quizzes
+reads as a worksheet rather than a lesson.
+
+### 2A.2 Writing the copy
+
+- **Wrong answers need explanations too.** The `why` on an incorrect `QuizOption` is where
+  the misconception actually gets corrected — it is the most valuable text in the component.
+- **Strings support `backtick` code spans.** `Quiz`, `Faq`, `Predict` and `Flow` take copy as
+  data, and backticks render as `<code>`. There is deliberately no HTML-in-strings escape
+  hatch — see `shared/teaching/inline-code.ts` for why.
+- **Long copy lives in the `.ts`.** Options arrays, FAQ items and code samples go in the
+  component class as named fields, not inline in the template. It keeps the template
+  readable and the strings diffable.
+- **The analogy is prose, not a component.** There is no `<app-analogy>` because a good
+  metaphor needs to be woven into the explanation, not boxed off beside it. Write it as a
+  short "the mental model:" paragraph near the top.
+
+### 2A.3 Checking a lesson
+
+```bash
+node scripts/audit-retention.mjs                    # every lesson, worst first
+node scripts/audit-retention.mjs --detail signals   # which signals one lesson is missing
+```
+
+The scores are proxies, not judgements — a lesson can score 9/9 and still be dull. Use the
+ranking to decide _what to look at_, then read it.
 
 ---
 
@@ -174,12 +234,17 @@ used anywhere here.
   <p class="lead">…</p>
 
   <h2>Section</h2>
-  <div class="demo"> <div class="demo__title">Try it</div> <app-my-widget /> </div>
+  <div class="demo">
+    <div class="demo__title">Try it</div>
+    <app-my-widget />
+  </div>
   <div class="code"><pre>{{ someSample }}</pre></div>
   <div class="warn">…the trap…</div>
 
   <h2>Key takeaways</h2>
-  <ul>…</ul>
+  <ul>
+    …
+  </ul>
   <p><a routerLink="/next-topic">Next: Next Topic →</a></p>
 </article>
 ```
@@ -259,7 +324,7 @@ survived it.
 
 ```ts
 // weak — one real answer and three throwaways, all different lengths
-options: ['@NgModule', '@Component', '@Injectable', '@Directive']
+options: ['@NgModule', '@Component', '@Injectable', '@Directive'];
 
 // better — four real descriptions, comparable weight, all plausible
 options: [
@@ -267,7 +332,7 @@ options: [
   '@Component — declares a reusable UI building block',
   '@Injectable — marks a class for dependency injection',
   '@Directive — adds behaviour to an existing element',
-]
+];
 ```
 
 **Code options** (`spot-the-bug`, `predict-output`, `fill-blank`)
@@ -299,15 +364,21 @@ category badly off and zero questions where the correct answer is the shortest.
 
 Tooling lives in `scripts/`:
 
-| Script | Purpose |
-|---|---|
-| `measure-balance.mjs` | The report: per-category longest-correct %, mean rank, totals |
-| `list-near-longest.mjs` | Questions where the correct option is close to longest |
-| `list-shortest.mjs` | Questions where the correct option is shortest |
-| `dump-category.mjs` | Dump one category for review |
-| `check-rebalance.mjs` / `check-rewrite.mjs` | Validate a proposed rewrite set |
-| `apply-option-rewrites.mjs` | Apply a rewrite set |
-| `rewrites-<category>*.mjs` | Historical per-category rewrite sets |
+| Script                                      | Purpose                                                       |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| `measure-balance.mjs`                       | The report: per-category longest-correct %, mean rank, totals |
+| `list-near-longest.mjs`                     | Questions where the correct option is close to longest        |
+| `list-shortest.mjs`                         | Questions where the correct option is shortest                |
+| `dump-category.mjs`                         | Dump one category for review                                  |
+| `check-rebalance.mjs` / `check-rewrite.mjs` | Validate a proposed rewrite set                               |
+| `apply-option-rewrites.mjs`                 | Apply a rewrite set                                           |
+| `print-answers.mjs`                         | Print options, lengths and the answer for given question ids  |
+
+A rewrite set is a module default-exporting `{ [id]: { options, answer, explanation? } }`,
+passed to `apply-option-rewrites.mjs` as an argument. The 51 per-category sets used to
+reach the current balance were deleted once applied — their effect is in
+`practice-data.ts` and their text is in git history. Write a new one when rebalancing;
+do not expect an existing one to be there.
 
 After adding questions:
 
@@ -316,7 +387,7 @@ node scripts/measure-balance.mjs
 ```
 
 Aim to keep the aggregate near 25%. Fix drift by lengthening distractors, not by
-truncating correct answers into something imprecise — a distractor should be *plausible*,
+truncating correct answers into something imprecise — a distractor should be _plausible_,
 which usually means it deserves the same care as the right answer anyway.
 
 ---
@@ -331,7 +402,7 @@ What makes a good one here:
 
 - **Say why, not just what.** `/** The user's name. */` on `name` is noise.
   `/** Read once at construction — deliberately NOT reactive, to demonstrate the
-  staleness trap. */` is the comment that was worth writing.
+staleness trap. */` is the comment that was worth writing.
 - **Document the non-obvious choice.** If something is deliberately naive, deliberately
   wrong, or deliberately different from the neighbouring code, that is exactly what the
   comment is for.
@@ -369,11 +440,37 @@ writeJson(STORAGE_KEYS.myFeature, next);
 ## 8. Before you commit
 
 ```bash
-npx tsc --noEmit -p tsconfig.app.json   # type check
-npm test                                 # 18 files, 162 tests
-npm run build                            # production build
-node scripts/measure-balance.mjs         # only if you touched the question bank
+npm run verify                     # typecheck + tests + build — the gate CI applies
+node scripts/measure-balance.mjs   # only if you touched the question bank
 ```
+
+`verify` is the three steps below run in order; use them individually while iterating:
+
+```bash
+npm run format:check   # Prettier, or `npm run format` to fix
+npm run typecheck      # tsconfig.app.json AND tsconfig.spec.json
+npm run test:ci        # 21 files, 392 tests, single run
+npm run build          # production build
+```
+
+CI runs the same set on every pull request, and the Pages deploy will not run unless it
+passes. Two things worth knowing about what those checks cover:
+
+- **Adding a lesson or page adds tests automatically.** The smoke and a11y suites walk
+  `CURRICULUM` and the route table, so a new entry is mounted, rendered and scanned with
+  axe-core without you writing a spec. The commonest new failure is an unlabelled form
+  control in a demo — give every `input`, `select` and `textarea` an `aria-label` (or an
+  `[attr.aria-label]` when the name depends on the row).
+- **Formatting is gated, and templates use Prettier's `angular` parser.** This matters:
+  the default `html` parser does not understand `@if` / `@for`, and flattens their
+  bodies to column zero with the closing braces collapsed onto one line. The `angular`
+  parser indents them exactly as they are written by hand. The override is in
+  `.prettierrc`; do not remove it.
+- **One file is in `.prettierignore`.** `task-manager.html` escapes braces as
+  `{{ '{{' }}` inside a `<pre>`, and Prettier wraps one of those interpolations by
+  inserting a newline _inside_ the quoted string — which is content, so the sample grows
+  a blank line on every run. If you add a lesson that displays Angular syntax this way,
+  check `npx prettier --check` twice: non-idempotency is the symptom.
 
 `npm test` (or `npx ng test --watch=false`) is the way to run the suite — a bare
 `vitest run` will not work, since the tests are driven by the Angular build's test
@@ -399,7 +496,7 @@ inside a template literal" is backtick parity — count backticks before the off
 means inside.
 
 **Braces in templates.** `{` and `}` are Angular template syntax. An example that needs
-to *display* an error object (`{ taken: true }`) has to arrive as a string from the
+to _display_ an error object (`{ taken: true }`) has to arrive as a string from the
 class, not be written inline in the template.
 
 **`TestBed.tick()`** is the effect-flush API in this codebase. `flushEffects` appears

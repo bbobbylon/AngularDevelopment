@@ -16,7 +16,8 @@ const CONFIG_TASKS: ConfigTask[] = [
   {
     label: 'Add a CSS framework globally',
     file: 'angular.json',
-    answer: 'The "styles" array under the build target compiles global stylesheets into the app — unscoped, document-wide. (Config changes need a dev-server restart!)',
+    answer:
+      'The "styles" array under the build target compiles global stylesheets into the app — unscoped, document-wide. (Config changes need a dev-server restart!)',
     snippet: `"architect": {
   "build": {
     "options": {
@@ -31,7 +32,8 @@ const CONFIG_TASKS: ConfigTask[] = [
   {
     label: 'Pin a dependency version exactly',
     file: 'package.json',
-    answer: 'Drop the range prefix: "^20.1.0" accepts minors, "~20.1.0" accepts patches, "20.1.0" is exact. package-lock.json then freezes the whole resolved tree for npm ci.',
+    answer:
+      'Drop the range prefix: "^20.1.0" accepts minors, "~20.1.0" accepts patches, "20.1.0" is exact. package-lock.json then freezes the whole resolved tree for npm ci.',
     snippet: `"dependencies": {
   "@angular/core": "^20.1.0",   // any 20.x.y >= 20.1.0
   "some-fragile-lib": "3.2.1"   // exactly 3.2.1
@@ -40,7 +42,8 @@ const CONFIG_TASKS: ConfigTask[] = [
   {
     label: 'Fail the build if the bundle grows too big',
     file: 'angular.json',
-    answer: 'Budgets in the production configuration turn bundle size into a build contract — warning at one threshold, hard failure at another. CI catches the bloat, not your users.',
+    answer:
+      'Budgets in the production configuration turn bundle size into a build contract — warning at one threshold, hard failure at another. CI catches the bloat, not your users.',
     snippet: `"configurations": {
   "production": {
     "budgets": [
@@ -53,7 +56,8 @@ const CONFIG_TASKS: ConfigTask[] = [
   {
     label: 'Turn on strict template type-checking',
     file: 'tsconfig.json',
-    answer: 'angularCompilerOptions lives in the BASE tsconfig — strictTemplates extends strict typing into templates, so a wrong-typed [input] fails the build instead of misbehaving at runtime.',
+    answer:
+      'angularCompilerOptions lives in the BASE tsconfig — strictTemplates extends strict typing into templates, so a wrong-typed [input] fails the build instead of misbehaving at runtime.',
     snippet: `{
   "compilerOptions": { "strict": true },
   "angularCompilerOptions": {
@@ -64,7 +68,8 @@ const CONFIG_TASKS: ConfigTask[] = [
   {
     label: 'Keep spec files out of the app build',
     file: 'tsconfig.app.json',
-    answer: 'The app tsconfig EXTENDS the base and narrows the file set — main.ts in, *.spec.ts out. Test files compile under tsconfig.spec.json, whose "types" provides describe/it/expect.',
+    answer:
+      'The app tsconfig EXTENDS the base and narrows the file set — main.ts in, *.spec.ts out. Test files compile under tsconfig.spec.json, whose "types" provides describe/it/expect.',
     snippet: `{
   "extends": "./tsconfig.json",
   "files": ["src/main.ts"],
@@ -74,7 +79,8 @@ const CONFIG_TASKS: ConfigTask[] = [
   {
     label: 'Change what "npm start" runs',
     file: 'package.json',
-    answer: 'The scripts block is the project command palette. npm puts node_modules/.bin on the PATH, so the locally-pinned ng runs — no global CLI needed.',
+    answer:
+      'The scripts block is the project command palette. npm puts node_modules/.bin on the PATH, so the locally-pinned ng runs — no global CLI needed.',
     snippet: `"scripts": {
   "start": "ng serve --open",
   "build": "ng build",

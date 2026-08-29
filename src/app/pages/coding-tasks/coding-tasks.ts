@@ -92,8 +92,8 @@ export class CodingTasks {
   readonly copied = signal(false);
 
   /** Briefs marked complete — the figure Exam Day's second pass bar reads. */
-  readonly completedCount = computed(() =>
-    this.tasks.filter((t) => this.states()[t.id]?.done).length,
+  readonly completedCount = computed(
+    () => this.tasks.filter((t) => this.states()[t.id]?.done).length,
   );
 
   /**
@@ -114,9 +114,7 @@ export class CodingTasks {
    * @param id The brief's id.
    */
   stateOf(id: number): TaskState {
-    return (
-      this.states()[id] ?? { checks: [], hintsShown: 0, revealed: false, done: false }
-    );
+    return this.states()[id] ?? { checks: [], hintsShown: 0, revealed: false, done: false };
   }
 
   /**
@@ -171,7 +169,9 @@ export class CodingTasks {
    */
   toggleCheck(task: CodingTask, index: number): void {
     const cur = this.stateOf(task.id);
-    const checks = task.requirements.map((_, i) => (i === index ? !cur.checks[i] : !!cur.checks[i]));
+    const checks = task.requirements.map((_, i) =>
+      i === index ? !cur.checks[i] : !!cur.checks[i],
+    );
     // Unchecking a requirement also un-completes the task — the rubric no longer passes.
     const done = cur.done && checks.every(Boolean);
     this.patch(task.id, { checks, done });

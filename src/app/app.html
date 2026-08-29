@@ -8,48 +8,43 @@
     <svg viewBox="0 0 223 236" width="26" height="26" aria-hidden="true">
       <path fill="#6366f1" d="M111 0 0 39l17 146 94 51 94-51 17-146z" />
       <path fill="#4f46e5" d="M111 0v236l94-51 17-146z" />
-      <path
-        fill="#fff"
-        d="M111 26 42 184h26l14-35h58l14 35h26zm20 101H91l20-48z"
-      />
+      <path fill="#fff" d="M111 26 42 184h26l14-35h58l14 35h26zm20 101H91l20-48z" />
     </svg>
     <span>{{ title() }}</span>
   </a>
 
   <nav class="topbar__links">
     <!-- routerLinkActive adds the CSS class when the route matches -->
-    <a routerLink="/"
-       routerLinkActive="topbar__link--active"
-       [routerLinkActiveOptions]="{ exact: true }">All concepts</a>
-    <a routerLink="/certification"
-       routerLinkActive="topbar__link--active">Certification</a>
-    <a routerLink="/practice"
-       routerLinkActive="topbar__link--active">Practice</a>
-    <a routerLink="/review"
-       routerLinkActive="topbar__link--active"
-       class="topbar__review">
+    <a routerLink="/" routerLinkActive="topbar__link--active" [routerLinkActiveOptions]="{ exact: true }"
+      >All concepts</a
+    >
+    <a routerLink="/certification" routerLinkActive="topbar__link--active">Certification</a>
+    <a routerLink="/practice" routerLinkActive="topbar__link--active">Practice</a>
+    <a routerLink="/review" routerLinkActive="topbar__link--active" class="topbar__review">
       Review
       @if (reviewDue() > 0) {
         <span class="nav-badge" [attr.aria-label]="reviewDue() + ' reviews due'">{{ reviewDue() }}</span>
       }
     </a>
-    <a routerLink="/interview"
-       routerLinkActive="topbar__link--active">Interview Prep</a>
-    <a routerLink="/glossary"
-       routerLinkActive="topbar__link--active">Glossary</a>
-    <a routerLink="/bookmarks"
-       routerLinkActive="topbar__link--active"
-       class="topbar__review">
+    <a routerLink="/interview" routerLinkActive="topbar__link--active">Interview Prep</a>
+    <a routerLink="/glossary" routerLinkActive="topbar__link--active">Glossary</a>
+    <a routerLink="/bookmarks" routerLinkActive="topbar__link--active" class="topbar__review">
       Bookmarks
       @if (bookmarks.count() > 0) {
-        <span class="nav-badge" [attr.aria-label]="bookmarks.count() + ' bookmarks saved'">{{ bookmarks.count() }}</span>
+        <span class="nav-badge" [attr.aria-label]="bookmarks.count() + ' bookmarks saved'">{{
+          bookmarks.count()
+        }}</span>
       }
     </a>
     <a href="https://angular.dev" target="_blank" rel="noopener">angular.dev ↗</a>
   </nav>
 
   @if (streak.current() > 0) {
-    <span class="theme-btn" style="cursor:default" title="{{ streak.current() }}-day study streak (longest: {{ streak.longest() }})">
+    <span
+      class="theme-btn"
+      style="cursor: default"
+      title="{{ streak.current() }}-day study streak (longest: {{ streak.longest() }})"
+    >
       🔥 {{ streak.current() }}
     </span>
   }
@@ -65,10 +60,10 @@
   }
   <button
     class="theme-btn"
-    (click)="showShortcuts.update(v => !v)"
+    (click)="showShortcuts.update((v) => !v)"
     title="Keyboard shortcuts (?)"
     aria-label="Show keyboard shortcuts"
-    style="font-size:.75rem;letter-spacing:.04em"
+    style="font-size: 0.75rem; letter-spacing: 0.04em"
   >
     ?
   </button>
@@ -88,12 +83,13 @@
 
 <!-- Footer — powered by InjectionToken<AppConfig> + ProgressService -->
 <footer class="footer">
-  <span class="footer__brand">
-    {{ config.name }} · Angular {{ config.angularVersion }}
-  </span>
+  <span class="footer__brand"> {{ config.name }} · Angular {{ config.angularVersion }} </span>
   <span class="footer__stack">
     @for (tech of config.builtWith; track tech; let last = $last) {
-      {{ tech }}@if (!last) { · }
+      {{ tech }}
+      @if (!last) {
+        ·
+      }
     }
   </span>
   <button class="ghost footer__reset" (click)="resetProgress()" title="Clear visited lessons">
@@ -110,18 +106,36 @@
   user presses '?' for the first time. Demonstrates @defer when + a real feature.
 -->
 @defer (when showShortcuts()) {
-  <div class="shortcuts-backdrop" (click)="showShortcuts.set(false)" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+  <div
+    class="shortcuts-backdrop"
+    (click)="showShortcuts.set(false)"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Keyboard shortcuts"
+  >
     <div class="shortcuts-panel" (click)="$event.stopPropagation()">
       <div class="shortcuts-panel__head">
         <h3>Keyboard shortcuts</h3>
         <button class="ghost" (click)="showShortcuts.set(false)" aria-label="Close">✕</button>
       </div>
       <dl class="shortcuts-list">
-        <div class="shortcut"><dt><kbd>/</kbd></dt><dd>Focus lesson search</dd></div>
-        <div class="shortcut"><dt><kbd>?</kbd></dt><dd>Show / hide this panel</dd></div>
-        <div class="shortcut"><dt><kbd>Esc</kbd></dt><dd>Close panel or clear search</dd></div>
+        <div class="shortcut">
+          <dt><kbd>/</kbd></dt>
+          <dd>Focus lesson search</dd>
+        </div>
+        <div class="shortcut">
+          <dt><kbd>?</kbd></dt>
+          <dd>Show / hide this panel</dd>
+        </div>
+        <div class="shortcut">
+          <dt><kbd>Esc</kbd></dt>
+          <dd>Close panel or clear search</dd>
+        </div>
       </dl>
-      <p class="shortcuts-note">This panel is deferred with <code>&#64;defer (when showShortcuts())</code> — its JS is only fetched after you press <kbd>?</kbd>.</p>
+      <p class="shortcuts-note">
+        This panel is deferred with <code>&#64;defer (when showShortcuts())</code> — its JS is only fetched after you
+        press <kbd>?</kbd>.
+      </p>
     </div>
   </div>
 } @placeholder {

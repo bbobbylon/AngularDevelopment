@@ -2,10 +2,9 @@
   <span class="pill" appReveal>Angular 21 · Standalone · Signals</span>
   <h1 appReveal [appRevealDelay]="80">From Zero to Angular Expert, in One Place</h1>
   <p class="lead" appReveal [appRevealDelay]="160">
-    A complete, hands-on curriculum that starts at absolute zero and takes you through
-    Foundations, TypeScript, Beginner, Intermediate and Expert Angular — plus interactive
-    practice challenges, interview prep, and real project walkthroughs. Everything you
-    need to land a senior Angular role.
+    A complete, hands-on curriculum that starts at absolute zero and takes you through Foundations, TypeScript,
+    Beginner, Intermediate and Expert Angular — plus interactive practice challenges, interview prep, and real project
+    walkthroughs. Everything you need to land a senior Angular role.
   </p>
   <div class="stats" appReveal [appRevealDelay]="240">
     <div class="stat">
@@ -29,7 +28,9 @@
       <span>difficulty tracks</span>
     </div>
     <div class="stat stat--progress">
-      <strong>{{ progress.visitedCount() }}<span class="stat__denom">/{{ built() }}</span></strong>
+      <strong
+        >{{ progress.visitedCount() }}<span class="stat__denom">/{{ built() }}</span></strong
+      >
       <span>lessons visited</span>
     </div>
   </div>
@@ -43,7 +44,10 @@
       <div class="tool-card__icon">⚡</div>
       <div class="tool-card__body">
         <h3>Practice Challenges</h3>
-        <p>424 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam, flashcard drills, and a spaced-repetition review queue for everything you miss.</p>
+        <p>
+          424 exercises: spot the bug, predict output, multiple choice — plus a timed mock exam, flashcard drills, and a
+          spaced-repetition review queue for everything you miss.
+        </p>
         <span class="tool-card__cta">Start practicing →</span>
       </div>
     </a>
@@ -51,7 +55,10 @@
       <div class="tool-card__icon">🎯</div>
       <div class="tool-card__body">
         <h3>Interview Prep</h3>
-        <p>253 real interview questions — Junior, Mid, and Senior — with complete answers, flashcard mode, and follow-up prompts.</p>
+        <p>
+          253 real interview questions — Junior, Mid, and Senior — with complete answers, flashcard mode, and follow-up
+          prompts.
+        </p>
         <span class="tool-card__cta">Study interview Q&A →</span>
       </div>
     </a>
@@ -67,7 +74,10 @@
       <div class="tool-card__icon">🛠️</div>
       <div class="tool-card__body">
         <h3>Coding-Task Simulator</h3>
-        <p>Timeboxed practical-exam briefs: build it in your editor, then verify against a requirements checklist and model solution.</p>
+        <p>
+          Timeboxed practical-exam briefs: build it in your editor, then verify against a requirements checklist and
+          model solution.
+        </p>
         <span class="tool-card__cta">Take on a build task →</span>
       </div>
     </a>
@@ -75,7 +85,10 @@
       <div class="tool-card__icon">📡</div>
       <div class="tool-card__body">
         <h3>API Playground</h3>
-        <p>Fire real HTTP requests and dissect every step — headers, auth, interceptors, request/response bodies — with live data at each stage.</p>
+        <p>
+          Fire real HTTP requests and dissect every step — headers, auth, interceptors, request/response bodies — with
+          live data at each stage.
+        </p>
         <span class="tool-card__cta">Dissect a request →</span>
       </div>
     </a>
@@ -83,7 +96,10 @@
       <div class="tool-card__icon">🎓</div>
       <div class="tool-card__body">
         <h3>Exam-Day Readiness</h3>
-        <p>The full dress rehearsal: a timed 20-question exam plus two build briefs in one sitting, with a single READY / NOT YET verdict.</p>
+        <p>
+          The full dress rehearsal: a timed 20-question exam plus two build briefs in one sitting, with a single READY /
+          NOT YET verdict.
+        </p>
         <span class="tool-card__cta">Run the readiness check →</span>
       </div>
     </a>
@@ -91,7 +107,10 @@
       <div class="tool-card__icon">📊</div>
       <div class="tool-card__body">
         <h3>Progress Dashboard</h3>
-        <p>Lessons, practice accuracy by category, mock-exam history, review queue, and coding tasks — your whole journey on one page.</p>
+        <p>
+          Lessons, practice accuracy by category, mock-exam history, review queue, and coding tasks — your whole journey
+          on one page.
+        </p>
         <span class="tool-card__cta">See where you stand →</span>
       </div>
     </a>
@@ -110,24 +129,40 @@
 <section class="about" appReveal>
   <div class="about__header">
     <h2 class="about__title">Project Overview</h2>
-    <p class="about__sub">Built as a portfolio project demonstrating end-to-end Angular 21 engineering — from architecture to UX.</p>
+    <p class="about__sub">
+      Built as a portfolio project demonstrating end-to-end Angular 21 engineering — from architecture to UX.
+    </p>
   </div>
 
   <div class="about__body">
     <div class="about__desc">
       <p>
-        A fully self-contained, zero-dependency Angular learning platform that takes a developer from
-        absolute beginner to senior certification level. Every feature in the app is itself a live
-        demonstration of the Angular concept it teaches — signals drive the quiz engine, lazy-loaded
-        routes power the lesson library, and a custom tokenizer highlights code blocks without any
-        external library.
+        A fully self-contained, zero-dependency Angular learning platform that takes a developer from absolute beginner
+        to senior certification level. Every feature in the app is itself a live demonstration of the Angular concept it
+        teaches — signals drive the quiz engine, lazy-loaded routes power the lesson library, and a custom tokenizer
+        highlights code blocks without any external library.
       </p>
       <ul class="about__feats">
-        <li>95-lesson curriculum across 5 difficulty tracks, mapped to the <strong>certificates.dev</strong> Angular certification exam</li>
-        <li>200+ randomised practice challenges (MCQ, spot-the-bug, predict-output) with Fisher-Yates shuffle and per-option wrong-answer explanations</li>
-        <li>253 interview Q&amp;As with flashcard mode, self-rating (Easy / Review), and spaced-repetition session summaries</li>
-        <li>Custom IDE-style syntax tokeniser (TypeScript, no external deps) applied globally via Router event subscription</li>
-        <li>Signal-native state management throughout — <code>signal()</code>, <code>computed()</code>, <code>effect()</code>, <code>resource()</code> — zero NgRx or third-party state library</li>
+        <li>
+          95-lesson curriculum across 5 difficulty tracks, mapped to the <strong>certificates.dev</strong> Angular
+          certification exam
+        </li>
+        <li>
+          200+ randomised practice challenges (MCQ, spot-the-bug, predict-output) with Fisher-Yates shuffle and
+          per-option wrong-answer explanations
+        </li>
+        <li>
+          253 interview Q&amp;As with flashcard mode, self-rating (Easy / Review), and spaced-repetition session
+          summaries
+        </li>
+        <li>
+          Custom IDE-style syntax tokeniser (TypeScript, no external deps) applied globally via Router event
+          subscription
+        </li>
+        <li>
+          Signal-native state management throughout — <code>signal()</code>, <code>computed()</code>,
+          <code>effect()</code>, <code>resource()</code> — zero NgRx or third-party state library
+        </li>
         <li>Lazy-loaded standalone components on every route; responsive 4-column grid with mobile breakpoints</li>
       </ul>
     </div>
@@ -136,12 +171,28 @@
       <div class="about__block">
         <h4>Stack</h4>
         <div class="chip-row">
-          <span class="chip chip--blue"   appTooltip="Latest Angular release — standalone-first, signal-native">Angular 21</span>
-          <span class="chip chip--blue"   appTooltip="Full strict mode enforced; satisfies & infer used throughout">TypeScript 5.9</span>
-          <span class="chip chip--teal"   appTooltip="Reactive streams powering the quiz and interview engines">RxJS 7.8</span>
-          <span class="chip chip--violet" appTooltip="Fine-grained reactivity: signal(), computed(), effect(), resource()">Signals API</span>
-          <span class="chip chip--green"  appTooltip="Zero NgModules — every component, pipe, and directive is standalone">Standalone</span>
-          <span class="chip chip--amber"  appTooltip="Sub-second HMR and optimised production bundles">esbuild / Vite</span>
+          <span class="chip chip--blue" appTooltip="Latest Angular release — standalone-first, signal-native"
+            >Angular 21</span
+          >
+          <span class="chip chip--blue" appTooltip="Full strict mode enforced; satisfies & infer used throughout"
+            >TypeScript 5.9</span
+          >
+          <span class="chip chip--teal" appTooltip="Reactive streams powering the quiz and interview engines"
+            >RxJS 7.8</span
+          >
+          <span
+            class="chip chip--violet"
+            appTooltip="Fine-grained reactivity: signal(), computed(), effect(), resource()"
+            >Signals API</span
+          >
+          <span
+            class="chip chip--green"
+            appTooltip="Zero NgModules — every component, pipe, and directive is standalone"
+            >Standalone</span
+          >
+          <span class="chip chip--amber" appTooltip="Sub-second HMR and optimised production bundles"
+            >esbuild / Vite</span
+          >
         </div>
       </div>
 
@@ -192,7 +243,9 @@
 
 @if (filtered.length === 0) {
   <div class="empty-state">
-    <p>No lessons match <strong>"{{ searchQuery() }}"</strong>. Try a different keyword.</p>
+    <p>
+      No lessons match <strong>"{{ searchQuery() }}"</strong>. Try a different keyword.
+    </p>
     <button class="ghost" (click)="searchQuery.set('')">Clear search</button>
   </div>
 }
@@ -209,12 +262,14 @@
       <div class="grid">
         @for (cat of lvl.categories; track cat.name) {
           @for (lesson of cat.lessons; track lesson.id) {
-            <a class="card"
-               [class.card--soon]="!lesson.loadComponent"
-               [class.card--visited]="progress.isVisited(lesson.id)"
-               [routerLink]="lesson.id"
-               appReveal
-               [appRevealDelay]="($index % 4) * 70">
+            <a
+              class="card"
+              [class.card--soon]="!lesson.loadComponent"
+              [class.card--visited]="progress.isVisited(lesson.id)"
+              [routerLink]="lesson.id"
+              appReveal
+              [appRevealDelay]="($index % 4) * 70"
+            >
               <span class="card__cat">{{ cat.name }}</span>
               <div class="card__top">
                 <span class="card__title">{{ lesson.title }}</span>

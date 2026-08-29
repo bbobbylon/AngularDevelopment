@@ -104,7 +104,7 @@ export class LetBlock {
     {
       line: '<h2>{{ user.name }}</h2>',
       note:
-        "Safe to dot straight into user.name without the safe-navigation operator (?.), " +
+        'Safe to dot straight into user.name without the safe-navigation operator (?.), ' +
         'because of the narrowing on the line above — accessing .name here would fail ' +
         'type-checking if user could still be null.',
     },
@@ -169,7 +169,7 @@ readonly sortedRows = computed(() =>
       note:
         'Reads the memoized signal in the template. This loop only re-renders when ' +
         'sortedRows() actually returns a new array reference, not on every unrelated ' +
-        "change-detection pass — exactly the win a @let in this spot would not give you.",
+        'change-detection pass — exactly the win a @let in this spot would not give you.',
     },
   ];
 

@@ -60,13 +60,19 @@ export class I18n {
   /**
    * Which ICU branch the current count selects.
    */
-  readonly icuBranch = computed(() => (this.count() === 0 ? '=0' : this.count() === 1 ? '=1' : 'other'));
+  readonly icuBranch = computed(() =>
+    this.count() === 0 ? '=0' : this.count() === 1 ? '=1' : 'other',
+  );
   /**
    * The rendered plural message.
    */
   readonly icuResult = computed(() => {
     const c = this.count();
-    return c === 0 ? 'no items in your cart' : c === 1 ? 'one item in your cart' : `${c} items in your cart`;
+    return c === 0
+      ? 'no items in your cart'
+      : c === 1
+        ? 'one item in your cart'
+        : `${c} items in your cart`;
   });
 
   /**
@@ -81,7 +87,11 @@ export class I18n {
    * The rendered select message.
    */
   readonly genderResult = computed(() =>
-    this.gender() === 'male' ? 'Invite him' : this.gender() === 'female' ? 'Invite her' : 'Invite them',
+    this.gender() === 'male'
+      ? 'Invite him'
+      : this.gender() === 'female'
+        ? 'Invite her'
+        : 'Invite them',
   );
 
   // --- Intl locale formatter demo ---
@@ -111,13 +121,17 @@ export class I18n {
   /**
    * The number, formatted for the active locale — note the separators swapping.
    */
-  readonly fmtNumber = computed(() => new Intl.NumberFormat(this.locale()).format(this.sampleNumber));
+  readonly fmtNumber = computed(() =>
+    new Intl.NumberFormat(this.locale()).format(this.sampleNumber),
+  );
   /**
    * The number as currency. Same amount, different symbol *and* different symbol
    * placement, which is why hand-formatting money never survives a second locale.
    */
   readonly fmtCurrency = computed(() =>
-    new Intl.NumberFormat(this.locale(), { style: 'currency', currency: 'EUR' }).format(this.sampleNumber),
+    new Intl.NumberFormat(this.locale(), { style: 'currency', currency: 'EUR' }).format(
+      this.sampleNumber,
+    ),
   );
   /**
    * The active locale's text direction. RTL is a layout problem, not a string one.

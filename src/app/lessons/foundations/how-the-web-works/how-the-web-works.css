@@ -1,14 +1,70 @@
-.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
-     .t td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-     .t td:first-child { width: 170px; }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.t td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 170px;
+}
 
-     .journey { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 8px 0; }
-     .jstep { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: .78rem; text-align: left; }
-     .jstep.active { border-color: var(--accent); outline: 2px solid var(--accent); }
-     .jstep.done { border-color: var(--green); }
-     .jicon { font-size: 1.1rem; }
-     .jdetail { border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 4px 14px; margin-top: 10px; font-size: .92rem; min-height: 80px; }
+.journey {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+.jstep {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  text-align: left;
+}
+.jstep.active {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+}
+.jstep.done {
+  border-color: var(--green);
+}
+.jicon {
+  font-size: 1.1rem;
+}
+.jdetail {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 4px 14px;
+  margin-top: 10px;
+  font-size: 0.92rem;
+  min-height: 80px;
+}
 
-     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
-     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
-     .qa div { padding: 10px 14px; font-size: .9rem; }
+.qa {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.qa summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+}
+.qa div {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}

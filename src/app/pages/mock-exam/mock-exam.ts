@@ -156,7 +156,9 @@ export class MockExam implements OnDestroy {
     );
   });
   /** Requested count clamped to what the filters can actually supply. */
-  readonly effectiveCount = computed(() => Math.min(this.selectedCount(), this.availableForFilters().length));
+  readonly effectiveCount = computed(() =>
+    Math.min(this.selectedCount(), this.availableForFilters().length),
+  );
   /** Time limit for the configured exam, derived from its length. */
   readonly totalSeconds = computed(() => this.effectiveCount() * SECONDS_PER_QUESTION);
 
@@ -206,7 +208,9 @@ export class MockExam implements OnDestroy {
   // --- review results ---
 
   /** Number correct. Unanswered questions count as wrong (see {@link isCorrect}). */
-  readonly correctCount = computed(() => this.questions().filter((ch) => this.isCorrect(ch)).length);
+  readonly correctCount = computed(
+    () => this.questions().filter((ch) => this.isCorrect(ch)).length,
+  );
 
   /** Score as a whole percentage; `0` for an empty exam rather than `NaN`. */
   readonly scorePercent = computed(() => {
@@ -232,10 +236,14 @@ export class MockExam implements OnDestroy {
       });
   });
   /** Count behind the "Incorrect" review tab. Includes skipped questions. */
-  readonly incorrectTotal = computed(() => this.questions().filter((ch) => !this.isCorrect(ch)).length);
+  readonly incorrectTotal = computed(
+    () => this.questions().filter((ch) => !this.isCorrect(ch)).length,
+  );
 
   /** Count behind the "Flagged" review tab. */
-  readonly flaggedTotal = computed(() => this.questions().filter((ch) => this.isFlagged(ch.id)).length);
+  readonly flaggedTotal = computed(
+    () => this.questions().filter((ch) => this.isFlagged(ch.id)).length,
+  );
 
   /** Per-category correct/total for the exam just taken, worst score first. */
   readonly categoryBreakdown = computed(() => {
@@ -310,7 +318,10 @@ export class MockExam implements OnDestroy {
    */
   formatWhen(when: number): string {
     return new Date(when).toLocaleDateString(undefined, {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
     });
   }
 
@@ -563,9 +574,14 @@ export class MockExam implements OnDestroy {
     const lines: string[] = [];
 
     lines.push(`# Mock Exam Results — ${new Date(when).toLocaleString()}`, '');
-    lines.push(`**Score:** ${this.scorePercent()}% (${this.correctCount()}/${this.questions().length}) — ${this.passed() ? 'PASS' : 'FAIL'} (pass mark ${this.passMark}%)`);
+    lines.push(
+      `**Score:** ${this.scorePercent()}% (${this.correctCount()}/${this.questions().length}) — ${this.passed() ? 'PASS' : 'FAIL'} (pass mark ${this.passMark}%)`,
+    );
     lines.push(`**Time used:** ${this.elapsedLabel()} of ${formatClock(this.examTotalSeconds())}`);
-    lines.push(`**Focus:** ${this.categoryLabel(this.selectedCategory())} · ${this.selectedDiff() === 'all' ? 'All levels' : this.selectedDiff()}`, '');
+    lines.push(
+      `**Focus:** ${this.categoryLabel(this.selectedCategory())} · ${this.selectedDiff() === 'all' ? 'All levels' : this.selectedDiff()}`,
+      '',
+    );
 
     if (this.categoryBreakdown().length > 1) {
       lines.push('## By category', '');
@@ -579,7 +595,9 @@ export class MockExam implements OnDestroy {
     this.questions().forEach((ch, i) => {
       const shuffled = this.shuffledOptions(ch);
       const ok = this.isCorrect(ch);
-      lines.push(`### Q${i + 1} — ${this.categoryLabel(ch.category)} · ${ch.difficulty} — ${ok ? '✓ Correct' : this.isAnswered(ch.id) ? '✗ Incorrect' : '⚠ Not answered'}`);
+      lines.push(
+        `### Q${i + 1} — ${this.categoryLabel(ch.category)} · ${ch.difficulty} — ${ok ? '✓ Correct' : this.isAnswered(ch.id) ? '✗ Incorrect' : '⚠ Not answered'}`,
+      );
       lines.push(ch.question);
       if (ch.code) lines.push('', '```', ch.code, '```');
       lines.push('');

@@ -1,0 +1,124 @@
+.quiz {
+  margin: 1.75rem 0;
+  padding: 1.1rem 1.25rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+}
+
+/* The fieldset carries the semantics; all of its default chrome is removed because the
+   surrounding .quiz already provides the visual container. */
+.quiz__field {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quiz__legend {
+  display: block;
+  padding: 0;
+  margin-bottom: 0.85rem;
+}
+
+.quiz__badge {
+  display: inline-block;
+  margin-bottom: 0.45rem;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quiz__question {
+  display: block;
+  font-size: 1.03rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.quiz__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-card);
+  cursor: pointer;
+  /* Only colour and border move. Transforming the option on hover would shift the text
+     the learner is trying to read. */
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.quiz__option:last-of-type {
+  margin-bottom: 0;
+}
+
+.quiz__option:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+/* The native radio stays in the DOM and stays operable — it is what makes arrow-key
+   navigation and screen-reader grouping work. It is only restyled, never hidden. */
+.quiz__option input[type="radio"] {
+  margin: 0.2rem 0 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.quiz__option:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.quiz__option-text {
+  line-height: 1.5;
+}
+
+.quiz__option--right {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, var(--bg-card));
+}
+
+.quiz__option--wrong {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 10%, var(--bg-card));
+}
+
+/* Colour alone must not carry the right/wrong distinction — the verdict text below says
+   it in words, which is what a colour-blind or screen-reader user relies on. */
+.quiz__feedback:empty {
+  display: none;
+}
+
+.quiz__feedback {
+  margin-top: 0.9rem;
+}
+
+.quiz__verdict {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--amber) 75%, var(--text));
+}
+
+.quiz__verdict--right {
+  color: color-mix(in srgb, var(--green) 75%, var(--text));
+}
+
+.quiz__why,
+.quiz__follow {
+  margin: 0 0 0.35rem;
+  line-height: 1.6;
+}
+
+.quiz__follow {
+  color: var(--text-muted);
+  font-size: 0.93rem;
+}

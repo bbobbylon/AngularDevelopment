@@ -41,7 +41,7 @@ export class Security {
    * from "escaped".
    */
   protected readonly payload = signal(
-    '<b>Bold survives</b>, <i>so does italic</i> — <a href="javascript:alert(1)">a boobytrapped link</a> <img src="x" onerror="alert(1)"> <script>alert(1)<\/script>',
+    '<b>Bold survives</b>, <i>so does italic</i> — <a href="javascript:alert(1)">a boobytrapped link</a> <img src="x" alt="" onerror="alert(1)"> <script>alert(1)<\/script>',
   );
 
   /** The exact string Angular's HTML-context sanitizer produces for the payload. */
@@ -61,7 +61,9 @@ export class Security {
     },
     {
       label: 'img onerror',
-      html: '<img src="x" onerror="alert(document.cookie)"> a classic — no script tag needed',
+      // alt="" keeps the payload a working attack (onerror is the vector) while
+      // leaving the sanitized image decorative rather than an unlabelled one.
+      html: '<img src="x" alt="" onerror="alert(document.cookie)"> a classic — no script tag needed',
     },
     {
       label: 'javascript: link',

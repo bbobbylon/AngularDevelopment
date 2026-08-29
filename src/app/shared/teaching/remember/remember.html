@@ -1,0 +1,6 @@
+<aside class="remember" [class]="'remember--' + variant()" [attr.aria-label]="heading()">
+  <p class="remember__label">{{ heading() }}</p>
+  <div class="remember__body">
+    <ng-content />
+  </div>
+</aside>

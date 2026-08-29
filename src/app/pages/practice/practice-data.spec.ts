@@ -69,7 +69,7 @@ describe('practice-data answer-length neutrality', () => {
   /** Multiple-choice questions the length tell can apply to. */
   const mc = CHALLENGES.filter(
     (c) => Array.isArray(c.options) && typeof c.answer === 'number',
-  ) as (typeof CHALLENGES[number] & { options: string[]; answer: number })[];
+  ) as ((typeof CHALLENGES)[number] & { options: string[]; answer: number })[];
 
   const words = (s: string) => s.trim().split(/\s+/).length;
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;

@@ -1,0 +1,161 @@
+.flow {
+  margin: 1.85rem 0;
+}
+
+.flow__steps {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.flow--horizontal .flow__steps {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.flow--vertical .flow__steps {
+  flex-direction: column;
+}
+
+.flow__step {
+  --flow-tint: var(--border);
+
+  position: relative;
+  flex: 1 1 9rem;
+  min-width: 8.5rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--flow-tint);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.flow__step--accent {
+  --flow-tint: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+}
+
+.flow__step--good {
+  --flow-tint: var(--green);
+  background: color-mix(in srgb, var(--green) 8%, var(--bg-card));
+}
+
+.flow__step--warn {
+  --flow-tint: var(--amber);
+  background: color-mix(in srgb, var(--amber) 8%, var(--bg-card));
+}
+
+.flow__label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.93rem;
+  line-height: 1.35;
+}
+
+.flow__detail {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* ── Connectors ───────────────────────────────────────────────────────────────────────
+   Drawn as ::before on every step but the first, so a step's arrow always travels with
+   it when the row wraps — an arrow attached to the *previous* box would end up pointing
+   off the end of a line. aria-hidden is unnecessary: generated content from a
+   pseudo-element is not exposed as text by assistive technology, and the <ol> already
+   conveys the ordering. */
+.flow__steps > .flow__step + .flow__step {
+  margin-left: 1.6rem;
+}
+
+.flow--vertical .flow__steps > .flow__step + .flow__step {
+  margin-left: 0;
+  margin-top: 1.5rem;
+}
+
+.flow__step + .flow__step::before {
+  content: "";
+  position: absolute;
+  background: var(--border);
+}
+
+.flow--horizontal .flow__step + .flow__step::before {
+  left: -1.6rem;
+  top: 50%;
+  width: 1.6rem;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.flow--vertical .flow__step + .flow__step::before {
+  top: -1.5rem;
+  left: 1.5rem;
+  width: 2px;
+  height: 1.5rem;
+}
+
+/* The arrowhead. A rotated square border is used rather than a text glyph so it inherits
+   --border exactly and does not shift with the font. */
+.flow__step + .flow__step::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+}
+
+.flow--horizontal .flow__step + .flow__step::after {
+  left: -0.62rem;
+  top: 50%;
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.flow--vertical .flow__step + .flow__step::after {
+  top: -0.62rem;
+  left: 1.5rem;
+  transform: translateX(-2.5px) rotate(45deg);
+}
+
+.flow__caption {
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.flow--vertical .flow__caption {
+  text-align: left;
+}
+
+/* Below this width a horizontal row of boxes becomes unreadable slivers, so it becomes a
+   column. The connectors follow because they are positioned from the same variables. */
+@media (max-width: 620px) {
+  .flow--horizontal .flow__steps {
+    flex-direction: column;
+  }
+
+  .flow--horizontal .flow__steps > .flow__step + .flow__step {
+    margin-left: 0;
+    margin-top: 1.5rem;
+  }
+
+  .flow--horizontal .flow__step + .flow__step::before {
+    left: 1.5rem;
+    top: -1.5rem;
+    width: 2px;
+    height: 1.5rem;
+    transform: none;
+  }
+
+  .flow--horizontal .flow__step + .flow__step::after {
+    left: 1.5rem;
+    top: -0.62rem;
+    transform: translateX(-2.5px) rotate(45deg);
+  }
+}

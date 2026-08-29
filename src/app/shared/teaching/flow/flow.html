@@ -1,0 +1,16 @@
+<figure class="flow" [class]="'flow--' + direction()">
+  <ol class="flow__steps">
+    @for (step of steps(); track $index) {
+      <li class="flow__step" [class]="'flow__step--' + (step.tone ?? 'default')">
+        <span class="flow__label"><app-rich-text [text]="step.label" /></span>
+        @if (step.detail) {
+          <span class="flow__detail"><app-rich-text [text]="step.detail" /></span>
+        }
+      </li>
+    }
+  </ol>
+
+  @if (caption()) {
+    <figcaption class="flow__caption"><app-rich-text [text]="caption()" /></figcaption>
+  }
+</figure>

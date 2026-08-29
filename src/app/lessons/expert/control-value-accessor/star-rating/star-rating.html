@@ -6,7 +6,16 @@
     (blur)="onTouched()"
     (mouseenter)="hover.set(s)"
     (mouseleave)="hover.set(0)"
-    style="background:transparent;border:none;color:var(--amber);font-size:1.6rem;line-height:1;cursor:pointer;padding:0 2px">
+    style="
+      background: transparent;
+      border: none;
+      color: var(--amber);
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 2px;
+    "
+  >
     {{ (hover() || value()) >= s ? '★' : '☆' }}
   </button>
 }

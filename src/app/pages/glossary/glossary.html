@@ -2,13 +2,14 @@
   <span class="pill">Reference</span>
   <h1>Glossary &amp; Cheat Sheet</h1>
   <p>
-    {{ totalCount }} Angular and TypeScript terms used across the curriculum,
-    in one searchable, printable A-Z reference.
+    {{ totalCount }} Angular and TypeScript terms used across the curriculum, in one searchable, printable A-Z
+    reference.
   </p>
 </div>
 
 <div class="gl-toolbar">
   <input
+    aria-label="Search terms or definitions"
     class="gl-search"
     type="search"
     placeholder="Search terms or definitions…"
@@ -24,7 +25,8 @@
       [class.has-terms]="letterHasTerms(letter)"
       [class.no-terms]="!letterHasTerms(letter)"
       [attr.href]="letterHasTerms(letter) ? '#letter-' + letter : null"
-    >{{ letter }}</a>
+      >{{ letter }}</a
+    >
   }
 </div>
 
@@ -39,10 +41,12 @@
           @for (t of group.terms; track t.term) {
             <div class="gl-term">
               <dt>{{ t.term }}</dt>
-              <dd>{{ t.definition }}</dd>
-              @if (t.topicPath) {
-                <a [routerLink]="'/' + t.topicPath" class="gl-link">📚 Study this topic →</a>
-              }
+              <dd>
+                {{ t.definition }}
+                @if (t.topicPath) {
+                  <a [routerLink]="'/' + t.topicPath" class="gl-link">📚 Study this topic →</a>
+                }
+              </dd>
             </div>
           }
         </dl>

@@ -1,13 +1,7 @@
 import { Component, OnDestroy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subject, Subscription, of, timer } from 'rxjs';
-import {
-  debounceTime,
-  distinctUntilChanged,
-  map,
-  mergeMap,
-  switchMap,
-} from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, map, mergeMap, switchMap } from 'rxjs/operators';
 
 /**
  * Lesson: Core Operators — the handful worth knowing, and the choice that

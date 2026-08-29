@@ -17,14 +17,73 @@
  * identifiers.
  */
 const KEYWORDS = new Set([
-  'abstract', 'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const',
-  'continue', 'declare', 'default', 'delete', 'do', 'else', 'enum', 'export',
-  'extends', 'finally', 'for', 'from', 'function', 'get', 'if', 'implements',
-  'import', 'in', 'infer', 'instanceof', 'interface', 'keyof', 'let', 'module',
-  'namespace', 'new', 'null', 'of', 'override', 'private', 'protected', 'public',
-  'readonly', 'return', 'satisfies', 'set', 'static', 'super', 'switch', 'this',
-  'throw', 'try', 'type', 'typeof', 'undefined', 'var', 'void', 'while', 'with',
-  'yield', 'true', 'false', 'never', 'any', 'string', 'number', 'boolean', 'object',
+  'abstract',
+  'as',
+  'async',
+  'await',
+  'break',
+  'case',
+  'catch',
+  'class',
+  'const',
+  'continue',
+  'declare',
+  'default',
+  'delete',
+  'do',
+  'else',
+  'enum',
+  'export',
+  'extends',
+  'finally',
+  'for',
+  'from',
+  'function',
+  'get',
+  'if',
+  'implements',
+  'import',
+  'in',
+  'infer',
+  'instanceof',
+  'interface',
+  'keyof',
+  'let',
+  'module',
+  'namespace',
+  'new',
+  'null',
+  'of',
+  'override',
+  'private',
+  'protected',
+  'public',
+  'readonly',
+  'return',
+  'satisfies',
+  'set',
+  'static',
+  'super',
+  'switch',
+  'this',
+  'throw',
+  'try',
+  'type',
+  'typeof',
+  'undefined',
+  'var',
+  'void',
+  'while',
+  'with',
+  'yield',
+  'true',
+  'false',
+  'never',
+  'any',
+  'string',
+  'number',
+  'boolean',
+  'object',
 ]);
 
 /**
@@ -80,8 +139,14 @@ export function highlight(code: string): string {
     if (ch === '"' || ch === "'" || ch === '`') {
       let j = i + 1;
       while (j < len) {
-        if (code[j] === '\\') { j += 2; continue; }
-        if (code[j] === ch) { j++; break; }
+        if (code[j] === '\\') {
+          j += 2;
+          continue;
+        }
+        if (code[j] === ch) {
+          j++;
+          break;
+        }
         j++;
       }
       out += `<span class="hl-str">${esc(code.slice(i, j))}</span>`;

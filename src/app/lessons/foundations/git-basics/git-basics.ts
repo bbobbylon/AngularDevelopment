@@ -101,9 +101,12 @@ export class GitBasics {
    * file, and "staged but not committed" is where most beginners lose work.
    */
   protected readonly simHint = computed(() => {
-    if (this.hasUnstaged()) return 'git status would show app.ts in red ("changes not staged"). Stage it with git add.';
-    if (this.hasStaged()) return 'Staged (git status shows it green) — but NOT saved yet. Commit to snapshot it.';
-    if (this.simCommits().length) return 'Working tree clean — everything is safely in history. Edit again to start another cycle.';
+    if (this.hasUnstaged())
+      return 'git status would show app.ts in red ("changes not staged"). Stage it with git add.';
+    if (this.hasStaged())
+      return 'Staged (git status shows it green) — but NOT saved yet. Commit to snapshot it.';
+    if (this.simCommits().length)
+      return 'Working tree clean — everything is safely in history. Edit again to start another cycle.';
     return 'Start by editing a file — that dirties the working directory.';
   });
 
@@ -111,14 +114,20 @@ export class GitBasics {
    * Marks the file modified — the working-directory change.
    */
   protected editFile() {
-    this.files.update((fs) => fs.map((f) => (f.name === 'app.ts' ? { ...f, state: 'modified' as FileState } : f)));
+    this.files.update((fs) =>
+      fs.map((f) => (f.name === 'app.ts' ? { ...f, state: 'modified' as FileState } : f)),
+    );
   }
   /**
    * Stages everything modified — `git add`.
    */
   protected addAll() {
     this.files.update((fs) =>
-      fs.map((f) => (f.state === 'modified' || f.state === 'untracked' ? { ...f, state: 'staged' as FileState } : f)),
+      fs.map((f) =>
+        f.state === 'modified' || f.state === 'untracked'
+          ? { ...f, state: 'staged' as FileState }
+          : f,
+      ),
     );
   }
   /**
@@ -128,7 +137,9 @@ export class GitBasics {
   protected commitStaged() {
     const id = (0xb2d0 + this.simN++).toString(16).slice(0, 7);
     this.simCommits.update((list) => [{ id, msg: `Edit app.ts (#${++this.editN})` }, ...list]);
-    this.files.update((fs) => fs.map((f) => (f.state === 'staged' ? { ...f, state: 'committed' as FileState } : f)));
+    this.files.update((fs) =>
+      fs.map((f) => (f.state === 'staged' ? { ...f, state: 'committed' as FileState } : f)),
+    );
   }
   /**
    * Resets the simulator to a clean repository.

@@ -25,11 +25,11 @@ export class TabGroup implements AfterContentInit {
   /**
    * The projected labels, as a signal-based content query.
    */
-  readonly labels  = contentChildren(TabLabel);
+  readonly labels = contentChildren(TabLabel);
   /**
    * The projected panels, in the same order as the labels.
    */
-  readonly panels  = contentChildren(TabPanel);
+  readonly panels = contentChildren(TabPanel);
 
   /**
    * Sets the initial visibility once projected content exists.
@@ -54,7 +54,7 @@ export class TabGroup implements AfterContentInit {
     const idx = this.active();
     this.panels().forEach((p, i) => {
       if (i === idx) p.el.nativeElement.classList.add('visible');
-      else           p.el.nativeElement.classList.remove('visible');
+      else p.el.nativeElement.classList.remove('visible');
     });
   }
 

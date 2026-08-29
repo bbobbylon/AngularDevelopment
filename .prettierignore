@@ -1,0 +1,15 @@
+dist
+.angular
+coverage
+
+# Prettier is non-idempotent on this file and corrupts it a little more each run.
+#
+# The lesson displays Angular template syntax inside a <pre>, which means escaping
+# braces as `{{ '{{' }}`. One of those interpolations sits on a line past the print
+# width, and Prettier's angular parser tries to wrap it — inserting a newline INSIDE
+# the quoted string. That newline is content, so it renders as blank lines in the code
+# sample, and the next run inserts another one.
+#
+# Every other brace-escaped lesson formats cleanly and is checked; this one is pinned
+# to its hand-formatted version until the upstream wrapping bug is fixed.
+src/app/lessons/projects/task-manager/task-manager.html

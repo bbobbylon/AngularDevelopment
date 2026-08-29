@@ -80,8 +80,7 @@ export const routes: Routes = [
     ...(lesson.loadComponent
       ? { loadComponent: lesson.loadComponent }
       : {
-          loadComponent: () =>
-            import('./shared/coming-soon/coming-soon').then((m) => m.ComingSoon),
+          loadComponent: () => import('./shared/coming-soon/coming-soon').then((m) => m.ComingSoon),
           data: { lessonId: lesson.id },
         }),
   })),

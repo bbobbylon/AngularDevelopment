@@ -90,7 +90,7 @@
   position: relative;
 }
 .topbar__link--active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -4px;
   left: 0;
@@ -114,7 +114,9 @@
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .theme-btn:hover {
@@ -164,14 +166,21 @@
 .shortcuts-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.45);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 500;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fade-in .15s ease;
+  animation: fade-in 0.15s ease;
 }
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 
 .shortcuts-panel {
   background: var(--bg-card);
@@ -179,10 +188,19 @@
   border-radius: 16px;
   padding: 24px 28px;
   width: min(420px, 90vw);
-  box-shadow: 0 8px 32px rgba(0,0,0,.25);
-  animation: slide-up .18s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  animation: slide-up 0.18s ease;
 }
-@keyframes slide-up { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
 
 .shortcuts-panel__head {
   display: flex;
@@ -190,7 +208,10 @@
   justify-content: space-between;
   margin-bottom: 16px;
 }
-.shortcuts-panel__head h3 { margin: 0; font-size: 1rem; }
+.shortcuts-panel__head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
 
 .shortcuts-list {
   margin: 0;
@@ -202,10 +223,15 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: .88rem;
+  font-size: 0.88rem;
 }
-.shortcut dt { min-width: 48px; }
-.shortcut dd { margin: 0; color: var(--text-muted); }
+.shortcut dt {
+  min-width: 48px;
+}
+.shortcut dd {
+  margin: 0;
+  color: var(--text-muted);
+}
 
 kbd {
   display: inline-block;
@@ -214,14 +240,14 @@ kbd {
   border-radius: 6px;
   background: var(--bg-elevated);
   font-family: monospace;
-  font-size: .82rem;
+  font-size: 0.82rem;
   color: var(--text);
   box-shadow: 0 1px 0 var(--border);
 }
 
 .shortcuts-note {
   margin: 16px 0 0;
-  font-size: .78rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   padding-top: 12px;

@@ -1,8 +1,40 @@
-.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
-.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
-.qa div { padding: 10px 14px; font-size: .9rem; }
+.qa {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.qa summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+}
+.qa div {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
 
-table.lbl { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 4px 0 20px; }
-table.lbl th, table.lbl td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
-table.lbl th { background: var(--bg-elevated); }
-table.lbl td:first-child { white-space: pre-wrap; font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: .82rem; width: 34%; }
+table.lbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  margin: 4px 0 20px;
+}
+table.lbl th,
+table.lbl td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+table.lbl th {
+  background: var(--bg-elevated);
+}
+table.lbl td:first-child {
+  white-space: pre-wrap;
+  font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  width: 34%;
+}

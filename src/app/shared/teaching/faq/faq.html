@@ -1,0 +1,10 @@
+<section class="faq">
+  <h3 class="faq__heading">{{ heading() }}</h3>
+
+  @for (item of items(); track item.q) {
+    <details class="faq__item">
+      <summary class="faq__q"><app-rich-text [text]="item.q" /></summary>
+      <p class="faq__a"><app-rich-text [text]="item.a" /></p>
+    </details>
+  }
+</section>

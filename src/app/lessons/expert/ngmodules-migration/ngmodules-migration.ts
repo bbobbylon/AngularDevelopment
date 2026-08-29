@@ -1,7 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-
 /**
  * One "is this in scope?" scenario: the question, the answer, and why.
  */
@@ -15,19 +14,22 @@ interface ScopeScenario {
 const SCENARIOS: ScopeScenario[] = [
   {
     label: 'declared here, used here',
-    question: 'UserCard is declared in FeatureModule. Another component declared in FeatureModule uses <app-user-card>.',
+    question:
+      'UserCard is declared in FeatureModule. Another component declared in FeatureModule uses <app-user-card>.',
     works: true,
     why: "Same compilation scope — a module's declarations all see each other. This is the baseline case.",
   },
   {
     label: 'declared there, no export',
-    question: 'UserCard is declared in SharedModule (NOT exported). AdminModule imports SharedModule and a component there uses <app-user-card>.',
+    question:
+      'UserCard is declared in SharedModule (NOT exported). AdminModule imports SharedModule and a component there uses <app-user-card>.',
     works: false,
     why: 'Declarations are PRIVATE by default. Importing a module gives you only its EXPORTS. Result: "app-user-card is not a known element" — the single most common NgModule error. Fix: add UserCard to SharedModule\'s exports.',
   },
   {
     label: 'exported + imported',
-    question: 'UserCard is declared AND exported by SharedModule. AdminModule imports SharedModule.',
+    question:
+      'UserCard is declared AND exported by SharedModule. AdminModule imports SharedModule.',
     works: true,
     why: "exports define the module's public template API; importing the module pulls those into your compilation scope. Declared-and-exported is the shared-UI pattern.",
   },
@@ -39,15 +41,17 @@ const SCENARIOS: ScopeScenario[] = [
   },
   {
     label: 'service, not exported',
-    question: 'AuthService is in SharedModule\'s providers (not exported). AdminModule imports SharedModule and injects AuthService.',
+    question:
+      "AuthService is in SharedModule's providers (not exported). AdminModule imports SharedModule and injects AuthService.",
     works: true,
-    why: 'The trap question: exports only govern TEMPLATE scope (components/directives/pipes). Providers ignore it — an eagerly-loaded module\'s providers merge into the app-wide injector. This asymmetry confused everyone, and is one reason standalone splits the concepts cleanly.',
+    why: "The trap question: exports only govern TEMPLATE scope (components/directives/pipes). Providers ignore it — an eagerly-loaded module's providers merge into the app-wide injector. This asymmetry confused everyone, and is one reason standalone splits the concepts cleanly.",
   },
   {
     label: 'standalone into NgModule',
-    question: 'StatCard is a standalone component. LegacyModule adds it to its imports array, and a declared component uses it.',
+    question:
+      'StatCard is a standalone component. LegacyModule adds it to its imports array, and a declared component uses it.',
     works: true,
-    why: 'Standalone components import like a module: put them in the NgModule\'s IMPORTS (never declarations — NG6008). This interop is what makes incremental migration possible.',
+    why: "Standalone components import like a module: put them in the NgModule's IMPORTS (never declarations — NG6008). This interop is what makes incremental migration possible.",
   },
 ];
 

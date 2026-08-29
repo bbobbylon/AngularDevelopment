@@ -7,9 +7,7 @@ import { RouterLink } from '@angular/router';
  * The discriminant is what lets TypeScript narrow the union inside a `switch`,
  * which is the mechanism {@link Types.area} demonstrates.
  */
-type Shape =
-  | { kind: 'circle'; radius: number }
-  | { kind: 'rect'; width: number; height: number };
+type Shape = { kind: 'circle'; radius: number } | { kind: 'rect'; width: number; height: number };
 
 /**
  * One inference example: an expression, and the type TypeScript works out for

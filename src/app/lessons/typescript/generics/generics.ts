@@ -74,9 +74,7 @@ export class Generics {
    * with the type changing along the chain.
    */
   protected boxResult(): string {
-    return new Box(this.seed())
-      .map((n) => n * 10)
-      .map((n) => '#' + n).value;
+    return new Box(this.seed()).map((n) => n * 10).map((n) => '#' + n).value;
   }
 
   /**

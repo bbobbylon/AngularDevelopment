@@ -13,14 +13,14 @@
   --border: #e4e4e7;
   --text: #18181b;
   --text-muted: #6b6b76;
-  --accent: #6366f1;       /* indigo */
-  --accent-2: #8b5cf6;     /* violet */
+  --accent: #6366f1; /* indigo */
+  --accent-2: #8b5cf6; /* violet */
   --violet: #7c3aed;
   --green: #10b981;
   --amber: #f59e0b;
-  --blue: #4f46e5;         /* link color — deep indigo */
-  --code-bg: #1e1e2e;      /* dark panel — keeps code readable */
-  --code-fg: #d4d4e4;      /* fixed light text for the dark code panel — NEVER inherit
+  --blue: #4f46e5; /* link color — deep indigo */
+  --code-bg: #1e1e2e; /* dark panel — keeps code readable */
+  --code-fg: #d4d4e4; /* fixed light text for the dark code panel — NEVER inherit
                               --text here: in light mode that is near-black on near-black */
   --radius: 12px;
   --shadow: 0 4px 20px rgba(24, 24, 27, 0.08);
@@ -45,7 +45,9 @@
 
 /* Smooth colour-scheme transitions */
 html {
-  transition: background-color 0.25s ease, color 0.15s ease;
+  transition:
+    background-color 0.25s ease,
+    color 0.15s ease;
 }
 
 * {
@@ -62,8 +64,15 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   line-height: 1.6;
 }
@@ -79,8 +88,8 @@ a:hover {
 
 code,
 pre {
-  font-family: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
-    Menlo, Consolas, monospace;
+  font-family:
+    "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ---------- Lesson scaffolding ---------- */
@@ -195,12 +204,25 @@ pre {
 }
 
 /* Syntax highlight token colours — applied by the global highlighter in app.ts */
-.hl-kw  { color: #c792ea; }
-.hl-str { color: #c3e88d; }
-.hl-cmt { color: #546e7a; font-style: italic; }
-.hl-num { color: #f78c6c; }
-.hl-dec { color: #82aaff; }
-.hl-fn  { color: #82aaff; }
+.hl-kw {
+  color: #c792ea;
+}
+.hl-str {
+  color: #c3e88d;
+}
+.hl-cmt {
+  color: #546e7a;
+  font-style: italic;
+}
+.hl-num {
+  color: #f78c6c;
+}
+.hl-dec {
+  color: #82aaff;
+}
+.hl-fn {
+  color: #82aaff;
+}
 
 /* Callouts */
 .note,
@@ -233,7 +255,9 @@ button {
   border: none;
   border-radius: 8px;
   padding: 8px 14px;
-  transition: filter 0.15s ease, transform 0.05s ease;
+  transition:
+    filter 0.15s ease,
+    transform 0.05s ease;
 }
 
 button:hover {
@@ -295,12 +319,24 @@ textarea:focus {
 
 /* ---- View Transitions (withViewTransitions) ---- */
 @keyframes vt-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 @keyframes vt-fade-out {
-  from { opacity: 1; transform: none; }
-  to   { opacity: 0; transform: translateY(-4px); }
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 ::view-transition-new(root) {
   animation: vt-fade-in 0.22s ease both;
@@ -313,8 +349,9 @@ textarea:focus {
 .reveal {
   opacity: 0;
   transform: translateY(22px);
-  transition: opacity 0.55s ease var(--reveal-delay, 0ms),
-              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms);
+  transition:
+    opacity 0.55s ease var(--reveal-delay, 0ms),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--reveal-delay, 0ms);
 }
 .reveal--visible {
   opacity: 1;
@@ -339,11 +376,11 @@ textarea:focus {
   border-radius: 6px;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   animation: vt-fade-in 0.12s ease;
 }
 .app-tooltip::before {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 100%;
   left: 50%;

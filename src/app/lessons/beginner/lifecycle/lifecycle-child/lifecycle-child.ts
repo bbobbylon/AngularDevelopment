@@ -1,4 +1,14 @@
-import { AfterViewInit, Component, DoCheck, Input, OnChanges, OnDestroy, OnInit, SimpleChanges, inject } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  DoCheck,
+  Input,
+  OnChanges,
+  OnDestroy,
+  OnInit,
+  SimpleChanges,
+  inject,
+} from '@angular/core';
 import { LifecycleLog } from '../lifecycle.shared';
 
 /** A child whose every lifecycle hook records into the shared log. */
@@ -7,9 +17,7 @@ import { LifecycleLog } from '../lifecycle.shared';
   templateUrl: './lifecycle-child.html',
   styleUrl: './lifecycle-child.css',
 })
-export class LifecycleChild
-  implements OnChanges, OnInit, DoCheck, AfterViewInit, OnDestroy
-{
+export class LifecycleChild implements OnChanges, OnInit, DoCheck, AfterViewInit, OnDestroy {
   /**
    * A plain `@Input()` rather than the modern `input()`, on purpose: `ngOnChanges`
    * only fires for decorator inputs, and this lesson needs to demonstrate it.

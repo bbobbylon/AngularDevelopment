@@ -2,8 +2,8 @@
   <span class="pill">HTTP · Interceptors · Auth</span>
   <h1>API Playground</h1>
   <p>
-    Build a real request, fire it at a live API, and dissect every step of
-    the journey — the exact headers, bodies and objects at each stage, from
+    Build a real request, fire it at a live API, and dissect every step of the journey — the exact headers, bodies and
+    objects at each stage, from
     <code>HttpClient</code> call to parsed response.
   </p>
 </div>
@@ -20,7 +20,9 @@
           </button>
         }
       </div>
-      @if (presetNote()) { <p class="preset-note">{{ presetNote() }}</p> }
+      @if (presetNote()) {
+        <p class="preset-note">{{ presetNote() }}</p>
+      }
 
       <h3>Method</h3>
       <div class="chip-row">
@@ -32,14 +34,28 @@
       <h3>URL</h3>
       <div class="url-row">
         <span class="url-base">{{ baseUrl }}</span>
-        <input class="url-input" [value]="path()" (input)="path.set($any($event.target).value)" spellcheck="false" />
+        <input
+          aria-label="URL"
+          class="url-input"
+          [value]="path()"
+          (input)="path.set($any($event.target).value)"
+          spellcheck="false"
+        />
       </div>
 
       @if (hasBody()) {
         <h3>Request body (JSON)</h3>
-        <textarea class="body-editor" [class.bad]="!bodyValid()" spellcheck="false"
-          [value]="bodyText()" (input)="bodyText.set($any($event.target).value)"></textarea>
-        @if (!bodyValid()) { <p class="json-bad">⚠ Not valid JSON — fix it before sending.</p> }
+        <textarea
+          aria-label="Request body"
+          class="body-editor"
+          [class.bad]="!bodyValid()"
+          spellcheck="false"
+          [value]="bodyText()"
+          (input)="bodyText.set($any($event.target).value)"
+        ></textarea>
+        @if (!bodyValid()) {
+          <p class="json-bad">⚠ Not valid JSON — fix it before sending.</p>
+        }
       }
 
       <h3>Auth</h3>
@@ -47,25 +63,44 @@
         <input type="checkbox" [checked]="authOn()" (change)="authOn.set($any($event.target).checked)" />
         <span>
           Attach <code>Authorization: Bearer &lt;JWT&gt;</code> via an interceptor
-          <small>The token is structurally real — decoded below — but unsigned. The API ignores it; watch WHERE it gets attached in step 2.</small>
+          <small
+            >The token is structurally real — decoded below — but unsigned. The API ignores it; watch WHERE it gets
+            attached in step 2.</small
+          >
         </span>
       </label>
       @if (authOn()) {
         <div class="jwt-box">
-          <span class="jwt-h">{{ jwtParts[0] }}</span>.<span class="jwt-p">{{ jwtParts[1] }}</span>.<span class="jwt-s">{{ jwtParts[2] }}</span>
+          <span class="jwt-h">{{ jwtParts[0] }}</span
+          >.<span class="jwt-p">{{ jwtParts[1] }}</span
+          >.<span class="jwt-s">{{ jwtParts[2] }}</span>
         </div>
         <p class="note">Decoded payload: {{ jwtPayloadJson }}</p>
       }
 
       <h3>Custom header (optional)</h3>
       <div class="hdr-inputs">
-        <input placeholder="X-Request-Id" [value]="customHeaderName()" (input)="customHeaderName.set($any($event.target).value)" spellcheck="false" />
-        <input placeholder="demo-123" [value]="customHeaderValue()" (input)="customHeaderValue.set($any($event.target).value)" spellcheck="false" />
+        <input
+          aria-label="X-Request-Id"
+          placeholder="X-Request-Id"
+          [value]="customHeaderName()"
+          (input)="customHeaderName.set($any($event.target).value)"
+          spellcheck="false"
+        />
+        <input
+          aria-label="demo-123"
+          placeholder="demo-123"
+          [value]="customHeaderValue()"
+          (input)="customHeaderValue.set($any($event.target).value)"
+          spellcheck="false"
+        />
       </div>
 
       <h3>Step pacing</h3>
       <div class="chip-row">
-        <button class="chip" [class.active]="!instant()" (click)="instant.set(false)">🐢 Guided (~2.5s per step)</button>
+        <button class="chip" [class.active]="!instant()" (click)="instant.set(false)">
+          🐢 Guided (~2.5s per step)
+        </button>
         <button class="chip" [class.active]="instant()" (click)="instant.set(true)">⚡ Instant</button>
       </div>
 
@@ -84,13 +119,18 @@
   <div class="steps">
     @if (!started()) {
       <div class="panel placeholder-msg">
-        Configure a request and hit <strong>Send</strong> — the six lifecycle
-        steps will light up here with the real data at each stage.
+        Configure a request and hit <strong>Send</strong> — the six lifecycle steps will light up here with the real
+        data at each stage.
       </div>
     }
     @for (meta of stepMeta; track $index) {
       @let state = stepState($index);
-      <div class="step" [class.active]="state === 'active'" [class.done]="state === 'done'" [class.error]="state === 'error'">
+      <div
+        class="step"
+        [class.active]="state === 'active'"
+        [class.done]="state === 'done'"
+        [class.error]="state === 'error'"
+      >
         <button class="step-head" (click)="toggleExpand($index)" [disabled]="state === 'idle'">
           <span class="step-dot">{{ state === 'done' ? '✓' : state === 'error' ? '✗' : $index + 1 }}</span>
           {{ meta.title }}
@@ -108,13 +148,21 @@
               }
               @case (1) {
                 @if (authOn()) {
-                  <p class="blurb" style="margin-bottom:4px"><strong>authInterceptor</strong> ran <code>req.clone(&#123; setHeaders: &#123; Authorization: … &#125; &#125;)</code>:</p>
+                  <p class="blurb" style="margin-bottom: 4px">
+                    <strong>authInterceptor</strong> ran
+                    <code>req.clone(&#123; setHeaders: &#123; Authorization: … &#125; &#125;)</code>:
+                  </p>
                 } @else {
-                  <p class="blurb" style="margin-bottom:4px">Auth is off — the interceptor passed the request through untouched. Toggle it on to see the clone.</p>
+                  <p class="blurb" style="margin-bottom: 4px">
+                    Auth is off — the interceptor passed the request through untouched. Toggle it on to see the clone.
+                  </p>
                 }
                 <table class="hdrs">
                   @for (h of finalHeaders(); track h.name) {
-                    <tr [class.hdr-added]="h.added"><td>{{ h.name }}</td><td>{{ h.value }}</td></tr>
+                    <tr [class.hdr-added]="h.added">
+                      <td>{{ h.name }}</td>
+                      <td>{{ h.value }}</td>
+                    </tr>
                   }
                 </table>
               }
@@ -125,29 +173,41 @@
                 @if (state === 'active') {
                   <p class="flight-anim">▸▸▸ bytes in transit ▸▸▸</p>
                 } @else {
-                  <p class="blurb" style="margin:0">Round trip took <strong>{{ durationMs() }} ms</strong> — DNS, TLS, server work and transfer combined.</p>
+                  <p class="blurb" style="margin: 0">
+                    Round trip took <strong>{{ durationMs() }} ms</strong> — DNS, TLS, server work and transfer
+                    combined.
+                  </p>
                 }
               }
               @case (4) {
                 @if (status() !== null) {
-                  <span class="status-line" [class.ok]="ok()" [class.no]="!ok()">HTTP {{ status() }} {{ statusText() }}</span>
+                  <span class="status-line" [class.ok]="ok()" [class.no]="!ok()"
+                    >HTTP {{ status() }} {{ statusText() }}</span
+                  >
                   <span class="timing">{{ durationMs() }} ms</span>
                   <table class="hdrs">
                     @for (h of responseHeaders(); track h.name) {
-                      <tr><td>{{ h.name }}</td><td>{{ h.value }}</td></tr>
+                      <tr>
+                        <td>{{ h.name }}</td>
+                        <td>{{ h.value }}</td>
+                      </tr>
                     }
                   </table>
-                  <p class="note">Only CORS-safelisted headers are visible to JavaScript on a cross-origin call — the server sent more than this.</p>
+                  <p class="note">
+                    Only CORS-safelisted headers are visible to JavaScript on a cross-origin call — the server sent more
+                    than this.
+                  </p>
                 }
               }
               @case (5) {
                 @if (errorMessage()) {
-                  <p class="blurb" style="margin-bottom:4px">
-                    Non-2xx → the observable ERRORS instead of emitting. Your <code>catchError</code> / error callback receives an <code>HttpErrorResponse</code>:
+                  <p class="blurb" style="margin-bottom: 4px">
+                    Non-2xx → the observable ERRORS instead of emitting. Your <code>catchError</code> / error callback
+                    receives an <code>HttpErrorResponse</code>:
                   </p>
                   <pre class="code-block">{{ errorMessage() }}</pre>
                 } @else {
-                  <p class="blurb" style="margin-bottom:4px">{{ parsedSummary() }}</p>
+                  <p class="blurb" style="margin-bottom: 4px">{{ parsedSummary() }}</p>
                   <pre class="code-block">{{ rawBody() }}</pre>
                 }
               }
@@ -158,10 +218,10 @@
     }
 
     @if (started() && !running()) {
-      <div class="panel" style="text-align:center; padding: 14px;">
-        <a routerLink="/http-basics" style="font-size:.84rem">📚 Study HTTP basics →</a>
-        <a routerLink="/http-interceptors" style="font-size:.84rem; margin-left:16px">📚 Interceptors →</a>
-        <a routerLink="/http-crud" style="font-size:.84rem; margin-left:16px">📚 CRUD patterns →</a>
+      <div class="panel" style="text-align: center; padding: 14px">
+        <a routerLink="/http-basics" style="font-size: 0.84rem">📚 Study HTTP basics →</a>
+        <a routerLink="/http-interceptors" style="font-size: 0.84rem; margin-left: 16px">📚 Interceptors →</a>
+        <a routerLink="/http-crud" style="font-size: 0.84rem; margin-left: 16px">📚 CRUD patterns →</a>
       </div>
     }
   </div>

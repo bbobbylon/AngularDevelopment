@@ -2,9 +2,8 @@
   <span class="pill">Interactive Practice</span>
   <h1>Practice Challenges</h1>
   <p>
-    424 challenges across all levels — spot bugs, predict output, and answer
-    multiple-choice questions. Every answer comes with a full explanation.
-    Questions are randomized each session.
+    424 challenges across all levels — spot bugs, predict output, and answer multiple-choice questions. Every answer
+    comes with a full explanation. Questions are randomized each session.
   </p>
   <a routerLink="/mock-exam" class="exam-cta">⏱ Try the timed Mock Exam →</a>
   <a routerLink="/review" class="exam-cta review-cta">
@@ -39,12 +38,9 @@
   }
 </div>
 
-<div class="filters" style="margin-top:0;padding-top:0">
+<div class="filters" style="margin-top: 0; padding-top: 0">
   @for (d of diffFilters; track d.id) {
-    <button
-      [class.active]="activeDiff() === d.id"
-      [disabled]="adaptiveEnabled()"
-      (click)="setDifficulty(d.id)">
+    <button [class.active]="activeDiff() === d.id" [disabled]="adaptiveEnabled()" (click)="setDifficulty(d.id)">
       {{ d.label }}
     </button>
   }
@@ -52,10 +48,11 @@
     class="reset-btn"
     [class.active]="adaptiveEnabled()"
     (click)="toggleAdaptive()"
-    title="Auto-adjust difficulty based on your streak">
+    title="Auto-adjust difficulty based on your streak"
+  >
     🎚 Adaptive{{ adaptiveEnabled() ? ': ' + adaptiveLevel() : '' }}
   </button>
-  <button class="reset-btn" (click)="reshuffle()" style="margin-left:auto">🔀 Shuffle</button>
+  <button class="reset-btn" (click)="reshuffle()" style="margin-left: auto">🔀 Shuffle</button>
   @if (answeredCount() > 0) {
     <button class="reset-btn" (click)="exportResults()">⬇ Export results</button>
     <button class="reset-btn" (click)="reset()">Reset all</button>
@@ -65,15 +62,19 @@
 @if (adaptiveEnabled()) {
   <p class="adaptive-note">
     🎚 Adaptive mode is serving <strong>{{ adaptiveLevel() }}</strong> questions.
-    {{ adaptiveStreak() > 0
-      ? (levelUpStreak - adaptiveStreak()) + ' more correct in a row to level up.'
-      : (adaptiveLevel() === 'senior' ? 'Top level reached.' : 'Answer correctly to climb back up.') }}
+    {{
+      adaptiveStreak() > 0
+        ? levelUpStreak - adaptiveStreak() + ' more correct in a row to level up.'
+        : adaptiveLevel() === 'senior'
+          ? 'Top level reached.'
+          : 'Answer correctly to climb back up.'
+    }}
   </p>
 }
 
 @if (answeredCount() > 0) {
-  <div style="max-width:900px;margin:0 auto;padding:0 24px 8px">
-    <div class="progress-bar-outer" style="margin:0">
+  <div style="max-width: 900px; margin: 0 auto; padding: 0 24px 8px">
+    <div class="progress-bar-outer" style="margin: 0">
       <div class="progress-bar-inner" [style.width]="scorePercent() + '%'"></div>
     </div>
   </div>
@@ -84,24 +85,30 @@
     <div class="empty-state">No challenges match the selected filters.</div>
   }
   @for (ch of pagedChallenges(); track ch.id) {
-    <div class="challenge-card"
+    <div
+      class="challenge-card"
       [class.answered-correct]="getState(ch.id).answered && getState(ch.id).correct"
-      [class.answered-wrong]="getState(ch.id).answered && !getState(ch.id).correct">
-
+      [class.answered-wrong]="getState(ch.id).answered && !getState(ch.id).correct"
+    >
       <div class="ch-header" (click)="toggleExpand(ch.id)">
-        <div style="flex:1">
+        <div style="flex: 1">
           <div class="ch-badges">
             <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
             <span class="badge-type">{{ typeLabel(ch.type) }}</span>
-            <span class="badge-type" style="background:rgba(99,102,241,.1);border-color:#6366f1;color:#6366f1">{{ ch.category }}</span>
+            <span
+              class="badge-type"
+              style="background: rgba(99, 102, 241, 0.1); border-color: #6366f1; color: #6366f1"
+              >{{ ch.category }}</span
+            >
           </div>
-          <p class="ch-question" style="margin:6px 0 0">{{ ch.question }}</p>
+          <p class="ch-question" style="margin: 6px 0 0">{{ ch.question }}</p>
         </div>
         <button
           class="bookmark-star"
           [class.starred]="isBookmarked(ch.id)"
           (click)="toggleBookmark(ch, $event)"
-          [attr.aria-label]="isBookmarked(ch.id) ? 'Remove bookmark' : 'Bookmark this question'">
+          [attr.aria-label]="isBookmarked(ch.id) ? 'Remove bookmark' : 'Bookmark this question'"
+        >
           {{ isBookmarked(ch.id) ? '★' : '☆' }}
         </button>
         <span class="ch-number">#{{ ch.id }}</span>
@@ -116,21 +123,25 @@
           @if (ch.options) {
             <div class="options">
               @for (opt of getShuffledChallengeOptions(ch).options; track $index) {
-                <button class="opt"
+                <button
+                  class="opt"
                   [class.selected]="getState(ch.id).selected === $index && !getState(ch.id).answered"
                   [class.correct]="getState(ch.id).answered && $index === getShuffledChallengeOptions(ch).correctIndex"
-                  [class.wrong]="getState(ch.id).answered && getState(ch.id).selected === $index && $index !== getShuffledChallengeOptions(ch).correctIndex"
+                  [class.wrong]="
+                    getState(ch.id).answered &&
+                    getState(ch.id).selected === $index &&
+                    $index !== getShuffledChallengeOptions(ch).correctIndex
+                  "
                   [disabled]="getState(ch.id).answered"
-                  (click)="selectOption(ch.id, $index)">
+                  (click)="selectOption(ch.id, $index)"
+                >
                   <span class="opt-letter">{{ letters[$index] }}</span>
                   {{ opt }}
                 </button>
               }
             </div>
             @if (!getState(ch.id).answered) {
-              <button class="ch-submit"
-                [disabled]="getState(ch.id).selected === null"
-                (click)="submit(ch)">
+              <button class="ch-submit" [disabled]="getState(ch.id).selected === null" (click)="submit(ch)">
                 Submit Answer
               </button>
             }
@@ -141,17 +152,35 @@
               <strong>{{ getState(ch.id).correct ? '✓ Correct!' : '✗ Not quite.' }}</strong>
 
               @if (!getState(ch.id).correct) {
-                <div style="margin-top:8px;padding:8px;background:rgba(226,29,72,.08);border-radius:4px;font-size:.85rem">
+                <div
+                  style="
+                    margin-top: 8px;
+                    padding: 8px;
+                    background: rgba(226, 29, 72, 0.08);
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                  "
+                >
                   <strong>Correct answer: {{ getCorrectOptionLetter(ch) }}</strong>
                 </div>
               }
 
-              <div style="margin-top:12px">
+              <div style="margin-top: 12px">
                 {{ ch.explanation }}
               </div>
 
               @if (ch.topicPath) {
-                <a [routerLink]="'/' + ch.topicPath" target="_blank" style="display:inline-block;margin-top:12px;font-size:.82rem;color:var(--blue);text-decoration:underline">
+                <a
+                  [routerLink]="'/' + ch.topicPath"
+                  target="_blank"
+                  style="
+                    display: inline-block;
+                    margin-top: 12px;
+                    font-size: 0.82rem;
+                    color: var(--blue);
+                    text-decoration: underline;
+                  "
+                >
                   📚 Study this topic in detail →
                 </a>
               }

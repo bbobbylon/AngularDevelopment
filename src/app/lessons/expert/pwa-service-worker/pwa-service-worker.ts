@@ -126,11 +126,16 @@ export class PwaServiceWorker {
    */
   readonly nextAction = computed(() => {
     switch (this.state().id) {
-      case 'v1': return 'Deploy v2 to the server';
-      case 'deployed': return 'Worker checks for update (navigation / poll)';
-      case 'detected': return 'Finish downloading v2 in the background';
-      case 'ready': return 'User accepts → activateUpdate() + reload';
-      default: return 'Done';
+      case 'v1':
+        return 'Deploy v2 to the server';
+      case 'deployed':
+        return 'Worker checks for update (navigation / poll)';
+      case 'detected':
+        return 'Finish downloading v2 in the background';
+      case 'ready':
+        return 'User accepts → activateUpdate() + reload';
+      default:
+        return 'Done';
     }
   });
 
@@ -156,27 +161,47 @@ export class PwaServiceWorker {
     const s = this.state();
     switch (s.id) {
       case 'v1':
-        this.state.set({ id: 'deployed', log: [...s.log,
-          '[server] v2 deployed — new ngsw.json manifest with fresh hashes',
-          '[app] tab unaffected: still serving v1 atomically'] });
+        this.state.set({
+          id: 'deployed',
+          log: [
+            ...s.log,
+            '[server] v2 deployed — new ngsw.json manifest with fresh hashes',
+            '[app] tab unaffected: still serving v1 atomically',
+          ],
+        });
         break;
       case 'deployed':
-        this.state.set({ id: 'detected', log: [...s.log,
-          '[sw] update check → manifest hash differs',
-          '[SwUpdate] versionUpdates emits: VERSION_DETECTED',
-          '[sw] downloading v2 files in the background…'] });
+        this.state.set({
+          id: 'detected',
+          log: [
+            ...s.log,
+            '[sw] update check → manifest hash differs',
+            '[SwUpdate] versionUpdates emits: VERSION_DETECTED',
+            '[sw] downloading v2 files in the background…',
+          ],
+        });
         break;
       case 'detected':
-        this.state.set({ id: 'ready', log: [...s.log,
-          '[sw] all v2 files cached & hash-verified',
-          '[SwUpdate] versionUpdates emits: VERSION_READY',
-          '[app] good moment to prompt: "A new version is available — reload?"'] });
+        this.state.set({
+          id: 'ready',
+          log: [
+            ...s.log,
+            '[sw] all v2 files cached & hash-verified',
+            '[SwUpdate] versionUpdates emits: VERSION_READY',
+            '[app] good moment to prompt: "A new version is available — reload?"',
+          ],
+        });
         break;
       case 'ready':
-        this.state.set({ id: 'activated', log: [...s.log,
-          '[app] swUpdate.activateUpdate() → worker switches to v2',
-          '[app] document.location.reload()',
-          '[app] running version v2 — v1 caches cleaned up'] });
+        this.state.set({
+          id: 'activated',
+          log: [
+            ...s.log,
+            '[app] swUpdate.activateUpdate() → worker switches to v2',
+            '[app] document.location.reload()',
+            '[app] running version v2 — v1 caches cleaned up',
+          ],
+        });
         break;
     }
   }
@@ -185,7 +210,10 @@ export class PwaServiceWorker {
    * Resets the simulator.
    */
   resetSim() {
-    this.state.set({ id: 'v1', log: ['[app] running version v1 — service worker serving from cache'] });
+    this.state.set({
+      id: 'v1',
+      log: ['[app] running version v1 — service worker serving from cache'],
+    });
   }
 
   // --- code samples ---

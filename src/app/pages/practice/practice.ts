@@ -1,7 +1,16 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
-import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Challenge, type Category, type ChallengeType, type Difficulty } from './practice-data';
+import {
+  CATEGORY_FILTERS,
+  CHALLENGES,
+  DIFF_FILTERS,
+  shuffle,
+  type Challenge,
+  type Category,
+  type ChallengeType,
+  type Difficulty,
+} from './practice-data';
 import { dueCount, loadQueue, recordMisses } from './review-queue';
 import { downloadTextFile } from '../../shared/download-file';
 import { BookmarksService } from '../../core/bookmarks.service';
@@ -9,7 +18,10 @@ import { ToastService } from '../../core/toast.service';
 import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
-type PracticeStates = Record<number, { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }>;
+type PracticeStates = Record<
+  number,
+  { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }
+>;
 
 /** Difficulty tiers in ascending order, so index ±1 is one step harder/easier. */
 const DIFF_LEVELS: Difficulty[] = ['junior', 'mid', 'senior'];
@@ -49,7 +61,10 @@ const DEFAULT_ADAPTIVE: AdaptiveState = { enabled: false, level: 'junior', strea
  * saved before a new field existed still loads cleanly.
  */
 function loadAdaptive(): AdaptiveState {
-  return { ...DEFAULT_ADAPTIVE, ...readJson<Partial<AdaptiveState>>(STORAGE_KEYS.practiceAdaptive, {}) };
+  return {
+    ...DEFAULT_ADAPTIVE,
+    ...readJson<Partial<AdaptiveState>>(STORAGE_KEYS.practiceAdaptive, {}),
+  };
 }
 
 /**
@@ -225,13 +240,13 @@ export class Practice {
 
   /** Challenges answered — across the whole bank, not just the current filter,
    *  since the score line reports lifetime practice rather than this view. */
-  readonly answeredCount = computed(() =>
-    Object.values(this.states()).filter((s) => s.answered).length,
+  readonly answeredCount = computed(
+    () => Object.values(this.states()).filter((s) => s.answered).length,
   );
 
   /** Of those, how many were right. */
-  readonly correctCount = computed(() =>
-    Object.values(this.states()).filter((s) => s.answered && s.correct).length,
+  readonly correctCount = computed(
+    () => Object.values(this.states()).filter((s) => s.answered && s.correct).length,
   );
 
   /** Running score as a percentage of answered questions; `0` before any. */
@@ -283,7 +298,9 @@ export class Practice {
    * @param id The challenge's id.
    */
   getState(id: number) {
-    return this.states()[id] ?? { selected: null, answered: false, correct: false, expanded: false };
+    return (
+      this.states()[id] ?? { selected: null, answered: false, correct: false, expanded: false }
+    );
   }
 
   /**
@@ -374,7 +391,11 @@ export class Practice {
     this.adaptive.update((s) => ({ ...s, enabled: !s.enabled, streak: 0 }));
     this.resetRenderLimit();
     if (this.adaptiveEnabled()) {
-      this.toast.show(`🎚 Adaptive difficulty on — starting at ${this.adaptiveLevel()}`, 'info', 2200);
+      this.toast.show(
+        `🎚 Adaptive difficulty on — starting at ${this.adaptiveLevel()}`,
+        'info',
+        2200,
+      );
     }
   }
 
@@ -399,7 +420,11 @@ export class Practice {
     event.stopPropagation();
     const id = `practice-${ch.id}`;
     this.bookmarks.toggle(id, BookmarksService.practiceLabel(ch.id, ch.question));
-    this.toast.show(this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed', 'success', 1400);
+    this.toast.show(
+      this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed',
+      'success',
+      1400,
+    );
   }
 
   /**
@@ -420,13 +445,18 @@ export class Practice {
     const lines: string[] = [];
 
     lines.push(`# Practice Session Results — ${new Date(when).toLocaleString()}`, '');
-    lines.push(`**Score:** ${this.scorePercent()}% (${this.correctCount()}/${this.answeredCount()} correct)`, '');
+    lines.push(
+      `**Score:** ${this.scorePercent()}% (${this.correctCount()}/${this.answeredCount()} correct)`,
+      '',
+    );
     lines.push('## Question review', '');
 
     for (const ch of answered) {
       const state = this.getState(ch.id);
       const shuffled = this.getShuffledChallengeOptions(ch);
-      lines.push(`### ${ch.category} · ${ch.difficulty} — ${state.correct ? '✓ Correct' : '✗ Incorrect'}`);
+      lines.push(
+        `### ${ch.category} · ${ch.difficulty} — ${state.correct ? '✓ Correct' : '✗ Incorrect'}`,
+      );
       lines.push(ch.question);
       if (ch.code) lines.push('', '```', ch.code, '```');
       lines.push('');

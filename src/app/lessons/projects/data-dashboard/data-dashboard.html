@@ -1,24 +1,24 @@
-    <article class="lesson">
-      <span class="lesson__eyebrow">Projects · Full Walkthrough</span>
-      <h1>Project: Data Dashboard</h1>
-      <p class="lead">
-        Build a sales dashboard with live filtering, sorting, KPI cards and a category
-        breakdown chart. This project focuses on reactive data patterns — computed
-        selectors, signal stores for filter state, and performance best practices.
-      </p>
+<article class="lesson">
+  <span class="lesson__eyebrow">Projects · Full Walkthrough</span>
+  <h1>Project: Data Dashboard</h1>
+  <p class="lead">
+    Build a sales dashboard with live filtering, sorting, KPI cards and a category breakdown chart. This project focuses
+    on reactive data patterns — computed selectors, signal stores for filter state, and performance best practices.
+  </p>
 
-      <h2>What you will build</h2>
-      <ul>
-        <li>KPI cards: total revenue, record count, average deal</li>
-        <li>Filter by category (hardware/software/services) and region</li>
-        <li>Sortable data table with click-to-sort column headers</li>
-        <li>Category breakdown bar chart (signal-driven, no library)</li>
-        <li>All computed from a signal store — zero redundant state</li>
-      </ul>
+  <h2>What you will build</h2>
+  <ul>
+    <li>KPI cards: total revenue, record count, average deal</li>
+    <li>Filter by category (hardware/software/services) and region</li>
+    <li>Sortable data table with click-to-sort column headers</li>
+    <li>Category breakdown bar chart (signal-driven, no library)</li>
+    <li>All computed from a signal store — zero redundant state</li>
+  </ul>
 
-      <h2>Architecture overview</h2>
-      <div class="code">
-        <pre>SalesStore (service)
+  <h2>Architecture overview</h2>
+  <div class="code">
+    <pre>
+SalesStore (service)
   _data:         Signal&lt;SaleRecord[]&gt;     // raw data (from HTTP in production)
   _catFilter:    Signal&lt;category | 'all'&gt;
   _regionFilter: Signal&lt;region | 'all'&gt;
@@ -31,11 +31,12 @@
 DashboardPage
   injects SalesStore
   template reads only computed signals — no logic in the template</pre>
-      </div>
+  </div>
 
-      <h2>Step 1 — Model and mock data</h2>
-      <div class="code">
-        <pre>interface SaleRecord {{ '{' }}
+  <h2>Step 1 — Model and mock data</h2>
+  <div class="code">
+    <pre>
+interface SaleRecord {{ '{' }}
   id: number;
   product: string;
   category: 'hardware' | 'software' | 'services';
@@ -45,18 +46,21 @@ DashboardPage
 {{ '}' }}
 
 // In production, load from HTTP:
-// readonly data = rxResource({{ '{' }} loader: () =&gt; this.http.get&lt;SaleRecord[]&gt;('/api/sales') {{ '}' }});</pre>
-      </div>
+// readonly data = rxResource({{ '{' }} loader: () =&gt; this.http.get&lt;SaleRecord[]&gt;('/api/sales') {{
+        '}'
+      }});</pre>
+  </div>
 
-      <h2>Step 2 — Signal store with filter + sort state</h2>
-      <div class="step-callout">
-        <h4>Key pattern: all UI state in signals, all derived data in computed()</h4>
-        The filter and sort values are signals. The filtered/sorted list and all KPIs are
-        computed() — they re-derive automatically whenever any input signal changes.
-        There is no "refresh" method and no intermediate state to synchronize.
-      </div>
-      <div class="code">
-        <pre>&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
+  <h2>Step 2 — Signal store with filter + sort state</h2>
+  <div class="step-callout">
+    <h4>Key pattern: all UI state in signals, all derived data in computed()</h4>
+    The filter and sort values are signals. The filtered/sorted list and all KPIs are computed() — they re-derive
+    automatically whenever any input signal changes. There is no "refresh" method and no intermediate state to
+    synchronize.
+  </div>
+  <div class="code">
+    <pre>
+&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
 export class SalesStore {{ '{' }}
   private readonly _data         = signal&lt;SaleRecord[]&gt;([]);
   private readonly _catFilter    = signal&lt;'all' | Category&gt;('all');
@@ -92,11 +96,12 @@ export class SalesStore {{ '{' }}
     else {{ '{' }} this._sortKey.set(key); this._sortDir.set('desc'); {{ '}' }}
   {{ '}' }}
 {{ '}' }}</pre>
-      </div>
+  </div>
 
-      <h2>Step 3 — Loading real data with resource()</h2>
-      <div class="code">
-        <pre>// For a real HTTP backend, replace the mock signal with rxResource():
+  <h2>Step 3 — Loading real data with resource()</h2>
+  <div class="code">
+    <pre>
+// For a real HTTP backend, replace the mock signal with rxResource():
 &#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
 export class SalesStore {{ '{' }}
   private http = inject(HttpClient);
@@ -123,24 +128,26 @@ export class SalesStore {{ '{' }}
 {{ '}' }} &#64;else {{ '{' }}
   &lt;!-- render the table --&gt;
 {{ '}' }}</pre>
-      </div>
+  </div>
 
-      <h2>Step 4 — Performance: computed() vs. template methods</h2>
-      <div class="step-callout">
-        <h4>Never compute in the template — always use computed()</h4>
-        A method call in the template runs on every CD pass. computed() runs only when
-        its signal dependencies change. For a dashboard, this is the difference between
-        re-sorting 1000 rows every frame vs. only when the sort column changes.
-      </div>
-      <div class="code">
-        <pre>// ❌ Recomputes on every CD pass (can be 60x/sec under interaction):
+  <h2>Step 4 — Performance: computed() vs. template methods</h2>
+  <div class="step-callout">
+    <h4>Never compute in the template — always use computed()</h4>
+    A method call in the template runs on every CD pass. computed() runs only when its signal dependencies change. For a
+    dashboard, this is the difference between re-sorting 1000 rows every frame vs. only when the sort column changes.
+  </div>
+  <div class="code">
+    <pre>
+// ❌ Recomputes on every CD pass (can be 60x/sec under interaction):
 &lt;td&gt;{{ '{{' }} formatCurrency(record.amount) {{ '}}' }}&lt;/td&gt;
 
 // ✅ Computed selector — recomputes only when filtered() changes:
 readonly formattedRows = computed(() =&gt;
   this.store.filtered().map(r =&gt; ({{ '{' }}
     ...r,
-    displayAmount: new Intl.NumberFormat('en-US', {{ '{' }} style: 'currency', currency: 'USD' {{ '}' }}).format(r.amount)
+    displayAmount: new Intl.NumberFormat('en-US', {{ '{' }} style: 'currency', currency: 'USD' {{
+        '}'
+      }}).format(r.amount)
   {{ '}' }}))
 );
 
@@ -151,134 +158,154 @@ export class CurrencyPipe implements PipeTransform {{ '{' }}
     return new Intl.NumberFormat('en-US', {{ '{' }} style: 'currency', currency: 'USD' {{ '}' }}).format(value);
   {{ '}' }}
 {{ '}' }}</pre>
+  </div>
+
+  <h2>Live demo — extended dashboard</h2>
+  <div class="demo">
+    <p class="demo__title">Month filter · Pagination · CSV export — all signal-driven</p>
+
+    <div class="kpi-row">
+      <div class="kpi">
+        <p class="kpi__label">Total Revenue</p>
+        <p class="kpi__value">${{ store.summary().total.toLocaleString() }}</p>
       </div>
-
-      <h2>Live demo — extended dashboard</h2>
-      <div class="demo">
-        <p class="demo__title">Month filter · Pagination · CSV export — all signal-driven</p>
-
-        <div class="kpi-row">
-          <div class="kpi">
-            <p class="kpi__label">Total Revenue</p>
-            <p class="kpi__value">${{ store.summary().total.toLocaleString() }}</p>
-          </div>
-          <div class="kpi">
-            <p class="kpi__label">Records</p>
-            <p class="kpi__value">{{ store.summary().count }}</p>
-          </div>
-          <div class="kpi">
-            <p class="kpi__label">Avg Deal</p>
-            <p class="kpi__value">${{ store.summary().avg.toLocaleString() }}</p>
-          </div>
-          <div class="kpi">
-            <p class="kpi__label">Top Region</p>
-            <p class="kpi__value" style="font-size:1.1rem">
-              {{ store.summary().byRegion[0]?.reg ?? 'N/A' }}
-            </p>
-          </div>
-        </div>
-
-        <div class="filter-row">
-          <strong style="font-size:.82rem;color:var(--text-muted);align-self:center">Category:</strong>
-          @for (c of categories; track c) {
-            <button [class.active]="store.catFilter() === c" (click)="store.setCatFilter($any(c))">
-              {{ c }}
-            </button>
-          }
-        </div>
-        <div class="filter-row" style="margin-top:0">
-          <strong style="font-size:.82rem;color:var(--text-muted);align-self:center">Region:</strong>
-          @for (r of regions; track r) {
-            <button [class.active]="store.regionFilter() === r" (click)="store.setRegionFilter($any(r))">
-              {{ r }}
-            </button>
-          }
-        </div>
-
-        <div class="month-range">
-          <strong>Months:</strong>
-          M{{ store.monthFrom() }}
-          <input type="range" min="1" max="12" [value]="store.monthFrom()"
-            (input)="store.setMonthFrom($any($event.target).valueAsNumber)" />
-          –
-          <input type="range" min="1" max="12" [value]="store.monthTo()"
-            (input)="store.setMonthTo($any($event.target).valueAsNumber)" />
-          M{{ store.monthTo() }}
-          <span style="color:var(--text-muted)">({{ store.summary().count }} records)</span>
-        </div>
-
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 0 4px">
-          <p style="font-size:.82rem;color:var(--text-muted);margin:0">Click column headers to sort</p>
-          <button class="export-btn" (click)="store.exportCSV()">↓ Export CSV</button>
-        </div>
-
-        <div style="overflow-x:auto">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th (click)="store.setSort('product')">
-                  Product <span class="sort-icon">{{ sortIcon('product') }}</span>
-                </th>
-                <th>Category</th>
-                <th>Region</th>
-                <th (click)="store.setSort('month')">
-                  Month <span class="sort-icon">{{ sortIcon('month') }}</span>
-                </th>
-                <th (click)="store.setSort('amount')" style="text-align:right">
-                  Amount <span class="sort-icon">{{ sortIcon('amount') }}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of store.paginatedRows(); track row.id) {
-                <tr>
-                  <td>{{ row.product }}</td>
-                  <td><span class="badge-cat badge-{{ row.category }}">{{ row.category }}</span></td>
-                  <td>{{ row.region }}</td>
-                  <td>M{{ row.month }}</td>
-                  <td style="text-align:right;font-family:monospace">${{ row.amount.toLocaleString() }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <div class="pagination">
-          <button (click)="store.prevPage()" [disabled]="store.page() === 1">← Prev</button>
-          <span>Page {{ store.page() }} / {{ store.totalPages() }}</span>
-          <button (click)="store.nextPage()" [disabled]="store.page() === store.totalPages()">Next →</button>
-        </div>
-
-        <h3 style="margin-top:20px;font-size:.95rem">Revenue by Category</h3>
-        @for (item of store.summary().byCategory; track item.cat) {
-          <div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px">
-              <span>{{ item.cat }}</span>
-              <span>${{ item.sum.toLocaleString() }} ({{ item.pct }}%)</span>
-            </div>
-            <div class="bar-track">
-              <div class="bar-fill bar-fill-{{ item.cat }}" [style.width]="item.pct + '%'"></div>
-            </div>
-          </div>
-        }
+      <div class="kpi">
+        <p class="kpi__label">Records</p>
+        <p class="kpi__value">{{ store.summary().count }}</p>
       </div>
+      <div class="kpi">
+        <p class="kpi__label">Avg Deal</p>
+        <p class="kpi__value">${{ store.summary().avg.toLocaleString() }}</p>
+      </div>
+      <div class="kpi">
+        <p class="kpi__label">Top Region</p>
+        <p class="kpi__value" style="font-size: 1.1rem">
+          {{ store.summary().byRegion[0]?.reg ?? 'N/A' }}
+        </p>
+      </div>
+    </div>
 
-      <h2>What you practiced</h2>
-      <ul>
-        <li><strong>Signal store with filter/sort/page state</strong> — all UI state as signals, derived data as computed()</li>
-        <li><strong>Month range filter</strong> — two range inputs bound to monthFrom/monthTo signals</li>
-        <li><strong>Pagination</strong> — currentPage + totalPages computed from filtered().length; paginatedRows slices it</li>
-        <li><strong>CSV export</strong> — Blob + URL.createObjectURL(), no server needed; always exports the full filtered set</li>
-        <li><strong>Performance best practices</strong> — no logic in templates, computed() over methods</li>
-        <li><strong>Derived chart data</strong> — bar widths from percentage signals, no chart library needed</li>
-      </ul>
+    <div class="filter-row">
+      <strong style="font-size: 0.82rem; color: var(--text-muted); align-self: center">Category:</strong>
+      @for (c of categories; track c) {
+        <button [class.active]="store.catFilter() === c" (click)="store.setCatFilter($any(c))">
+          {{ c }}
+        </button>
+      }
+    </div>
+    <div class="filter-row" style="margin-top: 0">
+      <strong style="font-size: 0.82rem; color: var(--text-muted); align-self: center">Region:</strong>
+      @for (r of regions; track r) {
+        <button [class.active]="store.regionFilter() === r" (click)="store.setRegionFilter($any(r))">
+          {{ r }}
+        </button>
+      }
+    </div>
 
-      <h2>Further extensions</h2>
-      <ul>
-        <li>Load data from a real API using rxResource() — replace MOCK_SALES with the HTTP call</li>
-        <li>Add a sparkline SVG trend chart using path data computed from monthly totals</li>
-        <li>Add column visibility toggles — a Set&lt;string&gt; signal + NgClass to show/hide columns</li>
-      </ul>
+    <div class="month-range">
+      <strong>Months:</strong>
+      M{{ store.monthFrom() }}
+      <input
+        aria-label="Months"
+        type="range"
+        min="1"
+        max="12"
+        [value]="store.monthFrom()"
+        (input)="store.setMonthFrom($any($event.target).valueAsNumber)"
+      />
+      –
+      <input
+        aria-label="Months"
+        type="range"
+        min="1"
+        max="12"
+        [value]="store.monthTo()"
+        (input)="store.setMonthTo($any($event.target).valueAsNumber)"
+      />
+      M{{ store.monthTo() }}
+      <span style="color: var(--text-muted)">({{ store.summary().count }} records)</span>
+    </div>
 
-      <p><a routerLink="/">Back to All Concepts →</a></p>
-    </article>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px">
+      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0">Click column headers to sort</p>
+      <button class="export-btn" (click)="store.exportCSV()">↓ Export CSV</button>
+    </div>
+
+    <div style="overflow-x: auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th (click)="store.setSort('product')">
+              Product <span class="sort-icon">{{ sortIcon('product') }}</span>
+            </th>
+            <th>Category</th>
+            <th>Region</th>
+            <th (click)="store.setSort('month')">
+              Month <span class="sort-icon">{{ sortIcon('month') }}</span>
+            </th>
+            <th (click)="store.setSort('amount')" style="text-align: right">
+              Amount <span class="sort-icon">{{ sortIcon('amount') }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of store.paginatedRows(); track row.id) {
+            <tr>
+              <td>{{ row.product }}</td>
+              <td>
+                <span class="badge-cat badge-{{ row.category }}">{{ row.category }}</span>
+              </td>
+              <td>{{ row.region }}</td>
+              <td>M{{ row.month }}</td>
+              <td style="text-align: right; font-family: monospace">${{ row.amount.toLocaleString() }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination">
+      <button (click)="store.prevPage()" [disabled]="store.page() === 1">← Prev</button>
+      <span>Page {{ store.page() }} / {{ store.totalPages() }}</span>
+      <button (click)="store.nextPage()" [disabled]="store.page() === store.totalPages()">Next →</button>
+    </div>
+
+    <h3 style="margin-top: 20px; font-size: 0.95rem">Revenue by Category</h3>
+    @for (item of store.summary().byCategory; track item.cat) {
+      <div style="margin-bottom: 8px">
+        <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 3px">
+          <span>{{ item.cat }}</span>
+          <span>${{ item.sum.toLocaleString() }} ({{ item.pct }}%)</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill bar-fill-{{ item.cat }}" [style.width]="item.pct + '%'"></div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <h2>What you practiced</h2>
+  <ul>
+    <li>
+      <strong>Signal store with filter/sort/page state</strong> — all UI state as signals, derived data as computed()
+    </li>
+    <li><strong>Month range filter</strong> — two range inputs bound to monthFrom/monthTo signals</li>
+    <li>
+      <strong>Pagination</strong> — currentPage + totalPages computed from filtered().length; paginatedRows slices it
+    </li>
+    <li>
+      <strong>CSV export</strong> — Blob + URL.createObjectURL(), no server needed; always exports the full filtered set
+    </li>
+    <li><strong>Performance best practices</strong> — no logic in templates, computed() over methods</li>
+    <li><strong>Derived chart data</strong> — bar widths from percentage signals, no chart library needed</li>
+  </ul>
+
+  <h2>Further extensions</h2>
+  <ul>
+    <li>Load data from a real API using rxResource() — replace MOCK_SALES with the HTTP call</li>
+    <li>Add a sparkline SVG trend chart using path data computed from monthly totals</li>
+    <li>Add column visibility toggles — a Set&lt;string&gt; signal + NgClass to show/hide columns</li>
+  </ul>
+
+  <p><a routerLink="/">Back to All Concepts →</a></p>
+</article>

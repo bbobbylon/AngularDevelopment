@@ -34,7 +34,13 @@ export class Animations {
   /**
    * The stagger demo's items.
    */
-  private readonly baseItems = ['Signals', 'RxJS interop', 'Control flow', 'Deferred views', 'Hydration'];
+  private readonly baseItems = [
+    'Signals',
+    'RxJS interop',
+    'Control flow',
+    'Deferred views',
+    'Hydration',
+  ];
   /**
    * The items, recomputed on each generation.
    *

@@ -1,7 +1,30 @@
-.t { width: 100%; border-collapse: collapse; }
-     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-     .t td:first-child { width: 120px; }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+}
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 120px;
+}
 
-     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
-     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
-     .qa div { padding: 10px 14px; font-size: .9rem; }
+.qa {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.qa summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+}
+.qa div {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}

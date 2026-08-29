@@ -1,7 +1,28 @@
-.t { width: 100%; border-collapse: collapse; }
-     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-     .t td:first-child { width: 320px; }
-     .list { list-style: none; padding: 0; margin: 6px 0; }
-     .list li { padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
-                margin-bottom: 4px; cursor: pointer; }
-     .list li.active { border-color: var(--accent); background: rgba(221,0,49,0.08); }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+}
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 320px;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+.list li {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+.list li.active {
+  border-color: var(--accent);
+  background: rgba(221, 0, 49, 0.08);
+}

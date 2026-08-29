@@ -205,8 +205,8 @@ export class TaskCard {{ '{' }}
         </div>
 
         <div class="add-form">
-          <input [(ngModel)]="newTitle" placeholder="New task title..." (keyup.enter)="add()" />
-          <select [(ngModel)]="newPriority" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;background:var(--surface);color:var(--text)">
+          <input aria-label="New task title" [(ngModel)]="newTitle" placeholder="New task title..." (keyup.enter)="add()" />
+          <select aria-label="New Priority" [(ngModel)]="newPriority" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;background:var(--surface);color:var(--text)">
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>

@@ -58,11 +58,11 @@ things it does not provide:
 
 ### Who are the users?
 
-| User | Needs |
-|---|---|
+| User                                  | Needs                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------- |
 | **Certification candidate** (primary) | Full concept coverage, realistic practice questions, timed exams, a readiness verdict |
-| **Angular developer filling gaps** | Direct navigation to one topic, depth beyond the docs, edge cases |
-| **Complete beginner** | The Foundations and TypeScript tracks before any Angular |
+| **Angular developer filling gaps**    | Direct navigation to one topic, depth beyond the docs, edge cases                     |
+| **Complete beginner**                 | The Foundations and TypeScript tracks before any Angular                              |
 
 ### Main features
 
@@ -164,12 +164,12 @@ things it does not provide:
 
 ### Performance
 
-| Requirement | Target |
-|---|---|
-| **NFR-P1** Initial load | Only the shell and the landing route; every lesson lazily loaded |
-| **NFR-P2** Route transition | Under ~200ms on a warm cache |
-| **NFR-P3** Large lists | Practice's 424 cards render in batches, so first paint is flat in bank size |
-| **NFR-P4** Change detection | Zoneless; signal writes within a microtask coalesce into one pass |
+| Requirement                 | Target                                                                      |
+| --------------------------- | --------------------------------------------------------------------------- |
+| **NFR-P1** Initial load     | Only the shell and the landing route; every lesson lazily loaded            |
+| **NFR-P2** Route transition | Under ~200ms on a warm cache                                                |
+| **NFR-P3** Large lists      | Practice's 424 cards render in batches, so first paint is flat in bank size |
+| **NFR-P4** Change detection | Zoneless; signal writes within a microtask coalesce into one pass           |
 
 ### Security
 
@@ -206,9 +206,12 @@ which is why Practice batches.
 
 ### Accessibility
 
-- **NFR-A1** Target WCAG 2.1 AA.
+- **NFR-A1** Target WCAG 2.1 AA. _Verified:_ `a11y.spec.ts` runs axe-core over every
+  lesson and page on each test run; the structural A/AA rule sets pass with zero
+  violations.
 - **NFR-A2** Every interactive control reachable and operable by keyboard.
-- **NFR-A3** Body text at 4.5:1 contrast or better, in both themes.
+- **NFR-A3** Body text at 4.5:1 contrast or better, in both themes. _Verified by hand_ —
+  axe cannot evaluate contrast without layout.
 - **NFR-A4** Honour `prefers-reduced-motion`.
 
 ---
@@ -227,7 +230,7 @@ which is why Practice batches.
   cases demonstrated, so I learn the parts the docs state but do not show.
 - As a **beginner**, I want the prerequisites covered in the same place, so I am not
   sent elsewhere to learn what npm is.
-- As **any user**, I want a question's explanation to say why the *other* answers are
+- As **any user**, I want a question's explanation to say why the _other_ answers are
   wrong, so I correct the misconception and not just the answer.
 - As **any user**, I want my progress kept locally without an account, so studying costs
   nothing and shares nothing.
@@ -236,15 +239,16 @@ which is why Practice batches.
 
 ## 6. Success criteria
 
-| Criterion | Measure |
-|---|---|
-| **Coverage** | Every certification topic has a lesson. ✅ 100/100 live |
-| **Depth** | Every lesson has an interactive demo and covers failure modes, not just syntax |
-| **Assessment volume** | 400+ questions across every track. ✅ 424 |
-| **Question quality** | Length-guessing yields ~chance. ✅ verified at 25.9% |
-| **Correctness** | Test suite green; no dead study links. ✅ 162 tests, topicPath guard passing |
-| **Documentation** | Zero undocumented declarations in source. ✅ |
-| **The real one** | The author passes the certification exam |
+| Criterion             | Measure                                                                        |
+| --------------------- | ------------------------------------------------------------------------------ |
+| **Coverage**          | Every certification topic has a lesson. ✅ 100/100 live                        |
+| **Depth**             | Every lesson has an interactive demo and covers failure modes, not just syntax |
+| **Assessment volume** | 400+ questions across every track. ✅ 424                                      |
+| **Question quality**  | Length-guessing yields ~chance. ✅ verified at 25.9%                           |
+| **Correctness**       | Test suite green; no dead study links. ✅ 423 tests, topicPath guard passing   |
+| **Accessibility**     | No WCAG A/AA violations on any lesson or page. ✅ axe-core, every route        |
+| **Documentation**     | Zero undocumented declarations in source. ✅                                   |
+| **The real one**      | The author passes the certification exam                                       |
 
 ---
 

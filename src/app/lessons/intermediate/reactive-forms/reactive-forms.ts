@@ -34,9 +34,7 @@ function usernameTaken(taken: string[]): AsyncValidatorFn {
   return (control: AbstractControl) =>
     timer(600).pipe(
       map(() =>
-        taken.includes(String(control.value ?? '').toLowerCase())
-          ? { usernameTaken: true }
-          : null,
+        taken.includes(String(control.value ?? '').toLowerCase()) ? { usernameTaken: true } : null,
       ),
     );
 }

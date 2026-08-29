@@ -4,7 +4,7 @@ import { Directive, ElementRef, Renderer2, effect, inject, input, signal } from 
 @Directive({
   selector: '[appBadge]',
   standalone: true,
-  exportAs: 'appBadge',           // parent template can grab: #b="appBadge"
+  exportAs: 'appBadge', // parent template can grab: #b="appBadge"
   host: {
     '[class.badge-active]': 'active()',
     '[attr.aria-label]': 'ariaLabel()',
@@ -50,5 +50,7 @@ export class BadgeDirective {
    * Flips the active state. Reachable from a parent template through the
    * directive's `exportAs` name.
    */
-  toggle(): void { this.active.update(v => !v); }
+  toggle(): void {
+    this.active.update((v) => !v);
+  }
 }

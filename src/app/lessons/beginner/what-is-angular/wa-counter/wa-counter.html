@@ -1,6 +1,8 @@
 <div class="wa-demo-box">
   <p class="wa-big">{{ count() }}</p>
-  <p class="wa-sub">doubled (derived automatically): <strong>{{ doubled() }}</strong></p>
+  <p class="wa-sub">
+    doubled (derived automatically): <strong>{{ doubled() }}</strong>
+  </p>
   <div class="row">
     <button (click)="count.set(count() - 1)">−1</button>
     <button (click)="count.set(0)" class="ghost">reset</button>

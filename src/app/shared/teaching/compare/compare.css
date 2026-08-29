@@ -1,0 +1,76 @@
+.compare {
+  margin: 1.85rem 0;
+}
+
+/* Two equal columns that collapse to one below the breakpoint. minmax(0, 1fr) rather
+   than 1fr because a <pre> inside a grid track refuses to shrink below its content
+   width otherwise, and the panel overflows the page instead of scrolling internally. */
+.compare__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .compare__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.compare__side {
+  --compare-tint: var(--border);
+
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--compare-tint);
+  border-top: 3px solid var(--compare-tint);
+  border-radius: 10px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.compare__side--good {
+  --compare-tint: var(--green);
+}
+
+.compare__side--bad {
+  --compare-tint: var(--amber);
+}
+
+.compare__title {
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--compare-tint) 9%, var(--bg-elevated));
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.compare__body {
+  padding: 0.7rem 0.85rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Lessons project .code blocks in here, which already carry their own margin. */
+.compare__body > :first-child {
+  margin-top: 0;
+}
+
+.compare__body > :last-child {
+  margin-bottom: 0;
+}
+
+.compare__body :is(pre, .code) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.compare__note {
+  margin: 0.7rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}

@@ -31,14 +31,14 @@ npm test         # unit tests (Vitest via @angular/build:unit-test)
 
 ### The curriculum — 100 lessons across six tracks
 
-| Track | Lessons | Covers |
-|---|---|---|
-| **Foundations** | 12 | How the web works, terminal & npm, Git, the DOM, async, debugging |
-| **TypeScript** | 13 | Types, interfaces, generics, narrowing, `keyof`/`typeof`, utility types, decorators |
-| **Beginner** | 24 | Components, templates, bindings, control flow, signals, DI, routing, forms, HTTP |
-| **Intermediate** | 26 | Reactive forms, routing in depth, HTTP & interceptors, RxJS, directives, pipes, testing |
-| **Expert** | 22 | Change detection, OnPush, zoneless, SSR & hydration, performance, security, i18n, a11y |
-| **Projects** | 3 | Task manager, data dashboard, auth flow — the pieces assembled into working features |
+| Track            | Lessons | Covers                                                                                  |
+| ---------------- | ------- | --------------------------------------------------------------------------------------- |
+| **Foundations**  | 12      | How the web works, terminal & npm, Git, the DOM, async, debugging                       |
+| **TypeScript**   | 13      | Types, interfaces, generics, narrowing, `keyof`/`typeof`, utility types, decorators     |
+| **Beginner**     | 24      | Components, templates, bindings, control flow, signals, DI, routing, forms, HTTP        |
+| **Intermediate** | 26      | Reactive forms, routing in depth, HTTP & interceptors, RxJS, directives, pipes, testing |
+| **Expert**       | 22      | Change detection, OnPush, zoneless, SSR & hydration, performance, security, i18n, a11y  |
+| **Projects**     | 3       | Task manager, data dashboard, auth flow — the pieces assembled into working features    |
 
 Every lesson is **one standalone component per concept**, split the conventional
 Angular way into `.ts` + `.html` + `.css`. Lessons whose demos need their own child
@@ -54,21 +54,21 @@ lessons/beginner/inputs/
 
 ### The study tools
 
-| Route | What it does |
-|---|---|
-| `/` | Home dashboard — the whole curriculum, filterable, with per-track progress |
-| `/practice` | 424-question bank with shuffled options, explanations and adaptive difficulty |
-| `/mock-exam` | Timed exam: configure → sit → review, with the misses fed to the review queue |
-| `/review` | Spaced repetition over everything you got wrong (Leitner boxes) |
-| `/flashcards` | Quick-recall cards generated from the same question bank |
-| `/coding-tasks` | 17 hands-on tasks with acceptance criteria |
-| `/exam-day` | Readiness check — a timed exam plus two coding briefs, with a verdict |
-| `/progress` | Aggregate dashboard over every other feature's stored state |
-| `/glossary` | 65 terms, each linked to the lesson that teaches it |
-| `/bookmarks` | Starred lessons and questions, with notes |
-| `/api-playground` | The HTTP request lifecycle, step by step |
-| `/interview` | Interview-question drill |
-| `/certification` | What the exam actually covers, and how to prepare |
+| Route             | What it does                                                                  |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `/`               | Home dashboard — the whole curriculum, filterable, with per-track progress    |
+| `/practice`       | 424-question bank with shuffled options, explanations and adaptive difficulty |
+| `/mock-exam`      | Timed exam: configure → sit → review, with the misses fed to the review queue |
+| `/review`         | Spaced repetition over everything you got wrong (Leitner boxes)               |
+| `/flashcards`     | Quick-recall cards generated from the same question bank                      |
+| `/coding-tasks`   | 17 hands-on tasks with acceptance criteria                                    |
+| `/exam-day`       | Readiness check — a timed exam plus two coding briefs, with a verdict         |
+| `/progress`       | Aggregate dashboard over every other feature's stored state                   |
+| `/glossary`       | 65 terms, each linked to the lesson that teaches it                           |
+| `/bookmarks`      | Starred lessons and questions, with notes                                     |
+| `/api-playground` | The HTTP request lifecycle, step by step                                      |
+| `/interview`      | Interview-question drill                                                      |
+| `/certification`  | What the exam actually covers, and how to prepare                             |
 
 All study state is kept in `localStorage` and is entirely local to your browser —
 there is no backend and nothing leaves the machine.
@@ -130,24 +130,31 @@ file layout, and the conventions for adding practice questions.
 
 ## Documentation
 
-| Document | What's in it |
-|---|---|
-| [docs/SRS.md](docs/SRS.md) | What the app is for, who it's for, and what it must do |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical structure, data flow, and design decisions |
-| [docs/UI-DESIGN.md](docs/UI-DESIGN.md) | Design system, layout patterns, accessibility |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | How to write a lesson or add practice questions |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Building and deploying (GitHub Pages, Docker, static hosts) |
-| [docs/CI-CD-PIPELINE.md](docs/CI-CD-PIPELINE.md) | The CI/CD workflows |
+| Document                                         | What's in it                                                |
+| ------------------------------------------------ | ----------------------------------------------------------- |
+| [docs/SRS.md](docs/SRS.md)                       | What the app is for, who it's for, and what it must do      |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Technical structure, data flow, and design decisions        |
+| [docs/UI-DESIGN.md](docs/UI-DESIGN.md)           | Design system, layout patterns, accessibility               |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)     | How to write a lesson or add practice questions             |
+| [DEPLOYMENT.md](DEPLOYMENT.md)                   | Building and deploying (GitHub Pages, Docker, static hosts) |
+| [docs/CI-CD-PIPELINE.md](docs/CI-CD-PIPELINE.md) | The CI/CD workflows                                         |
 
 ---
 
 ## Tests
 
-18 spec files, 162 tests, covering the `core/` services, the storage layer, the
+22 spec files, 423 tests, covering the `core/` services, the storage layer, the
 practice/exam/review logic, and data-integrity guards over the content itself —
 including one that verifies every `topicPath` in the question bank and glossary
 points at a lesson that actually exists.
 
+Three of those suites walk the app rather than a fixed list, so new content is covered
+automatically: every lesson and every page is mounted to prove it renders, and each is
+scanned with axe-core against WCAG 2.1 AA.
+
 ```bash
-npm test
+npm test          # watch mode
+npm run test:ci   # single run
+npm run format    # Prettier (templates use the angular parser)
+npm run verify    # format + typecheck + tests + build — the same gate CI applies
 ```

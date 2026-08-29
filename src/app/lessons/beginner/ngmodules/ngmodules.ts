@@ -87,7 +87,7 @@ export class Greeting {}
     if (!this.imported()) {
       return "No — FeatureModule never imports SharedModule, so none of its exports are visible here, no matter what's exported.";
     }
-    return 'No — SharedModule declares ButtonComponent but never exports it, so importers still can\'t see it even though they imported the module.';
+    return "No — SharedModule declares ButtonComponent but never exports it, so importers still can't see it even though they imported the module.";
   });
 
   /**

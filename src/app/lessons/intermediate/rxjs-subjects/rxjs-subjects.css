@@ -1,3 +1,13 @@
-.t { width: 100%; border-collapse: collapse; }
-     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-     .t td:first-child { width: 150px; white-space: nowrap; }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+}
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 150px;
+  white-space: nowrap;
+}

@@ -21,18 +21,25 @@ interface SaleRecord {
 }
 
 const MOCK_SALES: SaleRecord[] = [
-  { id:  1, product: 'Angular Pro',    category: 'software', amount: 4200, region: 'north', month: 1 },
-  { id:  2, product: 'Dev Laptop',     category: 'hardware', amount: 1800, region: 'south', month: 1 },
-  { id:  3, product: 'Support Plan',   category: 'services', amount: 900,  region: 'east',  month: 1 },
-  { id:  4, product: 'Angular Pro',    category: 'software', amount: 3800, region: 'west',  month: 2 },
-  { id:  5, product: 'Keyboard',       category: 'hardware', amount: 280,  region: 'north', month: 2 },
-  { id:  6, product: 'Consulting',     category: 'services', amount: 2400, region: 'south', month: 2 },
-  { id:  7, product: 'Angular Pro',    category: 'software', amount: 5100, region: 'east',  month: 3 },
-  { id:  8, product: 'Monitor',        category: 'hardware', amount: 640,  region: 'west',  month: 3 },
-  { id:  9, product: 'Support Plan',   category: 'services', amount: 1200, region: 'north', month: 3 },
-  { id: 10, product: 'TypeScript Lib', category: 'software', amount: 2900, region: 'south', month: 4 },
-  { id: 11, product: 'Dev Laptop',     category: 'hardware', amount: 3600, region: 'east',  month: 4 },
-  { id: 12, product: 'Consulting',     category: 'services', amount: 1800, region: 'west',  month: 4 },
+  { id: 1, product: 'Angular Pro', category: 'software', amount: 4200, region: 'north', month: 1 },
+  { id: 2, product: 'Dev Laptop', category: 'hardware', amount: 1800, region: 'south', month: 1 },
+  { id: 3, product: 'Support Plan', category: 'services', amount: 900, region: 'east', month: 1 },
+  { id: 4, product: 'Angular Pro', category: 'software', amount: 3800, region: 'west', month: 2 },
+  { id: 5, product: 'Keyboard', category: 'hardware', amount: 280, region: 'north', month: 2 },
+  { id: 6, product: 'Consulting', category: 'services', amount: 2400, region: 'south', month: 2 },
+  { id: 7, product: 'Angular Pro', category: 'software', amount: 5100, region: 'east', month: 3 },
+  { id: 8, product: 'Monitor', category: 'hardware', amount: 640, region: 'west', month: 3 },
+  { id: 9, product: 'Support Plan', category: 'services', amount: 1200, region: 'north', month: 3 },
+  {
+    id: 10,
+    product: 'TypeScript Lib',
+    category: 'software',
+    amount: 2900,
+    region: 'south',
+    month: 4,
+  },
+  { id: 11, product: 'Dev Laptop', category: 'hardware', amount: 3600, region: 'east', month: 4 },
+  { id: 12, product: 'Consulting', category: 'services', amount: 1800, region: 'west', month: 4 },
 ];
 
 /**
@@ -98,7 +105,7 @@ class SalesStore {
   /**
    * The category filter, read-only.
    */
-  readonly catFilter    = this._catFilter.asReadonly();
+  readonly catFilter = this._catFilter.asReadonly();
   /**
    * The region filter, read-only.
    */
@@ -106,23 +113,23 @@ class SalesStore {
   /**
    * The month range start, read-only.
    */
-  readonly monthFrom    = this._monthFrom.asReadonly();
+  readonly monthFrom = this._monthFrom.asReadonly();
   /**
    * The month range end, read-only.
    */
-  readonly monthTo      = this._monthTo.asReadonly();
+  readonly monthTo = this._monthTo.asReadonly();
   /**
    * The sort column, read-only.
    */
-  readonly sortKey      = this._sortKey.asReadonly();
+  readonly sortKey = this._sortKey.asReadonly();
   /**
    * The sort direction, read-only.
    */
-  readonly sortDir      = this._sortDir.asReadonly();
+  readonly sortDir = this._sortDir.asReadonly();
   /**
    * The current page, read-only.
    */
-  readonly page         = this._page.asReadonly();
+  readonly page = this._page.asReadonly();
 
   /**
    * Every row that passes the filters, in sort order. The root of the derivation
@@ -131,19 +138,25 @@ class SalesStore {
   readonly filtered = computed(() => {
     const cat = this._catFilter();
     const reg = this._regionFilter();
-    const mf  = this._monthFrom();
-    const mt  = this._monthTo();
+    const mf = this._monthFrom();
+    const mt = this._monthTo();
     const key = this._sortKey();
     const dir = this._sortDir();
     return [...this._data()]
-      .filter((r) =>
-        (cat === 'all' || r.category === cat) &&
-        (reg === 'all' || r.region === reg) &&
-        r.month >= mf && r.month <= mt
+      .filter(
+        (r) =>
+          (cat === 'all' || r.category === cat) &&
+          (reg === 'all' || r.region === reg) &&
+          r.month >= mf &&
+          r.month <= mt,
       )
       .sort((a, b) => {
-        const av = a[key], bv = b[key];
-        const cmp = typeof av === 'string' ? (av as string).localeCompare(bv as string) : (av as number) - (bv as number);
+        const av = a[key],
+          bv = b[key];
+        const cmp =
+          typeof av === 'string'
+            ? (av as string).localeCompare(bv as string)
+            : (av as number) - (bv as number);
         return dir === 'asc' ? cmp : -cmp;
       });
   });
@@ -177,11 +190,19 @@ class SalesStore {
       const sum = rows.filter((r) => r.category === cat).reduce((s, r) => s + r.amount, 0);
       return { cat, sum, pct: total > 0 ? Math.round((sum / total) * 100) : 0 };
     });
-    const byRegion = ['north', 'south', 'east', 'west'].map((reg) => {
-      const sum = rows.filter((r) => r.region === reg).reduce((s, r) => s + r.amount, 0);
-      return { reg, sum };
-    }).sort((a, b) => b.sum - a.sum);
-    return { total, count: rows.length, byCategory, byRegion, avg: rows.length > 0 ? Math.round(total / rows.length) : 0 };
+    const byRegion = ['north', 'south', 'east', 'west']
+      .map((reg) => {
+        const sum = rows.filter((r) => r.region === reg).reduce((s, r) => s + r.amount, 0);
+        return { reg, sum };
+      })
+      .sort((a, b) => b.sum - a.sum);
+    return {
+      total,
+      count: rows.length,
+      byCategory,
+      byRegion,
+      avg: rows.length > 0 ? Math.round(total / rows.length) : 0,
+    };
   });
 
   /**
@@ -192,39 +213,57 @@ class SalesStore {
    *
    * @param v The category, or `all`.
    */
-  setCatFilter(v: SaleRecord['category'] | 'all')  { this._catFilter.set(v); this._page.set(1); }
+  setCatFilter(v: SaleRecord['category'] | 'all') {
+    this._catFilter.set(v);
+    this._page.set(1);
+  }
   /**
    * Sets the region filter and resets to page 1.
    *
    * @param v The region, or `all`.
    */
-  setRegionFilter(v: SaleRecord['region'] | 'all') { this._regionFilter.set(v); this._page.set(1); }
+  setRegionFilter(v: SaleRecord['region'] | 'all') {
+    this._regionFilter.set(v);
+    this._page.set(1);
+  }
   /**
    * Sets the month range start and resets to page 1.
    *
    * @param m The month.
    */
-  setMonthFrom(m: number) { this._monthFrom.set(m); this._page.set(1); }
+  setMonthFrom(m: number) {
+    this._monthFrom.set(m);
+    this._page.set(1);
+  }
   /**
    * Sets the month range end and resets to page 1.
    *
    * @param m The month.
    */
-  setMonthTo(m: number)   { this._monthTo.set(m); this._page.set(1); }
+  setMonthTo(m: number) {
+    this._monthTo.set(m);
+    this._page.set(1);
+  }
   /**
    * Goes to a page, clamped to the valid range.
    *
    * @param p The page.
    */
-  setPage(p: number)      { this._page.set(Math.max(1, Math.min(p, this.totalPages()))); }
+  setPage(p: number) {
+    this._page.set(Math.max(1, Math.min(p, this.totalPages())));
+  }
   /**
    * Goes to the next page.
    */
-  nextPage()              { this.setPage(this._page() + 1); }
+  nextPage() {
+    this.setPage(this._page() + 1);
+  }
   /**
    * Goes to the previous page.
    */
-  prevPage()              { this.setPage(this._page() - 1); }
+  prevPage() {
+    this.setPage(this._page() - 1);
+  }
 
   /**
    * Sorts by a column, or flips the direction if it is already the sort column.
@@ -252,7 +291,9 @@ class SalesStore {
   exportCSV(): void {
     const rows = this.filtered();
     const header = 'id,product,category,amount,region,month';
-    const lines = rows.map((r) => `${r.id},"${r.product}",${r.category},${r.amount},${r.region},${r.month}`);
+    const lines = rows.map(
+      (r) => `${r.id},"${r.product}",${r.category},${r.amount},${r.region},${r.month}`,
+    );
     const csv = [header, ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

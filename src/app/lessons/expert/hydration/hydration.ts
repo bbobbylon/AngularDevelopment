@@ -13,7 +13,10 @@ const BOOT_STEPS: Record<Boot, { title: string; steps: { text: string; bad?: boo
       { text: 'Server HTML arrives — the user sees real content' },
       { text: 'JS bundles download; Angular bootstraps' },
       { text: 'Angular THROWS AWAY the server-rendered DOM', bad: true },
-      { text: 'Everything re-renders from scratch — visible flicker, layout shift (CLS)', bad: true },
+      {
+        text: 'Everything re-renders from scratch — visible flicker, layout shift (CLS)',
+        bad: true,
+      },
       { text: 'Focus, selection and scroll state inside the content are lost', bad: true },
       { text: 'Media elements (video, iframes) reload', bad: true },
       { text: 'App interactive — after paying for a full second render' },

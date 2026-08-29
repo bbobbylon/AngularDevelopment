@@ -145,7 +145,7 @@ export class RouteGuards {
     {
       code: `export const authGuard: CanActivateFn = (route, state) => {`,
       explain:
-        'A functional guard is just a plain arrow function typed as CanActivateFn — no class, no @Injectable, no constructor. The type gives route (the ActivatedRouteSnapshot being entered) and state (the RouterStateSnapshot) their types, and constrains what you\'re allowed to return.',
+        "A functional guard is just a plain arrow function typed as CanActivateFn — no class, no @Injectable, no constructor. The type gives route (the ActivatedRouteSnapshot being entered) and state (the RouterStateSnapshot) their types, and constrains what you're allowed to return.",
     },
     {
       code: `  const auth = inject(AuthService);`,
@@ -169,7 +169,7 @@ export class RouteGuards {
     {
       code: `{ path: 'admin', canActivate: [authGuard], component: Admin }`,
       explain:
-        "canActivate takes an ARRAY of guards — you can stack several (e.g. [authGuard, roleGuard]) and every one must pass, in order, before the route activates. This wiring lives in the route config, never on the component itself.",
+        'canActivate takes an ARRAY of guards — you can stack several (e.g. [authGuard, roleGuard]) and every one must pass, in order, before the route activates. This wiring lives in the route config, never on the component itself.',
     },
   ];
 
@@ -290,7 +290,7 @@ navigateByUrl(url) {
     {
       code: `applyRedirects(url);`,
       explain:
-        "Handles plain redirectTo route config entries first, unrelated to guards — but it matters here because it means every guard downstream evaluates the FINAL destination URL, never the alias the user actually typed.",
+        'Handles plain redirectTo route config entries first, unrelated to guards — but it matters here because it means every guard downstream evaluates the FINAL destination URL, never the alias the user actually typed.',
     },
     {
       code: `const snapshot = recognize(url);`,
@@ -325,12 +325,12 @@ navigateByUrl(url) {
     {
       code: `await resolveData(snapshot);`,
       explain:
-        "Resolvers run in this step ONLY — never for a navigation the guard phase already cancelled, which is the whole reason resolvers are considered \"safe\" places to put expensive data fetches.",
+        'Resolvers run in this step ONLY — never for a navigation the guard phase already cancelled, which is the whole reason resolvers are considered "safe" places to put expensive data fetches.',
     },
     {
       code: `activateRoutes(snapshot);`,
       explain:
-        'The last step: component instances are created or reused, and lifecycle hooks (ngOnInit, etc.) fire for the first time — this is the earliest point a guard\'s decision becomes visible on screen.',
+        "The last step: component instances are created or reused, and lifecycle hooks (ngOnInit, etc.) fire for the first time — this is the earliest point a guard's decision becomes visible on screen.",
     },
   ];
 }

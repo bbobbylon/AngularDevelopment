@@ -8,7 +8,7 @@ on:
   # failure email) whenever those secrets are absent. The site itself ships
   # via the GitHub Pages workflow, so per-commit image builds add no value.
   push:
-    tags: [ 'v*' ]
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       registry:

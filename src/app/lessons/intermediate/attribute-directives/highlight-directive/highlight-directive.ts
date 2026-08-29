@@ -32,9 +32,13 @@ export class HighlightDirective {
   /**
    * Applies the highlight on pointer entry.
    */
-  @HostListener('mouseenter') onEnter() { this.bg.set(this.appHighlight()); }
+  @HostListener('mouseenter') onEnter() {
+    this.bg.set(this.appHighlight());
+  }
   /**
    * Removes it on pointer exit.
    */
-  @HostListener('mouseleave') onLeave() { this.bg.set(''); }
+  @HostListener('mouseleave') onLeave() {
+    this.bg.set('');
+  }
 }

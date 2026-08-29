@@ -6,7 +6,10 @@ import { SlotHost } from './slot-host/slot-host';
 /**
  * One row in the swappable-template demo.
  */
-interface Person { name: string; role: string; }
+interface Person {
+  name: string;
+  role: string;
+}
 
 /**
  * Lesson: `<ng-template>` and `NgTemplateOutlet` — markup as a value.

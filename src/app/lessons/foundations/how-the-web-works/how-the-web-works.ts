@@ -45,7 +45,7 @@ const JOURNEY: JourneyStep[] = [
     label: '6 · Browser renders',
     icon: '🎨',
     detail:
-      'The browser reads the HTML top-to-bottom and builds the DOM (a live tree of every element). HTML references CSS and JavaScript files — each triggers ANOTHER request/response round-trip. CSS is applied, JavaScript runs, and pixels finally hit the screen. An Angular app\'s JavaScript bundle arrives exactly this way.',
+      "The browser reads the HTML top-to-bottom and builds the DOM (a live tree of every element). HTML references CSS and JavaScript files — each triggers ANOTHER request/response round-trip. CSS is applied, JavaScript runs, and pixels finally hit the screen. An Angular app's JavaScript bundle arrives exactly this way.",
   },
 ];
 
@@ -60,10 +60,29 @@ interface StatusCode {
 
 const STATUS_CODES: StatusCode[] = [
   { code: '200 OK', meaning: 'Success', story: 'Here is exactly what you asked for.' },
-  { code: '301 Moved', meaning: 'Redirect', story: 'That page lives at a new address now — go there instead (the browser follows automatically).' },
-  { code: '404 Not Found', meaning: 'Client error', story: 'You asked for something that does not exist. The 4xx family means "your request was the problem".' },
-  { code: '403 Forbidden', meaning: 'Client error', story: 'The page exists but you are not allowed to see it.' },
-  { code: '500 Server Error', meaning: 'Server error', story: 'Your request was fine — the server blew up processing it. The 5xx family means "our fault, not yours".' },
+  {
+    code: '301 Moved',
+    meaning: 'Redirect',
+    story:
+      'That page lives at a new address now — go there instead (the browser follows automatically).',
+  },
+  {
+    code: '404 Not Found',
+    meaning: 'Client error',
+    story:
+      'You asked for something that does not exist. The 4xx family means "your request was the problem".',
+  },
+  {
+    code: '403 Forbidden',
+    meaning: 'Client error',
+    story: 'The page exists but you are not allowed to see it.',
+  },
+  {
+    code: '500 Server Error',
+    meaning: 'Server error',
+    story:
+      'Your request was fine — the server blew up processing it. The 5xx family means "our fault, not yours".',
+  },
 ];
 
 /**

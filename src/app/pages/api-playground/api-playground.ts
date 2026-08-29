@@ -59,13 +59,55 @@ interface Preset {
  * to contrive.
  */
 const PRESETS: Preset[] = [
-  { label: 'GET list', method: 'GET', path: '/posts?_limit=5', body: false, note: 'Read a collection (query param limits it to 5)' },
-  { label: 'GET one', method: 'GET', path: '/posts/1', body: false, note: 'Read a single resource by id' },
-  { label: 'POST create', method: 'POST', path: '/posts', body: true, note: 'Create — server assigns the id (echoed back)' },
-  { label: 'PUT replace', method: 'PUT', path: '/posts/1', body: true, note: 'Replace the whole resource' },
-  { label: 'PATCH update', method: 'PATCH', path: '/posts/1', body: true, note: 'Partial update — only the sent fields change' },
-  { label: 'DELETE', method: 'DELETE', path: '/posts/1', body: false, note: 'Delete — typically returns an empty body' },
-  { label: '404 error', method: 'GET', path: '/posts/999999', body: false, note: 'A miss — watch the HttpErrorResponse path' },
+  {
+    label: 'GET list',
+    method: 'GET',
+    path: '/posts?_limit=5',
+    body: false,
+    note: 'Read a collection (query param limits it to 5)',
+  },
+  {
+    label: 'GET one',
+    method: 'GET',
+    path: '/posts/1',
+    body: false,
+    note: 'Read a single resource by id',
+  },
+  {
+    label: 'POST create',
+    method: 'POST',
+    path: '/posts',
+    body: true,
+    note: 'Create — server assigns the id (echoed back)',
+  },
+  {
+    label: 'PUT replace',
+    method: 'PUT',
+    path: '/posts/1',
+    body: true,
+    note: 'Replace the whole resource',
+  },
+  {
+    label: 'PATCH update',
+    method: 'PATCH',
+    path: '/posts/1',
+    body: true,
+    note: 'Partial update — only the sent fields change',
+  },
+  {
+    label: 'DELETE',
+    method: 'DELETE',
+    path: '/posts/1',
+    body: false,
+    note: 'Delete — typically returns an empty body',
+  },
+  {
+    label: '404 error',
+    method: 'GET',
+    path: '/posts/999999',
+    body: false,
+    note: 'A miss — watch the HttpErrorResponse path',
+  },
 ];
 
 /** Starting request body for the verbs that take one. Valid JSON, and edited in place. */
@@ -95,27 +137,33 @@ const JWT_PAYLOAD = { sub: 'user-42', name: 'Ada Lovelace', role: 'ADMIN', exp: 
 const STEP_META: { title: string; blurb: string }[] = [
   {
     title: '1 · Build the HttpRequest',
-    blurb: 'http.get()/post() does not fire anything yet — it builds an IMMUTABLE HttpRequest object and returns a cold observable. Nothing leaves the browser until something subscribes.',
+    blurb:
+      'http.get()/post() does not fire anything yet — it builds an IMMUTABLE HttpRequest object and returns a cold observable. Nothing leaves the browser until something subscribes.',
   },
   {
     title: '2 · Interceptor chain',
-    blurb: 'Each interceptor receives the request and MUST clone() to change it — requests are immutable so retries stay identical. Here an auth interceptor attaches the Bearer token.',
+    blurb:
+      'Each interceptor receives the request and MUST clone() to change it — requests are immutable so retries stay identical. Here an auth interceptor attaches the Bearer token.',
   },
   {
     title: '3 · On the wire',
-    blurb: 'The HttpRequest is serialized into an actual HTTP message: a request line, one header per line, a blank line, then the JSON-stringified body (if any).',
+    blurb:
+      'The HttpRequest is serialized into an actual HTTP message: a request line, one header per line, a blank line, then the JSON-stringified body (if any).',
   },
   {
     title: '4 · In flight',
-    blurb: 'DNS lookup → TCP + TLS handshake → bytes out → server work → bytes back. JavaScript sees none of it; you only observe the duration (and a CORS preflight may happen invisibly first).',
+    blurb:
+      'DNS lookup → TCP + TLS handshake → bytes out → server work → bytes back. JavaScript sees none of it; you only observe the duration (and a CORS preflight may happen invisibly first).',
   },
   {
     title: '5 · Response received',
-    blurb: 'A status line, response headers and a raw text body come back. NOTE: on cross-origin calls JS can only read the few CORS-safelisted headers unless the server exposes more via Access-Control-Expose-Headers.',
+    blurb:
+      'A status line, response headers and a raw text body come back. NOTE: on cross-origin calls JS can only read the few CORS-safelisted headers unless the server exposes more via Access-Control-Expose-Headers.',
   },
   {
     title: '6 · Parse & deliver',
-    blurb: 'Angular JSON.parses the body and emits it (typed by YOUR generic — no runtime check!) to the subscriber. Non-2xx skips next() entirely and delivers an HttpErrorResponse to the error path.',
+    blurb:
+      'Angular JSON.parses the body and emits it (typed by YOUR generic — no runtime check!) to the subscriber. Non-2xx skips next() entirely and delivers an HttpErrorResponse to the error path.',
   },
 ];
 
@@ -358,7 +406,7 @@ export class ApiPlayground {
       lines.push(
         '// interceptor (registered once in app.config.ts):',
         'const authInterceptor: HttpInterceptorFn = (req, next) =>',
-        "  next(req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }));",
+        '  next(req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }));',
         '',
       );
     }
@@ -481,18 +529,20 @@ export class ApiPlayground {
     const base = this.baseHeaders();
 
     // 1 · build
-    this.requestObjectJson.set(JSON.stringify(
-      {
-        method: this.method(),
-        url,
-        headers: Object.fromEntries(base.map((h) => [h.name, h.value])),
-        body: bodyObj,
-        responseType: 'json',
-        observe: 'response',
-      },
-      null,
-      2,
-    ));
+    this.requestObjectJson.set(
+      JSON.stringify(
+        {
+          method: this.method(),
+          url,
+          headers: Object.fromEntries(base.map((h) => [h.name, h.value])),
+          body: bodyObj,
+          responseType: 'json',
+          observe: 'response',
+        },
+        null,
+        2,
+      ),
+    );
     if (!(await this.advance(0, token))) return;
 
     // 2 · interceptors
@@ -554,18 +604,20 @@ export class ApiPlayground {
     // 6 · parse & deliver (or the error path)
     if (failure) {
       this.failedAtStep.set(5);
-      this.errorMessage.set(JSON.stringify(
-        {
-          name: 'HttpErrorResponse',
-          status: failure.status,
-          statusText: failure.statusText,
-          url: failure.url,
-          message: failure.message,
-          error: failure.error,
-        },
-        null,
-        2,
-      ));
+      this.errorMessage.set(
+        JSON.stringify(
+          {
+            name: 'HttpErrorResponse',
+            status: failure.status,
+            statusText: failure.statusText,
+            url: failure.url,
+            message: failure.message,
+            error: failure.error,
+          },
+          null,
+          2,
+        ),
+      );
     } else {
       const body = response!.body;
       const pretty = JSON.stringify(body, null, 2) ?? 'null';

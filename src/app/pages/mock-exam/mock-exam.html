@@ -1,12 +1,11 @@
 @switch (phase()) {
-
   @case ('config') {
     <div class="exam-hero">
       <span class="pill">Timed Assessment</span>
       <h1>Mock Exam</h1>
       <p>
-        Simulate the real certification: a fixed set of questions, a countdown
-        clock, and no answers revealed until you finish. Pass mark is {{ passMark }}%.
+        Simulate the real certification: a fixed set of questions, a countdown clock, and no answers revealed until you
+        finish. Pass mark is {{ passMark }}%.
       </p>
     </div>
 
@@ -16,7 +15,11 @@
         @for (n of countChoices; track n) {
           <button class="chip" [class.active]="selectedCount() === n" (click)="selectedCount.set(n)">{{ n }}</button>
         }
-        <button class="chip" [class.active]="selectedCount() === totalAvailable" (click)="selectedCount.set(totalAvailable)">
+        <button
+          class="chip"
+          [class.active]="selectedCount() === totalAvailable"
+          (click)="selectedCount.set(totalAvailable)"
+        >
           All ({{ totalAvailable }})
         </button>
       </div>
@@ -24,21 +27,33 @@
       <h3>Focus area</h3>
       <div class="chip-row">
         @for (cat of categoryFilters; track cat.id) {
-          <button class="chip" [class.active]="selectedCategory() === cat.id" (click)="selectedCategory.set(cat.id)">{{ cat.label }}</button>
+          <button class="chip" [class.active]="selectedCategory() === cat.id" (click)="selectedCategory.set(cat.id)">
+            {{ cat.label }}
+          </button>
         }
       </div>
 
       <h3>Level</h3>
       <div class="chip-row">
         @for (d of diffFilters; track d.id) {
-          <button class="chip" [class.active]="selectedDiff() === d.id" (click)="selectedDiff.set(d.id)">{{ d.label }}</button>
+          <button class="chip" [class.active]="selectedDiff() === d.id" (click)="selectedDiff.set(d.id)">
+            {{ d.label }}
+          </button>
         }
       </div>
 
       <div class="config-summary">
-        <div><strong>{{ effectiveCount() }}</strong><span>questions</span></div>
-        <div><strong>{{ totalMinutes() }}</strong><span>minutes</span></div>
-        <div><strong>{{ passMark }}%</strong><span>to pass</span></div>
+        <div>
+          <strong>{{ effectiveCount() }}</strong
+          ><span>questions</span>
+        </div>
+        <div>
+          <strong>{{ totalMinutes() }}</strong
+          ><span>minutes</span>
+        </div>
+        <div>
+          <strong>{{ passMark }}%</strong><span>to pass</span>
+        </div>
       </div>
 
       @if (availableForFilters().length === 0) {
@@ -72,9 +87,14 @@
         </div>
         @for (h of history(); track h.when) {
           <div class="history-row">
-            <span class="h-result" [class.pass]="h.passed" [class.fail]="!h.passed">{{ h.passed ? 'PASS' : 'FAIL' }}</span>
+            <span class="h-result" [class.pass]="h.passed" [class.fail]="!h.passed">{{
+              h.passed ? 'PASS' : 'FAIL'
+            }}</span>
             <span class="h-score">{{ h.scorePercent }}%</span>
-            <span class="h-detail">{{ h.correct }}/{{ h.total }} · {{ categoryLabel(h.category) }} · {{ h.difficulty === 'all' ? 'All levels' : h.difficulty }} · {{ formatUsed(h.secondsUsed) }}</span>
+            <span class="h-detail"
+              >{{ h.correct }}/{{ h.total }} · {{ categoryLabel(h.category) }} ·
+              {{ h.difficulty === 'all' ? 'All levels' : h.difficulty }} · {{ formatUsed(h.secondsUsed) }}</span
+            >
             <span class="h-when">{{ formatWhen(h.when) }}</span>
           </div>
         }
@@ -91,11 +111,15 @@
 
     <div class="nav-grid">
       @for (q of questions(); track q.id; let i = $index) {
-        <button class="nav-dot"
+        <button
+          class="nav-dot"
           [class.current]="i === currentIndex()"
           [class.done]="isAnswered(q.id)"
           [class.flag]="isFlagged(q.id)"
-          (click)="goTo(i)">{{ i + 1 }}</button>
+          (click)="goTo(i)"
+        >
+          {{ i + 1 }}
+        </button>
       }
     </div>
 
@@ -110,12 +134,15 @@
         </div>
 
         <p class="q-text">{{ ch.question }}</p>
-        @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+        @if (ch.code) {
+          <div class="q-code">{{ ch.code }}</div>
+        }
 
         <div class="options">
           @for (opt of shuffledOptions(ch).options; track $index) {
             <button class="opt" [class.selected]="isChosen($index)" (click)="choose($index)">
-              <span class="opt-letter">{{ letters[$index] }}</span>{{ opt }}
+              <span class="opt-letter">{{ letters[$index] }}</span
+              >{{ opt }}
             </button>
           }
         </div>
@@ -137,7 +164,9 @@
           <h3>Submit exam?</h3>
           <p>
             {{ answeredCount() }} of {{ questions().length }} answered.
-            @if (answeredCount() < questions().length) { {{ questions().length - answeredCount() }} still blank. }
+            @if (answeredCount() < questions().length) {
+              {{ questions().length - answeredCount() }} still blank.
+            }
           </p>
           <div class="confirm-actions">
             <button class="ghost-btn" (click)="cancelFinish()">Keep going</button>
@@ -152,7 +181,9 @@
     <div class="result-hero" [class.pass]="passed()" [class.fail]="!passed()">
       <span class="result-badge">{{ passed() ? 'PASS' : 'FAIL' }}</span>
       <div class="result-score">{{ scorePercent() }}%</div>
-      <p>{{ correctCount() }} / {{ questions().length }} correct · {{ elapsedLabel() }} used · pass mark {{ passMark }}%</p>
+      <p>
+        {{ correctCount() }} / {{ questions().length }} correct · {{ elapsedLabel() }} used · pass mark {{ passMark }}%
+      </p>
       @if (missedQueued() > 0) {
         <p class="queued-note">
           🔁 {{ missedQueued() }} missed question{{ missedQueued() === 1 ? '' : 's' }} added to your
@@ -197,7 +228,10 @@
 
     <div class="review-list">
       @if (reviewItems().length === 0) {
-        <div class="rev-empty">Nothing here — {{ reviewFilter() === 'incorrect' ? 'every answer was correct 🎉' : 'no questions were flagged' }}.</div>
+        <div class="rev-empty">
+          Nothing here —
+          {{ reviewFilter() === 'incorrect' ? 'every answer was correct 🎉' : 'no questions were flagged' }}.
+        </div>
       }
       @for (item of reviewItems(); track item.ch.id) {
         @let ch = item.ch;
@@ -211,20 +245,27 @@
           </div>
 
           <p class="q-text">{{ ch.question }}</p>
-          @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+          @if (ch.code) {
+            <div class="q-code">{{ ch.code }}</div>
+          }
 
           <div class="options">
             @for (opt of shuffledOptions(ch).options; track $index) {
-              <button class="opt"
+              <button
+                class="opt"
                 [class.correct]="$index === shuffledOptions(ch).correctIndex"
                 [class.wrong]="answers()[ch.id] === $index && $index !== shuffledOptions(ch).correctIndex"
-                disabled>
-                <span class="opt-letter">{{ letters[$index] }}</span>{{ opt }}
+                disabled
+              >
+                <span class="opt-letter">{{ letters[$index] }}</span
+                >{{ opt }}
               </button>
             }
           </div>
 
-          @if (!isAnswered(ch.id)) { <div class="skipped">Not answered</div> }
+          @if (!isAnswered(ch.id)) {
+            <div class="skipped">Not answered</div>
+          }
 
           @if (!isCorrect(ch)) {
             <div class="correct-callout">Correct answer: {{ correctOptionLetter(ch) }}</div>

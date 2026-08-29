@@ -1,0 +1,36 @@
+<section class="quiz">
+  <fieldset class="quiz__field">
+    <legend class="quiz__legend">
+      <span class="quiz__badge">Check yourself</span>
+      <span class="quiz__question"><app-rich-text [text]="question()" /></span>
+    </legend>
+
+    @for (option of options(); track $index) {
+      <label
+        class="quiz__option"
+        [class.quiz__option--chosen]="chosen() === $index"
+        [class.quiz__option--right]="chosen() === $index && option.correct"
+        [class.quiz__option--wrong]="chosen() === $index && !option.correct"
+      >
+        <input type="radio" [name]="groupName" [checked]="chosen() === $index" (change)="choose($index)" />
+        <span class="quiz__option-text"><app-rich-text [text]="option.text" /></span>
+      </label>
+    }
+  </fieldset>
+
+  <!-- Polite rather than assertive: the learner just clicked, so they are already looking
+       here. Assertive would interrupt whatever a screen reader was mid-way through. -->
+  <div class="quiz__feedback" role="status" aria-live="polite">
+    @if (answer(); as picked) {
+      <p class="quiz__verdict" [class.quiz__verdict--right]="isCorrect()">
+        {{ isCorrect() ? "That's it." : 'Not quite.' }}
+      </p>
+      @if (picked.why) {
+        <p class="quiz__why"><app-rich-text [text]="picked.why" /></p>
+      }
+      @if (!isCorrect() && followUp()) {
+        <p class="quiz__follow"><app-rich-text [text]="followUp()" /></p>
+      }
+    }
+  </div>
+</section>

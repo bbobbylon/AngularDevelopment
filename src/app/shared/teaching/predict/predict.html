@@ -1,0 +1,29 @@
+<section class="predict">
+  <p class="predict__prompt">
+    <span class="predict__badge">Predict first</span>
+    <app-rich-text [text]="prompt()" />
+  </p>
+
+  @if (code()) {
+    <div class="predict__code">
+      <pre>{{ code() }}</pre>
+    </div>
+  }
+
+  @if (!revealed()) {
+    <button
+      type="button"
+      class="predict__button"
+      [attr.aria-expanded]="false"
+      [attr.aria-controls]="panelId"
+      (click)="reveal()"
+    >
+      {{ revealLabel() }}
+    </button>
+  } @else {
+    <div class="predict__answer" [id]="panelId">
+      <p class="predict__answer-label">Answer</p>
+      <p class="predict__answer-body"><app-rich-text [text]="answer()" /></p>
+    </div>
+  }
+</section>

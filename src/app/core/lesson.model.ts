@@ -1,7 +1,8 @@
 import { Type } from '@angular/core';
 
 /** Difficulty / exam track a concept belongs to. */
-export type Level = 'foundations' | 'typescript' | 'beginner' | 'intermediate' | 'expert' | 'projects';
+export type Level =
+  'foundations' | 'typescript' | 'beginner' | 'intermediate' | 'expert' | 'projects';
 
 /**
  * A single tutorial concept.
@@ -83,6 +84,7 @@ export const LEVELS: { id: Level; label: string; blurb: string }[] = [
   {
     id: 'projects',
     label: 'Project Walkthroughs',
-    blurb: 'Build real features end-to-end. Each walkthrough connects multiple concepts into a working project you can reference in interviews.',
+    blurb:
+      'Build real features end-to-end. Each walkthrough connects multiple concepts into a working project you can reference in interviews.',
   },
 ];

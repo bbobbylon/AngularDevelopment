@@ -32,27 +32,27 @@ properties on `:root`, with the dark theme overriding a subset.
 
 ### Colour
 
-| Token | Light | Dark | Role |
-|---|---|---|---|
-| `--bg` | `#fafafa` | `#0b0b0f` | Page background |
-| `--bg-elevated` | `#f1f1f3` | `#17171c` | Inputs, subtle raised surfaces |
-| `--bg-card` | `#ffffff` | `#141419` | Cards |
-| `--surface` | `#ffffff` | `#141419` | Panels, table headers |
-| `--border` | `#e4e4e7` | `#27272e` | All borders and dividers |
-| `--text` | `#18181b` | `#f4f4f5` | Body text |
-| `--text-muted` | `#6b6b76` | `#9d9dab` | Secondary text |
-| `--accent` | `#6366f1` | `#818cf8` | Primary — buttons, active states |
-| `--accent-2` | `#8b5cf6` | `#a78bfa` | Secondary accent |
-| `--violet` | `#7c3aed` | — | Focus rings, emphasis |
-| `--green` | `#10b981` | — | Success, "correct", "live" |
-| `--amber` | `#f59e0b` | — | Warnings, "in progress" |
-| `--blue` | `#4f46e5` | `#a5b4fc` | Links |
+| Token           | Light     | Dark      | Role                             |
+| --------------- | --------- | --------- | -------------------------------- |
+| `--bg`          | `#fafafa` | `#0b0b0f` | Page background                  |
+| `--bg-elevated` | `#f1f1f3` | `#17171c` | Inputs, subtle raised surfaces   |
+| `--bg-card`     | `#ffffff` | `#141419` | Cards                            |
+| `--surface`     | `#ffffff` | `#141419` | Panels, table headers            |
+| `--border`      | `#e4e4e7` | `#27272e` | All borders and dividers         |
+| `--text`        | `#18181b` | `#f4f4f5` | Body text                        |
+| `--text-muted`  | `#6b6b76` | `#9d9dab` | Secondary text                   |
+| `--accent`      | `#6366f1` | `#818cf8` | Primary — buttons, active states |
+| `--accent-2`    | `#8b5cf6` | `#a78bfa` | Secondary accent                 |
+| `--violet`      | `#7c3aed` | —         | Focus rings, emphasis            |
+| `--green`       | `#10b981` | —         | Success, "correct", "live"       |
+| `--amber`       | `#f59e0b` | —         | Warnings, "in progress"          |
+| `--blue`        | `#4f46e5` | `#a5b4fc` | Links                            |
 
 **Two tokens are intentionally theme-independent:**
 
 ```css
---code-bg: #1e1e2e;   /* code panels are always dark */
---code-fg: #d4d4e4;   /* fixed light text — never inherit --text here */
+--code-bg: #1e1e2e; /* code panels are always dark */
+--code-fg: #d4d4e4; /* fixed light text — never inherit --text here */
 ```
 
 Code blocks stay dark in both themes so syntax highlighting keeps one palette. `--code-fg`
@@ -66,20 +66,20 @@ function.
 
 ### Typography
 
-| Use | Stack |
-|---|---|
+| Use  | Stack                                                                            |
+| ---- | -------------------------------------------------------------------------------- |
 | Body | `Inter`, `-apple-system`, `BlinkMacSystemFont`, `Segoe UI`, `Roboto`, sans-serif |
-| Code | `JetBrains Mono`, `Fira Code`, `ui-monospace`, `SFMono-Regular`, monospace |
+| Code | `JetBrains Mono`, `Fira Code`, `ui-monospace`, `SFMono-Regular`, monospace       |
 
-| Element | Size | Notes |
-|---|---|---|
-| `.lesson h1` | 2rem | One per page |
-| `.lesson h2` | 1.25rem | Section |
-| `.lesson h3` | 1.02rem | Subsection |
-| `.lead` | 1.1rem | Opening paragraph — every lesson has one |
-| `.lesson__eyebrow` | 0.72rem | Uppercase, letter-spaced track label |
-| `.code` | 0.86rem | |
-| `.pill`, `.demo__title` | 0.72rem | Uppercase micro-labels |
+| Element                 | Size    | Notes                                    |
+| ----------------------- | ------- | ---------------------------------------- |
+| `.lesson h1`            | 2rem    | One per page                             |
+| `.lesson h2`            | 1.25rem | Section                                  |
+| `.lesson h3`            | 1.02rem | Subsection                               |
+| `.lead`                 | 1.1rem  | Opening paragraph — every lesson has one |
+| `.lesson__eyebrow`      | 0.72rem | Uppercase, letter-spaced track label     |
+| `.code`                 | 0.86rem |                                          |
+| `.pill`, `.demo__title` | 0.72rem | Uppercase micro-labels                   |
 
 ### Spacing and shape
 
@@ -93,16 +93,16 @@ components, larger between sections.
 
 Shared UI lives in `src/app/shared/`:
 
-| Component / directive | Selector | Purpose |
-|---|---|---|
-| `TooltipDirective` | `[appTooltip]` | Hover/focus tooltip, positioned against the host |
-| `RevealOnScrollDirective` | `[appRevealOnScroll]` | Fade-and-rise as an element enters the viewport |
-| `FilterLessonsPipe` | `filterLessons` | Text filter over curriculum cards |
-| `FilterTabsComponent` | `<app-filter-tabs>` | The pill row used by Practice, Flashcards, Glossary |
-| `ToastsComponent` | `<app-toasts>` | Transient notifications, rendered by the root shell |
-| `highlighter.ts` | — | Tokenises code samples into `.hl-*` spans |
-| `download-file.ts` | — | Blob + object-URL download (results export) |
-| `ComingSoon` | route target | Fallback for a lesson without a component |
+| Component / directive     | Selector              | Purpose                                             |
+| ------------------------- | --------------------- | --------------------------------------------------- |
+| `TooltipDirective`        | `[appTooltip]`        | Hover/focus tooltip, positioned against the host    |
+| `RevealOnScrollDirective` | `[appRevealOnScroll]` | Fade-and-rise as an element enters the viewport     |
+| `FilterLessonsPipe`       | `filterLessons`       | Text filter over curriculum cards                   |
+| `FilterTabsComponent`     | `<app-filter-tabs>`   | The pill row used by Practice, Flashcards, Glossary |
+| `ToastsComponent`         | `<app-toasts>`        | Transient notifications, rendered by the root shell |
+| `highlighter.ts`          | —                     | Tokenises code samples into `.hl-*` spans           |
+| `download-file.ts`        | —                     | Blob + object-URL download (results export)         |
+| `ComingSoon`              | route target          | Fallback for a lesson without a component           |
 
 Native elements are styled globally rather than wrapped:
 
@@ -144,26 +144,34 @@ all 100:
 
 ```html
 <article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · RxJS</span>   <!-- track · category -->
+  <span class="lesson__eyebrow">Intermediate · RxJS</span>
+  <!-- track · category -->
   <h1>Core Operators</h1>
   <p class="lead">One paragraph: what this is and why it matters.</p>
 
   <h2>Section</h2>
   <p>Explanation.</p>
 
-  <div class="demo">                       <!-- interactive: buttons, inputs, output -->
+  <div class="demo">
+    <!-- interactive: buttons, inputs, output -->
     <div class="demo__title">Try it</div>
     …
   </div>
 
-  <div class="code"><pre>…</pre></div>     <!-- annotated sample -->
+  <div class="code"><pre>…</pre></div>
+  <!-- annotated sample -->
 
-  <div class="tip">…</div>                 <!-- green: do this -->
-  <div class="warn">…</div>                <!-- amber: this bites -->
-  <div class="note">…</div>                <!-- neutral aside -->
+  <div class="tip">…</div>
+  <!-- green: do this -->
+  <div class="warn">…</div>
+  <!-- amber: this bites -->
+  <div class="note">…</div>
+  <!-- neutral aside -->
 
   <h2>Key takeaways</h2>
-  <ul>…</ul>
+  <ul>
+    …
+  </ul>
   <p><a routerLink="/next-lesson">Next: … →</a></p>
 </article>
 ```
@@ -214,17 +222,25 @@ Progress reads and never writes, so the arrow only ever points one way.
 
 ## 6. Accessibility
 
-**Target: WCAG 2.1 AA.**
+**Target: WCAG 2.1 AA — enforced, not aspirational.** `src/app/a11y.spec.ts` runs
+axe-core over every lesson and every study-tool page on each test run, against the
+`wcag2a`, `wcag2aa`, `wcag21a` and `wcag21aa` rule sets. A new page that ships an
+unlabelled input fails the build.
 
-| Area | Approach |
-|---|---|
-| **Keyboard** | Every control is a real `<button>` / `<a>` / form element. No click handlers on `<div>`s. |
-| **Focus** | 2px violet outline at 1px offset on inputs; never removed anywhere. |
-| **Contrast** | Both themes meet 4.5:1 for body text. The a11y lesson ships a live contrast checker used to verify pairings. |
-| **ARIA** | Attribute binding (`[attr.aria-*]`), never property binding — `[aria-expanded]` raises NG0303 and is the commonest Angular ARIA mistake. |
-| **Live regions** | Async status changes (saving, validation results) are announced, with the text varied so consecutive identical announcements are not swallowed. |
-| **Motion** | `prefers-reduced-motion: reduce` disables scroll reveals and transitions. |
-| **Semantics** | Lessons are `<article>` with a single `<h1>` and a correct heading order. |
+The suite was written to check a claim this document had been making untested, and the
+claim did not hold: it found 27 violations across 24 files. All are fixed. Every form
+control in a demo now carries an accessible name, using `[attr.aria-label]` where the
+name depends on the row (`'Mark ' + todo.title + ' done'`).
+
+| Area             | Approach                                                                                                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Keyboard**     | Every control is a real `<button>` / `<a>` / form element. No click handlers on `<div>`s.                                                                                                     |
+| **Focus**        | 2px violet outline at 1px offset on inputs; never removed anywhere.                                                                                                                           |
+| **Contrast**     | Both themes meet 4.5:1 for body text. The a11y lesson ships a live contrast checker used to verify pairings. Checked by hand — axe cannot run `color-contrast` in jsdom, which has no layout. |
+| **ARIA**         | Attribute binding (`[attr.aria-*]`), never property binding — `[aria-expanded]` raises NG0303 and is the commonest Angular ARIA mistake.                                                      |
+| **Live regions** | Async status changes (saving, validation results) are announced, with the text varied so consecutive identical announcements are not swallowed.                                               |
+| **Motion**       | `prefers-reduced-motion: reduce` disables scroll reveals and transitions.                                                                                                                     |
+| **Semantics**    | Lessons are `<article>` with a single `<h1>` and a correct heading order.                                                                                                                     |
 
 The `a11y` lesson is itself the reference implementation for these patterns.
 
@@ -234,12 +250,12 @@ The `a11y` lesson is itself the reference implementation for these patterns.
 
 **Where styles live**
 
-| Scope | Location |
-|---|---|
-| Tokens, resets, `.lesson` anatomy, native controls | `src/styles.css` |
-| Anything specific to one lesson | `<lesson>.css`, beside the component |
-| A demo component inside a lesson | `<child>/<child>.css`, in the child's own folder |
-| Study-tool pages | `<page>.css`, beside the page component |
+| Scope                                              | Location                                         |
+| -------------------------------------------------- | ------------------------------------------------ |
+| Tokens, resets, `.lesson` anatomy, native controls | `src/styles.css`                                 |
+| Anything specific to one lesson                    | `<lesson>.css`, beside the component             |
+| A demo component inside a lesson                   | `<child>/<child>.css`, in the child's own folder |
+| Study-tool pages                                   | `<page>.css`, beside the page component          |
 
 Every component references its stylesheet with `styleUrl` (singular). There are no
 inline `styles: []` blocks left in the app — the only `styles: [` strings you will find
@@ -248,6 +264,12 @@ are inside lesson code samples, where they are teaching content rather than meta
 **Naming** — BEM-ish for shared classes (`.lesson__eyebrow`, `.demo__title`); short
 descriptive names for local ones. Component styles are view-encapsulated, so a local
 `.box` cannot collide with another page's.
+
+**Formatting** — Prettier, enforced in CI (`npm run format`). Templates are formatted
+with the **`angular` parser**, not the default `html` one, which does not understand
+`@if` / `@for` and would flatten their bodies to column zero. `htmlWhitespaceSensitivity`
+is `"css"` so inline elements keep their significant whitespace; that is what produces
+the occasional hanging `>` where a `<code>` or `<a>` has to wrap.
 
 **The encapsulation gotcha worth knowing:** global print rules and anything styling the
 app chrome must go in `src/styles.css`. The topbar, footer and toasts are rendered by the
@@ -267,13 +289,13 @@ does not carry and never matches.
 
 Small, fast, and always opt-out-able.
 
-| Effect | Detail |
-|---|---|
-| Route transition | View Transitions API via `withViewTransitions()`; a 6px rise + fade, degrading to an instant swap where unsupported |
-| Scroll reveal | `.reveal` → `.reveal--visible`, 0.55s, `cubic-bezier(0.16, 1, 0.3, 1)`, with a per-element `--reveal-delay` for staggering |
-| Buttons | 0.15s brightness, 0.05s press translate |
-| Tooltip | 0.12s fade-in |
-| Lesson entry | `fade-in` on `.lesson` |
+| Effect           | Detail                                                                                                                     |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Route transition | View Transitions API via `withViewTransitions()`; a 6px rise + fade, degrading to an instant swap where unsupported        |
+| Scroll reveal    | `.reveal` → `.reveal--visible`, 0.55s, `cubic-bezier(0.16, 1, 0.3, 1)`, with a per-element `--reveal-delay` for staggering |
+| Buttons          | 0.15s brightness, 0.05s press translate                                                                                    |
+| Tooltip          | 0.12s fade-in                                                                                                              |
+| Lesson entry     | `fade-in` on `.lesson`                                                                                                     |
 
 All of it is suppressed under `prefers-reduced-motion: reduce`.
 

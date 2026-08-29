@@ -1,9 +1,36 @@
-.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
-     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-     .t td:first-child { width: 150px; white-space: nowrap; }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 150px;
+  white-space: nowrap;
+}
 
-     ol li { margin: 8px 0; }
+ol li {
+  margin: 8px 0;
+}
 
-     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
-     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
-     .qa div { padding: 10px 14px; font-size: .9rem; }
+.qa {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.qa summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+}
+.qa div {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}

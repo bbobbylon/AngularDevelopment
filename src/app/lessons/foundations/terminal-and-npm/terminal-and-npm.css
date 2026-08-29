@@ -1,13 +1,61 @@
-.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
-     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
-     .t td:first-child { width: 150px; white-space: nowrap; }
-     kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; font-size: .8rem; font-family: monospace; background: var(--bg-elevated); }
-     /* Fixed dark panel — text colours must NOT come from theme vars (--text /
+.t {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 150px;
+  white-space: nowrap;
+}
+kbd {
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.8rem;
+  font-family: monospace;
+  background: var(--bg-elevated);
+}
+/* Fixed dark panel — text colours must NOT come from theme vars (--text /
         --text-muted are near-black in light mode and vanish on this background). */
-     .terminal { background: #0a0c12; color: #d4d4e4; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: .82rem; min-height: 120px; }
-     .terminal .prompt { color: var(--green); }
-     .terminal .out { color: #8b93a8; margin: 2px 0 8px; white-space: pre-wrap; }
+.terminal {
+  background: #0a0c12;
+  color: #d4d4e4;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.82rem;
+  min-height: 120px;
+}
+.terminal .prompt {
+  color: var(--green);
+}
+.terminal .out {
+  color: #8b93a8;
+  margin: 2px 0 8px;
+  white-space: pre-wrap;
+}
 
-     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
-     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
-     .qa div { padding: 10px 14px; font-size: .9rem; }
+.qa {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.qa summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+}
+.qa div {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}

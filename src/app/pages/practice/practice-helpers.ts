@@ -30,7 +30,7 @@ export function shuffleOptions(options: string[], correctAnswerIndex: number): S
   }
 
   // Reorder options based on shuffled indices
-  const shuffled = indices.map(i => options[i]);
+  const shuffled = indices.map((i) => options[i]);
 
   // Find where the correct answer ended up
   const newCorrectIndex = indices.indexOf(correctAnswerIndex);

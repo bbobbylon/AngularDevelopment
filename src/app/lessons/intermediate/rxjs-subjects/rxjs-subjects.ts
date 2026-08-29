@@ -1,12 +1,6 @@
 import { Component, OnDestroy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import {
-  AsyncSubject,
-  BehaviorSubject,
-  ReplaySubject,
-  Subject,
-  Subscription,
-} from 'rxjs';
+import { AsyncSubject, BehaviorSubject, ReplaySubject, Subject, Subscription } from 'rxjs';
 
 /**
  * Lesson: Subjects — observables you can also push into.
@@ -181,7 +175,9 @@ export class RxjsSubjects implements OnDestroy {
   protected subscribeLate() {
     this.lateJoined2.set(true);
     this.flavorSubs.add(this.subjectF.subscribe((v) => this.lateSubject.update((a) => [...a, v])));
-    this.flavorSubs.add(this.behaviorF.subscribe((v) => this.lateBehavior.update((a) => [...a, v])));
+    this.flavorSubs.add(
+      this.behaviorF.subscribe((v) => this.lateBehavior.update((a) => [...a, v])),
+    );
     this.flavorSubs.add(this.replayF.subscribe((v) => this.lateReplay.update((a) => [...a, v])));
     this.flavorSubs.add(this.asyncF.subscribe((v) => this.lateAsync.update((a) => [...a, v])));
   }

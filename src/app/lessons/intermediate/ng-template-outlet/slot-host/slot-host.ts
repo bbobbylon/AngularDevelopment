@@ -18,5 +18,5 @@ export class SlotHost {
   /**
    * The context object the template's `let-` variables destructure.
    */
-  ctx      = input<Record<string, unknown>>({});
+  ctx = input<Record<string, unknown>>({});
 }

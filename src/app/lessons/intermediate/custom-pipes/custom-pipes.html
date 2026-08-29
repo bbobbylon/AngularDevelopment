@@ -1,15 +1,16 @@
-    <article class="lesson">
-      <span class="lesson__eyebrow">Intermediate · Pipes &amp; Directives</span>
-      <h1>Custom Pipes</h1>
-      <p class="lead">
-        A pipe transforms a value for display — formatting, filtering, mapping — without
-        touching the component class. Decorate a class with <code>&#64;Pipe</code>,
-        implement <code>transform()</code>, add it to a component's <code>imports</code>,
-        and use the <code>|</code> operator in the template.
-      </p>
+<article class="lesson">
+  <span class="lesson__eyebrow">Intermediate · Pipes &amp; Directives</span>
+  <h1>Custom Pipes</h1>
+  <p class="lead">
+    A pipe transforms a value for display — formatting, filtering, mapping — without touching the component class.
+    Decorate a class with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's
+    <code>imports</code>, and use the <code>|</code> operator in the template.
+  </p>
 
-      <h2>Anatomy</h2>
-      <div class="code"><pre>&#64;Pipe(&#123; name: 'truncate', standalone: true &#125;)   // pure by default
+  <h2>Anatomy</h2>
+  <div class="code">
+    <pre>
+&#64;Pipe(&#123; name: 'truncate', standalone: true &#125;)   // pure by default
 export class TruncatePipe implements PipeTransform &#123;
   transform(value: string, limit = 20, trail = '…'): string &#123;
     return value.length > limit
@@ -22,43 +23,60 @@ export class TruncatePipe implements PipeTransform &#123;
 imports: [TruncatePipe]
 
 // Template — extra args follow the colon:
-{{ '{{' }} title | truncate:40:'...' {{ '}}' }}</pre></div>
+{{ '{{' }} title | truncate:40:'...' {{ '}}' }}</pre>
+  </div>
 
-      <h2>Demo 1 — truncate (pure)</h2>
-      <div class="demo">
-        <p class="demo__title">Live</p>
-        <label style="font-size:.85rem;color:var(--text-muted)">Limit: {{ limit() }}</label>
-        <input type="range" min="5" max="80"
-          [ngModel]="limit()" (ngModelChange)="limit.set(+$event)"
-          style="width:100%;margin-bottom:12px" />
-        <p><span class="pill">original</span> {{ longText }}</p>
-        <p><span class="pill" style="color:var(--green)">| truncate:{{ limit() }}</span>
-           {{ longText | truncate: limit() }}</p>
-      </div>
+  <h2>Demo 1 — truncate (pure)</h2>
+  <div class="demo">
+    <p class="demo__title">Live</p>
+    <label style="font-size: 0.85rem; color: var(--text-muted)">Limit: {{ limit() }}</label>
+    <input
+      aria-label="Limit"
+      type="range"
+      min="5"
+      max="80"
+      [ngModel]="limit()"
+      (ngModelChange)="limit.set(+$event)"
+      style="width: 100%; margin-bottom: 12px"
+    />
+    <p><span class="pill">original</span> {{ longText }}</p>
+    <p>
+      <span class="pill" style="color: var(--green)">| truncate:{{ limit() }}</span> {{ longText | truncate: limit() }}
+    </p>
+  </div>
 
-      <h2>Demo 2 — sentenceCase (pure)</h2>
-      <div class="code"><pre>&#64;Pipe(&#123; name: 'sentenceCase', standalone: true &#125;)
+  <h2>Demo 2 — sentenceCase (pure)</h2>
+  <div class="code">
+    <pre>
+&#64;Pipe(&#123; name: 'sentenceCase', standalone: true &#125;)
 export class SentenceCasePipe implements PipeTransform &#123;
   transform(value: string): string &#123;
     return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
   &#125;
-&#125;</pre></div>
-      <div class="demo">
-        <p class="demo__title">Live</p>
-        <input [(ngModel)]="rawText" placeholder="Type in any case…" style="width:100%;margin-bottom:10px" />
-        <p>
-          <span class="pill" style="color:var(--green)">| sentenceCase</span>
-          {{ rawText() | sentenceCase }}
-        </p>
-      </div>
+&#125;</pre>
+  </div>
+  <div class="demo">
+    <p class="demo__title">Live</p>
+    <input
+      aria-label="Type in any case"
+      [(ngModel)]="rawText"
+      placeholder="Type in any case…"
+      style="width: 100%; margin-bottom: 10px"
+    />
+    <p>
+      <span class="pill" style="color: var(--green)">| sentenceCase</span>
+      {{ rawText() | sentenceCase }}
+    </p>
+  </div>
 
-      <h2>Demo 3 — filterBy (generic array filter)</h2>
-      <p>
-        A generic filter pipe takes an array, a field name, and a query string. This is
-        the same pattern as the <code>FilterLessonsPipe</code> powering the home-page
-        search in this app.
-      </p>
-      <div class="code"><pre>&#64;Pipe(&#123; name: 'filterBy', standalone: true &#125;)
+  <h2>Demo 3 — filterBy (generic array filter)</h2>
+  <p>
+    A generic filter pipe takes an array, a field name, and a query string. This is the same pattern as the
+    <code>FilterLessonsPipe</code> powering the home-page search in this app.
+  </p>
+  <div class="code">
+    <pre>
+&#64;Pipe(&#123; name: 'filterBy', standalone: true &#125;)
 export class FilterByPipe implements PipeTransform &#123;
   transform&lt;T extends Record&lt;string, unknown&gt;&gt;(
     items: T[], field: keyof T, query: string
@@ -70,28 +88,35 @@ export class FilterByPipe implements PipeTransform &#123;
 &#125;
 
 // Template:
-&#64;for (f of fruits | filterBy:'name':query(); track f.name) &#123; … &#125;</pre></div>
-      <div class="demo">
-        <p class="demo__title">Live</p>
-        <input [(ngModel)]="fruitQuery" placeholder="Filter fruits…" style="width:100%;margin-bottom:10px" />
-        <div class="row" style="flex-wrap:wrap;gap:8px">
-          @for (f of fruits | filterBy:'name':fruitQuery(); track f['name']) {
-            <span class="pill" [style.border-color]="f['color']" [style.color]="f['color']">
-              {{ f['name'] }}
-            </span>
-          } @empty {
-            <span style="color:var(--text-muted);font-size:.85rem">No fruits match.</span>
-          }
-        </div>
-      </div>
+&#64;for (f of fruits | filterBy:'name':query(); track f.name) &#123; … &#125;</pre>
+  </div>
+  <div class="demo">
+    <p class="demo__title">Live</p>
+    <input
+      aria-label="Filter fruits"
+      [(ngModel)]="fruitQuery"
+      placeholder="Filter fruits…"
+      style="width: 100%; margin-bottom: 10px"
+    />
+    <div class="row" style="flex-wrap: wrap; gap: 8px">
+      @for (f of fruits | filterBy: 'name' : fruitQuery(); track f['name']) {
+        <span class="pill" [style.border-color]="f['color']" [style.color]="f['color']">
+          {{ f['name'] }}
+        </span>
+      } @empty {
+        <span style="color: var(--text-muted); font-size: 0.85rem">No fruits match.</span>
+      }
+    </div>
+  </div>
 
-      <h2>Demo 4 — relativeTime (pipe that injects a service)</h2>
-      <p>
-        Pipes run in an injection context — <code>inject()</code> works inside them just
-        like in components. Here <code>RelativeTimePipe</code> injects Angular's built-in
-        <code>DatePipe</code> as a fallback formatter.
-      </p>
-      <div class="code"><pre>&#64;Pipe(&#123; name: 'relativeTime', standalone: true &#125;)
+  <h2>Demo 4 — relativeTime (pipe that injects a service)</h2>
+  <p>
+    Pipes run in an injection context — <code>inject()</code> works inside them just like in components. Here
+    <code>RelativeTimePipe</code> injects Angular's built-in <code>DatePipe</code> as a fallback formatter.
+  </p>
+  <div class="code">
+    <pre>
+&#64;Pipe(&#123; name: 'relativeTime', standalone: true &#125;)
 export class RelativeTimePipe implements PipeTransform &#123;
   private readonly datePipe = inject(DatePipe);   // ← inject inside a pipe
 
@@ -103,28 +128,30 @@ export class RelativeTimePipe implements PipeTransform &#123;
   &#125;
 &#125;
 
-// Add DatePipe to the component's providers array.</pre></div>
+// Add DatePipe to the component's providers array.</pre>
+  </div>
 
-
-      <div class="demo">
-        <p class="demo__title">Live</p>
-        @for (post of posts; track post.id) {
-          <div class="post-row">
-            <span>{{ post.title }}</span>
-            <span class="pill" style="color:var(--text-muted);white-space:nowrap">
-              {{ post.date | relativeTime }}
-            </span>
-          </div>
-        }
+  <div class="demo">
+    <p class="demo__title">Live</p>
+    @for (post of posts; track post.id) {
+      <div class="post-row">
+        <span>{{ post.title }}</span>
+        <span class="pill" style="color: var(--text-muted); white-space: nowrap">
+          {{ post.date | relativeTime }}
+        </span>
       </div>
+    }
+  </div>
 
-      <h2>Demo 5 — highlight (impure, pure: false)</h2>
-      <p>
-        An impure pipe (<code>pure: false</code>) re-runs on <em>every</em>
-        change-detection pass. Use it sparingly — only when you need to react to
-        mutations inside an existing object or array reference.
-      </p>
-      <div class="code"><pre>&#64;Pipe(&#123; name: 'highlight', standalone: true, pure: false &#125;)
+  <h2>Demo 5 — highlight (impure, pure: false)</h2>
+  <p>
+    An impure pipe (<code>pure: false</code>) re-runs on <em>every</em>
+    change-detection pass. Use it sparingly — only when you need to react to mutations inside an existing object or
+    array reference.
+  </p>
+  <div class="code">
+    <pre>
+&#64;Pipe(&#123; name: 'highlight', standalone: true, pure: false &#125;)
 export class HighlightPipe implements PipeTransform &#123;
   transform(value: string, term: string): string &#123;
     if (!term) return value;
@@ -133,50 +160,82 @@ export class HighlightPipe implements PipeTransform &#123;
 &#125;
 
 // Template: bind innerHTML because the pipe returns HTML
-&lt;p [innerHTML]="sentence | highlight: term()"&gt;&lt;/p&gt;</pre></div>
-      <div class="demo">
-        <p class="demo__title">Live</p>
-        <input [(ngModel)]="highlightQuery" placeholder="Term to highlight…" style="width:100%;margin-bottom:10px" />
-        @for (item of highlightItems; track item) {
-          <p style="margin:4px 0" [innerHTML]="item | highlight: highlightQuery()"></p>
-        }
-      </div>
+&lt;p [innerHTML]="sentence | highlight: term()"&gt;&lt;/p&gt;</pre>
+  </div>
+  <div class="demo">
+    <p class="demo__title">Live</p>
+    <input
+      aria-label="Term to highlight"
+      [(ngModel)]="highlightQuery"
+      placeholder="Term to highlight…"
+      style="width: 100%; margin-bottom: 10px"
+    />
+    @for (item of highlightItems; track item) {
+      <p style="margin: 4px 0" [innerHTML]="item | highlight: highlightQuery()"></p>
+    }
+  </div>
 
-      <h2>Pure vs impure — quick reference</h2>
-      <table class="t">
-        <thead>
-          <tr><th>Property</th><th>Pure (default)</th><th>Impure (<code>pure: false</code>)</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Re-runs when</td><td>Input <em>reference</em> changes</td><td>Every change-detection pass</td></tr>
-          <tr><td>Memoized by Angular</td><td>Yes</td><td>No</td></tr>
-          <tr><td>Performance</td><td>Fast</td><td>Can be slow — use sparingly</td></tr>
-          <tr><td>Best for</td><td>Formatting, filtering by value, mapping</td><td>Reactive mutations inside existing refs</td></tr>
-          <tr><td>Alternatives</td><td>—</td><td><code>computed()</code> reacts to mutations too and is faster</td></tr>
-        </tbody>
-      </table>
+  <h2>Pure vs impure — quick reference</h2>
+  <table class="t">
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th>Pure (default)</th>
+        <th>Impure (<code>pure: false</code>)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Re-runs when</td>
+        <td>Input <em>reference</em> changes</td>
+        <td>Every change-detection pass</td>
+      </tr>
+      <tr>
+        <td>Memoized by Angular</td>
+        <td>Yes</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>Performance</td>
+        <td>Fast</td>
+        <td>Can be slow — use sparingly</td>
+      </tr>
+      <tr>
+        <td>Best for</td>
+        <td>Formatting, filtering by value, mapping</td>
+        <td>Reactive mutations inside existing refs</td>
+      </tr>
+      <tr>
+        <td>Alternatives</td>
+        <td>—</td>
+        <td><code>computed()</code> reacts to mutations too and is faster</td>
+      </tr>
+    </tbody>
+  </table>
 
-      <div class="warn">
-        Before reaching for an impure pipe to filter a mutable array, try a
-        <code>computed()</code> signal — it only re-runs when its dependencies change,
-        not on every CD pass.
-      </div>
-      <div class="note">
-        Pipes are standalone tree-shakable classes. Chain them freely:
-        <code>{{ '{{' }} value | truncate:30 | sentenceCase {{ '}}' }}</code>. A pipe instance
-        is <strong>reused</strong> — keep <code>transform()</code> free of hidden mutable
-        state. All extra template arguments land in <code>transform(value, ...args)</code>
-        in order.
-      </div>
+  <div class="warn">
+    Before reaching for an impure pipe to filter a mutable array, try a
+    <code>computed()</code> signal — it only re-runs when its dependencies change, not on every CD pass.
+  </div>
+  <div class="note">
+    Pipes are standalone tree-shakable classes. Chain them freely:
+    <code>{{ '{{' }} value | truncate:30 | sentenceCase {{ '}}' }}</code>. A pipe instance is <strong>reused</strong> —
+    keep <code>transform()</code> free of hidden mutable state. All extra template arguments land in
+    <code>transform(value, ...args)</code>
+    in order.
+  </div>
 
-      <h2>Key takeaways</h2>
-      <ul>
-        <li><code>&#64;Pipe(&#123; name, standalone: true &#125;)</code> + <code>transform(value, ...args)</code> is all you need.</li>
-        <li>Pure pipes are memoized — they only re-run when the input reference changes.</li>
-        <li>Pipes can <code>inject()</code> services: <code>DatePipe</code>, <code>HttpClient</code>, I18n services…</li>
-        <li>For filtering reactive state, prefer <code>computed()</code> over impure pipes.</li>
-        <li>Standalone pipes live in a component's <code>imports</code> array — no NgModule needed.</li>
-      </ul>
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>
+      <code>&#64;Pipe(&#123; name, standalone: true &#125;)</code> + <code>transform(value, ...args)</code> is all you
+      need.
+    </li>
+    <li>Pure pipes are memoized — they only re-run when the input reference changes.</li>
+    <li>Pipes can <code>inject()</code> services: <code>DatePipe</code>, <code>HttpClient</code>, I18n services…</li>
+    <li>For filtering reactive state, prefer <code>computed()</code> over impure pipes.</li>
+    <li>Standalone pipes live in a component's <code>imports</code> array — no NgModule needed.</li>
+  </ul>
 
-      <p><a routerLink="/attribute-directives">Next: Custom Attribute Directives →</a></p>
-    </article>
+  <p><a routerLink="/attribute-directives">Next: Custom Attribute Directives →</a></p>
+</article>

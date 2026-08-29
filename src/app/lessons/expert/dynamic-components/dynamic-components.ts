@@ -1,5 +1,13 @@
 import { NgComponentOutlet } from '@angular/common';
-import { Component, ComponentRef, OnDestroy, Type, ViewChild, ViewContainerRef, signal } from '@angular/core';
+import {
+  Component,
+  ComponentRef,
+  OnDestroy,
+  Type,
+  ViewChild,
+  ViewContainerRef,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { InfoPanel } from './info-panel/info-panel';
 import { WarningPanel } from './warning-panel/warning-panel';
@@ -106,7 +114,10 @@ export class DynamicComponents implements OnDestroy {
       return;
     }
     this.updateCount++;
-    this.imperativeRef.setInput('message', `updated ${this.updateCount} time${this.updateCount === 1 ? '' : 's'}`);
+    this.imperativeRef.setInput(
+      'message',
+      `updated ${this.updateCount} time${this.updateCount === 1 ? '' : 's'}`,
+    );
     this.imperativeStatus.set(`updated (${this.updateCount}×)`);
   }
 

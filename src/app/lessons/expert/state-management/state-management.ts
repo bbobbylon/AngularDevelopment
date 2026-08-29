@@ -63,9 +63,7 @@ class TodoStore {
    */
   readonly filtered = computed(() => {
     const f = this._filter();
-    return this._todos().filter((t) =>
-      f === 'active' ? !t.done : f === 'done' ? t.done : true,
-    );
+    return this._todos().filter((t) => (f === 'active' ? !t.done : f === 'done' ? t.done : true));
   });
   /**
    * How many todos are outstanding.

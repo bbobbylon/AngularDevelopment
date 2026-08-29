@@ -1,7 +1,7 @@
 <div class="gc">
   <span class="gc__avatar">{{ initial() }}</span>
-  <p class="gc__msg">Hello, <strong>{{ name() }}</strong> 👋</p>
-  <button class="gc__bump" (click)="claps.set(claps() + 1)">
-    👏 {{ claps() }}
-  </button>
+  <p class="gc__msg">
+    Hello, <strong>{{ name() }}</strong> 👋
+  </p>
+  <button class="gc__bump" (click)="claps.set(claps() + 1)">👏 {{ claps() }}</button>
 </div>

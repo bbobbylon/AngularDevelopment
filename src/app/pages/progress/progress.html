@@ -2,48 +2,85 @@
   <span class="pill">Your Journey</span>
   <h1>Progress Dashboard</h1>
   <p>
-    Everything you have studied, answered, drilled and built — in one place.
-    Each section links to the tool that owns it.
+    Everything you have studied, answered, drilled and built — in one place. Each section links to the tool that owns
+    it.
   </p>
-  <button class="ghost-btn" style="margin-top:14px" (click)="exportReport()">⬇ Export Full Report</button>
+  <button class="ghost-btn" style="margin-top: 14px" (click)="exportReport()">⬇ Export Full Report</button>
 </div>
 
 <div class="score-panel">
-  <svg class="ring" viewBox="0 0 120 120" role="img" [attr.aria-label]="'Readiness score ' + readinessScore() + ' percent'">
+  <svg
+    class="ring"
+    viewBox="0 0 120 120"
+    role="img"
+    [attr.aria-label]="'Readiness score ' + readinessScore() + ' percent'"
+  >
     <circle class="ring-track" cx="60" cy="60" r="52" />
-    <circle class="ring-fill" cx="60" cy="60" r="52"
+    <circle
+      class="ring-fill"
+      cx="60"
+      cy="60"
+      r="52"
       [style.strokeDasharray]="ringCircumference"
-      [style.strokeDashoffset]="ringOffset()" />
+      [style.strokeDashoffset]="ringOffset()"
+    />
     <text x="60" y="56" class="ring-num">{{ readinessScore() }}</text>
     <text x="60" y="74" class="ring-sub">/ 100</text>
   </svg>
   <div class="score-info">
     <h2 class="score-grade">{{ readinessGrade() }}</h2>
     <p class="score-note">
-      A weighted blend of lesson coverage, practice coverage &amp; accuracy,
-      best mock-exam score, coding tasks and review-queue mastery — only
-      areas you have touched count, so it never punishes an untried tool.
+      A weighted blend of lesson coverage, practice coverage &amp; accuracy, best mock-exam score, coding tasks and
+      review-queue mastery — only areas you have touched count, so it never punishes an untried tool.
     </p>
     <div class="insight-row">
-      <div class="insight"><strong>{{ totalAnswered() }}</strong><span>total questions faced</span></div>
-      <div class="insight"><strong>{{ examPassRate() }}%</strong><span>exam pass rate</span></div>
-      <div class="insight"><strong>{{ reviewMastered() }}</strong><span>mastered via review</span></div>
+      <div class="insight">
+        <strong>{{ totalAnswered() }}</strong
+        ><span>total questions faced</span>
+      </div>
+      <div class="insight">
+        <strong>{{ examPassRate() }}%</strong><span>exam pass rate</span>
+      </div>
+      <div class="insight">
+        <strong>{{ reviewMastered() }}</strong
+        ><span>mastered via review</span>
+      </div>
       @if (strongestCategory(); as strongest) {
-        <div class="insight good"><strong>{{ strongest.label }}</strong><span>strongest · {{ strongest.percent }}%</span></div>
+        <div class="insight good">
+          <strong>{{ strongest.label }}</strong
+          ><span>strongest · {{ strongest.percent }}%</span>
+        </div>
       }
       @if (weakestCategory(); as weakest) {
-        <div class="insight bad"><strong>{{ weakest.label }}</strong><span>focus here · {{ weakest.percent }}%</span></div>
+        <div class="insight bad">
+          <strong>{{ weakest.label }}</strong
+          ><span>focus here · {{ weakest.percent }}%</span>
+        </div>
       }
     </div>
   </div>
 </div>
 
 <div class="stats-row">
-  <div class="stat-box accent"><strong>{{ practiceAnswered() }}</strong><span>challenges answered</span></div>
-  <div class="stat-box" [class.good]="practiceAccuracy() >= 70"><strong>{{ practiceAccuracy() }}%</strong><span>practice accuracy</span></div>
-  <div class="stat-box" [class.good]="bestExam() >= 70"><strong>{{ examAttempts().length === 0 ? '—' : bestExam() + '%' }}</strong><span>best mock exam</span></div>
-  <div class="stat-box" [class.warn]="reviewDue() > 0"><strong>{{ reviewDue() }}</strong><span>reviews due</span></div>
-  <div class="stat-box"><strong>{{ tasksDone() }}/{{ tasksTotal }}</strong><span>coding tasks</span></div>
+  <div class="stat-box accent">
+    <strong>{{ practiceAnswered() }}</strong
+    ><span>challenges answered</span>
+  </div>
+  <div class="stat-box" [class.good]="practiceAccuracy() >= 70">
+    <strong>{{ practiceAccuracy() }}%</strong><span>practice accuracy</span>
+  </div>
+  <div class="stat-box" [class.good]="bestExam() >= 70">
+    <strong>{{ examAttempts().length === 0 ? '—' : bestExam() + '%' }}</strong
+    ><span>best mock exam</span>
+  </div>
+  <div class="stat-box" [class.warn]="reviewDue() > 0">
+    <strong>{{ reviewDue() }}</strong
+    ><span>reviews due</span>
+  </div>
+  <div class="stat-box">
+    <strong>{{ tasksDone() }}/{{ tasksTotal }}</strong
+    ><span>coding tasks</span>
+  </div>
   <div class="stat-box" [class.good]="streak.current() > 0">
     <strong>🔥 {{ streak.current() }}</strong>
     <span>day streak (best {{ streak.longest() }})</span>
@@ -54,7 +91,9 @@
   <div class="panel">
     <h2>📖 Lessons</h2>
     <p class="sub">Curriculum pages opened at least once.</p>
-    <div class="bar-label"><span>{{ lessonsVisited() }} of {{ lessonsBuilt }} visited</span><span>{{ lessonsPercent() }}%</span></div>
+    <div class="bar-label">
+      <span>{{ lessonsVisited() }} of {{ lessonsBuilt }} visited</span><span>{{ lessonsPercent() }}%</span>
+    </div>
     <div class="bar-outer"><div class="bar-inner" [style.width]="lessonsPercent() + '%'"></div></div>
     <a routerLink="/" class="go-link">Browse the curriculum →</a>
   </div>
@@ -62,10 +101,18 @@
   <div class="panel">
     <h2>🔁 Review Queue</h2>
     <p class="sub">Spaced repetition over everything you have missed.</p>
-    <div class="metric-line"><span>Due now</span><strong [class.bad]="reviewDue() > 0">{{ reviewDue() }}</strong></div>
-    <div class="metric-line"><span>In the queue</span><strong>{{ reviewQueueSize() }}</strong></div>
-    <div class="metric-line"><span>Mastered</span><strong class="good">{{ reviewMastered() }}</strong></div>
-    <a routerLink="/review" class="go-link">{{ reviewDue() > 0 ? 'Clear what is due →' : 'Open the review queue →' }}</a>
+    <div class="metric-line">
+      <span>Due now</span><strong [class.bad]="reviewDue() > 0">{{ reviewDue() }}</strong>
+    </div>
+    <div class="metric-line">
+      <span>In the queue</span><strong>{{ reviewQueueSize() }}</strong>
+    </div>
+    <div class="metric-line">
+      <span>Mastered</span><strong class="good">{{ reviewMastered() }}</strong>
+    </div>
+    <a routerLink="/review" class="go-link">{{
+      reviewDue() > 0 ? 'Clear what is due →' : 'Open the review queue →'
+    }}</a>
   </div>
 
   <div class="panel">
@@ -92,7 +139,9 @@
   <div class="panel">
     <h2>🛠️ Coding Tasks</h2>
     <p class="sub">Practical-exam build briefs completed.</p>
-    <div class="bar-label"><span>{{ tasksDone() }} of {{ tasksTotal }} completed</span><span>{{ tasksPercent() }}%</span></div>
+    <div class="bar-label">
+      <span>{{ tasksDone() }} of {{ tasksTotal }} completed</span><span>{{ tasksPercent() }}%</span>
+    </div>
     <div class="bar-outer"><div class="bar-inner green" [style.width]="tasksPercent() + '%'"></div></div>
     <a routerLink="/coding-tasks" class="go-link">Take on a build task →</a>
   </div>
@@ -100,18 +149,21 @@
   <div class="panel wide">
     <h2>⚡ Practice Challenges</h2>
     <p class="sub">
-      {{ practiceAnswered() }} of {{ challengeTotal }} answered ·
-      {{ practiceCorrect() }} correct ({{ practiceAccuracy() }}%)
+      {{ practiceAnswered() }} of {{ challengeTotal }} answered · {{ practiceCorrect() }} correct ({{
+        practiceAccuracy()
+      }}%)
     </p>
-    <div class="bar-label"><span>Bank coverage</span><span>{{ practiceCoverage() }}%</span></div>
+    <div class="bar-label">
+      <span>Bank coverage</span><span>{{ practiceCoverage() }}%</span>
+    </div>
     <div class="bar-outer"><div class="bar-inner" [style.width]="practiceCoverage() + '%'"></div></div>
 
     @if (categoryStats().length > 0) {
-      <p class="sub" style="margin-top:16px">Accuracy by category (answered questions only):</p>
+      <p class="sub" style="margin-top: 16px">Accuracy by category (answered questions only):</p>
       @for (cat of categoryStats(); track cat.id) {
         <div class="cat-row">
           <span class="name">{{ cat.label }}</span>
-          <div class="bar-outer" style="margin:0">
+          <div class="bar-outer" style="margin: 0">
             <div class="bar-inner" [class.green]="cat.percent >= 70" [style.width]="cat.percent + '%'"></div>
           </div>
           <span class="pct" [class.weak]="cat.percent < 70">{{ cat.percent }}% ({{ cat.total }})</span>
@@ -129,9 +181,8 @@
       <p class="empty">No mock exams taken yet. A timed run is the closest thing to the real exam.</p>
     } @else {
       <p class="sub">
-        {{ examAttempts().length }} attempt{{ examAttempts().length === 1 ? '' : 's' }} ·
-        best {{ bestExam() }}% · average {{ avgExam() }}% ·
-        {{ passCount() }} passed
+        {{ examAttempts().length }} attempt{{ examAttempts().length === 1 ? '' : 's' }} · best {{ bestExam() }}% ·
+        average {{ avgExam() }}% · {{ passCount() }} passed
       </p>
 
       @for (attempt of recentAttempts(); track attempt.when) {
@@ -145,7 +196,7 @@
       }
 
       @if (weakCategories().length > 0) {
-        <p class="sub" style="margin-top:14px">
+        <p class="sub" style="margin-top: 14px">
           Weak areas across attempts (&lt;{{ weakThreshold }}% on {{ weakMinSample }}+ questions):
         </p>
         <div class="weak-chips">

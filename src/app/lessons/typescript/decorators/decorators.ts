@@ -1,7 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-
 // ---- Live demo 1: evaluation vs application order ------------------------
 // Factories run top-down as expressions; the decorators they return apply
 // bottom-up. This log is filled at module load, when the class is defined.

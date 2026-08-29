@@ -4,7 +4,6 @@ import { Beacon } from './di-advanced.shared';
 import { DiChildOwn } from './di-child-own/di-child-own';
 import { DiChildBare } from './di-child-bare/di-child-bare';
 
-
 /** A multi-provider token — many providers contribute to one array. */
 const FEATURE = new InjectionToken<string>('FEATURE');
 

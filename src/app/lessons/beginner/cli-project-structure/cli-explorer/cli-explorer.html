@@ -2,10 +2,7 @@
   <ul class="cli-tree">
     @for (f of files; track f.path) {
       <li>
-        <button
-          class="cli-row"
-          [class.active]="selected().path === f.path"
-          (click)="selected.set(f)">
+        <button class="cli-row" [class.active]="selected().path === f.path" (click)="selected.set(f)">
           {{ f.label }}
         </button>
       </li>

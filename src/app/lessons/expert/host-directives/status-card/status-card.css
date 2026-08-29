@@ -1,2 +1,8 @@
-:host { display: block; }
-.card { padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; }
+:host {
+  display: block;
+}
+.card {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}

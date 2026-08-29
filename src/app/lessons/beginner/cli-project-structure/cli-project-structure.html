@@ -2,37 +2,54 @@
   <span class="lesson__eyebrow">Beginner · Getting Started</span>
   <h1>CLI &amp; Project Structure</h1>
   <p class="lead">
-    The Angular CLI (<code>ng</code>) is the one tool that scaffolds, builds, serves,
-    tests and upgrades your app. It matters because it makes every Angular project look
-    the same: learn one layout and you can navigate any codebase. This lesson explains
-    not just <em>which</em> commands to run but <em>what each generated file is for</em>,
-    how the build is configured, and how upgrades stay painless.
+    The Angular CLI (<code>ng</code>) is the one tool that scaffolds, builds, serves, tests and upgrades your app. It
+    matters because it makes every Angular project look the same: learn one layout and you can navigate any codebase.
+    This lesson explains not just <em>which</em> commands to run but <em>what each generated file is for</em>, how the
+    build is configured, and how upgrades stay painless.
   </p>
 
   <h2>Why a CLI at all?</h2>
   <p>
-    Modern front-end apps need a compiler (TypeScript → JS), a bundler, a dev server,
-    a test runner, and a way to keep all of them on compatible versions. The CLI bundles
-    that entire toolchain behind a handful of commands, so you configure almost nothing.
-    The alternative — wiring webpack/esbuild, Karma/Vitest and tsconfig by hand — is exactly
+    Modern front-end apps need a compiler (TypeScript → JS), a bundler, a dev server, a test runner, and a way to keep
+    all of them on compatible versions. The CLI bundles that entire toolchain behind a handful of commands, so you
+    configure almost nothing. The alternative — wiring webpack/esbuild, Karma/Vitest and tsconfig by hand — is exactly
     the "glue work" Angular is designed to remove.
   </p>
 
   <h2>Core commands</h2>
-  <div class="code"><pre>{{ commandsSample }}</pre></div>
+  <div class="code">
+    <pre>{{ commandsSample }}</pre>
+  </div>
   <ul>
-    <li><code>ng new</code> — scaffolds a workspace: installs deps, sets up Git, TypeScript, testing and a runnable app.</li>
-    <li><code>ng serve</code> — compiles in memory and serves at <code>localhost:4200</code> with live reload; it never writes to <code>dist/</code>.</li>
-    <li><code>ng build</code> — produces an optimized bundle in <code>dist/</code> for deployment (minified, tree-shaken, hashed filenames).</li>
-    <li><code>ng generate</code> (<code>ng g</code>) — runs a <strong>schematic</strong>: a code generator that creates files <em>and</em> wires them up correctly.</li>
-    <li><code>ng update</code> — upgrades Angular packages and runs migrations that rewrite your code for breaking changes.</li>
-    <li><code>ng add</code> — installs a library <em>and</em> runs its setup schematic (e.g. Angular Material configures theming for you).</li>
+    <li>
+      <code>ng new</code> — scaffolds a workspace: installs deps, sets up Git, TypeScript, testing and a runnable app.
+    </li>
+    <li>
+      <code>ng serve</code> — compiles in memory and serves at <code>localhost:4200</code> with live reload; it never
+      writes to <code>dist/</code>.
+    </li>
+    <li>
+      <code>ng build</code> — produces an optimized bundle in <code>dist/</code> for deployment (minified, tree-shaken,
+      hashed filenames).
+    </li>
+    <li>
+      <code>ng generate</code> (<code>ng g</code>) — runs a <strong>schematic</strong>: a code generator that creates
+      files <em>and</em> wires them up correctly.
+    </li>
+    <li>
+      <code>ng update</code> — upgrades Angular packages and runs migrations that rewrite your code for breaking
+      changes.
+    </li>
+    <li>
+      <code>ng add</code> — installs a library <em>and</em> runs its setup schematic (e.g. Angular Material configures
+      theming for you).
+    </li>
   </ul>
 
   <h2>Live — what is each file for?</h2>
   <p>
-    This is the tree <code>ng new my-app</code> produces. Click any file to see the job it
-    does. Notice how few files there are: a modern standalone app has no <code>NgModule</code>
+    This is the tree <code>ng new my-app</code> produces. Click any file to see the job it does. Notice how few files
+    there are: a modern standalone app has no <code>NgModule</code>
     boilerplate to wade through.
   </p>
   <div class="demo">
@@ -42,14 +59,25 @@
 
   <h2>The four files an app boots from</h2>
   <p>Reading these top-to-bottom shows the whole startup path. First, the entry point:</p>
-  <div class="code"><pre>{{ mainSample }}</pre></div>
+  <div class="code">
+    <pre>{{ mainSample }}</pre>
+  </div>
   <ul>
-    <li><code>import {{ '{' }} App {{ '}' }}</code> — the root component class.</li>
-    <li><code>import {{ '{' }} appConfig {{ '}' }}</code> — the providers object from <code>app.config.ts</code>.</li>
-    <li><code>bootstrapApplication(App, appConfig)</code> — mounts <code>App</code> into <code>&lt;app-root&gt;</code> and returns a promise; <code>.catch</code> logs any startup error.</li>
+    <li>
+      <code>import {{ '{' }} App {{ '}' }}</code> — the root component class.
+    </li>
+    <li>
+      <code>import {{ '{' }} appConfig {{ '}' }}</code> — the providers object from <code>app.config.ts</code>.
+    </li>
+    <li>
+      <code>bootstrapApplication(App, appConfig)</code> — mounts <code>App</code> into <code>&lt;app-root&gt;</code> and
+      returns a promise; <code>.catch</code> logs any startup error.
+    </li>
   </ul>
   <p>Next, the providers it hands in:</p>
-  <div class="code"><pre>{{ configSample }}</pre></div>
+  <div class="code">
+    <pre>{{ configSample }}</pre>
+  </div>
   <ul>
     <li><code>ApplicationConfig</code> — a typed object with a <code>providers</code> array.</li>
     <li><code>provideRouter(routes)</code> — enables routing using the table from <code>app.routes.ts</code>.</li>
@@ -57,68 +85,108 @@
     <li>Anything added here is available to <em>every</em> component via dependency injection.</li>
   </ul>
   <p>The route table:</p>
-  <div class="code"><pre>{{ routesSample }}</pre></div>
+  <div class="code">
+    <pre>{{ routesSample }}</pre>
+  </div>
   <ul>
     <li>Each entry maps a <code>path</code> to a component.</li>
-    <li><code>loadComponent: () =&gt; import(...)</code> — <strong>lazy loads</strong> the component: its code ships as a separate chunk downloaded only when the route is visited.</li>
+    <li>
+      <code>loadComponent: () =&gt; import(...)</code> — <strong>lazy loads</strong> the component: its code ships as a
+      separate chunk downloaded only when the route is visited.
+    </li>
     <li>Order matters: the router picks the <em>first</em> match, so put specific paths before wildcards.</li>
   </ul>
   <p>And the root component itself:</p>
-  <div class="code"><pre>{{ appSample }}</pre></div>
+  <div class="code">
+    <pre>{{ appSample }}</pre>
+  </div>
   <ul>
     <li><code>imports: [RouterOutlet]</code> — standalone components list their own template dependencies.</li>
-    <li><code>&lt;router-outlet /&gt;</code> — the placeholder where the router renders the matched route's component.</li>
+    <li>
+      <code>&lt;router-outlet /&gt;</code> — the placeholder where the router renders the matched route's component.
+    </li>
   </ul>
 
   <h2>Generate schematics (and why they beat copy-paste)</h2>
   <p>
-    <code>ng generate</code> doesn't just drop a file — it applies your project's conventions
-    and can update related files. Generating a component gives you a correctly-decorated
-    standalone class and (optionally) its spec, named per the Angular style guide.
+    <code>ng generate</code> doesn't just drop a file — it applies your project's conventions and can update related
+    files. Generating a component gives you a correctly-decorated standalone class and (optionally) its spec, named per
+    the Angular style guide.
   </p>
   <table class="cmp">
-    <tr><th>Command</th><th>Creates</th></tr>
-    <tr><td><code>ng g component x</code></td><td>A standalone component (+ <code>.spec.ts</code>)</td></tr>
-    <tr><td><code>ng g service x</code></td><td>An <code>&#64;Injectable()</code> service</td></tr>
-    <tr><td><code>ng g directive x</code></td><td>An attribute/structural directive</td></tr>
-    <tr><td><code>ng g pipe x</code></td><td>A custom pipe class</td></tr>
-    <tr><td><code>ng g guard x</code></td><td>A functional route guard</td></tr>
-    <tr><td><code>ng g interface x</code> / <code>enum x</code></td><td>Plain TypeScript types</td></tr>
+    <tr>
+      <th>Command</th>
+      <th>Creates</th>
+    </tr>
+    <tr>
+      <td><code>ng g component x</code></td>
+      <td>A standalone component (+ <code>.spec.ts</code>)</td>
+    </tr>
+    <tr>
+      <td><code>ng g service x</code></td>
+      <td>An <code>&#64;Injectable()</code> service</td>
+    </tr>
+    <tr>
+      <td><code>ng g directive x</code></td>
+      <td>An attribute/structural directive</td>
+    </tr>
+    <tr>
+      <td><code>ng g pipe x</code></td>
+      <td>A custom pipe class</td>
+    </tr>
+    <tr>
+      <td><code>ng g guard x</code></td>
+      <td>A functional route guard</td>
+    </tr>
+    <tr>
+      <td><code>ng g interface x</code> / <code>enum x</code></td>
+      <td>Plain TypeScript types</td>
+    </tr>
   </table>
 
   <h2>Build configurations &amp; budgets</h2>
-  <div class="code"><pre>{{ flagsSample }}</pre></div>
+  <div class="code">
+    <pre>{{ flagsSample }}</pre>
+  </div>
   <p>
-    <code>angular.json</code> defines named <strong>configurations</strong> —
-    <code>production</code> and <code>development</code> — that swap optimization, source maps
-    and file replacements. Production also enforces <strong>budgets</strong>: size ceilings
-    that fail the build if a bundle or a component's CSS grows too large, catching bloat before
-    it ships. The build output lands in <code>dist/</code>; the CLI cache lives in
+    <code>angular.json</code> defines named <strong>configurations</strong> — <code>production</code> and
+    <code>development</code> — that swap optimization, source maps and file replacements. Production also enforces
+    <strong>budgets</strong>: size ceilings that fail the build if a bundle or a component's CSS grows too large,
+    catching bloat before it ships. The build output lands in <code>dist/</code>; the CLI cache lives in
     <code>.angular/cache</code>.
   </p>
 
   <h2>How <code>ng update</code> keeps upgrades boring</h2>
   <p>
     When Angular makes a breaking change, it also ships a <strong>migration schematic</strong>.
-    <code>ng update</code> bumps the versions <em>and</em> runs those migrations against your
-    source — for example, the automated rewrite from <code>*ngIf</code>/<code>*ngFor</code> to
-    the new <code>&#64;if</code>/<code>&#64;for</code> control flow. That's why Angular upgrades
-    are usually a command and a review, not a rewrite.
+    <code>ng update</code> bumps the versions <em>and</em> runs those migrations against your source — for example, the
+    automated rewrite from <code>*ngIf</code>/<code>*ngFor</code> to the new <code>&#64;if</code>/<code>&#64;for</code>
+    control flow. That's why Angular upgrades are usually a command and a review, not a rewrite.
   </p>
 
   <h2>Gotchas that trip people up</h2>
   <div class="qa">
     <details>
       <summary>"ng: command not found" after cloning a project.</summary>
-      <div>Use the <em>local</em> CLI via npm scripts (<code>npm start</code>, <code>npm run build</code>) or <code>npx ng ...</code>. A globally-installed <code>ng</code> can also be a different version than the project's — prefer the local one for consistency.</div>
+      <div>
+        Use the <em>local</em> CLI via npm scripts (<code>npm start</code>, <code>npm run build</code>) or
+        <code>npx ng ...</code>. A globally-installed <code>ng</code> can also be a different version than the project's
+        — prefer the local one for consistency.
+      </div>
     </details>
     <details>
       <summary>"Budget exceeded" build error.</summary>
-      <div>A bundle or component stylesheet crossed the ceiling in <code>angular.json</code>. Either trim it, or raise the budget deliberately — the error is a prompt to decide, not a bug.</div>
+      <div>
+        A bundle or component stylesheet crossed the ceiling in <code>angular.json</code>. Either trim it, or raise the
+        budget deliberately — the error is a prompt to decide, not a bug.
+      </div>
     </details>
     <details>
       <summary>Stale/weird build results.</summary>
-      <div>Clear <code>.angular/cache</code> (or run with <code>--no-cache</code>). Also check your Node version matches the range in <code>package.json</code>'s <code>engines</code>.</div>
+      <div>
+        Clear <code>.angular/cache</code> (or run with <code>--no-cache</code>). Also check your Node version matches
+        the range in <code>package.json</code>'s <code>engines</code>.
+      </div>
     </details>
   </div>
 
@@ -131,9 +199,16 @@
   <h2>Key takeaways</h2>
   <ul>
     <li><code>ng new / serve / build / test / generate / update / add</code> cover the everyday workflow.</li>
-    <li>An app boots <code>main.ts</code> → <code>bootstrapApplication(App, appConfig)</code> → routes render in <code>&lt;router-outlet /&gt;</code>.</li>
-    <li><code>angular.json</code> drives builds (configs + budgets); <code>tsconfig.json</code> drives type-checking.</li>
-    <li>Schematics generate <em>and wire up</em> code; <code>ng update</code> migrations rewrite it across versions.</li>
+    <li>
+      An app boots <code>main.ts</code> → <code>bootstrapApplication(App, appConfig)</code> → routes render in
+      <code>&lt;router-outlet /&gt;</code>.
+    </li>
+    <li>
+      <code>angular.json</code> drives builds (configs + budgets); <code>tsconfig.json</code> drives type-checking.
+    </li>
+    <li>
+      Schematics generate <em>and wire up</em> code; <code>ng update</code> migrations rewrite it across versions.
+    </li>
     <li>Prefer the project-local CLI (<code>npm run …</code> / <code>npx ng</code>) over a global install.</li>
   </ul>
 

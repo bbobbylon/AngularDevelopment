@@ -3,9 +3,8 @@
     <span class="pill">Practical Exam Prep</span>
     <h1>Coding-Task Simulator</h1>
     <p>
-      Timeboxed build briefs in the style of the practical exam. Copy the
-      starter into a scratch project, implement against the requirements,
-      then verify yourself with the checklist and model solution.
+      Timeboxed build briefs in the style of the practical exam. Copy the starter into a scratch project, implement
+      against the requirements, then verify yourself with the checklist and model solution.
     </p>
     <p class="done-line">{{ completedCount() }} / {{ tasks.length }} tasks completed</p>
   </div>
@@ -27,7 +26,7 @@
   </div>
 } @else {
   @if (selected(); as task) {
-    <div class="workspace" style="padding-top:32px">
+    <div class="workspace" style="padding-top: 32px">
       <div class="ws-top">
         <button class="back-btn" (click)="close()">← All tasks</button>
         <span class="badge-diff {{ task.difficulty }}">{{ task.difficulty }}</span>
@@ -52,9 +51,7 @@
         <h3>Requirements — check each one off as you verify it</h3>
         @for (req of task.requirements; track $index) {
           <label class="req" [class.checked]="stateOf(task.id).checks[$index]">
-            <input type="checkbox"
-              [checked]="stateOf(task.id).checks[$index]"
-              (change)="toggleCheck(task, $index)" />
+            <input type="checkbox" [checked]="stateOf(task.id).checks[$index]" (change)="toggleCheck(task, $index)" />
             <span>{{ req }}</span>
           </label>
         }
@@ -78,7 +75,7 @@
       <div class="panel">
         <h3>Model solution</h3>
         @if (!stateOf(task.id).revealed) {
-          <p class="complete-note" style="margin:0 0 10px">
+          <p class="complete-note" style="margin: 0 0 10px">
             Attempt the task before peeking — recall is the whole workout.
           </p>
           <button class="ghost-btn" (click)="reveal(task)">Reveal solution</button>
@@ -97,9 +94,11 @@
         @if (stateOf(task.id).done) {
           <button class="primary-btn done" (click)="setDone(task, false)">✓ Completed — click to undo</button>
         } @else {
-          <button class="primary-btn"
+          <button
+            class="primary-btn"
             [disabled]="checkedCount(task) < task.requirements.length"
-            (click)="setDone(task, true)">
+            (click)="setDone(task, true)"
+          >
             Mark complete
           </button>
           @if (checkedCount(task) < task.requirements.length) {

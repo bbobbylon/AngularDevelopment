@@ -27,7 +27,7 @@ const IMPORT_KINDS: ImportKind[] = [
     label: 'default',
     code: `import Logger from './logger';`,
     explain:
-      'No braces = the default export. YOU choose the local name, which is exactly its weakness: three files can call it Logger, Log and L, and rename-refactoring can\'t connect them. Hence the Angular-world preference for named exports.',
+      "No braces = the default export. YOU choose the local name, which is exactly its weakness: three files can call it Logger, Log and L, and rename-refactoring can't connect them. Hence the Angular-world preference for named exports.",
   },
   {
     label: 'namespace',

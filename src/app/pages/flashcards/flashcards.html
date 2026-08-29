@@ -1,13 +1,11 @@
 @switch (phase()) {
-
   @case ('config') {
     <div class="fc-hero">
       <span class="pill">Active Recall</span>
       <h1>Flashcard Drills</h1>
       <p>
-        Answer from memory before you flip — no options to lean on. Cards you
-        miss cycle back until you clear them, and also land in the
-        spaced-repetition review queue for later days.
+        Answer from memory before you flip — no options to lean on. Cards you miss cycle back until you clear them, and
+        also land in the spaced-repetition review queue for later days.
       </p>
     </div>
 
@@ -37,9 +35,7 @@
             {{ size }} cards
           </button>
         }
-        <button [class.active]="deckSize() === 'all'" (click)="deckSize.set('all')">
-          All ({{ pool().length }})
-        </button>
+        <button [class.active]="deckSize() === 'all'" (click)="deckSize.set('all')">All ({{ pool().length }})</button>
       </div>
 
       <p class="pool-note">{{ pool().length }} cards match the current filters.</p>
@@ -49,14 +45,12 @@
       </button>
       <a routerLink="/practice" class="link-back">Practice page</a>
 
-      <p class="kbd-note">
-        Keyboard: <kbd>Space</kbd> flip · <kbd>←</kbd> again · <kbd>→</kbd> got it
-      </p>
+      <p class="kbd-note">Keyboard: <kbd>Space</kbd> flip · <kbd>←</kbd> again · <kbd>→</kbd> got it</p>
     </div>
   }
 
   @case ('drill') {
-    <div class="fc-hero" style="padding-bottom:8px">
+    <div class="fc-hero" style="padding-bottom: 8px">
       <span class="pill">Active Recall</span>
       <h1>Flashcard Drill</h1>
     </div>
@@ -82,7 +76,9 @@
               }
             </div>
             <p class="q-text">{{ ch.question }}</p>
-            @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+            @if (ch.code) {
+              <div class="q-code">{{ ch.code }}</div>
+            }
             <div class="flip-hint">Think of your answer, then flip ↴</div>
           </div>
 
@@ -91,7 +87,12 @@
             <p class="answer-text">{{ correctAnswer(ch) }}</p>
             <div class="explanation">{{ ch.explanation }}</div>
             @if (ch.topicPath) {
-              <a [routerLink]="'/' + ch.topicPath" target="_blank" class="topic-link" (click)="$event.stopPropagation()">
+              <a
+                [routerLink]="'/' + ch.topicPath"
+                target="_blank"
+                class="topic-link"
+                (click)="$event.stopPropagation()"
+              >
                 📚 Study this topic →
               </a>
             }
@@ -121,9 +122,18 @@
         <strong>{{ firstTryCount() }} / {{ deckTotal() }}</strong> known on the first flip.
       </p>
       <div class="sum-grid">
-        <div><strong>{{ deckTotal() }}</strong><span>cards drilled</span></div>
-        <div><strong>{{ firstTryCount() }}</strong><span>first-try</span></div>
-        <div><strong>{{ missedIds().size }}</strong><span>needed repeats</span></div>
+        <div>
+          <strong>{{ deckTotal() }}</strong
+          ><span>cards drilled</span>
+        </div>
+        <div>
+          <strong>{{ firstTryCount() }}</strong
+          ><span>first-try</span>
+        </div>
+        <div>
+          <strong>{{ missedIds().size }}</strong
+          ><span>needed repeats</span>
+        </div>
       </div>
       @if (missedIds().size > 0) {
         <p class="sum-note">

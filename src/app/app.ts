@@ -181,7 +181,11 @@ export class App {
     if (!id) return;
     const lesson = CURRICULUM.find((l) => l.id === id);
     this.bookmarks.toggle(id, lesson?.title ?? id);
-    this.toast.show(this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed', 'success', 1400);
+    this.toast.show(
+      this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed',
+      'success',
+      1400,
+    );
   }
 
   /** ? key opens the keyboard shortcuts panel — demonstrates @defer when in app.html */

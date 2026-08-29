@@ -16,7 +16,8 @@ const CANDIDATES: CandidateShape[] = [
     label: 'exact match',
     value: `{ id: 1, name: 'Ada', createdAt: new Date() }`,
     verdict: 'ok',
-    explain: 'Every required member present with the right type. email? may be absent — that is what the ? grants.',
+    explain:
+      'Every required member present with the right type. email? may be absent — that is what the ? grants.',
   },
   {
     label: 'missing name',
@@ -34,7 +35,8 @@ const CANDIDATES: CandidateShape[] = [
     label: 'extra property (variable)',
     value: `const x = { id: 1, name: 'Ada', createdAt: new Date(), nickname: 'A' }; const u: User = x;`,
     verdict: 'ok',
-    explain: 'Structural typing: MORE than required is compatible when assigned via a variable. The nickname is simply invisible through the User lens.',
+    explain:
+      'Structural typing: MORE than required is compatible when assigned via a variable. The nickname is simply invisible through the User lens.',
   },
   {
     label: 'extra property (literal)',

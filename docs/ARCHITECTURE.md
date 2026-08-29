@@ -73,18 +73,19 @@ Progress dashboard reads all of it back without writing anything.
 
 ## 2. Technology stack
 
-| Layer | Choice | Notes |
-|---|---|---|
-| Framework | **Angular 21** | Standalone components throughout; no `NgModule` |
-| Language | **TypeScript** (strict) | |
-| Reactivity | **Signals** | `signal` / `computed` / `effect` / `linkedSignal`; RxJS only where streams genuinely help |
-| Change detection | **Zoneless** | No `zone.js` |
-| Routing | `provideRouter` with `withComponentInputBinding()` and `withViewTransitions()` | |
-| HTTP | `provideHttpClient(withFetch())` | Only used by lessons demonstrating `HttpClient` against public demo APIs |
-| Styling | Plain CSS + custom properties | No CSS framework, no preprocessor |
-| Tests | **Vitest** via `@angular/build:unit-test`, jsdom | Run with `npm test` |
-| Build | Angular CLI (`@angular/build`) | |
-| Backend | **None** | Deliberate — see §11 |
+| Layer            | Choice                                                                         | Notes                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Framework        | **Angular 21**                                                                 | Standalone components throughout; no `NgModule`                                           |
+| Language         | **TypeScript** (strict)                                                        |                                                                                           |
+| Reactivity       | **Signals**                                                                    | `signal` / `computed` / `effect` / `linkedSignal`; RxJS only where streams genuinely help |
+| Change detection | **Zoneless**                                                                   | No `zone.js`                                                                              |
+| Routing          | `provideRouter` with `withComponentInputBinding()` and `withViewTransitions()` |                                                                                           |
+| HTTP             | `provideHttpClient(withFetch())`                                               | Only used by lessons demonstrating `HttpClient` against public demo APIs                  |
+| Styling          | Plain CSS + custom properties                                                  | No CSS framework, no preprocessor                                                         |
+| Tests            | **Vitest** via `@angular/build:unit-test`, jsdom                               | Run with `npm test`; a11y via **axe-core**                                                |
+| Formatting       | **Prettier**, `angular` parser for templates                                   | Gated in CI; `npm run format`                                                             |
+| Build            | Angular CLI (`@angular/build`)                                                 |                                                                                           |
+| Backend          | **None**                                                                       | Deliberate — see §11                                                                      |
 
 Runtime dependencies are `@angular/*`, `rxjs` and `tslib`. Nothing else.
 
@@ -121,7 +122,15 @@ src/
     │   ├── toasts.component.ts
     │   ├── highlighter.ts       syntax highlighting for code samples
     │   ├── download-file.ts     Blob + object-URL download helper
-    │   └── coming-soon/         fallback page for a lesson without a component
+    │   ├── coming-soon/         fallback page for a lesson without a component
+    │   └── teaching/            the retention toolkit every lesson draws on
+    │       ├── remember/        the one sentence that must survive
+    │       ├── predict/         ask before telling — commit, then reveal
+    │       ├── quiz/            active recall with explained wrong answers
+    │       ├── faq/             the doubts a learner hesitates to ask
+    │       ├── flow/            step diagram: sequences, pipelines, lifecycles
+    │       ├── compare/         before/after, old API vs new API
+    │       └── inline-code.ts   backtick spans without [innerHTML]
     │
     ├── pages/                   the study tools, one directory each
     │   ├── home/  practice/  mock-exam/  review/  progress/  flashcards/
@@ -185,11 +194,14 @@ The recurring state pattern, used by the study tools and taught by the
 ```ts
 @Injectable({ providedIn: 'root' })
 export class SomeStore {
-  private readonly _items = signal<Item[]>(load());   // private, writable
-  readonly items = this._items.asReadonly();          // public, read-only
-  readonly stats = computed(() => derive(this._items()));  // never stored twice
+  private readonly _items = signal<Item[]>(load()); // private, writable
+  readonly items = this._items.asReadonly(); // public, read-only
+  readonly stats = computed(() => derive(this._items())); // never stored twice
 
-  add(item: Item) { this._items.update((l) => [...l, item]); save(); }
+  add(item: Item) {
+    this._items.update((l) => [...l, item]);
+    save();
+  }
 }
 ```
 
@@ -222,19 +234,19 @@ written once; each feature decides how to present it.
 
 ### `Lesson` (`core/lesson.model.ts`)
 
-| Field | Type | Meaning |
-|---|---|---|
-| `id` | `string` | kebab-case route segment, unique |
-| `title` | `string` | Display title |
-| `summary` | `string` | One line, shown on cards |
-| `level` | `Level` | `foundations` \| `typescript` \| `beginner` \| `intermediate` \| `expert` \| `projects` |
-| `category` | `string` | Grouping within a level, e.g. "Templates", "RxJS" |
-| `loadComponent?` | `() => Promise<Type<unknown>>` | Lazy loader; omitted means "coming soon" |
+| Field            | Type                           | Meaning                                                                                 |
+| ---------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
+| `id`             | `string`                       | kebab-case route segment, unique                                                        |
+| `title`          | `string`                       | Display title                                                                           |
+| `summary`        | `string`                       | One line, shown on cards                                                                |
+| `level`          | `Level`                        | `foundations` \| `typescript` \| `beginner` \| `intermediate` \| `expert` \| `projects` |
+| `category`       | `string`                       | Grouping within a level, e.g. "Templates", "RxJS"                                       |
+| `loadComponent?` | `() => Promise<Type<unknown>>` | Lazy loader; omitted means "coming soon"                                                |
 
 ### `Challenge` (`pages/practice/practice-data.ts`)
 
 424 questions. Each carries its options, the correct index, a rich explanation
-(including why the *wrong* answers are wrong), a category, a difficulty, and a
+(including why the _wrong_ answers are wrong), a category, a difficulty, and a
 `topicPath` linking to the lesson that teaches it.
 
 **`topicPath` is a lesson `id`, not a URL** — no leading slash. A `/`-prefixed value
@@ -256,20 +268,20 @@ often = shown less often), and when it is next due.
 
 `core/storage.ts` owns **every** `localStorage` key the app writes:
 
-| Key | Shape | Owner |
-|---|---|---|
-| `ng-concepts-visited` | `string[]` of lesson ids | ProgressService |
-| `ng-study-streak-v1` | `{current, longest, lastDate}` | StreakService |
-| `ng-bookmarks-v1` | `Record<id, Bookmark>` | BookmarksService |
-| `theme` | `'light' \| 'dark'` | App shell |
-| `angular-practice-progress-v1` | `Record<challengeId, …>` | Practice |
-| `angular-practice-adaptive-v1` | `{enabled, level, streak}` | Practice |
-| `angular-review-queue-v1` | `Record<challengeId, ReviewItem>` | review-queue |
-| `angular-review-mastered-v1` | `number[]` | review-queue |
-| `angular-mock-exam-history-v1` | `ExamAttempt[]` | MockExam |
-| `angular-coding-tasks-v1` | `Record<taskId, {done}>` | CodingTasks |
-| `angular-exam-day-active-v1` | in-flight readiness check | ExamDay |
-| `angular-exam-day-history-v1` | `ReadinessEntry[]` | ExamDay |
+| Key                            | Shape                             | Owner            |
+| ------------------------------ | --------------------------------- | ---------------- |
+| `ng-concepts-visited`          | `string[]` of lesson ids          | ProgressService  |
+| `ng-study-streak-v1`           | `{current, longest, lastDate}`    | StreakService    |
+| `ng-bookmarks-v1`              | `Record<id, Bookmark>`            | BookmarksService |
+| `theme`                        | `'light' \| 'dark'`               | App shell        |
+| `angular-practice-progress-v1` | `Record<challengeId, …>`          | Practice         |
+| `angular-practice-adaptive-v1` | `{enabled, level, streak}`        | Practice         |
+| `angular-review-queue-v1`      | `Record<challengeId, ReviewItem>` | review-queue     |
+| `angular-review-mastered-v1`   | `number[]`                        | review-queue     |
+| `angular-mock-exam-history-v1` | `ExamAttempt[]`                   | MockExam         |
+| `angular-coding-tasks-v1`      | `Record<taskId, {done}>`          | CodingTasks      |
+| `angular-exam-day-active-v1`   | in-flight readiness check         | ExamDay          |
+| `angular-exam-day-history-v1`  | `ReadinessEntry[]`                | ExamDay          |
 
 Two rules make this work:
 
@@ -311,7 +323,7 @@ a reload.
 
 ## 8. Testing strategy
 
-18 spec files, 162 tests, in three groups:
+22 spec files, 423 tests, in six groups:
 
 1. **Unit tests over `core/`** — storage read/write and its failure modes, progress,
    streak (including date-boundary behaviour), bookmarks, achievements.
@@ -321,9 +333,30 @@ a reload.
    verifies that every `topicPath` in the question bank and the glossary matches a real
    lesson `id` — it caught 43 dead study links on introduction. Others check for
    duplicate question ids and for answer-option length balance.
+4. **Mount smoke tests** — `lessons/lessons.smoke.spec.ts` and
+   `pages/pages.smoke.spec.ts`. `ng build` proves a template _compiles_; it cannot prove
+   a component _constructs_. An `inject()` outside an injection context, a missing
+   provider or a `computed` that throws on first read all build cleanly and fail only
+   when someone opens the page. Both specs walk their source of truth — `CURRICULUM` and
+   the route table — so a lesson or page added tomorrow is covered the moment it is
+   registered.
+5. **Accessibility** — `a11y.spec.ts` runs axe-core over every lesson and page against
+   the WCAG 2.0/2.1 A and AA rule sets. It found 27 violations on introduction (24 files
+   of unlabelled form controls, plus a malformed `<dl>` and an unlabelled image), all
+   since fixed. jsdom has no layout, so `color-contrast` and the document-level rules are
+   disabled there; see the spec's header for why each one is off.
+6. **The shared teaching components** — `shared/teaching/teaching.spec.ts`. These are
+   rendered by every lesson, so a regression in one is a regression in a hundred places.
+   The assertions target the accessibility contracts specifically: that `Quiz` uses a real
+   fieldset/legend and gives each instance its own radio group, that `Predict` keeps the
+   hidden answer out of the DOM rather than merely invisible, and that `Compare` labels
+   both panels by their own visible headings.
+
+Both walking suites assert their own input is non-empty, because a green run over zero
+items is indistinguishable from a real pass.
 
 `TestBed.tick()` is the effect-flush API in this codebase. (`flushEffects` appears only
-inside lesson *teaching content* — it is not the API these specs use.)
+inside lesson _teaching content_ — it is not the API these specs use.)
 
 ---
 
@@ -354,7 +387,7 @@ removes most of the usual surface. What remains:
 
 - **One `bypassSecurityTrust*` call in the whole codebase** — `security.ts` trusts a
   hard-coded resource URL to demonstrate the API. It is never applied to user input.
-  The same lesson's live XSS demo runs a hostile payload *through* the sanitizer rather
+  The same lesson's live XSS demo runs a hostile payload _through_ the sanitizer rather
   than around it.
 - **No `innerHTML` with user-supplied content.** The code-sample highlighter operates on
   authored content only.

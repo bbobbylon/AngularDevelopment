@@ -7,12 +7,12 @@
   border: 2px solid var(--badge-accent, var(--accent));
   background: color-mix(in srgb, var(--badge-accent, var(--accent)) 12%, transparent);
   font-weight: 600;
-  transition: all .2s ease;
+  transition: all 0.2s ease;
 }
 /* Conditional on the HOST element's classes — set by the parent. */
 :host(.compact) {
   padding: 3px 10px;
-  font-size: .78rem;
+  font-size: 0.78rem;
   border-radius: 8px;
 }
 .dot {
@@ -22,4 +22,6 @@
   background: var(--badge-accent, var(--accent));
 }
 /* This generic selector CANNOT leak — encapsulation scopes it here. */
-span { letter-spacing: .02em; }
+span {
+  letter-spacing: 0.02em;
+}

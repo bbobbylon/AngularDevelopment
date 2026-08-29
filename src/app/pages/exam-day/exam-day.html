@@ -1,13 +1,11 @@
 @switch (phase()) {
-
   @case ('idle') {
     <div class="ed-hero">
       <span class="pill">The Full Dress Rehearsal</span>
       <h1>Exam-Day Readiness Check</h1>
       <p>
-        One sitting, just like the real thing: a timed {{ examQuestions }}-question
-        exam followed by two practical build briefs. Pass both bars and
-        you are ready to book the exam.
+        One sitting, just like the real thing: a timed {{ examQuestions }}-question exam followed by two practical build
+        briefs. Pass both bars and you are ready to book the exam.
       </p>
     </div>
 
@@ -16,30 +14,34 @@
       <div class="steps">
         <div class="step">
           <strong>1 · Timed exam</strong>
-          <span>{{ examQuestions }} mixed questions from the full bank, {{ examMinutes }} minutes,
-          no feedback until the end. Score {{ passMark }}%+ to pass this leg.</span>
+          <span
+            >{{ examQuestions }} mixed questions from the full bank, {{ examMinutes }} minutes, no feedback until the
+            end. Score {{ passMark }}%+ to pass this leg.</span
+          >
         </div>
         <div class="step">
           <strong>2 · Build briefs</strong>
-          <span>Two coding tasks assigned from the simulator (one mid, one senior).
-          Complete them in the Coding-Task Simulator, then come back.</span>
+          <span
+            >Two coding tasks assigned from the simulator (one mid, one senior). Complete them in the Coding-Task
+            Simulator, then come back.</span
+          >
         </div>
         <div class="step">
           <strong>3 · Verdict</strong>
-          <span>READY means exam ≥ {{ passMark }}% <em>and</em> both briefs done.
-          Anything less tells you exactly which leg to train.</span>
+          <span
+            >READY means exam ≥ {{ passMark }}% <em>and</em> both briefs done. Anything less tells you exactly which leg
+            to train.</span
+          >
         </div>
       </div>
       <p class="bar-note">
-        Misses from the exam leg feed your review queue, and every verdict
-        shows up on the Progress Dashboard.
+        Misses from the exam leg feed your review queue, and every verdict shows up on the Progress Dashboard.
       </p>
 
       @if (active(); as check) {
         <div class="resume-box">
           <span class="grow">
-            ⏸ Check in progress — exam scored <strong>{{ check.exam.scorePercent }}%</strong>,
-            coding tasks pending.
+            ⏸ Check in progress — exam scored <strong>{{ check.exam.scorePercent }}%</strong>, coding tasks pending.
           </span>
           <button class="primary-btn small" (click)="resume()">Resume →</button>
           <button class="ghost-btn" (click)="abandon()">Discard</button>
@@ -61,8 +63,9 @@
               {{ r.ready ? 'READY' : 'NOT YET' }}
             </span>
             <span class="h-detail">
-              exam {{ r.examScore }}% ({{ r.examCorrect }}/{{ r.examTotal }}) ·
-              tasks {{ r.tasksDone }}/{{ r.tasksTotal }}
+              exam {{ r.examScore }}% ({{ r.examCorrect }}/{{ r.examTotal }}) · tasks {{ r.tasksDone }}/{{
+                r.tasksTotal
+              }}
             </span>
             <span class="h-when">{{ r.when | date: 'MMM d, y · HH:mm' }}</span>
           </div>
@@ -85,12 +88,15 @@
         </div>
 
         <p class="q-text">{{ ch.question }}</p>
-        @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+        @if (ch.code) {
+          <div class="q-code">{{ ch.code }}</div>
+        }
 
         <div class="options">
           @for (opt of shuffledOptions(ch).options; track $index) {
             <button class="opt" [class.selected]="answers()[ch.id] === $index" (click)="choose(ch, $index)">
-              <span class="opt-letter">{{ letters[$index] }}</span>{{ opt }}
+              <span class="opt-letter">{{ letters[$index] }}</span
+              >{{ opt }}
             </button>
           }
         </div>
@@ -112,20 +118,23 @@
       <span class="pill">Leg 2 of 2</span>
       <h1>Build Briefs</h1>
       <p>
-        Exam leg done. Now complete both assigned tasks in the
-        Coding-Task Simulator — check every requirement and mark them
-        complete there, then evaluate.
+        Exam leg done. Now complete both assigned tasks in the Coding-Task Simulator — check every requirement and mark
+        them complete there, then evaluate.
       </p>
     </div>
 
     <div class="panel last">
       @if (active(); as check) {
-        <span class="score-chip" [class.pass]="check.exam.scorePercent >= passMark" [class.fail]="check.exam.scorePercent < passMark">
-          Exam leg: {{ check.exam.scorePercent }}% ({{ check.exam.correct }}/{{ check.exam.total }})
-          — {{ check.exam.scorePercent >= passMark ? 'passed' : 'below the ' + passMark + '% bar' }}
+        <span
+          class="score-chip"
+          [class.pass]="check.exam.scorePercent >= passMark"
+          [class.fail]="check.exam.scorePercent < passMark"
+        >
+          Exam leg: {{ check.exam.scorePercent }}% ({{ check.exam.correct }}/{{ check.exam.total }}) —
+          {{ check.exam.scorePercent >= passMark ? 'passed' : 'below the ' + passMark + '% bar' }}
         </span>
 
-        <h3 style="margin-top:18px">Your assigned tasks</h3>
+        <h3 style="margin-top: 18px">Your assigned tasks</h3>
         @for (task of assignedTasks(); track task.id) {
           <div class="task-row">
             <span class="task-status">{{ doneTaskIds().has(task.id) ? '✅' : '⬜' }}</span>
@@ -142,15 +151,15 @@
         }
 
         <div class="tasks-actions">
-          <a routerLink="/coding-tasks" class="primary-btn small" style="text-decoration:none">
+          <a routerLink="/coding-tasks" class="primary-btn small" style="text-decoration: none">
             Open the simulator →
           </a>
           <button class="ghost-btn" (click)="refreshTaskStatus()">↻ Re-check status</button>
           <button class="primary-btn small" (click)="evaluate()">Evaluate readiness</button>
         </div>
-        <p class="hint-note" style="margin-top:12px">
-          {{ assignedDoneCount() }} / {{ tasksRequired }} briefs completed.
-          You can evaluate any time — incomplete briefs just count against the verdict.
+        <p class="hint-note" style="margin-top: 12px">
+          {{ assignedDoneCount() }} / {{ tasksRequired }} briefs completed. You can evaluate any time — incomplete
+          briefs just count against the verdict.
         </p>
       }
     </div>
@@ -180,7 +189,7 @@
           </div>
         </div>
 
-        <div style="margin-top:20px">
+        <div style="margin-top: 20px">
           <button class="primary-btn" (click)="backToIdle()">Done</button>
           <button class="ghost-btn" (click)="exportResults(r)">⬇ Export Results</button>
           @if (!r.ready) {

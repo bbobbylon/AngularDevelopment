@@ -1,3 +1,16 @@
-.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
-     .t th, .t td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
-     .t td:first-child { width: 140px; color: var(--text-muted); }
+.t {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.t th,
+.t td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.t td:first-child {
+  width: 140px;
+  color: var(--text-muted);
+}

@@ -111,7 +111,9 @@ export class JsonAndApis {
         `status: ${res.status} OK\nname:  ${data.name}\nemail: ${data.email}\ncity:  ${data.address?.city}`,
       );
     } catch {
-      this.apiResult.set('Network failure — are you online? (This is the case fetch actually rejects on.)');
+      this.apiResult.set(
+        'Network failure — are you online? (This is the case fetch actually rejects on.)',
+      );
     } finally {
       this.busy.set(false);
     }

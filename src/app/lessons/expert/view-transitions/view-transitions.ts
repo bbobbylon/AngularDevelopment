@@ -35,16 +35,14 @@ export class ViewTransitions {
   /**
    * The cards being animated.
    */
-  protected readonly cards = signal(
-    [
-      { id: 1, color: 'rgba(79,70,229,.25)' },
-      { id: 2, color: 'rgba(16,185,129,.25)' },
-      { id: 3, color: 'rgba(245,158,11,.25)' },
-      { id: 4, color: 'rgba(239,68,68,.25)' },
-      { id: 5, color: 'rgba(139,92,246,.25)' },
-      { id: 6, color: 'rgba(14,165,233,.25)' },
-    ],
-  );
+  protected readonly cards = signal([
+    { id: 1, color: 'rgba(79,70,229,.25)' },
+    { id: 2, color: 'rgba(16,185,129,.25)' },
+    { id: 3, color: 'rgba(245,158,11,.25)' },
+    { id: 4, color: 'rgba(239,68,68,.25)' },
+    { id: 5, color: 'rgba(139,92,246,.25)' },
+    { id: 6, color: 'rgba(14,165,233,.25)' },
+  ]);
   /**
    * Which card is enlarged, or `null`.
    */
@@ -82,9 +80,7 @@ export class ViewTransitions {
    * Sorts the cards inside a transition.
    */
   protected sort() {
-    this.withTransition(() =>
-      this.cards.update((list) => [...list].sort((a, b) => a.id - b.id)),
-    );
+    this.withTransition(() => this.cards.update((list) => [...list].sort((a, b) => a.id - b.id)));
   }
 
   /**

@@ -3,29 +3,33 @@
   <h1>Workspace Configuration: package.json, angular.json &amp; tsconfig</h1>
   <p class="lead">
     Three files govern everything that happens before your code runs:
-    <strong>package.json</strong> says what to install, <strong>angular.json</strong>
-    says how to build, and the <strong>tsconfig family</strong> says how to compile
-    TypeScript. Knowing which knob lives where turns "mystery build errors"
-    into five-minute fixes.
+    <strong>package.json</strong> says what to install, <strong>angular.json</strong> says how to build, and the
+    <strong>tsconfig family</strong> says how to compile TypeScript. Knowing which knob lives where turns "mystery build
+    errors" into five-minute fixes.
   </p>
 
   <h2>The three layers</h2>
   <div class="layer-grid">
     <div class="layer">
       <h4>package.json</h4>
-      <p>The npm manifest: dependencies vs devDependencies, the scripts
-      command palette, and the semver ranges the lockfile pins down.</p>
+      <p>
+        The npm manifest: dependencies vs devDependencies, the scripts command palette, and the semver ranges the
+        lockfile pins down.
+      </p>
     </div>
     <div class="layer">
       <h4>angular.json</h4>
-      <p>The CLI workspace: which builder runs each target (build / serve /
-      test), global styles &amp; scripts, assets, budgets, and named
-      configurations like production.</p>
+      <p>
+        The CLI workspace: which builder runs each target (build / serve / test), global styles &amp; scripts, assets,
+        budgets, and named configurations like production.
+      </p>
     </div>
     <div class="layer">
       <h4>tsconfig*.json</h4>
-      <p>The compiler: one base config with shared strictness, extended by
-      tsconfig.app.json (app files) and tsconfig.spec.json (test files).</p>
+      <p>
+        The compiler: one base config with shared strictness, extended by tsconfig.app.json (app files) and
+        tsconfig.spec.json (test files).
+      </p>
     </div>
   </div>
 
@@ -41,55 +45,60 @@
     @if (active(); as task) {
       <span class="answer-file">📄 {{ task.file }}</span>
       <p class="answer-text">{{ task.answer }}</p>
-      <div class="code"><pre>{{ task.snippet }}</pre></div>
+      <div class="code">
+        <pre>{{ task.snippet }}</pre>
+      </div>
     }
   </div>
 
   <h2>package.json — what to install and how to run</h2>
   <p>
-    <code>dependencies</code> ship with the app (framework code that ends up in
-    your bundles); <code>devDependencies</code> are build-time tools — the CLI,
-    the compiler, the test runner. A deploy pipeline running
-    <code>npm ci --omit=dev</code> skips the tooling entirely.
+    <code>dependencies</code> ship with the app (framework code that ends up in your bundles);
+    <code>devDependencies</code> are build-time tools — the CLI, the compiler, the test runner. A deploy pipeline
+    running <code>npm ci --omit=dev</code> skips the tooling entirely.
   </p>
   <div class="code">
     <pre>{{ packageJsonSample }}</pre>
   </div>
   <div class="note">
-    <strong>^ vs ~ vs nothing:</strong> <code>^20.1.0</code> accepts any compatible
-    minor/patch (&lt;21.0.0), <code>~20.1.0</code> accepts only patches
-    (&lt;20.2.0), and a bare version is exact. Ranges express intent —
-    <strong>package-lock.json guarantees reality</strong> by freezing the entire
-    resolved tree. Commit the lockfile; deleting it to "fix" an install is how
-    works-on-my-machine bugs are born.
+    <strong>^ vs ~ vs nothing:</strong> <code>^20.1.0</code> accepts any compatible minor/patch (&lt;21.0.0),
+    <code>~20.1.0</code> accepts only patches (&lt;20.2.0), and a bare version is exact. Ranges express intent —
+    <strong>package-lock.json guarantees reality</strong> by freezing the entire resolved tree. Commit the lockfile;
+    deleting it to "fix" an install is how works-on-my-machine bugs are born.
   </div>
 
   <h2>angular.json — how the CLI builds</h2>
   <p>
     Each project maps <em>architect targets</em> to a <em>builder</em> plus options.
-    <code>ng build -c production</code> selects a named configuration whose options
-    override the defaults for that run:
+    <code>ng build -c production</code> selects a named configuration whose options override the defaults for that run:
   </p>
   <div class="code">
     <pre>{{ angularJsonSample }}</pre>
   </div>
   <ul>
-    <li><strong>styles / scripts</strong> — global bundles injected into index.html (a classic
-      name collision with package.json's "scripts": npm scripts are commands, these are files).</li>
+    <li>
+      <strong>styles / scripts</strong> — global bundles injected into index.html (a classic name collision with
+      package.json's "scripts": npm scripts are commands, these are files).
+    </li>
     <li><strong>assets</strong> — files copied verbatim to the output (images, fonts, favicon).</li>
     <li><strong>budgets</strong> — size thresholds; exceed maximumError and the BUILD FAILS.</li>
-    <li><strong>configurations</strong> — production enables optimization, output hashing and
-      budgets; development keeps sourcemaps and fast rebuilds. <code>fileReplacements</code>
-      is the traditional environment-file swap.</li>
+    <li>
+      <strong>configurations</strong> — production enables optimization, output hashing and budgets; development keeps
+      sourcemaps and fast rebuilds. <code>fileReplacements</code> is the traditional environment-file swap.
+    </li>
   </ul>
   <div class="warn">
-    angular.json is read ONCE when the dev server boots. Source files are
-    watched; workspace config is not — edit it and restart <code>ng serve</code>.
+    angular.json is read ONCE when the dev server boots. Source files are watched; workspace config is not — edit it and
+    restart <code>ng serve</code>.
   </div>
 
   <h2>The tsconfig family — one base, two leaves</h2>
   <table class="cmp">
-    <tr><th>File</th><th>Role</th><th>Key contents</th></tr>
+    <tr>
+      <th>File</th>
+      <th>Role</th>
+      <th>Key contents</th>
+    </tr>
     <tr>
       <td>tsconfig.json</td>
       <td>Base ("solution") config every leaf extends</td>
@@ -107,16 +116,14 @@
     </tr>
   </table>
   <p>
-    The split exists because the two compilations need different file sets AND
-    different ambient types: <code>describe</code> exists only where the test
-    runner's type package is listed. Sweep spec files into the app build and CI
-    greets you with <em>"Cannot find name describe"</em>.
+    The split exists because the two compilations need different file sets AND different ambient types:
+    <code>describe</code> exists only where the test runner's type package is listed. Sweep spec files into the app
+    build and CI greets you with <em>"Cannot find name describe"</em>.
   </p>
   <div class="tip">
-    <strong>strictTemplates</strong> is the single highest-value flag to verify in an
-    existing repo: it extends type-checking into templates, so a wrong-typed
-    <code>[input]</code>, a misspelled interpolation member, or an untyped
-    <code>$event</code> fails the <em>build</em> instead of a user's session.
+    <strong>strictTemplates</strong> is the single highest-value flag to verify in an existing repo: it extends
+    type-checking into templates, so a wrong-typed <code>[input]</code>, a misspelled interpolation member, or an
+    untyped <code>$event</code> fails the <em>build</em> instead of a user's session.
   </div>
 
   <h2>Key takeaways</h2>

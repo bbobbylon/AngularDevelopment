@@ -1,0 +1,72 @@
+.faq {
+  margin: 2rem 0;
+  padding: 1.1rem 1.25rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  /* Deliberately quieter than .quiz and .remember. This is optional reading, and it
+     should not compete with the boxes that carry the lesson's key claims. */
+  background: var(--bg-elevated);
+}
+
+.faq__heading {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.faq__item {
+  border-top: 1px solid var(--border);
+}
+
+.faq__item:first-of-type {
+  border-top: 0;
+}
+
+.faq__q {
+  padding: 0.6rem 0 0.6rem 1.3rem;
+  position: relative;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  /* The default triangle sits inconsistently across browsers; a custom marker below
+     lines up with the text baseline in all of them. */
+  list-style: none;
+}
+
+.faq__q::-webkit-details-marker {
+  display: none;
+}
+
+.faq__q::before {
+  content: "▸";
+  position: absolute;
+  left: 0.15rem;
+  color: var(--accent);
+  transition: transform 0.15s ease;
+  display: inline-block;
+}
+
+.faq__item[open] > .faq__q::before {
+  transform: rotate(90deg);
+}
+
+.faq__q:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 5px;
+}
+
+.faq__a {
+  margin: 0 0 0.85rem;
+  padding-left: 1.3rem;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq__q::before {
+    transition: none;
+  }
+}

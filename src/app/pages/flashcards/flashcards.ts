@@ -1,6 +1,14 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Category, type Challenge, type Difficulty } from '../practice/practice-data';
+import {
+  CATEGORY_FILTERS,
+  CHALLENGES,
+  DIFF_FILTERS,
+  shuffle,
+  type Category,
+  type Challenge,
+  type Difficulty,
+} from '../practice/practice-data';
 import { recordMisses } from '../practice/review-queue';
 
 /** Which screen the drill page is on. See {@link Flashcards}. */
@@ -185,7 +193,8 @@ export class Flashcards {
   onKey(event: KeyboardEvent): void {
     if (this.phase() !== 'drill') return;
     // Never hijack keys while the user is typing (e.g. a future search box).
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+      return;
 
     if (event.key === ' ' || event.key === 'Enter') {
       event.preventDefault();

@@ -36,14 +36,46 @@ export class TerminalAndNpm {
    * The commands the fake terminal accepts.
    */
   protected readonly commands: FakeCmd[] = [
-    { cmd: 'pwd', out: '/Users/you/projects/my-app', note: 'Lost? pwd always tells you where you are standing.' },
-    { cmd: 'ls', out: 'src   package.json   angular.json   README.md', note: 'These four are the top of every Angular project. Your code lives in src/.' },
-    { cmd: 'cd src', out: '', note: 'No output = it worked. The prompt path changes — later commands now act inside src/.' },
-    { cmd: 'ls', out: 'app   index.html   main.ts   styles.css', note: 'Same command, different folder, different answer — commands are relative to where you stand.' },
-    { cmd: 'cd ..', out: '', note: '".." always means the parent folder — back up to the project root.' },
-    { cmd: 'npm install', out: 'added 312 packages in 8s', note: '312 packages: your dependencies plus THEIR dependencies, resolved from package-lock.json into node_modules/.' },
-    { cmd: 'ng serve', out: '✔ Compiled successfully.\n  ➜ Local: http://localhost:4200/', note: 'This one keeps running (no new prompt) — it is now watching your files. Ctrl+C would stop it.' },
-    { cmd: 'ng g c header --dry-run', out: 'CREATE src/app/header/header.ts (245 bytes)\nCREATE src/app/header/header.html (21 bytes)\nNOTE: The "--dry-run" option means no changes were made.', note: 'Flags in action: --dry-run previews without touching disk. Drop it to really scaffold.' },
+    {
+      cmd: 'pwd',
+      out: '/Users/you/projects/my-app',
+      note: 'Lost? pwd always tells you where you are standing.',
+    },
+    {
+      cmd: 'ls',
+      out: 'src   package.json   angular.json   README.md',
+      note: 'These four are the top of every Angular project. Your code lives in src/.',
+    },
+    {
+      cmd: 'cd src',
+      out: '',
+      note: 'No output = it worked. The prompt path changes — later commands now act inside src/.',
+    },
+    {
+      cmd: 'ls',
+      out: 'app   index.html   main.ts   styles.css',
+      note: 'Same command, different folder, different answer — commands are relative to where you stand.',
+    },
+    {
+      cmd: 'cd ..',
+      out: '',
+      note: '".." always means the parent folder — back up to the project root.',
+    },
+    {
+      cmd: 'npm install',
+      out: 'added 312 packages in 8s',
+      note: '312 packages: your dependencies plus THEIR dependencies, resolved from package-lock.json into node_modules/.',
+    },
+    {
+      cmd: 'ng serve',
+      out: '✔ Compiled successfully.\n  ➜ Local: http://localhost:4200/',
+      note: 'This one keeps running (no new prompt) — it is now watching your files. Ctrl+C would stop it.',
+    },
+    {
+      cmd: 'ng g c header --dry-run',
+      out: 'CREATE src/app/header/header.ts (245 bytes)\nCREATE src/app/header/header.html (21 bytes)\nNOTE: The "--dry-run" option means no changes were made.',
+      note: 'Flags in action: --dry-run previews without touching disk. Drop it to really scaffold.',
+    },
   ];
 
   /** Track the working directory shown in each history line's prompt. */

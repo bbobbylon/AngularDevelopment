@@ -204,7 +204,9 @@ export class Review {
       } else {
         this.sessionAdvanced.update((n) => n + 1);
         const days = REVIEW_INTERVALS_DAYS[prevBox + 1];
-        this.scheduleNote.set(`↑ Box ${prevBox + 2} — next review in ${days} day${days === 1 ? '' : 's'}`);
+        this.scheduleNote.set(
+          `↑ Box ${prevBox + 2} — next review in ${days} day${days === 1 ? '' : 's'}`,
+        );
       }
     } else {
       this.sessionReset.update((n) => n + 1);

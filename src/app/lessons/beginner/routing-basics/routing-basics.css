@@ -15,7 +15,18 @@
   color: #fff;
   text-decoration: none;
 }
-.matcher { width: 100%; border-collapse: collapse; font-size: .85rem; }
-.matcher td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
-.matcher tr.hit { background: rgba(46, 193, 107, 0.12); }
-.matcher tr.hit td:first-child { border-left: 3px solid var(--green, #2ec16b); }
+.matcher {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.matcher td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.matcher tr.hit {
+  background: rgba(46, 193, 107, 0.12);
+}
+.matcher tr.hit td:first-child {
+  border-left: 3px solid var(--green, #2ec16b);
+}

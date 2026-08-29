@@ -2,74 +2,86 @@
   <span class="lesson__eyebrow">Intermediate · HTTP</span>
   <h1>HttpClient CRUD</h1>
   <p class="lead">
-    Beyond GET, <code>HttpClient</code> handles POST/PUT/PATCH/DELETE, request
-    bodies, headers, query params and typed responses. Every button below fires a
-    <strong>real network request</strong> against a public fake-REST API
-    (jsonplaceholder echoes writes back without actually persisting them, so it's
-    safe to hammer). Read the code, then watch it happen.
+    Beyond GET, <code>HttpClient</code> handles POST/PUT/PATCH/DELETE, request bodies, headers, query params and typed
+    responses. Every button below fires a <strong>real network request</strong> against a public fake-REST API
+    (jsonplaceholder echoes writes back without actually persisting them, so it's safe to hammer). Read the code, then
+    watch it happen.
   </p>
 
   <h2>The verbs with bodies, params &amp; headers</h2>
   <p>
-    The four write verbs all share one shape — <code>(url, body, options?)</code> —
-    while GET and DELETE drop the body and take options as the second argument
-    instead. That asymmetry trips people up constantly, so it's the first thing to
-    internalize:
+    The four write verbs all share one shape — <code>(url, body, options?)</code> — while GET and DELETE drop the body
+    and take options as the second argument instead. That asymmetry trips people up constantly, so it's the first thing
+    to internalize:
   </p>
-  <div class="code"><pre>{{ verbsSample }}</pre></div>
+  <div class="code">
+    <pre>{{ verbsSample }}</pre>
+  </div>
 
   <h3>Line-by-line</h3>
   <table class="llb">
-    <tr><th>Line</th><th>What it does &amp; why</th></tr>
+    <tr>
+      <th>Line</th>
+      <th>What it does &amp; why</th>
+    </tr>
     <tr>
       <td>http.post&lt;Post&gt;(url, body)</td>
-      <td>POST creates a <em>new</em> resource. <code>body</code> is a plain positional
-        argument (Angular serializes an object body to JSON automatically), and the
-        generic <code>&lt;Post&gt;</code> types what the server hands back — <strong>not</strong>
-        what you sent.</td>
+      <td>
+        POST creates a <em>new</em> resource. <code>body</code> is a plain positional argument (Angular serializes an
+        object body to JSON automatically), and the generic <code>&lt;Post&gt;</code> types what the server hands back —
+        <strong>not</strong> what you sent.
+      </td>
     </tr>
     <tr>
       <td>http.put&lt;Post&gt;(&#96;$&#123;url&#125;/$&#123;id&#125;&#96;, body)</td>
-      <td>PUT <em>replaces the whole resource</em> at that URL. The id lives in the URL
-        path (REST convention), never in the body. Send a partial body here and any
-        field you omitted can be wiped server-side.</td>
+      <td>
+        PUT <em>replaces the whole resource</em> at that URL. The id lives in the URL path (REST convention), never in
+        the body. Send a partial body here and any field you omitted can be wiped server-side.
+      </td>
     </tr>
     <tr>
       <td>http.patch&lt;Post&gt;(&#96;$&#123;url&#125;/$&#123;id&#125;&#96;, partial)</td>
-      <td>PATCH sends only the fields that changed; the server merges them into the
-        existing record instead of overwriting it. This is the safe choice for
-        "update one field" — see the exam pitfall below on PUT vs PATCH.</td>
+      <td>
+        PATCH sends only the fields that changed; the server merges them into the existing record instead of overwriting
+        it. This is the safe choice for "update one field" — see the exam pitfall below on PUT vs PATCH.
+      </td>
     </tr>
     <tr>
       <td>http.delete&lt;void&gt;(&#96;$&#123;url&#125;/$&#123;id&#125;&#96;)</td>
-      <td>DELETE takes no body at all — the URL alone identifies what to remove. The
-        <code>&lt;void&gt;</code> generic types the (usually empty) response.</td>
+      <td>
+        DELETE takes no body at all — the URL alone identifies what to remove. The <code>&lt;void&gt;</code> generic
+        types the (usually empty) response.
+      </td>
     </tr>
     <tr>
       <td>http.get&lt;Post[]&gt;(url, &#123; …options… &#125;)</td>
-      <td>GET and DELETE have <strong>no body argument</strong>, so the options object
-        slides into the second parameter slot instead of the third — swap this with a
-        write verb's signature and TypeScript (or a runtime 400) will tell you fast.</td>
+      <td>
+        GET and DELETE have <strong>no body argument</strong>, so the options object slides into the second parameter
+        slot instead of the third — swap this with a write verb's signature and TypeScript (or a runtime 400) will tell
+        you fast.
+      </td>
     </tr>
     <tr>
       <td>params: new HttpParams().set('userId', 1)</td>
-      <td>Builds a query string (<code>?userId=1</code>) without hand-concatenating and
-        URL-encoding strings yourself. Covered in depth — including its sharpest edge —
-        two sections down.</td>
+      <td>
+        Builds a query string (<code>?userId=1</code>) without hand-concatenating and URL-encoding strings yourself.
+        Covered in depth — including its sharpest edge — two sections down.
+      </td>
     </tr>
     <tr>
       <td>headers: &#123; Authorization: 'Bearer …' &#125;</td>
-      <td>Attaches a header to <em>this call only</em>. Fine for a one-off, but if every
-        request needs the same auth header, that belongs in an
-        <a routerLink="/http-interceptors">interceptor</a> — see the pitfall on
-        per-call auth headers below.</td>
+      <td>
+        Attaches a header to <em>this call only</em>. Fine for a one-off, but if every request needs the same auth
+        header, that belongs in an <a routerLink="/http-interceptors">interceptor</a> — see the pitfall on per-call auth
+        headers below.
+      </td>
     </tr>
   </table>
 
   <h2>Try it — real network calls</h2>
   <div class="demo">
     <p class="demo__title">Live — every verb, plus a deliberate 404</p>
-    <div class="row" style="margin-bottom:12px">
+    <div class="row" style="margin-bottom: 12px">
       <button (click)="getOne()">GET /posts/1</button>
       <button (click)="getFullResponse()">GET (observe: response)</button>
       <button (click)="create()">POST new</button>
@@ -82,267 +94,327 @@
       <span class="pill">last: {{ action() }}</span>
       <span class="pill">status: {{ status() }}</span>
       @if (isError()) {
-        <span class="pill" style="color:var(--amber)">catchError caught it ↓</span>
+        <span class="pill" style="color: var(--amber)">catchError caught it ↓</span>
       }
     </p>
     @if (response()) {
-      <div class="code"><pre>{{ response() | json }}</pre></div>
+      <div class="code">
+        <pre>{{ response() | json }}</pre>
+      </div>
     }
   </div>
 
   <h3>What the demo buttons actually call</h3>
   <p>
-    Every button funnels through one private <code>run()</code> helper so the
-    loading/error bookkeeping only has to be written once:
+    Every button funnels through one private <code>run()</code> helper so the loading/error bookkeeping only has to be
+    written once:
   </p>
-  <div class="code"><pre>{{ demoSourceSample }}</pre></div>
+  <div class="code">
+    <pre>{{ demoSourceSample }}</pre>
+  </div>
 
   <h3>Line-by-line</h3>
   <table class="llb">
-    <tr><th>Line</th><th>What it does &amp; why</th></tr>
+    <tr>
+      <th>Line</th>
+      <th>What it does &amp; why</th>
+    </tr>
     <tr>
       <td>action.set(label) / status.set('loading')</td>
-      <td>Two plain <code>signal</code>s driving the UI's "last:" and "status:" pills.
-        Setting them <em>before</em> subscribing means the "loading" state shows up
-        immediately, not after the network round-trip.</td>
+      <td>
+        Two plain <code>signal</code>s driving the UI's "last:" and "status:" pills. Setting them
+        <em>before</em> subscribing means the "loading" state shows up immediately, not after the network round-trip.
+      </td>
     </tr>
     <tr>
       <td>isError.set(false)</td>
-      <td>Resets the error flag from any previous call so a fresh request doesn't
-        still show the last request's failure pill while it's in flight.</td>
+      <td>
+        Resets the error flag from any previous call so a fresh request doesn't still show the last request's failure
+        pill while it's in flight.
+      </td>
     </tr>
     <tr>
       <td>obs$.pipe(catchError((err: HttpErrorResponse) =&gt; &#123; … &#125;))</td>
-      <td><code>catchError</code> intercepts the Observable's <em>error channel</em> —
-        the only place a non-2xx HTTP response shows up, since HttpClient never
-        throws synchronously. <code>err</code> is typed <code>HttpErrorResponse</code>,
-        giving you <code>.status</code>/<code>.message</code> instead of <code>unknown</code>.</td>
+      <td>
+        <code>catchError</code> intercepts the Observable's <em>error channel</em> — the only place a non-2xx HTTP
+        response shows up, since HttpClient never throws synchronously. <code>err</code> is typed
+        <code>HttpErrorResponse</code>, giving you <code>.status</code>/<code>.message</code> instead of
+        <code>unknown</code>.
+      </td>
     </tr>
     <tr>
       <td>isError.set(true); return of(&#123; error: true, … &#125;)</td>
-      <td>Flags the failure for the UI, then returns a <em>replacement</em> Observable
-        (<code>of(...)</code>) so the pipeline completes normally with a fallback value
-        instead of propagating the error further and killing the subscription.</td>
+      <td>
+        Flags the failure for the UI, then returns a <em>replacement</em> Observable (<code>of(...)</code>) so the
+        pipeline completes normally with a fallback value instead of propagating the error further and killing the
+        subscription.
+      </td>
     </tr>
     <tr>
       <td>.subscribe((res) =&gt; &#123; response.set(res); status.set('done'); &#125;)</td>
-      <td>Nothing is sent over the network until <code>.subscribe()</code> is called —
-        HttpClient Observables are <strong>cold</strong>. This one callback handles
-        both the real success path and the <code>catchError</code> fallback, since both
-        now flow through the same "next" channel.</td>
+      <td>
+        Nothing is sent over the network until <code>.subscribe()</code> is called — HttpClient Observables are
+        <strong>cold</strong>. This one callback handles both the real success path and the
+        <code>catchError</code> fallback, since both now flow through the same "next" channel.
+      </td>
     </tr>
     <tr>
       <td>this.run('GET /posts/1', this.http.get&lt;Post&gt;(&#96;$&#123;API&#125;/1&#96;))</td>
-      <td>A caller method's whole job is: build the request (URL, body, options) and
-        hand the resulting Observable to <code>run()</code> with a human-readable label
-        — no duplicated loading/error logic per verb.</td>
+      <td>
+        A caller method's whole job is: build the request (URL, body, options) and hand the resulting Observable to
+        <code>run()</code> with a human-readable label — no duplicated loading/error logic per verb.
+      </td>
     </tr>
   </table>
 
   <h2>HttpParams is immutable — see the bug happen live</h2>
   <p>
-    <code>HttpParams</code> (and <code>HttpHeaders</code>) behave like strings or
-    numbers, not like arrays or plain objects: every mutating-looking method
-    <strong>returns a new instance</strong> and leaves the original untouched. Forgetting
-    to capture that return value is one of the most common silent bugs in Angular HTTP
-    code — silent because nothing throws, the request just quietly goes out without the
-    param you thought you added.
+    <code>HttpParams</code> (and <code>HttpHeaders</code>) behave like strings or numbers, not like arrays or plain
+    objects: every mutating-looking method <strong>returns a new instance</strong> and leaves the original untouched.
+    Forgetting to capture that return value is one of the most common silent bugs in Angular HTTP code — silent because
+    nothing throws, the request just quietly goes out without the param you thought you added.
   </p>
   <div class="demo">
-    <p class="demo__title">Live — current query string: <code>{{ demoQuery() }}</code></p>
-    <div class="row" style="margin:10px 0">
+    <p class="demo__title">
+      Live — current query string: <code>{{ demoQuery() }}</code>
+    </p>
+    <div class="row" style="margin: 10px 0">
       <button class="ghost" (click)="addParamWrong()">Add sort param (wrong way)</button>
       <button (click)="addParamRight()">Add sort param (right way)</button>
       <button class="ghost" (click)="resetParams()">Reset</button>
     </div>
     @if (paramsAttemptedWrong()) {
-      <p class="row"><span class="pill" style="color:var(--amber)">nothing changed — see why below</span></p>
+      <p class="row"><span class="pill" style="color: var(--amber)">nothing changed — see why below</span></p>
     }
-    <p style="color:var(--text-muted);font-size:.85rem">
+    <p style="color: var(--text-muted); font-size: 0.85rem">
       Click "wrong way" a few times: the query string above never grows a
-      <code>sort</code> param, because <code>.set()</code> built a brand-new
-      <code>HttpParams</code> that the button then threw away. Click "right way" and it
-      appears instantly, because that handler reassigns the signal to the new instance.
+      <code>sort</code> param, because <code>.set()</code> built a brand-new <code>HttpParams</code> that the button
+      then threw away. Click "right way" and it appears instantly, because that handler reassigns the signal to the new
+      instance.
     </p>
   </div>
-  <div class="code"><pre>{{ paramsImmutableSample }}</pre></div>
+  <div class="code">
+    <pre>{{ paramsImmutableSample }}</pre>
+  </div>
 
   <h3>Line-by-line</h3>
   <table class="llb">
-    <tr><th>Line</th><th>What it does &amp; why</th></tr>
+    <tr>
+      <th>Line</th>
+      <th>What it does &amp; why</th>
+    </tr>
     <tr>
       <td>this.demoParams().set('sort', 'desc');</td>
-      <td>Calling the signal (<code>demoParams()</code>) reads its <em>current</em>
-        value, then <code>.set()</code> on that value builds and returns a new
-        <code>HttpParams</code> — but the expression's result isn't assigned anywhere,
-        so it's discarded and the signal's stored value never changes.</td>
+      <td>
+        Calling the signal (<code>demoParams()</code>) reads its <em>current</em> value, then <code>.set()</code> on
+        that value builds and returns a new <code>HttpParams</code> — but the expression's result isn't assigned
+        anywhere, so it's discarded and the signal's stored value never changes.
+      </td>
     </tr>
     <tr>
       <td>this.demoParams.update((p) =&gt; p.set('sort', 'desc'));</td>
-      <td><code>signal.update()</code> is exactly the missing step: it reads the
-        current value, runs your callback, and writes the callback's <em>return
-        value</em> back into the signal — completing the "build a new instance, then
-        store it" cycle that HttpParams requires.</td>
+      <td>
+        <code>signal.update()</code> is exactly the missing step: it reads the current value, runs your callback, and
+        writes the callback's <em>return value</em> back into the signal — completing the "build a new instance, then
+        store it" cycle that HttpParams requires.
+      </td>
     </tr>
     <tr>
       <td>this.demoParams.set(this.demoParams().set('sort', 'desc'));</td>
-      <td>The same fix spelled out manually, without <code>.update()</code>'s sugar:
-        read the current params, call <code>.set()</code> to get the new instance, then
-        hand that instance to <code>signal.set()</code> explicitly.</td>
+      <td>
+        The same fix spelled out manually, without <code>.update()</code>'s sugar: read the current params, call
+        <code>.set()</code> to get the new instance, then hand that instance to <code>signal.set()</code> explicitly.
+      </td>
     </tr>
   </table>
 
   <h2>Typed responses &amp; options</h2>
-  <div class="code"><pre>{{ typedOptionsSample }}</pre></div>
+  <div class="code">
+    <pre>{{ typedOptionsSample }}</pre>
+  </div>
 
   <h3>Line-by-line</h3>
   <table class="llb">
-    <tr><th>Line</th><th>What it does &amp; why</th></tr>
+    <tr>
+      <th>Line</th>
+      <th>What it does &amp; why</th>
+    </tr>
     <tr>
       <td>http.get&lt;Post&gt;(url, &#123; observe: 'response' &#125;)</td>
-      <td>By default the Observable emits just the decoded body. <code>observe: 'response'</code>
-        changes what it emits to a full <code>HttpResponse&lt;Post&gt;</code> wrapper —
-        same request, richer emission.</td>
+      <td>
+        By default the Observable emits just the decoded body. <code>observe: 'response'</code> changes what it emits to
+        a full <code>HttpResponse&lt;Post&gt;</code> wrapper — same request, richer emission.
+      </td>
     </tr>
     <tr>
       <td>.subscribe((res) =&gt; &#123; res.status; res.headers; res.body; &#125;)</td>
-      <td>Now <code>res</code> carries <code>.status</code> (the numeric HTTP status
-        code), <code>.headers</code> (an <code>HttpHeaders</code> instance you can
-        <code>.get('X-Foo')</code> on), and <code>.body</code> (your actual
-        <code>Post</code>) — instead of just the bare body.</td>
+      <td>
+        Now <code>res</code> carries <code>.status</code> (the numeric HTTP status code), <code>.headers</code> (an
+        <code>HttpHeaders</code> instance you can <code>.get('X-Foo')</code> on), and <code>.body</code> (your actual
+        <code>Post</code>) — instead of just the bare body.
+      </td>
     </tr>
     <tr>
       <td>http.get(url, &#123; responseType: 'text' &#125;)</td>
-      <td>Tells HttpClient not to <code>JSON.parse</code> the response. Skip this for a
-        non-JSON payload (plain text, CSV, an XML feed) and body parsing throws, turning
-        a perfectly good 200 into an error your code has to catch.</td>
+      <td>
+        Tells HttpClient not to <code>JSON.parse</code> the response. Skip this for a non-JSON payload (plain text, CSV,
+        an XML feed) and body parsing throws, turning a perfectly good 200 into an error your code has to catch.
+      </td>
     </tr>
     <tr>
       <td>http.get(url, &#123; observe: 'response', responseType: 'text' &#125;)</td>
-      <td>The two options are completely independent and compose freely — full
-        envelope <em>and</em> raw text body in the same call.</td>
+      <td>
+        The two options are completely independent and compose freely — full envelope <em>and</em> raw text body in the
+        same call.
+      </td>
     </tr>
   </table>
 
   <div class="tip">
-    Build query strings with <code>HttpParams</code> (immutable — each
-    <code>set</code> returns a new instance, proved above). Set headers with
-    <code>HttpHeaders</code> or a plain object. Cross-cutting headers (auth)
-    belong in an <a routerLink="/http-interceptors">interceptor</a>, not every call.
+    Build query strings with <code>HttpParams</code> (immutable — each <code>set</code> returns a new instance, proved
+    above). Set headers with <code>HttpHeaders</code> or a plain object. Cross-cutting headers (auth) belong in an
+    <a routerLink="/http-interceptors">interceptor</a>, not every call.
   </div>
   <div class="note">
-    Other useful options: <code>withCredentials: true</code> sends cookies
-    cross-origin; <code>reportProgress: true</code> with
-    <code>observe: 'events'</code> streams upload/download progress; and RxJS
-    operators like <code>retry({{ '{' }} count: 2 {{ '}' }})</code> and
-    <code>timeout(5000)</code> add resilience around flaky networks. Because the
-    result is an Observable, nothing is sent until you subscribe — and unsubscribing
-    (or a <code>switchMap</code> switching away) aborts the request.
+    Other useful options: <code>withCredentials: true</code> sends cookies cross-origin;
+    <code>reportProgress: true</code> with <code>observe: 'events'</code> streams upload/download progress; and RxJS
+    operators like <code>retry({{ '{' }} count: 2 {{ '}' }})</code> and <code>timeout(5000)</code> add resilience around
+    flaky networks. Because the result is an Observable, nothing is sent until you subscribe — and unsubscribing (or a
+    <code>switchMap</code> switching away) aborts the request.
   </div>
 
   <h2>Under the hood — the request pipeline</h2>
   <p>
-    <code>http.get(...)</code> doesn't send anything by itself. It returns a
-    <strong>cold Observable</strong>: the request only fires when you
-    <code>subscribe()</code> (the <code>async</code> pipe and <code>toSignal</code>
-    subscribe for you). Each subscription is an independent request — subscribe
-    twice and you make two calls; that's why <code>shareReplay()</code> is used to
-    cache a single response for many consumers.
+    <code>http.get(...)</code> doesn't send anything by itself. It returns a <strong>cold Observable</strong>: the
+    request only fires when you <code>subscribe()</code> (the <code>async</code> pipe and
+    <code>toSignal</code> subscribe for you). Each subscription is an independent request — subscribe twice and you make
+    two calls; that's why <code>shareReplay()</code> is used to cache a single response for many consumers.
   </p>
   <ul>
-    <li><strong>Nothing works without <code>provideHttpClient()</code>.</strong> It must
-      be registered once in your app config (this app also passes
-      <code>withFetch()</code>, switching the transport from
-      <code>XMLHttpRequest</code> to the native <code>fetch</code> API) before
-      <code>inject(HttpClient)</code> resolves anywhere — forgetting it throws a
-      "no provider" DI error at the injection site, not at the call site.</li>
-    <li><strong>Interceptor chain.</strong> Every request passes through your registered
-      interceptors in order — one place to add auth headers, log, retry, or show a
-      loading bar — then hits the backend (<code>HttpXhrBackend</code>, or the fetch
-      backend with <code>withFetch()</code>).</li>
-    <li><strong>Cancellable.</strong> Unsubscribing (or a <code>switchMap</code>
-      switching away) aborts the in-flight HTTP request. This is a real advantage over
-      Promises, which can't be cancelled.</li>
-    <li><strong>One value, then complete.</strong> An HTTP Observable emits the response
-      once and completes, so it tears itself down — no manual unsubscribe needed for a
-      simple GET (but <code>switchMap</code> in a stream still gives you cancellation
-      for free).</li>
-    <li><strong>Errors are notifications, not exceptions.</strong> A non-2xx response
-      pushes an <code>HttpErrorResponse</code> through the Observable's
-      <em>error channel</em> — handle it with <code>catchError</code> or the subscribe
-      error callback, never a try/catch (HttpClient never throws synchronously).</li>
+    <li>
+      <strong>Nothing works without <code>provideHttpClient()</code>.</strong> It must be registered once in your app
+      config (this app also passes <code>withFetch()</code>, switching the transport from <code>XMLHttpRequest</code> to
+      the native <code>fetch</code> API) before <code>inject(HttpClient)</code> resolves anywhere — forgetting it throws
+      a "no provider" DI error at the injection site, not at the call site.
+    </li>
+    <li>
+      <strong>Interceptor chain.</strong> Every request passes through your registered interceptors in order — one place
+      to add auth headers, log, retry, or show a loading bar — then hits the backend (<code>HttpXhrBackend</code>, or
+      the fetch backend with <code>withFetch()</code>).
+    </li>
+    <li>
+      <strong>Cancellable.</strong> Unsubscribing (or a <code>switchMap</code> switching away) aborts the in-flight HTTP
+      request. This is a real advantage over Promises, which can't be cancelled.
+    </li>
+    <li>
+      <strong>One value, then complete.</strong> An HTTP Observable emits the response once and completes, so it tears
+      itself down — no manual unsubscribe needed for a simple GET (but <code>switchMap</code> in a stream still gives
+      you cancellation for free).
+    </li>
+    <li>
+      <strong>Errors are notifications, not exceptions.</strong> A non-2xx response pushes an
+      <code>HttpErrorResponse</code> through the Observable's <em>error channel</em> — handle it with
+      <code>catchError</code> or the subscribe error callback, never a try/catch (HttpClient never throws
+      synchronously).
+    </li>
   </ul>
 
   <h2>Pitfalls that show up in exams &amp; code review</h2>
   <ul>
-    <li><strong><code>HttpParams</code> is immutable.</strong> <code>set()</code>/<code>append()</code>
-      return a <em>new</em> instance — <code>params.set('a', 1)</code> alone does
-      nothing; reassign it (proved live above).</li>
-    <li><strong>PUT vs PATCH.</strong> PUT replaces the whole resource; PATCH sends only
-      the changed fields. Sending a partial body with PUT can wipe omitted fields.</li>
-    <li><strong>Body vs options argument order.</strong> Write verbs take
-      <code>(url, body, options)</code>; GET/DELETE take <code>(url, options)</code> —
-      easy to pass options where the body goes.</li>
-    <li><strong>No error handling on writes.</strong> A failed POST/PUT should surface;
-      a <code>catchError</code> that quietly returns a fake success value hides real
-      data loss from the user.</li>
-    <li><strong>Per-call auth headers.</strong> Cross-cutting headers belong in an
-      interceptor, not repeated at every call site.</li>
-    <li><strong>Forgetting <code>provideHttpClient()</code>.</strong> Without it,
-      <code>inject(HttpClient)</code> throws a <code>NullInjectorError</code> — a
-      startup crash, not a network failure, so don't go debugging CORS first.</li>
-    <li><strong>Unguarded double-submits.</strong> A second click before the first
-      POST resolves fires a second, independent request — no built-in de-duplication.
-      Disable the button, or route the click stream through
-      <a routerLink="/rxjs-operators"><code>exhaustMap</code></a> to ignore clicks
-      while one is already in flight.</li>
+    <li>
+      <strong><code>HttpParams</code> is immutable.</strong> <code>set()</code>/<code>append()</code> return a
+      <em>new</em> instance — <code>params.set('a', 1)</code> alone does nothing; reassign it (proved live above).
+    </li>
+    <li>
+      <strong>PUT vs PATCH.</strong> PUT replaces the whole resource; PATCH sends only the changed fields. Sending a
+      partial body with PUT can wipe omitted fields.
+    </li>
+    <li>
+      <strong>Body vs options argument order.</strong> Write verbs take <code>(url, body, options)</code>; GET/DELETE
+      take <code>(url, options)</code> — easy to pass options where the body goes.
+    </li>
+    <li>
+      <strong>No error handling on writes.</strong> A failed POST/PUT should surface; a <code>catchError</code> that
+      quietly returns a fake success value hides real data loss from the user.
+    </li>
+    <li>
+      <strong>Per-call auth headers.</strong> Cross-cutting headers belong in an interceptor, not repeated at every call
+      site.
+    </li>
+    <li>
+      <strong>Forgetting <code>provideHttpClient()</code>.</strong> Without it, <code>inject(HttpClient)</code> throws a
+      <code>NullInjectorError</code> — a startup crash, not a network failure, so don't go debugging CORS first.
+    </li>
+    <li>
+      <strong>Unguarded double-submits.</strong> A second click before the first POST resolves fires a second,
+      independent request — no built-in de-duplication. Disable the button, or route the click stream through
+      <a routerLink="/rxjs-operators"><code>exhaustMap</code></a> to ignore clicks while one is already in flight.
+    </li>
   </ul>
 
   <h2>Exam corner</h2>
   <details class="qa">
     <summary>Why did <code>params.set('page', 2)</code> not change the URL?</summary>
-    <div><code>HttpParams</code> is immutable — <code>set</code> returns a new instance you
-    must assign/pass. The original is unchanged. (This is the exact bug the live demo
-    above walks through.)</div>
+    <div>
+      <code>HttpParams</code> is immutable — <code>set</code> returns a new instance you must assign/pass. The original
+      is unchanged. (This is the exact bug the live demo above walks through.)
+    </div>
   </details>
   <details class="qa">
     <summary>PUT or PATCH to change one field?</summary>
-    <div>PATCH — it sends only that field. PUT replaces the entire resource, so omitted
-    fields may be cleared.</div>
+    <div>PATCH — it sends only that field. PUT replaces the entire resource, so omitted fields may be cleared.</div>
   </details>
   <details class="qa">
     <summary>How do you read response headers or status, not just the body?</summary>
-    <div>Pass <code>&#123; observe: 'response' &#125;</code> — you get the full
-    <code>HttpResponse</code> with <code>status</code>, <code>headers</code> and
-    <code>body</code>.</div>
+    <div>
+      Pass <code>&#123; observe: 'response' &#125;</code> — you get the full <code>HttpResponse</code> with
+      <code>status</code>, <code>headers</code> and <code>body</code>.
+    </div>
   </details>
   <details class="qa">
-    <summary>A component throws "NullInjectorError: No provider for HttpClient" at startup. What's missing, and why doesn't it show up as a network error instead?</summary>
-    <div><code>provideHttpClient()</code> was never added to the app's providers.
-    Dependency injection resolves at <em>construction</em> time — before any request is
-    ever made — so the failure is a wiring error, not a runtime network failure.</div>
+    <summary>
+      A component throws "NullInjectorError: No provider for HttpClient" at startup. What's missing, and why doesn't it
+      show up as a network error instead?
+    </summary>
+    <div>
+      <code>provideHttpClient()</code> was never added to the app's providers. Dependency injection resolves at
+      <em>construction</em> time — before any request is ever made — so the failure is a wiring error, not a runtime
+      network failure.
+    </div>
   </details>
   <details class="qa">
-    <summary>Why does a failed HTTP call need <code>catchError</code> instead of a try/catch around <code>subscribe()</code>?</summary>
-    <div>HttpClient methods never throw synchronously — a non-2xx response is delivered
-    as an error <em>notification</em> on the Observable, not a thrown exception. A
-    try/catch around <code>.subscribe(...)</code> would never see it; you need
-    <code>catchError</code> in the pipe, or the error callback passed to
-    <code>subscribe</code>.</div>
+    <summary>
+      Why does a failed HTTP call need <code>catchError</code> instead of a try/catch around <code>subscribe()</code>?
+    </summary>
+    <div>
+      HttpClient methods never throw synchronously — a non-2xx response is delivered as an error
+      <em>notification</em> on the Observable, not a thrown exception. A try/catch around
+      <code>.subscribe(...)</code> would never see it; you need <code>catchError</code> in the pipe, or the error
+      callback passed to <code>subscribe</code>.
+    </div>
   </details>
 
   <h2>Key takeaways</h2>
   <ul>
-    <li>Each verb is one method; write verbs take <code>(url, body, options?)</code>,
-      GET/DELETE take <code>(url, options?)</code> — no body slot.</li>
-    <li>Type responses with the generic; use <code>observe: 'response'</code> for
-      headers/status, <code>responseType</code> for non-JSON bodies.</li>
-    <li>Use <code>HttpParams</code>/<code>HttpHeaders</code> for query strings &amp;
-      headers — both immutable, both require capturing the return value.</li>
-    <li>Always handle errors (<code>catchError</code>, which runs on the error channel,
-      not a try/catch) on write operations.</li>
-    <li><code>provideHttpClient()</code> is a hard prerequisite — its absence fails at
-      injection, not at the network call.</li>
+    <li>
+      Each verb is one method; write verbs take <code>(url, body, options?)</code>, GET/DELETE take
+      <code>(url, options?)</code> — no body slot.
+    </li>
+    <li>
+      Type responses with the generic; use <code>observe: 'response'</code> for headers/status,
+      <code>responseType</code> for non-JSON bodies.
+    </li>
+    <li>
+      Use <code>HttpParams</code>/<code>HttpHeaders</code> for query strings &amp; headers — both immutable, both
+      require capturing the return value.
+    </li>
+    <li>
+      Always handle errors (<code>catchError</code>, which runs on the error channel, not a try/catch) on write
+      operations.
+    </li>
+    <li>
+      <code>provideHttpClient()</code> is a hard prerequisite — its absence fails at injection, not at the network call.
+    </li>
   </ul>
 
   <p><a routerLink="/http-interceptors">Next: HTTP Interceptors →</a></p>

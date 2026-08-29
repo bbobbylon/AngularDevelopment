@@ -101,7 +101,14 @@ class TaskStore {
    */
   add(title: string, priority: Priority, deadline?: number) {
     if (!title.trim()) return;
-    const task: Task = { id: this.nextId++, title: title.trim(), priority, status: 'todo', createdAt: Date.now(), deadline };
+    const task: Task = {
+      id: this.nextId++,
+      title: title.trim(),
+      priority,
+      status: 'todo',
+      createdAt: Date.now(),
+      deadline,
+    };
     this._tasks.update((l) => [...l, task]);
     this.save();
   }
@@ -264,6 +271,9 @@ export class TaskManager {
     if (diff < 0) return 'Overdue';
     if (diff === 0) return 'Due today';
     if (diff === 1) return 'Due tomorrow';
-    return 'Due ' + new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return (
+      'Due ' +
+      new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    );
   }
 }

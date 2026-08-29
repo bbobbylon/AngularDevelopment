@@ -51,16 +51,14 @@ export class Glossary {
     );
   });
 
-/**
+  /**
    * Letters that have at least one term in the *unfiltered* glossary.
    *
    * Deliberately computed from `SORTED`, not from {@link filtered}: the jump
    * bar should not flicker letters in and out of the enabled state while the
    * user is still typing.
    */
-  private readonly allLetters = computed(
-    () => new Set(SORTED.map((t) => t.term[0].toUpperCase())),
-  );
+  private readonly allLetters = computed(() => new Set(SORTED.map((t) => t.term[0].toUpperCase())));
 
   /** The filtered terms bucketed by initial letter, A-Z — what the page renders. */
   protected readonly groups = computed<GlossaryGroup[]>(() => {
@@ -76,7 +74,7 @@ export class Glossary {
       .map(([letter, terms]) => ({ letter, terms }));
   });
 
-/**
+  /**
    * Whether a jump-bar letter should be an active link.
    *
    * @param letter An uppercase initial.
@@ -85,7 +83,7 @@ export class Glossary {
     return this.allLetters().has(letter);
   }
 
-/**
+  /**
    * Opens the browser print dialog for a paper cheat-sheet.
    *
    * The print rules that hide the app chrome live in `src/styles.css`, not in

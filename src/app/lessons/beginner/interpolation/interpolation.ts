@@ -82,7 +82,9 @@ export class Interpolation {
    * causing the very bug the demo is not about.
    */
   constructor() {
-    afterEveryRender(() => { this.noisyRunsDisplay = this.noisyRuns; });
+    afterEveryRender(() => {
+      this.noisyRunsDisplay = this.noisyRuns;
+    });
   }
 
   /**

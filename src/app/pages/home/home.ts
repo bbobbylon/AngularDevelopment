@@ -1,4 +1,15 @@
-import { Component, DestroyRef, ElementRef, HostListener, afterNextRender, computed, inject, linkedSignal, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  afterNextRender,
+  computed,
+  inject,
+  linkedSignal,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CURRICULUM } from '../../core/curriculum';
 import { LEVELS, CategoryGroup, LevelGroup } from '../../core/lesson.model';
@@ -35,7 +46,13 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
  */
 @Component({
   selector: 'app-home',
-  imports: [RouterLink, FilterLessonsPipe, FilterTabsComponent, TooltipDirective, RevealOnScrollDirective],
+  imports: [
+    RouterLink,
+    FilterLessonsPipe,
+    FilterTabsComponent,
+    TooltipDirective,
+    RevealOnScrollDirective,
+  ],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })

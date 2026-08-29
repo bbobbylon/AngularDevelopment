@@ -1,4 +1,12 @@
-import { Directive, ElementRef, HostListener, OnDestroy, Renderer2, inject, input } from '@angular/core';
+import {
+  Directive,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  Renderer2,
+  inject,
+  input,
+} from '@angular/core';
 
 /** Real-world: tooltip that this app's shared TooltipDirective is based on */
 @Directive({
@@ -57,5 +65,7 @@ export class DemoTooltipDirective implements OnDestroy {
    * so destroying the host does **not** take it with it. Skip this and every
    * hover leaves an orphan behind.
    */
-  ngOnDestroy(): void { this.hide(); }
+  ngOnDestroy(): void {
+    this.hide();
+  }
 }

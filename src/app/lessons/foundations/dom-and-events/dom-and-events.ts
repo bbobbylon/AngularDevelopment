@@ -36,12 +36,37 @@ export class DomAndEvents {
 
   /** Explorable DOM tree — one entry per node with its depth and description. */
   protected readonly nodes = [
-    { id: 'body', tag: '<body>', depth: 0, info: 'The root of everything visible. Parent of header and main.' },
-    { id: 'header', tag: '<header>', depth: 1, info: 'A child of body, sibling of main, parent of the h1.' },
-    { id: 'h1', tag: '<h1>', depth: 2, info: 'A leaf node. Its textContent property is "My App" — write to it and the heading changes instantly.' },
-    { id: 'main', tag: '<main>', depth: 1, info: 'A child of body with two children of its own: the p and the button.' },
+    {
+      id: 'body',
+      tag: '<body>',
+      depth: 0,
+      info: 'The root of everything visible. Parent of header and main.',
+    },
+    {
+      id: 'header',
+      tag: '<header>',
+      depth: 1,
+      info: 'A child of body, sibling of main, parent of the h1.',
+    },
+    {
+      id: 'h1',
+      tag: '<h1>',
+      depth: 2,
+      info: 'A leaf node. Its textContent property is "My App" — write to it and the heading changes instantly.',
+    },
+    {
+      id: 'main',
+      tag: '<main>',
+      depth: 1,
+      info: 'A child of body with two children of its own: the p and the button.',
+    },
     { id: 'p', tag: '<p>', depth: 2, info: 'Sibling of the button — same parent (main).' },
-    { id: 'button', tag: '<button>', depth: 2, info: 'The interactive one: it has properties like disabled, and events like click fire on it first before bubbling up through main and body.' },
+    {
+      id: 'button',
+      tag: '<button>',
+      depth: 2,
+      info: 'The interactive one: it has properties like disabled, and events like click fire on it first before bubbling up through main and body.',
+    },
   ];
   /**
    * Which node is selected in the DOM-tree explorer.
@@ -51,8 +76,8 @@ export class DomAndEvents {
    * The selected node. The non-null assertion is safe because the selection only
    * ever comes from the node list.
    */
-  protected readonly selectedNode = computed(
-    () => this.nodes.find((n) => n.id === this.selected())!,
+  protected readonly selectedNode = computed(() =>
+    this.nodes.find((n) => n.id === this.selected())!,
   );
 
   /** Bubbling demo — each layer logs when the click reaches it. */

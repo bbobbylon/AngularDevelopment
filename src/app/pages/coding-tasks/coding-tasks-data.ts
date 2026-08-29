@@ -458,7 +458,7 @@ export class Parent {
 }
 */`,
     explanation:
-      'The task separates the three communication primitives by their contracts: input() is one-way parent→child (read-only signal in the child), output() is a fire-and-forget event, and model() is the two-way pair — under the hood it is an input PLUS a valueChange output, which is exactly what the [(value)] banana-in-a-box desugars to ([value] + (valueChange)). Writing this.value.set(star) in the child is what makes the parent\'s signal update; a plain input() would be read-only and force the emit-and-reassign dance. The computed stars array keeps the template loop honest when max changes at runtime. Bonus grader points: real <button> elements with aria-labels instead of clickable spans.',
+      "The task separates the three communication primitives by their contracts: input() is one-way parent→child (read-only signal in the child), output() is a fire-and-forget event, and model() is the two-way pair — under the hood it is an input PLUS a valueChange output, which is exactly what the [(value)] banana-in-a-box desugars to ([value] + (valueChange)). Writing this.value.set(star) in the child is what makes the parent's signal update; a plain input() would be read-only and force the emit-and-reassign dance. The computed stars array keeps the template loop honest when max changes at runtime. Bonus grader points: real <button> elements with aria-labels instead of clickable spans.",
     topicPath: 'outputs',
   },
   {

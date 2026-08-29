@@ -2,27 +2,47 @@
   <span class="lesson__eyebrow">Expert · Architecture</span>
   <h1>NgModules &amp; Standalone Migration</h1>
   <p class="lead">
-    For a decade, every component lived inside an <code>NgModule</code>; standalone
-    components made that ceremony optional, then made its absence the default.
-    Senior work still demands both: you'll read NgModule code in every mature
-    codebase, migrate it incrementally, and explain <em>why</em> the old model
-    confused people — which is exactly what its compilation-scope rules did.
+    For a decade, every component lived inside an <code>NgModule</code>; standalone components made that ceremony
+    optional, then made its absence the default. Senior work still demands both: you'll read NgModule code in every
+    mature codebase, migrate it incrementally, and explain <em>why</em> the old model confused people — which is exactly
+    what its compilation-scope rules did.
   </p>
 
   <h2>NgModule anatomy — four arrays, two different worlds</h2>
-  <div class="code"><pre>{{ anatomySample }}</pre></div>
+  <div class="code">
+    <pre>{{ anatomySample }}</pre>
+  </div>
   <table class="cmp">
-    <tr><th>Array</th><th>Governs</th><th>Visibility rule</th></tr>
-    <tr><td><code>declarations</code></td><td>template scope</td><td>private to this module unless exported; each declarable in exactly ONE module</td></tr>
-    <tr><td><code>imports</code></td><td>template scope</td><td>pulls in other modules' <em>exports</em></td></tr>
-    <tr><td><code>exports</code></td><td>template scope</td><td>this module's public template API (can re-export imported modules)</td></tr>
-    <tr><td><code>providers</code></td><td>injector</td><td>ignores exports entirely — eager modules merge providers app-wide</td></tr>
+    <tr>
+      <th>Array</th>
+      <th>Governs</th>
+      <th>Visibility rule</th>
+    </tr>
+    <tr>
+      <td><code>declarations</code></td>
+      <td>template scope</td>
+      <td>private to this module unless exported; each declarable in exactly ONE module</td>
+    </tr>
+    <tr>
+      <td><code>imports</code></td>
+      <td>template scope</td>
+      <td>pulls in other modules' <em>exports</em></td>
+    </tr>
+    <tr>
+      <td><code>exports</code></td>
+      <td>template scope</td>
+      <td>this module's public template API (can re-export imported modules)</td>
+    </tr>
+    <tr>
+      <td><code>providers</code></td>
+      <td>injector</td>
+      <td>ignores exports entirely — eager modules merge providers app-wide</td>
+    </tr>
   </table>
   <p>
-    The asymmetry in that last row — template scope obeys exports, the injector
-    doesn't — generated years of confusion and is a core motivation for standalone's
-    cleaner split: components own template deps, <code>app.config.ts</code>/routes
-    own providers.
+    The asymmetry in that last row — template scope obeys exports, the injector doesn't — generated years of confusion
+    and is a core motivation for standalone's cleaner split: components own template deps,
+    <code>app.config.ts</code>/routes own providers.
   </p>
 
   <h2>Test yourself — the compilation-scope quiz</h2>
@@ -34,112 +54,188 @@
       }
     </div>
     @if (active(); as s) {
-      <p style="font-size:.92rem">{{ s.question }}</p>
+      <p style="font-size: 0.92rem">{{ s.question }}</p>
       <span class="verdict" [class.yes]="s.works" [class.no]="!s.works">{{ s.works ? '✓ works' : '✗ fails' }}</span>
-      <p style="font-size:.9rem; margin:6px 0 0">{{ s.why }}</p>
+      <p style="font-size: 0.9rem; margin: 6px 0 0">{{ s.why }}</p>
     } @else {
-      <p style="color:var(--text-muted);font-size:.88rem">Six scenarios; two are the errors that dominated Angular Stack Overflow for years, one is a trap.</p>
+      <p style="color: var(--text-muted); font-size: 0.88rem">
+        Six scenarios; two are the errors that dominated Angular Stack Overflow for years, one is a trap.
+      </p>
     }
   </div>
 
   <h2>forRoot / forChild — why that pattern existed</h2>
-  <div class="code"><pre>{{ forRootSample }}</pre></div>
+  <div class="code">
+    <pre>{{ forRootSample }}</pre>
+  </div>
   <p>
-    A module imported by five lazy features would register its providers five times
-    — five instances of a "singleton". <code>forRoot()</code> returned
-    module-plus-providers for the root import; <code>forChild()</code> returned the
-    module without them. It was a convention (not a language feature) papering over
-    the provider-scope asymmetry — standalone's <code>provide*()</code> functions
-    make the whole dance unnecessary.
+    A module imported by five lazy features would register its providers five times — five instances of a "singleton".
+    <code>forRoot()</code> returned module-plus-providers for the root import; <code>forChild()</code> returned the
+    module without them. It was a convention (not a language feature) papering over the provider-scope asymmetry —
+    standalone's <code>provide*()</code> functions make the whole dance unnecessary.
   </p>
 
   <h2>The standalone world</h2>
-  <div class="code"><pre>{{ standaloneSample }}</pre></div>
+  <div class="code">
+    <pre>{{ standaloneSample }}</pre>
+  </div>
   <ul>
-    <li><strong>Template deps live on the component</strong> — its <code>imports</code>
-      array names exactly what its template uses (components, directives, pipes,
-      or whole NgModules).</li>
-    <li><strong>standalone is the default</strong> — modern components don't write
-      <code>standalone: true</code>; NgModule-declared components are the ones that
-      need explicit marking (<code>standalone: false</code>).</li>
-    <li><strong>Providers centralize</strong> — <code>app.config.ts</code> for the app,
-      route <code>providers</code> for feature scope, component
-      <code>providers</code> for per-instance.</li>
+    <li>
+      <strong>Template deps live on the component</strong> — its <code>imports</code> array names exactly what its
+      template uses (components, directives, pipes, or whole NgModules).
+    </li>
+    <li>
+      <strong>standalone is the default</strong> — modern components don't write <code>standalone: true</code>;
+      NgModule-declared components are the ones that need explicit marking (<code>standalone: false</code>).
+    </li>
+    <li>
+      <strong>Providers centralize</strong> — <code>app.config.ts</code> for the app, route <code>providers</code> for
+      feature scope, component <code>providers</code> for per-instance.
+    </li>
   </ul>
 
   <h2>The migration — three schematic passes</h2>
-  <div class="code"><pre>{{ migrationSample }}</pre></div>
+  <div class="code">
+    <pre>{{ migrationSample }}</pre>
+  </div>
   <table class="cmp">
-    <tr><th>NgModule-era import</th><th>Standalone replacement</th></tr>
-    <tr><td><code>HttpClientModule</code></td><td><code>provideHttpClient(withInterceptors(...))</code></td></tr>
-    <tr><td><code>RouterModule.forRoot(routes)</code></td><td><code>provideRouter(routes, withComponentInputBinding(), …)</code></td></tr>
-    <tr><td><code>RouterModule.forChild(routes)</code></td><td>a plain <code>Routes</code> file + <code>loadChildren: () =&gt; import('./x.routes')</code></td></tr>
-    <tr><td><code>BrowserModule</code></td><td>nothing — <code>bootstrapApplication</code> covers it</td></tr>
-    <tr><td><code>BrowserAnimationsModule</code></td><td>gone with the deprecated animations package (see <a routerLink="/animations">Animations</a>)</td></tr>
-    <tr><td><code>CommonModule</code> (for *ngIf/*ngFor)</td><td>usually nothing — <code>&#64;if</code>/<code>&#64;for</code> are built into templates; import only the pipes you use (<code>DatePipe</code>, <code>AsyncPipe</code>…)</td></tr>
-    <tr><td>provider-only library modules</td><td><code>importProvidersFrom(TheModule)</code> in app.config as the bridge</td></tr>
+    <tr>
+      <th>NgModule-era import</th>
+      <th>Standalone replacement</th>
+    </tr>
+    <tr>
+      <td><code>HttpClientModule</code></td>
+      <td><code>provideHttpClient(withInterceptors(...))</code></td>
+    </tr>
+    <tr>
+      <td><code>RouterModule.forRoot(routes)</code></td>
+      <td><code>provideRouter(routes, withComponentInputBinding(), …)</code></td>
+    </tr>
+    <tr>
+      <td><code>RouterModule.forChild(routes)</code></td>
+      <td>a plain <code>Routes</code> file + <code>loadChildren: () =&gt; import('./x.routes')</code></td>
+    </tr>
+    <tr>
+      <td><code>BrowserModule</code></td>
+      <td>nothing — <code>bootstrapApplication</code> covers it</td>
+    </tr>
+    <tr>
+      <td><code>BrowserAnimationsModule</code></td>
+      <td>gone with the deprecated animations package (see <a routerLink="/animations">Animations</a>)</td>
+    </tr>
+    <tr>
+      <td><code>CommonModule</code> (for *ngIf/*ngFor)</td>
+      <td>
+        usually nothing — <code>&#64;if</code>/<code>&#64;for</code> are built into templates; import only the pipes you
+        use (<code>DatePipe</code>, <code>AsyncPipe</code>…)
+      </td>
+    </tr>
+    <tr>
+      <td>provider-only library modules</td>
+      <td><code>importProvidersFrom(TheModule)</code> in app.config as the bridge</td>
+    </tr>
   </table>
 
   <h2>Mixing worlds during migration</h2>
-  <div class="code"><pre>{{ interopSample }}</pre></div>
+  <div class="code">
+    <pre>{{ interopSample }}</pre>
+  </div>
   <div class="note">
-    Both directions work, so migrate leaf-first without a big bang: convert leaf
-    components to standalone (NgModules can import them), walk up the tree, delete
-    each module when its last declaration leaves, and finish by swapping
+    Both directions work, so migrate leaf-first without a big bang: convert leaf components to standalone (NgModules can
+    import them), walk up the tree, delete each module when its last declaration leaves, and finish by swapping
     <code>platformBrowserDynamic().bootstrapModule(AppModule)</code> for
     <code>bootstrapApplication(App, appConfig)</code>.
   </div>
 
   <h2>Error messages, decoded</h2>
   <table class="cmp">
-    <tr><th>Error</th><th>Meaning</th><th>Fix</th></tr>
-    <tr><td>"'app-x' is not a known element"</td><td>X isn't in the compilation scope</td><td>standalone: add to the component's <code>imports</code>; NgModule: export from its module and import that module</td></tr>
-    <tr><td>NG6007 "part of the declarations of 2 modules"</td><td>declarable double-declared</td><td>declare once in a shared module — or make it standalone</td></tr>
-    <tr><td>NG6008 "standalone and cannot be declared"</td><td>standalone component in a <code>declarations</code> array</td><td>move it to the module's <code>imports</code></td></tr>
-    <tr><td>NG0302 "the pipe 'date' could not be found"</td><td>pipe not in scope</td><td>import <code>DatePipe</code> (standalone) / <code>CommonModule</code> (NgModule)</td></tr>
+    <tr>
+      <th>Error</th>
+      <th>Meaning</th>
+      <th>Fix</th>
+    </tr>
+    <tr>
+      <td>"'app-x' is not a known element"</td>
+      <td>X isn't in the compilation scope</td>
+      <td>
+        standalone: add to the component's <code>imports</code>; NgModule: export from its module and import that module
+      </td>
+    </tr>
+    <tr>
+      <td>NG6007 "part of the declarations of 2 modules"</td>
+      <td>declarable double-declared</td>
+      <td>declare once in a shared module — or make it standalone</td>
+    </tr>
+    <tr>
+      <td>NG6008 "standalone and cannot be declared"</td>
+      <td>standalone component in a <code>declarations</code> array</td>
+      <td>move it to the module's <code>imports</code></td>
+    </tr>
+    <tr>
+      <td>NG0302 "the pipe 'date' could not be found"</td>
+      <td>pipe not in scope</td>
+      <td>import <code>DatePipe</code> (standalone) / <code>CommonModule</code> (NgModule)</td>
+    </tr>
   </table>
 
   <h2>Exam corner</h2>
   <details class="qa">
     <summary>Module A imports module B. Can A's components use B's declared-but-unexported directive?</summary>
-    <div>No — imports grant access to B's <em>exports</em> only. Declarations are
-    private by default. This asymmetry (vs providers, which leak app-wide from eager
-    modules) is the single most-tested NgModule fact.</div>
+    <div>
+      No — imports grant access to B's <em>exports</em> only. Declarations are private by default. This asymmetry (vs
+      providers, which leak app-wide from eager modules) is the single most-tested NgModule fact.
+    </div>
   </details>
   <details class="qa">
     <summary>Why did <code>RouterModule</code> need forRoot/forChild?</summary>
-    <div>To register the router's singleton services exactly once: forRoot returned
-    module + providers for the app root; forChild returned only the directives for
-    lazy features — otherwise each lazy import would create duplicate router state.
-    <code>provideRouter()</code> + plain route arrays replaced the whole pattern.</div>
+    <div>
+      To register the router's singleton services exactly once: forRoot returned module + providers for the app root;
+      forChild returned only the directives for lazy features — otherwise each lazy import would create duplicate router
+      state. <code>provideRouter()</code> + plain route arrays replaced the whole pattern.
+    </div>
   </details>
   <details class="qa">
     <summary>During migration, how does an NgModule use an already-converted standalone component?</summary>
-    <div>Add the component class to the NgModule's <code>imports</code> array (not
-    declarations — that's NG6008). Standalone things import like modules.</div>
+    <div>
+      Add the component class to the NgModule's <code>imports</code> array (not declarations — that's NG6008).
+      Standalone things import like modules.
+    </div>
   </details>
   <details class="qa">
     <summary>A library only ships <code>SomeLibModule</code> with providers. Standalone app — now what?</summary>
-    <div><code>importProvidersFrom(SomeLibModule)</code> inside
-    <code>app.config.ts</code> providers extracts the module's provider graph into
-    the environment injector. It's the designated bridge until the library ships a
-    <code>provideSomeLib()</code> function.</div>
+    <div>
+      <code>importProvidersFrom(SomeLibModule)</code> inside <code>app.config.ts</code> providers extracts the module's
+      provider graph into the environment injector. It's the designated bridge until the library ships a
+      <code>provideSomeLib()</code> function.
+    </div>
   </details>
   <details class="qa">
     <summary>Do you still need <code>CommonModule</code> in standalone components?</summary>
-    <div>Rarely. <code>&#64;if/&#64;for/&#64;switch</code> replaced the structural
-    directives, so you import only what you actually use — typically individual pipes
-    like <code>AsyncPipe</code> or <code>DatePipe</code>. Blanket CommonModule imports
-    are a migration smell.</div>
+    <div>
+      Rarely. <code>&#64;if/&#64;for/&#64;switch</code> replaced the structural directives, so you import only what you
+      actually use — typically individual pipes like <code>AsyncPipe</code> or <code>DatePipe</code>. Blanket
+      CommonModule imports are a migration smell.
+    </div>
   </details>
 
   <h2>Key takeaways</h2>
   <ul>
-    <li>NgModule mental model: declarations are private, exports are the public template API, imports pull in exports — and providers ignore all of it.</li>
+    <li>
+      NgModule mental model: declarations are private, exports are the public template API, imports pull in exports —
+      and providers ignore all of it.
+    </li>
     <li>forRoot/forChild existed to fake provider scoping; <code>provide*()</code> functions made it obsolete.</li>
-    <li>Standalone puts template deps on the component and providers in app.config/routes — the two concerns NgModules tangled.</li>
-    <li>Migrate leaf-first with <code>ng generate &#64;angular/core:standalone</code> (convert → prune modules → bootstrap), bridging gaps with <code>importProvidersFrom</code>.</li>
-    <li>Know the error map: unknown element = scope; NG6007 = double declaration; NG6008 = standalone in declarations.</li>
+    <li>
+      Standalone puts template deps on the component and providers in app.config/routes — the two concerns NgModules
+      tangled.
+    </li>
+    <li>
+      Migrate leaf-first with <code>ng generate &#64;angular/core:standalone</code> (convert → prune modules →
+      bootstrap), bridging gaps with <code>importProvidersFrom</code>.
+    </li>
+    <li>
+      Know the error map: unknown element = scope; NG6007 = double declaration; NG6008 = standalone in declarations.
+    </li>
   </ul>
 
   <p><a routerLink="/libraries-schematics">Next: Libraries &amp; Schematics →</a></p>

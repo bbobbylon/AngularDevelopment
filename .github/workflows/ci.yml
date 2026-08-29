@@ -1,0 +1,55 @@
+name: CI
+
+# Runs the checks that must pass before anything ships. The deploy workflow
+# gates on this same set (see deploy-github-pages.yml's `verify` job) so a
+# broken build or a failing test cannot reach GitHub Pages.
+#
+# Locally this whole job is `npm run verify`.
+
+on:
+  pull_request:
+  push:
+    # Pushes to main/master are covered by the deploy workflow's verify job;
+    # running both would double every check on the default branch.
+    branches-ignore: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Cheapest check, so it runs first. `endOfLine: auto` in .prettierrc keeps
+      # this passing on both Ubuntu (LF) and Windows checkouts (CRLF via autocrlf).
+      - name: Format check
+        run: npm run format:check
+
+      # Catches type errors the bundler would not, including in .spec.ts files,
+      # which the production build never compiles.
+      - name: Typecheck
+        run: npm run typecheck
+
+      # jsdom-based, so no browser or display server is needed.
+      - name: Unit tests
+        run: npm run test:ci
+
+      # The only thing that resolves templateUrl/styleUrl and compiles templates.
+      - name: Build
+        run: npm run build

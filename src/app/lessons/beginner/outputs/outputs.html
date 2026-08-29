@@ -1,120 +1,167 @@
-    <article class="lesson">
-      <span class="lesson__eyebrow">Beginner · Component Communication</span>
-      <h1>Component Outputs</h1>
-      <p class="lead">
-        Outputs let a child notify its parent that something happened. The modern
-        <code>output()</code> function creates a typed emitter; the parent listens
-        with event-binding syntax <code>(outputName)="handler($event)"</code>.
-      </p>
+<article class="lesson">
+  <span class="lesson__eyebrow">Beginner · Component Communication</span>
+  <h1>Component Outputs</h1>
+  <p class="lead">
+    Outputs let a child notify its parent that something happened. The modern
+    <code>output()</code> function creates a typed emitter; the parent listens with event-binding syntax
+    <code>(outputName)="handler($event)"</code>.
+  </p>
 
-      <h2>Declaring & emitting</h2>
-      <div class="code">
-        <pre>export class Rating {{ '{' }}
+  <p>
+    The mental model: <strong>an output is a doorbell, not a door</strong>. The child can ring it — "someone picked four
+    stars" — but it cannot walk in and rearrange the furniture. What happens next is entirely the parent's decision, and
+    the child neither knows nor cares. That is what makes the child reusable in a screen it was never designed for: it
+    has no opinion about the consequences of its own events.
+  </p>
+
+  <app-remember variant="rule">
+    Data flows <strong>down</strong> through inputs. Events flow <strong>up</strong> through outputs. Nothing ever goes
+    the other way.
+  </app-remember>
+
+  <h2>Declaring & emitting</h2>
+  <div class="code">
+    <pre>
+export class Rating {{ '{' }}
   rate = output&lt;RateEvent&gt;();      // typed output
   select(stars: number) {{ '{' }}
     this.rate.emit({{ '{' }} stars, at: new Date() {{ '}' }});  // push a value up
   {{ '}' }}
 {{ '}' }}</pre>
-      </div>
+  </div>
 
-      <h2>Try it</h2>
-      <div class="demo">
-        <p class="demo__title">Live — child emits, parent reacts</p>
-        <app-rating (rate)="onRate($event)" (cleared)="onClear()" />
+  <h2>Try it</h2>
+  <div class="demo">
+    <p class="demo__title">Live — child emits, parent reacts</p>
+    <app-rating (rate)="onRate($event)" (cleared)="onClear()" />
 
-        <p style="margin-top:14px">
-          @if (last(); as r) {
-            Parent received: <strong>{{ r.stars }} star(s)</strong>
-            at {{ r.at | date: 'HH:mm:ss' }}
-          } @else {
-            Parent received: <em>nothing yet</em>
-          }
-        </p>
-        @if (history().length) {
-          <p class="pill">events fired: {{ history().length }}</p>
-        }
-      </div>
+    <p style="margin-top: 14px">
+      @if (last(); as r) {
+        Parent received: <strong>{{ r.stars }} star(s)</strong> at {{ r.at | date: 'HH:mm:ss' }}
+      } @else {
+        Parent received: <em>nothing yet</em>
+      }
+    </p>
+    @if (history().length) {
+      <p class="pill">events fired: {{ history().length }}</p>
+    }
+  </div>
 
-      <div class="code">
-        <pre>&lt;app-rating (rate)="onRate($event)" (cleared)="onClear()" /&gt;
+  <div class="code">
+    <pre>
+&lt;app-rating (rate)="onRate($event)" (cleared)="onClear()" /&gt;
 
 onRate(e: RateEvent) {{ '{' }} this.last.set(e); {{ '}' }}</pre>
-      </div>
+  </div>
 
-      <div class="note">
-        <code>$event</code> in an output binding is the emitted value (here a
-        <code>RateEvent</code>), not a DOM event. Outputs are how
-        <code>[(two-way)]</code> binding works under the hood: an input
-        <code>x</code> plus an output <code>xChange</code> — which is exactly what
-        <code>model()</code> generates.
-      </div>
+  <app-predict
+    prompt="In the parent's handler, what exactly is `$event`?"
+    [code]="eventSample"
+    answer="The `RateEvent` object the child passed to `emit()` — `{ stars: 4, at: ... }`. Not a DOM event, not a wrapper around one. In an *output* binding `$event` is simply the payload, so it is typed as whatever the output was declared with. The name is shared with DOM event bindings purely out of consistency, and it trips almost everyone once."
+  />
 
-      <h2>Outputs from an Observable</h2>
-      <div class="code">
-        <pre>import {{ '{' }} outputFromObservable {{ '}' }} from '&#64;angular/core/rxjs-interop';
+  <p>
+    Notice what the demo above does <em>not</em> do: the child never reaches into the parent. It emits, the parent
+    changes its own state, and the new value comes back down as an input. The whole cycle only ever moves one way:
+  </p>
+
+  <app-flow
+    [steps]="loop"
+    caption="Unidirectional data flow. Every arrow has one direction, which is why you can always answer 'who changed this?'"
+  />
+
+  <div class="note">
+    <code>$event</code> in an output binding is the emitted value (here a <code>RateEvent</code>), not a DOM event.
+    Outputs are how <code>[(two-way)]</code> binding works under the hood: an input <code>x</code> plus an output
+    <code>xChange</code> — which is exactly what <code>model()</code> generates.
+  </div>
+
+  <h2>Outputs from an Observable</h2>
+  <div class="code">
+    <pre>
+import {{ '{' }} outputFromObservable {{ '}' }} from '&#64;angular/core/rxjs-interop';
 // expose a stream as an output:
 saved = outputFromObservable(this.savedSubject$);</pre>
-      </div>
-      <div class="note">
-        Subscriptions to outputs are cleaned up automatically when the component is
-        destroyed — no manual unsubscribe. Name outputs for the <em>event</em>
-        (<code>saved</code>, <code>rate</code>), not <code>onSave</code>, and avoid native
-        event names like <code>click</code>/<code>change</code> to prevent confusion with
-        DOM events.
-      </div>
+  </div>
+  <div class="note">
+    Subscriptions to outputs are cleaned up automatically when the component is destroyed — no manual unsubscribe. Name
+    outputs for the <em>event</em> (<code>saved</code>, <code>rate</code>), not <code>onSave</code>, and avoid native
+    event names like <code>click</code>/<code>change</code> to prevent confusion with DOM events.
+  </div>
 
-      <h2>The classic &#64;Output / EventEmitter</h2>
-      <p>The decorator equivalent you will meet in exams and older code:</p>
-      <div class="code">
-        <pre>&#64;Output() rate = new EventEmitter&lt;RateEvent&gt;();
+  <h2>The classic &#64;Output / EventEmitter</h2>
+  <p>The decorator equivalent you will meet in exams and older code:</p>
+  <div class="code">
+    <pre>
+&#64;Output() rate = new EventEmitter&lt;RateEvent&gt;();
 this.rate.emit(payload);</pre>
-      </div>
-      <p>
-        <code>output()</code> is preferred: it's not a full <code>Subject</code> (no
-        <code>.subscribe</code> on the instance, no values pushed in from outside), which
-        keeps the contract one-directional and clear.
-      </p>
+  </div>
+  <p>
+    <code>output()</code> is preferred: it's not a full <code>Subject</code> (no <code>.subscribe</code> on the
+    instance, no values pushed in from outside), which keeps the contract one-directional and clear.
+  </p>
 
-      <h2>Pitfalls that show up in exams &amp; code review</h2>
-      <ul>
-        <li><strong>Thinking <code>$event</code> is a DOM event.</strong> In an output binding it's the
-          <em>emitted value</em> (your payload type), not a browser event.</li>
-        <li><strong>Naming outputs <code>onX</code>.</strong> Name them for the event
-          (<code>rate</code>, <code>saved</code>); the <code>on</code> prefix belongs on the parent's
-          handler, not the output.</li>
-        <li><strong>Shadowing native events.</strong> Avoid output names like <code>click</code>/
-          <code>change</code> — they collide with real DOM events on the host.</li>
-        <li><strong>Treating <code>output()</code> like a Subject.</strong> It has no
-          <code>.subscribe()</code> and can't be fed from outside — it's emit-only by design. Use an
-          RxJS <code>Subject</code> + <code>outputFromObservable</code> if you need a stream source.</li>
-        <li><strong>Manual unsubscribe.</strong> Output bindings are torn down with the component — no
-          cleanup needed (unlike a hand-rolled <code>EventEmitter.subscribe()</code>).</li>
-      </ul>
+  <app-quiz
+    question="`[(value)]` on a child component desugars into what, exactly?"
+    [options]="twoWayOptions"
+    followUp="Worth memorising the suffix: the output must be named `<inputName>Change` or the shorthand will not compile."
+  />
 
-      <h2>Exam corner</h2>
-      <details class="qa">
-        <summary>What is <code>$event</code> in <code>(rate)="onRate($event)"</code>?</summary>
-        <div>The value passed to <code>rate.emit(...)</code> — here a <code>RateEvent</code>. Output
-        <code>$event</code> is the payload, not a DOM event.</div>
-      </details>
-      <details class="qa">
-        <summary>How does two-way <code>[(x)]</code> binding relate to outputs?</summary>
-        <div>It desugars to an input <code>x</code> plus an output <code>xChange</code>. <code>model()</code>
-        generates exactly that pair.</div>
-      </details>
-      <details class="qa">
-        <summary><code>output()</code> vs <code>&#64;Output() EventEmitter</code>?</summary>
-        <div>Same wiring for parents. <code>output()</code> is preferred — it's emit-only (no external
-        <code>subscribe</code>/<code>next</code>), keeping the child→parent contract one-directional.</div>
-      </details>
+  <h2>Pitfalls that show up in exams &amp; code review</h2>
+  <ul>
+    <li>
+      <strong>Thinking <code>$event</code> is a DOM event.</strong> In an output binding it's the
+      <em>emitted value</em> (your payload type), not a browser event.
+    </li>
+    <li>
+      <strong>Naming outputs <code>onX</code>.</strong> Name them for the event (<code>rate</code>, <code>saved</code>);
+      the <code>on</code> prefix belongs on the parent's handler, not the output.
+    </li>
+    <li>
+      <strong>Shadowing native events.</strong> Avoid output names like <code>click</code>/ <code>change</code> — they
+      collide with real DOM events on the host.
+    </li>
+    <li>
+      <strong>Treating <code>output()</code> like a Subject.</strong> It has no <code>.subscribe()</code> and can't be
+      fed from outside — it's emit-only by design. Use an RxJS <code>Subject</code> +
+      <code>outputFromObservable</code> if you need a stream source.
+    </li>
+    <li>
+      <strong>Manual unsubscribe.</strong> Output bindings are torn down with the component — no cleanup needed (unlike
+      a hand-rolled <code>EventEmitter.subscribe()</code>).
+    </li>
+  </ul>
 
-      <h2>Key takeaways</h2>
-      <ul>
-        <li><code>output&lt;T&gt;()</code> creates a typed event emitter on a child.</li>
-        <li>Emit with <code>.emit(value)</code>; the parent listens with <code>(name)</code>.</li>
-        <li>The handler receives the emitted value as <code>$event</code>.</li>
-        <li>Decorator form: <code>&#64;Output() x = new EventEmitter&lt;T&gt;()</code>.</li>
-      </ul>
+  <h2>Exam corner</h2>
+  <details class="qa">
+    <summary>What is <code>$event</code> in <code>(rate)="onRate($event)"</code>?</summary>
+    <div>
+      The value passed to <code>rate.emit(...)</code> — here a <code>RateEvent</code>. Output <code>$event</code> is the
+      payload, not a DOM event.
+    </div>
+  </details>
+  <details class="qa">
+    <summary>How does two-way <code>[(x)]</code> binding relate to outputs?</summary>
+    <div>
+      It desugars to an input <code>x</code> plus an output <code>xChange</code>. <code>model()</code> generates exactly
+      that pair.
+    </div>
+  </details>
+  <details class="qa">
+    <summary><code>output()</code> vs <code>&#64;Output() EventEmitter</code>?</summary>
+    <div>
+      Same wiring for parents. <code>output()</code> is preferred — it's emit-only (no external
+      <code>subscribe</code>/<code>next</code>), keeping the child→parent contract one-directional.
+    </div>
+  </details>
 
-      <p><a routerLink="/services-di">Next: Services &amp; Dependency Injection →</a></p>
-    </article>
+  <h2>Key takeaways</h2>
+  <ul>
+    <li><code>output&lt;T&gt;()</code> creates a typed event emitter on a child.</li>
+    <li>Emit with <code>.emit(value)</code>; the parent listens with <code>(name)</code>.</li>
+    <li>The handler receives the emitted value as <code>$event</code>.</li>
+    <li>Decorator form: <code>&#64;Output() x = new EventEmitter&lt;T&gt;()</code>.</li>
+  </ul>
+
+  <p><a routerLink="/services-di">Next: Services &amp; Dependency Injection →</a></p>
+</article>

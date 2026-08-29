@@ -22,7 +22,7 @@ const DEP_CHOICES: DepChoice[] = [
     why: 'Runtime helpers your compiled output actually imports. Consumers should get it automatically without knowing it exists — the classic legitimate "dependencies" entry for a library (ng-packagr adds it by default).',
   },
   {
-    label: 'date-fns (used in your lib\'s code)',
+    label: "date-fns (used in your lib's code)",
     field: 'dependencies',
     why: 'A true runtime dependency the consumer does not necessarily have. Regular dependency — but every one you add is weight and version-conflict surface for every consumer; audit ruthlessly. ng-packagr will warn unless it\'s whitelisted in "allowedNonPeerDependencies".',
   },

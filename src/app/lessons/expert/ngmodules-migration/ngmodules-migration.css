@@ -1,15 +1,71 @@
-.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
-.chips button { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 18px; padding: 6px 14px; font-size: .84rem; }
-.chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+}
+.chips button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 18px;
+  padding: 6px 14px;
+  font-size: 0.84rem;
+}
+.chips button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
 
-.verdict { display: inline-block; font-weight: 700; font-size: .85rem; padding: 4px 14px; border-radius: 8px; margin: 8px 0 6px; }
-.verdict.yes { background: rgba(16,185,129,.12); color: var(--green); }
-.verdict.no { background: rgba(239,68,68,.12); color: #ef4444; }
+.verdict {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 4px 14px;
+  border-radius: 8px;
+  margin: 8px 0 6px;
+}
+.verdict.yes {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--green);
+}
+.verdict.no {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
 
-table.cmp { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 12px 0; }
-table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
-table.cmp th { background: var(--bg-elevated); }
+table.cmp {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  margin: 12px 0;
+}
+table.cmp th,
+table.cmp td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+table.cmp th {
+  background: var(--bg-elevated);
+}
 
-.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
-.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
-.qa div { padding: 10px 14px; font-size: .9rem; }
+.qa {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 10px 0;
+  overflow: hidden;
+}
+.qa summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+}
+.qa div {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}

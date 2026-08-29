@@ -23,7 +23,11 @@ const TIMELINES: Record<Strategy, { blurb: string; steps: TimelineStep[] }> = {
       { actor: 'server', text: 'Serves index.html — essentially an empty <app-root></app-root>' },
       { actor: 'browser', text: 'Paints… nothing meaningful. Blank page (or a spinner)' },
       { actor: 'browser', text: 'Downloads and parses the JS bundles' },
-      { actor: 'browser', text: 'Bootstraps Angular, runs change detection, renders the DOM', marker: 'FCP' },
+      {
+        actor: 'browser',
+        text: 'Bootstraps Angular, runs change detection, renders the DOM',
+        marker: 'FCP',
+      },
       { actor: 'browser', text: 'Fetches data over HTTP, renders again with real content' },
       { actor: 'browser', text: 'Interactive', marker: 'TTI' },
     ],
@@ -32,12 +36,29 @@ const TIMELINES: Record<Strategy, { blurb: string; steps: TimelineStep[] }> = {
     blurb:
       'Server-side rendering: each request renders real HTML on the server; the client then hydrates the existing DOM instead of rebuilding it.',
     steps: [
-      { actor: 'server', text: 'Bootstraps the app per request, runs your components, awaits data' },
+      {
+        actor: 'server',
+        text: 'Bootstraps the app per request, runs your components, awaits data',
+      },
       { actor: 'server', text: 'Serializes the rendered page and streams complete HTML' },
-      { actor: 'browser', text: 'Paints real content immediately — before any JS runs', marker: 'FCP' },
-      { actor: 'browser', text: 'Downloads JS in the background; crawlers already have the content' },
-      { actor: 'browser', text: 'Hydrates: adopts the existing DOM, attaches listeners (no re-render)' },
-      { actor: 'browser', text: 'Interactive — event replay bridges the gap for early clicks', marker: 'TTI' },
+      {
+        actor: 'browser',
+        text: 'Paints real content immediately — before any JS runs',
+        marker: 'FCP',
+      },
+      {
+        actor: 'browser',
+        text: 'Downloads JS in the background; crawlers already have the content',
+      },
+      {
+        actor: 'browser',
+        text: 'Hydrates: adopts the existing DOM, attaches listeners (no re-render)',
+      },
+      {
+        actor: 'browser',
+        text: 'Interactive — event replay bridges the gap for early clicks',
+        marker: 'TTI',
+      },
     ],
   },
   SSG: {
@@ -45,7 +66,10 @@ const TIMELINES: Record<Strategy, { blurb: string; steps: TimelineStep[] }> = {
       'Prerendering (SSG): pages are rendered ONCE at build time and served as static files — the fastest possible delivery, for content that is the same for everyone.',
     steps: [
       { actor: 'build', text: 'ng build renders each prerender route to a real .html file' },
-      { actor: 'server', text: 'A CDN/static host serves the file — no per-request compute at all' },
+      {
+        actor: 'server',
+        text: 'A CDN/static host serves the file — no per-request compute at all',
+      },
       { actor: 'browser', text: 'Paints real content immediately', marker: 'FCP' },
       { actor: 'browser', text: 'Downloads JS, hydrates exactly like SSR' },
       { actor: 'browser', text: 'Interactive', marker: 'TTI' },

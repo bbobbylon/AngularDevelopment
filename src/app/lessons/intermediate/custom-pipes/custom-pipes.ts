@@ -124,11 +124,18 @@ export class HighlightPipe implements PipeTransform {
 /**
  * A fruit in the filter demo.
  */
-interface Fruit { name: string; color: string }
+interface Fruit {
+  name: string;
+  color: string;
+}
 /**
  * A post in the relative-time demo.
  */
-interface Post  { id: number; title: string; date: string }
+interface Post {
+  id: number;
+  title: string;
+  date: string;
+}
 
 /**
  * Lesson: Custom Pipes — writing your own template transforms.
@@ -149,7 +156,15 @@ interface Post  { id: number; title: string; date: string }
  */
 @Component({
   selector: 'app-lesson-custom-pipes',
-  imports: [RouterLink, FormsModule, TruncatePipe, SentenceCasePipe, FilterByPipe, RelativeTimePipe, HighlightPipe],
+  imports: [
+    RouterLink,
+    FormsModule,
+    TruncatePipe,
+    SentenceCasePipe,
+    FilterByPipe,
+    RelativeTimePipe,
+    HighlightPipe,
+  ],
   // DatePipe is provided (not template-imported): RelativeTimePipe inject()s it.
   providers: [DatePipe],
   templateUrl: './custom-pipes.html',
@@ -197,10 +212,26 @@ export class CustomPipes {
    * thresholds to show at once.
    */
   protected readonly posts: Post[] = [
-    { id: 1, title: 'Signal-based state management', date: new Date(Date.now() - 3 * 60_000).toISOString() },
-    { id: 2, title: 'Building with @defer', date: new Date(Date.now() - 2 * 3_600_000).toISOString() },
-    { id: 3, title: 'View Transitions deep dive', date: new Date(Date.now() - 3 * 86_400_000).toISOString() },
-    { id: 4, title: 'Zoneless Angular migration', date: new Date(Date.now() - 14 * 86_400_000).toISOString() },
+    {
+      id: 1,
+      title: 'Signal-based state management',
+      date: new Date(Date.now() - 3 * 60_000).toISOString(),
+    },
+    {
+      id: 2,
+      title: 'Building with @defer',
+      date: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    },
+    {
+      id: 3,
+      title: 'View Transitions deep dive',
+      date: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+    },
+    {
+      id: 4,
+      title: 'Zoneless Angular migration',
+      date: new Date(Date.now() - 14 * 86_400_000).toISOString(),
+    },
   ];
 
   /**

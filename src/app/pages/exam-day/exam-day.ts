@@ -174,10 +174,14 @@ export class ExamDay implements OnDestroy {
    * visit finished an exam and left briefs pending — the idle screen offers to
    * resume rather than silently starting over.
    */
-  readonly active = signal<ActiveCheck | null>(readJson<ActiveCheck | null>(STORAGE_KEYS.examDayActive, null));
+  readonly active = signal<ActiveCheck | null>(
+    readJson<ActiveCheck | null>(STORAGE_KEYS.examDayActive, null),
+  );
 
   /** Past verdicts, newest first, capped at {@link HISTORY_LIMIT}. */
-  readonly history = signal<ReadinessResult[]>(readJson<ReadinessResult[]>(STORAGE_KEYS.examDayHistory, []));
+  readonly history = signal<ReadinessResult[]>(
+    readJson<ReadinessResult[]>(STORAGE_KEYS.examDayHistory, []),
+  );
 
   /** The verdict on the result screen. In-memory only; {@link history} is the
    *  durable record. */
@@ -212,9 +216,7 @@ export class ExamDay implements OnDestroy {
   readonly assignedTasks = computed(() => {
     const check = this.active();
     if (!check) return [];
-    return check.taskIds
-      .map((id) => this.taskById.get(id))
-      .filter((t): t is CodingTask => !!t);
+    return check.taskIds.map((id) => this.taskById.get(id)).filter((t): t is CodingTask => !!t);
   });
   /** How many of the assigned briefs are complete — the second pass bar. */
   readonly assignedDoneCount = computed(
@@ -354,7 +356,9 @@ export class ExamDay implements OnDestroy {
     const lines: string[] = [];
 
     lines.push(`# Exam-Day Readiness Check — ${new Date(when).toLocaleString()}`, '');
-    lines.push(`**Verdict:** ${r.ready ? 'READY' : 'NOT YET'} (pass bar: exam ≥ ${this.passMark}% and ${this.tasksRequired}/${this.tasksRequired} briefs completed)`);
+    lines.push(
+      `**Verdict:** ${r.ready ? 'READY' : 'NOT YET'} (pass bar: exam ≥ ${this.passMark}% and ${this.tasksRequired}/${this.tasksRequired} briefs completed)`,
+    );
     lines.push(`**Timed exam:** ${r.examScore}% (${r.examCorrect}/${r.examTotal})`);
     lines.push(`**Build briefs:** ${r.tasksDone}/${r.tasksTotal} completed`, '');
 
@@ -362,7 +366,9 @@ export class ExamDay implements OnDestroy {
     if (tasks.length > 0) {
       lines.push('## Assigned briefs', '');
       for (const task of tasks) {
-        lines.push(`- ${this.doneTaskIds().has(task.id) ? '✅' : '⬜'} ${task.title} (${task.difficulty}, ${task.category})`);
+        lines.push(
+          `- ${this.doneTaskIds().has(task.id) ? '✅' : '⬜'} ${task.title} (${task.difficulty}, ${task.category})`,
+        );
       }
       lines.push('');
     }
@@ -374,7 +380,9 @@ export class ExamDay implements OnDestroy {
         const shuffled = this.shuffledOptions(ch);
         const ok = this.isCorrect(ch);
         const answered = this.answers()[ch.id] !== undefined;
-        lines.push(`### Q${i + 1} — ${ch.category} · ${ch.difficulty} — ${ok ? '✓ Correct' : answered ? '✗ Incorrect' : '⚠ Not answered'}`);
+        lines.push(
+          `### Q${i + 1} — ${ch.category} · ${ch.difficulty} — ${ok ? '✓ Correct' : answered ? '✗ Incorrect' : '⚠ Not answered'}`,
+        );
         lines.push(ch.question);
         if (ch.code) lines.push('', '```', ch.code, '```');
         lines.push('');

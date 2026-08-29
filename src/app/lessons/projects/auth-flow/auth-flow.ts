@@ -65,11 +65,15 @@ class MockAuthService {
   /**
    * The current token, or `null`.
    */
-  getToken() { return this._token; }
+  getToken() {
+    return this._token;
+  }
   /**
    * Whether the session was restored rather than logged in.
    */
-  wasRestoredFromSession() { return this._fromSession; }
+  wasRestoredFromSession() {
+    return this._fromSession;
+  }
 
   /**
    * Attempts a sign-in.
@@ -80,8 +84,14 @@ class MockAuthService {
    */
   login(email: string, password: string): boolean {
     const users: Record<string, { password: string; user: AuthUser }> = {
-      'admin@example.com': { password: 'admin123', user: { id: 1, name: 'Admin User', email: 'admin@example.com', role: 'admin' } },
-      'user@example.com':  { password: 'user123',  user: { id: 2, name: 'Jane Smith', email: 'user@example.com',  role: 'user'  } },
+      'admin@example.com': {
+        password: 'admin123',
+        user: { id: 1, name: 'Admin User', email: 'admin@example.com', role: 'admin' },
+      },
+      'user@example.com': {
+        password: 'user123',
+        user: { id: 2, name: 'Jane Smith', email: 'user@example.com', role: 'user' },
+      },
     };
     const record = users[email];
     if (!record || record.password !== password) return false;
@@ -176,9 +186,15 @@ export class AuthFlow {
    * Fills in the admin credentials, so the role-based UI can be tried without
    * reading them off the page.
    */
-  protected fillAdmin() { this.email = 'admin@example.com'; this.password = 'admin123'; }
+  protected fillAdmin() {
+    this.email = 'admin@example.com';
+    this.password = 'admin123';
+  }
   /**
    * Fills in the ordinary-user credentials.
    */
-  protected fillUser()  { this.email = 'user@example.com';  this.password = 'user123'; }
+  protected fillUser() {
+    this.email = 'user@example.com';
+    this.password = 'user123';
+  }
 }

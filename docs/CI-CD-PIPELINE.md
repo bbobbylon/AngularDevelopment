@@ -81,10 +81,12 @@ This document outlines the CI/CD pipeline strategy for the Angular Tutorials app
 **File:** `.github/workflows/deploy-github-pages.yml`
 
 **Triggers:**
+
 - Push to `master` or `main` branch
 - Manual trigger via `workflow_dispatch`
 
 **Steps:**
+
 1. Checkout code
 2. Setup Node.js 22
 3. Install dependencies (`npm ci`)
@@ -93,6 +95,7 @@ This document outlines the CI/CD pipeline strategy for the Angular Tutorials app
 6. Deploy via `actions/deploy-pages@v4`
 
 **Output:**
+
 - Free hosting at: `https://bbobbylon.github.io/AngularDevelopment/`
 - Auto-deploys on every push
 - No additional configuration needed
@@ -106,21 +109,25 @@ This document outlines the CI/CD pipeline strategy for the Angular Tutorials app
 **File:** `.github/workflows/deploy-docker.yml`
 
 **Triggers:**
+
 - Push to `master` or `main` branch
 - Manual trigger via `workflow_dispatch`
 
 **Steps:**
+
 1. Checkout code
 2. Setup Docker buildx (multi-platform builds)
 3. Build Docker image
 4. Push to Docker Hub
 
 **Requirements:**
+
 - Docker Hub username (env var: `DOCKER_USERNAME`)
 - Docker Hub token (GitHub Secret: `DOCKER_PASSWORD`)
 - Docker Hub token (GitHub Secret: `DOCKER_LOGIN_USERNAME`)
 
 **Output:**
+
 - Docker image available at: `docker.io/USERNAME/angulartutorials:latest`
 - Also tagged with commit SHA and timestamp
 
@@ -133,6 +140,7 @@ This document outlines the CI/CD pipeline strategy for the Angular Tutorials app
 **Files:** `deploy.sh` (Bash) and `deploy.ps1` (PowerShell)
 
 **Available Commands:**
+
 ```bash
 ./deploy.sh start              # Dev server on port 4242
 ./deploy.sh build              # Production build
@@ -201,6 +209,7 @@ git push → Lint → Unit Tests → Build → Deploy
 ```
 
 **Planned Additions:**
+
 - `npm run test` in workflow (run vitest)
 - ESLint checks via `npm run lint` (when added)
 - Code coverage reporting
@@ -217,6 +226,7 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 ```
 
 **Planned Targets:**
+
 - AWS EC2 / Vercel / Digital Ocean
 - Staging environment for testing
 - Manual approval gates before production
@@ -229,6 +239,7 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 ### Phase 4: Advanced Monitoring
 
 **Planned Additions:**
+
 - Build time tracking
 - Deployment success/failure metrics
 - Performance monitoring (Lighthouse scores)
@@ -244,12 +255,14 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 ### Current Practices
 
 ✅ **What We Do Right:**
+
 - Secrets stored in GitHub Secrets (encrypted)
 - No hardcoded credentials in code
 - `.env` files are in `.gitignore`
 - `deploy.sh` reads from environment variables
 
 ❌ **What We Should Add:**
+
 - Branch protection rules (require PRs before merge)
 - Signed commits (GPG)
 - CODEOWNERS file (require review from specific people)
@@ -257,11 +270,11 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 
 ### Secrets Used in CI/CD
 
-| Secret | Purpose | Where Used |
-|--------|---------|-----------|
-| `DOCKER_USERNAME` | Docker Hub login | `deploy-docker.yml` |
-| `DOCKER_PASSWORD` | Docker Hub token | `deploy-docker.yml` |
-| `GITHUB_TOKEN` | Auto-provided by GitHub | Workflows (automatic) |
+| Secret            | Purpose                 | Where Used            |
+| ----------------- | ----------------------- | --------------------- |
+| `DOCKER_USERNAME` | Docker Hub login        | `deploy-docker.yml`   |
+| `DOCKER_PASSWORD` | Docker Hub token        | `deploy-docker.yml`   |
+| `GITHUB_TOKEN`    | Auto-provided by GitHub | Workflows (automatic) |
 
 ### Best Practices
 
@@ -284,6 +297,7 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 ### View Workflow Runs
 
 **GitHub Actions Dashboard:**
+
 1. Go to repo → Actions tab
 2. Click on workflow name (e.g., "Deploy to GitHub Pages")
 3. Click on the latest run
@@ -296,11 +310,13 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 **Symptom:** "Reported success!" in logs but site shows nothing
 
 **Causes:**
+
 1. Pages settings pointing to wrong source
 2. base-href mismatch
 3. Artifact not uploaded correctly
 
 **Fix:**
+
 1. Check Settings → Pages → Source = "GitHub Actions"
 2. Verify base-href in workflow matches repo name
 3. Check "Upload artifact" step uploads correct path
@@ -324,6 +340,7 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 **Cause:** Docker credentials not set up correctly
 
 **Fix:**
+
 1. Verify `DOCKER_USERNAME` and `DOCKER_PASSWORD` in GitHub Secrets
 2. Ensure Docker Hub token is still valid (didn't expire)
 3. Check token has "Read, Write" permissions
@@ -333,12 +350,14 @@ git push → Build → Deploy to Staging → Manual Approval → Deploy to Prod
 ### Manual Troubleshooting
 
 **Test GitHub Pages build locally:**
+
 ```bash
 npm run build -- --configuration production --base-href=/AngularDevelopment/
 # Check dist/angulartutorials/browser/ directory
 ```
 
 **Test Docker build locally:**
+
 ```bash
 docker build -t angulartutorials:test .
 docker run -p 8080:80 angulartutorials:test
@@ -377,12 +396,12 @@ docker run -p 8080:80 angulartutorials:test
 
 **Target Metrics:**
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| Build time | < 3 min | ~2 min ✓ |
-| Deployment frequency | Every push | Every push ✓ |
-| Pages uptime | 99.9% | GitHub's SLA ✓ |
-| Docker image size | < 100 MB | ~80 MB ✓ |
+| Metric               | Target     | Current        |
+| -------------------- | ---------- | -------------- |
+| Build time           | < 3 min    | ~2 min ✓       |
+| Deployment frequency | Every push | Every push ✓   |
+| Pages uptime         | 99.9%      | GitHub's SLA ✓ |
+| Docker image size    | < 100 MB   | ~80 MB ✓       |
 
 ---
 

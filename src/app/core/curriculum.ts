@@ -294,7 +294,8 @@ export const CURRICULUM: Lesson[] = [
     summary: 'The @Component decorator, selectors, templates, styles and standalone components.',
     level: 'beginner',
     category: 'Components & Templates',
-    loadComponent: () => import('../lessons/beginner/components/components').then((m) => m.Components),
+    loadComponent: () =>
+      import('../lessons/beginner/components/components').then((m) => m.Components),
   },
   {
     id: 'interpolation',
@@ -312,7 +313,9 @@ export const CURRICULUM: Lesson[] = [
     level: 'beginner',
     category: 'Data Binding',
     loadComponent: () =>
-      import('../lessons/beginner/property-binding/property-binding').then((m) => m.PropertyBinding),
+      import('../lessons/beginner/property-binding/property-binding').then(
+        (m) => m.PropertyBinding,
+      ),
   },
   {
     id: 'event-binding',
@@ -473,8 +476,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '@NgModule metadata, feature/shared/core modules, lazy loading & standalone interop.',
     level: 'beginner',
     category: 'NgModules',
-    loadComponent: () =>
-      import('../lessons/beginner/ngmodules/ngmodules').then((m) => m.Ngmodules),
+    loadComponent: () => import('../lessons/beginner/ngmodules/ngmodules').then((m) => m.Ngmodules),
   },
 
   // ===================================================================
@@ -964,13 +966,13 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Build login/logout with JWT, an HTTP interceptor and a route guard.',
     level: 'projects',
     category: 'Full-Stack Angular',
-    loadComponent: () =>
-      import('../lessons/projects/auth-flow/auth-flow').then((m) => m.AuthFlow),
+    loadComponent: () => import('../lessons/projects/auth-flow/auth-flow').then((m) => m.AuthFlow),
   },
   {
     id: 'data-dashboard',
     title: 'Project: Data Dashboard',
-    summary: 'Build a filtered/sorted sales dashboard with KPIs, resource() and computed selectors.',
+    summary:
+      'Build a filtered/sorted sales dashboard with KPIs, resource() and computed selectors.',
     level: 'projects',
     category: 'Full-Stack Angular',
     loadComponent: () =>

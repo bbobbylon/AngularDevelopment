@@ -1,1 +1,6 @@
-.confirm { border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: 0 10px 10px 0; padding: 14px 16px; }
+.confirm {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--violet);
+  border-radius: 0 10px 10px 0;
+  padding: 14px 16px;
+}

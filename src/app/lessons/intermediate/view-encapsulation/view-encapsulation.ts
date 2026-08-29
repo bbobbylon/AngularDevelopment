@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import { VeBadge } from './ve-badge/ve-badge';
 
 /**
@@ -44,11 +45,56 @@ p { color: red; }`,
  */
 @Component({
   selector: 'app-lesson-view-encapsulation',
-  imports: [RouterLink, VeBadge],
+  imports: [RouterLink, VeBadge, Faq, Predict, Quiz, Remember],
   styleUrl: './view-encapsulation.css',
   templateUrl: './view-encapsulation.html',
 })
 export class ViewEncapsulationLesson {
+  /** The silently-never-matches rule, posed before the section that explains it. */
+  protected readonly piercingSample = `/* parent.css */
+app-ve-badge .dot {
+  background: purple;
+}
+
+/* child template */
+<span class="dot"></span>`;
+
+  /** Choices for the inheritance-vs-matching check — the crux of the whole lesson. */
+  protected readonly boundaryOptions = [
+    {
+      text: 'Nothing crosses — the child is fully isolated',
+      why: 'Too strong for Emulated mode. Set `font-family` on `<body>` and every component picks it up; encapsulation never touched that.',
+    },
+    {
+      text: 'Inherited values cross; selectors do not',
+      correct: true,
+      why: 'Exactly the asymmetry to memorise. Encapsulation rewrites *selectors* so they cannot match across the boundary, but it does nothing to the cascade — inherited properties, including CSS custom properties, flow straight through. That single fact is why `var()` theming works and `::ng-deep` is unnecessary.',
+    },
+    {
+      text: 'Selectors cross but only with `::ng-deep`',
+      why: 'True as a description of `::ng-deep`, but it inverts the point. `::ng-deep` is deprecated precisely because there is a supported channel that already works — inheritance.',
+    },
+  ];
+
+  /** The doubts this lesson reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'Why is my component ignoring `width` and `margin`?',
+      a: 'Almost certainly because a custom element is `display: inline` by default, and inline elements ignore width and vertical margin. Add `:host { display: block }` — this is the single most common styling surprise in Angular.',
+    },
+    {
+      q: 'If Emulated is not real isolation, why not use ShadowDom everywhere?',
+      a: 'Because real isolation cuts both ways. Inside a shadow root your global stylesheet stops working entirely — resets, fonts, design tokens, the lot — and you have to re-provide them per component. Emulated gives you the leak protection people actually want without losing the cascade they rely on.',
+    },
+    {
+      q: 'Is `::ng-deep` really going away, or is that just advice?',
+      a: 'It has been marked deprecated for years and still works, which is a bad combination — it means codebases keep accumulating it. Treat it as unavailable in new code. If you find yourself wanting it, the child is missing a styling API, and adding a custom property is both easier and something the child can keep supporting.',
+    },
+    {
+      q: 'Does encapsulation cost anything at runtime?',
+      a: 'Essentially nothing. The attribute rewriting happens at build time, so what ships is ordinary CSS with slightly longer selectors and one extra attribute per element. ShadowDom is the mode with real runtime machinery behind it, and even that is browser-native.',
+    },
+  ];
   /**
    * The three modes.
    */

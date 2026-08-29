@@ -140,13 +140,19 @@ export class Progress {
   // --- snapshot reads (localStorage is not reactive; navigation refreshes) ---
 
   /** Practice answer state, keyed by challenge id. */
-  private readonly practiceStates = readJson<Record<number, PracticeState>>(STORAGE_KEYS.practiceProgress, {});
+  private readonly practiceStates = readJson<Record<number, PracticeState>>(
+    STORAGE_KEYS.practiceProgress,
+    {},
+  );
 
   /** Mock-exam attempts, newest first. */
   readonly examAttempts = computed(() => readJson<ExamAttempt[]>(STORAGE_KEYS.mockExamHistory, []));
 
   /** Coding-task completion, keyed by task id. */
-  private readonly taskStates = readJson<Record<number, { done?: boolean }>>(STORAGE_KEYS.codingTasks, {});
+  private readonly taskStates = readJson<Record<number, { done?: boolean }>>(
+    STORAGE_KEYS.codingTasks,
+    {},
+  );
 
   /** The spaced-repetition queue as of page load. */
   private readonly reviewQueue = loadQueue();
@@ -295,9 +301,7 @@ export class Progress {
   });
 
   /** `stroke-dashoffset` for the ring: full circumference at 0, zero at 100. */
-  readonly ringOffset = computed(
-    () => this.ringCircumference * (1 - this.readinessScore() / 100),
-  );
+  readonly ringOffset = computed(() => this.ringCircumference * (1 - this.readinessScore() / 100));
 
   /** A plain-language band for {@link readinessScore}, shown under the ring. */
   readonly readinessGrade = computed(() => {
@@ -329,7 +333,7 @@ export class Progress {
     const qualified = this.categoryStats().filter((c) => c.total >= 3);
     return qualified.length === 0 ? null : qualified[qualified.length - 1];
   });
-/**
+  /**
    * The weakest practice category, or `null` when there is nothing worth
    * flagging — either no category has a meaningful sample, or the worst one is
    * still respectable. Naming a "focus area" that you are already passing
@@ -344,7 +348,9 @@ export class Progress {
   // --- exam-day readiness ---
 
   /** All recorded Exam-Day verdicts, newest first. */
-  readonly readinessChecks = computed(() => readJson<ReadinessEntry[]>(STORAGE_KEYS.examDayHistory, []));
+  readonly readinessChecks = computed(() =>
+    readJson<ReadinessEntry[]>(STORAGE_KEYS.examDayHistory, []),
+  );
 
   /** The three most recent verdicts, for the summary strip. */
   readonly recentReadiness = computed(() => this.readinessChecks().slice(0, 3));
@@ -363,9 +369,7 @@ export class Progress {
   // --- coding tasks ---
 
   /** Briefs completed, per the Coding-Task Simulator's checklist gate. */
-  readonly tasksDone = computed(
-    () => Object.values(this.taskStates).filter((s) => s.done).length,
-  );
+  readonly tasksDone = computed(() => Object.values(this.taskStates).filter((s) => s.done).length);
 
   /** Completed briefs as a percentage of {@link tasksTotal}. */
   readonly tasksPercent = computed(() =>
@@ -417,23 +421,39 @@ export class Progress {
 
     lines.push(`# Angular Study Progress Report — ${new Date(when).toLocaleString()}`, '');
     lines.push(`**Readiness score:** ${this.readinessScore()}/100 — ${this.readinessGrade()}`);
-    lines.push(`${this.totalAnswered()} total questions faced · ${this.examPassRate()}% exam pass rate · ${this.reviewMastered()} mastered via review`);
-    if (this.strongestCategory()) lines.push(`Strongest: ${this.strongestCategory()!.label} (${this.strongestCategory()!.percent}%)`);
-    if (this.weakestCategory()) lines.push(`Focus area: ${this.weakestCategory()!.label} (${this.weakestCategory()!.percent}%)`);
+    lines.push(
+      `${this.totalAnswered()} total questions faced · ${this.examPassRate()}% exam pass rate · ${this.reviewMastered()} mastered via review`,
+    );
+    if (this.strongestCategory())
+      lines.push(
+        `Strongest: ${this.strongestCategory()!.label} (${this.strongestCategory()!.percent}%)`,
+      );
+    if (this.weakestCategory())
+      lines.push(
+        `Focus area: ${this.weakestCategory()!.label} (${this.weakestCategory()!.percent}%)`,
+      );
     lines.push('');
 
     lines.push('## Lessons', '');
-    lines.push(`${this.lessonsVisited()} of ${this.lessonsBuilt} visited (${this.lessonsPercent()}%)`, '');
+    lines.push(
+      `${this.lessonsVisited()} of ${this.lessonsBuilt} visited (${this.lessonsPercent()}%)`,
+      '',
+    );
 
     lines.push('## Review queue', '');
-    lines.push(`Due now: ${this.reviewDue()} · In queue: ${this.reviewQueueSize()} · Mastered: ${this.reviewMastered()}`, '');
+    lines.push(
+      `Due now: ${this.reviewDue()} · In queue: ${this.reviewQueueSize()} · Mastered: ${this.reviewMastered()}`,
+      '',
+    );
 
     lines.push('## Exam-Day readiness checks', '');
     if (this.readinessChecks().length === 0) {
       lines.push('No readiness checks run yet.', '');
     } else {
       for (const check of this.readinessChecks()) {
-        lines.push(`- ${new Date(check.when).toLocaleString()} — exam ${check.examScore}% · tasks ${check.tasksDone}/${check.tasksTotal} — ${check.ready ? 'READY' : 'NOT YET'}`);
+        lines.push(
+          `- ${new Date(check.when).toLocaleString()} — exam ${check.examScore}% · tasks ${check.tasksDone}/${check.tasksTotal} — ${check.ready ? 'READY' : 'NOT YET'}`,
+        );
       }
       lines.push('');
     }
@@ -442,7 +462,10 @@ export class Progress {
     lines.push(`${this.tasksDone()} of ${this.tasksTotal} completed (${this.tasksPercent()}%)`, '');
 
     lines.push('## Practice challenges', '');
-    lines.push(`${this.practiceAnswered()} of ${this.challengeTotal} answered · ${this.practiceCorrect()} correct (${this.practiceAccuracy()}%) · bank coverage ${this.practiceCoverage()}%`, '');
+    lines.push(
+      `${this.practiceAnswered()} of ${this.challengeTotal} answered · ${this.practiceCorrect()} correct (${this.practiceAccuracy()}%) · bank coverage ${this.practiceCoverage()}%`,
+      '',
+    );
     if (this.categoryStats().length > 0) {
       lines.push('Accuracy by category (answered questions only):', '');
       for (const cat of this.categoryStats()) {
@@ -455,13 +478,21 @@ export class Progress {
     if (this.examAttempts().length === 0) {
       lines.push('No mock exams taken yet.', '');
     } else {
-      lines.push(`${this.examAttempts().length} attempts · best ${this.bestExam()}% · average ${this.avgExam()}% · ${this.passCount()} passed`, '');
+      lines.push(
+        `${this.examAttempts().length} attempts · best ${this.bestExam()}% · average ${this.avgExam()}% · ${this.passCount()} passed`,
+        '',
+      );
       for (const attempt of this.examAttempts()) {
-        lines.push(`- ${new Date(attempt.when).toLocaleString()} — ${attempt.correct}/${attempt.total} (${attempt.scorePercent}%) — ${attempt.passed ? 'PASS' : 'FAIL'}`);
+        lines.push(
+          `- ${new Date(attempt.when).toLocaleString()} — ${attempt.correct}/${attempt.total} (${attempt.scorePercent}%) — ${attempt.passed ? 'PASS' : 'FAIL'}`,
+        );
       }
       lines.push('');
       if (this.weakCategories().length > 0) {
-        lines.push(`Weak areas across attempts (<${this.weakThreshold}% on ${this.weakMinSample}+ questions):`, '');
+        lines.push(
+          `Weak areas across attempts (<${this.weakThreshold}% on ${this.weakMinSample}+ questions):`,
+          '',
+        );
         for (const weak of this.weakCategories()) {
           lines.push(`- ${weak.label}: ${weak.percent}%`);
         }
@@ -476,11 +507,21 @@ export class Progress {
   /** Display labels matching the filter chips on the Practice/Mock Exam pages. */
   private categoryLabel(id: string): string {
     const labels: Record<string, string> = {
-      components: 'Components', templates: 'Templates & HTML', styling: 'Styling & CSS',
-      signals: 'Signals', rxjs: 'RxJS', forms: 'Forms',
-      routing: 'Routing', testing: 'Testing', performance: 'Performance',
-      typescript: 'TypeScript', security: 'Security', a11y: 'Accessibility',
-      state: 'State & Architecture', i18n: 'i18n', tooling: 'Tooling & Config',
+      components: 'Components',
+      templates: 'Templates & HTML',
+      styling: 'Styling & CSS',
+      signals: 'Signals',
+      rxjs: 'RxJS',
+      forms: 'Forms',
+      routing: 'Routing',
+      testing: 'Testing',
+      performance: 'Performance',
+      typescript: 'TypeScript',
+      security: 'Security',
+      a11y: 'Accessibility',
+      state: 'State & Architecture',
+      i18n: 'i18n',
+      tooling: 'Tooling & Config',
     };
     return labels[id] ?? id;
   }

@@ -72,11 +72,19 @@ describe('Progress', () => {
       EXAM_HISTORY_KEY,
       JSON.stringify([
         {
-          when: 1, scorePercent: 80, correct: 8, total: 10, passed: true,
+          when: 1,
+          scorePercent: 80,
+          correct: 8,
+          total: 10,
+          passed: true,
           categories: { signals: { correct: 5, total: 5 }, forms: { correct: 1, total: 4 } },
         },
         {
-          when: 2, scorePercent: 60, correct: 6, total: 10, passed: false,
+          when: 2,
+          scorePercent: 60,
+          correct: 6,
+          total: 10,
+          passed: false,
           categories: { forms: { correct: 2, total: 4 } },
         },
       ]),

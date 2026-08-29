@@ -32,7 +32,9 @@ export class PropertyBinding {
    * Backs the `[src]` demo. Points at a real remote image so the binding visibly
    * does something when it changes.
    */
-  protected readonly url = signal('https://angular.dev/assets/images/press-kit/angular_icon_gradient.gif');
+  protected readonly url = signal(
+    'https://angular.dev/assets/images/press-kit/angular_icon_gradient.gif',
+  );
   /**
    * Backs the `[attr.colspan]` demo. `colspan` has no matching DOM property, which
    * is exactly why it needs the `attr.` prefix.

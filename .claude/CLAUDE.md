@@ -324,3 +324,72 @@ When working in existing repos:
 - [ ] Update/enhance if incomplete
 - [ ] Ensure docs match current code
 - [ ] Flag any outdated information
+
+---
+
+# PROJECT-SPECIFIC: angulartutorials — the teaching bar
+
+Everything above this line is the machine-wide boilerplate. Everything below is specific
+to this repo and **overrides** generic guidance when they conflict.
+
+## The Zero-to-Hero standard (how lessons must be written)
+
+This app is Angular exam/interview prep. The target is *Head First Design Patterns* — not
+in tone-for-tone imitation, but in how seriously it takes the reader's memory. That book
+works because it teaches one idea several different ways and makes you do something with
+it. A wall of correct prose is not a lesson.
+
+Two bars apply, and they are cumulative:
+
+**Bar 1 — depth (established 2026-07).** Never a documentation summary. Interactive demos,
+edge cases and failure modes, wrong-way vs right-way, under-the-hood mechanism, the traps
+that show up in exams. See `docs/CONTRIBUTING.md` §2.
+
+**Bar 2 — retention (established 2026-08-29).** Depth without retention is a reference
+manual. Every lesson should hit most of these; every lesson touched for any reason should
+be moved closer to them:
+
+1. **Redundancy in different modes.** Prose, then a visual, then an interactive demo, then
+   code — genuinely different representations of the same idea, not one explanation said
+   four times.
+2. **A real visual.** Inline SVG or CSS diagram, state/flow diagram, annotated before/after,
+   comparison table. It must carry information the prose does not. Decoration doesn't count.
+3. **An analogy** for anything abstract — DI containers, change detection, zones, RxJS
+   streams, hydration.
+4. **A memory hook.** A mnemonic, a named rule, an "if you remember one thing" box. Exam
+   recall is the actual goal.
+5. **Ask before telling.** Pose the question or show the failure, let the reader predict,
+   then reveal. The curiosity gap is what makes it stick.
+6. **"No dumb questions."** A short conversational Q&A answering what a learner actually
+   wonders — not what the docs answer.
+7. **A self-test in the lesson.** Predict-the-output, spot-the-bug, fill-the-blank. Active
+   recall, separate from the global Practice bank.
+8. **Conversational voice.** Second person, contractions, direct address. Not docs register.
+9. **Takeaway recap** — phrased as things to remember, not a table of contents.
+
+**This is a standing audit target.** When asked to check adherence, run
+`node scripts/audit-retention.mjs` — it scores every lesson against these nine points and
+ranks them worst-first — then read the weakest and report. Do not assume a long lesson
+passes; length is bar 1, not bar 2. The scores are proxies: use them to choose what to
+read, not as the verdict.
+
+**Do not hand-roll the markup.** `src/app/shared/teaching/` has `Remember`, `Predict`,
+`Quiz`, `Faq`, `Flow` and `Compare`, imported from the barrel
+(`../../../shared/teaching`). They are accessible by construction and already covered by
+tests, so a hand-rolled equivalent is strictly worse. `docs/CONTRIBUTING.md` §2A has the
+per-lesson budgets and the copy conventions — notably that option `why` text on *wrong*
+answers is the most valuable writing in a lesson, and that long copy lives in the `.ts`.
+
+**Rollout state:** 5 of 100 lessons done as of 2026-08-29 (see `docs/BACKLOG.md` §1.1 for
+the table and the remaining distribution). Continue worst-first.
+
+## Reminders specific to this repo
+
+- `npm run verify` is the gate (format → typecheck → 423 tests → build). CI runs the same.
+- Adding a lesson auto-adds tests: the smoke and a11y suites walk `CURRICULUM` and the
+  route table. Give every demo form control an accessible name or a11y fails.
+- Templates are formatted with Prettier's **`angular`** parser, never the default `html`
+  one. `src/app/lessons/projects/task-manager/task-manager.html` is in `.prettierignore`
+  for a real non-idempotency bug — see `docs/CONTRIBUTING.md` §8.
+- `ng build` often completes in seconds and then never exits. Treat "Application bundle
+  generation complete" as success; poll with a bounded timeout and kill the process.

@@ -1,7 +1,35 @@
-.tg { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.tg__bar { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-card); }
-.tg__tab { background: none; border: none; padding: 8px 16px; cursor: pointer; color: var(--text-muted); font-size: .88rem; border-bottom: 2px solid transparent; transition: color .12s, border-color .12s; }
-.tg__tab--active { color: var(--accent); border-bottom-color: var(--accent); }
-.tg__body { padding: 16px; }
-[tabPanel] { display: none; }
-[tabPanel].visible { display: block; }
+.tg {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.tg__bar {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.tg__tab {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.12s,
+    border-color 0.12s;
+}
+.tg__tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tg__body {
+  padding: 16px;
+}
+[tabPanel] {
+  display: none;
+}
+[tabPanel].visible {
+  display: block;
+}

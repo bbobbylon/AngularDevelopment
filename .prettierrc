@@ -5,17 +5,18 @@
   "semi": true,
   "singleQuote": true,
   "quoteProps": "as-needed",
-  "trailingComma": "a",
+  "trailingComma": "all",
   "bracketSpacing": true,
   "arrowParens": "always",
-  "endOfLine": "crlf",
+  "endOfLine": "auto",
 
-  "htmlWhitespaceSensitivity": "ignore",
+  "htmlWhitespaceSensitivity": "css",
 
   "overrides": [
     {
       "files": "*.html",
       "options": {
+        "parser": "angular",
         "printWidth": 120
       }
     },

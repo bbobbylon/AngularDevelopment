@@ -121,18 +121,14 @@ export class RxjsObservables implements OnDestroy {
    * Subscribes as A.
    */
   protected subscribeA() {
-    (this.shared() ? this.sharedSource$ : this.coldSource$).subscribe((id) =>
-      this.execA.set(id),
-    );
+    (this.shared() ? this.sharedSource$ : this.coldSource$).subscribe((id) => this.execA.set(id));
   }
 
   /**
    * Subscribes as B. Run it after A and compare the ids.
    */
   protected subscribeB() {
-    (this.shared() ? this.sharedSource$ : this.coldSource$).subscribe((id) =>
-      this.execB.set(id),
-    );
+    (this.shared() ? this.sharedSource$ : this.coldSource$).subscribe((id) => this.execB.set(id));
   }
 
   /**
