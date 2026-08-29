@@ -6,6 +6,7 @@ import { OptionsShuffler } from '../practice/practice-helpers';
 import { recordMisses } from '../practice/review-queue';
 import { CODING_TASKS, type CodingTask } from '../coding-tasks/coding-tasks-data';
 import { downloadTextFile } from '../../shared/download-file';
+import { STORAGE_KEYS, readJson, removeKey, writeJson } from '../../core/storage';
 
 /**
  * Exam-Day Readiness Check — the closest simulation of the real certification
@@ -28,9 +29,11 @@ import { downloadTextFile } from '../../shared/download-file';
  * MID-RUN is intentionally NOT persisted — on the real exam day you cannot
  * pause the clock either.
  *
- * NOTE: `CODING_TASKS_DONE_KEY` mirrors the constant in coding-tasks.ts (file
- * private there; importing the component file here would couple lazy chunks).
- * If its -v suffix is ever bumped, update it here and in progress.ts too.
+ * This page reads the Coding-Task Simulator's store (via
+ * `STORAGE_KEYS.codingTasks`) but never writes it: that page owns completion,
+ * and this one only re-checks it on demand.
+ *
+ * @see core/storage.ts for the key registry and read/write helpers.
  */
 type Phase = 'idle' | 'exam' | 'tasks' | 'result';
 
@@ -39,9 +42,7 @@ const SECONDS_PER_QUESTION = 90;
 const PASS_MARK = 70;
 const TASKS_REQUIRED = 2;
 
-const ACTIVE_KEY = 'angular-exam-day-active-v1';
-const HISTORY_KEY = 'angular-exam-day-history-v1';
-const CODING_TASKS_DONE_KEY = 'angular-coding-tasks-v1';
+/** Keep only the most recent readiness checks so storage stays bounded. */
 const HISTORY_LIMIT = 10;
 
 /** A check whose exam is finished but whose coding tasks are still pending. */
@@ -62,37 +63,9 @@ export interface ReadinessResult {
   ready: boolean;
 }
 
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    if (typeof localStorage === 'undefined') return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(key: string, value: unknown): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // ignore — storage full or blocked
-  }
-}
-
-function removeKey(key: string): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.removeItem(key);
-  } catch {
-    // ignore
-  }
-}
-
 /** Ids of coding tasks marked complete in the Coding-Task Simulator's store. */
 function loadDoneTaskIds(): Set<number> {
-  const states = readJson<Record<number, { done?: boolean }>>(CODING_TASKS_DONE_KEY, {});
+  const states = readJson<Record<number, { done?: boolean }>>(STORAGE_KEYS.codingTasks, {});
   return new Set(
     Object.entries(states)
       .filter(([, s]) => s.done)
@@ -415,8 +388,8 @@ export class ExamDay implements OnDestroy {
   readonly tasksRequired = TASKS_REQUIRED;
 
   readonly phase = signal<Phase>('idle');
-  readonly active = signal<ActiveCheck | null>(readJson<ActiveCheck | null>(ACTIVE_KEY, null));
-  readonly history = signal<ReadinessResult[]>(readJson<ReadinessResult[]>(HISTORY_KEY, []));
+  readonly active = signal<ActiveCheck | null>(readJson<ActiveCheck | null>(STORAGE_KEYS.examDayActive, null));
+  readonly history = signal<ReadinessResult[]>(readJson<ReadinessResult[]>(STORAGE_KEYS.examDayHistory, []));
   readonly lastResult = signal<ReadinessResult | null>(null);
 
   // --- exam leg state (in-memory only; abandoning mid-exam forfeits it) ---
@@ -474,7 +447,7 @@ export class ExamDay implements OnDestroy {
       taskIds: pickTaskIds(loadDoneTaskIds()),
     };
     this.active.set(check);
-    writeJson(ACTIVE_KEY, check);
+    writeJson(STORAGE_KEYS.examDayActive, check);
     this.refreshTaskStatus();
     this.phase.set('tasks');
   }
@@ -487,7 +460,7 @@ export class ExamDay implements OnDestroy {
 
   abandon(): void {
     this.active.set(null);
-    removeKey(ACTIVE_KEY);
+    removeKey(STORAGE_KEYS.examDayActive);
     this.phase.set('idle');
   }
 
@@ -513,10 +486,10 @@ export class ExamDay implements OnDestroy {
 
     const next = [result, ...this.history()].slice(0, HISTORY_LIMIT);
     this.history.set(next);
-    writeJson(HISTORY_KEY, next);
+    writeJson(STORAGE_KEYS.examDayHistory, next);
 
     this.active.set(null);
-    removeKey(ACTIVE_KEY);
+    removeKey(STORAGE_KEYS.examDayActive);
     this.lastResult.set(result);
     this.phase.set('result');
   }

@@ -41,6 +41,21 @@ export interface CodingTask {
   topicPath?: string;
 }
 
+/**
+ * The build-brief bank behind the Coding-Task Simulator, ordered easiest first.
+ *
+ * These are the counterpart to the multiple-choice bank: a certification tests
+ * recall, but a job interview asks you to build something, so each entry is a
+ * scenario plus an explicit requirements checklist. Completion is *gated* on
+ * that checklist rather than self-declared, which is what makes the count
+ * meaningful enough for Exam Day to depend on it.
+ *
+ * Ids key persisted completion state, so — as with the challenge bank — they
+ * must never be renumbered.
+ *
+ * @see pages/coding-tasks/coding-tasks.ts — the simulator.
+ * @see pages/exam-day/exam-day.ts — assigns two of these per readiness check.
+ */
 export const CODING_TASKS: CodingTask[] = [
   {
     id: 1,

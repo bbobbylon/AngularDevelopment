@@ -1,8 +1,12 @@
 import { InjectionToken } from '@angular/core';
 
+/** Static facts about the app, shown in the footer and the home-page hero. */
 export interface AppConfig {
+  /** Display name of the app. */
   name: string;
+  /** Major Angular version the curriculum targets, e.g. `21`. */
   angularVersion: string;
+  /** Technology chips listed in the footer. */
   builtWith: string[];
 }
 

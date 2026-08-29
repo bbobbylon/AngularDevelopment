@@ -43,6 +43,16 @@ export interface LevelGroup {
   categories: CategoryGroup[];
 }
 
+/**
+ * The curriculum's difficulty tiers, in the order they are presented.
+ *
+ * Ordering is meaningful — it is the reading order on the home page and the
+ * sequence a learner is expected to work through, so entries are listed from
+ * "never coded before" to "expert" rather than alphabetically.
+ *
+ * Separate from the lessons themselves so a level can carry its own heading
+ * and blurb even before any of its lessons are written.
+ */
 export const LEVELS: { id: Level; label: string; blurb: string }[] = [
   {
     id: 'foundations',

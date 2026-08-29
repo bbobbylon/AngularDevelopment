@@ -6,71 +6,50 @@ import { dueCount, loadQueue, recordMisses } from './review-queue';
 import { downloadTextFile } from '../../shared/download-file';
 import { BookmarksService } from '../../core/bookmarks.service';
 import { ToastService } from '../../core/toast.service';
+import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
 type PracticeStates = Record<number, { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }>;
 
-/** localStorage key for persisted Practice progress (bump the suffix to invalidate old data). */
-const PROGRESS_KEY = 'angular-practice-progress-v1';
-
-/** localStorage key for the adaptive-difficulty state. */
-const ADAPTIVE_KEY = 'angular-practice-adaptive-v1';
-
-/** Ordered so index +/-1 means one level harder/easier. */
+/** Difficulty tiers in ascending order, so index ±1 is one step harder/easier. */
 const DIFF_LEVELS: Difficulty[] = ['junior', 'mid', 'senior'];
 
 /** Consecutive correct answers before the adaptive level steps up one notch. */
 const LEVEL_UP_STREAK = 3;
-/** Consecutive misses before the adaptive level steps down one notch. */
+
+/**
+ * Consecutive misses before the adaptive level steps down. Deliberately lower
+ * than {@link LEVEL_UP_STREAK}: dropping someone who is struggling should
+ * happen faster than promoting someone who is coasting.
+ */
 const LEVEL_DOWN_STREAK = 2;
 
+/**
+ * How many challenge cards are added to the DOM at a time. Roughly two
+ * screenfuls on a laptop — enough that the list never looks truncated, small
+ * enough that first paint stays instant with a 400+ question bank.
+ */
+const RENDER_BATCH = 25;
+
+/** Persisted adaptive-difficulty state. */
 interface AdaptiveState {
+  /** Whether adaptive mode is driving the difficulty filter. */
   enabled: boolean;
+  /** The tier currently being served. */
   level: Difficulty;
-  /** Positive = current correct streak, negative = current miss streak. */
+  /** Signed run length: positive = correct streak, negative = miss streak, 0 = just changed level. */
   streak: number;
 }
 
+/** Adaptive mode starts off, at the easiest tier. */
 const DEFAULT_ADAPTIVE: AdaptiveState = { enabled: false, level: 'junior', streak: 0 };
 
+/**
+ * Reads persisted adaptive state, spread over the defaults so a state object
+ * saved before a new field existed still loads cleanly.
+ */
 function loadAdaptive(): AdaptiveState {
-  try {
-    if (typeof localStorage === 'undefined') return DEFAULT_ADAPTIVE;
-    const raw = localStorage.getItem(ADAPTIVE_KEY);
-    return raw ? { ...DEFAULT_ADAPTIVE, ...(JSON.parse(raw) as AdaptiveState) } : DEFAULT_ADAPTIVE;
-  } catch {
-    return DEFAULT_ADAPTIVE;
-  }
-}
-
-function saveAdaptive(state: AdaptiveState): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(ADAPTIVE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore — storage full or blocked
-  }
-}
-
-/** Load saved progress; returns {} when storage is unavailable (SSR/private mode) or corrupt. */
-function loadProgress(): PracticeStates {
-  try {
-    if (typeof localStorage === 'undefined') return {};
-    const raw = localStorage.getItem(PROGRESS_KEY);
-    return raw ? (JSON.parse(raw) as PracticeStates) : {};
-  } catch {
-    return {};
-  }
-}
-
-/** Persist progress, swallowing quota/permission errors so the UI never breaks on a write. */
-function saveProgress(states: PracticeStates): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(states));
-  } catch {
-    // ignore — storage full or blocked
-  }
+  return { ...DEFAULT_ADAPTIVE, ...readJson<Partial<AdaptiveState>>(STORAGE_KEYS.practiceAdaptive, {}) };
 }
 
 @Component({
@@ -128,6 +107,8 @@ function saveProgress(states: PracticeStates): void {
     .adaptive-note { max-width: 900px; margin: -8px auto 16px; padding: 0 24px; font-size: .82rem; color: var(--text-muted); }
     .bookmark-star { background: none; border: none; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 2px; flex-shrink: 0; color: var(--text-muted); }
     .bookmark-star.starred { color: #f59e0b; }
+    .show-more { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 8px 0 0; }
+    .show-more span { font-size: .84rem; color: var(--text-muted); }
   `],
   template: `
     <div class="practice-hero">
@@ -165,7 +146,7 @@ function saveProgress(states: PracticeStates): void {
 
     <div class="filters">
       @for (cat of categoryFilters; track cat.id) {
-        <button [class.active]="activeCategory() === cat.id" (click)="activeCategory.set(cat.id)">
+        <button [class.active]="activeCategory() === cat.id" (click)="setCategory(cat.id)">
           {{ cat.label }}
         </button>
       }
@@ -176,7 +157,7 @@ function saveProgress(states: PracticeStates): void {
         <button
           [class.active]="activeDiff() === d.id"
           [disabled]="adaptiveEnabled()"
-          (click)="activeDiff.set(d.id)">
+          (click)="setDifficulty(d.id)">
           {{ d.label }}
         </button>
       }
@@ -215,7 +196,7 @@ function saveProgress(states: PracticeStates): void {
       @if (visibleChallenges().length === 0) {
         <div class="empty-state">No challenges match the selected filters.</div>
       }
-      @for (ch of visibleChallenges(); track ch.id) {
+      @for (ch of pagedChallenges(); track ch.id) {
         <div class="challenge-card"
           [class.answered-correct]="getState(ch.id).answered && getState(ch.id).correct"
           [class.answered-wrong]="getState(ch.id).answered && !getState(ch.id).correct">
@@ -293,11 +274,21 @@ function saveProgress(states: PracticeStates): void {
           }
         </div>
       }
+
+      @if (hiddenCount() > 0) {
+        <div class="show-more">
+          <span>Showing {{ pagedChallenges().length }} of {{ totalVisible() }}</span>
+          <button class="reset-btn" (click)="showMore()">Show more</button>
+          <button class="reset-btn" (click)="showAll()">Show all {{ totalVisible() }}</button>
+        </div>
+      }
     </div>
   `,
 })
 export class Practice {
-  private readonly states = signal<PracticeStates>(loadProgress());
+  private readonly states = signal<PracticeStates>(
+    readJson<PracticeStates>(STORAGE_KEYS.practiceProgress, {}),
+  );
   private readonly shuffledAll = signal(shuffle(CHALLENGES));
   private readonly optionsShuffler = new OptionsShuffler();
   private readonly bookmarks = inject(BookmarksService);
@@ -320,8 +311,8 @@ export class Practice {
 
   constructor() {
     // Persist progress to localStorage whenever it changes (keyed by challenge id).
-    effect(() => saveProgress(this.states()));
-    effect(() => saveAdaptive(this.adaptive()));
+    effect(() => writeJson(STORAGE_KEYS.practiceProgress, this.states()));
+    effect(() => writeJson(STORAGE_KEYS.practiceAdaptive, this.adaptive()));
   }
 
   readonly activeCategory = signal<Category>('all');
@@ -338,6 +329,66 @@ export class Practice {
   });
 
   readonly totalVisible = computed(() => this.visibleChallenges().length);
+
+  /**
+   * How many of {@link visibleChallenges} are actually in the DOM.
+   *
+   * The bank holds 400+ challenges and an unfiltered page used to render every
+   * card at once — each with a code block, four option buttons and an
+   * explanation panel. That is tens of thousands of DOM nodes built before
+   * first paint, for a list nobody scrolls more than a screen or two into.
+   *
+   * Rendering in batches keeps the initial cost flat regardless of bank size.
+   * Deliberately a "Show more" button rather than `@defer (on viewport)`:
+   * the cards are stateful (an answered card must stay answered) and an
+   * explicit, testable limit is easier to reason about than a scroll-position
+   * trigger. Answer state lives in {@link states}, keyed by challenge id, so a
+   * card that has not been rendered yet still restores correctly when it is.
+   */
+  private readonly renderLimit = signal(RENDER_BATCH);
+
+  /** The slice of {@link visibleChallenges} currently rendered. */
+  readonly pagedChallenges = computed(() => this.visibleChallenges().slice(0, this.renderLimit()));
+
+  /** How many matching challenges are filtered in but not yet rendered. */
+  readonly hiddenCount = computed(() =>
+    Math.max(0, this.visibleChallenges().length - this.pagedChallenges().length),
+  );
+
+  /** Renders the next batch. Backs the "Show more" button below the list. */
+  showMore(): void {
+    this.renderLimit.update((n) => n + RENDER_BATCH);
+  }
+
+  /**
+   * Renders everything that matches the current filters, for the reader who
+   * wants Ctrl-F over the whole set.
+   */
+  showAll(): void {
+    this.renderLimit.set(this.visibleChallenges().length);
+  }
+
+  /**
+   * Collapses back to the first batch. Called whenever the visible set
+   * changes (filter, difficulty, shuffle) — without it, narrowing a filter
+   * after expanding to 400 cards would leave the limit uselessly high, and
+   * widening one would dump the whole new set into the DOM at once.
+   */
+  private resetRenderLimit(): void {
+    this.renderLimit.set(RENDER_BATCH);
+  }
+
+  /** Switches the category filter and returns to the top of the list. */
+  setCategory(category: Category): void {
+    this.activeCategory.set(category);
+    this.resetRenderLimit();
+  }
+
+  /** Switches the difficulty filter and returns to the top of the list. */
+  setDifficulty(difficulty: 'all' | Difficulty): void {
+    this.activeDiff.set(difficulty);
+    this.resetRenderLimit();
+  }
 
   readonly answeredCount = computed(() =>
     Object.values(this.states()).filter((s) => s.answered).length,
@@ -436,8 +487,14 @@ export class Practice {
     }
   }
 
+  /**
+   * Turns adaptive difficulty on or off, resetting the streak either way so a
+   * run built up under manual filtering does not immediately promote you.
+   * Also collapses the render limit, since the visible set changes.
+   */
   toggleAdaptive(): void {
     this.adaptive.update((s) => ({ ...s, enabled: !s.enabled, streak: 0 }));
+    this.resetRenderLimit();
     if (this.adaptiveEnabled()) {
       this.toast.show(`🎚 Adaptive difficulty on — starting at ${this.adaptiveLevel()}`, 'info', 2200);
     }
@@ -447,10 +504,17 @@ export class Practice {
     return this.bookmarks.isBookmarked(`practice-${id}`);
   }
 
+  /**
+   * Stars or un-stars a challenge from its card.
+   *
+   * @param ch    The challenge whose star was clicked.
+   * @param event The click, stopped from propagating so the star does not also
+   *              toggle the card's expand/collapse header.
+   */
   toggleBookmark(ch: Challenge, event: Event): void {
     event.stopPropagation();
     const id = `practice-${ch.id}`;
-    this.bookmarks.toggle(id, `Practice #${ch.id} — ${ch.question.slice(0, 60)}${ch.question.length > 60 ? '…' : ''}`);
+    this.bookmarks.toggle(id, BookmarksService.practiceLabel(ch.id, ch.question));
     this.toast.show(this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed', 'success', 1400);
   }
 
@@ -490,10 +554,23 @@ export class Practice {
     downloadTextFile(`practice-results_${stamp}.md`, lines.join('\n'));
   }
 
+  /**
+   * Starts a fresh practice session: new question order, new option order, and
+   * a cleared answer sheet.
+   *
+   * Note this is a full reset, not just a re-sort — "Shuffle" deliberately
+   * discards answers. Keeping them would be worse than losing them: the option
+   * order is re-randomized too, so a stored `selected` index would point at a
+   * different option than the one that was actually clicked, and cards would
+   * come back marked wrong for answers that were right.
+   *
+   * The render limit collapses with it, since the whole list is new anyway.
+   */
   reshuffle() {
     this.shuffledAll.set(shuffle(CHALLENGES));
+    this.resetRenderLimit();
     this.states.set({});
-    this.optionsShuffler.reset();  // Reset option shuffles when reshuffling questions
+    this.optionsShuffler.reset();
   }
 
   typeLabel(type: ChallengeType): string {

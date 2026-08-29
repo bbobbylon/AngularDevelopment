@@ -1,6 +1,7 @@
 import { Component, computed, effect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CODING_TASKS, type CodingTask } from './coding-tasks-data';
+import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
 
 /**
  * Coding-Task Simulator — the hands-on companion to the Practice page,
@@ -27,25 +28,25 @@ interface TaskState {
 
 type TaskStates = Record<number, TaskState>;
 
-const STORAGE_KEY = 'angular-coding-tasks-v1';
-
+/**
+ * Reads per-task completion state.
+ *
+ * Also read by the Exam-Day page (which needs the done-count for its readiness
+ * verdict) and the Progress dashboard, both via the same shared key.
+ *
+ * @returns Stored task states, or `{}` when absent/unavailable/corrupt.
+ */
 function loadStates(): TaskStates {
-  try {
-    if (typeof localStorage === 'undefined') return {};
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as TaskStates) : {};
-  } catch {
-    return {};
-  }
+  return readJson<TaskStates>(STORAGE_KEYS.codingTasks, {});
 }
 
+/**
+ * Persists per-task completion state.
+ *
+ * @param states The complete state map to store.
+ */
 function saveStates(states: TaskStates): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(states));
-  } catch {
-    // ignore — storage full or blocked
-  }
+  writeJson(STORAGE_KEYS.codingTasks, states);
 }
 
 @Component({

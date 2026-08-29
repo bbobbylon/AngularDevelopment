@@ -10,61 +10,96 @@ import { CHALLENGES, type Category } from '../practice/practice-data';
 import { dueCount, loadMastered, loadQueue } from '../practice/review-queue';
 import { CODING_TASKS } from '../coding-tasks/coding-tasks-data';
 import { downloadTextFile } from '../../shared/download-file';
+import { STORAGE_KEYS, readJson } from '../../core/storage';
 
-/**
- * Progress Dashboard — one read-only page aggregating every study store in the
- * app so the "am I ready?" question has a single answer. It writes nothing;
- * each section deep-links to the page that owns the underlying store.
+/*
+ * The three interfaces below mirror data owned by *other* pages.
  *
- * Sources (all localStorage, read once at construction — the dashboard is a
- * snapshot, refreshed on navigation):
- *   - Lessons visited        — ProgressService (`core/progress.service.ts`)
- *   - Practice progress      — `angular-practice-progress-v1` (owner: practice.ts)
- *   - Mock exam history      — `angular-mock-exam-history-v1` (owner: mock-exam.ts)
- *   - Spaced-repetition      — shared store in `../practice/review-queue.ts`
- *   - Coding tasks           — `angular-coding-tasks-v1` (owner: coding-tasks.ts)
- *
- * The practice/mock-exam keys and shapes are duplicated here as narrow local
- * types on purpose: importing the owning COMPONENT files for a constant would
- * couple lazy chunks together, and all readers already tolerate missing or
- * corrupt data. If a key's -v suffix is ever bumped, update it here too.
+ * Keys come from the shared registry in `core/storage.ts`, but the SHAPES are
+ * re-declared here rather than imported: pulling a type out of an owning
+ * component file would couple their lazily-loaded chunks together for no
+ * runtime benefit. They are a deliberate structural-typing contract, not an
+ * oversight — if an owner changes what it persists, update the mirror here.
+ * Every read already tolerates missing or mismatched data, so drift degrades
+ * a tile rather than breaking the page.
  */
-interface PracticeState { answered: boolean; correct: boolean; }
+
+/** Mirror of one entry in the Practice page's per-challenge state map. */
+interface PracticeState {
+  answered: boolean;
+  correct: boolean;
+}
+
+/** Mirror of one Exam-Day readiness verdict. Owner: `pages/exam-day`. */
 interface ReadinessEntry {
+  /** Epoch ms of the verdict. */
   when: number;
+  /** Exam-leg score as a percentage. */
   examScore: number;
+  /** Coding briefs completed during the check. */
   tasksDone: number;
+  /** Coding briefs assigned. */
   tasksTotal: number;
+  /** The overall READY / NOT YET verdict. */
   ready: boolean;
 }
+
+/** Mirror of one Mock Exam attempt. Owner: `pages/mock-exam`. */
 interface ExamAttempt {
+  /** Epoch ms of submission. */
   when: number;
+  /** Score as a percentage. */
   scorePercent: number;
+  /** Questions correct. */
   correct: number;
+  /** Questions asked. */
   total: number;
+  /** Whether the attempt cleared the pass mark. */
   passed: boolean;
+  /** Per-category results; absent on attempts saved before this was tracked. */
   categories?: Record<string, { correct: number; total: number }>;
 }
 
-const PRACTICE_KEY = 'angular-practice-progress-v1';
-const EXAM_HISTORY_KEY = 'angular-mock-exam-history-v1';
-const CODING_TASKS_KEY = 'angular-coding-tasks-v1';
-const EXAM_DAY_HISTORY_KEY = 'angular-exam-day-history-v1';
-
-/** Minimum questions seen in a category across exams before it can be called weak. */
+/**
+ * Minimum questions seen in a category across exams before it can be called
+ * weak — stops a single unlucky question from branding a whole topic.
+ */
 const WEAK_MIN_SAMPLE = 3;
+
+/** Accuracy (%) below which a sufficiently-sampled category is flagged weak. */
 const WEAK_THRESHOLD = 70;
 
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    if (typeof localStorage === 'undefined') return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
+/**
+ * Progress Dashboard — one read-only page that aggregates every study store in
+ * the app, so "am I ready?" has a single answer instead of six.
+ *
+ * It **writes nothing**. Each section deep-links to the page that owns the
+ * underlying store, which is what keeps the aggregation safe: there is exactly
+ * one writer per store and this is never it.
+ *
+ * ## Sources
+ *
+ * | Data | Owner |
+ * |---|---|
+ * | Lessons visited | {@link ProgressService} |
+ * | Study streak | {@link StreakService} |
+ * | Bookmarks | {@link BookmarksService} |
+ * | Practice progress | `STORAGE_KEYS.practiceProgress` (`pages/practice`) |
+ * | Mock exam history | `STORAGE_KEYS.mockExamHistory` (`pages/mock-exam`) |
+ * | Spaced repetition | `pages/practice/review-queue.ts` |
+ * | Coding tasks | `STORAGE_KEYS.codingTasks` (`pages/coding-tasks`) |
+ * | Exam-day verdicts | `STORAGE_KEYS.examDayHistory` (`pages/exam-day`) |
+ *
+ * ## Snapshot, not a live view
+ *
+ * localStorage is not reactive, so the raw reads happen once at construction
+ * and the page is a snapshot as of when it was opened. That is fine because
+ * the component is route-scoped: navigating away and back builds a new one.
+ * The `computed`s wrapping those reads exist for composition and caching, not
+ * because the underlying data can change while the page is open.
+ *
+ * @see core/achievements.ts for the badges this page derives.
+ */
 @Component({
   selector: 'app-progress',
   imports: [RouterLink, DatePipe],
@@ -322,40 +357,84 @@ function readJson<T>(key: string, fallback: T): T {
   `,
 })
 export class Progress {
+  /** Visited-lesson store. Named to avoid colliding with this class. */
   private readonly lessonProgress = inject(ProgressService);
+
+  /** Study streak. `protected` because the template renders it directly. */
   protected readonly streak = inject(StreakService);
+
+  /** Bookmark count, used only as an achievement input. */
   private readonly bookmarksService = inject(BookmarksService);
 
   // --- static denominators ---
+
+  /**
+   * Lessons that actually have a component, not merely a curriculum entry.
+   * Using the total would make 100% unreachable while lessons are still being
+   * written, and would quietly understate real coverage.
+   */
   readonly lessonsBuilt = CURRICULUM.filter((l) => l.loadComponent).length;
+
+  /** Size of the challenge bank — the denominator for practice coverage. */
   readonly challengeTotal = CHALLENGES.length;
+
+  /** Number of coding briefs available. */
   readonly tasksTotal = CODING_TASKS.length;
+
+  /** Exposed so the template can state the weak-category threshold it applies. */
   readonly weakThreshold = WEAK_THRESHOLD;
+
+  /** Exposed so the template can state the minimum sample size. */
   readonly weakMinSample = WEAK_MIN_SAMPLE;
 
   // --- snapshot reads (localStorage is not reactive; navigation refreshes) ---
-  private readonly practiceStates = readJson<Record<number, PracticeState>>(PRACTICE_KEY, {});
-  readonly examAttempts = computed(() => readJson<ExamAttempt[]>(EXAM_HISTORY_KEY, []));
-  private readonly taskStates = readJson<Record<number, { done?: boolean }>>(CODING_TASKS_KEY, {});
+
+  /** Practice answer state, keyed by challenge id. */
+  private readonly practiceStates = readJson<Record<number, PracticeState>>(STORAGE_KEYS.practiceProgress, {});
+
+  /** Mock-exam attempts, newest first. */
+  readonly examAttempts = computed(() => readJson<ExamAttempt[]>(STORAGE_KEYS.mockExamHistory, []));
+
+  /** Coding-task completion, keyed by task id. */
+  private readonly taskStates = readJson<Record<number, { done?: boolean }>>(STORAGE_KEYS.codingTasks, {});
+
+  /** The spaced-repetition queue as of page load. */
   private readonly reviewQueue = loadQueue();
 
   // --- lessons ---
+
+  /** Distinct lessons opened. */
   readonly lessonsVisited = computed(() => this.lessonProgress.visitedCount());
+
+  /** Lesson coverage as a percentage of {@link lessonsBuilt}. */
   readonly lessonsPercent = computed(() =>
     this.lessonsBuilt === 0 ? 0 : Math.round((this.lessonsVisited() / this.lessonsBuilt) * 100),
   );
 
   // --- practice ---
+
+  /** Challenges answered at least once on the Practice page. */
   readonly practiceAnswered = computed(
     () => Object.values(this.practiceStates).filter((s) => s.answered).length,
   );
+
+  /** Of those, how many were right. */
   readonly practiceCorrect = computed(
     () => Object.values(this.practiceStates).filter((s) => s.answered && s.correct).length,
   );
+
+  /**
+   * Accuracy over answered questions — how well you do on what you attempt.
+   * Distinct from {@link practiceCoverage}, which is how much you have
+   * attempted; the readiness score weighs both, because either alone is
+   * gameable.
+   */
   readonly practiceAccuracy = computed(() => {
     const answered = this.practiceAnswered();
     return answered === 0 ? 0 : Math.round((this.practiceCorrect() / answered) * 100);
   });
+
+  /** Share of the whole bank attempted. */
   readonly practiceCoverage = computed(() =>
     Math.round((this.practiceAnswered() / this.challengeTotal) * 100),
   );
@@ -385,15 +464,23 @@ export class Progress {
   });
 
   // --- mock exams ---
+
+  /** Highest exam score ever recorded. Feeds the readiness score. */
   readonly bestExam = computed(() =>
     this.examAttempts().reduce((best, a) => Math.max(best, a.scorePercent), 0),
   );
+
+  /** Mean exam score across all attempts; `0` with none. */
   readonly avgExam = computed(() => {
     const attempts = this.examAttempts();
     if (attempts.length === 0) return 0;
     return Math.round(attempts.reduce((sum, a) => sum + a.scorePercent, 0) / attempts.length);
   });
+
+  /** Number of exams passed. */
   readonly passCount = computed(() => this.examAttempts().filter((a) => a.passed).length);
+
+  /** The five most recent attempts, for the history strip. */
   readonly recentAttempts = computed(() => this.examAttempts().slice(0, 5));
 
   /** Categories under the threshold across ALL exam attempts combined. */
@@ -420,8 +507,24 @@ export class Progress {
 
   // --- readiness score (weighted blend; untouched areas are excluded and the
   //     remaining weights renormalized, so a fresh tool never drags the score) ---
+  /**
+   * Circumference of the SVG progress ring (r=52), used with `stroke-dashoffset`
+   * to draw a partial arc — the standard trick for an SVG progress circle.
+   */
   readonly ringCircumference = 2 * Math.PI * 52;
 
+  /**
+   * The headline 0-100 readiness number: a weighted blend of lesson coverage,
+   * practice coverage and accuracy, best exam score, coding tasks, and review
+   * health.
+   *
+   * The important detail is the **renormalization**. A tool you have never
+   * touched is excluded from the blend entirely and the remaining weights are
+   * rescaled to sum to 1. Without that, adding a new study tool would
+   * instantly drop everyone's score, and someone doing serious practice would
+   * be capped at 85 purely for not having opened the coding tasks. Untouched
+   * means "no signal", not "scored zero".
+   */
   readonly readinessScore = computed(() => {
     const parts: { value: number; weight: number; hasData: boolean }[] = [
       { value: this.lessonsPercent(), weight: 0.1, hasData: this.lessonsVisited() > 0 },
@@ -441,10 +544,12 @@ export class Progress {
     return Math.round(active.reduce((sum, p) => sum + p.value * (p.weight / totalWeight), 0));
   });
 
+  /** `stroke-dashoffset` for the ring: full circumference at 0, zero at 100. */
   readonly ringOffset = computed(
     () => this.ringCircumference * (1 - this.readinessScore() / 100),
   );
 
+  /** A plain-language band for {@link readinessScore}, shown under the ring. */
   readonly readinessGrade = computed(() => {
     const score = this.readinessScore();
     if (score >= 80) return '🎓 Exam-ready';
@@ -464,6 +569,7 @@ export class Progress {
   readonly totalAnswered = computed(
     () => this.practiceAnswered() + this.examAttempts().reduce((sum, a) => sum + a.total, 0),
   );
+  /** Share of exam attempts that passed. */
   readonly examPassRate = computed(() => {
     const attempts = this.examAttempts();
     return attempts.length === 0 ? 0 : Math.round((this.passCount() / attempts.length) * 100);
@@ -473,6 +579,12 @@ export class Progress {
     const qualified = this.categoryStats().filter((c) => c.total >= 3);
     return qualified.length === 0 ? null : qualified[qualified.length - 1];
   });
+/**
+   * The weakest practice category, or `null` when there is nothing worth
+   * flagging — either no category has a meaningful sample, or the worst one is
+   * still respectable. Naming a "focus area" that you are already passing
+   * would be noise.
+   */
   readonly weakestCategory = computed(() => {
     const qualified = this.categoryStats().filter((c) => c.total >= 3);
     // categoryStats is sorted worst-first; only flag a real weakness.
@@ -480,23 +592,43 @@ export class Progress {
   });
 
   // --- exam-day readiness ---
-  readonly readinessChecks = computed(() => readJson<ReadinessEntry[]>(EXAM_DAY_HISTORY_KEY, []));
+
+  /** All recorded Exam-Day verdicts, newest first. */
+  readonly readinessChecks = computed(() => readJson<ReadinessEntry[]>(STORAGE_KEYS.examDayHistory, []));
+
+  /** The three most recent verdicts, for the summary strip. */
   readonly recentReadiness = computed(() => this.readinessChecks().slice(0, 3));
 
   // --- review queue ---
+
+  /** Review items due right now. */
   readonly reviewDue = computed(() => dueCount(this.reviewQueue));
+
+  /** Items in the queue, due or not. */
   readonly reviewQueueSize = computed(() => Object.keys(this.reviewQueue).length);
+
+  /** Questions that graduated out of the queue — a lifetime total. */
   readonly reviewMastered = computed(() => loadMastered().length);
 
   // --- coding tasks ---
+
+  /** Briefs completed, per the Coding-Task Simulator's checklist gate. */
   readonly tasksDone = computed(
     () => Object.values(this.taskStates).filter((s) => s.done).length,
   );
+
+  /** Completed briefs as a percentage of {@link tasksTotal}. */
   readonly tasksPercent = computed(() =>
     this.tasksTotal === 0 ? 0 : Math.round((this.tasksDone() / this.tasksTotal) * 100),
   );
 
   // --- achievements ---
+
+  /**
+   * The stats snapshot every badge predicate is evaluated against. Assembling
+   * it here is what lets `core/achievements.ts` stay pure data with no
+   * knowledge of where any of it came from.
+   */
   private readonly achievementStats = computed<AchievementStats>(() => ({
     lessonsVisited: this.lessonsVisited(),
     lessonsBuilt: this.lessonsBuilt,
@@ -509,6 +641,11 @@ export class Progress {
     tasksDone: this.tasksDone(),
     reviewMastered: this.reviewMastered(),
   }));
+  /**
+   * Every badge with its unlock state and progress resolved against the
+   * current stats. Recomputed rather than stored, so a badge added to the
+   * catalogue is immediately correct for past activity.
+   */
   readonly achievements = computed(() => {
     const stats = this.achievementStats();
     return ACHIEVEMENTS.map((a) => ({
@@ -520,6 +657,7 @@ export class Progress {
       progress: a.progress(stats),
     }));
   });
+  /** How many badges are earned — the "7 of 12" header on the achievements grid. */
   readonly unlockedCount = computed(() => this.achievements().filter((a) => a.unlocked).length);
 
   /** Downloads a Markdown snapshot of the whole dashboard — every section on the page, in the same order. */

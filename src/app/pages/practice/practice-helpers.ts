@@ -46,6 +46,14 @@ export function shuffleOptions(options: string[], correctAnswerIndex: number): S
  * Maps challenge ID to its shuffled options
  */
 export class OptionsShuffler {
+  /**
+   * Shuffle per challenge id, computed on first request and reused after.
+   *
+   * Memoizing is what makes the shuffle usable at all: without it, every
+   * change-detection pass would re-shuffle and the options would visibly
+   * reorder under the cursor. Keyed by id rather than by array identity
+   * because the same challenge object is looked up repeatedly.
+   */
   private cache = new Map<number, ShuffledOptions>();
 
   /**

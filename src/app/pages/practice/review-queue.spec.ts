@@ -7,6 +7,7 @@ import {
   loadQueue,
   recordMisses,
 } from './review-queue';
+import { STORAGE_KEYS } from '../../core/storage';
 
 /**
  * The review queue is the one store SHARED across pages (Practice, Mock Exam,
@@ -15,8 +16,8 @@ import {
  * app-wide contracts.
  */
 const DAY_MS = 24 * 60 * 60 * 1000;
-const QUEUE_KEY = 'angular-review-queue-v1';
-const MASTERED_KEY = 'angular-review-mastered-v1';
+const QUEUE_KEY = STORAGE_KEYS.reviewQueue;
+const MASTERED_KEY = STORAGE_KEYS.reviewMastered;
 
 describe('review-queue store', () => {
   beforeEach(() => {

@@ -7,7 +7,21 @@
  * features never drift out of sync. Add or edit challenges in this file only.
  */
 export type Difficulty = 'junior' | 'mid' | 'senior';
+/**
+ * Subject areas a challenge can belong to. `all` is the filter sentinel, not a
+ * real category — a `Challenge` uses `Exclude<Category, 'all'>` so it can never
+ * be filed under it.
+ */
 export type Category = 'all' | 'components' | 'templates' | 'styling' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'typescript' | 'security' | 'a11y' | 'state' | 'i18n' | 'tooling';
+/**
+ * How a challenge is framed. All four render as multiple choice — the type
+ * only changes the badge and the framing of the question, not the mechanics.
+ *
+ * - `multiple-choice` — a direct question.
+ * - `spot-the-bug` — a code sample with a defect; the options are diagnoses.
+ * - `predict-output` — a code sample; the options are what it prints or renders.
+ * - `fill-blank` — a code sample with a hole; the options are what fills it.
+ */
 export type ChallengeType = 'multiple-choice' | 'spot-the-bug' | 'predict-output' | 'fill-blank';
 
 /** Filter chip lists shared by the Practice, Mock Exam and Flashcards pages. */
@@ -30,6 +44,7 @@ export const CATEGORY_FILTERS: { id: Category; label: string }[] = [
   { id: 'tooling', label: 'Tooling & Config' },
 ];
 
+/** Difficulty chips, shared by the same pages as {@link CATEGORY_FILTERS}. */
 export const DIFF_FILTERS: { id: 'all' | Difficulty; label: string }[] = [
   { id: 'all', label: 'All levels' },
   { id: 'junior', label: 'Junior' },
@@ -37,20 +52,64 @@ export const DIFF_FILTERS: { id: 'all' | Difficulty; label: string }[] = [
   { id: 'senior', label: 'Senior' },
 ];
 
+/** One question in the bank. */
 export interface Challenge {
+  /**
+   * Stable, unique id. **Never renumber these.** Ids key persisted answer
+   * state, the spaced-repetition queue and flashcard progress, so changing one
+   * silently transfers a user's history onto a different question.
+   */
   id: number;
+  /** How the question is framed. Renders as a badge. */
   type: ChallengeType;
+  /** Tier, used by the difficulty filter and by adaptive mode. */
   difficulty: Difficulty;
+  /** Subject area. `all` is excluded — it is a filter value, not a category. */
   category: Exclude<Category, 'all'>;
+  /** The question text. */
   question: string;
+  /** Optional code sample shown above the options, as plain text. */
   code?: string;
+  /** The answer choices, in authoring order. Pages shuffle them per session. */
   options?: string[];
+  /** Index into {@link options} of the correct choice. */
   answer: number | string;
+  /**
+   * Why the answer is right — and, by convention in this bank, why the
+   * plausible wrong ones are wrong. Shown after answering everywhere.
+   */
   explanation: string;
+  /** Optional nudge shown before answering. */
   hint?: string;
+  /**
+   * Curriculum lesson id for the "Study this topic" link. Must resolve to a
+   * real lesson; a spec fails the build otherwise.
+   *
+   * @see practice-data.spec.ts
+   */
   topicPath?: string;
 }
 
+/**
+ * The whole challenge bank — every question in the app, consumed by Practice,
+ * Mock Exam, Flashcards, Review and Exam Day.
+ *
+ * Grouped by category with `// --- CATEGORY ---` banners and numbered
+ * sequentially within each group.
+ *
+ * ## Two conventions that are enforced by specs, not convention alone
+ *
+ * 1. **Ids are permanent.** See {@link Challenge.id}.
+ * 2. **The correct answer must not be reliably the longest option.** Answer
+ *    length is the classic tell in a hand-written bank — write a careful
+ *    correct answer and three lazy distractors, and the whole bank becomes
+ *    guessable without reading the question. The target is that the longest
+ *    option is correct about as often as chance would have it (~25% for four
+ *    options), not never: 0% is just the same exploit inverted.
+ *
+ * @see practice-data.spec.ts for both guards.
+ * @see scripts/measure-balance.mjs for the answer-length report.
+ */
 export const CHALLENGES: Challenge[] = [
   // --- COMPONENTS ---
   {
@@ -6187,6 +6246,16 @@ console.log('2:', fixture.nativeElement.querySelector('h1').textContent);`,
   },
 ];
 
+/**
+ * Returns a shuffled copy of an array (Fisher-Yates).
+ *
+ * Copies rather than shuffling in place, because callers pass module-level
+ * constants like {@link CHALLENGES} — shuffling those in place would
+ * permanently reorder the bank for every other consumer in the session.
+ *
+ * @param arr Source array, left untouched.
+ * @returns A new array with the same elements in random order.
+ */
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { CODING_TASKS } from './coding-tasks-data';
 import { CodingTasks } from './coding-tasks';
+import { STORAGE_KEYS } from '../../core/storage';
 
 /**
  * The behavioral contract of the simulator: completion is GATED on the full
@@ -9,7 +10,7 @@ import { CodingTasks } from './coding-tasks';
  * of it persists under the storage key the Progress dashboard and Exam-Day
  * read ('angular-coding-tasks-v1').
  */
-const STORAGE_KEY = 'angular-coding-tasks-v1';
+const STORAGE_KEY = STORAGE_KEYS.codingTasks;
 
 describe('CodingTasks', () => {
   beforeEach(async () => {

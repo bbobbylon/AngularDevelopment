@@ -73,12 +73,32 @@ import { BookmarksService } from '../../core/bookmarks.service';
   `,
 })
 export class Bookmarks {
+  /** The store. This page is a thin view over it and owns no state of its own. */
   protected readonly bookmarks = inject(BookmarksService);
 
+  /**
+   * Whether a bookmark points at a lesson (and so can link straight to its
+   * route) rather than a practice question (which has no route, so the card
+   * links to `/practice` instead).
+   *
+   * The `practice-` prefix is the only discriminator — see the id convention
+   * on {@link BookmarksService}.
+   *
+   * @param id A namespaced bookmark id.
+   */
   protected isLesson(id: string): boolean {
     return !id.startsWith('practice-');
   }
 
+  /**
+   * Saves an edited note on every keystroke. No debounce: the write is a
+   * synchronous localStorage set behind a signal, and losing the last few
+   * characters because the user navigated away mid-debounce would be worse
+   * than the cost of writing often.
+   *
+   * @param id    The bookmark being edited.
+   * @param event The textarea input event.
+   */
   protected onNoteChange(id: string, event: Event): void {
     this.bookmarks.setNote(id, (event.target as HTMLTextAreaElement).value);
   }

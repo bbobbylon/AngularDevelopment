@@ -18,20 +18,48 @@ export interface AchievementStats {
   reviewMastered: number;
 }
 
+/**
+ * One badge. Both predicates are pure functions of the stats snapshot, which
+ * is what keeps unlock state derived rather than stored — see the file header.
+ *
+ * `unlocked` and `progress` must agree: 100% progress implies unlocked, and
+ * vice versa, or a card sits at a full bar while still greyed out. There is a
+ * spec that enforces exactly that across every entry.
+ */
 export interface Achievement {
+  /** Stable slug. Used as the `@for` track key; renaming one resets nothing, since unlock state is derived. */
   id: string;
+  /** Emoji shown on the card. */
   icon: string;
+  /** Short name, e.g. "Century Club". */
   title: string;
+  /** What the user has to do, phrased as an instruction. */
   description: string;
+  /** Whether the badge is earned, given the current stats. */
   unlocked: (s: AchievementStats) => boolean;
   /** 0-100 progress toward unlocking — drives a progress bar while locked. */
   progress: (s: AchievementStats) => number;
 }
 
+/**
+ * Percentage of `value` toward `target`, clamped to 0-100 and rounded.
+ *
+ * Guards `target <= 0` because one badge's target is the curriculum size,
+ * which would be 0 for an empty curriculum — without the guard that is a
+ * division by zero rendering as `NaN%` in the progress bar.
+ */
 function pct(value: number, target: number): number {
   return target <= 0 ? 0 : Math.min(100, Math.round((value / target) * 100));
 }
 
+/**
+ * Every badge, in display order on the Progress dashboard: roughly easiest to
+ * hardest, so a new user sees something within reach at the top.
+ *
+ * Adding one needs no migration — unlock state is recomputed from stats on
+ * every render, so a badge added today is immediately correct for a user who
+ * qualified for it months ago.
+ */
 export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'first-lesson',

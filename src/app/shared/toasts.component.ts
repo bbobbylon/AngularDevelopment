@@ -7,7 +7,6 @@ import { ToastService } from '../core/toast.service';
  */
 @Component({
   selector: 'app-toasts',
-  standalone: true,
   template: `
     @if (toast.count() > 0) {
       <div class="toast-stack" aria-live="polite" aria-atomic="false">
@@ -63,7 +62,15 @@ import { ToastService } from '../core/toast.service';
   `],
 })
 export class ToastsComponent {
+  /** The app-wide stack this component renders. It owns the state; this owns the pixels. */
   protected readonly toast = inject(ToastService);
+
+  /**
+   * Glyph per {@link ToastType}. Kept here rather than in the service so the
+   * service stays free of presentation, and typed loosely as
+   * `Record<string, string>` so the template can index it with the raw
+   * `type` string without a cast.
+   */
   protected readonly icons: Record<string, string> = {
     info: 'ℹ️',
     success: '✓',

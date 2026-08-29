@@ -1,3 +1,21 @@
+/**
+ * Minimal TypeScript/JavaScript syntax highlighter used by the lesson pages.
+ *
+ * Hand-written rather than pulling in Prism or Shiki: the app ships ~100 lesson
+ * pages full of code samples, and a real highlighter would add more to the
+ * bundle than the entire rest of the app. This one is a single linear scan with
+ * no dependencies and no build step, and it only has to be right for the
+ * Angular/TS snippets in this curriculum — not for arbitrary source.
+ *
+ * @see styles.css for the `.hl-*` classes it emits.
+ */
+
+/**
+ * Words rendered as keywords. Includes the primitive type names
+ * (`string`, `number`, …) alongside real reserved words, because in TS code
+ * samples they read as keywords even though the parser treats them as
+ * identifiers.
+ */
 const KEYWORDS = new Set([
   'abstract', 'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const',
   'continue', 'declare', 'default', 'delete', 'do', 'else', 'enum', 'export',
@@ -9,6 +27,14 @@ const KEYWORDS = new Set([
   'yield', 'true', 'false', 'never', 'any', 'string', 'number', 'boolean', 'object',
 ]);
 
+/**
+ * Escapes text for interpolation into the HTML string this module builds.
+ *
+ * Every branch of {@link highlight} routes its output through here, which is
+ * what makes the result safe to bind with `[innerHTML]`: the input is treated
+ * strictly as source text, so a sample containing `<script>` is displayed
+ * rather than executed.
+ */
 function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')

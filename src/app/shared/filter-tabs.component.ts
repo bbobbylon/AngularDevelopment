@@ -1,7 +1,10 @@
 import { Component, input, model } from '@angular/core';
 
+/** One selectable tab in a {@link FilterTabsComponent} bar. */
 export interface TabOption {
+  /** Value written back through the `value` model when this tab is picked. */
   id: string;
+  /** Text shown on the tab. */
   label: string;
 }
 
@@ -11,7 +14,6 @@ export interface TabOption {
  */
 @Component({
   selector: 'app-filter-tabs',
-  standalone: true,
   template: `
     <div class="tab-bar" role="group">
       @for (opt of options(); track opt.id) {

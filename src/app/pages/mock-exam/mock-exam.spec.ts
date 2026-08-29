@@ -1,12 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { MockExam } from './mock-exam';
+import { STORAGE_KEYS } from '../../core/storage';
 
 /**
  * The timed-exam state machine: config -> active -> review, its scoring math,
  * and the localStorage history it hands to the Progress dashboard.
  */
-const HISTORY_KEY = 'angular-mock-exam-history-v1';
+const HISTORY_KEY = STORAGE_KEYS.mockExamHistory;
 
 describe('MockExam', () => {
   let fixture: ComponentFixture<MockExam>;

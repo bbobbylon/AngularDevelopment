@@ -1,15 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ExamDay } from './exam-day';
+import { STORAGE_KEYS } from '../../core/storage';
 
 /**
  * The readiness-check flow: exam leg → persisted active check → verdict.
  * The verdict rule (exam >= 70% AND both briefs done) and the localStorage
  * hand-off to /coding-tasks and the Progress dashboard are the contracts.
  */
-const ACTIVE_KEY = 'angular-exam-day-active-v1';
-const HISTORY_KEY = 'angular-exam-day-history-v1';
-const CODING_TASKS_DONE_KEY = 'angular-coding-tasks-v1';
+const ACTIVE_KEY = STORAGE_KEYS.examDayActive;
+const HISTORY_KEY = STORAGE_KEYS.examDayHistory;
+const CODING_TASKS_DONE_KEY = STORAGE_KEYS.codingTasks;
 
 describe('ExamDay', () => {
   let fixture: ComponentFixture<ExamDay>;

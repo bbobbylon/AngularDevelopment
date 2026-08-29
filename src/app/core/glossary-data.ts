@@ -11,6 +11,16 @@ export interface GlossaryTerm {
   topicPath?: string;
 }
 
+/**
+ * Every glossary entry, kept in A-Z order by first letter so the file stays
+ * navigable by hand — the page re-sorts and buckets them itself, so the exact
+ * within-letter order here does not affect rendering.
+ *
+ * A spec enforces the grouping, the absence of duplicates, and that every
+ * `topicPath` resolves to a real lesson.
+ *
+ * @see glossary-data.spec.ts
+ */
 export const GLOSSARY: GlossaryTerm[] = [
   { term: 'a11y', definition: 'Shorthand for "accessibility" (11 letters between the "a" and the "y"). Building UIs usable with a keyboard, screen reader, or other assistive technology.', topicPath: 'a11y' },
   { term: 'Async pipe', definition: 'A built-in pipe (`| async`) that subscribes to an Observable or Promise in the template and auto-unsubscribes when the component is destroyed — no manual subscription management needed.', topicPath: 'rxjs-observables' },

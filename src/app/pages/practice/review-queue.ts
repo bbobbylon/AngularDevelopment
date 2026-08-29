@@ -8,15 +8,27 @@
  * immediately). A correct answer at the top box GRADUATES the item — it leaves
  * the queue and is counted as mastered.
  *
- * Storage is localStorage (same SSR-safe try/catch pattern as the Practice
- * progress and Mock Exam history stores). Challenge ids reference the shared
- * bank in `practice-data.ts`, so consumers must tolerate ids that no longer
- * resolve if the bank ever shrinks.
+ * Deliberately plain functions rather than an injectable service: misses are
+ * recorded from several independently lazy-loaded pages, and a module of pure
+ * functions over localStorage avoids giving them a shared DI dependency. The
+ * trade-off is that nothing here is reactive — callers re-read after mutating
+ * (see how `dueCount` is refreshed on navigation in `app.ts`).
+ *
+ * Challenge ids reference the shared bank in `practice-data.ts`, so consumers
+ * must tolerate ids that no longer resolve if the bank ever shrinks.
+ *
+ * @see core/storage.ts for the key registry and read/write helpers.
  */
+import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
 
-/** Days until an item is due again, indexed by box. Box 0 = due immediately. */
+/**
+ * Days until an item is due again, indexed by box. Box 0 = due immediately.
+ * The array length also defines graduation: a correct answer at the last box
+ * removes the item from the queue entirely.
+ */
 export const REVIEW_INTERVALS_DAYS = [0, 1, 3, 7, 14, 30];
 
+/** Milliseconds in a day — converts {@link REVIEW_INTERVALS_DAYS} into a due timestamp. */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** One queued challenge and where it sits in the schedule. */
@@ -31,51 +43,55 @@ export interface ReviewItem {
   lapses: number;
 }
 
+/**
+ * The queue: items by challenge id. A map rather than an array so recording a
+ * miss is an O(1) upsert from any page, and so an id can never be queued twice.
+ */
 export type ReviewQueue = Record<number, ReviewItem>;
 
-/** localStorage keys (bump the suffix to invalidate old data). */
-const QUEUE_KEY = 'angular-review-queue-v1';
-const MASTERED_KEY = 'angular-review-mastered-v1';
-
-/** Load the queue; returns {} when storage is unavailable (SSR/private mode) or corrupt. */
+/**
+ * Reads the queue from storage.
+ *
+ * Every mutator below re-reads rather than caching, because misses are
+ * recorded from several pages (Practice, Mock Exam, Exam Day) that each hold
+ * their own component instance. Re-reading is what keeps them consistent
+ * without a shared in-memory owner.
+ *
+ * @returns The stored queue, or `{}` when absent/unavailable/corrupt.
+ */
 export function loadQueue(): ReviewQueue {
-  try {
-    if (typeof localStorage === 'undefined') return {};
-    const raw = localStorage.getItem(QUEUE_KEY);
-    return raw ? (JSON.parse(raw) as ReviewQueue) : {};
-  } catch {
-    return {};
-  }
+  return readJson<ReviewQueue>(STORAGE_KEYS.reviewQueue, {});
 }
 
-/** Persist the queue, swallowing quota/permission errors so the UI never breaks on a write. */
+/**
+ * Persists the queue. Best-effort — a failed write never surfaces.
+ *
+ * @param queue The complete queue to store.
+ */
 export function saveQueue(queue: ReviewQueue): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-  } catch {
-    // ignore — storage full or blocked
-  }
+  writeJson(STORAGE_KEYS.reviewQueue, queue);
 }
 
-/** Ids of challenges that graduated out of the queue (correct at the top box). */
+/**
+ * Reads the ids of challenges that graduated out of the queue by being
+ * answered correctly at the top box.
+ *
+ * Kept separately from the queue so "mastered" survives the item's removal —
+ * the Progress dashboard reports it as a lifetime achievement.
+ *
+ * @returns Mastered challenge ids, or `[]`.
+ */
 export function loadMastered(): number[] {
-  try {
-    if (typeof localStorage === 'undefined') return [];
-    const raw = localStorage.getItem(MASTERED_KEY);
-    return raw ? (JSON.parse(raw) as number[]) : [];
-  } catch {
-    return [];
-  }
+  return readJson<number[]>(STORAGE_KEYS.reviewMastered, []);
 }
 
+/**
+ * Persists the mastered-id list.
+ *
+ * @param ids The complete list to store.
+ */
 function saveMastered(ids: number[]): void {
-  try {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(MASTERED_KEY, JSON.stringify(ids));
-  } catch {
-    // ignore — storage full or blocked
-  }
+  writeJson(STORAGE_KEYS.reviewMastered, ids);
 }
 
 /**

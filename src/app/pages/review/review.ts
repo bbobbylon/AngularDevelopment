@@ -11,25 +11,41 @@ import {
   type ReviewQueue,
 } from '../practice/review-queue';
 
-/**
- * Spaced-Repetition Review — resurfaces questions you got WRONG elsewhere in
- * the app (Practice page misses and Mock Exam misses both feed the shared
- * queue in `../practice/review-queue.ts`).
- *
- * Three-phase state machine, same shape as the Mock Exam:
- *   - `idle`    — dashboard: due count, queue size, mastered count, start button.
- *   - `session` — one due item at a time with immediate feedback; each answer
- *                 is graded into the Leitner schedule (correct → longer
- *                 interval, wrong → back to the start).
- *   - `summary` — session tally: advanced / reset / mastered.
- *
- * Options are shuffled via the shared OptionsShuffler so answer positions are
- * randomized but stable within a session.
- */
+/** Which screen the review page is on. See {@link Review}. */
 type Phase = 'idle' | 'session' | 'summary';
 
+/** Milliseconds in a day — converts a due timestamp into "in N days". */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Spaced-Repetition Review — resurfaces the questions you got **wrong**
+ * elsewhere in the app.
+ *
+ * This page owns none of the queue's logic. Practice, Mock Exam and Exam Day
+ * all record their misses into the shared store in
+ * `../practice/review-queue.ts`; this page reads what is due, asks it, and
+ * grades the answer back into the Leitner schedule.
+ *
+ * Three phases, the same shape as the Mock Exam:
+ *
+ * - **`idle`** — how many are due, how big the queue is, how many have been
+ *   mastered, and when the next item comes up.
+ * - **`session`** — one item at a time **with** immediate feedback (unlike the
+ *   Mock Exam: this is practice, not measurement). Each answer moves the item
+ *   through the schedule — correct promotes it to a longer interval, wrong
+ *   sends it back to the start.
+ * - **`summary`** — the tally: advanced, reset, mastered.
+ *
+ * ## Reviewing early
+ *
+ * {@link startSession} takes an `early` flag that runs the *whole* queue
+ * rather than only what is due. It grades exactly the same way, so an early
+ * correct answer still promotes. This is deliberate — the schedule is a
+ * suggestion for when review is most efficient, not a lockout.
+ *
+ * @see pages/practice/review-queue.ts — the store, the box intervals, and the
+ *      graduation rule.
+ */
 @Component({
   selector: 'app-review',
   imports: [RouterLink],
@@ -236,35 +252,70 @@ const DAY_MS = 24 * 60 * 60 * 1000;
   `,
 })
 export class Review {
+  /** Per-session option shuffling; reset at the start of each session. */
   private readonly shuffler = new OptionsShuffler();
   /** Challenge lookup by id — the queue stores ids only. */
   private readonly byId = new Map<number, Challenge>(CHALLENGES.map((c) => [c.id, c]));
 
+  /** Option labels, indexed by position. */
   readonly letters = ['A', 'B', 'C', 'D'];
+
+  /** Number of Leitner boxes. Reaching the top box graduates an item. */
   readonly boxCount = REVIEW_INTERVALS_DAYS.length;
+
+  /** The intervals as `1 → 3 → 7 → 14 → 30`, explaining the schedule in the UI.
+   *  Drops the first entry, which is 0 (due immediately) and reads as noise. */
   readonly intervalsLabel = REVIEW_INTERVALS_DAYS.slice(1).join(' → ');
 
+  /** Which of the three screens is showing. */
   readonly phase = signal<Phase>('idle');
+
+  /**
+   * The queue, seeded from storage. Held in a signal because grading mutates
+   * it during a session and the box badges must update live — the store
+   * itself is not reactive, so this page holds the reactive copy.
+   */
   readonly queue = signal<ReviewQueue>(loadQueue());
+
+  /** Lifetime mastered count, incremented locally as items graduate. */
   readonly masteredCount = signal(loadMastered().length);
 
+  /** Items in the queue, due or not. */
   readonly queueSize = computed(() => Object.keys(this.queue()).length);
   /** Due items whose challenge still exists in the bank. */
   readonly due = computed(() => dueItems(this.queue()).filter((i) => this.byId.has(i.id)));
 
   // --- session state ---
+
+  /** Challenges drawn for this session, in presentation order. */
   readonly session = signal<Challenge[]>([]);
+
+  /** Position within {@link session}. */
   readonly index = signal(0);
+
+  /** Chosen option index for the current item, or `null`. */
   readonly selected = signal<number | null>(null);
+
+  /** Whether the current item has been graded — flips the card to feedback. */
   readonly answered = signal(false);
+
+  /** Whether the last graded answer was right, for the feedback styling. */
   readonly lastCorrect = signal(false);
   /** Human note about where the just-graded item went in the schedule. */
   readonly scheduleNote = signal('');
+  /** Correct answers this session. */
   readonly sessionCorrect = signal(0);
+
+  /** Items promoted a box this session. */
   readonly sessionAdvanced = signal(0);
+
+  /** Items knocked back to box 0 this session. */
   readonly sessionReset = signal(0);
+
+  /** Items that graduated out of the queue this session. */
   readonly sessionMastered = signal(0);
 
+  /** The item on screen. */
   readonly current = computed(() => this.session()[this.index()]);
 
   /** Relative label for the soonest upcoming (not yet due) item. */
@@ -297,10 +348,21 @@ export class Review {
     this.phase.set('session');
   }
 
+  /**
+   * Which Leitner box an item is in; `0` for anything not queued.
+   *
+   * @param id Challenge id.
+   */
   boxOf(id: number): number {
     return this.queue()[id]?.box ?? 0;
   }
 
+  /**
+   * This session's option order for a challenge, plus where the correct answer
+   * ended up. Stable for the session.
+   *
+   * @param ch The challenge.
+   */
   shuffledOptions(ch: Challenge): { options: string[]; correctIndex: number } {
     if (!ch.options) return { options: [], correctIndex: -1 };
     return this.shuffler.getShuffledOptions(ch.id, ch.options, ch.answer as number);
@@ -311,6 +373,17 @@ export class Review {
     return this.letters[this.shuffledOptions(ch).correctIndex] ?? '';
   }
 
+  /**
+   * Grades the current answer and moves the item through the schedule.
+   *
+   * The box is read **before** grading, because {@link gradeReview} rewrites
+   * it — `prevBox` is what makes it possible to say where the item went ("↑
+   * Box 3 — next review in 7 days") rather than just that it moved. It is also
+   * how graduation is detected: promoting past the last box removes the item
+   * from the queue entirely, so there is no post-grade box left to inspect.
+   *
+   * @param ch The challenge being answered.
+   */
   submit(ch: Challenge): void {
     const sel = this.selected();
     if (this.answered() || sel === null) return;
@@ -338,6 +411,10 @@ export class Review {
     }
   }
 
+  /**
+   * Advances to the next item, clearing the per-item answer state, or ends the
+   * session when there are none left.
+   */
   next(): void {
     if (this.index() < this.session().length - 1) {
       this.index.update((i) => i + 1);
@@ -348,10 +425,17 @@ export class Review {
     }
   }
 
+  /** Returns to the dashboard from the summary screen. */
   backToIdle(): void {
     this.phase.set('idle');
   }
 
+  /**
+   * Display label for a challenge type. A `Record` rather than a `switch` so
+   * a new type added to the bank fails the build here.
+   *
+   * @param type The challenge's type.
+   */
   typeLabel(type: ChallengeType): string {
     const map: Record<ChallengeType, string> = {
       'multiple-choice': 'Multiple Choice',
