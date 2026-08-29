@@ -1,15 +1,56 @@
-import { Component, computed, effect, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { OptionsShuffler } from './practice-helpers';
 import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Challenge, type Category, type ChallengeType, type Difficulty } from './practice-data';
 import { dueCount, loadQueue, recordMisses } from './review-queue';
 import { downloadTextFile } from '../../shared/download-file';
+import { BookmarksService } from '../../core/bookmarks.service';
+import { ToastService } from '../../core/toast.service';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
 type PracticeStates = Record<number, { selected: number | null; answered: boolean; correct: boolean; expanded: boolean }>;
 
 /** localStorage key for persisted Practice progress (bump the suffix to invalidate old data). */
 const PROGRESS_KEY = 'angular-practice-progress-v1';
+
+/** localStorage key for the adaptive-difficulty state. */
+const ADAPTIVE_KEY = 'angular-practice-adaptive-v1';
+
+/** Ordered so index +/-1 means one level harder/easier. */
+const DIFF_LEVELS: Difficulty[] = ['junior', 'mid', 'senior'];
+
+/** Consecutive correct answers before the adaptive level steps up one notch. */
+const LEVEL_UP_STREAK = 3;
+/** Consecutive misses before the adaptive level steps down one notch. */
+const LEVEL_DOWN_STREAK = 2;
+
+interface AdaptiveState {
+  enabled: boolean;
+  level: Difficulty;
+  /** Positive = current correct streak, negative = current miss streak. */
+  streak: number;
+}
+
+const DEFAULT_ADAPTIVE: AdaptiveState = { enabled: false, level: 'junior', streak: 0 };
+
+function loadAdaptive(): AdaptiveState {
+  try {
+    if (typeof localStorage === 'undefined') return DEFAULT_ADAPTIVE;
+    const raw = localStorage.getItem(ADAPTIVE_KEY);
+    return raw ? { ...DEFAULT_ADAPTIVE, ...(JSON.parse(raw) as AdaptiveState) } : DEFAULT_ADAPTIVE;
+  } catch {
+    return DEFAULT_ADAPTIVE;
+  }
+}
+
+function saveAdaptive(state: AdaptiveState): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(ADAPTIVE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore — storage full or blocked
+  }
+}
 
 /** Load saved progress; returns {} when storage is unavailable (SSR/private mode) or corrupt. */
 function loadProgress(): PracticeStates {
@@ -82,6 +123,11 @@ function saveProgress(states: PracticeStates): void {
     .progress-bar-inner { height: 100%; background: #22c55e; border-radius: 4px; transition: width .3s; }
     .empty-state { text-align: center; padding: 60px 24px; color: var(--text-muted); }
     .reset-btn { margin: 0 24px 0; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: .84rem; color: var(--text); }
+    .reset-btn.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .filters button:disabled { opacity: .45; cursor: default; }
+    .adaptive-note { max-width: 900px; margin: -8px auto 16px; padding: 0 24px; font-size: .82rem; color: var(--text-muted); }
+    .bookmark-star { background: none; border: none; cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 2px; flex-shrink: 0; color: var(--text-muted); }
+    .bookmark-star.starred { color: #f59e0b; }
   `],
   template: `
     <div class="practice-hero">
@@ -127,16 +173,35 @@ function saveProgress(states: PracticeStates): void {
 
     <div class="filters" style="margin-top:0;padding-top:0">
       @for (d of diffFilters; track d.id) {
-        <button [class.active]="activeDiff() === d.id" (click)="activeDiff.set(d.id)">
+        <button
+          [class.active]="activeDiff() === d.id"
+          [disabled]="adaptiveEnabled()"
+          (click)="activeDiff.set(d.id)">
           {{ d.label }}
         </button>
       }
+      <button
+        class="reset-btn"
+        [class.active]="adaptiveEnabled()"
+        (click)="toggleAdaptive()"
+        title="Auto-adjust difficulty based on your streak">
+        🎚 Adaptive{{ adaptiveEnabled() ? ': ' + adaptiveLevel() : '' }}
+      </button>
       <button class="reset-btn" (click)="reshuffle()" style="margin-left:auto">🔀 Shuffle</button>
       @if (answeredCount() > 0) {
         <button class="reset-btn" (click)="exportResults()">⬇ Export results</button>
         <button class="reset-btn" (click)="reset()">Reset all</button>
       }
     </div>
+
+    @if (adaptiveEnabled()) {
+      <p class="adaptive-note">
+        🎚 Adaptive mode is serving <strong>{{ adaptiveLevel() }}</strong> questions.
+        {{ adaptiveStreak() > 0
+          ? (levelUpStreak - adaptiveStreak()) + ' more correct in a row to level up.'
+          : (adaptiveLevel() === 'senior' ? 'Top level reached.' : 'Answer correctly to climb back up.') }}
+      </p>
+    }
 
     @if (answeredCount() > 0) {
       <div style="max-width:900px;margin:0 auto;padding:0 24px 8px">
@@ -164,6 +229,13 @@ function saveProgress(states: PracticeStates): void {
               </div>
               <p class="ch-question" style="margin:6px 0 0">{{ ch.question }}</p>
             </div>
+            <button
+              class="bookmark-star"
+              [class.starred]="isBookmarked(ch.id)"
+              (click)="toggleBookmark(ch, $event)"
+              [attr.aria-label]="isBookmarked(ch.id) ? 'Remove bookmark' : 'Bookmark this question'">
+              {{ isBookmarked(ch.id) ? '★' : '☆' }}
+            </button>
             <span class="ch-number">#{{ ch.id }}</span>
           </div>
 
@@ -228,13 +300,28 @@ export class Practice {
   private readonly states = signal<PracticeStates>(loadProgress());
   private readonly shuffledAll = signal(shuffle(CHALLENGES));
   private readonly optionsShuffler = new OptionsShuffler();
+  private readonly bookmarks = inject(BookmarksService);
+  private readonly toast = inject(ToastService);
 
   /** How many spaced-repetition items are due — shown on the Review CTA. */
   readonly reviewDue = signal(dueCount(loadQueue()));
 
+  /**
+   * Difficulty adaptation — when enabled, the level (junior/mid/senior) is
+   * driven automatically by a rolling correct/miss streak instead of the
+   * manual filter buttons: LEVEL_UP_STREAK correct in a row steps up one
+   * notch, LEVEL_DOWN_STREAK misses in a row steps down one notch.
+   */
+  private readonly adaptive = signal<AdaptiveState>(loadAdaptive());
+  readonly adaptiveEnabled = computed(() => this.adaptive().enabled);
+  readonly adaptiveLevel = computed(() => this.adaptive().level);
+  readonly adaptiveStreak = computed(() => Math.max(0, this.adaptive().streak));
+  readonly levelUpStreak = LEVEL_UP_STREAK;
+
   constructor() {
     // Persist progress to localStorage whenever it changes (keyed by challenge id).
     effect(() => saveProgress(this.states()));
+    effect(() => saveAdaptive(this.adaptive()));
   }
 
   readonly activeCategory = signal<Category>('all');
@@ -242,7 +329,7 @@ export class Practice {
 
   readonly visibleChallenges = computed(() => {
     const cat = this.activeCategory();
-    const diff = this.activeDiff();
+    const diff = this.adaptiveEnabled() ? this.adaptiveLevel() : this.activeDiff();
     return this.shuffledAll().filter((c) => {
       const catOk = cat === 'all' || c.category === cat;
       const diffOk = diff === 'all' || c.difficulty === diff;
@@ -327,6 +414,44 @@ export class Practice {
       // Feed the spaced-repetition queue so /review resurfaces this later.
       this.reviewDue.set(dueCount(recordMisses([ch.id])));
     }
+    if (this.adaptiveEnabled()) this.advanceAdaptive(correct);
+  }
+
+  /** Steps the adaptive difficulty level up/down after LEVEL_UP/DOWN_STREAK in a row. */
+  private advanceAdaptive(correct: boolean): void {
+    const state = this.adaptive();
+    const streak = correct ? Math.max(1, state.streak + 1) : Math.min(-1, state.streak - 1);
+    const levelIndex = DIFF_LEVELS.indexOf(state.level);
+
+    if (streak >= LEVEL_UP_STREAK && levelIndex < DIFF_LEVELS.length - 1) {
+      const level = DIFF_LEVELS[levelIndex + 1];
+      this.adaptive.set({ ...state, level, streak: 0 });
+      this.toast.show(`🎚 Difficulty up → ${level}`, 'success', 2000);
+    } else if (streak <= -LEVEL_DOWN_STREAK && levelIndex > 0) {
+      const level = DIFF_LEVELS[levelIndex - 1];
+      this.adaptive.set({ ...state, level, streak: 0 });
+      this.toast.show(`🎚 Difficulty down → ${level}`, 'info', 2000);
+    } else {
+      this.adaptive.set({ ...state, streak });
+    }
+  }
+
+  toggleAdaptive(): void {
+    this.adaptive.update((s) => ({ ...s, enabled: !s.enabled, streak: 0 }));
+    if (this.adaptiveEnabled()) {
+      this.toast.show(`🎚 Adaptive difficulty on — starting at ${this.adaptiveLevel()}`, 'info', 2200);
+    }
+  }
+
+  isBookmarked(id: number): boolean {
+    return this.bookmarks.isBookmarked(`practice-${id}`);
+  }
+
+  toggleBookmark(ch: Challenge, event: Event): void {
+    event.stopPropagation();
+    const id = `practice-${ch.id}`;
+    this.bookmarks.toggle(id, `Practice #${ch.id} — ${ch.question.slice(0, 60)}${ch.question.length > 60 ? '…' : ''}`);
+    this.toast.show(this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed', 'success', 1400);
   }
 
   reset() {

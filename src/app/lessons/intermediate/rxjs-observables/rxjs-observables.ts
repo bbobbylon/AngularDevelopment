@@ -1,7 +1,7 @@
 import { Component, OnDestroy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, Subscription, interval } from 'rxjs';
-import { take } from 'rxjs/operators';
+import { shareReplay, take } from 'rxjs/operators';
 
 @Component({
   selector: 'app-lesson-rxjs-observables',
@@ -128,6 +128,33 @@ EMPTY  /  NEVER  /  throwError(() =&gt; err)   // edge cases</pre>
         to share a single execution (e.g. one cached HTTP call).
       </p>
 
+      <div class="demo">
+        <p class="demo__title">Live — same source, two subscribers: cold vs shared</p>
+        <div class="row" style="margin-bottom:10px">
+          <label class="row" style="gap:6px">
+            <input type="checkbox" [checked]="shared()" (change)="toggleShared()" />
+            share this source (<code>shareReplay(1)</code>)
+          </label>
+          <button class="ghost" (click)="resetDemo()">Reset</button>
+        </div>
+        <div class="row" style="margin-bottom:10px">
+          <button (click)="subscribeA()">Subscribe A</button>
+          <button (click)="subscribeB()">Subscribe B</button>
+        </div>
+        <table class="t">
+          <tr><th></th><th>execution id it saw</th></tr>
+          <tr><td>Subscriber A</td><td><strong>{{ execA() }}</strong></td></tr>
+          <tr><td>Subscriber B</td><td><strong>{{ execB() }}</strong></td></tr>
+        </table>
+        <p style="color:var(--text-muted);font-size:.85rem">
+          Each "execution id" is generated fresh, once, inside the producer function.
+          Unshared, A and B almost always land on <em>different</em> ids — each
+          <code>subscribe()</code> re-runs the producer from scratch (cold). Tick the
+          checkbox, hit Reset, then subscribe A and B again: now they match — one shared
+          execution, multicast to both (hot).
+        </p>
+      </div>
+
       <h2>Where Angular hands you Observables</h2>
       <div class="code">
         <pre>this.http.get&lt;User[]&gt;('/api/users')      // HTTP responses
@@ -150,6 +177,49 @@ fromEvent(window, 'resize')               // any DOM event stream</pre>
         <code>complete()</code>s or errors tears itself down — but an infinite one
         (<code>interval</code>, <code>fromEvent</code>) leaks until you stop it.
       </div>
+
+      <h2>Under the hood</h2>
+      <p>
+        An Observable is really just a wrapped function: <code>new Observable(fn)</code>
+        stores <code>fn</code> and does nothing else. <strong>Nothing runs until
+        <code>subscribe()</code> is called</strong> — that's what actually invokes
+        <code>fn</code>, handing it a <code>Subscriber</code> that wraps your
+        <code>next</code>/<code>error</code>/<code>complete</code> callbacks with guards
+        (a misbehaving producer that calls <code>next</code> after <code>complete</code>
+        is silently ignored, not delivered). <code>interval(500)</code> isn't magic
+        either — it schedules a repeating timer via RxJS's <code>asyncScheduler</code> and
+        calls <code>next</code> from that callback, which is why unsubscribing really does
+        stop the timer instead of just "stop listening."
+      </p>
+      <p>
+        Operators like <code>map</code>/<code>filter</code>/<code>take</code> never mutate
+        the source — each one returns a <strong>brand-new</strong> Observable whose
+        producer function subscribes to the source internally and forwards transformed
+        values onward. That's why <code>const b$ = a$.pipe(map(fn))</code> leaves
+        <code>a$</code> completely untouched and reusable elsewhere.
+      </p>
+
+      <h2>Exam pitfalls</h2>
+      <ul>
+        <li>Assuming two <code>subscribe()</code> calls share one run — by default
+            (cold) each subscribe re-executes the producer, e.g. two identical HTTP
+            requests, not one shared response.</li>
+        <li>Assuming <code>unsubscribe()</code> always "cancels the work" — for
+            <code>HttpClient</code> it does abort the request, but a source built from a
+            <code>Promise</code> can't be cancelled; unsubscribing just stops you from
+            hearing about a result that still arrives.</li>
+        <li>Forgetting <code>error</code> and <code>complete</code> are mutually exclusive
+            and terminal — code written to expect more <code>next</code> calls after an
+            error will simply never see them.</li>
+        <li><code>shareReplay()</code> without a <code>refCount</code> config can keep the
+            source subscribed forever, even with zero active subscribers — that's a leak
+            hiding inside the "fix" for the cold-duplication problem.</li>
+        <li>Forgetting to tear down an <em>infinite</em> source
+            (<code>interval</code>, <code>fromEvent</code>) — a source that
+            <code>complete()</code>s cleans itself up, but these don't, so skipping
+            <code>ngOnDestroy</code>/<code>async</code>/<code>takeUntilDestroyed()</code>
+            leaks.</li>
+      </ul>
 
       <h2>Key takeaways</h2>
       <ul>
@@ -188,5 +258,43 @@ export class RxjsObservables implements OnDestroy {
 
   ngOnDestroy() {
     this.stop();
+  }
+
+  // --- cold vs hot demo ---
+  protected readonly shared = signal(false);
+  protected readonly execA = signal('—');
+  protected readonly execB = signal('—');
+  private coldSource$ = this.buildSource();
+  private sharedSource$ = this.coldSource$.pipe(shareReplay(1));
+
+  private buildSource(): Observable<string> {
+    return new Observable<string>((subscriber) => {
+      const id = Math.random().toString(36).slice(2, 7);
+      subscriber.next(id);
+      subscriber.complete();
+    });
+  }
+
+  protected toggleShared() {
+    this.shared.set(!this.shared());
+  }
+
+  protected subscribeA() {
+    (this.shared() ? this.sharedSource$ : this.coldSource$).subscribe((id) =>
+      this.execA.set(id),
+    );
+  }
+
+  protected subscribeB() {
+    (this.shared() ? this.sharedSource$ : this.coldSource$).subscribe((id) =>
+      this.execB.set(id),
+    );
+  }
+
+  protected resetDemo() {
+    this.execA.set('—');
+    this.execB.set('—');
+    this.coldSource$ = this.buildSource();
+    this.sharedSource$ = this.coldSource$.pipe(shareReplay(1));
   }
 }

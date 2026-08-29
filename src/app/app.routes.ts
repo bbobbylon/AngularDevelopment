@@ -64,6 +64,16 @@ export const routes: Routes = [
     title: 'Interview Prep · Angular Concepts',
     loadComponent: () => import('./pages/interview/interview').then((m) => m.Interview),
   },
+  {
+    path: 'glossary',
+    title: 'Glossary & Cheat Sheet · Angular Concepts',
+    loadComponent: () => import('./pages/glossary/glossary').then((m) => m.Glossary),
+  },
+  {
+    path: 'bookmarks',
+    title: 'Bookmarks & Notes · Angular Concepts',
+    loadComponent: () => import('./pages/bookmarks/bookmarks').then((m) => m.Bookmarks),
+  },
   ...CURRICULUM.map((lesson) => ({
     path: lesson.id,
     title: `${lesson.title} · Angular Concepts`,

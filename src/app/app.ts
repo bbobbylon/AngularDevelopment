@@ -8,6 +8,9 @@ import { APP_CONFIG } from './core/app-config.token';
 import { ProgressService } from './core/progress.service';
 import { dueCount, loadQueue } from './pages/practice/review-queue';
 import { ToastService } from './core/toast.service';
+import { StreakService } from './core/streak.service';
+import { BookmarksService } from './core/bookmarks.service';
+import { CURRICULUM } from './core/curriculum';
 import { highlight } from './shared/highlighter';
 import { ToastsComponent } from './shared/toasts.component';
 
@@ -34,10 +37,15 @@ export class App {
    */
   protected readonly reviewDue = signal(dueCount(loadQueue()));
 
+  /** Curriculum lesson id for the current route, or null on a non-lesson page — drives the bookmark star. */
+  protected readonly currentLessonId = signal<string | null>(null);
+
   /** Injected via InjectionToken — no class needed for plain config objects. */
   protected readonly config = inject(APP_CONFIG);
   protected readonly progress = inject(ProgressService);
   protected readonly toast = inject(ToastService);
+  protected readonly streak = inject(StreakService);
+  protected readonly bookmarks = inject(BookmarksService);
 
   constructor() {
     const router = inject(Router);
@@ -60,9 +68,18 @@ export class App {
         const lessonId = url.split('?')[0].replace(/^\//, '');
         if (lessonId) this.progress.markVisited(lessonId);
 
+        // The bookmark star only makes sense on an actual curriculum lesson.
+        this.currentLessonId.set(CURRICULUM.some((l) => l.id === lessonId) ? lessonId : null);
+
         // Refresh the Review badge — misses/reviews on the page just left
         // may have changed what is due.
         this.reviewDue.set(dueCount(loadQueue()));
+
+        // One streak-day tick per navigation; a no-op after the first visit today.
+        const newStreak = this.streak.recordVisit();
+        if (newStreak !== null && newStreak > 1) {
+          this.toast.show(`🔥 ${newStreak}-day study streak!`, 'success', 2600);
+        }
 
         // Re-apply syntax highlighting after each navigation.
         setTimeout(() => {
@@ -102,6 +119,14 @@ export class App {
     const count = this.progress.visitedCount();
     this.progress.reset();
     this.toast.show(`Cleared ${count} visited lesson${count === 1 ? '' : 's'}`, 'success');
+  }
+
+  protected toggleBookmark(): void {
+    const id = this.currentLessonId();
+    if (!id) return;
+    const lesson = CURRICULUM.find((l) => l.id === id);
+    this.bookmarks.toggle(id, lesson?.title ?? id);
+    this.toast.show(this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed', 'success', 1400);
   }
 
   /** ? key opens the keyboard shortcuts panel — demonstrates @defer when in app.html */

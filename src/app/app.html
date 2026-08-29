@@ -35,9 +35,34 @@
     </a>
     <a routerLink="/interview"
        routerLinkActive="topbar__link--active">Interview Prep</a>
+    <a routerLink="/glossary"
+       routerLinkActive="topbar__link--active">Glossary</a>
+    <a routerLink="/bookmarks"
+       routerLinkActive="topbar__link--active"
+       class="topbar__review">
+      Bookmarks
+      @if (bookmarks.count() > 0) {
+        <span class="nav-badge" [attr.aria-label]="bookmarks.count() + ' bookmarks saved'">{{ bookmarks.count() }}</span>
+      }
+    </a>
     <a href="https://angular.dev" target="_blank" rel="noopener">angular.dev ↗</a>
   </nav>
 
+  @if (streak.current() > 0) {
+    <span class="theme-btn" style="cursor:default" title="{{ streak.current() }}-day study streak (longest: {{ streak.longest() }})">
+      🔥 {{ streak.current() }}
+    </span>
+  }
+  @if (currentLessonId()) {
+    <button
+      class="theme-btn"
+      (click)="toggleBookmark()"
+      [attr.aria-label]="bookmarks.isBookmarked(currentLessonId()!) ? 'Remove bookmark' : 'Bookmark this lesson'"
+      title="Bookmark this lesson"
+    >
+      {{ bookmarks.isBookmarked(currentLessonId()!) ? '★' : '☆' }}
+    </button>
+  }
   <button
     class="theme-btn"
     (click)="showShortcuts.update(v => !v)"

@@ -351,3 +351,16 @@ textarea:focus {
   border: 5px solid transparent;
   border-bottom-color: #18181b;
 }
+
+/* ---- Print (used by the Glossary "Print" button) ----
+   Lives here rather than in a component stylesheet: the app chrome
+   (topbar/footer/toasts) is rendered by the root AppComponent template,
+   outside any lesson/page component's own view-encapsulated styles. */
+@media print {
+  .scroll-bar,
+  .topbar,
+  .footer,
+  app-toasts {
+    display: none !important;
+  }
+}

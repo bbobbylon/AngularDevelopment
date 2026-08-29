@@ -69,6 +69,22 @@ each other. To use something from ANOTHER box you must:
       </div>
       <p>{{ explanation() }}</p>
 
+      <h2>Try it — export &amp; import decide visibility</h2>
+      <div class="demo">
+        <p class="demo__title">Live — can FeatureModule use ButtonComponent?</p>
+        <div class="row" style="margin-bottom:10px">
+          <label class="row" style="gap:6px">
+            <input type="checkbox" [checked]="exported()" (change)="toggleExported()" />
+            SharedModule exports ButtonComponent
+          </label>
+          <label class="row" style="gap:6px">
+            <input type="checkbox" [checked]="imported()" (change)="toggleImported()" />
+            FeatureModule imports SharedModule
+          </label>
+        </div>
+        <div [class]="canUse() ? 'tip' : 'warn'">{{ verdict() }}</div>
+      </div>
+
       <h2>Feature modules &amp; lazy loading</h2>
       <p>
         Big apps split into <strong>feature modules</strong>, each lazy-loaded by the
@@ -140,6 +156,45 @@ bootstrapApplication(App, {{ '{' }}
         </tr>
       </table>
 
+      <h2>Under the hood</h2>
+      <p>
+        NgModules aren't just organizational — the Angular compiler (Ivy) uses them to
+        build each component's <strong>compilation scope</strong>: the set of directives,
+        components, and pipes its template is allowed to use. That scope is resolved from
+        the owning module's <code>declarations</code> plus whatever its
+        <code>imports</code> re-expose. This is why using an undeclared/unexported
+        component in a template fails at <em>compile time</em> ("is not a known element")
+        rather than at runtime — the compiler already knows, before the app ever runs,
+        exactly what's visible where.
+      </p>
+      <p>
+        Standalone components sidestep this by carrying their own scope: each one lists
+        its own <code>imports</code> directly on the <code>&#64;Component</code>
+        decorator, so there's no module-level scope to resolve. <code>NgModule</code>
+        still exists under the hood for DI, though — every module (and every
+        lazy-loaded feature module) creates its own <strong>injector</strong>, which is
+        why a service provided in a lazy feature module ends up as a separate instance
+        from one registered with <code>providedIn: 'root'</code>.
+      </p>
+
+      <h2>Exam pitfalls</h2>
+      <ul>
+        <li><code>declarations</code> may only contain <strong>components, directives,
+            and pipes</strong> — services and other modules never go there (services go
+            in <code>providers</code>, modules go in <code>imports</code>).</li>
+        <li>Importing the same feature module from two separately
+            <strong>lazy-loaded</strong> routes creates two separate injectors — any
+            service not registered with <code>providedIn: 'root'</code> ends up
+            duplicated, one instance per lazy chunk.</li>
+        <li>A component declared in an NgModule can't be dropped straight into a
+            standalone component's <code>imports</code> array — only standalone
+            components/directives/pipes (or whole NgModules) belong there.</li>
+        <li><code>BrowserModule</code> may only be imported by the <strong>root</strong>
+            module — importing it a second time from a feature module throws at startup.
+            Feature modules that need <code>*ngIf</code>/pipes import
+            <code>CommonModule</code> instead.</li>
+      </ul>
+
       <h2>Key takeaways</h2>
       <ul>
         <li><code>&#64;NgModule</code> = <code>declarations</code> (owns) + <code>imports</code> (uses) + <code>exports</code> (shares) + <code>providers</code> + <code>bootstrap</code>.</li>
@@ -190,4 +245,25 @@ export class Greeting {}
       ? 'The NgModule way: a component is inert until a module declares it, and other modules can only use it if the owning module exports it. More files, more indirection.'
       : 'The standalone way: the component carries its own dependencies in imports and is used by importing the class directly. No declarations bucket, no wrapper module.',
   );
+
+  protected readonly exported = signal(true);
+  protected readonly imported = signal(true);
+  protected readonly canUse = computed(() => this.exported() && this.imported());
+  protected readonly verdict = computed(() => {
+    if (this.canUse()) {
+      return "Yes — FeatureModule imports SharedModule, and SharedModule exports ButtonComponent, so it's visible.";
+    }
+    if (!this.imported()) {
+      return "No — FeatureModule never imports SharedModule, so none of its exports are visible here, no matter what's exported.";
+    }
+    return 'No — SharedModule declares ButtonComponent but never exports it, so importers still can\'t see it even though they imported the module.';
+  });
+
+  protected toggleExported() {
+    this.exported.set(!this.exported());
+  }
+
+  protected toggleImported() {
+    this.imported.set(!this.imported());
+  }
 }

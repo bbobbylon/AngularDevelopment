@@ -3,6 +3,9 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CURRICULUM } from '../../core/curriculum';
 import { ProgressService } from '../../core/progress.service';
+import { StreakService } from '../../core/streak.service';
+import { BookmarksService } from '../../core/bookmarks.service';
+import { ACHIEVEMENTS, type AchievementStats } from '../../core/achievements';
 import { CHALLENGES, type Category } from '../practice/practice-data';
 import { dueCount, loadMastered, loadQueue } from '../practice/review-queue';
 import { CODING_TASKS } from '../coding-tasks/coding-tasks-data';
@@ -127,6 +130,16 @@ function readJson<T>(key: string, fallback: T): T {
     .attempt .badge.fail { background: rgba(239,68,68,.1); color: #dc2626; }
     .weak-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
     .weak-chip { font-size: .78rem; font-weight: 600; padding: 4px 12px; border-radius: 14px; background: rgba(239,68,68,.08); border: 1px solid #ef4444; color: #dc2626; }
+
+    .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 4px; }
+    .badge { text-align: center; padding: 14px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg, transparent); }
+    .badge.unlocked { border-color: rgba(99,102,241,.5); background: rgba(99,102,241,.06); }
+    .badge-icon { font-size: 1.6rem; display: block; filter: grayscale(1); opacity: .35; }
+    .badge.unlocked .badge-icon { filter: none; opacity: 1; }
+    .badge-title { display: block; font-size: .8rem; font-weight: 700; margin-top: 6px; }
+    .badge-desc { display: block; font-size: .7rem; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+    .badge-bar-outer { height: 5px; background: var(--border); border-radius: 3px; margin-top: 8px; }
+    .badge-bar-inner { height: 100%; border-radius: 3px; background: #6366f1; }
   `],
   template: `
     <div class="pg-hero">
@@ -175,6 +188,10 @@ function readJson<T>(key: string, fallback: T): T {
       <div class="stat-box" [class.good]="bestExam() >= 70"><strong>{{ examAttempts().length === 0 ? '—' : bestExam() + '%' }}</strong><span>best mock exam</span></div>
       <div class="stat-box" [class.warn]="reviewDue() > 0"><strong>{{ reviewDue() }}</strong><span>reviews due</span></div>
       <div class="stat-box"><strong>{{ tasksDone() }}/{{ tasksTotal }}</strong><span>coding tasks</span></div>
+      <div class="stat-box" [class.good]="streak.current() > 0">
+        <strong>🔥 {{ streak.current() }}</strong>
+        <span>day streak (best {{ streak.longest() }})</span>
+      </div>
     </div>
 
     <div class="grid">
@@ -284,11 +301,30 @@ function readJson<T>(key: string, fallback: T): T {
         }
         <a routerLink="/mock-exam" class="go-link">Take a mock exam →</a>
       </div>
+
+      <div class="panel wide">
+        <h2>🏅 Achievements</h2>
+        <p class="sub">{{ unlockedCount() }} of {{ achievements().length }} unlocked.</p>
+        <div class="badge-grid">
+          @for (a of achievements(); track a.id) {
+            <div class="badge" [class.unlocked]="a.unlocked" [title]="a.description">
+              <span class="badge-icon">{{ a.icon }}</span>
+              <span class="badge-title">{{ a.title }}</span>
+              <span class="badge-desc">{{ a.description }}</span>
+              @if (!a.unlocked) {
+                <div class="badge-bar-outer"><div class="badge-bar-inner" [style.width]="a.progress + '%'"></div></div>
+              }
+            </div>
+          }
+        </div>
+      </div>
     </div>
   `,
 })
 export class Progress {
   private readonly lessonProgress = inject(ProgressService);
+  protected readonly streak = inject(StreakService);
+  private readonly bookmarksService = inject(BookmarksService);
 
   // --- static denominators ---
   readonly lessonsBuilt = CURRICULUM.filter((l) => l.loadComponent).length;
@@ -459,6 +495,32 @@ export class Progress {
   readonly tasksPercent = computed(() =>
     this.tasksTotal === 0 ? 0 : Math.round((this.tasksDone() / this.tasksTotal) * 100),
   );
+
+  // --- achievements ---
+  private readonly achievementStats = computed<AchievementStats>(() => ({
+    lessonsVisited: this.lessonsVisited(),
+    lessonsBuilt: this.lessonsBuilt,
+    practiceAnswered: this.practiceAnswered(),
+    practiceCorrect: this.practiceCorrect(),
+    examsPassed: this.passCount(),
+    bestExam: this.bestExam(),
+    streakLongest: this.streak.longest(),
+    bookmarksCount: this.bookmarksService.count(),
+    tasksDone: this.tasksDone(),
+    reviewMastered: this.reviewMastered(),
+  }));
+  readonly achievements = computed(() => {
+    const stats = this.achievementStats();
+    return ACHIEVEMENTS.map((a) => ({
+      id: a.id,
+      icon: a.icon,
+      title: a.title,
+      description: a.description,
+      unlocked: a.unlocked(stats),
+      progress: a.progress(stats),
+    }));
+  });
+  readonly unlockedCount = computed(() => this.achievements().filter((a) => a.unlocked).length);
 
   /** Downloads a Markdown snapshot of the whole dashboard — every section on the page, in the same order. */
   exportReport(): void {
