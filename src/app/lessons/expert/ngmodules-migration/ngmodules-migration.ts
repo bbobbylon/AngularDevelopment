@@ -1,14 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: NgModules & the standalone migration — the compilation-scope model
- * that explains every NgModule error (with an interactive scope quiz), the
- * declarations/imports/exports/providers anatomy, forRoot/forChild and why
- * they existed, the three-step migration schematic, the provide* function
- * map, mixing both worlds, and the classic error messages decoded.
- */
 
+/**
+ * One "is this in scope?" scenario: the question, the answer, and why.
+ */
 interface ScopeScenario {
   label: string;
   question: string;
@@ -55,6 +51,13 @@ const SCENARIOS: ScopeScenario[] = [
   },
 ];
 
+/**
+ * Lesson: NgModules & the standalone migration — the compilation-scope model
+ * that explains every NgModule error (with an interactive scope quiz), the
+ * declarations/imports/exports/providers anatomy, forRoot/forChild and why
+ * they existed, the three-step migration schematic, the provide* function
+ * map, mixing both worlds, and the classic error messages decoded.
+ */
 @Component({
   selector: 'app-lesson-ngmodules-migration',
   imports: [RouterLink],
@@ -225,9 +228,18 @@ const SCENARIOS: ScopeScenario[] = [
   `,
 })
 export class NgmodulesMigration {
+  /**
+   * The scope scenarios.
+   */
   readonly scenarios = SCENARIOS;
+  /**
+   * The scenario being examined, or `null` for none.
+   */
   readonly active = signal<ScopeScenario | null>(null);
 
+  /**
+   * Sample: `@NgModule` and what each of its four arrays meant.
+   */
   readonly anatomySample = `@NgModule({
   declarations: [UserCard, HighlightDirective, InitialsPipe], // template scope (private!)
   imports:      [CommonModule, SharedModule],                  // other modules' exports
@@ -237,6 +249,10 @@ export class NgmodulesMigration {
 })
 export class UserModule {}`;
 
+  /**
+   * Sample: the `forRoot()` convention, and the singleton problem it existed to
+   * solve.
+   */
   readonly forRootSample = `// the old convention, seen in every router/config-style library
 @NgModule({ declarations: [...], exports: [...] })
 export class CarouselModule {
@@ -249,6 +265,10 @@ export class CarouselModule {
   // lazy features import CarouselModule (or forChild()) — directives, no providers
 }`;
 
+  /**
+   * Sample: the same thing standalone — the component declares exactly what its
+   * own template uses.
+   */
   readonly standaloneSample = `@Component({
   selector: 'app-user-card',
   imports: [RouterLink, DatePipe, StatBadge],   // exactly what THIS template uses
@@ -264,6 +284,10 @@ bootstrapApplication(App, {
   ],
 });`;
 
+  /**
+   * Sample: `ng generate @angular/core:standalone`, and the three modes it has to
+   * be run in.
+   */
   readonly migrationSample = `ng generate @angular/core:standalone
 # run three times, once per mode:
 #   1. "Convert all components…"  → adds imports arrays, flips declarations
@@ -272,6 +296,10 @@ bootstrapApplication(App, {
 
 # then review: leftover provider-only modules, forRoot calls, route modules`;
 
+  /**
+   * Sample: interop in both directions, since a real migration is incremental and
+   * the two styles have to coexist.
+   */
   readonly interopSample = `// standalone component INSIDE an NgModule app:
 @NgModule({
   imports: [StatCard],        // standalone things go in imports (NG6008 if declared)

@@ -2,13 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Angular libraries & schematics in depth — the Angular Package
- * Format and partial compilation (what actually ships to npm), public-api
- * surface discipline, secondary entry points, the peerDependencies quiz
- * (interactive), authoring schematics on the virtual Tree, and wiring
- * ng add / ng update so consumers install and upgrade automatically.
+ * One dependency-placement choice, with the failure mode picking wrong causes.
  */
-
 interface DepChoice {
   label: string;
   field: 'peerDependencies' | 'dependencies' | 'devDependencies';
@@ -43,6 +38,13 @@ const DEP_CHOICES: DepChoice[] = [
   },
 ];
 
+/**
+ * Lesson: Angular libraries & schematics in depth — the Angular Package
+ * Format and partial compilation (what actually ships to npm), public-api
+ * surface discipline, secondary entry points, the peerDependencies quiz
+ * (interactive), authoring schematics on the virtual Tree, and wiring
+ * ng add / ng update so consumers install and upgrade automatically.
+ */
 @Component({
   selector: 'app-lesson-libraries-schematics',
   imports: [RouterLink],
@@ -215,9 +217,19 @@ const DEP_CHOICES: DepChoice[] = [
   `,
 })
 export class LibrariesSchematics {
+  /**
+   * The dependency-placement choices.
+   */
   readonly depChoices = DEP_CHOICES;
+  /**
+   * The choice being examined, or `null` for none.
+   */
   readonly activeDep = signal<DepChoice | null>(null);
 
+  /**
+   * Sample: `ng generate library`, and what the Angular Package Format build
+   * produces.
+   */
   readonly createSample = `ng generate library ui-kit     # projects/ui-kit + ng-package.json
 ng build ui-kit                # → dist/ui-kit in Angular Package Format
 
@@ -231,12 +243,19 @@ export { UiKitConfig } from './lib/config';   // deliberate, named exports
 //   index.d.ts               types
 //   package.json             exports map, sideEffects: false`;
 
+  /**
+   * Sample: secondary entry points, so consumers can import test helpers without
+   * dragging them into the main bundle.
+   */
   readonly entryPointsSample = `projects/ui-kit/
   src/public-api.ts            → import { Button } from 'ui-kit'
   testing/
     ng-package.json            → makes it an entry point
     src/public-api.ts          → import { FakeApi } from 'ui-kit/testing'`;
 
+  /**
+   * Sample: `collection.json` and a schematic factory — a `Tree` in, a `Tree` out.
+   */
   readonly schematicSample = `// collection.json — the schematic registry
 { "schematics": {
     "widget": { "factory": "./widget/index#widget",
@@ -256,6 +275,10 @@ export function widget(options: WidgetSchema): Rule {
 
 ng generate ui-kit:widget --name=save-button --dry-run`;
 
+  /**
+   * Sample: `SchematicTestRunner`, which runs a schematic against an in-memory
+   * tree so it can be tested without touching disk.
+   */
   readonly testSample = `// in-memory schematic test — no disk, no publishing
 const runner = new SchematicTestRunner('ui-kit', collectionPath);
 const tree = await runner.runSchematic('widget', { name: 'save' }, Tree.empty());
@@ -263,6 +286,9 @@ const tree = await runner.runSchematic('widget', { name: 'save' }, Tree.empty())
 expect(tree.files).toContain('/save/save.ts');
 expect(tree.readContent('/save/save.ts')).toContain('class Save');`;
 
+  /**
+   * Sample: `ng-add`, the hook that runs when someone installs the library.
+   */
   readonly ngAddSample = `// package.json
 { "schematics": "./schematics/collection.json",
   "ng-add": { "save": "dependencies" } }        // or false: tooling-only, don't save
@@ -276,6 +302,10 @@ export function ngAdd(): Rule {
   ]);
 }`;
 
+  /**
+   * Sample: `ng-update` migrations — the mechanism that lets a library ship a
+   * breaking change with a codemod that fixes it.
+   */
   readonly ngUpdateSample = `// package.json
 { "ng-update": { "migrations": "./schematics/migrations.json" } }
 

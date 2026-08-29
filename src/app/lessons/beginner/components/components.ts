@@ -51,11 +51,35 @@ import { RouterLink } from '@angular/router';
   ],
 })
 export class GreetingCard {
+  /**
+   * The name to greet. A **signal input**: readable in the template like any
+   * signal, and re-renders the card when the parent changes it.
+   */
   readonly name = input('Ada');
+  /**
+   * The name's first letter for the avatar, uppercased. Falls back to `?` on an
+   * empty name so the avatar is never blank.
+   */
   readonly initial = computed(() => this.name().charAt(0).toUpperCase() || '?');
+  /**
+   * The card's own clap count — state that belongs to the child, not the parent,
+   * to show that a component owns local state as well as receiving inputs.
+   */
   protected readonly claps = signal(0);
 }
 
+/**
+ * Lesson: Components — the building block everything else is made of.
+ *
+ * Covers the `@Component` decorator's core metadata (`selector`, `template`,
+ * `styles`, `imports`), how a component composes others by importing them, and
+ * the split between state a component owns and state it receives.
+ *
+ * The demo hosts a real child component — {@link GreetingCard} — and drives it
+ * from an input, so the parent/child boundary is on screen rather than
+ * described. The child keeps its own clap count alongside, which makes the point
+ * that a child is not merely a template fragment: it has state of its own.
+ */
 @Component({
   selector: 'app-lesson-components',
   imports: [RouterLink, GreetingCard],
@@ -231,8 +255,16 @@ selector: 'app-card, [appCard]'   // multiple — match either form</pre>
   `,
 })
 export class Components {
+  /**
+   * The name passed down to the demo card.
+   */
   protected readonly displayName = signal('Ada');
 
+  /**
+   * Mirrors the text box into {@link displayName}.
+   *
+   * @param event The input event.
+   */
   protected rename(event: Event) {
     this.displayName.set((event.target as HTMLInputElement).value);
   }

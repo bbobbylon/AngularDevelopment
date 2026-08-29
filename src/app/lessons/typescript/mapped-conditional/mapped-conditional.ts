@@ -2,13 +2,9 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Mapped & conditional types — the type-level programming model
- * (types as functions over types), mapped-type anatomy piece by piece, key
- * remapping and filtering, conditional types + infer with a live evaluator,
- * distribution over unions (and how to switch it off), template literals,
- * and rebuilding the standard utility types from scratch.
+ * One worked type-evaluation: an expression and the steps the compiler takes to
+ * reduce it.
  */
-
 interface EvalCase {
   label: string;
   expr: string;
@@ -74,6 +70,13 @@ Exclude<'a' | 'b' | 'c', 'b'> = ?`,
   },
 ];
 
+/**
+ * Lesson: Mapped & conditional types — the type-level programming model
+ * (types as functions over types), mapped-type anatomy piece by piece, key
+ * remapping and filtering, conditional types + infer with a live evaluator,
+ * distribution over unions (and how to switch it off), template literals,
+ * and rebuilding the standard utility types from scratch.
+ */
 @Component({
   selector: 'app-lesson-ts-mapped-conditional',
   imports: [RouterLink],
@@ -293,14 +296,31 @@ type MyReturnType&lt;T&gt; = T extends (...a: never[]) => infer R ? R : never;</
   ],
 })
 export class MappedConditional {
+  /**
+   * The worked examples.
+   */
   protected readonly cases = EVAL_CASES;
+  /**
+   * Which example is being stepped through.
+   */
   protected readonly active = signal<EvalCase>(EVAL_CASES[0]);
+  /**
+   * How far through its steps the walkthrough is.
+   */
   protected readonly step = signal(0);
 
+  /**
+   * Selects an example, restarting its walkthrough at the first step.
+   *
+   * @param c The example to show.
+   */
   protected select(c: EvalCase) {
     this.active.set(c);
     this.step.set(0);
   }
+  /**
+   * Advances one step, stopping at the last.
+   */
   protected nextStep() {
     this.step.update((s) => Math.min(s + 1, this.active().steps.length - 1));
   }

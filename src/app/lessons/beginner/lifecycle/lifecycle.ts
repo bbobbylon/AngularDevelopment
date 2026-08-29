@@ -16,10 +16,21 @@ import { RouterLink } from '@angular/router';
 /** Shared, lesson-scoped log so parent and child see the same entries. */
 @Injectable()
 class LifecycleLog {
+  /**
+   * The log lines, numbered as they arrive.
+   */
   readonly entries = signal<string[]>([]);
+  /**
+   * Appends a line.
+   *
+   * @param msg What happened.
+   */
   add(msg: string) {
     this.entries.update((e) => [...e, `${this.entries().length + 1}. ${msg}`]);
   }
+  /**
+   * Clears the log.
+   */
   clear() {
     this.entries.set([]);
   }
@@ -43,27 +54,76 @@ class LifecycleLog {
 export class LifecycleChild
   implements OnChanges, OnInit, DoCheck, AfterViewInit, OnDestroy
 {
+  /**
+   * A plain `@Input()` rather than the modern `input()`, on purpose: `ngOnChanges`
+   * only fires for decorator inputs, and this lesson needs to demonstrate it.
+   */
   @Input() value = 0;
+  /**
+   * The shared log, so the child's hooks report into the parent's panel.
+   */
   private readonly log = inject(LifecycleLog);
 
+  /**
+   * Fires before `ngOnInit` and again on every input change, with the previous and
+   * current values.
+   *
+   * Largely unnecessary once inputs are signals — a `computed` or an `effect` over
+   * an `input()` reacts to the same change with less ceremony — but it is still
+   * the only hook that hands you the *previous* value.
+   *
+   * @param changes The changed inputs.
+   */
   ngOnChanges(changes: SimpleChanges) {
     const v = changes['value'];
     this.log.add(`ngOnChanges — value ${v.previousValue} → ${v.currentValue}`);
   }
+  /**
+   * Runs once, after the first `ngOnChanges` and before the first render. With
+   * signals a field initialiser usually does the same job.
+   */
   ngOnInit() {
     this.log.add('ngOnInit — component initialised');
   }
+  /**
+   * Runs on **every** change-detection pass, which is why it is the hook most
+   * likely to be a performance problem. Almost always the wrong tool: if you need
+   * to react to a change, react to the thing that changed.
+   */
   ngDoCheck() {
     this.log.add('ngDoCheck — change detection ran');
   }
+  /**
+   * Runs once, after the component's own view and its children exist. The first
+   * point at which a `viewChild` is safe to touch.
+   */
   ngAfterViewInit() {
     this.log.add('ngAfterViewInit — view & children ready');
   }
+  /**
+   * The cleanup hook: unsubscribe, clear timers, disconnect observers. Fires when
+   * the component is removed, which in this demo is when the toggle hides it.
+   */
   ngOnDestroy() {
     this.log.add('ngOnDestroy — cleaning up 🧹');
   }
 }
 
+/**
+ * Lesson: Lifecycle Hooks — the order Angular calls them in, and which ones you
+ * still need.
+ *
+ * The demo mounts and unmounts a child that logs every hook it receives, so the
+ * sequence is observed rather than memorised — including the parts that surprise
+ * people, like `ngOnChanges` running *before* `ngOnInit`, and content hooks
+ * running before view hooks.
+ *
+ * The modern framing the lesson gives: most of these hooks existed to work
+ * around the lack of reactivity. With signals, `ngOnChanges` is usually a
+ * `computed`, and `ngOnInit` is usually just a field initialiser. The two that
+ * remain genuinely necessary are `ngOnDestroy` for cleanup and the
+ * `afterNextRender` / `afterEveryRender` family for work that needs real DOM.
+ */
 @Component({
   selector: 'app-lesson-lifecycle',
   imports: [RouterLink, LifecycleChild],
@@ -213,10 +273,23 @@ export class LifecycleChild
   ],
 })
 export class Lifecycle {
+  /**
+   * The shared log the child writes into.
+   */
   protected readonly log = inject(LifecycleLog);
+  /**
+   * Whether the child is mounted — toggling it is what drives the whole demo.
+   */
   protected readonly show = signal(false);
+  /**
+   * The value bound to the child's input, so `ngOnChanges` can be provoked without
+   * remounting.
+   */
   protected readonly value = signal(0);
 
+  /**
+   * Mounts or unmounts the child, producing the init or destroy hooks.
+   */
   protected toggle() {
     this.show.update((s) => !s);
   }

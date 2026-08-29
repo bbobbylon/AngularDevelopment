@@ -1,17 +1,10 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: CLI & Project Structure.
- *
- * Beyond a command cheat-sheet, this lesson builds a real mental model of the
- * toolchain: an interactive file-role explorer (click any file in a scaffolded
- * tree to see exactly what it does and why it exists), line-by-line reads of the
- * four files every new app boots from, a tour of angular.json / tsconfig and
- * build budgets, how `ng update` migrations actually work, and the CLI gotchas
- * (global vs local, cache, budgets) that trip people up.
- */
 
+/**
+ * One file in the scaffolded-project tree, with the role it plays.
+ */
 interface FileNode {
   path: string;
   label: string;
@@ -58,6 +51,9 @@ interface FileNode {
   `],
 })
 export class CliExplorer {
+  /**
+   * The tree a fresh `ng new` produces, in the order it appears on disk.
+   */
   readonly files: FileNode[] = [
     { path: 'src/main.ts', label: '├─ main.ts', role: 'The entry point. Calls bootstrapApplication(App, appConfig) — this is the very first line of your code the browser runs.' },
     { path: 'src/index.html', label: '├─ index.html', role: 'The single host page. Contains <app-root></app-root>; Angular renders the whole app inside that tag. This is the "single page" of your SPA.' },
@@ -69,10 +65,27 @@ export class CliExplorer {
     { path: 'tsconfig.json', label: '├─ tsconfig.json', role: 'TypeScript + Angular compiler options: strictness, target, and template type-checking. This project is fully strict.' },
     { path: 'package.json', label: '└─ package.json', role: 'Dependencies and npm scripts (start, build, test). npm install reads this to set up node_modules.' },
   ];
+  /**
+   * The file being examined. Seeded with the first so the explorer opens on
+   * something rather than an empty panel.
+   */
   readonly selected = signal<FileNode>(this.files[0]);
+  /**
+   * Its description.
+   */
   readonly role = computed(() => this.selected().role);
 }
 
+/**
+ * Lesson: CLI & Project Structure.
+ *
+ * Beyond a command cheat-sheet, this lesson builds a real mental model of the
+ * toolchain: an interactive file-role explorer (click any file in a scaffolded
+ * tree to see exactly what it does and why it exists), line-by-line reads of the
+ * four files every new app boots from, a tour of angular.json / tsconfig and
+ * build budgets, how `ng update` migrations actually work, and the CLI gotchas
+ * (global vs local, cache, budgets) that trip people up.
+ */
 @Component({
   selector: 'app-lesson-cli-project-structure',
   imports: [RouterLink, CliExplorer],
@@ -232,6 +245,9 @@ export class CliExplorer {
   `],
 })
 export class CliProjectStructure {
+  /**
+   * Sample: the commands you actually use day to day.
+   */
   protected readonly commandsSample = `npm install -g @angular/cli      # install the CLI (or use npx)
 ng new my-app                    # create a project
 ng serve                         # dev server + live reload (localhost:4200)
@@ -241,6 +257,9 @@ ng generate component foo        # scaffold (alias: ng g c foo)
 ng update                        # upgrade Angular & migrate code
 ng add @angular/material         # install + configure a library`;
 
+  /**
+   * Sample: `main.ts` — `bootstrapApplication`, the first line of the app to run.
+   */
   protected readonly mainSample = `// src/main.ts
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
@@ -249,6 +268,10 @@ import { App } from './app/app';
 bootstrapApplication(App, appConfig)
   .catch((err) => console.error(err));`;
 
+  /**
+   * Sample: `app.config.ts` — where providers are registered in a standalone app,
+   * in place of the old root module.
+   */
   protected readonly configSample = `// src/app/app.config.ts
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
@@ -262,6 +285,9 @@ export const appConfig: ApplicationConfig = {
   ],
 };`;
 
+  /**
+   * Sample: `app.routes.ts` — the route table, with a lazy `loadComponent`.
+   */
   protected readonly routesSample = `// src/app/app.routes.ts
 import { Routes } from '@angular/router';
 
@@ -271,6 +297,9 @@ export const routes: Routes = [
   { path: '**', loadComponent: () => import('./not-found/not-found').then(m => m.NotFound) },
 ];`;
 
+  /**
+   * Sample: `app.ts` — the root component and its `<router-outlet />`.
+   */
   protected readonly appSample = `// src/app/app.ts
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
@@ -282,6 +311,10 @@ import { RouterOutlet } from '@angular/router';
 })
 export class App {}`;
 
+  /**
+   * Sample: the CLI flags worth knowing, including the generation flags that stop
+   * `ng g` producing files you do not want.
+   */
   protected readonly flagsSample = `ng serve --port 4300 --open              # custom port, open the browser
 ng build --configuration development     # un-minified, source maps, no budgets
 ng g component foo --inline-template --skip-tests --flat

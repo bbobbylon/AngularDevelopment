@@ -8,15 +8,11 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: change detection deep dive — what a CD pass actually is (LView,
- * binding slots, === comparison), what schedules one (zone era vs zoneless),
- * Default vs OnPush proven side-by-side with live check counters, signals'
- * targeted marking, detach/reattach, and NG0100 (ExpressionChanged…).
- */
-
 // ── OnPush demo child — re-checks only when its input changes / it's marked ──
 
+/**
+ * An `OnPush` child, for the strategy comparison.
+ */
 @Component({
   selector: 'app-cd-onpush-child',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,7 +32,16 @@ import { RouterLink } from '@angular/router';
 export class OnPushChild {
   /** A real input this time — the parent binding is what marks this view dirty. */
   readonly value = input(0);
+  /**
+   * How many times this view has been checked.
+   */
   private ticks = 0;
+  /**
+   * The check count, incremented as a side effect of being read.
+   *
+   * A getter in a template runs once per check of that view, so reading it *is*
+   * the measurement. Deliberately impure — normally a bug, here the instrument.
+   */
   protected get checks(): number {
     return ++this.ticks;
   }
@@ -44,6 +49,9 @@ export class OnPushChild {
 
 // ── Default (CheckAlways) child ──────────────────────────────────────────────
 
+/**
+ * A default-strategy child, checked on every pass, next to the `OnPush` one.
+ */
 @Component({
   selector: 'app-cd-default-child',
   // No changeDetection set → Default = CheckAlways
@@ -60,7 +68,13 @@ export class OnPushChild {
   `],
 })
 export class DefaultChild {
+  /**
+   * How many times this view has been checked.
+   */
   private ticks = 0;
+  /**
+   * The check count. See {@link OnPushChild.checks}.
+   */
   protected get checks(): number {
     return ++this.ticks;
   }
@@ -68,6 +82,9 @@ export class DefaultChild {
 
 // ── Detachable child — cdr.detach() removes it from the tree entirely ───────
 
+/**
+ * A child that can detach its own change detector, for the third demo.
+ */
 @Component({
   selector: 'app-cd-detach-child',
   template: `
@@ -85,14 +102,37 @@ export class DefaultChild {
   `],
 })
 export class DetachChild {
+  /**
+   * The value passed in.
+   */
   readonly value = input(0);
+  /**
+   * Whether the detector is currently detached.
+   */
   protected detached = false;
+  /**
+   * This view's change detector.
+   */
   private readonly cdr = inject(ChangeDetectorRef);
+  /**
+   * How many times this view has been checked.
+   */
   private ticks = 0;
+  /**
+   * The check count. Freezes while detached, which is the demo.
+   */
   protected get checks(): number {
     return ++this.ticks;
   }
 
+  /**
+   * Detaches or reattaches this view's change detector.
+   *
+   * Detaching removes the view from every pass entirely — its bindings stop
+   * updating until something calls `detectChanges()` on it by hand. It is the
+   * heavyweight option, for a view rendering thousands of rows at high frequency,
+   * and it is easy to forget you did it.
+   */
   toggle(): void {
     this.detached = !this.detached;
     if (this.detached) {
@@ -106,6 +146,12 @@ export class DetachChild {
 
 // ── Main lesson component ─────────────────────────────────────────────────────
 
+/**
+ * Lesson: change detection deep dive — what a CD pass actually is (LView,
+ * binding slots, === comparison), what schedules one (zone era vs zoneless),
+ * Default vs OnPush proven side-by-side with live check counters, signals'
+ * targeted marking, detach/reattach, and NG0100 (ExpressionChanged…).
+ */
 @Component({
   selector: 'app-lesson-change-detection',
   imports: [RouterLink, OnPushChild, DefaultChild, DetachChild],
@@ -347,22 +393,60 @@ export class DetachChild {
   `,
 })
 export class ChangeDetection {
+  /**
+   * How many times the lesson component has been checked.
+   */
   private ticks = 0;
+  /**
+   * A counter driving the demo.
+   */
   protected readonly count = signal(0);
+  /**
+   * The value fed to the `OnPush` child.
+   */
   protected readonly onPushValue = signal(0);
+  /**
+   * The value fed to the detachable child.
+   */
   protected readonly detachValue = signal(0);
+  /**
+   * A signal value, for the signal-versus-plain-field comparison.
+   */
   protected readonly sigVal = signal(0);
+  /**
+   * A plain field holding the equivalent value. Writes to it are invisible.
+   */
   protected plainVal = 0;
 
+  /**
+   * The lesson component's own check count.
+   */
   protected get renderTick(): number {
     return ++this.ticks;
   }
+  /**
+   * Does nothing, deliberately.
+   *
+   * Clicking it still triggers a change-detection pass — an event handler marks
+   * its view dirty regardless of whether the handler changed anything. That is
+   * why a button that does nothing still makes the counters move.
+   */
   protected noop(): void {}
+  /**
+   * Mutates a plain field from a `setTimeout`.
+   *
+   * Asynchronous on purpose: no event to mark the view, no signal to notify the
+   * scheduler. The field really changes; nothing renders it.
+   */
   protected mutatePlain(): void {
     // async on purpose: no event, no signal → nothing schedules or marks
     setTimeout(() => this.plainVal++);
   }
 
+  /**
+   * Sample: what the compiler turns a template into — one function with a create
+   * pass and an update pass, plus the binding slots it compares against.
+   */
   readonly lviewSample = `// compiled template = one function, two modes (conceptually):
 function Counter_Template(rf: RenderFlags, ctx: Counter) {
   if (rf & RenderFlags.Create) {          // once: build DOM, allot binding slots
@@ -378,6 +462,9 @@ function Counter_Template(rf: RenderFlags, ctx: Counter) {
   }
 }`;
 
+  /**
+   * Sample: scheduling, zone era against signal era.
+   */
   readonly schedulingSample = `// ZONE ERA — implicit:
 click / setTimeout / fetch / Promise.then
   → zone.js notices the async work finished
@@ -388,6 +475,10 @@ signal.set(…) | (click) handler | markForCheck() | input binding write
   → ChangeDetectionScheduler.notify()             // coalesced
   → one tick                                       // pass only when TOLD`;
 
+  /**
+   * Sample: how a signal read inside a template registers that view as a consumer,
+   * which is what makes a signal write able to mark exactly the right views.
+   */
   readonly signalsSample = `// the view that renders {{ count() }} is registered as a consumer
 readonly count = signal(0);
 
@@ -396,6 +487,11 @@ this.count.set(1);
 // 1. marks the consuming views dirty (not the whole tree)
 // 2. notifies the scheduler that a pass is needed`;
 
+  /**
+   * Sample: NG0100 — `ExpressionChangedAfterItHasBeenCheckedError`. Dev mode runs
+   * every pass twice and compares, so a binding that changes as a side effect of
+   * being read is caught rather than left as a mystery.
+   */
   readonly ng0100Sample = `// dev mode: every pass runs twice — check, then VERIFY nothing moved
 Parent template binds:   <app-child [label]="title" />
 
@@ -410,6 +506,10 @@ ngOnInit() {
 // 2. make it a signal — the write schedules a NEXT pass instead
 // 3. last resort: afterNextRender(() => …) to defer past the pass`;
 
+  /**
+   * Sample: the `ChangeDetectorRef` API — `markForCheck`, `detectChanges`,
+   * `detach`, `reattach` — and which direction through the tree each one goes.
+   */
   readonly cdrSample = `private readonly cdr = inject(ChangeDetectorRef);
 
 cdr.markForCheck();    // flag this view + ancestor path for the NEXT pass

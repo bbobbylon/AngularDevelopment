@@ -365,10 +365,25 @@ import { RouterLink } from '@angular/router';
 })
 export class Resolvers {
   // --- Demo 1: flicker vs resolver ---
+  /**
+   * State of the no-resolver panel: it navigates instantly, then sits empty while
+   * it fetches.
+   */
   protected readonly panelA = signal<'idle' | 'loading' | 'ready'>('idle');
+  /**
+   * State of the resolver panel: it stays on the old page while resolving, then
+   * arrives complete. Same total wait, different place to spend it.
+   */
   protected readonly panelB = signal<'idle' | 'resolving' | 'ready'>('idle');
+  /**
+   * Invalidates in-flight timers when the first demo is reset, so a stale timeout
+   * cannot write over a fresh run.
+   */
   private demo1Token = 0;
 
+  /**
+   * Runs both panels at once, so the two loading experiences are side by side.
+   */
   protected navigate(): void {
     const token = ++this.demo1Token;
     // No resolver: the route changes now, the component mounts empty and fetches.
@@ -382,6 +397,9 @@ export class Resolvers {
     }, 900);
   }
 
+  /**
+   * Resets the first demo.
+   */
   protected resetDemo1(): void {
     this.demo1Token++; // invalidate any in-flight timer
     this.panelA.set('idle');
@@ -389,10 +407,28 @@ export class Resolvers {
   }
 
   // --- Demo 2: an Observable resolver must complete ---
+  /**
+   * Whether the second demo uses `first()`.
+   */
   protected readonly useFirst = signal(false);
+  /**
+   * State of the second demo's resolver.
+   */
   protected readonly demo2 = signal<'idle' | 'pending' | 'done'>('idle');
+  /**
+   * Invalidation token for the second demo's timers.
+   */
   private demo2Token = 0;
 
+  /**
+   * Runs the second demo's resolver.
+   *
+   * The trap: a resolver's observable must **complete**, or the navigation hangs
+   * forever with no error and no page change. A stream that emits but never
+   * completes — a `BehaviorSubject`, an interval, a socket — leaves the router
+   * waiting. `first()` (or `take(1)`) is the fix, and the toggle here is what turns
+   * a permanent hang into a resolved navigation.
+   */
   protected runResolver2(): void {
     const token = ++this.demo2Token;
     this.demo2.set('pending');
@@ -406,12 +442,18 @@ export class Resolvers {
     }
   }
 
+  /**
+   * Resets the second demo.
+   */
   protected resetDemo2(): void {
     this.demo2Token++;
     this.demo2.set('idle');
   }
 
   // --- Code samples (class properties so braces/backticks need no template escaping) ---
+  /**
+   * Sample: a `ResolveFn` — a plain function, injected into, returning the data.
+   */
   protected readonly resolverSample = `import { ResolveFn } from '@angular/router';
 import { inject } from '@angular/core';
 
@@ -423,6 +465,10 @@ export const userResolver: ResolveFn<User> = (route) => {
 // route:
 { path: 'users/:id', component: UserPage, resolve: { user: userResolver } }`;
 
+  /**
+   * Sample: where resolvers sit in the navigation pipeline. Notably *after* the
+   * guards, so a resolver never fetches for a route the user cannot reach.
+   */
   protected readonly pipelineSample = `1. Route matched
 2. CanDeactivate  guards on the route being LEFT
 3. CanMatch / CanActivate / CanActivateChild guards   ── must all pass ──┐
@@ -432,6 +478,10 @@ export const userResolver: ResolveFn<User> = (route) => {
 A guard that returns false / a UrlTree / RedirectCommand
 short-circuits here — the resolvers never run.`;
 
+  /**
+   * Sample: the two ways to read resolved data — bound to an `input()` via
+   * `withComponentInputBinding`, or off `ActivatedRoute`'s `data`.
+   */
   protected readonly readSample = `// A) component input binding — with withComponentInputBinding()
 export class UserPage {
   user = input.required<User>();   // matched by the resolve key name 'user'
@@ -444,6 +494,11 @@ user$ = this.route.data.pipe(map(d => d['user'] as User));
 // C) the snapshot (frozen at activation — fine only if the route isn't reused)
 user = this.route.snapshot.data['user'] as User;`;
 
+  /**
+   * Sample: handling a failed resolve. Returning `RedirectCommand` sends the user
+   * somewhere useful; letting the error escape just cancels the navigation and
+   * leaves them where they were with no explanation.
+   */
   protected readonly errorSample = `import { ResolveFn, RedirectCommand, Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 
@@ -458,6 +513,10 @@ export const userResolver: ResolveFn<User | RedirectCommand> = (route) => {
   );
 };`;
 
+  /**
+   * Sample: static `data` on a route — the same reading mechanism without a
+   * resolver, for values known at build time.
+   */
   protected readonly staticDataSample = `{
   path: 'admin',
   component: Admin,
@@ -469,6 +528,10 @@ export const userResolver: ResolveFn<User | RedirectCommand> = (route) => {
 this.route.snapshot.data['roles'];   // ['admin']
 // a shared roleGuard reads route.data['roles'] generically for every route`;
 
+  /**
+   * Sample: `title`, which is a resolver slot of its own — a string or a
+   * `ResolveFn<string>`.
+   */
   protected readonly titleSample = `{ path: 'about', component: About, title: 'About us' }              // static
 { path: 'users/:id', component: UserPage, title: userTitleResolver } // ResolveFn<string>
 

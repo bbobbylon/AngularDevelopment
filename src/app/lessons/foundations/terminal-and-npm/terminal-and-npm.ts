@@ -2,18 +2,20 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Terminal & npm — anatomy of a command (program/args/flags),
- * navigation with a working simulated filesystem, reading command output
- * and errors, Node vs npm vs npx, package.json/node_modules/lock file
- * relationships, semver ranges, npm scripts, and the Angular CLI workflow.
+ * One fake command: what you type, what it prints, and why it matters.
  */
-
 interface FakeCmd {
   cmd: string;
   out: string;
   note?: string;
 }
 
+/**
+ * Lesson: Terminal & npm — anatomy of a command (program/args/flags),
+ * navigation with a working simulated filesystem, reading command output
+ * and errors, Node vs npm vs npx, package.json/node_modules/lock file
+ * relationships, semver ranges, npm scripts, and the Angular CLI workflow.
+ */
 @Component({
   selector: 'app-lesson-terminal-and-npm',
   imports: [RouterLink],
@@ -218,9 +220,18 @@ ng test                        # run the unit tests</pre></div>
   ],
 })
 export class TerminalAndNpm {
+  /**
+   * The commands run so far, as a transcript.
+   */
   protected readonly history = signal<FakeCmd[]>([]);
+  /**
+   * The note for the most recent command.
+   */
   protected readonly lastNote = signal('');
 
+  /**
+   * The commands the fake terminal accepts.
+   */
   protected readonly commands: FakeCmd[] = [
     { cmd: 'pwd', out: '/Users/you/projects/my-app', note: 'Lost? pwd always tells you where you are standing.' },
     { cmd: 'ls', out: 'src   package.json   angular.json   README.md', note: 'These four are the top of every Angular project. Your code lives in src/.' },
@@ -235,6 +246,12 @@ export class TerminalAndNpm {
   /** Track the working directory shown in each history line's prompt. */
   private cwds: string[] = [];
 
+  /**
+   * Runs a command: appends it to the transcript and updates the working
+   * directory if it was a `cd`.
+   *
+   * @param c The command to run.
+   */
   protected run(c: FakeCmd) {
     const prev = this.cwds.length ? this.cwds[this.cwds.length - 1] : '';
     let next = prev;
@@ -245,11 +262,20 @@ export class TerminalAndNpm {
     this.lastNote.set(c.note ?? '');
   }
 
+  /**
+   * The prompt for a transcript line — the directory as it was **before** that
+   * command ran, which is what a real prompt shows.
+   *
+   * @param i Line index.
+   */
   protected cwdFor(i: number): string {
     // Prompt for line i shows the directory BEFORE that command ran.
     return i === 0 ? '' : this.cwds[i - 1];
   }
 
+  /**
+   * Clears the transcript.
+   */
   protected clear() {
     this.history.set([]);
     this.cwds = [];

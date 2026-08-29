@@ -2,12 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: JSON & APIs — JSON's grammar and its strict differences from JS
- * objects (with a live validator that names the mistake), parse/stringify
- * round-trips and their traps, REST endpoint anatomy, verbs + status codes
- * as a contract, a real fetch dissected line by line, and API error handling.
+ * One JSON gotcha: the thing people write, and the thing that actually works.
  */
-
 interface JsonPitfall {
   label: string;
   bad: string;
@@ -37,6 +33,12 @@ const PITFALLS: JsonPitfall[] = [
   },
 ];
 
+/**
+ * Lesson: JSON & APIs — JSON's grammar and its strict differences from JS
+ * objects (with a live validator that names the mistake), parse/stringify
+ * round-trips and their traps, REST endpoint anatomy, verbs + status codes
+ * as a contract, a real fetch dissected line by line, and API error handling.
+ */
 @Component({
   selector: 'app-lesson-json-and-apis',
   imports: [RouterLink],
@@ -231,15 +233,44 @@ data.address.city   // from here on it's just objects — dot into the nesting</
   ],
 })
 export class JsonAndApis {
+  /**
+   * The JSON text in the live parser box. Seeded with a valid object so the demo
+   * opens showing success rather than an error.
+   */
   protected readonly raw = signal('{ "name": "Ada", "age": 36 }');
+  /**
+   * Whether the demo fetch is in flight, for the button's disabled state.
+   */
   protected readonly busy = signal(false);
+  /**
+   * The demo fetch's outcome, rendered as text.
+   */
   protected readonly apiResult = signal('');
 
+  /**
+   * The gotcha list.
+   */
   protected readonly pitfalls = PITFALLS;
+  /**
+   * The gotcha being examined, or `null` for none.
+   */
   protected readonly pitfall = signal<JsonPitfall | null>(null);
 
+  /**
+   * Indirection over {@link raw} so {@link parsed} can be a plain method and still
+   * re-run when the text changes — a method called from the template is not
+   * reactive by itself, but reading a signal inside one that a `computed` feeds
+   * keeps the dependency intact.
+   */
   private readonly rawValue = computed(() => this.raw());
 
+  /**
+   * Parses {@link raw}, or `null` if it is not valid JSON.
+   *
+   * The `try` is the lesson: `JSON.parse` **throws** on malformed input rather
+   * than returning `null`, which is the single most common way a fetch-and-parse
+   * pipeline blows up in production.
+   */
   protected parsed(): { name?: unknown; age?: unknown } | null {
     try {
       return JSON.parse(this.rawValue());
@@ -248,6 +279,10 @@ export class JsonAndApis {
     }
   }
 
+  /**
+   * Fetches a real record from a public API so the lesson shows a genuine network
+   * round-trip — status, latency and all — rather than a mocked one.
+   */
   protected async fetchUser() {
     this.busy.set(true);
     this.apiResult.set('');

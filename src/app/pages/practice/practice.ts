@@ -52,6 +52,35 @@ function loadAdaptive(): AdaptiveState {
   return { ...DEFAULT_ADAPTIVE, ...readJson<Partial<AdaptiveState>>(STORAGE_KEYS.practiceAdaptive, {}) };
 }
 
+/**
+ * Practice — the app's main question surface: the whole 400+ challenge bank as
+ * a filterable, answerable list with per-card explanations.
+ *
+ * Unlike the Mock Exam (timed, no feedback) or Flashcards (recall, self-graded),
+ * this page is untimed and gives feedback immediately on submit. It is where
+ * you *learn* the bank; the other pages are where you test whether you have.
+ *
+ * ## What it hooks into
+ *
+ * A wrong answer is pushed into the shared spaced-repetition queue, so `/review`
+ * resurfaces it days later. Cards can be starred into {@link BookmarksService}.
+ * Answers persist by challenge id, so the page is resumable across reloads.
+ *
+ * ## Two non-obvious mechanics
+ *
+ * **Incremental rendering.** Only {@link RENDER_BATCH} cards are in the DOM at
+ * a time — see {@link renderLimit} for why the bank cannot be rendered whole.
+ *
+ * **Adaptive difficulty.** When enabled, the difficulty filter stops being
+ * manual and is driven by a rolling streak instead: {@link LEVEL_UP_STREAK}
+ * correct in a row promotes a tier, {@link LEVEL_DOWN_STREAK} misses demote
+ * one. The point is to keep the questions at the edge of what you can do,
+ * which is neither the tier you picked when you were feeling optimistic nor
+ * the one you picked when you were not.
+ *
+ * @see pages/practice/practice-data.ts — the bank.
+ * @see pages/practice/review-queue.ts — receives misses.
+ */
 @Component({
   selector: 'app-practice',
   imports: [RouterLink],
@@ -286,12 +315,24 @@ function loadAdaptive(): AdaptiveState {
   `,
 })
 export class Practice {
+  /** Answer state by challenge id, seeded from storage and mirrored back by an
+   *  effect in the constructor. */
   private readonly states = signal<PracticeStates>(
     readJson<PracticeStates>(STORAGE_KEYS.practiceProgress, {}),
   );
+
+  /** The bank in this session's order. A signal because {@link reshuffle}
+   *  replaces it; shuffled once at construction so the list is not the same
+   *  every visit. */
   private readonly shuffledAll = signal(shuffle(CHALLENGES));
+
+  /** Per-session option shuffling, memoized per challenge id. */
   private readonly optionsShuffler = new OptionsShuffler();
+
+  /** Backs the star on each card. */
   private readonly bookmarks = inject(BookmarksService);
+
+  /** Used for the adaptive level-change and bookmark confirmations. */
   private readonly toast = inject(ToastService);
 
   /** How many spaced-repetition items are due — shown on the Review CTA. */
@@ -304,20 +345,38 @@ export class Practice {
    * notch, LEVEL_DOWN_STREAK misses in a row steps down one notch.
    */
   private readonly adaptive = signal<AdaptiveState>(loadAdaptive());
+
+  /** Whether adaptive mode is driving the difficulty filter. */
   readonly adaptiveEnabled = computed(() => this.adaptive().enabled);
+
+  /** The tier adaptive mode is currently serving. */
   readonly adaptiveLevel = computed(() => this.adaptive().level);
+
+  /** The current **correct** run, for the "2 / 3 to level up" indicator. Clamped
+   *  at zero: the stored streak goes negative to track misses, but a miss run
+   *  has no progress bar to fill. */
   readonly adaptiveStreak = computed(() => Math.max(0, this.adaptive().streak));
+
+  /** {@link LEVEL_UP_STREAK}, so the template can show the target. */
   readonly levelUpStreak = LEVEL_UP_STREAK;
 
+  /** Mirrors answer state and adaptive state to storage whenever either
+   *  changes. Two separate effects so a change to one does not rewrite the
+   *  other's key. */
   constructor() {
     // Persist progress to localStorage whenever it changes (keyed by challenge id).
     effect(() => writeJson(STORAGE_KEYS.practiceProgress, this.states()));
     effect(() => writeJson(STORAGE_KEYS.practiceAdaptive, this.adaptive()));
   }
 
+  /** Category filter. Set through {@link setCategory}, which also resets paging. */
   readonly activeCategory = signal<Category>('all');
+
+  /** Manual difficulty filter. Ignored while adaptive mode is on. */
   readonly activeDiff = signal<'all' | Difficulty>('all');
 
+  /** Challenges matching the active filters — the full matching set, of which
+   *  only {@link pagedChallenges} is rendered. */
   readonly visibleChallenges = computed(() => {
     const cat = this.activeCategory();
     const diff = this.adaptiveEnabled() ? this.adaptiveLevel() : this.activeDiff();
@@ -328,6 +387,7 @@ export class Practice {
     });
   });
 
+  /** How many challenges match the filters, rendered or not. */
   readonly totalVisible = computed(() => this.visibleChallenges().length);
 
   /**
@@ -390,20 +450,30 @@ export class Practice {
     this.resetRenderLimit();
   }
 
+  /** Challenges answered — across the whole bank, not just the current filter,
+   *  since the score line reports lifetime practice rather than this view. */
   readonly answeredCount = computed(() =>
     Object.values(this.states()).filter((s) => s.answered).length,
   );
+
+  /** Of those, how many were right. */
   readonly correctCount = computed(() =>
     Object.values(this.states()).filter((s) => s.answered && s.correct).length,
   );
+
+  /** Running score as a percentage of answered questions; `0` before any. */
   readonly scorePercent = computed(() => {
     const total = this.answeredCount();
     return total === 0 ? 0 : Math.round((this.correctCount() / total) * 100);
   });
 
+  /** Option labels, indexed by position. */
   readonly letters = ['A', 'B', 'C', 'D'];
 
+  /** Category chips, shared with Flashcards so the two never drift. */
   readonly categoryFilters = CATEGORY_FILTERS;
+
+  /** Difficulty chips, likewise shared. */
   readonly diffFilters = DIFF_FILTERS;
 
   /**
@@ -433,26 +503,61 @@ export class Practice {
     return this.letters[shuffled.correctIndex] || '';
   }
 
+  /**
+   * Answer state for a challenge, or a blank one. Never `undefined`, so the
+   * template can read fields without guarding.
+   *
+   * @param id The challenge's id.
+   */
   getState(id: number) {
     return this.states()[id] ?? { selected: null, answered: false, correct: false, expanded: false };
   }
 
+  /**
+   * Whether a card is open. Answering forces this true, so an answered card
+   * always shows its explanation.
+   *
+   * @param id The challenge's id.
+   */
   isExpanded(id: number) {
     return this.getState(id).expanded;
   }
 
+  /**
+   * Opens or closes a card. A no-op once answered — collapsing away an
+   * explanation you have just earned is never what the click meant.
+   *
+   * @param id The challenge's id.
+   */
   toggleExpand(id: number) {
     const cur = this.getState(id);
     if (cur.answered) return;
     this.states.update((s) => ({ ...s, [id]: { ...cur, expanded: !cur.expanded } }));
   }
 
+  /**
+   * Selects an option without grading it. Freely changeable until submit, and
+   * locked after — this page gives one attempt per card, so the retry path is
+   * `/review`, not clicking again.
+   *
+   * @param id    The challenge's id.
+   * @param index Index into the *shuffled* options.
+   */
   selectOption(id: number, index: number) {
     const cur = this.getState(id);
     if (cur.answered) return;
     this.states.update((s) => ({ ...s, [id]: { ...cur, selected: index } }));
   }
 
+  /**
+   * Grades the selected option, reveals the explanation, and feeds the wider
+   * app: a miss goes to the spaced-repetition queue, and adaptive mode (if on)
+   * advances its streak.
+   *
+   * Guarded against re-submission and against submitting with nothing selected.
+   *
+   * @param ch The challenge being answered.
+   */
   submit(ch: Challenge) {
     const cur = this.getState(ch.id);
     if (cur.answered || cur.selected === null) return;
@@ -500,6 +605,12 @@ export class Practice {
     }
   }
 
+  /**
+   * Whether a challenge is starred. Bookmark ids are namespaced `practice-<id>`
+   * so a challenge id and a lesson id can never collide in the shared store.
+   *
+   * @param id The challenge's id.
+   */
   isBookmarked(id: number): boolean {
     return this.bookmarks.isBookmarked(`practice-${id}`);
   }
@@ -518,6 +629,13 @@ export class Practice {
     this.toast.show(this.bookmarks.isBookmarked(id) ? 'Bookmarked' : 'Bookmark removed', 'success', 1400);
   }
 
+  /**
+   * Clears every answer, keeping the current question and option order.
+   *
+   * The counterpart to {@link reshuffle}, which clears answers *and* reorders.
+   * Because the order is untouched here, the stored `selected` indices stay
+   * meaningful — there is simply nothing left to point at.
+   */
   reset() {
     this.states.set({});
   }
@@ -573,6 +691,12 @@ export class Practice {
     this.optionsShuffler.reset();
   }
 
+  /**
+   * Display label for a challenge type. A `Record` rather than a `switch` so
+   * a new type added to the bank fails the build here.
+   *
+   * @param type The challenge's type.
+   */
   typeLabel(type: ChallengeType): string {
     const map: Record<ChallengeType, string> = {
       'multiple-choice': 'Multiple Choice',

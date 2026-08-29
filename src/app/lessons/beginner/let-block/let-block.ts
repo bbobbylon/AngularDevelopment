@@ -284,15 +284,27 @@ import { RouterLink } from '@angular/router';
   ],
 })
 export class LetBlock {
+  /**
+   * Unit price for the `@let` demo.
+   */
   protected readonly price = signal(9.99);
+  /**
+   * Quantity for the `@let` demo.
+   */
   protected readonly qty = signal(3);
 
+  /**
+   * Sample: chained `@let` declarations, each able to read the ones above it.
+   */
   protected readonly basicSample = `@let subtotal = price() * qty();
 @let tax = subtotal * 0.2;
 @let total = subtotal + tax;
 
 <p>Total: {{ total | currency }}</p>`;
 
+  /**
+   * Line-by-line notes for {@link basicSample}.
+   */
   protected readonly basicBreakdown: { line: string; note: string }[] = [
     {
       line: '@let subtotal = price() * qty();',
@@ -326,12 +338,19 @@ export class LetBlock {
     },
   ];
 
+  /**
+   * Sample: `@let` with the `async` pipe — subscribing once and reusing the value,
+   * instead of piping the same observable in three places.
+   */
   protected readonly asyncSample = `@let user = user$ | async;
 @if (user) {
   <h2>{{ user.name }}</h2>    <!-- non-null here -->
   <p>{{ user.email }}</p>     <!-- same subscription, no re-fetch -->
 }`;
 
+  /**
+   * Line-by-line notes for {@link asyncSample}.
+   */
   protected readonly asyncBreakdown: { line: string; note: string }[] = [
     {
       line: '@let user = user$ | async;',
@@ -370,6 +389,13 @@ export class LetBlock {
     },
   ];
 
+  /**
+   * Sample: what `@let` does and does not memoize.
+   *
+   * The caveat the lesson is careful about: `@let` is a *name*, not a cache. Its
+   * expression re-runs on every change-detection pass, so it saves repetition but
+   * not computation — a `computed()` in the class is what saves the work.
+   */
   protected readonly memoSample = `<!-- recomputed every change detection — fine when cheap -->
 @let total = price() * qty();
 
@@ -380,6 +406,9 @@ readonly sortedRows = computed(() =>
 // template
 @for (row of sortedRows(); track row.id) { … }`;
 
+  /**
+   * Line-by-line notes for {@link memoSample}.
+   */
   protected readonly memoBreakdown: { line: string; note: string }[] = [
     {
       line: '@let total = price() * qty();',
@@ -409,6 +438,10 @@ readonly sortedRows = computed(() =>
     },
   ];
 
+  /**
+   * Sample: `@let` scoping — a declaration belongs to the block it is written in
+   * and is not visible outside it.
+   */
   protected readonly scopeSample = `@if (user(); as u) {
   @let greeting = 'Hi ' + u.name;   <!-- scoped to this @if -->
   <p>{{ greeting }}</p>
@@ -418,6 +451,9 @@ readonly sortedRows = computed(() =>
 <!-- <p>{{ label }}</p>     ← ERROR: used before declaration -->
 @let label = 'later';`;
 
+  /**
+   * Line-by-line notes for {@link scopeSample}.
+   */
   protected readonly scopeBreakdown: { line: string; note: string }[] = [
     {
       line: '@if (user(); as u) {',
@@ -460,12 +496,18 @@ readonly sortedRows = computed(() =>
     },
   ];
 
+  /**
+   * Sample: `@let` inside `@for`, evaluated once per row.
+   */
   protected readonly forSample = `@for (p of products(); track p.id) {
   @let line = p.price * p.qty;
   <td>{{ line | currency }}</td>
   <td>{{ line * 0.2 | currency }}</td>   <!-- reuse, don't recompute -->
 }`;
 
+  /**
+   * Line-by-line notes for {@link forSample}.
+   */
   protected readonly forBreakdown: { line: string; note: string }[] = [
     {
       line: '@for (p of products(); track p.id) {',
@@ -499,6 +541,10 @@ readonly sortedRows = computed(() =>
     },
   ];
 
+  /**
+   * Sample: what a `@let` compiles to — a slot on the current view, which is why
+   * it is scoped to the block and re-evaluated per pass.
+   */
   protected readonly underTheHoodSample = `// Conceptually, each @let reserves its own hidden slot on the CURRENT VIEW
 // (not a class field, not a global variable):
 

@@ -1,13 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: deferrable views — template-level code splitting with @defer. Live
- * demos of the trigger kinds, the compiler mechanics that make the split
- * happen (and silently un-happen), companion-block lifecycles, SSR semantics
- * vs incremental hydration, testing with DeferBlockBehavior, and pitfalls.
- */
-
 /** Simulates a "heavy" chunk — its JS is only fetched when the @defer block triggers. */
 @Component({
   selector: 'app-heavy-widget',
@@ -22,6 +15,12 @@ import { RouterLink } from '@angular/router';
 })
 export class HeavyWidget {}
 
+/**
+ * Lesson: deferrable views — template-level code splitting with @defer. Live
+ * demos of the trigger kinds, the compiler mechanics that make the split
+ * happen (and silently un-happen), companion-block lifecycles, SSR semantics
+ * vs incremental hydration, testing with DeferBlockBehavior, and pitfalls.
+ */
 @Component({
   selector: 'app-lesson-deferrable-views',
   imports: [RouterLink, HeavyWidget],
@@ -278,8 +277,15 @@ export class HeavyWidget {}
   `,
 })
 export class DeferrableViews {
+  /**
+   * Whether the deferred widget's trigger has fired.
+   */
   protected readonly showWidget = signal(false);
 
+  /**
+   * Sample: the four blocks — `@defer`, `@placeholder`, `@loading`, `@error` —
+   * and the triggers that move between them.
+   */
   readonly blocksSample = `@defer (on viewport) {
   <app-heavy-widget />           <!-- ← only this is lazy-loaded -->
 } @placeholder (minimum 500ms) {
@@ -290,6 +296,10 @@ export class DeferrableViews {
   <p>Failed to load.</p>
 }`;
 
+  /**
+   * Sample: what the compiler turns a `@defer` block into, so the lazy chunk is
+   * not magic.
+   */
   readonly underHoodSample = `// what you write:
 @defer (on viewport) { <app-chart /> }
 
@@ -302,6 +312,10 @@ export class DeferrableViews {
 // BUT: one eager <app-chart /> anywhere in the same template, and the
 // compiler must import it statically — the chunk quietly disappears.`;
 
+  /**
+   * Sample: this app's own use of `@defer` on the lesson grid, including
+   * `prefetch on idle`.
+   */
   readonly appUsageSample = `@defer (on viewport; prefetch on idle) {
   <div class="grid">
     <!-- lesson cards for each level -->
@@ -312,6 +326,11 @@ export class DeferrableViews {
   </div>
 }`;
 
+  /**
+   * Sample: `@defer` under SSR. The server renders the placeholder, so a plain
+   * trigger means the real content only ever appears after hydration — `hydrate on`
+   * triggers are what change that.
+   */
   readonly hydrationSample = `<!-- plain trigger + SSR: server renders the PLACEHOLDER -->
 @defer (on viewport) { <app-reviews /> } @placeholder { <div class="skeleton"></div> }
 
@@ -322,6 +341,10 @@ export class DeferrableViews {
 // app.config.server / client:
 provideClientHydration(withIncrementalHydration())`;
 
+  /**
+   * Sample: testing deferred blocks with `DeferBlockBehavior.Manual`, which stops
+   * the states auto-playing so each can be asserted on.
+   */
   readonly testingSample = `TestBed.configureTestingModule({
   deferBlockBehavior: DeferBlockBehavior.Manual,   // don't auto-play states
 });

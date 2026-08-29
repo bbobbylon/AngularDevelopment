@@ -2,6 +2,9 @@ import { DatePipe } from '@angular/common';
 import { Component, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+/**
+ * The payload the rating component emits.
+ */
 interface RateEvent {
   stars: number;
   at: Date;
@@ -47,27 +50,70 @@ interface RateEvent {
   ],
 })
 export class Rating {
+  /**
+   * How many stars to show.
+   */
   readonly max = input(5);
+  /**
+   * The currently selected rating — the child's own state, distinct from what it
+   * emits.
+   */
   readonly current = signal(0);
+  /**
+   * `1..max` for rendering the stars. A getter rather than a `computed` here to
+   * keep the child minimal; it is cheap and re-reads on each check.
+   */
   protected get stars() {
     return Array.from({ length: this.max() }, (_, i) => i + 1);
   }
 
   /** output() returns an emitter; parents bind (rate)="..." */
   readonly rate = output<RateEvent>();
+  /**
+   * Emitted when the rating is cleared. `output<void>()` — an event that carries
+   * no payload is still worth being an output rather than a shared flag.
+   */
   readonly cleared = output<void>();
 
+  /**
+   * Selects a rating and announces it.
+   *
+   * The child sets its own state **and** emits: the parent is told what happened,
+   * not asked for permission. Outputs are notifications, not requests.
+   *
+   * @param stars The chosen rating.
+   */
   protected select(stars: number) {
     this.current.set(stars);
     this.rate.emit({ stars, at: new Date() });
   }
 
+  /**
+   * Clears the rating and announces that too.
+   */
   protected reset() {
     this.current.set(0);
     this.cleared.emit();
   }
 }
 
+/**
+ * Lesson: Component Outputs — sending events up.
+ *
+ * Covers the `output()` function, emitting typed payloads, `output<void>()` for
+ * bare notifications, and how a parent binds with `(eventName)`.
+ *
+ * The framing the lesson uses: inputs flow down, outputs flow up, and neither
+ * crosses back. A child never writes to its input, and a parent never reaches
+ * into a child — the two talk only through this pair. Keeping that boundary is
+ * what makes a component reusable somewhere it was not designed for.
+ *
+ * Also notes what changed from `@Output() new EventEmitter()`: `output()` is not
+ * an RxJS subject, has no `.subscribe()` for consumers, and is completed for you
+ * when the component is destroyed.
+ *
+ * @see beginner/inputs — the other half of the contract.
+ */
 @Component({
   selector: 'app-lesson-outputs',
   imports: [RouterLink, Rating, DatePipe],
@@ -202,14 +248,28 @@ this.rate.emit(payload);</pre>
   ],
 })
 export class Outputs {
+  /**
+   * The most recent event from the rating child.
+   */
   protected readonly last = signal<RateEvent | null>(null);
+  /**
+   * Every event received, so the demo shows the stream rather than a snapshot.
+   */
   protected readonly history = signal<RateEvent[]>([]);
 
+  /**
+   * Records a rating event.
+   *
+   * @param e The emitted payload.
+   */
   protected onRate(e: RateEvent) {
     this.last.set(e);
     this.history.update((h) => [...h, e]);
   }
 
+  /**
+   * Handles the child's clear event.
+   */
   protected onClear() {
     this.last.set(null);
   }

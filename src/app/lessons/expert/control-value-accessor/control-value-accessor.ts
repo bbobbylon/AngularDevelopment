@@ -12,14 +12,6 @@ import {
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: ControlValueAccessor — the contract that makes ANY component a
- * first-class form control. Two live custom controls (a star rating, and a
- * quantity stepper that also VALIDATES itself), the two-direction data flow,
- * how formControlName finds the accessor under the hood, and the classic
- * mistakes (missing onChange, echo loops, forgotten multi:true).
- */
-
 /** A custom form control: a 1–5 star rating that plugs into Angular forms. */
 @Component({
   selector: 'app-star-rating',
@@ -42,28 +34,84 @@ import { RouterLink } from '@angular/router';
   `,
 })
 export class StarRating implements ControlValueAccessor {
+  /**
+   * The five stars.
+   */
   protected readonly stars = [1, 2, 3, 4, 5];
+  /**
+   * The current rating — the view's copy of the form control's value.
+   */
   protected readonly value = signal(0);
+  /**
+   * The star being hovered, for the preview. Purely visual; never written to the
+   * form.
+   */
   protected readonly hover = signal(0);
+  /**
+   * Whether the control is disabled. Set by the form, not by this component.
+   */
   protected readonly disabled = signal(false);
 
+  /**
+   * The callback that pushes a new value into the form control. Supplied by
+   * `registerOnChange`; a no-op until then, which is why it is initialised rather
+   * than left undefined.
+   */
   private onChange: (v: number) => void = () => {};
+  /**
+   * The callback that marks the control touched. Supplied by `registerOnTouched`.
+   */
   protected onTouched: () => void = () => {};
 
   // ControlValueAccessor — the four-method bridge between the form model and the UI:
+  /**
+   * Model → view. The form calls this when its value changes.
+   *
+   * The `?? 0` is not defensive padding: `form.reset()` passes `null`, and a CVA
+   * that does not handle it renders a broken control after every reset.
+   *
+   * @param v The value from the form.
+   */
   writeValue(v: number): void {
     this.value.set(v ?? 0); // handle null: form.reset() passes null
   }
+  /**
+   * Receives the callback for pushing values back to the form.
+   *
+   * @param fn The callback to store.
+   */
   registerOnChange(fn: (v: number) => void): void {
     this.onChange = fn;
   }
+  /**
+   * Receives the callback for marking the control touched.
+   *
+   * @param fn The callback to store.
+   */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
+  /**
+   * Applies the form's disabled state.
+   *
+   * The form is the source of truth here — this is why `[disabled]` on a
+   * reactive-form control is a mistake and `control.disable()` is not.
+   *
+   * @param isDisabled Whether the control is disabled.
+   */
   setDisabledState(isDisabled: boolean): void {
     this.disabled.set(isDisabled);
   }
 
+  /**
+   * View → model. Records a rating and pushes it into the form.
+   *
+   * Calls both callbacks: `onChange` for the value, `onTouched` because the user
+   * has now interacted. Skipping the second leaves the control forever `pristine`
+   * and any "show errors once touched" logic silently dead.
+   *
+   * @param s The rating.
+   */
   protected rate(s: number): void {
     if (this.disabled()) return;
     this.value.set(s);
@@ -97,24 +145,62 @@ export class StarRating implements ControlValueAccessor {
   `],
 })
 export class QtyStepper implements ControlValueAccessor, Validator {
+  /**
+   * The lowest allowed quantity.
+   */
   readonly min = input(1);
+  /**
+   * The highest allowed quantity.
+   */
   readonly max = input(5);
 
+  /**
+   * The current quantity.
+   */
   protected readonly value = signal(1);
+  /**
+   * Whether the control is disabled.
+   */
   protected readonly disabled = signal(false);
 
+  /**
+   * The value callback, from `registerOnChange`.
+   */
   private onChange: (v: number) => void = () => {};
+  /**
+   * The touched callback, from `registerOnTouched`.
+   */
   private onTouched: () => void = () => {};
 
+  /**
+   * Model → view.
+   *
+   * @param v The value from the form.
+   */
   writeValue(v: number): void {
     this.value.set(v ?? this.min());
   }
+  /**
+   * Receives the value callback.
+   *
+   * @param fn The callback to store.
+   */
   registerOnChange(fn: (v: number) => void): void {
     this.onChange = fn;
   }
+  /**
+   * Receives the touched callback.
+   *
+   * @param fn The callback to store.
+   */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
+  /**
+   * Applies the form's disabled state.
+   *
+   * @param isDisabled Whether the control is disabled.
+   */
   setDisabledState(isDisabled: boolean): void {
     this.disabled.set(isDisabled);
   }
@@ -127,6 +213,15 @@ export class QtyStepper implements ControlValueAccessor, Validator {
     return null;
   }
 
+  /**
+   * Steps the quantity and pushes it into the form.
+   *
+   * Deliberately does **not** clamp to the range: letting the value go out of
+   * bounds is what makes `validate()` fire and the form flip to `INVALID`, which
+   * is the demo. A clamping control would be more polite and would show nothing.
+   *
+   * @param delta How much to step by.
+   */
   protected step(delta: number): void {
     if (this.disabled()) return;
     this.value.update((v) => v + delta); // intentionally unclamped — watch validate()
@@ -135,6 +230,13 @@ export class QtyStepper implements ControlValueAccessor, Validator {
   }
 }
 
+/**
+ * Lesson: ControlValueAccessor — the contract that makes ANY component a
+ * first-class form control. Two live custom controls (a star rating, and a
+ * quantity stepper that also VALIDATES itself), the two-direction data flow,
+ * how formControlName finds the accessor under the hood, and the classic
+ * mistakes (missing onChange, echo loops, forgotten multi:true).
+ */
 @Component({
   selector: 'app-lesson-control-value-accessor',
   imports: [RouterLink, ReactiveFormsModule, JsonPipe, StarRating, QtyStepper],
@@ -320,13 +422,27 @@ export class QtyStepper implements ControlValueAccessor, Validator {
   `,
 })
 export class ControlValueAccessorLesson {
+  /**
+   * The star-rating control's form control.
+   */
   protected readonly rating = new FormControl(3);
+  /**
+   * The quantity stepper's form control.
+   */
   protected readonly qty = new FormControl(1);
 
+  /**
+   * Toggles the rating control's disabled state, so `setDisabledState` can be seen
+   * firing.
+   */
   protected toggleDisabled(): void {
     this.rating.disabled ? this.rating.enable() : this.rating.disable();
   }
 
+  /**
+   * Sample: the two directions of the bridge, and which of the four methods
+   * handles each.
+   */
   readonly flowSample = `        model → view                        view → model
 FormControl.setValue(4)              user clicks the 4th star
         │                                    │
@@ -335,6 +451,12 @@ FormControl.setValue(4)              user clicks the 4th star
    render 4 stars                    control.value = 4, dirty = true
                                      this.onTouched()   // fn from registerOnTouched`;
 
+  /**
+   * Sample: registering with `NG_VALUE_ACCESSOR`.
+   *
+   * The `forwardRef` is required, not stylistic: the class is referenced inside its
+   * own decorator, before the binding exists.
+   */
   readonly registerSample = `@Component({
   selector: 'app-star-rating',
   providers: [{
@@ -345,6 +467,9 @@ FormControl.setValue(4)              user clicks the 4th star
 })
 export class StarRating implements ControlValueAccessor { … }`;
 
+  /**
+   * Sample: a control that is also its own validator, via `NG_VALIDATORS`.
+   */
   readonly validatorSample = `providers: [
   { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => QtyStepper), multi: true },
   { provide: NG_VALIDATORS,     useExisting: forwardRef(() => QtyStepper), multi: true },
@@ -358,6 +483,11 @@ export class QtyStepper implements ControlValueAccessor, Validator {
   }
 }`;
 
+  /**
+   * Sample: how `formControlName` finds the accessor — a `@Self()` injection of
+   * the multi-provided `NG_VALUE_ACCESSOR` array, which is why the provider has to
+   * be on the component itself.
+   */
   readonly underHoodSample = `// inside the formControl/ngModel directive (simplified):
 constructor(
   @Self() @Optional() @Inject(NG_VALUE_ACCESSOR) accessors: ControlValueAccessor[],
@@ -372,6 +502,13 @@ dir.valueAccessor.writeValue(control.value);
 dir.valueAccessor.registerOnChange((v) => updateControl(control, v));
 dir.valueAccessor.registerOnTouched(() => control.markAsTouched());`;
 
+  /**
+   * Sample: the echo bug.
+   *
+   * Calling `onChange` from inside `writeValue` sends the form's own value straight
+   * back to it, producing an infinite loop or a `pristine` control that reports
+   * itself dirty. `writeValue` receives; it never emits.
+   */
   readonly wrongRightSample = `// WRONG — echoing model writes back into the form
 writeValue(v: number) {
   this.value.set(v);

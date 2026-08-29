@@ -3,30 +3,44 @@ import { RouterLink } from '@angular/router';
 import { CATEGORY_FILTERS, CHALLENGES, DIFF_FILTERS, shuffle, type Category, type Challenge, type Difficulty } from '../practice/practice-data';
 import { recordMisses } from '../practice/review-queue';
 
-/**
- * Flashcard Drills — rapid-fire recall practice over the shared challenge bank
- * in `../practice/practice-data.ts` (the same single source of truth behind
- * Practice, the Mock Exam, and the Review queue).
- *
- * Where Practice is "read four options and pick one", a drill inverts the
- * exercise: the FRONT shows only the question (and code), you answer from
- * memory, then flip to check yourself against the correct answer and its
- * explanation. Self-grading drives the loop:
- *   - "Got it"  — the card leaves the deck.
- *   - "Again"   — the card goes to the BACK of the deck and comes around until
- *                 you get it; its first miss is also recorded into the shared
- *                 spaced-repetition queue (see `../practice/review-queue.ts`)
- *                 so it resurfaces on the /review schedule in later days.
- *
- * Three-phase state machine like the Mock Exam and Review pages:
- *   `config` (pick category / difficulty / deck size) → `drill` → `summary`.
- *
- * Keyboard-first: Space/Enter flips, ← or 1 = Again, → or 2 = Got it.
- */
+/** Which screen the drill page is on. See {@link Flashcards}. */
 type Phase = 'config' | 'drill' | 'summary';
 
+/** Deck-size chips. "All" is offered alongside these in the template. */
 const DECK_SIZES = [10, 20, 40] as const;
 
+/**
+ * Flashcard Drills — rapid-fire recall practice over the shared challenge bank.
+ *
+ * Same questions as everywhere else in the app, exercised the opposite way
+ * round. Practice is *recognition*: read four options and pick one. A drill is
+ * *recall*: the front shows only the question, you answer from memory, then
+ * flip to check yourself. Recognition is much easier than recall, so a bank you
+ * can pass on the Practice page is not necessarily a bank you know.
+ *
+ * ## The self-graded loop
+ *
+ * - **"Got it"** — the card leaves the deck.
+ * - **"Again"** — the card goes to the **back** of the deck and comes round
+ *   again, so a deck is not finished until every card has been recalled at
+ *   least once. Its first miss is also recorded into the shared
+ *   spaced-repetition queue, so it resurfaces on `/review` days later — the
+ *   drill fixes it now, the queue keeps it fixed.
+ *
+ * Grading is honour-system, which is the trade recall practice makes: there is
+ * no way to machine-check an answer held in your head, and the alternative
+ * (multiple choice) is the recognition exercise this page exists to avoid.
+ *
+ * ## Phases
+ *
+ * `config` (category / difficulty / deck size) → `drill` → `summary`.
+ *
+ * Keyboard-first, because the value of a drill is in its pace: Space or Enter
+ * flips, ← or `1` is Again, → or `2` is Got it.
+ *
+ * @see pages/practice/practice-data.ts — the shared bank.
+ * @see pages/practice/review-queue.ts — receives first misses.
+ */
 @Component({
   selector: 'app-flashcards',
   imports: [RouterLink],
@@ -240,15 +254,28 @@ const DECK_SIZES = [10, 20, 40] as const;
   `,
 })
 export class Flashcards {
+  /** Which of the three screens is showing. */
   readonly phase = signal<Phase>('config');
 
   // --- config state ---
+
+  /** Category filter for the draw; `'all'` uses the whole bank. */
   readonly category = signal<Category>('all');
+
+  /** Difficulty filter for the draw; `'all'` uses every tier. */
   readonly difficulty = signal<'all' | Difficulty>('all');
+
+  /** Requested deck size, or `'all'` for the entire filtered pool. May exceed
+   *  the pool — see {@link effectiveDeckSize}. */
   readonly deckSize = signal<number | 'all'>(20);
+
+  /** {@link DECK_SIZES}, for the size chips. */
   readonly deckSizes = DECK_SIZES;
 
+  /** Category chips, shared with the Practice page so the two never drift. */
   readonly categoryFilters = CATEGORY_FILTERS;
+
+  /** Difficulty chips, likewise shared. */
   readonly diffFilters = DIFF_FILTERS;
 
   /** Cards matching the current filters — the population a deck is drawn from. */
@@ -271,14 +298,31 @@ export class Flashcards {
   // --- drill state ---
   /** Remaining cards; the head is the visible card, "Again" re-queues to the tail. */
   readonly queue = signal<Challenge[]>([]);
+
+  /** Cards drawn for this deck. Fixed at {@link start} — re-queued cards do not
+   *  inflate it, so progress is measured against distinct cards. */
   readonly deckTotal = signal(0);
+
+  /** Whether the visible card is showing its back. */
   readonly flipped = signal(false);
   /** Ids graded "Again" at least once this deck — each is reported to the review queue once. */
   readonly missedIds = signal<Set<number>>(new Set());
 
+  /** The visible card: the head of the queue. */
   readonly current = computed(() => this.queue()[0]);
+
+  /** Cards fully cleared from the deck. */
   readonly cleared = computed(() => this.deckTotal() - this.uniqueRemaining());
+
+  /**
+   * Cards recalled correctly on the **first** attempt — the number that
+   * actually says something. Every deck ends at 100% cleared, because a missed
+   * card just comes round again; first-try is what distinguishes knowing the
+   * material from grinding through it.
+   */
   readonly firstTryCount = computed(() => this.deckTotal() - this.missedIds().size);
+
+  /** Percentage of distinct cards cleared, for the progress bar. */
   readonly progressPercent = computed(() =>
     this.deckTotal() === 0 ? 0 : Math.round((this.cleared() / this.deckTotal()) * 100),
   );
@@ -288,6 +332,12 @@ export class Flashcards {
     return new Set(this.queue().map((c) => c.id)).size;
   }
 
+  /**
+   * Draws a deck from the filtered pool and enters the drill.
+   *
+   * Bails on an empty pool rather than entering a drill with no cards — a
+   * filter combination with no matches is reachable from the config screen.
+   */
   start(): void {
     const deck = shuffle(this.pool()).slice(0, this.effectiveDeckSize());
     if (deck.length === 0) return;
@@ -298,6 +348,7 @@ export class Flashcards {
     this.phase.set('drill');
   }
 
+  /** Reveals the card's back. One-way: a card is not un-flipped, only replaced. */
   flip(): void {
     this.flipped.set(true);
   }

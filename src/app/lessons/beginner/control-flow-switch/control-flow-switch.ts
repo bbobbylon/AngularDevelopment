@@ -1,8 +1,15 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+/**
+ * The four states in the basic `@switch` demo.
+ */
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
+/**
+ * A discriminated union for the narrowing demo — each arm carries different
+ * fields, reachable only after the `kind` has been matched.
+ */
 type Shape =
   | { kind: 'circle'; radius: number }
   | { kind: 'square'; side: number }
@@ -204,10 +211,24 @@ type Shape =
   ],
 })
 export class ControlFlowSwitch {
+  /**
+   * The state in the basic `@switch` demo.
+   */
   protected readonly status = signal<Status>('idle');
 
   // --- discriminated-union narrowing demo ---
+  /**
+   * The shape in the narrowing demo.
+   */
   protected readonly shape = signal<Shape>({ kind: 'circle', radius: 5 });
+  /**
+   * The current shape's area.
+   *
+   * Computed in TypeScript rather than in the template because that is where the
+   * narrowing matters: `@switch` picks which markup renders, but it is the
+   * `switch` on the discriminant here that lets each branch read the fields only
+   * its own variant has.
+   */
   protected readonly area = computed(() => {
     const s = this.shape();
     switch (s.kind) {
@@ -220,12 +241,19 @@ export class ControlFlowSwitch {
     }
   });
 
+  /**
+   * Sample: `@switch` with `@case` arms and a `@default`.
+   */
   protected readonly basicSample = `@switch (status()) {
   @case ('loading') { <app-spinner /> }
   @case ('success') { <app-results /> }
   @default          { <app-error />   }
 }`;
 
+  /**
+   * Sample: migrating `ngSwitch` — three cooperating directives plus
+   * `CommonModule` — to the single built-in block.
+   */
   protected readonly migrationSample = `<!-- BEFORE — three cooperating directives, needs CommonModule -->
 <div [ngSwitch]="status">
   <app-spinner *ngSwitchCase="'loading'" />

@@ -198,14 +198,34 @@ import { map } from 'rxjs';
   ],
 })
 export class RouteParams {
+  /**
+   * This page's own route, so the demos read real parameters off the real URL.
+   */
   private readonly route = inject(ActivatedRoute);
 
+  /**
+   * The `theme` query parameter, as a signal. Reactive: it tracks the URL.
+   */
   protected readonly theme = toSignal(this.route.queryParamMap.pipe(map((p) => p.get('theme'))));
+  /**
+   * The `sort` query parameter, as a signal.
+   */
   protected readonly sort = toSignal(this.route.queryParamMap.pipe(map((p) => p.get('sort'))));
 
   // Read once, at construction — deliberately NOT reactive, to demonstrate the staleness trap.
+  /**
+   * The same `theme` value read once from `snapshot`, at construction.
+   *
+   * Deliberately not reactive, and deliberately shown next to {@link theme}: when
+   * the router reuses a component instance across a parameter change — which it
+   * does by default for a same-route navigation — the snapshot keeps its original
+   * value while the observable updates. That divergence is the staleness trap.
+   */
   protected readonly snapshotTheme = this.route.snapshot.queryParamMap.get('theme') ?? '(none)';
 
+  /**
+   * Sample: declaring a parameterised route and reading it back.
+   */
   protected readonly readSample = `{ path: 'users/:id', component: UserPage }
 <a [routerLink]="['/users', user.id]">View</a>
 
@@ -218,6 +238,10 @@ id = toSignal(this.route.paramMap.pipe(map(p => p.get('id'))));
 // snapshot (one-time read — goes stale if the route is reused):
 const id = this.route.snapshot.paramMap.get('id');`;
 
+  /**
+   * Sample: `queryParamsHandling`, and what `merge` against `preserve` does to the
+   * existing parameters.
+   */
   protected readonly handlingSample = `<a [routerLink]="['/search']"
    [queryParams]="{ q: 'angular', page: 2 }"
    queryParamsHandling="merge"
@@ -226,6 +250,9 @@ const id = this.route.snapshot.paramMap.get('id');`;
 // remove a param while merging: set it to null
 router.navigate([], { queryParams: { page: null }, queryParamsHandling: 'merge' });`;
 
+  /**
+   * Sample: repeated keys and `getAll`, since a query string can carry a list.
+   */
   protected readonly arraysSample = `// repeated key → array
 // URL:  /list?tag=ng&tag=rxjs
 route.snapshot.queryParamMap.getAll('tag');   // ['ng', 'rxjs']
@@ -237,6 +264,11 @@ route.fragment;                               // Observable<string | null>
 // matrix params — scoped to one segment: /users;view=grid;page=2
 route.snapshot.paramMap.get('view');          // 'grid'`;
 
+  /**
+   * Sample: `withComponentInputBinding`, which binds path parameters, query
+   * parameters and resolved data straight to `input()`s by name — no
+   * `ActivatedRoute` in the component at all.
+   */
   protected readonly inputSample = `provideRouter(routes, withComponentInputBinding());
 
 // path params, query params AND resolved data bind to inputs by name:

@@ -2,12 +2,9 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Programming basics — values, types, variables, operators,
- * expressions vs statements, how the computer executes line by line,
- * and the classic beginner traps (= vs ===, string '5' vs number 5,
- * copy vs reference preview). Zero prior knowledge assumed.
+ * One step of the variable-trace walkthrough: a line of code and what it does
+ * to the values in memory.
  */
-
 interface TraceLine {
   code: string;
   effect: string;
@@ -61,6 +58,12 @@ const TRACE: TraceLine[] = [
   },
 ];
 
+/**
+ * Lesson: Programming basics — values, types, variables, operators,
+ * expressions vs statements, how the computer executes line by line,
+ * and the classic beginner traps (= vs ===, string '5' vs number 5,
+ * copy vs reference preview). Zero prior knowledge assumed.
+ */
 @Component({
   selector: 'app-lesson-programming-basics',
   imports: [RouterLink],
@@ -317,12 +320,32 @@ let total = 5; // they can also sit at the end of a line
   ],
 })
 export class ProgrammingBasics {
+  /**
+   * The trace steps.
+   */
   protected readonly trace = TRACE;
+  /**
+   * Which step the walkthrough is on.
+   */
   protected readonly lineNo = signal(0);
 
+  /**
+   * Left operand of the `+` playground.
+   */
   protected readonly left = signal('5');
+  /**
+   * Right operand of the `+` playground.
+   */
   protected readonly right = signal('5');
+  /**
+   * Whether the left operand is treated as a number or a string. Separate from
+   * the value itself so the same characters can be fed in as either — which is
+   * the whole point: `5 + 5` and `'5' + '5'` are different operations.
+   */
   protected readonly leftIsNum = signal(true);
+  /**
+   * Whether the right operand is treated as a number or a string.
+   */
   protected readonly rightIsNum = signal(true);
 
   /** Renders the + expression with true JS semantics for the chosen types. */
@@ -335,9 +358,15 @@ export class ProgrammingBasics {
     return `${show(l)} + ${show(r)}   →   ${show(result)}   (${typeof result})`;
   });
 
+  /**
+   * Advances the trace, stopping at the last step.
+   */
   protected stepFwd() {
     this.lineNo.update((n) => Math.min(n + 1, this.trace.length - 1));
   }
+  /**
+   * Steps the trace back, stopping at the first.
+   */
   protected stepBack() {
     this.lineNo.update((n) => Math.max(n - 1, 0));
   }

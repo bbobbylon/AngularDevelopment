@@ -9,24 +9,32 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: Custom Structural Directives.
- *
- * Goes past a single *appUnless toggle: explains the `*` desugaring precisely,
- * decodes the microsyntax token by token, shows the TemplateRef/ViewContainerRef
- * machinery, demos passing CONTEXT ($implicit + named vars) with a live
- * *appRepeat, covers type-safe context via ngTemplateContextGuard, and lists the
- * real traps (two structural directives on one element, forgetting to clear,
- * when to prefer built-in @if/@for).
- */
-
 /** `*appUnless` — the inverse of @if: renders its template when the value is falsy. */
 @Directive({ selector: '[appUnless]' })
 export class UnlessDirective {
+  /**
+   * The template the star syntax wrapped — the blueprint, not yet in the DOM.
+   */
   private readonly tpl = inject(TemplateRef<unknown>);
+  /**
+   * Where views get stamped out.
+   */
   private readonly vcr = inject(ViewContainerRef);
+  /**
+   * Whether the view is currently stamped, so a repeated `false` does not stamp it
+   * twice.
+   */
   private rendered = false;
 
+  /**
+   * Stamps the template when the condition is false, clears it when true.
+   *
+   * A setter rather than a signal input because this is deliberately the classic
+   * form: it is what `*ngIf` looks like inside, and the star syntax desugars to an
+   * input binding, so the setter is where the reaction has to live.
+   *
+   * @param condition Render the content when this is false.
+   */
   @Input() set appUnless(condition: boolean) {
     if (!condition && !this.rendered) {
       this.vcr.createEmbeddedView(this.tpl); // stamp the template into the DOM
@@ -51,9 +59,25 @@ interface RepeatContext {
  */
 @Directive({ selector: '[appRepeat]' })
 export class RepeatDirective {
+  /**
+   * The template, typed with its context so `let` variables are type-checked.
+   */
   private readonly tpl = inject(TemplateRef<RepeatContext>);
+  /**
+   * Where the copies get stamped.
+   */
   private readonly vcr = inject(ViewContainerRef);
 
+  /**
+   * Stamps the template `times` times, handing each copy its own context.
+   *
+   * The context object is the mechanism behind every `let` variable you have ever
+   * written in an `*ngFor`: `$implicit` fills the bare `let n`, and each named key
+   * fills `let x = key`. Clearing and rebuilding on every change is deliberately
+   * naive — the real `@for` reuses views by tracking key.
+   *
+   * @param times How many copies.
+   */
   @Input() set appRepeat(times: number) {
     this.vcr.clear(); // rebuild from scratch on every change (simple, not optimized)
     for (let i = 0; i < times; i++) {
@@ -71,6 +95,16 @@ export class RepeatDirective {
   }
 }
 
+/**
+ * Lesson: Custom Structural Directives.
+ *
+ * Goes past a single *appUnless toggle: explains the `*` desugaring precisely,
+ * decodes the microsyntax token by token, shows the TemplateRef/ViewContainerRef
+ * machinery, demos passing CONTEXT ($implicit + named vars) with a live
+ * *appRepeat, covers type-safe context via ngTemplateContextGuard, and lists the
+ * real traps (two structural directives on one element, forgetting to clear,
+ * when to prefer built-in @if/@for).
+ */
 @Component({
   selector: 'app-lesson-structural-directives',
   imports: [RouterLink, UnlessDirective, RepeatDirective],
@@ -215,10 +249,25 @@ export class RepeatDirective {
   `],
 })
 export class StructuralDirectives {
+  /**
+   * `Math`, exposed so the template can call it. Templates resolve names against
+   * the component instance only, so globals have to be re-exported like this.
+   */
   protected readonly Math = Math;
+  /**
+   * The condition driving the `*appUnless` demo.
+   */
   protected readonly hidden = signal(false);
+  /**
+   * How many copies the `*appRepeat` demo stamps.
+   */
   protected readonly times = signal(3);
 
+  /**
+   * Sample: what the star syntax desugars to — an `<ng-template>` plus an input
+   * binding, which is why a structural directive is a normal directive that
+   * happens to inject `TemplateRef`.
+   */
   protected readonly desugarSample = `<!-- what you write -->
 <p *appUnless="hidden">Visible when NOT hidden</p>
 
@@ -227,6 +276,9 @@ export class StructuralDirectives {
   <p>Visible when NOT hidden</p>
 </ng-template>`;
 
+  /**
+   * Sample: the `*appUnless` directive in full.
+   */
   protected readonly directiveSample = `@Directive({ selector: '[appUnless]' })
 export class UnlessDirective {
   private tpl = inject(TemplateRef<unknown>);   // the content (a blueprint)
@@ -244,6 +296,10 @@ export class UnlessDirective {
   }
 }`;
 
+  /**
+   * Sample: microsyntax. Not an expression but a small grammar of its own, which
+   * is why `let i = index` parses at all.
+   */
   protected readonly microsyntaxSample = `<!-- microsyntax (a mini-grammar), NOT a plain expression -->
 <li *ngFor="let item of items; let i = index; let last = last">…</li>
 
@@ -254,6 +310,9 @@ export class UnlessDirective {
   ;             → clause separator
 -->`;
 
+  /**
+   * Sample: `*appRepeat` and its context object.
+   */
   protected readonly repeatSample = `@Directive({ selector: '[appRepeat]' })
 export class RepeatDirective {
   private tpl = inject(TemplateRef<RepeatContext>);
@@ -274,6 +333,10 @@ export class RepeatDirective {
 // template:
 // <span *appRepeat="times; let n; let i = index; let f = first">…</span>`;
 
+  /**
+   * Sample: `ngTemplateContextGuard`, the purely compile-time hook that tells the
+   * template type-checker what the `let` variables are.
+   */
   protected readonly guardSample = `interface RepeatContext {
   $implicit: number;
   index: number;

@@ -7,7 +7,6 @@ import { RouterLink } from '@angular/router';
  * promise states, parallel vs sequential awaits, and error handling. The
  * groundwork for HttpClient and Observables later.
  */
-
 @Component({
   selector: 'app-lesson-async-basics',
   imports: [RouterLink],
@@ -239,10 +238,22 @@ const [profile, settings] = await Promise.all([
   ],
 })
 export class AsyncBasics {
+  /**
+   * Where the fake request has got to, driving the demo's button and spinner.
+   */
   protected readonly status = signal<'idle' | 'loading' | 'done'>('idle');
+  /**
+   * The fake request's result text.
+   */
   protected readonly result = signal('');
 
+  /**
+   * The execution-order log — the A/C/B proof, appended to as each callback runs.
+   */
   protected readonly orderLog = signal<string[]>([]);
+  /**
+   * Whether the ordering demo is mid-run, so it cannot be started twice.
+   */
   protected readonly orderRunning = signal(false);
 
   /** The A/C/B execution-order proof — really uses setTimeout(…, 0). */
@@ -259,6 +270,13 @@ export class AsyncBasics {
     log(`console.log('C')  → C   ← ran before B despite the 0ms delay`);
   }
 
+  /**
+   * Runs the fake request: sets `loading`, waits, then sets `done`.
+   *
+   * Deliberately `async`/`await` over a timer rather than a real fetch — the
+   * lesson is about *when* code runs, and a real network call adds failure modes
+   * that are a different lesson.
+   */
   protected async load() {
     this.status.set('loading');
     this.result.set('');

@@ -2,12 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Debugging — error anatomy and stack-trace reading (bottom-up story,
- * top-down blame), an error-type field guide with live triggerable examples,
- * console techniques beyond console.log, DevTools tour, breakpoints vs logs,
- * and the scientific method of hypothesis-driven debugging.
+ * One deliberately broken snippet and the error it produces.
  */
-
 interface BugCase {
   label: string;
   code: string;
@@ -51,6 +47,12 @@ const BUG_CASES: BugCase[] = [
   },
 ];
 
+/**
+ * Lesson: Debugging — error anatomy and stack-trace reading (bottom-up story,
+ * top-down blame), an error-type field guide with live triggerable examples,
+ * console techniques beyond console.log, DevTools tour, breakpoints vs logs,
+ * and the scientific method of hypothesis-driven debugging.
+ */
 @Component({
   selector: 'app-lesson-debugging-basics',
   imports: [RouterLink],
@@ -234,10 +236,26 @@ console.timeEnd('load');         // "load: 231ms" — how LONG did this take?</p
   ],
 })
 export class DebuggingBasics {
+  /**
+   * The demo console output.
+   */
   protected readonly log = signal('');
+  /**
+   * The broken snippets.
+   */
   protected readonly bugs = BUG_CASES;
+  /**
+   * The snippet being examined, or `null` for none.
+   */
   protected readonly bug = signal<BugCase | null>(null);
 
+  /**
+   * Runs the selected snippet, catching the error it throws and printing it.
+   *
+   * The error is *caught* rather than allowed to propagate so the page keeps
+   * working — but it is printed in full, stack and all, because reading a stack
+   * trace is the skill the lesson is teaching.
+   */
   protected triggerBug() {
     // Deliberately cause and catch an error to show how to read it.
     try {
@@ -252,6 +270,9 @@ export class DebuggingBasics {
       );
     }
   }
+  /**
+   * Clears the demo console.
+   */
   protected clear() {
     this.log.set('');
   }

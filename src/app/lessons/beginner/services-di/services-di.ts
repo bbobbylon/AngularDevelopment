@@ -7,16 +7,41 @@ import { RouterLink } from '@angular/router';
  */
 @Injectable({ providedIn: 'root' })
 export class CartService {
+  /**
+   * The cart contents. **Private** — the only way in is through the methods below,
+   * which is what makes this a service rather than a shared mutable object.
+   */
   private readonly items = signal<string[]>([]);
+  /**
+   * How many items are in the cart.
+   */
   readonly count = computed(() => this.items().length);
+  /**
+   * A read-only view of the items for consumers. `asReadonly()` hands out the
+   * signal's *value* without its `set`/`update`, so a component can subscribe to
+   * changes but cannot make them behind the service's back.
+   */
   readonly list = this.items.asReadonly();
 
+  /**
+   * Adds an item.
+   *
+   * @param item The item to add.
+   */
   add(item: string) {
     this.items.update((i) => [...i, item]);
   }
+  /**
+   * Removes the item at an index.
+   *
+   * @param index Position to drop.
+   */
   remove(index: number) {
     this.items.update((i) => i.filter((_, idx) => idx !== index));
   }
+  /**
+   * Empties the cart.
+   */
   clear() {
     this.items.set([]);
   }
@@ -28,6 +53,11 @@ export class CartService {
   template: `<span class="pill">🛒 cart: {{ cart.count() }} item(s)</span>`,
 })
 export class CartIndicator {
+  /**
+   * The shared cart. Injected, not passed in — this component sits several levels
+   * below whoever owns the cart, and DI is what spares every layer in between
+   * from having to know about it.
+   */
   protected readonly cart = inject(CartService);
 }
 
@@ -37,10 +67,20 @@ export class CartIndicator {
  */
 @Injectable()
 export class CounterService {
+  /**
+   * The count. Per-instance, because this service is provided by the component
+   * rather than at root.
+   */
   readonly count = signal(0);
+  /**
+   * Increments the count.
+   */
   increment() {
     this.count.update((c) => c + 1);
   }
+  /**
+   * Resets the count to zero.
+   */
   reset() {
     this.count.set(0);
   }
@@ -59,10 +99,40 @@ export class CounterService {
   `,
 })
 export class CounterWidget {
+  /**
+   * This widget's **own** counter instance.
+   *
+   * The demo's punchline: because {@link CounterService} is listed in this
+   * component's `providers`, every widget gets a separate instance — whereas the
+   * cart above, provided in `root`, is one object shared by everyone.
+   */
   protected readonly counter = inject(CounterService);
+  /**
+   * Display name, so two widgets on the page can be told apart.
+   */
   readonly label = input('Widget');
 }
 
+/**
+ * Lesson: Services & Dependency Injection — sharing logic and state between
+ * components without passing it through them.
+ *
+ * Covers `@Injectable`, `inject()` against constructor injection, injection
+ * contexts, the injector hierarchy, and `InjectionToken` for dependencies that
+ * aren't classes.
+ *
+ * The page is built around one contrast, shown live rather than described:
+ *
+ * - {@link CartService} is `providedIn: 'root'` — **one instance**, shared by
+ *   every component that injects it. Add an item anywhere and every indicator
+ *   on the page updates.
+ * - {@link CounterService} is listed in a component's `providers` — **one
+ *   instance per component**. Two widgets side by side count independently.
+ *
+ * That single choice is most of what people get wrong about DI, and seeing both
+ * behaviours on one screen settles it faster than any explanation of the
+ * injector tree — which the lesson then goes on to give.
+ */
 @Component({
   selector: 'app-lesson-services-di',
   imports: [RouterLink, CartIndicator, CounterWidget],
@@ -504,9 +574,18 @@ export class CounterWidget {
   `,
 })
 export class ServicesDi {
+  /**
+   * The shared cart, the same instance the indicator components see.
+   */
   protected readonly cart = inject(CartService);
+  /**
+   * Products that can be added, for the demo.
+   */
   protected readonly products = ['☕ Coffee', '🍩 Donut', '🥪 Sandwich'];
 
+  /**
+   * Sample: defining a service with `@Injectable({ providedIn: 'root' })`.
+   */
   readonly serviceDefinitionSample = `@Injectable({ providedIn: 'root' })
 export class CartService {
   private readonly items = signal<string[]>([]);
@@ -524,6 +603,10 @@ export class CartService {
   }
 }`;
 
+  /**
+   * Sample: `inject()` against constructor injection, and why the function form is
+   * now preferred.
+   */
   readonly injectSample = `// Modern style — the inject() function
 export class ProductList {
   private cart = inject(CartService);       // resolved once, at construction
@@ -536,6 +619,9 @@ export class ProductList {
   addToCart(p: string) { this.cart.add(p); }
 }`;
 
+  /**
+   * Sample: a consumer of the root-provided service.
+   */
   readonly cartIndicatorSample = `@Component({
   selector: 'app-cart-indicator',
   template: '<span class="pill">🛒 cart: {{ cart.count() }} item(s)</span>',
@@ -544,6 +630,9 @@ export class CartIndicator {
   protected readonly cart = inject(CartService);
 }`;
 
+  /**
+   * Sample: a component-provided service, and the per-instance behaviour it gives.
+   */
   readonly counterWidgetSample = `@Injectable()                    // no providedIn — not registered anywhere yet
 export class CounterService {
   readonly count = signal(0);
@@ -560,6 +649,10 @@ export class CounterWidget {
   protected readonly counter = inject(CounterService);
 }`;
 
+  /**
+   * Sample: how a resolution actually walks the injector tree, step by step, from
+   * the element injector up to root.
+   */
   readonly injectorTreeSample = `inject(CartService) called inside <app-cart-indicator>
   1. Check app-cart-indicator's OWN element injector    → nothing registered here
   2. Walk UP to the parent component's element injector  → nothing registered here
@@ -579,6 +672,10 @@ anywhere in its ancestor chain
   5. Reach the root injector → still nothing (CounterService has no providedIn either)
      → throws NullInjectorError: No provider for CounterService!`;
 
+  /**
+   * Sample: calling `inject()` outside an injection context — the error, and the
+   * fix.
+   */
   readonly injectionContextSample = `// WRONG — inject() called from inside a method, after construction
 export class ProductList {
   private cart!: CartService;
@@ -594,6 +691,10 @@ export class ProductList {
   addToCart(p: string) { this.cart.add(p); }
 }`;
 
+  /**
+   * Sample: `InjectionToken`, for injecting a config value or anything else that
+   * is not a class.
+   */
   readonly injectionTokenSample = `// A dependency that ISN'T a class — e.g. a plain config value
 export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 

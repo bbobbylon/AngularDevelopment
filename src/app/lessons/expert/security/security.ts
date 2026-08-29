@@ -3,8 +3,26 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 
+/**
+ * Which security topic the page is showing.
+ */
 type Tab = 'xss' | 'csrf' | 'auth' | 'secrets' | 'headers';
 
+/**
+ * Lesson: Security & Sanitization — what Angular protects you from, and what it
+ * cannot.
+ *
+ * Covers Angular's automatic contextual sanitization, `DomSanitizer` and the
+ * `bypassSecurityTrust*` escape hatches, CSRF, token storage, secrets in the
+ * bundle, and the security headers that belong on the server.
+ *
+ * The live demo is the load-bearing part: a payload of real attack strings goes
+ * through interpolation, `[innerHTML]` and `DomSanitizer.sanitize` side by side,
+ * so what survives each path is observed rather than asserted. The lesson people
+ * most often need is that Angular's protection is contextual and automatic — and
+ * that every `bypassSecurityTrust*` call is a place where it has been switched
+ * off deliberately.
+ */
 @Component({
   selector: 'app-lesson-security',
   imports: [RouterLink, FormsModule],
@@ -394,8 +412,16 @@ export const environment = {{ '{' }}
   `,
 })
 export class Security {
+  /**
+   * Angular's sanitizer, used directly so the demo can show what it strips.
+   */
   private readonly sanitizer = inject(DomSanitizer);
 
+  /**
+   * The attack payload the demo runs through each rendering path. Deliberately
+   * mixes harmless markup with hostile markup, so "sanitized" is visibly different
+   * from "escaped".
+   */
   protected readonly payload = signal(
     '<b>Bold survives</b>, <i>so does italic</i> — <a href="javascript:alert(1)">a boobytrapped link</a> <img src="x" onerror="alert(1)"> <script>alert(1)<\/script>',
   );
@@ -407,6 +433,9 @@ export class Security {
       '(the sanitizer stripped everything)',
   );
 
+  /**
+   * Ready-made payloads, so each attack shape can be tried without typing it.
+   */
   protected readonly presets = [
     {
       label: 'script tag',
@@ -430,7 +459,13 @@ export class Security {
     },
   ];
 
+  /**
+   * The selected topic.
+   */
   protected readonly activeTab = signal<Tab>('xss');
+  /**
+   * The topic tabs.
+   */
   protected readonly tabs: { id: Tab; label: string }[] = [
     { id: 'xss', label: 'XSS' },
     { id: 'csrf', label: 'CSRF' },

@@ -1,21 +1,50 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+/** Seniority a question is typically asked at. `all` is the filter sentinel. */
 type Level    = 'all' | 'junior' | 'mid' | 'senior';
+
+/** Subject area. `all` is the filter sentinel. Deliberately separate from the
+ *  practice bank's category list — an interview asks about `architecture`,
+ *  which is not a thing a multiple-choice question can test. */
 type Category = 'all' | 'components' | 'signals' | 'rxjs' | 'forms' | 'routing' | 'testing' | 'performance' | 'architecture' | 'typescript';
+
+/** Self-assessment on a card. Two buckets only: anything short of "easy" is
+ *  something to come back to, and finer grades invite deliberating over the
+ *  rating instead of the answer. */
 type Rating   = 'easy' | 'review';
+
+/** How the page is being used — see {@link Interview}. */
 type Mode     = 'browse' | 'flashcard';
 
+/** One interview question and its model answer. */
 interface QA {
+  /** Stable id. Keys ratings, so renumbering would move a user's self-assessment. */
   id: number;
+  /** Seniority. `all` is excluded — it is a filter value, not a level. */
   level: Exclude<Level, 'all'>;
+  /** Subject area. `all` likewise excluded. */
   category: Exclude<Category, 'all'>;
+  /** The question, as an interviewer would ask it. */
   q: string;
+  /** The model answer — written as spoken prose, at the length you would
+   *  actually say out loud, not as documentation. */
   a: string;
+  /** The follow-up a good interviewer asks next. Shown after the answer,
+   *  because the follow-up is usually where an interview is really decided. */
   followUp?: string;
+  /** Curriculum lesson id for the "Study this topic" link. */
   topicPath?: string;
 }
 
+/**
+ * The interview-question bank, grouped by level with `// ==== LEVEL ====`
+ * banners and numbered sequentially throughout.
+ *
+ * The counterpart to the practice bank: that one tests what a certification
+ * exam asks, this one tests what a human asks. The answers are therefore
+ * written to be *said*, not read.
+ */
 const QA_LIST: QA[] = [
   // ======================== JUNIOR ========================
   {
@@ -1586,6 +1615,31 @@ const QA_LIST: QA[] = [
   },
 ];
 
+/**
+ * Interview Prep — the interview-question bank in two modes.
+ *
+ * - **`browse`** — the whole filtered list as expandable Q&A. For reading
+ *   through a topic, or looking one thing up.
+ * - **`flashcard`** — one question at a time, answer hidden until revealed,
+ *   self-rated *easy* or *review*. For finding out whether you can actually
+ *   answer it rather than recognising that you have read it before.
+ *
+ * Ratings are shared between the two modes: a card rated in browse mode is
+ * rated in the drill, and vice versa.
+ *
+ * ## What this page deliberately does not do
+ *
+ * Ratings are **not persisted**. Unlike the practice bank — where progress
+ * across the whole 400-question set is the point — an interview drill is a
+ * single sitting before a single interview, and yesterday's confidence is not
+ * evidence about today's. {@link restartSession} exists precisely because
+ * starting clean is the normal case.
+ *
+ * It also does not feed the spaced-repetition queue: that queue is keyed by
+ * *challenge* id from the practice bank, and these are a separate corpus.
+ *
+ * @see pages/practice/practice.ts — the certification-style bank.
+ */
 @Component({
   selector: 'app-interview',
   imports: [RouterLink],
@@ -1904,9 +1958,15 @@ const QA_LIST: QA[] = [
 })
 export class Interview {
   // ── Filter state ───────────────────────────────────────────────────────────
+  /** Seniority filter; `'all'` shows every level. */
   readonly activeLevel    = signal<Level>('all');
+
+  /** Subject filter; `'all'` shows every category. */
   readonly activeCategory = signal<Category>('all');
 
+  /** Questions matching both filters. Drives *both* modes — the flashcard deck
+   *  is exactly what browse mode would be showing, so narrowing the filter and
+   *  switching modes drills that slice. */
   readonly visibleQA = computed(() => {
     const lev = this.activeLevel();
     const cat = this.activeCategory();
@@ -1916,56 +1976,96 @@ export class Interview {
   });
 
   // ── Browse mode state ──────────────────────────────────────────────────────
+  /** Which answers are expanded. A set rather than a flag per item, so an id
+   *  that is filtered out and later filtered back in keeps its open state. */
   private readonly openIds = signal<Set<number>>(new Set());
 
   // ── Mode ───────────────────────────────────────────────────────────────────
+  /** Browse or drill. */
   readonly mode = signal<Mode>('browse');
 
   // ── Flashcard state ────────────────────────────────────────────────────────
+  /** The deck: the filtered questions, in bank order. Not shuffled — the bank
+   *  is ordered junior → senior, and walking that ramp is more useful than a
+   *  random order that opens on an architecture question. */
   readonly flashQueue  = computed(() => this.visibleQA());
-  readonly cardIndex   = signal(0);
-  readonly revealed    = signal(false);
-  readonly fading      = signal(false);
-  readonly ratings     = signal<Map<number, Rating>>(new Map());
-  private reviewOnly   = false;
 
+  /** Position in the deck. Past the end means the session is done. */
+  readonly cardIndex   = signal(0);
+
+  /** Whether the current answer is showing. */
+  readonly revealed    = signal(false);
+
+  /** Drives the cross-fade between cards. Set for the duration of the
+   *  transition in {@link advance} so the swap is not visibly abrupt. */
+  readonly fading      = signal(false);
+
+  /** Self-assessment by question id, shared by both modes. Session-only. */
+  readonly ratings     = signal<Map<number, Rating>>(new Map());
+
+  /** The card on screen, or `null` past the end of the deck. */
   readonly currentCard = computed(() => this.flashQueue()[this.cardIndex()] ?? null);
 
+  /** Whether the deck is exhausted. Guarded on a non-empty deck, so an
+   *  over-narrow filter shows "no questions" rather than a summary of nothing. */
   readonly sessionDone = computed(() => {
     const total = this.flashQueue().length;
     return total > 0 && this.cardIndex() >= total;
   });
 
+  /** Cards rated in the current deck, for the progress line. */
   readonly ratedCount = computed(() => {
     const r = this.ratings();
     return this.flashQueue().filter((q) => r.has(q.id)).length;
   });
 
+  /** Questions rated *easy* across the **whole** bank, not just this deck —
+   *  the header stat is lifetime-for-the-session, so it does not drop when the
+   *  filter narrows. */
   readonly easyCount = computed(() => {
     const r = this.ratings();
     return QA_LIST.filter((q) => r.get(q.id) === 'easy').length;
   });
 
+  /** Questions rated *review* across the whole bank. */
   readonly reviewCount = computed(() => {
     const r = this.ratings();
     return QA_LIST.filter((q) => r.get(q.id) === 'review').length;
   });
 
+  /** The *current deck's* review-rated cards — what {@link drillReview}
+   *  re-queues and what the summary screen lists. */
   readonly reviewQueue = computed(() => {
     const r = this.ratings();
     return this.flashQueue().filter((q) => r.get(q.id) === 'review');
   });
 
   // ── Mode switch ────────────────────────────────────────────────────────────
+  /**
+   * Switches between browse and drill, starting a fresh session on entering
+   * the drill — resuming a drill mid-deck from an unrelated click is never
+   * what was meant. Ratings are kept.
+   *
+   * @param m The mode to switch to.
+   */
   switchMode(m: Mode) {
     this.mode.set(m);
     if (m === 'flashcard') this.resetSession();
   }
 
   // ── Browse methods ─────────────────────────────────────────────────────────
+  /** Whether a question's answer is expanded in browse mode. @param id Question id. */
   isOpen(id: number)          { return this.openIds().has(id); }
+
+  /** A question's rating, or `null` if unrated. @param id Question id. */
   getRating(id: number)       { return this.ratings().get(id) ?? null; }
 
+  /**
+   * Expands or collapses an answer. Copies the set rather than mutating it —
+   * a signal holding a collection only notifies on a new identity.
+   *
+   * @param id Question id.
+   */
   toggle(id: number) {
     this.openIds.update((s) => {
       const next = new Set(s);
@@ -1974,13 +2074,28 @@ export class Interview {
     });
   }
 
+  /**
+   * Rates a question from browse mode. Writes to the same map the drill uses,
+   * so the two modes stay one shared assessment.
+   *
+   * @param id     Question id.
+   * @param rating The self-assessment.
+   */
   browseRate(id: number, rating: Rating) {
     this.ratings.update((m) => new Map(m).set(id, rating));
   }
 
   // ── Flashcard methods ──────────────────────────────────────────────────────
+  /** Shows the current card's answer. One-way until the next card. */
   reveal() { this.revealed.set(true); }
 
+  /**
+   * Rates the current card and moves on. Rating *is* the advance — a separate
+   * "next" after every rating would double the clicks in the one place where
+   * pace matters.
+   *
+   * @param rating The self-assessment.
+   */
   rate(rating: Rating) {
     const card = this.currentCard();
     if (!card) return;
@@ -1988,8 +2103,17 @@ export class Interview {
     this.advance();
   }
 
+  /** Moves on without rating. An unrated card is neither easy nor review, so
+   *  it simply stays out of both counts. */
   skip() { this.advance(); }
 
+  /**
+   * Advances to the next card behind a short cross-fade.
+   *
+   * The index change is deferred to the end of the fade rather than applied
+   * immediately, so the outgoing card fades out as itself instead of snapping
+   * to the next question's text and then fading.
+   */
   private advance() {
     this.fading.set(true);
     setTimeout(() => {
@@ -1999,18 +2123,28 @@ export class Interview {
     }, 160);
   }
 
+  /** Returns to the top of the deck, keeping ratings. */
   resetSession() {
     this.cardIndex.set(0);
     this.revealed.set(false);
     this.fading.set(false);
-    this.reviewOnly = false;
   }
 
+  /** Starts over completely: clears every rating and returns to the first card. */
   restartSession() {
     this.ratings.set(new Map());
     this.resetSession();
   }
 
+  /**
+   * Re-drills just the cards rated *review*.
+   *
+   * Implemented by **deleting** those ratings rather than by filtering the deck
+   * down to them. Unrated cards are exactly what the normal queue shows, so
+   * this re-presents them through the ordinary path — and it means a card
+   * re-drilled and got right ends up genuinely *easy* rather than carrying a
+   * stale *review* rating from the first pass.
+   */
   drillReview() {
     // flip all review-rated items back to unrated so the regular queue re-shows them
     const r = new Map(this.ratings());
@@ -2019,6 +2153,13 @@ export class Interview {
     this.resetSession();
   }
 
+  /**
+   * Jumps to a specific card, e.g. from the summary's review list. Silently
+   * does nothing if the id is not in the current deck — the filter may have
+   * moved since the list was rendered.
+   *
+   * @param id Question id.
+   */
   jumpTo(id: number) {
     const idx = this.flashQueue().findIndex((q) => q.id === id);
     if (idx !== -1) {
@@ -2028,11 +2169,18 @@ export class Interview {
   }
 
   // ── Stats ──────────────────────────────────────────────────────────────────
+  /**
+   * How many questions the bank holds at a level, for the header stats. Counts
+   * the whole bank, unaffected by the filters.
+   *
+   * @param level The seniority tier.
+   */
   countFor(level: Exclude<Level, 'all'>): number {
     return QA_LIST.filter((q) => q.level === level).length;
   }
 
   // ── Filter definitions ─────────────────────────────────────────────────────
+  /** Level filter chips, including the `all` sentinel. */
   readonly levelFilters: { id: Level; label: string }[] = [
     { id: 'all',    label: 'All levels' },
     { id: 'junior', label: 'Junior' },
@@ -2040,6 +2188,8 @@ export class Interview {
     { id: 'senior', label: 'Senior' },
   ];
 
+  /** Category filter chips. Written out rather than derived from the bank so
+   *  the order is editorial (commonest topics first) rather than alphabetical. */
   readonly categoryFilters: { id: Category; label: string }[] = [
     { id: 'all',          label: 'All' },
     { id: 'components',   label: 'Components' },

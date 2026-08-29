@@ -1,12 +1,6 @@
 import { Component, Directive, inject, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: the Directive Composition API (hostDirectives) — composing behavior
- * onto a component's host element without inheritance or wrapper DOM. Live
- * demos prove input re-export, host-binding precedence, and that the host
- * component can inject its own host directives.
- */
 
 /**
  * A reusable behavior: lift the host on hover. No template — pure host
@@ -25,10 +19,23 @@ import { RouterLink } from '@angular/router';
   },
 })
 export class Elevate {
+  /**
+   * Whether the host is currently lifted.
+   */
   readonly lifted = signal(false);
+  /**
+   * How many times it has lifted, so a composed host can show the directive's own
+   * state is really shared.
+   */
   readonly lifts = signal(0);
+  /**
+   * Emits when the lifted state turns on. Composed hosts can re-export this.
+   */
   readonly liftedChange = output<boolean>();
 
+  /**
+   * Handles pointer entry: lifts, counts, notifies.
+   */
   protected enter() {
     this.lifted.set(true);
     this.lifts.update((n) => n + 1);
@@ -42,6 +49,10 @@ export class Elevate {
   host: { '[style.borderLeft]': '"4px solid " + accent()' },
 })
 export class Accent {
+  /**
+   * The accent colour. Re-exported under an alias by composing hosts, which is
+   * what lets a composed input keep a name that makes sense on the host.
+   */
   readonly accent = input('gray');
 }
 
@@ -52,6 +63,10 @@ export class Accent {
 })
 export class ToneRed {}
 
+/**
+ * The second conflicting behaviour. Ordering between this and {@link ToneRed} is
+ * the precedence demo.
+ */
 @Directive({
   selector: '[appToneBlue]',
   host: { '[style.background]': '"rgba(79,70,229,.18)"' },
@@ -123,6 +138,12 @@ export class ToneCardBare {}
 })
 export class ToneCardOwn {}
 
+/**
+ * Lesson: the Directive Composition API (hostDirectives) — composing behavior
+ * onto a component's host element without inheritance or wrapper DOM. Live
+ * demos prove input re-export, host-binding precedence, and that the host
+ * component can inject its own host directives.
+ */
 @Component({
   selector: 'app-lesson-host-directives',
   imports: [RouterLink, FancyCard, StatusCard, ToneCardBare, ToneCardOwn, Elevate],
@@ -334,8 +355,15 @@ export class ToneCardOwn {}
   `,
 })
 export class HostDirectives {
+  /**
+   * The tone the composition demo is applying.
+   */
   protected readonly tone = signal('var(--green)');
 
+  /**
+   * Sample: `hostDirectives`, applying a behaviour without inheritance or a
+   * wrapper element.
+   */
   readonly composeSample = `@Directive({ selector: '[appElevate]' })
 export class Elevate {
   readonly lifted = signal(false);
@@ -354,6 +382,10 @@ export class FancyCard {
   protected readonly elevate = inject(Elevate);
 }`;
 
+  /**
+   * Sample: re-exporting a composed directive's inputs and outputs, with aliases.
+   * Without this they are invisible to the host's consumers.
+   */
   readonly reexportSample = `hostDirectives: [{
   directive: Accent,
   inputs:  ['accent: tone'],   // re-export the input under an alias
@@ -363,6 +395,10 @@ export class FancyCard {
 // consumer: <app-status-card [tone]="'var(--green)'" />
 // [accent] would NOT compile — un-exported names don't exist on the host`;
 
+  /**
+   * Sample: precedence when several sources bind the same host property — host
+   * directives apply in order, and the component's own `host` bindings win.
+   */
   readonly precedenceSample = `@Component({
   hostDirectives: [ToneRed, ToneBlue],          // both bind style.background
   host: { '[style.background]': '"…green…"' },  // so does the component
@@ -372,6 +408,10 @@ export class FancyCard {
 //   ToneBlue →  overridden by the component's own host binding
 // ⇒ the component wins; drop its binding and blue wins`;
 
+  /**
+   * Sample: the CDK composing menu-item behaviour from smaller directives, as
+   * evidence the pattern is how the framework's own libraries are built.
+   */
   readonly realWorldSample = `// the CDK composes menu-item behavior from smaller directives:
 @Directive({
   selector: '[cdkMenuItemCheckbox]',
@@ -388,6 +428,11 @@ export class FancyCard {
   ],
 })`;
 
+  /**
+   * Sample: inheritance against composition. Inheritance gives one base class,
+   * leaks DI, and cannot mix; `hostDirectives` composes as many behaviours as
+   * needed.
+   */
   readonly wrongRightSample = `// WRONG — inheritance for host behavior: one base only, DI leaks, no mixing
 export class FancyCard extends HoverableBase { … }
 

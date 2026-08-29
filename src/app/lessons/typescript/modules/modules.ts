@@ -2,13 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Modules — what "every file is a module" really changes (scope!),
- * named/default/namespace/side-effect imports each dissected, live imports
- * lab, module resolution, barrels + circular-import mechanics, type-only
- * imports and why isolatedModules cares, dynamic import() as the engine of
- * lazy loading, and the singleton nature of module state.
+ * One import form, with the code that writes it and what it actually binds.
  */
-
 interface ImportKind {
   label: string;
   code: string;
@@ -54,6 +49,23 @@ const IMPORT_KINDS: ImportKind[] = [
   },
 ];
 
+/**
+ * Lesson: Modules, Imports & Exports — ES modules as TypeScript uses them.
+ *
+ * Covers named against default exports, `import type`, re-exports and barrel
+ * files, and why a module's *file* is its boundary. Also the Angular-specific
+ * point that ES modules are not `NgModule`s: in standalone Angular the two are
+ * unrelated, and conflating them is a common source of confusion for anyone
+ * arriving from older tutorials.
+ *
+ * The demo steps through each import form and shows what it actually binds:
+ * named, default, namespace and side-effect imports, one at a time.
+ *
+ * Also covers module resolution, barrels and the mechanics of a circular
+ * import, why `isolatedModules` cares about type-only imports, dynamic
+ * `import()` as the engine behind lazy loading, and the fact that module
+ * state is a singleton — evaluated once, shared by every importer.
+ */
 @Component({
   selector: 'app-lesson-ts-modules',
   imports: [RouterLink],
@@ -254,6 +266,12 @@ next(); // b.ts → 2  ← SAME count. Modules execute once and are cached;
   ],
 })
 export class Modules {
+  /**
+   * The import forms the demo can step through.
+   */
   protected readonly kinds = IMPORT_KINDS;
+  /**
+   * Which import form is currently selected.
+   */
   protected readonly kind = signal<ImportKind>(IMPORT_KINDS[0]);
 }

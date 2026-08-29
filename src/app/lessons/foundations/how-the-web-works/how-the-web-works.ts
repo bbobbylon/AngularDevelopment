@@ -2,13 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: How the web works — client/server, URLs, DNS, HTTP anatomy,
- * status codes, what the browser does with a response, and where Angular
- * sits in the whole picture. Zero prior knowledge assumed, but deep:
- * by the end the reader can narrate every step between typing an address
- * and seeing a page.
+ * One stage of the page-load journey, from typing a URL to pixels on screen.
  */
-
 interface JourneyStep {
   label: string;
   icon: string;
@@ -54,6 +49,9 @@ const JOURNEY: JourneyStep[] = [
   },
 ];
 
+/**
+ * One HTTP status code and what it means.
+ */
 interface StatusCode {
   code: string;
   meaning: string;
@@ -68,6 +66,13 @@ const STATUS_CODES: StatusCode[] = [
   { code: '500 Server Error', meaning: 'Server error', story: 'Your request was fine — the server blew up processing it. The 5xx family means "our fault, not yours".' },
 ];
 
+/**
+ * Lesson: How the web works — client/server, URLs, DNS, HTTP anatomy,
+ * status codes, what the browser does with a response, and where Angular
+ * sits in the whole picture. Zero prior knowledge assumed, but deep:
+ * by the end the reader can narrate every step between typing an address
+ * and seeing a page.
+ */
 @Component({
   selector: 'app-lesson-how-the-web-works',
   imports: [RouterLink],
@@ -299,13 +304,31 @@ const STATUS_CODES: StatusCode[] = [
   ],
 })
 export class HowTheWebWorks {
+  /**
+   * The journey stages.
+   */
   protected readonly steps = JOURNEY;
+  /**
+   * The status codes.
+   */
   protected readonly statusCodes = STATUS_CODES;
 
+  /**
+   * Which stage the animation is on.
+   */
   protected readonly step = signal(0);
+  /**
+   * Whether the animation is auto-advancing.
+   */
   protected readonly playing = signal(false);
+  /**
+   * The status code being examined, or `null` for none.
+   */
   protected readonly picked = signal<StatusCode | null>(null);
 
+  /**
+   * The current stage.
+   */
   protected readonly current = computed(() => this.steps[this.step()]);
 
   /** Auto-advance through all six stages, ~1s apart, like a real page load in slow motion. */
@@ -324,15 +347,26 @@ export class HowTheWebWorks {
     setTimeout(tick, 1000);
   }
 
+  /**
+   * Stops the animation and returns to the first stage.
+   */
   protected reset() {
     this.step.set(0);
     this.playing.set(false);
   }
 
+  /**
+   * Sample: a URL with every part labelled — scheme, host, port, path, query and
+   * fragment.
+   */
   readonly urlSample = `https://www.shop.example.com:443/products/42?color=red&size=m#reviews
 └─┬─┘   └────────┬────────┘└┬┘ └────┬─────┘└──────┬──────┘└───┬──┘
 scheme         host        port    path         query      fragment`;
 
+  /**
+   * Sample: a real request and response, headers and all, so HTTP is something
+   * seen rather than described.
+   */
   readonly httpSample = `── the browser sends ──────────────────────────────
 GET /products/42 HTTP/1.1        ← verb + path + protocol version
 Host: www.shop.example.com       ← which site (a server can host many)

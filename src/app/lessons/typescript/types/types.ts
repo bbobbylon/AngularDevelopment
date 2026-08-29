@@ -3,16 +3,18 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Types, annotations & inference — primitives/tuples, how inference
- * and widening actually decide a type (live explorer), any/unknown/never/void
- * with the "any spreads" trap, unions + discriminated unions with exhaustive
- * checking (live), structural typing's surprises, and assertion discipline.
+ * A discriminated union: two shapes distinguished by a literal `kind` field.
+ * The discriminant is what lets TypeScript narrow the union inside a `switch`,
+ * which is the mechanism {@link Types.area} demonstrates.
  */
-
 type Shape =
   | { kind: 'circle'; radius: number }
   | { kind: 'rect'; width: number; height: number };
 
+/**
+ * One inference example: an expression, and the type TypeScript works out for
+ * it without an annotation.
+ */
 interface InferCase {
   code: string;
   inferred: string;
@@ -52,6 +54,12 @@ const INFER_CASES: InferCase[] = [
   },
 ];
 
+/**
+ * Lesson: Types, annotations & inference — primitives/tuples, how inference
+ * and widening actually decide a type (live explorer), any/unknown/never/void
+ * with the "any spreads" trap, unions + discriminated unions with exhaustive
+ * checking (live), structural typing's surprises, and assertion discipline.
+ */
 @Component({
   selector: 'app-lesson-ts-types',
   imports: [RouterLink, DecimalPipe],
@@ -295,11 +303,27 @@ const config = {{ '{' }} retries: 3 {{ '}' }} satisfies Record&lt;string, number
   ],
 })
 export class Types {
+  /**
+   * The shape in the narrowing demo.
+   */
   protected readonly shape = signal<Shape>({ kind: 'circle', radius: 5 });
 
+  /**
+   * The inference examples.
+   */
   protected readonly inferCases = INFER_CASES;
+  /**
+   * Which inference example is showing.
+   */
   protected readonly inferIdx = signal(0);
 
+  /**
+   * The current shape's area.
+   *
+   * The `switch` on `kind` is doing double duty: it picks the formula, and it
+   * narrows the union so `s.radius` and `s.width` are each only reachable on the
+   * variant that has them.
+   */
   protected readonly area = computed(() => {
     const s = this.shape();
     switch (s.kind) {
@@ -310,6 +334,10 @@ export class Types {
     }
   });
 
+  /**
+   * A short description of the current shape, narrowed with a ternary rather than
+   * a `switch` to show the same mechanism in its smaller form.
+   */
   protected describe(): string {
     const s = this.shape();
     return s.kind === 'circle' ? `circle r=${s.radius}` : `rect ${s.width}×${s.height}`;

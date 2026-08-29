@@ -289,9 +289,18 @@ import { RouterLink } from '@angular/router';
   ],
 })
 export class RouteGuards {
+  /**
+   * Whether the fake user is signed in, for the `canActivate` demo.
+   */
   protected readonly loggedIn = signal(false);
+  /**
+   * What the last navigation attempt did.
+   */
   protected readonly outcome = signal('—');
 
+  /**
+   * Attempts a navigation and reports what the guard decided.
+   */
   protected attempt() {
     this.outcome.set(
       this.loggedIn()
@@ -301,9 +310,18 @@ export class RouteGuards {
   }
 
   // --- CanDeactivate demo ---
+  /**
+   * Whether the fake edit form has unsaved changes.
+   */
   protected readonly dirty = signal(false);
+  /**
+   * What the last leave attempt did.
+   */
   protected readonly leaveOutcome = signal('—');
 
+  /**
+   * Attempts to leave, running the `canDeactivate` check.
+   */
   protected leave() {
     this.leaveOutcome.set(
       this.dirty()
@@ -313,11 +331,31 @@ export class RouteGuards {
   }
 
   // --- canMatch vs canActivate demo ---
+  /**
+   * The feature flag the `canMatch` demo gates on.
+   */
   protected readonly betaFlag = signal(false);
+  /**
+   * Whether the lazy chunk has been downloaded yet. The whole point of the
+   * comparison below is which guards can still stop that from happening.
+   */
   protected readonly chunkDownloaded = signal(false);
+  /**
+   * What the `canActivate` attempt did.
+   */
   protected readonly activateOutcome = signal('—');
+  /**
+   * What the `canMatch` attempt did.
+   */
   protected readonly matchOutcome = signal('—');
 
+  /**
+   * Attempts the route with a `canActivate` guard.
+   *
+   * The download happens either way: matching completes — and therefore the lazy
+   * chunk is fetched — before `canActivate` is even consulted. Blocking here
+   * blocks the *navigation*, not the bytes.
+   */
   protected tryCanActivate() {
     // canActivate only runs AFTER the route has matched — for a lazy route that
     // means the chunk is already downloaded by the time the guard is even asked.
@@ -329,6 +367,13 @@ export class RouteGuards {
     );
   }
 
+  /**
+   * Attempts the same route with a `canMatch` guard.
+   *
+   * `canMatch` runs during matching, so a false result means the route never
+   * matches and the `import()` never runs. For a flag that gates a whole lazy
+   * feature, this is the guard that actually keeps the code off the wire.
+   */
   protected tryCanMatch() {
     // canMatch runs DURING matching, before any lazy import() executes.
     if (this.betaFlag()) {
@@ -341,12 +386,18 @@ export class RouteGuards {
     }
   }
 
+  /**
+   * Resets the chunk demo so the two guards can be compared again from scratch.
+   */
   protected resetChunk() {
     this.chunkDownloaded.set(false);
     this.activateOutcome.set('—');
     this.matchOutcome.set('—');
   }
 
+  /**
+   * Sample: a typical auth guard — inject, check, redirect with `returnUrl`.
+   */
   protected readonly authSample = `export const authGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -356,6 +407,9 @@ export class RouteGuards {
 // in routes:
 { path: 'admin', canActivate: [authGuard], component: Admin }`;
 
+  /**
+   * Breakdown of {@link authSample}, line by line.
+   */
   protected readonly authBreakdown: Array<{ code: string; explain: string }> = [
     {
       code: `export const authGuard: CanActivateFn = (route, state) => {`,
@@ -388,6 +442,9 @@ export class RouteGuards {
     },
   ];
 
+  /**
+   * Sample: the order guards run in during one navigation.
+   */
   protected readonly orderSample = `1. CanDeactivate   — guards on the route being LEFT
 2. CanMatch        — before the route matches (before lazy download)
 3. CanActivate     — for the target route
@@ -395,6 +452,9 @@ export class RouteGuards {
 5. Resolvers       — only if all guards passed
 6. Route activates`;
 
+  /**
+   * Breakdown of {@link orderSample}.
+   */
   protected readonly orderBreakdown: Array<{ code: string; explain: string }> = [
     {
       code: `1. CanDeactivate — guards on the route being LEFT`,
@@ -428,6 +488,10 @@ export class RouteGuards {
     },
   ];
 
+  /**
+   * Sample: `CanDeactivateFn`, which receives the component instance being left —
+   * the only guard that does.
+   */
   protected readonly deactivateSample = `// CanDeactivate receives the component instance being left
 export const unsavedGuard: CanDeactivateFn<EditPage> = (component) =>
   component.hasUnsavedChanges() ? confirm('Discard unsaved changes?') : true;
@@ -436,6 +500,9 @@ export const unsavedGuard: CanDeactivateFn<EditPage> = (component) =>
 { path: 'beta', canMatch: [featureFlag('beta')], loadComponent: () => import('./beta/beta') }
 // flag off → route doesn't match → the router falls through to the next route`;
 
+  /**
+   * Breakdown of {@link deactivateSample}.
+   */
   protected readonly deactivateBreakdown: Array<{ code: string; explain: string }> = [
     {
       code: `export const unsavedGuard: CanDeactivateFn<EditPage> = (component) =>`,
@@ -459,6 +526,10 @@ export const unsavedGuard: CanDeactivateFn<EditPage> = (component) =>
     },
   ];
 
+  /**
+   * Sample: the router's navigation pipeline, simplified — where each guard type
+   * is consulted, and why that explains the ordering.
+   */
   protected readonly underTheHoodSample = `// simplified/conceptual — the shape of the router's internal navigation pipeline
 navigateByUrl(url) {
   applyRedirects(url);                  // resolve static \`redirectTo\` routes first
@@ -481,6 +552,9 @@ navigateByUrl(url) {
   activateRoutes(snapshot);             // create/destroy components, fire lifecycle hooks
 }`;
 
+  /**
+   * Breakdown of {@link underTheHoodSample}.
+   */
   protected readonly underTheHoodBreakdown: Array<{ code: string; explain: string }> = [
     {
       code: `applyRedirects(url);`,

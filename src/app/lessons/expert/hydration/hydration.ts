@@ -2,16 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: hydration in depth — destructive vs hydrated bootstrap, how DOM
- * adoption works under the hood (ngh annotations), the strict rules it
- * imposes (matching DOM, valid HTML), the mismatch-error clinic (NG0500 &
- * friends), ngSkipHydration, event replay, and incremental hydration with
- * @defer (hydrate ...) triggers.
- *
- * Interactive: a bootstrap comparator (destructive vs hydrated, step by
- * step) and a mismatch clinic mapping each classic cause to its fix.
+ * Which boot path the comparison is showing.
  */
-
 type Boot = 'destructive' | 'hydrated';
 
 const BOOT_STEPS: Record<Boot, { title: string; steps: { text: string; bad?: boolean }[] }> = {
@@ -41,6 +33,10 @@ const BOOT_STEPS: Record<Boot, { title: string; steps: { text: string; bad?: boo
   },
 };
 
+/**
+ * One hydration mismatch: what causes it, and what Angular logs when it
+ * happens.
+ */
 interface Mismatch {
   label: string;
   error: string;
@@ -86,6 +82,16 @@ const MISMATCHES: Mismatch[] = [
   },
 ];
 
+/**
+ * Lesson: hydration in depth — destructive vs hydrated bootstrap, how DOM
+ * adoption works under the hood (ngh annotations), the strict rules it
+ * imposes (matching DOM, valid HTML), the mismatch-error clinic (NG0500 &
+ * friends), ngSkipHydration, event replay, and incremental hydration with
+ * @defer (hydrate ...) triggers.
+ *
+ * Interactive: a bootstrap comparator (destructive vs hydrated, step by
+ * step) and a mismatch clinic mapping each classic cause to its fix.
+ */
 @Component({
   selector: 'app-lesson-hydration',
   imports: [RouterLink],
@@ -275,13 +281,32 @@ const MISMATCHES: Mismatch[] = [
   `,
 })
 export class Hydration {
+  /**
+   * The two boot paths.
+   */
   readonly boots: Boot[] = ['destructive', 'hydrated'];
+  /**
+   * The steps each boot path goes through.
+   */
   readonly bootSteps = BOOT_STEPS;
+  /**
+   * The boot path being shown.
+   */
   readonly boot = signal<Boot>('destructive');
 
+  /**
+   * The known mismatch causes.
+   */
   readonly mismatches = MISMATCHES;
+  /**
+   * The mismatch being examined, or `null` for none.
+   */
   readonly activeMismatch = signal<Mismatch | null>(null);
 
+  /**
+   * Sample: `provideClientHydration`, with `withEventReplay` and
+   * `withIncrementalHydration`.
+   */
   readonly enableSample = `import { provideClientHydration, withEventReplay, withIncrementalHydration }
   from '@angular/platform-browser';
 
@@ -294,6 +319,10 @@ export const appConfig: ApplicationConfig = {
   ],
 };`;
 
+  /**
+   * Sample: the `ngh` annotations the server emits — the map the client runtime
+   * uses to walk the existing DOM instead of rebuilding it.
+   */
   readonly annotatedSample = `<!-- simplified server output: metadata the client runtime navigates by -->
 <app-root ngh="0">
   <header ngh="1">…</header>
@@ -307,6 +336,11 @@ export const appConfig: ApplicationConfig = {
   { "__nghData__": [...], "transfer-cache": { ... } }
 </script>`;
 
+  /**
+   * Sample: event replay. Without it, clicks landing between paint and hydration
+   * are simply lost — which is exactly the window a fast-looking SSR page invites
+   * the user to click in.
+   */
   readonly replaySample = `provideClientHydration(withEventReplay())
 
 // timeline without replay:
@@ -316,6 +350,11 @@ export const appConfig: ApplicationConfig = {
 //   the click is recorded at the document root and re-dispatched
 //   to the real listener the moment hydration attaches it`;
 
+  /**
+   * Sample: incremental hydration with `@defer (hydrate on …)`, which ships the
+   * server-rendered markup immediately and attaches its JavaScript only when the
+   * trigger fires.
+   */
   readonly incrementalSample = `@defer (hydrate on viewport) {
   <app-comments />        <!-- server-rendered NOW, visible immediately;
                                its JS loads & attaches when scrolled into view -->

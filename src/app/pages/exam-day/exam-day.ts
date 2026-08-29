@@ -8,38 +8,20 @@ import { CODING_TASKS, type CodingTask } from '../coding-tasks/coding-tasks-data
 import { downloadTextFile } from '../../shared/download-file';
 import { STORAGE_KEYS, readJson, removeKey, writeJson } from '../../core/storage';
 
-/**
- * Exam-Day Readiness Check — the closest simulation of the real certification
- * sitting: ONE flow that chains a timed 20-question mixed exam with two
- * assigned coding-task briefs, then issues a single READY / NOT YET verdict.
- *
- * Four-phase state machine:
- *   - `idle`   — explains the format, shows past verdicts, offers start/resume.
- *   - `exam`   — a compact timed run over the shared challenge bank: sequential
- *                questions, countdown, no feedback, auto-submit at zero. Misses
- *                feed the spaced-repetition queue like everywhere else.
- *   - `tasks`  — two build briefs assigned from the coding-task bank (one mid,
- *                one senior, preferring ones you have not completed). They are
- *                done in the Coding-Task Simulator, which owns completion —
- *                this phase reads that store and re-checks on demand.
- *   - `result` — the verdict: exam >= pass mark AND both tasks completed.
- *
- * The in-between state (exam finished, tasks pending) persists to localStorage
- * so navigating to /coding-tasks and back resumes the check. An exam abandoned
- * MID-RUN is intentionally NOT persisted — on the real exam day you cannot
- * pause the clock either.
- *
- * This page reads the Coding-Task Simulator's store (via
- * `STORAGE_KEYS.codingTasks`) but never writes it: that page owns completion,
- * and this one only re-checks it on demand.
- *
- * @see core/storage.ts for the key registry and read/write helpers.
- */
+/** Which leg of the readiness check is on screen. See {@link ExamDay}. */
 type Phase = 'idle' | 'exam' | 'tasks' | 'result';
 
+/** Questions in the timed leg. Sized to be a real sitting, not a quiz. */
 const EXAM_QUESTIONS = 20;
+
+/** Per-question budget. The clock is a single pooled total, not per question,
+ *  so time saved on an easy one is time available for a hard one. */
 const SECONDS_PER_QUESTION = 90;
+
+/** Percentage needed on the exam leg to clear that bar. */
 const PASS_MARK = 70;
+
+/** Briefs assigned per check, both of which must be completed. */
 const TASKS_REQUIRED = 2;
 
 /** Keep only the most recent readiness checks so storage stays bounded. */
@@ -47,19 +29,29 @@ const HISTORY_LIMIT = 10;
 
 /** A check whose exam is finished but whose coding tasks are still pending. */
 interface ActiveCheck {
+  /** When the exam leg finished — the check's clock starts here, not at start. */
   startedAt: number;
+  /** The exam leg's frozen outcome. Not recomputed on resume. */
   exam: { scorePercent: number; correct: number; total: number };
+  /** The two assigned briefs, by {@link CodingTask} id. */
   taskIds: number[];
 }
 
 /** One completed readiness check — what the verdict history and dashboard show. */
 export interface ReadinessResult {
+  /** Epoch ms of the verdict. */
   when: number;
+  /** Exam leg percentage. */
   examScore: number;
+  /** Correct answers on the exam leg. */
   examCorrect: number;
+  /** Questions asked on the exam leg. */
   examTotal: number;
+  /** Assigned briefs completed at verdict time. */
   tasksDone: number;
+  /** Assigned briefs, i.e. {@link TASKS_REQUIRED}. */
   tasksTotal: number;
+  /** The verdict: both bars cleared. */
   ready: boolean;
 }
 
@@ -93,11 +85,55 @@ function pickTaskIds(doneIds: Set<number>): number[] {
   return picks.slice(0, TASKS_REQUIRED).map((t) => t.id);
 }
 
+/**
+ * Formats a countdown as `m:ss`, clamped at zero so a late timer tick can never
+ * render a negative clock.
+ *
+ * @param totalSeconds Seconds remaining.
+ */
 function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
+/**
+ * Exam-Day Readiness Check — the closest simulation of the real certification
+ * sitting, and the only page in the app that answers "am I ready?" with a
+ * single yes or no.
+ *
+ * Every other study tool measures one thing. This one chains two legs into
+ * ONE sitting and issues a combined verdict, because passing a multiple-choice
+ * exam and being able to build something are different skills and a
+ * certification asks for both.
+ *
+ * ## Four phases
+ *
+ * - **`idle`** — the format, past verdicts, and start/resume.
+ * - **`exam`** — a timed run over the shared challenge bank: sequential
+ *   questions, a countdown, **no feedback**, auto-submit at zero. Misses feed
+ *   the spaced-repetition queue like everywhere else in the app.
+ * - **`tasks`** — two build briefs assigned from the coding-task bank (one mid,
+ *   one senior, preferring ones not yet completed). They are done over in the
+ *   Coding-Task Simulator, which owns completion; this phase only *reads* that
+ *   store and re-checks it on demand.
+ * - **`result`** — the verdict: exam >= {@link PASS_MARK} **and** both briefs
+ *   completed. Both bars, not an average — a strong exam cannot carry an
+ *   unfinished brief.
+ *
+ * ## What persists, and why the asymmetry is deliberate
+ *
+ * The in-between state (exam done, briefs pending) is written to storage, so
+ * navigating to `/coding-tasks` to actually do the work and coming back
+ * resumes the check rather than discarding it.
+ *
+ * An exam abandoned **mid-run** is deliberately *not* persisted. On the real
+ * exam day you cannot pause the clock, and a resumable timer would turn the
+ * one honest measurement in the app into an untimed one.
+ *
+ * @see pages/coding-tasks/coding-tasks.ts — owns brief completion.
+ * @see pages/practice/review-queue.ts — receives this exam's misses.
+ * @see core/storage.ts — the key registry and the read/write helpers.
+ */
 @Component({
   selector: 'app-exam-day',
   imports: [RouterLink, DatePipe],
@@ -377,33 +413,74 @@ function formatClock(totalSeconds: number): string {
   `,
 })
 export class ExamDay implements OnDestroy {
+  /** Per-sitting option shuffling, reset when a new exam starts. */
   private readonly shuffler = new OptionsShuffler();
+
+  /** Handle for the countdown interval; `null` when no exam is running. */
   private timerId: ReturnType<typeof setInterval> | null = null;
+
+  /** Task lookup by id, built once — the assigned-brief list resolves through
+   *  this on every change-detection pass. */
   private readonly taskById = new Map<number, CodingTask>(CODING_TASKS.map((t) => [t.id, t]));
 
+  /** Option labels, indexed by position. */
   readonly letters = ['A', 'B', 'C', 'D'];
+
+  /** {@link PASS_MARK}, exposed so the template states the bar it is judging by. */
   readonly passMark = PASS_MARK;
+
+  /** {@link EXAM_QUESTIONS}, for the template. */
   readonly examQuestions = EXAM_QUESTIONS;
+
+  /** The time budget in whole minutes, for the "20 questions in 30 minutes"
+   *  blurb. Derived rather than written down so the two cannot drift. */
   readonly examMinutes = Math.round((EXAM_QUESTIONS * SECONDS_PER_QUESTION) / 60);
+
+  /** {@link TASKS_REQUIRED}, for the template. */
   readonly tasksRequired = TASKS_REQUIRED;
 
+  /** Which phase is on screen. */
   readonly phase = signal<Phase>('idle');
+  /**
+   * The resumable check, seeded from storage. Non-null on load means a previous
+   * visit finished an exam and left briefs pending — the idle screen offers to
+   * resume rather than silently starting over.
+   */
   readonly active = signal<ActiveCheck | null>(readJson<ActiveCheck | null>(STORAGE_KEYS.examDayActive, null));
+
+  /** Past verdicts, newest first, capped at {@link HISTORY_LIMIT}. */
   readonly history = signal<ReadinessResult[]>(readJson<ReadinessResult[]>(STORAGE_KEYS.examDayHistory, []));
+
+  /** The verdict on the result screen. In-memory only; {@link history} is the
+   *  durable record. */
   readonly lastResult = signal<ReadinessResult | null>(null);
 
   // --- exam leg state (in-memory only; abandoning mid-exam forfeits it) ---
+  /** The drawn questions, in presentation order. */
   readonly questions = signal<Challenge[]>([]);
+
+  /** Position within {@link questions}. Free to move both ways — see {@link prev}. */
   readonly index = signal(0);
+
+  /** Chosen option index by challenge id. Keyed by id, not position, so it
+   *  survives any future reordering of the drawn set. */
   readonly answers = signal<Record<number, number>>({});
+
+  /** Countdown remaining, ticked once a second by {@link startTimer}. */
   readonly secondsLeft = signal(0);
 
+  /** The question on screen. */
   readonly current = computed(() => this.questions()[this.index()]);
+
+  /** {@link secondsLeft} as `m:ss`. */
   readonly timeLabel = computed(() => formatClock(this.secondsLeft()));
 
   // --- tasks leg state ---
   /** Completion set read from the Coding-Task Simulator's store. */
   readonly doneTaskIds = signal<Set<number>>(loadDoneTaskIds());
+  /** The two assigned briefs, resolved from {@link ActiveCheck.taskIds}. Empty
+   *  when no check is active. Unknown ids are dropped rather than rendered as
+   *  holes, so removing a task from the bank cannot break an in-flight check. */
   readonly assignedTasks = computed(() => {
     const check = this.active();
     if (!check) return [];
@@ -411,11 +488,16 @@ export class ExamDay implements OnDestroy {
       .map((id) => this.taskById.get(id))
       .filter((t): t is CodingTask => !!t);
   });
+  /** How many of the assigned briefs are complete — the second pass bar. */
   readonly assignedDoneCount = computed(
     () => this.assignedTasks().filter((t) => this.doneTaskIds().has(t.id)).length,
   );
 
   // --- flow ---
+  /**
+   * Starts the exam leg: draws a fresh random set, clears any previous answers,
+   * and starts the clock.
+   */
   startCheck(): void {
     const qs = shuffle(CHALLENGES).slice(0, EXAM_QUESTIONS);
     this.shuffler.reset();
@@ -427,6 +509,18 @@ export class ExamDay implements OnDestroy {
     this.startTimer();
   }
 
+  /**
+   * Ends the exam leg, scores it, and moves to the briefs.
+   *
+   * Guarded because the countdown hitting zero and the user clicking "Finish"
+   * can happen in the same tick; without the guard the check would be scored
+   * twice and two `ActiveCheck`s written.
+   *
+   * Only answered-but-wrong questions go to the review queue. A question left
+   * blank because the clock ran out says nothing about whether the topic is
+   * understood, and queueing it would pollute the schedule with time-management
+   * failures.
+   */
   finishExam(): void {
     if (this.phase() !== 'exam') return; // timer + button can race; run once
     this.stopTimer();
@@ -452,22 +546,49 @@ export class ExamDay implements OnDestroy {
     this.phase.set('tasks');
   }
 
+  /**
+   * Picks a persisted check back up at the briefs leg, re-reading completion
+   * from the Coding-Task Simulator first — the whole point of leaving is to go
+   * do them.
+   */
   resume(): void {
     if (!this.active()) return;
     this.refreshTaskStatus();
     this.phase.set('tasks');
   }
 
+  /**
+   * Discards the pending check without recording a verdict. No history entry:
+   * an abandoned check is not a failed one.
+   */
   abandon(): void {
     this.active.set(null);
     removeKey(STORAGE_KEYS.examDayActive);
     this.phase.set('idle');
   }
 
+  /**
+   * Re-reads brief completion from the Coding-Task Simulator's store.
+   *
+   * Polled on demand rather than watched, because that store is plain
+   * localStorage rather than a reactive service — and the user has to
+   * physically come back to this tab to press the button anyway.
+   */
   refreshTaskStatus(): void {
     this.doneTaskIds.set(loadDoneTaskIds());
   }
 
+  /**
+   * Issues the verdict and closes the check.
+   *
+   * `ready` requires **both** bars — exam at or above {@link PASS_MARK} *and*
+   * every assigned brief completed. Deliberately not an average: the two legs
+   * measure different skills, so a strong exam must not compensate for a brief
+   * that was never finished.
+   *
+   * Clears the active check, so the verdict is final and the next check starts
+   * from scratch.
+   */
   evaluate(): void {
     const check = this.active();
     if (!check) return;
@@ -494,6 +615,7 @@ export class ExamDay implements OnDestroy {
     this.phase.set('result');
   }
 
+  /** Returns to the dashboard from the result screen. */
   backToIdle(): void {
     this.phase.set('idle');
   }
@@ -545,28 +667,60 @@ export class ExamDay implements OnDestroy {
   }
 
   // --- exam leg interactions ---
+  /**
+   * Records an answer. Freely changeable until the leg is submitted, and never
+   * graded on the spot — this leg gives no feedback.
+   *
+   * @param ch          The question.
+   * @param optionIndex Index into the *shuffled* options.
+   */
   choose(ch: Challenge, optionIndex: number): void {
     this.answers.update((a) => ({ ...a, [ch.id]: optionIndex }));
   }
 
+  /** Moves forward one question, stopping at the last. */
   next(): void {
     if (this.index() < this.questions().length - 1) this.index.update((i) => i + 1);
   }
 
+  /**
+   * Moves back one question, stopping at the first. Backwards navigation is
+   * allowed on purpose — the real exam lets you revisit answers.
+   */
   prev(): void {
     if (this.index() > 0) this.index.update((i) => i - 1);
   }
 
+  /**
+   * This sitting's option order for a question, plus where the correct answer
+   * landed. Stable for the sitting, so revisiting a question does not reshuffle
+   * it under an already-recorded answer.
+   *
+   * @param ch The question.
+   */
   shuffledOptions(ch: Challenge): { options: string[]; correctIndex: number } {
     if (!ch.options) return { options: [], correctIndex: -1 };
     return this.shuffler.getShuffledOptions(ch.id, ch.options, ch.answer as number);
   }
 
+  /**
+   * Whether a question was answered correctly. Compares against the *shuffled*
+   * correct index, not `ch.answer`, because the recorded answer is a position
+   * in the shuffled list.
+   *
+   * @param ch The question.
+   */
   private isCorrect(ch: Challenge): boolean {
     const sel = this.answers()[ch.id];
     return sel !== undefined && sel === this.shuffledOptions(ch).correctIndex;
   }
 
+  /**
+   * Starts the one-second countdown, auto-submitting at zero.
+   *
+   * Stops any existing timer first so a double start cannot leave two intervals
+   * running and burn the clock at double speed.
+   */
   private startTimer(): void {
     this.stopTimer();
     this.timerId = setInterval(() => {
@@ -580,6 +734,7 @@ export class ExamDay implements OnDestroy {
     }, 1000);
   }
 
+  /** Clears the countdown if one is running. Safe to call repeatedly. */
   private stopTimer(): void {
     if (this.timerId !== null) {
       clearInterval(this.timerId);
@@ -587,6 +742,8 @@ export class ExamDay implements OnDestroy {
     }
   }
 
+  /** Clears the countdown on teardown so navigating away mid-exam cannot leave
+   *  an interval ticking against a destroyed component. */
   ngOnDestroy(): void {
     this.stopTimer();
   }

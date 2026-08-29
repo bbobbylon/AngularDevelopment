@@ -2,13 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Angular's service worker and PWAs in depth — what ng add scaffolds,
- * how the generated ngsw engine actually versions and serves your app,
- * assetGroups vs dataGroups with a strategy decision lab, a live SwUpdate
- * lifecycle simulator (deploy → detect → ready → activate), SwPush, and the
- * debugging/gotcha list (ngsw/state, ngsw-bypass, the safety worker).
+ * One cached resource: which `ngsw-config.json` group it belongs in, and why.
  */
-
 interface Resource {
   label: string;
   group: 'assetGroup' | 'dataGroup';
@@ -78,6 +73,13 @@ interface SimState {
   log: string[];
 }
 
+/**
+ * Lesson: Angular's service worker and PWAs in depth — what ng add scaffolds,
+ * how the generated ngsw engine actually versions and serves your app,
+ * assetGroups vs dataGroups with a strategy decision lab, a live SwUpdate
+ * lifecycle simulator (deploy → detect → ready → activate), SwPush, and the
+ * debugging/gotcha list (ngsw/state, ngsw-bypass, the safety worker).
+ */
 @Component({
   selector: 'app-lesson-pwa-service-worker',
   imports: [RouterLink],
@@ -272,10 +274,19 @@ interface SimState {
   `,
 })
 export class PwaServiceWorker {
+  /**
+   * The cacheable resources.
+   */
   readonly resources = RESOURCES;
+  /**
+   * The resource being examined, or `null` for none.
+   */
   readonly activeResource = signal<Resource | null>(null);
 
   // --- update lifecycle simulator ---
+  /**
+   * The stages of the update lifecycle, in order.
+   */
   readonly stages = [
     { id: 'v1' as const, label: 'running v1' },
     { id: 'deployed' as const, label: 'v2 deployed' },
@@ -283,13 +294,23 @@ export class PwaServiceWorker {
     { id: 'ready' as const, label: 'VERSION_READY' },
     { id: 'activated' as const, label: 'activated + reloaded' },
   ];
+  /**
+   * The stage ids, for comparing progress by position.
+   */
   private readonly order = this.stages.map((s) => s.id);
 
+  /**
+   * Where the simulator has got to, plus its log.
+   */
   readonly state = signal<SimState>({
     id: 'v1',
     log: ['[app] running version v1 — service worker serving from cache'],
   });
 
+  /**
+   * What the next click will do — a label rather than just "Next", so the
+   * simulator reads as a sequence of real events.
+   */
   readonly nextAction = computed(() => {
     switch (this.state().id) {
       case 'v1': return 'Deploy v2 to the server';
@@ -300,10 +321,24 @@ export class PwaServiceWorker {
     }
   });
 
+  /**
+   * Whether a stage has been reached yet, for the progress display.
+   *
+   * @param id The stage to test.
+   */
   reached(id: SimState['id']): boolean {
     return this.order.indexOf(id) <= this.order.indexOf(this.state().id);
   }
 
+  /**
+   * Advances one stage, appending the events a real service worker would emit.
+   *
+   * The stage worth reading closely is `VERSION_READY`: the new version is fully
+   * downloaded and verified but **not** running, and it will not run until
+   * `activateUpdate()` plus a reload. That gap is why a deployed fix does not
+   * reach a long-lived tab on its own, and why the prompt-to-reload pattern
+   * exists.
+   */
   advance() {
     const s = this.state();
     switch (s.id) {
@@ -333,11 +368,17 @@ export class PwaServiceWorker {
     }
   }
 
+  /**
+   * Resets the simulator.
+   */
   resetSim() {
     this.state.set({ id: 'v1', log: ['[app] running version v1 — service worker serving from cache'] });
   }
 
   // --- code samples ---
+  /**
+   * Sample: `ng add @angular/pwa` and the provider it registers.
+   */
   readonly setupSample = `ng add @angular/pwa     # manifest + icons + ngsw-config.json + provider
 
 // app.config.ts
@@ -350,6 +391,10 @@ provideServiceWorker('ngsw-worker.js', {
   registrationStrategy: 'registerWhenStable:30000',
 })`;
 
+  /**
+   * Sample: driving updates from `SwUpdate.versionUpdates`, including the polling
+   * a long-lived tab needs.
+   */
   readonly updateSample = `export class UpdateService {
   private updates = inject(SwUpdate);
 
@@ -374,6 +419,9 @@ provideServiceWorker('ngsw-worker.js', {
   }
 }`;
 
+  /**
+   * Sample: `SwPush` — subscribing, and handling a push message.
+   */
   readonly pushSample = `private swPush = inject(SwPush);
 
 async subscribe() {

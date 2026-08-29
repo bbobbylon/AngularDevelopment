@@ -1,12 +1,6 @@
 import { Component, Injectable, InjectionToken, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: advanced dependency injection — the two injector trees, a LIVE
- * resolution-modifier playground (real components proving self/skipSelf/
- * optional against real instances), multi providers, viewProviders,
- * injection context rules, tree-shakable tokens, and forwardRef.
- */
 
 /** A multi-provider token — many providers contribute to one array. */
 const FEATURE = new InjectionToken<string>('FEATURE');
@@ -17,7 +11,14 @@ const FEATURE = new InjectionToken<string>('FEATURE');
  */
 @Injectable()
 export class Beacon {
+  /**
+   * Sequence source for instance ids.
+   */
   private static next = 1;
+  /**
+   * This instance's id. Distinct ids are how the demo proves two components got
+   * different instances rather than sharing one.
+   */
   readonly id = Beacon.next++;
 }
 
@@ -36,7 +37,14 @@ export class Beacon {
   providers: [Beacon],
 })
 export class DiChildOwn {
+  /**
+   * Resolved normally: stops at this component's own provider.
+   */
   readonly own = inject(Beacon);
+  /**
+   * Resolved with `skipSelf`: starts the search at the parent, so it deliberately
+   * steps over the local provider and reaches the lesson's instance instead.
+   */
   readonly fromParent = inject(Beacon, { skipSelf: true });
 }
 
@@ -50,10 +58,24 @@ export class DiChildOwn {
   `,
 })
 export class DiChildBare {
+  /**
+   * Resolved normally with no local provider, so it walks up and finds the
+   * lesson's instance.
+   */
   readonly inherited = inject(Beacon);
+  /**
+   * Resolved with `self` — this injector only. There is no local provider, so it
+   * is `null` rather than an error, which is what `optional` buys.
+   */
   readonly selfOnly = inject(Beacon, { self: true, optional: true });
 }
 
+/**
+ * Lesson: advanced dependency injection — the two injector trees, a LIVE
+ * resolution-modifier playground (real components proving self/skipSelf/
+ * optional against real instances), multi providers, viewProviders,
+ * injection context rules, tree-shakable tokens, and forwardRef.
+ */
 @Component({
   selector: 'app-lesson-di-advanced',
   imports: [RouterLink, DiChildOwn, DiChildBare],
@@ -235,9 +257,19 @@ export class DiChildBare {
   `,
 })
 export class DiAdvanced {
+  /**
+   * The lesson component's own instance, the one the children walk up to.
+   */
   readonly lessonBeacon = inject(Beacon);
+  /**
+   * Everything contributed under the multi-provider token. Cast because the token
+   * is declared per-contribution but injects as an array.
+   */
   protected readonly features = inject(FEATURE) as unknown as string[];
 
+  /**
+   * Sample: the resolution modifiers, matching the live playground above.
+   */
   readonly modifiersSample = `readonly own        = inject(Beacon);                          // nearest, self included
 readonly fromParent = inject(Beacon, { skipSelf: true });      // start at parent
 readonly localOnly  = inject(Beacon, { self: true, optional: true }); // mine or null
@@ -246,6 +278,9 @@ readonly bounded    = inject(ControlContainer, { host: true }); // stop at host 
 // decorator-era spelling of the same thing:
 constructor(@Optional() @SkipSelf() parent: Beacon) {}`;
 
+  /**
+   * Sample: several providers accumulating into one array under `multi: true`.
+   */
   readonly multiSample = `{ provide: FEATURE, useValue: 'logging',       multi: true },
 { provide: FEATURE, useValue: 'analytics',     multi: true },
 { provide: FEATURE, useValue: 'offline-cache', multi: true },
@@ -255,6 +290,10 @@ const features = inject(FEATURE);  // string[] — all three
 // the framework's own extension points work exactly like this:
 { provide: NG_VALIDATORS, useExisting: MyValidator, multi: true }`;
 
+  /**
+   * Sample: `providers` against `viewProviders` — the difference only shows for
+   * projected content, which can inject the first and not the second.
+   */
   readonly viewProvidersSample = `@Component({
   selector: 'app-card',
   providers:     [CardState],   // view + projected content can inject
@@ -265,6 +304,10 @@ const features = inject(FEATURE);  // string[] — all three
 // consumer writes: <app-card><app-badge /></app-card>
 // app-badge CAN inject CardState, CANNOT inject CardTheme`;
 
+  /**
+   * Sample: injection context — where `inject()` is legal, and `Injector` /
+   * `runInInjectionContext` for when it is not.
+   */
   readonly contextSample = `export class Widget {
   private http = inject(HttpClient);        // ✓ field initializer
   private injector = inject(Injector);      // capture for later
@@ -281,6 +324,9 @@ const features = inject(FEATURE);  // string[] — all three
   }
 }`;
 
+  /**
+   * Sample: tree-shakable tokens, so an unused service is not bundled.
+   */
   readonly tokenSample = `// tree-shakable service — bundled only if injected
 @Injectable({ providedIn: 'root' })
 export class Metrics {}
@@ -298,6 +344,10 @@ export const API_URL = new InjectionToken<string>('API_URL', {
   loadChildren: () => import('./admin/admin.routes'),
 }`;
 
+  /**
+   * Sample: `forwardRef`, for the circular reference a class referring to itself
+   * in its own `providers` creates.
+   */
   readonly forwardRefSample = `@Component({
   selector: 'app-rating',
   providers: [{

@@ -41,6 +41,27 @@ function usernameTaken(taken: string[]): AsyncValidatorFn {
     );
 }
 
+/**
+ * Lesson: Reactive Forms — the form model that lives in the class.
+ *
+ * Covers `FormBuilder`, `FormGroup` / `FormControl` / `FormArray`, typed forms,
+ * `value` against `getRawValue()`, cross-field validators, async validators, and
+ * bridging the form's observables into signals with `toSignal`.
+ *
+ * The framing against template-driven forms: there the template *is* the model,
+ * which is quick for a login box and painful the moment validation gets
+ * conditional, fields get added at runtime, or anything needs a unit test
+ * without a fixture. Reactive forms put the model in TypeScript, where it can be
+ * inspected, composed and tested.
+ *
+ * Four demos build up in difficulty: a basic typed group, a cross-field password
+ * match (which has to be attached to the *group*, since it reads siblings), an
+ * async availability check with its `PENDING` state, and a `FormArray` of skills.
+ *
+ * @see intermediate/form-validation — validators in depth.
+ * @see intermediate/form-arrays — dynamic arrays in depth.
+ * @see intermediate/async-validators — the async path in depth.
+ */
 @Component({
   selector: 'app-lesson-reactive-forms',
   imports: [RouterLink, ReactiveFormsModule, JsonPipe],
@@ -696,9 +717,19 @@ function usernameTaken(taken: string[]): AsyncValidatorFn {
   ],
 })
 export class ReactiveForms {
+  /**
+   * Builds the form models. `FormBuilder` over `new FormGroup(...)` purely for
+   * brevity — the result is identical.
+   */
   private readonly fb = inject(FormBuilder);
+  /**
+   * The last submitted value, shown as JSON.
+   */
   protected readonly saved = signal<unknown>(null);
 
+  /**
+   * The basic demo's form: three typed controls with synchronous validators.
+   */
   protected readonly form = this.fb.group({
     name: ['Ada', [Validators.required, Validators.minLength(2)]],
     email: ['ada@example.com', [Validators.required, Validators.email]],
@@ -709,10 +740,23 @@ export class ReactiveForms {
   protected readonly liveValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
   });
+  /**
+   * The form's status as a signal — `VALID`, `INVALID`, `PENDING` or `DISABLED`.
+   */
   protected readonly liveStatus = toSignal(this.form.statusChanges, {
     initialValue: this.form.status,
   });
+  /**
+   * Length of the name field, derived from the live value.
+   */
   protected readonly nameChars = computed(() => (this.liveValue().name ?? '').length);
+  /**
+   * A human-readable readiness line.
+   *
+   * Handles `PENDING` explicitly rather than lumping it in with invalid: a form
+   * waiting on an async check is not yet known to be wrong, and telling the user
+   * it "needs fixes" while it is still checking is the classic mistake.
+   */
   protected readonly readiness = computed(() =>
     this.liveStatus() === 'VALID'
       ? 'Ready to submit'
@@ -721,12 +765,20 @@ export class ReactiveForms {
         : 'Needs fixes',
   );
 
+  /**
+   * Submits, if valid. The guard is here rather than only on the button because a
+   * form can be submitted by pressing Enter.
+   */
   protected save() {
     if (this.form.valid) {
       this.saved.set(this.form.value);
     }
   }
 
+  /**
+   * Patches one field, to show `patchValue` updating part of the model —
+   * `setValue` would require every field.
+   */
   protected patch() {
     this.form.patchValue({ name: 'Grace' });
   }
@@ -739,9 +791,20 @@ export class ReactiveForms {
     },
     { validators: passwordsMatch },
   );
+  /**
+   * The password form's status as a signal.
+   */
   protected readonly passwordStatus = toSignal(this.passwordForm.statusChanges, {
     initialValue: this.passwordForm.status,
   });
+  /**
+   * Whether the two passwords disagree.
+   *
+   * Reads {@link passwordStatus} first purely to establish the reactive
+   * dependency: `hasError` is a plain method call on the form object, which a
+   * `computed` cannot track. Touching the status signal is what makes this
+   * recompute when validity changes.
+   */
   protected readonly passwordsMismatch = computed(() => {
     this.passwordStatus(); // establish the dependency: recompute on every status change
     return this.passwordForm.hasError('passwordsMismatch');
@@ -752,9 +815,15 @@ export class ReactiveForms {
     validators: [Validators.required, Validators.minLength(3)],
     asyncValidators: [usernameTaken(['ada', 'admin', 'root'])],
   });
+  /**
+   * The username control's status as a signal.
+   */
   protected readonly usernameStatus = toSignal(this.username.statusChanges, {
     initialValue: this.username.status,
   });
+  /**
+   * The message under the username field — checking, taken, or available.
+   */
   protected readonly usernameMessage = computed(() => {
     const status = this.usernameStatus();
     if (status === 'PENDING') return 'Checking availability…';
@@ -768,20 +837,41 @@ export class ReactiveForms {
 
   /** FormArray demo: a growable, indexed list of same-shaped controls. */
   protected readonly skills = this.fb.array([this.fb.control('Angular', Validators.required)]);
+  /**
+   * A group wrapping the skills array, because `formArrayName` in the template
+   * needs a parent `formGroup` to resolve against.
+   */
   protected readonly skillsForm = this.fb.group({ skills: this.skills });
+  /**
+   * The skills array's live value.
+   */
   protected readonly skillsValue = toSignal(this.skillsForm.valueChanges, {
     initialValue: this.skillsForm.getRawValue(),
   });
+  /**
+   * How many skills there are.
+   */
   protected readonly skillCount = computed(() => this.skillsValue().skills?.length ?? 0);
 
+  /**
+   * Appends an empty skill control.
+   */
   protected addSkill() {
     this.skills.push(this.fb.control('', Validators.required));
   }
 
+  /**
+   * Removes a skill by index.
+   *
+   * @param i Position to drop.
+   */
   protected removeSkill(i: number) {
     this.skills.removeAt(i);
   }
 
+  /**
+   * Sample: defining a typed form with `FormBuilder`.
+   */
   readonly modelSample = `private fb = inject(FormBuilder);
 
 form = this.fb.group({
@@ -790,6 +880,9 @@ form = this.fb.group({
   age: [36, [Validators.min(0), Validators.max(120)]],
 });`;
 
+  /**
+   * Sample: the template side — `[formGroup]`, `formControlName`, `ngSubmit`.
+   */
   readonly templateSample = `<form [formGroup]="form" (ngSubmit)="save()">
   <input formControlName="name" />
   <input formControlName="email" />
@@ -797,6 +890,10 @@ form = this.fb.group({
   <button type="submit" [disabled]="form.invalid">Save</button>
 </form>`;
 
+  /**
+   * Sample: reading and writing — `value` against `getRawValue()` (disabled
+   * controls are omitted from the first), and `setValue` against `patchValue`.
+   */
   readonly readWriteSample = `this.form.value;                          // typed, optional fields, disabled controls OMITTED
 this.form.getRawValue();                  // same shape but COMPLETE — includes disabled controls
 this.form.controls.name.value;            // read one control directly (typed: string | null)
@@ -806,6 +903,9 @@ this.form.setValue({ name: 'Grace', email: 'g@x.com', age: 40 }); // update ALL 
 this.form.valueChanges.subscribe((v) => console.log(v));   // Observable<value> — fires on every edit
 this.form.statusChanges.subscribe((s) => console.log(s));  // Observable<'VALID'|'INVALID'|'PENDING'|'DISABLED'>`;
 
+  /**
+   * Sample: a cross-field validator, and why it attaches to the group.
+   */
   readonly crossFieldValidatorSample = `// A cross-field validator reads MULTIPLE sibling controls, so it has to be
 // attached to the GROUP that contains them — not to a single child control.
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
@@ -822,6 +922,11 @@ passwordForm = this.fb.nonNullable.group(
   { validators: passwordsMatch },  // 2nd arg to group() = GROUP-level options
 );`;
 
+  /**
+   * Sample: an async validator, including the requirement that it emit **and
+   * complete** — a stream that never completes leaves the control `PENDING`
+   * forever.
+   */
   readonly asyncValidatorSample = `// AsyncValidatorFn returns an Observable (or Promise) of ValidationErrors | null.
 // It must emit AND complete exactly once per run — a never-completing stream
 // leaves the control stuck in PENDING forever.
@@ -841,6 +946,9 @@ username = this.fb.control('ada', {
   asyncValidators: [usernameTaken(['ada', 'admin', 'root'])],   // async — only if sync passes
 });`;
 
+  /**
+   * Sample: the class side of a `FormArray`.
+   */
   readonly formArrayClassSample = `// class
 skills = this.fb.array([this.fb.control('Angular', Validators.required)]);
 skillsForm = this.fb.group({ skills: this.skills });
@@ -853,6 +961,10 @@ removeSkill(i: number) {
   this.skills.removeAt(i);
 }`;
 
+  /**
+   * Sample: the template side of a `FormArray`, with `formArrayName` and the
+   * indexed `formControlName`.
+   */
   readonly formArrayTemplateSample = `<!-- template -->
 <div [formGroup]="skillsForm">
   <div formArrayName="skills">
@@ -863,6 +975,10 @@ removeSkill(i: number) {
   </div>
 </div>`;
 
+  /**
+   * Sample: the control tree — every node an `AbstractControl`, which is why the
+   * same API works at every level.
+   */
   readonly underTheHoodSample = `FormGroup "form"                         ← every node is an AbstractControl
  ├─ FormControl "name"
  ├─ FormControl "email"

@@ -12,6 +12,14 @@ import { RouterLink } from '@angular/router';
 
 // ── Demo components used in live examples ─────────────────────────────────────
 
+/**
+ * A card with three projection slots: a title, a default body, and an actions
+ * footer.
+ *
+ * Demonstrates `select=` for named slots, the unselected `<ng-content />` as the
+ * catch-all, and content inside an `<ng-content>` acting as a **fallback** when
+ * nothing is projected into that slot.
+ */
 @Component({
   selector: 'app-panel',
   standalone: true,
@@ -43,12 +51,18 @@ export class Panel {}
 /** Marks a tab label — picked up by contentChildren() in TabGroup */
 @Directive({ selector: '[tabLabel]', standalone: true })
 export class TabLabel {
+  /**
+   * The host element, so {@link TabGroup} can move the projected label's DOM.
+   */
   readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
 }
 
 /** Marks a tab panel body — picked up by contentChildren() in TabGroup */
 @Directive({ selector: '[tabPanel]', standalone: true })
 export class TabPanel {
+  /**
+   * The host element, so {@link TabGroup} can show and hide the projected panel.
+   */
   readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
 }
 
@@ -90,18 +104,41 @@ export class TabPanel {
   `],
 })
 export class TabGroup implements AfterContentInit {
+  /**
+   * Which tab is selected.
+   */
   protected readonly active = signal(0);
 
   // contentChildren() — signal-based query over projected directives.
   // Runs after content initialises and updates reactively if children change.
+  /**
+   * The projected labels, as a signal-based content query.
+   */
   readonly labels  = contentChildren(TabLabel);
+  /**
+   * The projected panels, in the same order as the labels.
+   */
   readonly panels  = contentChildren(TabPanel);
 
+  /**
+   * Sets the initial visibility once projected content exists.
+   *
+   * `ngAfterContentInit` is the first point at which content queries have
+   * resolved — reading them in the constructor gets an empty list. An `effect`
+   * over the query signals would work equally well.
+   */
   ngAfterContentInit(): void {
     // Sync visible panel whenever active index changes — effect() would also work.
     this.syncPanels();
   }
 
+  /**
+   * Shows the active panel and hides the rest.
+   *
+   * Works on the projected elements directly, because the panels are the caller's
+   * DOM: this component never renders them, it only decides which one is visible.
+   * That is the whole trick behind a projection-based tab group.
+   */
   protected syncPanels(): void {
     const idx = this.active();
     this.panels().forEach((p, i) => {
@@ -110,6 +147,11 @@ export class TabGroup implements AfterContentInit {
     });
   }
 
+  /**
+   * Selects a tab.
+   *
+   * @param idx Which tab.
+   */
   protected onTabClick(idx: number): void {
     this.active.set(idx);
     this.syncPanels();
@@ -133,6 +175,18 @@ export class BadgeHost {}
 
 // ── The lesson component ───────────────────────────────────────────────────────
 
+/**
+ * Lesson: Content Projection — letting the caller supply the markup.
+ *
+ * Covers `<ng-content />`, named slots via `select=`, fallback content, and the
+ * content queries (`contentChild` / `contentChildren`) that let a component find
+ * what was projected into it.
+ *
+ * The distinction that matters: projected content belongs to the **caller**, not
+ * to the component rendering it. It is compiled in the caller's context, styled
+ * by the caller's styles, and — as {@link TabGroup} shows — the receiving
+ * component can only find it through a content query, never a view query.
+ */
 @Component({
   selector: 'app-lesson-content-projection',
   standalone: true,

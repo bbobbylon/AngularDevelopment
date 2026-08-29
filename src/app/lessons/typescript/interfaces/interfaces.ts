@@ -2,13 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Interfaces vs type aliases — member syntax dissected (optional,
- * readonly, methods vs function properties), extends vs intersection and
- * where they differ on conflicts, the decision table with reasoning, a live
- * shape-checker demo, declaration merging as the module-augmentation tool,
- * callable/index/hybrid/generic signatures, and implements semantics.
+ * One candidate value for the shape-checker demo.
  */
-
 interface CandidateShape {
   label: string;
   value: string;
@@ -49,6 +44,22 @@ const CANDIDATES: CandidateShape[] = [
   },
 ];
 
+/**
+ * Lesson: Interfaces vs Type Aliases — two ways to name a shape, and when each
+ * one is the right call.
+ *
+ * Covers `extends` against `&`, declaration merging (interfaces only), and the
+ * things only a type alias can express: unions, tuples, mapped and conditional
+ * types, and aliases of primitives.
+ *
+ * The demo switches between candidate shapes so the same value can be seen
+ * satisfying — and failing — different declarations.
+ *
+ * Also dissects member syntax (optional, `readonly`, methods against function
+ * properties), where `extends` and intersection disagree on conflicting
+ * members, declaration merging as the module-augmentation tool, callable /
+ * index / hybrid / generic signatures, and what `implements` actually checks.
+ */
 @Component({
   selector: 'app-lesson-ts-interfaces',
   imports: [RouterLink],
@@ -259,6 +270,12 @@ interface Counter {{ '{' }}                                   // HYBRID — call
   ],
 })
 export class Interfaces {
+  /**
+   * The example shapes the demo can switch between.
+   */
   protected readonly candidates = CANDIDATES;
+  /**
+   * Which shape the demo is currently showing.
+   */
   protected readonly candidate = signal<CandidateShape>(CANDIDATES[0]);
 }

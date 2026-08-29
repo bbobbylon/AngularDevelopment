@@ -2,12 +2,9 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Why TypeScript & Angular — compile-time vs runtime error catching
- * (with a live bug-hunt demo), what the TS compiler actually does, framework
- * vs library and inversion of control, what Angular provides out of the box
- * vs hand-rolled JS, where Angular sits vs React/Vue, and the curriculum map.
+ * One bug-hunt exercise: a snippet of plain JavaScript with a real defect, and
+ * the TypeScript error that would have caught it before it ran.
  */
-
 interface BugHunt {
   id: number;
   code: string;
@@ -36,6 +33,12 @@ const HUNTS: BugHunt[] = [
   },
 ];
 
+/**
+ * Lesson: Why TypeScript & Angular — compile-time vs runtime error catching
+ * (with a live bug-hunt demo), what the TS compiler actually does, framework
+ * vs library and inversion of control, what Angular provides out of the box
+ * vs hand-rolled JS, where Angular sits vs React/Vue, and the curriculum map.
+ */
 @Component({
   selector: 'app-lesson-why-typescript-angular',
   imports: [RouterLink],
@@ -237,7 +240,17 @@ const HUNTS: BugHunt[] = [
   ],
 })
 export class WhyTypescriptAngular {
+  /**
+   * The bug-hunt exercises.
+   */
   protected readonly hunts = HUNTS;
+  /**
+   * Which exercise is selected.
+   */
   protected readonly huntId = signal(1);
+  /**
+   * The selected exercise. The non-null assertion is safe because {@link huntId}
+   * is only ever set from an id in {@link hunts}.
+   */
   protected readonly hunt = computed(() => this.hunts.find((h) => h.id === this.huntId())!);
 }

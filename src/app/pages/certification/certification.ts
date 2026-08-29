@@ -3,9 +3,33 @@ import { RouterLink } from '@angular/router';
 import { LESSON_BY_ID } from '../../core/curriculum';
 
 // ── Exam topic map (study guide) ─────────────────────────────────────────────
+/** One line of the study map: a syllabus topic and the lessons that cover it.
+ *  Lessons are referenced by **id**, not embedded, so a retitled lesson updates
+ *  here automatically and a deleted one is caught by the topicPath specs. */
 interface ExamTopic  { topic: string; lessonIds: string[]; }
-interface ExamLevel  { key: string; name: string; format: string; blurb: string; topics: ExamTopic[]; }
 
+/** One certification tier and the syllabus beneath it. */
+interface ExamLevel  {
+  /** Slug used as the exam-simulator level. */
+  key: string;
+  /** The official exam name. */
+  name: string;
+  /** The real sitting's format, quoted so the simulator is calibrated against it. */
+  format: string;
+  /** One-line description of what the tier is testing. */
+  blurb: string;
+  /** The syllabus, in the order the official topic list gives it. */
+  topics: ExamTopic[];
+}
+
+/**
+ * The certificates.dev syllabus, transcribed as a topic → lesson map.
+ *
+ * This is the file that makes the curriculum *answerable to* the exam rather
+ * than merely adjacent to it: every official topic names the lessons that
+ * cover it, so a gap in the curriculum shows up as a topic with a thin lesson
+ * list instead of being invisible.
+ */
 const EXAM: ExamLevel[] = [
   {
     key: 'junior', name: 'Junior Angular Developer',
@@ -65,14 +89,25 @@ const EXAM: ExamLevel[] = [
 ];
 
 // ── Exam simulator questions (10 per level) ───────────────────────────────────
+/** One simulator question. A separate, smaller corpus from the main practice
+ *  bank: these are written to imitate the *style* of the real exam's questions
+ *  at each tier, where the practice bank is written to teach. */
 interface ExamQ {
+  /** Which tier's simulator this belongs to. */
   level: 'junior' | 'mid' | 'senior';
+  /** The question text. */
   q: string;
+  /** The answer choices. */
   opts: string[];
+  /** Index of the correct choice. Unlike the practice bank these are *not*
+   *  shuffled at runtime, so the explanations can refer to options by letter. */
   answer: number; // 0-indexed
+  /** Why the answer is right and the others wrong, keyed by letter. */
   explanation: string;
 }
 
+/** The simulator's question bank, grouped by tier with `// ──── LEVEL ────`
+ *  banners. Ten or more per tier; a sitting draws up to 20. */
 const EXAM_QS: ExamQ[] = [
   // ──── JUNIOR ────
   {
@@ -1132,12 +1167,42 @@ const EXAM_QS: ExamQ[] = [
 ];
 
 // ── Resolved types ────────────────────────────────────────────────────────────
+/** An {@link ExamTopic} lesson id looked up against the curriculum: the title
+ *  to render, and whether a component actually exists behind it. */
 interface ResolvedLesson { id: string; title: string; built: boolean; }
+
+/** An {@link ExamTopic} with its lesson ids resolved. */
 interface ResolvedTopic  { topic: string; lessons: ResolvedLesson[]; }
+
+/** An {@link ExamLevel} with its topics resolved, plus a lesson count. */
 interface ResolvedLevel  { key: string; name: string; format: string; blurb: string; topics: ResolvedTopic[]; count: number; }
 
+/** Which screen the page is on. See {@link Certification}. */
 type ExamView = 'map' | 'exam' | 'results';
 
+/**
+ * Certification — the official certificates.dev syllabus mapped onto this
+ * curriculum, plus a timed simulator per tier.
+ *
+ * Two things in one page, deliberately:
+ *
+ * - **The study map** ({@link levels}) resolves each syllabus topic to real
+ *   lessons, so "am I covered for the mid-level exam?" is answered by looking
+ *   rather than by guessing. Lessons still to be written show as unbuilt
+ *   instead of being hidden, which is what makes the map honest.
+ * - **The simulator** runs a 40-minute sitting against {@link EXAM_QS}.
+ *
+ * ## How this differs from the Mock Exam and Exam Day
+ *
+ * The Mock Exam draws from the general practice bank; Exam Day chains an exam
+ * with build briefs. This one is tier-specific and question-for-question
+ * imitative of the real paper — same length, same clock, same shape. It also
+ * reveals answers **during** the sitting ({@link checkAnswer}), which the other
+ * two do not: this page is calibration, and finding out at the end that you
+ * misread the format teaches nothing.
+ *
+ * @see core/curriculum.ts — the lessons the map resolves against.
+ */
 @Component({
   selector: 'app-certification',
   imports: [RouterLink],
@@ -1417,10 +1482,20 @@ type ExamView = 'map' | 'exam' | 'results';
   `,
 })
 export class Certification implements OnDestroy {
+  /** `Math` exposed for the template, which cannot reach globals directly. */
   protected readonly Math = Math;
+
+  /** Option labels, indexed by position. */
   protected readonly letters = ['A', 'B', 'C', 'D'];
 
   // ── Study map computed ────────────────────────────────────────────────────
+  /**
+   * The syllabus with every lesson id resolved against the curriculum.
+   *
+   * Ids that resolve to nothing are dropped rather than rendered as broken
+   * rows — but a spec pins every id in {@link EXAM} to a real lesson, so a
+   * dropped one is a build failure rather than a silent hole here.
+   */
   protected readonly levels = computed<ResolvedLevel[]>(() =>
     EXAM.map((lvl) => {
       const topics: ResolvedTopic[] = lvl.topics.map((t) => ({
@@ -1436,19 +1511,38 @@ export class Certification implements OnDestroy {
     }),
   );
 
+  /** Lessons across the whole syllabus, for the header stat. Counts a lesson
+   *  once per topic that cites it, since the figure is "syllabus coverage",
+   *  not "distinct lessons". */
   protected readonly totalCovered = computed(() =>
     this.levels().reduce((s, l) => s + l.count, 0),
   );
 
   // ── Exam simulator state ──────────────────────────────────────────────────
+  /** Which screen is showing. */
   protected readonly view       = signal<ExamView>('map');
+
+  /** The tier being sat. Remembered after the exam so {@link retryExam} knows
+   *  which paper to re-draw. */
   protected readonly examLevel  = signal<'junior' | 'mid' | 'senior'>('junior');
+
+  /** The drawn questions for this sitting. */
   protected readonly examQs     = signal<ExamQ[]>([]);
+
+  /** Position within {@link examQs}. Forward-only — see {@link nextQuestion}. */
   protected readonly examIndex  = signal(0);
+
+  /** Chosen option per question, positional against {@link examQs}, `null` when
+   *  unanswered. Resized to the real draw by {@link startExam}. */
   protected readonly examSel    = signal<(number | null)[]>(Array(20).fill(null));
+
+  /** Which questions have had their answer revealed. Parallel to {@link examSel}. */
   protected readonly examRevealed = signal<boolean[]>(Array(20).fill(false));
+
+  /** Seconds remaining. 2400 = the real exam's 40 minutes. */
   protected readonly examTimeLeft = signal(2400); // 40 minutes
 
+  /** {@link examTimeLeft} as `mm:ss`. */
   protected readonly timerDisplay = computed(() => {
     const t = this.examTimeLeft();
     const m = Math.floor(t / 60).toString().padStart(2, '0');
@@ -1456,22 +1550,31 @@ export class Certification implements OnDestroy {
     return `${m}:${s}`;
   });
 
+  /** The question on screen, or `null` when the draw is empty. */
   protected readonly currentQ = computed(() => {
     const qs = this.examQs();
     const i  = this.examIndex();
     return qs[i] ?? null;
   });
 
+  /** Correct answers so far. Compares against `q.answer` directly, since this
+   *  page does not shuffle options. */
   protected readonly examScore = computed(() => {
     const qs  = this.examQs();
     const sel = this.examSel();
     return qs.filter((q, i) => sel[i] === q.answer).length;
   });
 
+  /** Marks needed to pass: 70% of the questions actually drawn, rounded up —
+   *  derived from the draw rather than fixed, because a tier with fewer than
+   *  20 authored questions still has to be scored against its own paper. */
   protected readonly passThreshold = computed(() =>
     Math.ceil(this.examQs().length * 0.7),
   );
 
+  /** Questions answered wrongly **or skipped**, with what was chosen — the
+   *  results screen's review list. Unanswered counts as missed: on the real
+   *  paper a blank scores nothing either. */
   protected readonly missedQs = computed(() => {
     const qs  = this.examQs();
     const sel = this.examSel();
@@ -1480,9 +1583,19 @@ export class Certification implements OnDestroy {
       .filter((item) => item.selected !== item.q.answer);
   });
 
+  /** Handle for the countdown; `null` when no exam is running. */
   private interval: ReturnType<typeof setInterval> | null = null;
 
   // ── Exam controls ─────────────────────────────────────────────────────────
+  /**
+   * Draws a paper for a tier and starts the clock.
+   *
+   * Every per-question array is re-sized to the actual draw, which may be
+   * smaller than 20 if a tier has fewer authored questions — the initial
+   * `Array(20)` values are placeholders, not the contract.
+   *
+   * @param level The tier slug (`junior` | `mid` | `senior`).
+   */
   startExam(level: string) {
     const lv = level as 'junior' | 'mid' | 'senior';
     const pool = EXAM_QS.filter((q) => q.level === lv);
@@ -1498,17 +1611,33 @@ export class Certification implements OnDestroy {
     this.startTimer();
   }
 
+  /**
+   * Records an answer for the current question. Locked once the answer has been
+   * revealed, so the reveal cannot be used to fix the score.
+   *
+   * @param idx Index of the chosen option.
+   */
   selectOpt(idx: number) {
     const i = this.examIndex();
     if (this.examRevealed()[i]) return;
     this.examSel.update((a) => { const n = [...a]; n[i] = idx; return n; });
   }
 
+  /**
+   * Reveals the current question's answer and explanation mid-sitting.
+   *
+   * Unlike the Mock Exam and Exam Day, which withhold feedback until the end.
+   * This page's job is to show what the real paper *feels* like, and the
+   * revealed answer also freezes the selection, so it costs nothing in score
+   * integrity.
+   */
   checkAnswer() {
     const i = this.examIndex();
     this.examRevealed.update((a) => { const n = [...a]; n[i] = true; return n; });
   }
 
+  /** Advances, or ends the sitting after the last question. Forward-only:
+   *  a revealed answer makes going back pointless. */
   nextQuestion() {
     const next = this.examIndex() + 1;
     if (next >= this.examQs().length) {
@@ -1518,20 +1647,29 @@ export class Certification implements OnDestroy {
     }
   }
 
+  /** Stops the clock and shows the results. Also the timer's zero path. */
   endExam() {
     this.stopTimer();
     this.view.set('results');
   }
 
+  /** Abandons the sitting and returns to the study map. No result recorded. */
   exitExam() {
     this.stopTimer();
     this.view.set('map');
   }
 
+  /** Sits the same tier again with a fresh draw. */
   retryExam() {
     this.startExam(this.examLevel());
   }
 
+  /**
+   * Starts the one-second countdown, ending the exam at zero.
+   *
+   * Stops any existing timer first, so a double start cannot leave two
+   * intervals running and burn the clock at double speed.
+   */
   private startTimer() {
     this.stopTimer();
     this.interval = setInterval(() => {
@@ -1542,9 +1680,12 @@ export class Certification implements OnDestroy {
     }, 1000);
   }
 
+  /** Clears the countdown if one is running. Safe to call repeatedly. */
   private stopTimer() {
     if (this.interval) { clearInterval(this.interval); this.interval = null; }
   }
 
+  /** Clears the countdown on teardown so navigating away mid-exam cannot leave
+   *  an interval ticking against a destroyed component. */
   ngOnDestroy() { this.stopTimer(); }
 }

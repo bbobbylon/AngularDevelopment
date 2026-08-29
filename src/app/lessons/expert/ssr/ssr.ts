@@ -2,17 +2,13 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: Server-Side Rendering in depth — CSR vs SSR vs prerender timelines,
- * per-route render modes (RenderMode.Server / Prerender / Client), SSR-safe
- * code patterns, the double-fetch problem and the HTTP transfer cache, server
- * stability, and the pitfalls that break real SSR deployments.
- *
- * Two interactive explorers: a request-timeline comparator and a
- * "pick the right render mode for this page" decision lab.
+ * Which rendering strategy the timeline is showing.
  */
-
 type Strategy = 'CSR' | 'SSR' | 'SSG';
 
+/**
+ * One step in a rendering timeline: who does it, and what happens.
+ */
 interface TimelineStep {
   actor: 'browser' | 'server' | 'build';
   text: string;
@@ -57,6 +53,9 @@ const TIMELINES: Record<Strategy, { blurb: string; steps: TimelineStep[] }> = {
   },
 };
 
+/**
+ * One kind of page, and the render mode that suits it.
+ */
 interface PageKind {
   label: string;
   mode: 'Server' | 'Prerender' | 'Client';
@@ -98,6 +97,15 @@ const PAGE_KINDS: PageKind[] = [
   },
 ];
 
+/**
+ * Lesson: Server-Side Rendering in depth — CSR vs SSR vs prerender timelines,
+ * per-route render modes (RenderMode.Server / Prerender / Client), SSR-safe
+ * code patterns, the double-fetch problem and the HTTP transfer cache, server
+ * stability, and the pitfalls that break real SSR deployments.
+ *
+ * Two interactive explorers: a request-timeline comparator and a
+ * "pick the right render mode for this page" decision lab.
+ */
 @Component({
   selector: 'app-lesson-ssr',
   imports: [RouterLink],
@@ -300,13 +308,31 @@ const PAGE_KINDS: PageKind[] = [
   `,
 })
 export class Ssr {
+  /**
+   * The three strategies.
+   */
   readonly strategies: Strategy[] = ['CSR', 'SSR', 'SSG'];
+  /**
+   * Each strategy's timeline.
+   */
   readonly timelines = TIMELINES;
+  /**
+   * The strategy being shown.
+   */
   readonly strategy = signal<Strategy>('CSR');
 
+  /**
+   * The page kinds.
+   */
   readonly pageKinds = PAGE_KINDS;
+  /**
+   * The page kind being examined, or `null` for none.
+   */
   readonly activePage = signal<PageKind | null>(null);
 
+  /**
+   * Sample: `ng add @angular/ssr` and the server config it scaffolds.
+   */
   readonly setupSample = `ng add @angular/ssr        # scaffolds server.ts, server build & entry
 
 // app.config.server.ts — merged with your normal appConfig on the server
@@ -316,6 +342,11 @@ export const serverConfig: ApplicationConfig = {
   providers: [provideServerRendering(withRoutes(serverRoutes))],
 };`;
 
+  /**
+   * Sample: `app.routes.server.ts` — per-route `RenderMode`, so one app can
+   * prerender its marketing pages, server-render its dashboards and leave the rest
+   * client-only.
+   */
   readonly renderModeSample = `// app.routes.server.ts
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
@@ -332,6 +363,13 @@ export const serverRoutes: ServerRoute[] = [
   },
 ];`;
 
+  /**
+   * Sample: code that crashes on the server.
+   *
+   * `window`, `document` and `localStorage` do not exist in Node, so touching them
+   * in a field initialiser throws during every server render. `afterNextRender` is
+   * the browser-only slot.
+   */
   readonly safeCodeSample = `// ❌ crashes on the server — window doesn't exist there
 export class Chart {
   width = window.innerWidth;   // ReferenceError during every SSR render
@@ -352,6 +390,10 @@ constructor() {
   });
 }`;
 
+  /**
+   * Sample: the HTTP transfer cache, which carries the server's fetched data into
+   * the client so hydration does not immediately refetch everything.
+   */
   readonly transferSample = `// on by default via provideClientHydration() — tune it:
 provideClientHydration(
   withHttpTransferCacheOptions({

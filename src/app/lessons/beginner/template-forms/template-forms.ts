@@ -491,8 +491,17 @@ import { RouterLink } from '@angular/router';
   ],
 })
 export class TemplateForms {
+  /**
+   * The last submitted form value, shown as JSON.
+   */
   protected readonly submitted = signal<unknown>(null);
 
+  /**
+   * Records a submission.
+   *
+   * @param value The form's value, assembled by `ngForm` from the `name`
+   *              attributes of its controls.
+   */
   protected submit(value: unknown) {
     this.submitted.set(value);
   }
@@ -500,8 +509,22 @@ export class TemplateForms {
   // Live demo: a WritableSignal driving a two-way ngModel binding, with two
   // computed() signals derived from it — see "Live demo — a signal living
   // inside a two-way ngModel binding" above.
+  /**
+   * The username in the signal-based alternative demo.
+   */
   protected readonly username = signal('');
+  /**
+   * Its length, derived.
+   */
   protected readonly usernameLength = computed(() => this.username().length);
+  /**
+   * A strength verdict, derived.
+   *
+   * The contrast the lesson draws: this is the same validation a template-driven
+   * form would express through directives and `#ref="ngModel"`, written as plain
+   * reactive state instead — testable without a fixture, and readable without
+   * knowing what `ngModel` exports.
+   */
   protected readonly usernameStrength = computed(() => {
     const len = this.usernameLength();
     if (len === 0) return 'empty';
@@ -510,6 +533,9 @@ export class TemplateForms {
     return 'strong';
   });
 
+  /**
+   * Sample: the `FormsModule` import that template-driven forms require.
+   */
   readonly setupSample = `import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -519,6 +545,10 @@ export class TemplateForms {
 })
 export class SignupForm {}`;
 
+  /**
+   * Sample: the anatomy of a template-driven form — `#f="ngForm"`, `ngSubmit`, the
+   * `name` attribute, and validation state.
+   */
   readonly anatomySample = `<form #f="ngForm" (ngSubmit)="submit(f.value)">
   <input
     name="name"
@@ -533,6 +563,10 @@ export class SignupForm {}`;
   }
 </form>`;
 
+  /**
+   * Sample: the three `ngModel` forms — one-way into the form model, two-way to a
+   * field, and standalone outside a `<form>`.
+   */
   readonly variationsSample = `<input name="q" ngModel />                  // one-way into the form model
 <input name="q" [(ngModel)]="query" />      // two-way to a component field
 <input ngModel #x="ngModel" />              // standalone — no parent <form>
@@ -541,6 +575,9 @@ export class SignupForm {}`;
   <input name="city" ngModel />            // -> form.value.address.city
 </div>`;
 
+  /**
+   * Sample: the same form expressed with signals and `computed`.
+   */
   readonly signalFormSample = `protected readonly username = signal('');
 
 readonly usernameLength = computed(() => this.username().length);
@@ -557,6 +594,10 @@ readonly usernameStrength = computed(() => {
 // desugars to:
 // [ngModel]="username()" (ngModelChange)="username.set($event)"`;
 
+  /**
+   * Sample: under the hood — `ControlValueAccessor` as the DOM-to-model bridge,
+   * and how `ngForm` assembles a value from named controls.
+   */
   readonly underTheHoodSample = `// 1) The DOM <-> model bridge: ControlValueAccessor
 interface ControlValueAccessor {
   writeValue(value: any): void;                 // model -> DOM

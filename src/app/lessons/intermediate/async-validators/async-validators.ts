@@ -41,6 +41,29 @@ function uniqueUsernameDebounced(onCheckStart?: () => void): AsyncValidatorFn {
     );
 }
 
+/**
+ * Lesson: Async Validators — validation that has to ask a server.
+ *
+ * Covers `AsyncValidatorFn`, the `PENDING` status, why async validators only run
+ * once the synchronous ones pass, and how multiple async validators' errors are
+ * merged.
+ *
+ * Two things the lesson insists on:
+ *
+ * - **`PENDING` is not `INVALID`.** `form.invalid` is false while a check is in
+ *   flight, so `[disabled]="form.invalid"` leaves the submit button enabled
+ *   during exactly the window where it should not be. The fix is to check
+ *   `pending` too.
+ * - **Debounce, or you have built a keystroke-per-request API client.** Two
+ *   identical username fields run side by side — one naive, one debounced — with
+ *   a request counter on each. Type a name into both and the difference is a
+ *   number.
+ *
+ * Also covers the completion requirement: an async validator's observable must
+ * emit *and complete*, or the control stays `PENDING` forever.
+ *
+ * @see intermediate/reactive-forms — the form model these attach to.
+ */
 @Component({
   selector: 'app-lesson-async-validators',
   imports: [RouterLink, ReactiveFormsModule],
@@ -502,23 +525,41 @@ function uniqueUsernameDebounced(onCheckStart?: () => void): AsyncValidatorFn {
   ],
 })
 export class AsyncValidators {
+  /**
+   * Builds the controls.
+   */
   private readonly fb = inject(FormBuilder);
 
+  /**
+   * Requests the naive validator issued.
+   */
   protected readonly naiveChecks = signal(0);
+  /**
+   * Requests the debounced validator issued. The gap is the point.
+   */
   protected readonly debouncedChecks = signal(0);
 
+  /**
+   * The naive field — one request per keystroke.
+   */
   protected readonly username = this.fb.control('', {
     validators: [Validators.required],
     asyncValidators: [uniqueUsername(() => this.naiveChecks.update((n) => n + 1))],
     updateOn: 'change',
   });
 
+  /**
+   * The debounced field — one request per pause.
+   */
   protected readonly usernameDebounced = this.fb.control('', {
     validators: [Validators.required],
     asyncValidators: [uniqueUsernameDebounced(() => this.debouncedChecks.update((n) => n + 1))],
     updateOn: 'change',
   });
 
+  /**
+   * Resets both fields and both counters so the race can be re-run.
+   */
   protected resetRace() {
     this.username.reset('');
     this.usernameDebounced.reset('');
@@ -529,11 +570,28 @@ export class AsyncValidators {
   // ---- code samples shown in the template (kept as fields so literal braces
   // never sit directly in the HTML template — see lesson-authoring notes) ----
 
+  /**
+   * Literal `{ taken: true }` for the template. Braces are template syntax in
+   * Angular, so an error-object example has to arrive as a string rather than be
+   * written inline.
+   */
   protected readonly objTakenTrue = '{ taken: true }';
+  /**
+   * A literal `{`, for the same reason.
+   */
   protected readonly objOpen = '{';
+  /**
+   * A literal `}`, for the same reason.
+   */
   protected readonly objClose = '}';
+  /**
+   * The spread that merges two validators' error objects, as a literal.
+   */
   protected readonly mergeSpread = '{ ...uniqueUsernameErrors, ...bannedWordErrors }';
 
+  /**
+   * Sample: defining an `AsyncValidatorFn`.
+   */
   readonly defineSample = `const TAKEN = ['admin', 'root', 'ada'];
 
 function uniqueUsername(): AsyncValidatorFn {
@@ -544,12 +602,19 @@ function uniqueUsername(): AsyncValidatorFn {
     );
 }`;
 
+  /**
+   * Sample: registering it, in the `asyncValidators` slot rather than alongside
+   * the synchronous ones.
+   */
   readonly registerSample = `username: ['', {
   validators: [Validators.required],
   asyncValidators: [uniqueUsername()],
   updateOn: 'blur',   // optional: validate on blur, not every keystroke
 }],`;
 
+  /**
+   * Sample: debouncing inside the validator with `timer` + `switchMap`.
+   */
   readonly debounceSample = `function uniqueUsernameDebounced(): AsyncValidatorFn {
   return (control: AbstractControl): Observable<ValidationErrors | null> =>
     timer(400).pipe(                                // wait for a pause in typing
@@ -558,6 +623,10 @@ function uniqueUsername(): AsyncValidatorFn {
     );
 }`;
 
+  /**
+   * Sample: `updateValueAndValidity` simplified from the framework source —
+   * where `PENDING` is set, and why sync validators gate the async ones.
+   */
   readonly underTheHoodSample = `// Simplified from AbstractControl (@angular/forms) — runs on every value change:
 
 updateValueAndValidity() {
@@ -574,16 +643,27 @@ updateValueAndValidity() {
   }
 }`;
 
+  /**
+   * Sample: the status getters, showing that `invalid` and `pending` are separate
+   * booleans over one `status` string.
+   */
   readonly statusGettersSample = `get valid()   { return this.status === 'VALID'; }
 get invalid() { return this.status === 'INVALID'; }
 get pending() { return this.status === 'PENDING'; }`;
 
+  /**
+   * Sample: the disabled-button bug and its fix.
+   */
   readonly disableSample = `<!-- WRONG — 'invalid' is only true for status === 'INVALID'; PENDING is separate -->
 <button [disabled]="form.invalid">Submit</button>
 
 <!-- RIGHT — 'valid' is only true for status === 'VALID', so this blocks PENDING too -->
 <button [disabled]="!form.valid">Submit</button>`;
 
+  /**
+   * Sample: multiple async validators, and how `composeAsyncValidators` merges
+   * their error objects.
+   */
   readonly multipleValidatorsSample = `asyncValidators: [uniqueUsername(), bannedWordCheck()],
 
 // internally, composeAsyncValidators() does roughly —

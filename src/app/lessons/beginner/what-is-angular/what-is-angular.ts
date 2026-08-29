@@ -2,17 +2,6 @@ import { CurrencyPipe } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: What is Angular? — the first page of the curriculum.
- *
- * Rather than restate the marketing summary, this lesson makes the core idea
- * tangible: a framework is a machine that re-renders your UI from your data.
- * Two live demos prove it (a signal-driven counter and a fine-grained cart
- * total), every code sample is walked line by line, and the component model,
- * bootstrap pipeline, render pipeline, standalone-vs-NgModule history and the
- * classic beginner misconceptions are all covered so a newcomer finishes with
- * a real mental model — not a list of buzzwords.
- */
 
 /**
  * Live demo #1 — the smallest useful component: a counter.
@@ -84,13 +73,31 @@ export class WaCounter {
   `],
 })
 export class WaCart {
+  /**
+   * Id source for cart lines. A counter rather than array length, so ids stay
+   * unique after a removal.
+   */
   private nextId = 1;
+  /**
+   * The cart contents — the single source of truth this demo derives everything
+   * else from.
+   */
   readonly items = signal<{ id: number; name: string; price: number }[]>([]);
   /** Derived: number of items. Recomputes only when `items` changes. */
   readonly count = computed(() => this.items().length);
   /** Derived: sum of prices. Angular keeps this in sync with `items` for you. */
   readonly total = computed(() => this.items().reduce((sum, i) => sum + i.price, 0));
 
+  /**
+   * Adds a line to the cart.
+   *
+   * Replaces the array rather than pushing to it. Signals notify on assignment,
+   * so an in-place `push` would change the data and update nothing — the habit
+   * that matters most when the app later moves to `OnPush`.
+   *
+   * @param name  Item name.
+   * @param price Item price.
+   */
   add(name: string, price: number) {
     // Replace the array (new reference) rather than mutating it in place —
     // signals notify on assignment, and this is the habit that keeps OnPush happy.
@@ -98,6 +105,17 @@ export class WaCart {
   }
 }
 
+/**
+ * Lesson: What is Angular? — the first page of the curriculum.
+ *
+ * Rather than restate the marketing summary, this lesson makes the core idea
+ * tangible: a framework is a machine that re-renders your UI from your data.
+ * Two live demos prove it (a signal-driven counter and a fine-grained cart
+ * total), every code sample is walked line by line, and the component model,
+ * bootstrap pipeline, render pipeline, standalone-vs-NgModule history and the
+ * classic beginner misconceptions are all covered so a newcomer finishes with
+ * a real mental model — not a list of buzzwords.
+ */
 @Component({
   selector: 'app-lesson-what-is-angular',
   imports: [RouterLink, WaCounter, WaCart],
@@ -304,6 +322,10 @@ export class WaCart {
   `],
 })
 export class WhatIsAngular {
+  /**
+   * Sample: the counter component, annotated — the smallest complete Angular
+   * component.
+   */
   protected readonly counterSample = `@Component({
   selector: 'app-wa-counter',          // the tag you write: <app-wa-counter />
   template: \`
@@ -317,6 +339,9 @@ export class WaCounter {
   doubled = computed(() => this.count() * 2);  // recomputes only when count changes
 }`;
 
+  /**
+   * Sample: the cart's state, showing one source of truth with two derivations.
+   */
   protected readonly cartSample = `export class WaCart {
   items = signal<{ id: number; name: string; price: number }[]>([]); // source of truth
   count = computed(() => this.items().length);                       // derived
@@ -328,6 +353,10 @@ export class WaCounter {
   }
 }`;
 
+  /**
+   * Sample: `main.ts` and `bootstrapApplication` — the standalone entry point,
+   * with no root `NgModule` in sight.
+   */
   protected readonly bootstrapSample = `// main.ts — the single entry point of the app
 bootstrapApplication(App, {
   providers: [

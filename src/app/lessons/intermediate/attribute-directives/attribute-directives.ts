@@ -28,13 +28,27 @@ export class HighlightDirective {
   /** signal input: typed, readonly, no @Input() needed. Default = amber highlight. */
   appHighlight = input<string>('var(--amber)');
 
+  /**
+   * The background the host binding reads. Empty means no highlight.
+   */
   protected readonly bg: WritableSignal<string> = signal('');
 
+  /**
+   * Nothing to wire — the host bindings are declarative and the listeners below
+   * drive them. Kept as a marker for where an `effect` would go if the colour had
+   * to be derived rather than set.
+   */
   constructor() {
     // effect() could also sync the color, but @HostListener is simpler here.
   }
 
+  /**
+   * Applies the highlight on pointer entry.
+   */
   @HostListener('mouseenter') onEnter() { this.bg.set(this.appHighlight()); }
+  /**
+   * Removes it on pointer exit.
+   */
   @HostListener('mouseleave') onLeave() { this.bg.set(''); }
 }
 
@@ -49,20 +63,45 @@ export class HighlightDirective {
   },
 })
 export class BadgeDirective {
+  /**
+   * The badge text.
+   */
   label = input<string>('New');
 
+  /**
+   * Whether the badge is active. Read by a host class binding.
+   */
   readonly active = signal(true);
+  /**
+   * The computed ARIA label. Read by a host attribute binding, so the accessible
+   * name tracks the visual state instead of drifting from it.
+   */
   readonly ariaLabel = signal('');
 
+  /**
+   * The host element.
+   */
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  /**
+   * The renderer. Used instead of touching `nativeElement` directly, so the
+   * directive still works where there is no DOM — server rendering, or a
+   * non-browser platform.
+   */
   private readonly renderer = inject(Renderer2);
 
+  /**
+   * Keeps the ARIA label in step with the active state.
+   */
   constructor() {
     effect(() => {
       this.ariaLabel.set(this.active() ? `Badge: ${this.label()}` : '');
     });
   }
 
+  /**
+   * Flips the active state. Reachable from a parent template through the
+   * directive's `exportAs` name.
+   */
   toggle(): void { this.active.update(v => !v); }
 }
 
@@ -72,12 +111,28 @@ export class BadgeDirective {
   standalone: true,
 })
 export class DemoTooltipDirective implements OnDestroy {
+  /**
+   * The tooltip text. Aliased to the selector, so `appDemoTooltip="…"` both applies
+   * the directive and supplies its input.
+   */
   text = input<string>('', { alias: 'appDemoTooltip' });
 
+  /**
+   * The host element, used to position the tooltip against.
+   */
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  /**
+   * The renderer, for creating and removing the tooltip node.
+   */
   private readonly renderer = inject(Renderer2);
+  /**
+   * The live tooltip node, or `null` when hidden.
+   */
   private tip: HTMLElement | null = null;
 
+  /**
+   * Creates and positions the tooltip on pointer entry.
+   */
   @HostListener('mouseenter') show(): void {
     if (!this.text()) return;
     this.tip = this.renderer.createElement('div') as HTMLElement;
@@ -90,6 +145,9 @@ export class DemoTooltipDirective implements OnDestroy {
     this.renderer.setStyle(this.tip, 'top', `${rect.top - 36 + window.scrollY}px`);
   }
 
+  /**
+   * Removes the tooltip.
+   */
   @HostListener('mouseleave') hide(): void {
     if (this.tip) {
       this.renderer.removeChild(document.body, this.tip);
@@ -97,9 +155,30 @@ export class DemoTooltipDirective implements OnDestroy {
     }
   }
 
+  /**
+   * Removes the tooltip on teardown.
+   *
+   * Not optional: the node is appended to `document.body` rather than to the host,
+   * so destroying the host does **not** take it with it. Skip this and every
+   * hover leaves an orphan behind.
+   */
   ngOnDestroy(): void { this.hide(); }
 }
 
+/**
+ * Lesson: Custom Attribute Directives — behaviour without a template.
+ *
+ * A directive is a component without a view: it attaches to an existing element
+ * and changes how it looks or behaves. Covers signal inputs on directives, the
+ * `host` metadata object (which replaces `@HostBinding` / `@HostListener`),
+ * `ElementRef` against `Renderer2`, `exportAs`, and cleanup.
+ *
+ * Three directives are defined and demonstrated: {@link HighlightDirective} for
+ * host bindings, {@link BadgeDirective} for `exportAs` and derived ARIA, and
+ * {@link DemoTooltipDirective} for creating DOM — and disposing of it.
+ *
+ * @see shared/tooltip.directive — the app's own tooltip, built on this pattern.
+ */
 @Component({
   selector: 'app-lesson-attribute-directives',
   standalone: true,

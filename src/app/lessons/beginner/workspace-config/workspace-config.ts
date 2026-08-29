@@ -2,10 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * Lesson: the three configuration layers of every Angular workspace —
- * package.json (what to install), angular.json (how to build), and the
- * tsconfig family (how to compile TypeScript). Includes an interactive
- * "where does this setting live?" explorer.
+ * One "where would you change this?" exercise: a goal, the file that owns it,
+ * and the answer.
  */
 interface ConfigTask {
   label: string;
@@ -85,6 +83,12 @@ const CONFIG_TASKS: ConfigTask[] = [
   },
 ];
 
+/**
+ * Lesson: the three configuration layers of every Angular workspace —
+ * package.json (what to install), angular.json (how to build), and the
+ * tsconfig family (how to compile TypeScript). Includes an interactive
+ * "where does this setting live?" explorer.
+ */
 @Component({
   selector: 'app-lesson-workspace-config',
   imports: [RouterLink],
@@ -246,9 +250,19 @@ const CONFIG_TASKS: ConfigTask[] = [
   `,
 })
 export class WorkspaceConfig {
+  /**
+   * The exercises.
+   */
   readonly tasks = CONFIG_TASKS;
+  /**
+   * The exercise being examined, or `null` for none.
+   */
   readonly active = signal<ConfigTask | null>(null);
 
+  /**
+   * Sample: an annotated `package.json`, focused on the scripts and the
+   * dependency/devDependency split.
+   */
   readonly packageJsonSample = `{
   "scripts": {
     "start": "ng serve",       // npm start
@@ -266,6 +280,10 @@ export class WorkspaceConfig {
   }
 }`;
 
+  /**
+   * Sample: an annotated `angular.json`, focused on builder options, budgets and
+   * configurations.
+   */
   readonly angularJsonSample = `{
   "projects": {
     "my-app": {

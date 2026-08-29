@@ -12,16 +12,11 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: dynamic components — NgComponentOutlet vs createComponent(), live
- * demos for both plus output wiring and lifecycle control, lazy import()
- * splitting, custom injectors for dialog patterns, projectable nodes, and the
- * ComponentRef API. This is the machinery behind modals, toasts and CMS
- * block renderers.
- */
-
 // ── Demo components that will be rendered dynamically ────────────────────────
 
+/**
+ * One of the interchangeable panels, for the `NgComponentOutlet` demo.
+ */
 @Component({
   selector: 'app-info-panel',
   template: `
@@ -33,9 +28,15 @@ import { RouterLink } from '@angular/router';
     .dyn-panel--info { border-left:3px solid var(--blue); background:rgba(2,132,199,.08); }`],
 })
 export class InfoPanel {
+  /**
+   * The panel's message.
+   */
   message = input('all systems nominal');
 }
 
+/**
+ * A second interchangeable panel.
+ */
 @Component({
   selector: 'app-warning-panel',
   template: `
@@ -47,9 +48,15 @@ export class InfoPanel {
     .dyn-panel--warn { border-left:3px solid var(--amber); background:rgba(217,119,6,.08); }`],
 })
 export class WarningPanel {
+  /**
+   * The panel's message.
+   */
   message = input('check your inputs');
 }
 
+/**
+ * A third interchangeable panel.
+ */
 @Component({
   selector: 'app-success-panel',
   template: `
@@ -61,6 +68,9 @@ export class WarningPanel {
     .dyn-panel--success { border-left:3px solid var(--green); background:rgba(5,150,105,.08); }`],
 })
 export class SuccessPanel {
+  /**
+   * The panel's message.
+   */
   message = input('operation completed');
 }
 
@@ -79,12 +89,26 @@ export class SuccessPanel {
   styles: [`.confirm { border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: 0 10px 10px 0; padding: 14px 16px; }`],
 })
 export class ConfirmPanel {
+  /**
+   * The question to confirm.
+   */
   question = input('Are you sure?');
+  /**
+   * Emits the user's answer. Subscribed to imperatively by the host, since a
+   * dynamically created component has no template to bind `(confirmed)` in.
+   */
   confirmed = output<boolean>();
 }
 
 // ── Lesson component ──────────────────────────────────────────────────────────
 
+/**
+ * Lesson: dynamic components — NgComponentOutlet vs createComponent(), live
+ * demos for both plus output wiring and lifecycle control, lazy import()
+ * splitting, custom injectors for dialog patterns, projectable nodes, and the
+ * ComponentRef API. This is the machinery behind modals, toasts and CMS
+ * block renderers.
+ */
 @Component({
   selector: 'app-lesson-dynamic-components',
   // Panels are instantiated via NgComponentOutlet / createComponent (runtime
@@ -342,21 +366,68 @@ export class ConfirmPanel {
   `,
 })
 export class DynamicComponents implements OnDestroy {
+  /**
+   * The info panel's class, exposed so the template can name it. Templates resolve
+   * against the component instance, so an imported class is not otherwise
+   * reachable.
+   */
   protected readonly InfoPanel = InfoPanel;
+  /**
+   * The warning panel's class.
+   */
   protected readonly WarningPanel = WarningPanel;
+  /**
+   * The success panel's class.
+   */
   protected readonly SuccessPanel = SuccessPanel;
 
+  /**
+   * Which component `NgComponentOutlet` is rendering. A `Type`, not an instance —
+   * swapping it swaps the rendered component.
+   */
   protected readonly current = signal<Type<unknown>>(InfoPanel);
+  /**
+   * The message passed to whichever panel is showing.
+   */
   protected readonly note = signal('all systems nominal');
+  /**
+   * Status line for the imperative demo.
+   */
   protected readonly imperativeStatus = signal('not mounted');
+  /**
+   * The last answer from the confirm demo.
+   */
   protected readonly confirmResult = signal('— none yet —');
 
+  /**
+   * The insertion point for the imperative demo.
+   *
+   * `read: ViewContainerRef` is what turns the template reference into a container
+   * rather than an `ElementRef`. Note the new component is inserted as a **sibling**
+   * of the anchor, not inside it.
+   */
   @ViewChild('anchor', { read: ViewContainerRef }) private anchor!: ViewContainerRef;
+  /**
+   * The insertion point for the confirm demo.
+   */
   @ViewChild('confirmAnchor', { read: ViewContainerRef }) private confirmAnchor!: ViewContainerRef;
+  /**
+   * The imperatively created panel, or `null`. Held because creating it is only
+   * half the job — this is the handle that updates and destroys it.
+   */
   private imperativeRef: ComponentRef<InfoPanel> | null = null;
+  /**
+   * The imperatively created confirm panel, or `null`.
+   */
   private confirmRef: ComponentRef<ConfirmPanel> | null = null;
+  /**
+   * How many imperative updates have run, so each shows a different message.
+   */
   private updateCount = 0;
 
+  /**
+   * Creates a panel imperatively.
+   */
   protected imperativeMount(): void {
     this.anchor?.clear();
     this.imperativeRef = this.anchor.createComponent(InfoPanel);
@@ -364,6 +435,13 @@ export class DynamicComponents implements OnDestroy {
     this.imperativeStatus.set('mounted ✓');
   }
 
+  /**
+   * Updates the created panel's input.
+   *
+   * Via `setInput` rather than by assigning to `ref.instance.message` directly:
+   * `setInput` marks the view dirty and works with `OnPush`, while a raw property
+   * assignment updates the field and may never be rendered.
+   */
   protected imperativeUpdate(): void {
     if (!this.imperativeRef) {
       this.imperativeStatus.set('not mounted — click Mount first');
@@ -374,6 +452,13 @@ export class DynamicComponents implements OnDestroy {
     this.imperativeStatus.set(`updated (${this.updateCount}×)`);
   }
 
+  /**
+   * Destroys the created panel.
+   *
+   * Creating a component this way opts you out of Angular's lifecycle management —
+   * nothing will destroy it for you, and an undestroyed component keeps its
+   * subscriptions and its DOM.
+   */
   protected imperativeDestroy(): void {
     this.imperativeRef?.destroy();
     this.imperativeRef = null;
@@ -394,12 +479,18 @@ export class DynamicComponents implements OnDestroy {
     });
   }
 
+  /**
+   * Destroys anything still mounted when the lesson is left.
+   */
   ngOnDestroy(): void {
     this.imperativeRef?.destroy();
     this.confirmRef?.destroy();
   }
 
   // ── code samples ────────────────────────────────────────────────────────
+  /**
+   * Sample: `NgComponentOutlet`, the declarative form — enough for most cases.
+   */
   readonly outletSample = `// TypeScript
 protected readonly current = signal<Type<unknown>>(InfoPanel);
 
@@ -412,6 +503,10 @@ protected readonly current = signal<Type<unknown>>(InfoPanel);
 // Swap component at runtime — old instance destroyed, new one created
 current.set(WarningPanel);`;
 
+  /**
+   * Sample: `ViewContainerRef.createComponent`, the imperative form, and the
+   * `ComponentRef` it returns.
+   */
   readonly imperativeSample = `private readonly vcr = inject(ViewContainerRef);
 private ref: ComponentRef<InfoPanel> | null = null;
 
@@ -430,6 +525,10 @@ destroy(): void {
   this.ref = null;
 }`;
 
+  /**
+   * Sample: subscribing to a dynamically created component's outputs — the
+   * imperative twin of an event binding.
+   */
   readonly outputsSample = `const ref = this.vcr.createComponent(ConfirmPanel);
 ref.setInput('question', 'Deploy to production?');
 
@@ -439,6 +538,10 @@ ref.instance.confirmed.subscribe((yes: boolean) => {
   ref.destroy();               // subscription is cleaned up with the ref
 });`;
 
+  /**
+   * Sample: creating a component from a lazily imported chunk, which is where
+   * imperative creation genuinely earns its cost.
+   */
   readonly lazySample = `async mountLazy(): Promise<void> {
   // The chunk is NOT downloaded until this line runs:
   const { HeavyChart } = await import('./heavy-chart.component');
@@ -449,6 +552,15 @@ ref.instance.confirmed.subscribe((yes: boolean) => {
 protected readonly lazyClass = signal<Type<unknown> | null>(null);
 async load() { this.lazyClass.set((await import('./heavy-chart.component')).HeavyChart); }`;
 
+  /**
+   * Sample: `createComponent` with a custom injector, for passing data into a
+   * component that has no parent template to bind from — the mechanism behind
+   * every dialog service's `DIALOG_DATA`.
+   *
+   * Note the `attachView` line. A component created outside the view tree is not
+   * in any change-detection pass until it is attached, so skipping it produces a
+   * dialog that renders once and then never updates.
+   */
   readonly injectorSample = `import { createComponent, EnvironmentInjector, Injector } from '@angular/core';
 
 const injector = Injector.create({
@@ -463,6 +575,11 @@ const ref = createComponent(MyDialog, {
 inject(ApplicationRef).attachView(ref.hostView);  // ← or it never updates!
 document.body.appendChild(ref.location.nativeElement);`;
 
+  /**
+   * Sample: `projectableNodes`, which supplies content for a dynamically created
+   * component's `<ng-content>` slots. The array is positional — one entry per slot,
+   * in declaration order.
+   */
   readonly projectionSample = `// component with slots:  <ng-content select="[body]" />  <ng-content />
 const body = renderer.createText('Saved successfully.');
 

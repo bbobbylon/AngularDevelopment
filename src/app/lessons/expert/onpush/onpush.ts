@@ -9,15 +9,13 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-/**
- * Lesson: OnPush change detection — what actually marks a view dirty, live
- * proof of the skip, the mutation trap, markForCheck vs detectChanges, and
- * how signals turn OnPush into precise per-view reactivity.
- */
-
 /** Shared signal used to prove that only the views that READ it get re-rendered. */
 @Injectable({ providedIn: 'root' })
 export class TickerStore {
+  /**
+   * The shared count. Which views re-render when it changes is the point of the
+   * reader/non-reader pair below.
+   */
   readonly count = signal(0);
 }
 
@@ -34,7 +32,13 @@ export class TickerStore {
   styles: [`.box { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }`],
 })
 export class OnpushChild {
+  /**
+   * The value passed in.
+   */
   value = input(0);
+  /**
+   * How many times this view has been checked.
+   */
   private n = 0;
   /** Getter runs once per check of THIS view — a live change-detection counter. */
   get tick() {
@@ -56,8 +60,18 @@ export class OnpushChild {
   styles: [`.box { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }`],
 })
 export class OnpushMutateChild {
+  /**
+   * A plain object passed as an input. Plain on purpose: `OnPush` compares inputs
+   * by reference, so mutating this object is invisible and replacing it is not.
+   */
   user = input.required<{ name: string; clicks: number }>();
+  /**
+   * How many times this view has been checked.
+   */
   private n = 0;
+  /**
+   * The check count.
+   */
   get tick() {
     return ++this.n;
   }
@@ -83,10 +97,26 @@ export class OnpushMutateChild {
   styles: [`.box { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }`],
 })
 export class OnpushSilentChild {
+  /**
+   * This view's change detector, so the demo can mark it dirty by hand.
+   */
   private cdr = inject(ChangeDetectorRef);
+  /**
+   * The last async result.
+   */
   protected result = '—';
+  /**
+   * Sequence number, so successive results differ.
+   */
   private n = 0;
 
+  /**
+   * Loads without marking the view.
+   *
+   * A plain field written from a `setTimeout`: no input change, no event, no
+   * signal. The field updates and the screen does not, which is the single most
+   * common `OnPush` complaint.
+   */
   protected loadSilently() {
     setTimeout(() => {
       // plain field mutation: no signal, no input, no event → nobody is told
@@ -94,6 +124,13 @@ export class OnpushSilentChild {
     }, 300);
   }
 
+  /**
+   * Loads and calls `markForCheck()`.
+   *
+   * The same write, plus telling Angular to check this view on the next pass. Note
+   * it is `markForCheck` and not `detectChanges` — the former flags the view and
+   * its ancestor path and lets the normal pass do the work.
+   */
   protected loadAndMark() {
     setTimeout(() => {
       this.result = `loaded #${++this.n} (fresh — view was marked dirty)`;
@@ -115,8 +152,18 @@ export class OnpushSilentChild {
   styles: [`.box { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }`],
 })
 export class OnpushReader {
+  /**
+   * The shared store. Reading `count()` in this component's template registers
+   * this view as a consumer of that signal.
+   */
   readonly store = inject(TickerStore);
+  /**
+   * How many times this view has been checked.
+   */
   private n = 0;
+  /**
+   * The check count. Moves whenever the shared count is written.
+   */
   get tick() {
     return ++this.n;
   }
@@ -135,13 +182,29 @@ export class OnpushReader {
   styles: [`.box { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }`],
 })
 export class OnpushNonReader {
+  /**
+   * A snapshot taken once, at construction. Reading the signal here — outside a
+   * reactive context — does not subscribe to it.
+   */
   readonly snapshot = inject(TickerStore).count();
+  /**
+   * How many times this view has been checked.
+   */
   private n = 0;
+  /**
+   * The check count. Stays put while the store changes, because this view never
+   * read the signal reactively and so was never registered as a consumer.
+   */
   get tick() {
     return ++this.n;
   }
 }
 
+/**
+ * Lesson: OnPush change detection — what actually marks a view dirty, live
+ * proof of the skip, the mutation trap, markForCheck vs detectChanges, and
+ * how signals turn OnPush into precise per-view reactivity.
+ */
 @Component({
   selector: 'app-lesson-onpush',
   imports: [
@@ -404,30 +467,62 @@ export class OnpushNonReader {
   `,
 })
 export class Onpush {
+  /**
+   * The value fed to the `OnPush` child.
+   */
   protected readonly value = signal(0);
+  /**
+   * Clicks on the do-nothing button.
+   */
   protected readonly pokes = signal(0);
+  /**
+   * The shared store, written by the reader/non-reader demo.
+   */
   protected readonly store = inject(TickerStore);
 
   /** Plain (non-signal) object on purpose — the mutation-trap demo star. */
   protected user = { name: 'Ada', clicks: 0 };
 
+  /**
+   * Bumps a signal the lesson component reads, forcing a pass without touching any
+   * child's input.
+   */
   protected poke() {
     this.pokes.update((p) => p + 1);
   }
 
+  /**
+   * Mutates the child's input object in place.
+   *
+   * Same reference, so the `OnPush` child's input is unchanged as far as Angular
+   * is concerned and the child is never re-checked. The data is new; the view is
+   * not.
+   */
   protected mutate() {
     this.user.clicks++; // same reference — OnPush child never notices
   }
 
+  /**
+   * Replaces the input object with a copy.
+   *
+   * Identical contents, new reference — and that is all `OnPush` needs. Which is
+   * why `OnPush` and immutable updates are one decision, not two.
+   */
   protected replace() {
     this.user = { ...this.user }; // new reference — input binding marks the child
   }
 
+  /**
+   * Sample: opting in to `OnPush`.
+   */
   readonly optInSample = `@Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   // …
 })`;
 
+  /**
+   * Sample: the mutation trap and its fix, matching the two buttons above.
+   */
   readonly mutationSample = `// WRONG — same reference, OnPush child stays stale
 this.user.clicks++;
 
@@ -438,6 +533,9 @@ this.user = { ...this.user, clicks: this.user.clicks + 1 };
 this.items.push(item);          // stale
 this.items = [...this.items, item];  // fresh`;
 
+  /**
+   * Sample: `markForCheck` for async work that `OnPush` would otherwise miss.
+   */
   readonly markForCheckSample = `private cdr = inject(ChangeDetectorRef);
 
 load() {
@@ -451,6 +549,12 @@ load() {
 readonly data = toSignal(this.api.fetch());   // signal read marks the view
 readonly data$ = this.api.fetch();            // async pipe calls markForCheck`;
 
+  /**
+   * Sample: under the hood — `markForCheck` walks **up**, flagging the ancestor
+   * path so the next pass can reach the dirty view, while `detectChanges` walks
+   * **down** from where it is called. Knowing which direction each goes explains
+   * most of the surprising cases.
+   */
   readonly underTheHoodSample = `// marking: WALKS UP — flag me, and flag the path so the pass can reach me
 markForCheck()  →  view.flags |= Dirty
                    for each ancestor: flags |= HasChildViewsToRefresh
@@ -462,6 +566,10 @@ refreshView(root)
   OnPush view, clean?      → PRUNE — skip the entire subtree
   clean but "traverse me"? → descend without refreshing (reach the dirty leaf)`;
 
+  /**
+   * Sample: impure template expressions, which freeze under `OnPush` because they
+   * are only re-evaluated when the view is checked.
+   */
   readonly wrongRightSample = `// WRONG — impure expression: freezes under OnPush
 template: '{{ getTotal() }} at {{ Date.now() }}'
 
