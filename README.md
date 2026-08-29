@@ -40,9 +40,17 @@ npm test         # unit tests (Vitest via @angular/build:unit-test)
 | **Expert** | 22 | Change detection, OnPush, zoneless, SSR & hydration, performance, security, i18n, a11y |
 | **Projects** | 3 | Task manager, data dashboard, auth flow — the pieces assembled into working features |
 
-Every lesson is **one standalone component per concept**, with inline template and
-styles, so the whole concept lives in a single readable file. Lessons are lazily
+Every lesson is **one standalone component per concept**, split the conventional
+Angular way into `.ts` + `.html` + `.css`. Lessons whose demos need their own child
+components give each child its own folder beside the lesson. Lessons are lazily
 loaded, so opening one downloads only that chunk.
+
+```
+lessons/beginner/inputs/
+  inputs.ts / inputs.html          # the lesson
+  badge/badge.ts|.html|.css        # a demo component it renders
+  coerce-demo/coerce-demo.ts|…
+```
 
 ### The study tools
 

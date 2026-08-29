@@ -1,0 +1,16 @@
+.tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab-row button { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: .85rem; color: var(--text); }
+.tab-row button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+.sec-table { width: 100%; border-collapse: collapse; font-size: .87rem; margin: 12px 0; }
+.sec-table th { background: var(--surface); padding: 8px 10px; text-align: left; border-bottom: 2px solid var(--border); }
+.sec-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.bad { color: #ef4444; }
+.good { color: #22c55e; }
+.owasp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+.owasp-card { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.owasp-card h4 { margin: 0 0 4px; font-size: .88rem; }
+.owasp-card p { margin: 0; font-size: .8rem; color: var(--text-muted); }
+.severity-high { border-left: 3px solid #ef4444; }
+.severity-med  { border-left: 3px solid #f59e0b; }
+.severity-low  { border-left: 3px solid #22c55e; }

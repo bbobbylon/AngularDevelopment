@@ -1,0 +1,11 @@
+.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
+     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+     .t td:first-child { width: 120px; }
+
+     /* Fixed dark console — colours must not come from theme vars (see styles.css --code-fg note). */
+     .console { background: var(--code-bg); color: var(--code-fg); border-radius: 8px; padding: 10px 14px; font-family: monospace; font-size: .82rem; min-height: 80px; }
+     .console .dim { color: #8b93a8; }
+
+     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+     .qa div { padding: 10px 14px; font-size: .9rem; }

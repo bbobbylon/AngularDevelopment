@@ -1,0 +1,5 @@
+.table-wrap { overflow-x: auto; margin: 10px 0 22px; }
+table.grid { width: 100%; border-collapse: collapse; font-size: .86rem; }
+table.grid th, table.grid td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.grid th { background: var(--bg-elevated); }
+table.grid td:first-child, table.grid th:first-child { min-width: 220px; }

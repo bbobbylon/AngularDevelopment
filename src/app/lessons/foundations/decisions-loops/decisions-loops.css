@@ -1,0 +1,16 @@
+.field { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+     .field label { min-width: 90px; color: var(--text-muted); }
+     .dim { color: var(--text-muted); font-size: .85rem; }
+
+     .loop-state { display: flex; gap: 10px; flex-wrap: wrap; }
+     .ls-box { border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; min-width: 90px; text-align: center; }
+     .ls-box span { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+     .ls-box strong { font-family: monospace; }
+
+     /* Fixed dark console — colours must not come from theme vars (see styles.css --code-fg note). */
+     .console { background: var(--code-bg); color: var(--code-fg); border-radius: 8px; padding: 10px 14px; font-family: monospace; font-size: .82rem; min-height: 70px; }
+     .console .dim { color: #8b93a8; }
+
+     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+     .qa div { padding: 10px 14px; font-size: .9rem; }

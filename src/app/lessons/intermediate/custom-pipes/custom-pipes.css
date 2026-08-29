@@ -1,0 +1,9 @@
+.t { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.t th, .t td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; }
+.t th { color: var(--text-muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+mark { background: rgba(250,200,60,.35); border-radius: 2px; padding: 0 2px; color: inherit; }
+.post-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border); gap: 12px;
+  font-size: .9rem;
+}

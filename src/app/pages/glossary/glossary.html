@@ -1,0 +1,52 @@
+<div class="gl-hero">
+  <span class="pill">Reference</span>
+  <h1>Glossary &amp; Cheat Sheet</h1>
+  <p>
+    {{ totalCount }} Angular and TypeScript terms used across the curriculum,
+    in one searchable, printable A-Z reference.
+  </p>
+</div>
+
+<div class="gl-toolbar">
+  <input
+    class="gl-search"
+    type="search"
+    placeholder="Search terms or definitions…"
+    [value]="query()"
+    (input)="query.set($any($event.target).value)"
+  />
+  <button class="print-btn" (click)="print()">🖨 Print</button>
+</div>
+
+<div class="gl-jump">
+  @for (letter of alphabet; track letter) {
+    <a
+      [class.has-terms]="letterHasTerms(letter)"
+      [class.no-terms]="!letterHasTerms(letter)"
+      [attr.href]="letterHasTerms(letter) ? '#letter-' + letter : null"
+    >{{ letter }}</a>
+  }
+</div>
+
+<div class="gl-body">
+  @if (groups().length === 0) {
+    <div class="empty-state">No terms match "{{ query() }}".</div>
+  } @else {
+    @for (group of groups(); track group.letter) {
+      <div class="gl-group" [id]="'letter-' + group.letter">
+        <h2>{{ group.letter }}</h2>
+        <dl>
+          @for (t of group.terms; track t.term) {
+            <div class="gl-term">
+              <dt>{{ t.term }}</dt>
+              <dd>{{ t.definition }}</dd>
+              @if (t.topicPath) {
+                <a [routerLink]="'/' + t.topicPath" class="gl-link">📚 Study this topic →</a>
+              }
+            </div>
+          }
+        </dl>
+      </div>
+    }
+  }
+</div>

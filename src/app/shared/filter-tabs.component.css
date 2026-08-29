@@ -1,0 +1,17 @@
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+button {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  font-size: .85rem;
+}
+button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}

@@ -1,0 +1,18 @@
+.priority-high { color: #ef4444; font-weight: 600; }
+.priority-medium { color: #f59e0b; }
+.priority-low { color: #6b7280; }
+.state-tier { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+.tier-card { flex: 1; min-width: 160px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); }
+.tier-card h4 { margin: 0 0 6px; font-size: .9rem; }
+.tier-card p { margin: 0; font-size: .82rem; color: var(--text-muted); }
+.mistakes-table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: 12px 0; }
+.mistakes-table th { background: var(--surface); padding: 8px 12px; text-align: left; border-bottom: 2px solid var(--border); }
+.mistakes-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.bad { color: #ef4444; }
+.good { color: #22c55e; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.filter-row button { padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: .85rem; }
+.filter-row button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

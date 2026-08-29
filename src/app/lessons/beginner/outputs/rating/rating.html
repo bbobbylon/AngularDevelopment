@@ -1,0 +1,13 @@
+<div class="rating">
+  @for (star of stars; track star) {
+    <button
+      class="star"
+      [class.on]="star <= current()"
+      (click)="select(star)"
+      [attr.aria-label]="star + ' stars'"
+    >
+      ★
+    </button>
+  }
+  <button class="ghost" (click)="reset()">clear</button>
+</div>

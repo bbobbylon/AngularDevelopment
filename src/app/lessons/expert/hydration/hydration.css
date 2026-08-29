@@ -1,0 +1,20 @@
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+.chips button { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 18px; padding: 6px 14px; font-size: .84rem; }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.steps li { counter-increment: step; display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--border); font-size: .9rem; }
+.steps li:last-child { border-bottom: none; }
+.steps li::before { content: counter(step); flex: 0 0 22px; height: 22px; border-radius: 50%; background: var(--bg-elevated); border: 1px solid var(--border); font-size: .72rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.steps li.bad { color: #ef4444; }
+.steps li.bad::before { background: rgba(239,68,68,.12); border-color: #ef4444; color: #ef4444; }
+
+.err-pill { display: inline-block; font-family: monospace; font-weight: 700; font-size: .84rem; padding: 4px 12px; border-radius: 8px; background: rgba(239,68,68,.1); color: #ef4444; margin: 10px 0 6px; }
+
+table.cmp { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 12px 0; }
+table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.cmp th { background: var(--bg-elevated); }
+
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

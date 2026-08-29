@@ -1,0 +1,241 @@
+@switch (phase()) {
+
+  @case ('config') {
+    <div class="exam-hero">
+      <span class="pill">Timed Assessment</span>
+      <h1>Mock Exam</h1>
+      <p>
+        Simulate the real certification: a fixed set of questions, a countdown
+        clock, and no answers revealed until you finish. Pass mark is {{ passMark }}%.
+      </p>
+    </div>
+
+    <div class="config-card">
+      <h3>Number of questions</h3>
+      <div class="chip-row">
+        @for (n of countChoices; track n) {
+          <button class="chip" [class.active]="selectedCount() === n" (click)="selectedCount.set(n)">{{ n }}</button>
+        }
+        <button class="chip" [class.active]="selectedCount() === totalAvailable" (click)="selectedCount.set(totalAvailable)">
+          All ({{ totalAvailable }})
+        </button>
+      </div>
+
+      <h3>Focus area</h3>
+      <div class="chip-row">
+        @for (cat of categoryFilters; track cat.id) {
+          <button class="chip" [class.active]="selectedCategory() === cat.id" (click)="selectedCategory.set(cat.id)">{{ cat.label }}</button>
+        }
+      </div>
+
+      <h3>Level</h3>
+      <div class="chip-row">
+        @for (d of diffFilters; track d.id) {
+          <button class="chip" [class.active]="selectedDiff() === d.id" (click)="selectedDiff.set(d.id)">{{ d.label }}</button>
+        }
+      </div>
+
+      <div class="config-summary">
+        <div><strong>{{ effectiveCount() }}</strong><span>questions</span></div>
+        <div><strong>{{ totalMinutes() }}</strong><span>minutes</span></div>
+        <div><strong>{{ passMark }}%</strong><span>to pass</span></div>
+      </div>
+
+      @if (availableForFilters().length === 0) {
+        <p class="warn">No questions match those filters — widen your selection.</p>
+      } @else if (effectiveCount() < selectedCount() && selectedCount() !== totalAvailable) {
+        <p class="warn">Only {{ effectiveCount() }} questions available for this focus/level.</p>
+      }
+
+      @if (weakAreas().length > 0) {
+        <div class="weak-box">
+          <span class="weak-title">📉 Weak areas from your attempts — tap to focus:</span>
+          @for (w of weakAreas(); track w.id) {
+            <button class="chip weak" [class.active]="selectedCategory() === w.id" (click)="selectedCategory.set(w.id)">
+              {{ w.label }} · {{ w.pct }}%
+            </button>
+          }
+        </div>
+      }
+
+      <div>
+        <button class="primary-btn" [disabled]="effectiveCount() === 0" (click)="start()">Start Exam →</button>
+        <a routerLink="/practice" class="link-back">or use self-paced Practice</a>
+      </div>
+    </div>
+
+    @if (history().length > 0) {
+      <div class="history-section">
+        <div class="history-head">
+          <h3>Previous attempts</h3>
+          <button class="ghost-btn small" (click)="clearHistory()">Clear</button>
+        </div>
+        @for (h of history(); track h.when) {
+          <div class="history-row">
+            <span class="h-result" [class.pass]="h.passed" [class.fail]="!h.passed">{{ h.passed ? 'PASS' : 'FAIL' }}</span>
+            <span class="h-score">{{ h.scorePercent }}%</span>
+            <span class="h-detail">{{ h.correct }}/{{ h.total }} · {{ categoryLabel(h.category) }} · {{ h.difficulty === 'all' ? 'All levels' : h.difficulty }} · {{ formatUsed(h.secondsUsed) }}</span>
+            <span class="h-when">{{ formatWhen(h.when) }}</span>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  @case ('active') {
+    <div class="exam-bar">
+      <span class="exam-progress">Question {{ currentIndex() + 1 }} / {{ questions().length }}</span>
+      <span class="timer" [class.warn]="secondsLeft() <= 60">⏱ {{ timeLabel() }}</span>
+      <button class="submit-btn" (click)="requestFinish()">Submit Exam</button>
+    </div>
+
+    <div class="nav-grid">
+      @for (q of questions(); track q.id; let i = $index) {
+        <button class="nav-dot"
+          [class.current]="i === currentIndex()"
+          [class.done]="isAnswered(q.id)"
+          [class.flag]="isFlagged(q.id)"
+          (click)="goTo(i)">{{ i + 1 }}</button>
+      }
+    </div>
+
+    @if (current(); as ch) {
+      <div class="q-card">
+        <div class="q-badges">
+          <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
+          <span class="badge-type">{{ ch.category }}</span>
+          <button class="flag-btn" [class.on]="isFlagged(ch.id)" (click)="toggleFlag()">
+            {{ isFlagged(ch.id) ? '🚩 Flagged' : '⚑ Flag' }}
+          </button>
+        </div>
+
+        <p class="q-text">{{ ch.question }}</p>
+        @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+
+        <div class="options">
+          @for (opt of shuffledOptions(ch).options; track $index) {
+            <button class="opt" [class.selected]="isChosen($index)" (click)="choose($index)">
+              <span class="opt-letter">{{ letters[$index] }}</span>{{ opt }}
+            </button>
+          }
+        </div>
+
+        <div class="q-actions">
+          <button class="ghost-btn" [disabled]="currentIndex() === 0" (click)="prev()">← Previous</button>
+          @if (currentIndex() < questions().length - 1) {
+            <button class="primary-btn small" (click)="next()">Next →</button>
+          } @else {
+            <button class="primary-btn small" (click)="requestFinish()">Finish →</button>
+          }
+        </div>
+      </div>
+    }
+
+    @if (confirmingSubmit()) {
+      <div class="confirm-overlay">
+        <div class="confirm-box">
+          <h3>Submit exam?</h3>
+          <p>
+            {{ answeredCount() }} of {{ questions().length }} answered.
+            @if (answeredCount() < questions().length) { {{ questions().length - answeredCount() }} still blank. }
+          </p>
+          <div class="confirm-actions">
+            <button class="ghost-btn" (click)="cancelFinish()">Keep going</button>
+            <button class="primary-btn small" (click)="finish()">Submit now</button>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  @case ('review') {
+    <div class="result-hero" [class.pass]="passed()" [class.fail]="!passed()">
+      <span class="result-badge">{{ passed() ? 'PASS' : 'FAIL' }}</span>
+      <div class="result-score">{{ scorePercent() }}%</div>
+      <p>{{ correctCount() }} / {{ questions().length }} correct · {{ elapsedLabel() }} used · pass mark {{ passMark }}%</p>
+      @if (missedQueued() > 0) {
+        <p class="queued-note">
+          🔁 {{ missedQueued() }} missed question{{ missedQueued() === 1 ? '' : 's' }} added to your
+          <a routerLink="/review">review queue</a>
+        </p>
+      }
+      <div class="result-actions">
+        <button class="primary-btn" (click)="retake()">Take Another →</button>
+        <button class="ghost-btn" (click)="exportResults()">⬇ Export Results</button>
+        <a routerLink="/practice" class="link-back">Self-paced Practice</a>
+      </div>
+    </div>
+
+    @if (categoryBreakdown().length > 1) {
+      <div class="breakdown">
+        <h3>By category</h3>
+        @for (row of categoryBreakdown(); track row.id) {
+          <div class="bd-row">
+            <span class="bd-label">{{ row.label }}</span>
+            <div class="bd-bar-outer">
+              <div class="bd-bar-inner" [class.low]="row.pct < passMark" [style.width.%]="row.pct"></div>
+            </div>
+            <span class="bd-score">{{ row.correct }}/{{ row.total }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="rev-filters">
+      <button class="chip" [class.active]="reviewFilter() === 'all'" (click)="reviewFilter.set('all')">
+        All ({{ questions().length }})
+      </button>
+      <button class="chip" [class.active]="reviewFilter() === 'incorrect'" (click)="reviewFilter.set('incorrect')">
+        ✗ Incorrect ({{ incorrectTotal() }})
+      </button>
+      @if (flaggedTotal() > 0) {
+        <button class="chip" [class.active]="reviewFilter() === 'flagged'" (click)="reviewFilter.set('flagged')">
+          🚩 Flagged ({{ flaggedTotal() }})
+        </button>
+      }
+    </div>
+
+    <div class="review-list">
+      @if (reviewItems().length === 0) {
+        <div class="rev-empty">Nothing here — {{ reviewFilter() === 'incorrect' ? 'every answer was correct 🎉' : 'no questions were flagged' }}.</div>
+      }
+      @for (item of reviewItems(); track item.ch.id) {
+        @let ch = item.ch;
+        @let i = item.i;
+        <div class="review-card" [class.ok]="isCorrect(ch)" [class.no]="!isCorrect(ch)">
+          <div class="rev-head">
+            <span class="rev-num">Q{{ i + 1 }}</span>
+            <span class="rev-mark">{{ isCorrect(ch) ? '✓' : '✗' }}</span>
+            <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
+            <span class="badge-type">{{ ch.category }}</span>
+          </div>
+
+          <p class="q-text">{{ ch.question }}</p>
+          @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+
+          <div class="options">
+            @for (opt of shuffledOptions(ch).options; track $index) {
+              <button class="opt"
+                [class.correct]="$index === shuffledOptions(ch).correctIndex"
+                [class.wrong]="answers()[ch.id] === $index && $index !== shuffledOptions(ch).correctIndex"
+                disabled>
+                <span class="opt-letter">{{ letters[$index] }}</span>{{ opt }}
+              </button>
+            }
+          </div>
+
+          @if (!isAnswered(ch.id)) { <div class="skipped">Not answered</div> }
+
+          @if (!isCorrect(ch)) {
+            <div class="correct-callout">Correct answer: {{ correctOptionLetter(ch) }}</div>
+          }
+
+          <div class="explanation">{{ ch.explanation }}</div>
+          @if (ch.topicPath) {
+            <a [routerLink]="'/' + ch.topicPath" class="topic-link">📚 Study this topic →</a>
+          }
+        </div>
+      }
+    </div>
+  }
+}

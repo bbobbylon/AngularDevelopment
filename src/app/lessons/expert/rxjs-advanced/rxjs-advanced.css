@@ -1,0 +1,15 @@
+.t { width: 100%; border-collapse: collapse; }
+     .t td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+     .t td:first-child { width: 260px; }
+
+     table.cmp { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 12px 0; }
+     table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+     table.cmp th { background: var(--bg-elevated); }
+
+     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+     .qa div { padding: 10px 14px; font-size: .9rem; }
+
+     .lab-log { background: var(--code-bg); color: var(--code-fg); border-radius: 8px; padding: 10px 14px; font-family: monospace; font-size: .82rem; min-height: 120px; max-height: 200px; overflow: auto; margin-top: 10px; }
+     .lab-log div { padding: 1px 0; }
+     .strat button.on { outline: 2px solid var(--blue); }

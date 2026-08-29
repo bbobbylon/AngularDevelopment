@@ -1,0 +1,25 @@
+.log {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 12px 12px 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  max-height: 220px;
+  overflow: auto;
+}
+.hooks {
+  width: 100%;
+  border-collapse: collapse;
+}
+.hooks th,
+.hooks td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.hooks td:first-child {
+  white-space: nowrap;
+}

@@ -1,0 +1,6 @@
+.child {
+  padding: 12px 14px;
+  border: 1px dashed var(--violet);
+  border-radius: 8px;
+  background: rgba(124, 77, 255, 0.08);
+}

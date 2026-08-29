@@ -11,36 +11,7 @@ import { LEVELS } from '../../core/lesson.model';
 @Component({
   selector: 'app-coming-soon',
   imports: [RouterLink],
-  template: `
-    <section class="lesson">
-      @if (lesson(); as l) {
-        <span class="lesson__eyebrow">{{ levelLabel(l.level) }} · {{ l.category }}</span>
-        <h1>{{ l.title }}</h1>
-        <p class="lead">{{ l.summary }}</p>
-
-        <div class="demo">
-          <p class="demo__title" style="--green: var(--amber)">Lesson in progress</p>
-          <p>
-            This concept is part of the curriculum and reserved here, but its
-            interactive lesson is still being written. The structure, route and
-            navigation entry already exist — only the demo content is pending.
-          </p>
-          <p style="margin-bottom: 0">
-            <a routerLink="/">← Back to the full curriculum</a>
-          </p>
-        </div>
-
-        <div class="note">
-          <strong>Want to contribute this one?</strong> Create
-          <code>src/app/lessons/{{ l.level }}/{{ l.id }}/{{ l.id }}.ts</code>, then add its
-          <code>loadComponent</code> to <code>core/curriculum.ts</code>.
-        </div>
-      } @else {
-        <h1>Lesson not found</h1>
-        <p><a routerLink="/">← Back to the curriculum</a></p>
-      }
-    </section>
-  `,
+  templateUrl: './coming-soon.html',
 })
 export class ComingSoon {
   /** Source of the `lessonId` route datum this page renders. */

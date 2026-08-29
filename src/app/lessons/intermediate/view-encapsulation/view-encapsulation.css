@@ -1,0 +1,9 @@
+.mode-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+.mode-chips button { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 18px; padding: 6px 14px; font-size: .84rem; }
+.mode-chips button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mode-meaning { font-size: .9rem; margin: 10px 0 0; }
+
+.badge-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.theme-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.theme-row .swatch-btn { width: 34px; height: 34px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.theme-row .swatch-btn.on { border-color: var(--text); }

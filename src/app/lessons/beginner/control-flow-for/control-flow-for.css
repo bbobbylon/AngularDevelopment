@@ -1,0 +1,22 @@
+.taskrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.taskrow span {
+  flex: 1;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.meta.even {
+  background: var(--bg-elevated);
+}
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

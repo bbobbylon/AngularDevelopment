@@ -1,0 +1,15 @@
+.pipes {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pipes td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.pipes td:first-child {
+  width: 220px;
+  color: var(--text-muted);
+}
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

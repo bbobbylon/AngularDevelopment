@@ -1,0 +1,15 @@
+.tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.tab-row button { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: .85rem; color: var(--text); }
+.tab-row button.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+.perf-table { width: 100%; border-collapse: collapse; font-size: .87rem; margin: 12px 0; }
+.perf-table th { background: var(--surface); padding: 8px 10px; text-align: left; border-bottom: 2px solid var(--border); }
+.perf-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.bad { color: #ef4444; }
+.good { color: #22c55e; }
+.vital-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.vital-card { padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.vital-card h4 { margin: 0 0 4px; font-size: .9rem; }
+.vital-card .target { font-size: .8rem; font-weight: 600; color: #22c55e; }
+.vital-card p { margin: 4px 0 0; font-size: .8rem; color: var(--text-muted); }
+.perf-demo { font-family: monospace; font-size: .82rem; }

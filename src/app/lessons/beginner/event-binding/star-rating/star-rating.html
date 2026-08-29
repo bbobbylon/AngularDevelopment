@@ -1,0 +1,13 @@
+<div class="row" role="radiogroup" aria-label="Rating">
+  @for (star of stars; track star) {
+    <button
+      type="button"
+      class="star"
+      [class.star--filled]="star <= (hover() || value())"
+      [attr.aria-label]="star + ' stars'"
+      (mouseenter)="hover.set(star)"
+      (mouseleave)="hover.set(0)"
+      (click)="rate(star)"
+    >★</button>
+  }
+</div>

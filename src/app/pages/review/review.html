@@ -1,0 +1,144 @@
+@switch (phase()) {
+
+  @case ('idle') {
+    <div class="rev-hero">
+      <span class="pill">Spaced Repetition</span>
+      <h1>Review Queue</h1>
+      <p>
+        Every question you miss in Practice or a Mock Exam lands here.
+        Answer it correctly on schedule and the gap grows —
+        {{ intervalsLabel }} days — until it graduates as mastered.
+        Miss it and it starts over.
+      </p>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box due"><strong>{{ due().length }}</strong><span>due now</span></div>
+      <div class="stat-box"><strong>{{ queueSize() }}</strong><span>in queue</span></div>
+      <div class="stat-box"><strong>{{ masteredCount() }}</strong><span>mastered</span></div>
+    </div>
+
+    <div class="panel">
+      @if (queueSize() === 0) {
+        <div class="empty">
+          @if (masteredCount() > 0) {
+            Queue clear — everything you missed has been mastered. 🎉
+          } @else {
+            Nothing to review yet. Miss a question and it will show up here.
+          }
+        </div>
+        <div style="text-align:center">
+          <a routerLink="/practice" class="primary-btn small" style="text-decoration:none">Go practice →</a>
+          <a routerLink="/mock-exam" class="link-back">or take a Mock Exam</a>
+        </div>
+      } @else {
+        <h3>How it works</h3>
+        <p class="how">
+          A review session shows each due question once, with instant feedback.
+          Correct answers move a question up a box (checked less often);
+          wrong answers send it back to box 1 (due immediately).
+        </p>
+        @if (due().length > 0) {
+          <button class="primary-btn" (click)="startSession(false)">
+            Review {{ due().length }} due →
+          </button>
+        } @else {
+          <p class="next-due">Nothing due right now — next review {{ nextDueLabel() }}.</p>
+          <button class="ghost-btn" style="margin-top:12px" (click)="startSession(true)">
+            Review all {{ queueSize() }} early
+          </button>
+        }
+        <a routerLink="/practice" class="link-back">Practice page</a>
+      }
+    </div>
+  }
+
+  @case ('session') {
+    <div class="rev-hero" style="padding-bottom:8px">
+      <span class="pill">Spaced Repetition</span>
+      <h1>Review Session</h1>
+    </div>
+
+    <div class="session-bar">
+      <span>Item {{ index() + 1 }} / {{ session().length }}</span>
+      <span class="spacer"></span>
+      @if (current(); as ch) {
+        <span class="box-tag">Box {{ boxOf(ch.id) + 1 }} / {{ boxCount }}</span>
+      }
+    </div>
+
+    @if (current(); as ch) {
+      <div class="panel">
+        <div class="q-badges">
+          <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
+          <span class="badge-type">{{ ch.category }}</span>
+          <span class="badge-type" style="background:transparent;border-color:var(--border);color:var(--text-muted)">{{ typeLabel(ch.type) }}</span>
+        </div>
+
+        <p class="q-text">{{ ch.question }}</p>
+        @if (ch.code) { <div class="q-code">{{ ch.code }}</div> }
+
+        <div class="options">
+          @for (opt of shuffledOptions(ch).options; track $index) {
+            <button class="opt"
+              [class.selected]="selected() === $index && !answered()"
+              [class.correct]="answered() && $index === shuffledOptions(ch).correctIndex"
+              [class.wrong]="answered() && selected() === $index && $index !== shuffledOptions(ch).correctIndex"
+              [disabled]="answered()"
+              (click)="selected.set($index)">
+              <span class="opt-letter">{{ letters[$index] }}</span>{{ opt }}
+            </button>
+          }
+        </div>
+
+        @if (!answered()) {
+          <button class="primary-btn small" [disabled]="selected() === null" (click)="submit(ch)">
+            Submit Answer
+          </button>
+        } @else {
+          <div class="verdict" [class.ok]="lastCorrect()" [class.no]="!lastCorrect()">
+            <strong>{{ lastCorrect() ? '✓ Correct!' : '✗ Not quite.' }}</strong>
+            @if (!lastCorrect()) {
+              <div class="correct-callout">Correct answer: {{ correctOptionLetter(ch) }}</div>
+            }
+            {{ ch.explanation }}
+            <br>
+            <span class="schedule-note">{{ scheduleNote() }}</span>
+            @if (ch.topicPath) {
+              <a [routerLink]="'/' + ch.topicPath" class="topic-link">📚 Study this topic →</a>
+            }
+          </div>
+          <div class="q-actions">
+            <button class="primary-btn small" (click)="next()">
+              {{ index() < session().length - 1 ? 'Next →' : 'Finish session →' }}
+            </button>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  @case ('summary') {
+    <div class="rev-hero">
+      <span class="pill">Spaced Repetition</span>
+      <h1>Session Complete</h1>
+    </div>
+
+    <div class="panel">
+      <p class="sum-line">
+        <strong>{{ sessionCorrect() }} / {{ session().length }}</strong> correct this session.
+      </p>
+      <div class="sum-grid">
+        <div><strong>{{ sessionAdvanced() }}</strong><span>moved up a box</span></div>
+        <div><strong>{{ sessionReset() }}</strong><span>back to box 1</span></div>
+        <div><strong>{{ sessionMastered() }}</strong><span>mastered 🎓</span></div>
+      </div>
+      <div>
+        <button class="primary-btn" (click)="backToIdle()">
+          {{ due().length > 0 ? due().length + ' more due — continue' : 'Done' }}
+        </button>
+        <a routerLink="/practice" class="link-back">Practice page</a>
+      </div>
+    </div>
+  }
+}

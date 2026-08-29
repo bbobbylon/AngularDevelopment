@@ -1,0 +1,151 @@
+<article class="lesson">
+  <span class="lesson__eyebrow">Expert · Tooling</span>
+  <h1>Libraries &amp; Schematics</h1>
+  <p class="lead">
+    Sharing Angular code across applications means packaging it as a
+    <strong>library</strong> in the Angular Package Format, and giving consumers a
+    first-class experience with <strong>schematics</strong> — the code-generation
+    engine behind <code>ng generate</code>, <code>ng add</code> and
+    <code>ng update</code>. This page covers what actually ships to npm, the
+    dependency rules that prevent duplicate-Angular disasters, and how to author
+    the automations.
+  </p>
+
+  <h2>Do you even need a published library?</h2>
+  <table class="cmp">
+    <tr><th>Situation</th><th>Right tool</th></tr>
+    <tr><td>Several apps in ONE repo share UI/logic</td><td>a workspace library (path-mapped, built together) — no npm publishing ceremony</td></tr>
+    <tr><td>Separate repos / teams / release cadences consume it</td><td>a published APF library with semver, peer deps, and migration schematics</td></tr>
+    <tr><td>Two components share a helper</td><td>a folder and an import — don't build infrastructure for a utils file</td></tr>
+  </table>
+
+  <h2>Creating a library — and what APF really is</h2>
+  <div class="code"><pre>{{ createSample }}</pre></div>
+  <p>
+    The build output is the <strong>Angular Package Format</strong>: FESM bundles,
+    type definitions, and — the expert detail — <strong>partially compiled</strong>
+    templates. Libraries can't ship fully compiled code because Angular's generated
+    instructions aren't guaranteed stable across versions. So <code>ng-packagr</code>
+    compiles to a stable intermediate form
+    (<code>compilationMode: "partial"</code>), and the <em>consumer's</em> build
+    finishes the job with its own Angular version via the linker. That handshake is
+    why one published library version works across a range of Angular majors.
+  </p>
+  <div class="warn">
+    <code>public-api.ts</code> is your contract. Everything exported there is
+    public API forever — renaming an exported symbol is a breaking change requiring
+    a major version. Export deliberately, not <code>export *</code> from every file.
+  </div>
+
+  <h2>The dependency quiz — where does each package go?</h2>
+  <div class="demo">
+    <p class="demo__title">Interactive — pick a package your library uses</p>
+    <div class="chips">
+      @for (d of depChoices; track d.label) {
+        <button [class.on]="activeDep() === d" (click)="activeDep.set(d)">{{ d.label }}</button>
+      }
+    </div>
+    @if (activeDep(); as d) {
+      <span class="field-pill">{{ d.field }}</span>
+      <p style="font-size:.9rem; margin: 6px 0 0">{{ d.why }}</p>
+    } @else {
+      <p style="color:var(--text-muted);font-size:.88rem">Get one of these wrong and consumers get duplicate Angular copies, version conflicts, or phantom installs.</p>
+    }
+  </div>
+
+  <h2>Secondary entry points</h2>
+  <div class="code"><pre>{{ entryPointsSample }}</pre></div>
+  <p>
+    <code>my-lib/testing</code>, <code>my-lib/icons</code> — separate entry points
+    keep optional heavyweight pieces out of the main bundle and let consumers
+    deep-import cleanly. Angular Material is the reference example: every component
+    is its own entry point, so importing a button never pays for the datepicker.
+  </p>
+
+  <h2>Schematics — code that writes code</h2>
+  <p>
+    A schematic is a function from options to a <code>Rule</code>: a transform over
+    a virtual file <code>Tree</code>. Nothing touches disk until the whole rule
+    chain succeeds — changes are atomic, previewable with <code>--dry-run</code>,
+    and testable in memory:
+  </p>
+  <div class="code"><pre>{{ schematicSample }}</pre></div>
+  <div class="code"><pre>{{ testSample }}</pre></div>
+
+  <h2>ng add — the red-carpet install</h2>
+  <div class="code"><pre>{{ ngAddSample }}</pre></div>
+  <p>
+    <code>ng add my-lib</code> installs the package, then runs its
+    <code>ng-add</code> schematic — which is where you wire providers into
+    <code>app.config.ts</code>, add styles to <code>angular.json</code>, or create
+    starter config. The difference between "works after one command" and a
+    five-step README is this schematic.
+  </p>
+
+  <h2>ng update — migrations that fix breaking changes</h2>
+  <div class="code"><pre>{{ ngUpdateSample }}</pre></div>
+  <p>
+    Migration schematics are keyed by version: updating from 2.x to 4.x runs every
+    migration in between, in order. This is exactly how
+    <code>ng update &#64;angular/core</code> rewrites your code across majors — the
+    framework ships its own migrations. Offering the same for your library is what
+    keeps consumers upgrading instead of pinning old versions forever.
+  </p>
+
+  <h2>Pitfalls</h2>
+  <ul>
+    <li><strong>Angular as a regular dependency</strong> — the classic disaster:
+      consumers get two Angular copies, DI breaks in baffling ways. Framework and
+      framework-adjacent packages are peers, always.</li>
+    <li><strong>Untested against the supported range</strong> — peer range says
+      <code>&gt;=19 &lt;22</code>? CI should build a consumer on each major.</li>
+    <li><strong>Leaking internals</strong> — a "temporary" export from public-api
+      becomes load-bearing in someone's app; deprecate before removing, with a
+      migration schematic where feasible.</li>
+    <li><strong>Testing schematics by publishing</strong> — <code>SchematicTestRunner</code>
+      runs them in memory; <code>npm pack</code> + a local install covers the
+      integration path. Publishing to test is how broken versions escape.</li>
+    <li><strong>Forgetting <code>sideEffects: false</code></strong> — without it,
+      bundlers can't tree-shake unused parts of your library aggressively.</li>
+  </ul>
+
+  <h2>Exam corner</h2>
+  <details class="qa">
+    <summary>Why do libraries ship partially compiled code instead of fully compiled?</summary>
+    <div>Angular's generated instruction code isn't stable API across versions.
+    Partial compilation emits a stable declaration format; the consumer's own
+    compiler/linker finishes compilation — so one published artifact supports a
+    range of Angular versions.</div>
+  </details>
+  <details class="qa">
+    <summary>What breaks if &#64;angular/core is in dependencies instead of peerDependencies?</summary>
+    <div>Package managers may install a second Angular copy for the library.
+    Two copies means two DI systems and two sets of framework internals: injection
+    fails oddly, <code>instanceof</code> checks break, bundles double. Peer
+    declares "use the host app's copy".</div>
+  </details>
+  <details class="qa">
+    <summary>What is the Tree in a schematic, and why does it matter?</summary>
+    <div>A virtual, in-memory staging of the filesystem. Rules read and mutate the
+    Tree; the engine commits to disk only when every rule succeeds — atomic
+    all-or-nothing generation, plus <code>--dry-run</code> previews and unit tests
+    without touching disk.</div>
+  </details>
+  <details class="qa">
+    <summary>How does <code>ng update</code> know which migrations to run?</summary>
+    <div>The package's <code>ng-update.migrations</code> collection lists schematics
+    tagged with target versions; the CLI runs every migration between the installed
+    and target version, in version order.</div>
+  </details>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>APF + partial compilation is why one library artifact serves multiple Angular versions.</li>
+    <li><code>public-api.ts</code> is a forever-contract; secondary entry points keep optional weight out of the main bundle.</li>
+    <li>Framework packages are peerDependencies — everything else you add is conflict surface.</li>
+    <li>Schematics transform an atomic virtual Tree; test with <code>SchematicTestRunner</code>.</li>
+    <li><code>ng add</code> = install experience; <code>ng update</code> migrations = upgrade loyalty.</li>
+  </ul>
+
+  <p><a routerLink="/task-manager">Next: Project — Task Manager →</a></p>
+</article>

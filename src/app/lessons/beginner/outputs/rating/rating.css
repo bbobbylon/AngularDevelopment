@@ -1,0 +1,16 @@
+.rating {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.star {
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--border);
+  padding: 0 2px;
+}
+.star.on {
+  color: var(--amber);
+}

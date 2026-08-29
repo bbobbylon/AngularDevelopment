@@ -1,0 +1,112 @@
+@if (!selected()) {
+  <div class="ct-hero">
+    <span class="pill">Practical Exam Prep</span>
+    <h1>Coding-Task Simulator</h1>
+    <p>
+      Timeboxed build briefs in the style of the practical exam. Copy the
+      starter into a scratch project, implement against the requirements,
+      then verify yourself with the checklist and model solution.
+    </p>
+    <p class="done-line">{{ completedCount() }} / {{ tasks.length }} tasks completed</p>
+  </div>
+
+  <div class="task-grid">
+    @for (task of tasks; track task.id) {
+      <button class="task-card" [class.completed]="stateOf(task.id).done" (click)="open(task)">
+        <div class="card-badges">
+          <span class="badge-diff {{ task.difficulty }}">{{ task.difficulty }}</span>
+          <span class="badge-cat">{{ task.category }}</span>
+          <span class="badge-time">⏱ {{ task.timeboxMinutes }} min</span>
+        </div>
+        <h3>{{ task.title }}</h3>
+        @if (stateOf(task.id).done) {
+          <span class="done-tick">✓ Completed</span>
+        }
+      </button>
+    }
+  </div>
+} @else {
+  @if (selected(); as task) {
+    <div class="workspace" style="padding-top:32px">
+      <div class="ws-top">
+        <button class="back-btn" (click)="close()">← All tasks</button>
+        <span class="badge-diff {{ task.difficulty }}">{{ task.difficulty }}</span>
+        <span class="badge-cat">{{ task.category }}</span>
+        <span class="badge-time">⏱ suggested timebox: {{ task.timeboxMinutes }} min</span>
+      </div>
+
+      <div class="panel">
+        <h2>{{ task.title }}</h2>
+        <p class="scenario">{{ task.scenario }}</p>
+      </div>
+
+      <div class="panel">
+        <h3>Starter code — copy into a scratch project</h3>
+        <pre class="code-block">{{ task.starterCode }}</pre>
+        <button class="copy-btn" (click)="copyStarter(task)">
+          {{ copied() ? '✓ Copied' : '📋 Copy starter code' }}
+        </button>
+      </div>
+
+      <div class="panel">
+        <h3>Requirements — check each one off as you verify it</h3>
+        @for (req of task.requirements; track $index) {
+          <label class="req" [class.checked]="stateOf(task.id).checks[$index]">
+            <input type="checkbox"
+              [checked]="stateOf(task.id).checks[$index]"
+              (change)="toggleCheck(task, $index)" />
+            <span>{{ req }}</span>
+          </label>
+        }
+        <p class="req-progress">{{ checkedCount(task) }} / {{ task.requirements.length }} verified</p>
+      </div>
+
+      <div class="panel">
+        <h3>Hints</h3>
+        @for (hint of visibleHints(task); track $index) {
+          <p class="hint">💡 {{ hint }}</p>
+        }
+        @if (stateOf(task.id).hintsShown < task.hints.length) {
+          <button class="ghost-btn" (click)="showHint(task)">
+            Reveal hint {{ stateOf(task.id).hintsShown + 1 }} of {{ task.hints.length }}
+          </button>
+        } @else if (task.hints.length > 0) {
+          <p class="complete-note">All hints revealed.</p>
+        }
+      </div>
+
+      <div class="panel">
+        <h3>Model solution</h3>
+        @if (!stateOf(task.id).revealed) {
+          <p class="complete-note" style="margin:0 0 10px">
+            Attempt the task before peeking — recall is the whole workout.
+          </p>
+          <button class="ghost-btn" (click)="reveal(task)">Reveal solution</button>
+        } @else {
+          <pre class="code-block">{{ task.solutionCode }}</pre>
+          <p class="explanation">{{ task.explanation }}</p>
+          @if (task.topicPath) {
+            <a [routerLink]="'/' + task.topicPath" target="_blank" class="topic-link">
+              📚 Study this topic in detail →
+            </a>
+          }
+        }
+      </div>
+
+      <div class="ws-actions">
+        @if (stateOf(task.id).done) {
+          <button class="primary-btn done" (click)="setDone(task, false)">✓ Completed — click to undo</button>
+        } @else {
+          <button class="primary-btn"
+            [disabled]="checkedCount(task) < task.requirements.length"
+            (click)="setDone(task, true)">
+            Mark complete
+          </button>
+          @if (checkedCount(task) < task.requirements.length) {
+            <span class="complete-note">Verify all requirements to complete the task.</span>
+          }
+        }
+      </div>
+    </div>
+  }
+}

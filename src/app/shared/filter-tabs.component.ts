@@ -14,38 +14,8 @@ export interface TabOption {
  */
 @Component({
   selector: 'app-filter-tabs',
-  template: `
-    <div class="tab-bar" role="group">
-      @for (opt of options(); track opt.id) {
-        <button
-          [class.active]="value() === opt.id"
-          (click)="value.set(opt.id)"
-          [attr.aria-pressed]="value() === opt.id"
-        >
-          {{ opt.label }}
-        </button>
-      }
-    </div>
-  `,
-  styles: [`
-    .tab-bar {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    button {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 6px 14px;
-      font-size: .85rem;
-    }
-    button.active {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
-    }
-  `],
+  templateUrl: './filter-tabs.component.html',
+  styleUrl: './filter-tabs.component.css',
 })
 export class FilterTabsComponent {
   /** Available tab options passed in from the parent. */

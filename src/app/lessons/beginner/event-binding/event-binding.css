@@ -1,0 +1,8 @@
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }
+
+table.ll { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 4px 0 20px; }
+table.ll th, table.ll td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.ll th { background: var(--bg-elevated); }
+table.ll td:first-child { white-space: nowrap; font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace; font-size: .82rem; }

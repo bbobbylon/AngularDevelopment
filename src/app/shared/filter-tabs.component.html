@@ -1,0 +1,11 @@
+<div class="tab-bar" role="group">
+  @for (opt of options(); track opt.id) {
+    <button
+      [class.active]="value() === opt.id"
+      (click)="value.set(opt.id)"
+      [attr.aria-pressed]="value() === opt.id"
+    >
+      {{ opt.label }}
+    </button>
+  }
+</div>

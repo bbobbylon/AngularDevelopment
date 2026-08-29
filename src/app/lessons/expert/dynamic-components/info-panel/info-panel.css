@@ -1,0 +1,2 @@
+.dyn-panel { padding:12px 16px; border-radius:0 10px 10px 0; font-size:.9rem; }
+    .dyn-panel--info { border-left:3px solid var(--blue); background:rgba(2,132,199,.08); }

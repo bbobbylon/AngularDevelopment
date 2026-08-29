@@ -1,0 +1,175 @@
+    <article class="lesson">
+      <span class="lesson__eyebrow">Intermediate · Signals</span>
+      <h1>The resource() API</h1>
+      <p class="lead">
+        <code>resource()</code> bridges async data and signals. You give it a reactive
+        <code>params</code> and a <code>loader</code>; it tracks loading/error state,
+        re-fetches when the params change, and cancels stale requests via an
+        <code>AbortSignal</code> — all exposed as signals.
+      </p>
+
+      <h2>Declaring a resource</h2>
+      <div class="code">
+        <pre>userId = signal(1);
+
+userResource = resource({{ '{' }}
+  params: () =&gt; this.userId(),                 // reactive — re-runs the loader
+  loader: async ({{ '{' }} params, abortSignal {{ '}' }}) =&gt; {{ '{' }}
+    const res = await fetch(`/users/${{ '{' }}params{{ '}' }}`, {{ '{' }} signal: abortSignal {{ '}' }});
+    return (await res.json()) as User;
+  {{ '}' }},
+{{ '}' }});</pre>
+      </div>
+
+      <h2>Try it — live fetch</h2>
+      <div class="demo">
+        <p class="demo__title">Live — real requests to jsonplaceholder</p>
+        <div class="row" style="margin-bottom:12px">
+          <button (click)="prev()" [disabled]="userId() <= 1">‹ Prev</button>
+          <span class="pill">userId = {{ userId() }}</span>
+          <button (click)="next()" [disabled]="userId() >= 10">Next ›</button>
+          <button class="ghost" (click)="userResource.reload()">Reload</button>
+        </div>
+
+        <p class="row">
+          <span class="pill">status: {{ userResource.status() }}</span>
+          <span class="pill">loading: {{ userResource.isLoading() }}</span>
+        </p>
+
+        @if (userResource.isLoading()) {
+          <p>⏳ Loading user…</p>
+        } @else if (userResource.error()) {
+          <p style="color:var(--accent)">⚠ {{ userResource.error() }}</p>
+        } @else if (userResource.hasValue()) {
+          <div class="code"><pre>name:    {{ userResource.value().name }}
+email:   {{ userResource.value().email }}
+company: {{ userResource.value().company.name }}</pre></div>
+        }
+      </div>
+
+      <h2>What it exposes</h2>
+      <div class="code">
+        <pre>userResource.value()      // Signal&lt;User | undefined&gt;
+userResource.status()     // 'idle' | 'loading' | 'resolved' | 'error' | …
+userResource.isLoading()  // boolean signal
+userResource.error()      // unknown signal
+userResource.hasValue()   // type-guard signal
+userResource.reload()     // re-run the loader manually</pre>
+      </div>
+
+      <div class="tip">
+        Prefer <code>rxResource</code> (from <code>&#64;angular/core/rxjs-interop</code>)
+        when your loader is an Observable — pass a <code>stream</code> instead of a
+        <code>loader</code>. Both re-run automatically when <code>params</code> change
+        and abort the in-flight request.
+      </div>
+      <div class="note">
+        The loader's <code>abortSignal</code> is wired to <code>fetch</code> so a stale
+        request is genuinely cancelled when <code>params</code> change. You can write the
+        value locally — <code>userResource.value.set(edited)</code> — for optimistic
+        updates (the status becomes <code>'local'</code>) until the next reload. Returning
+        <code>undefined</code> from a param means "no request"
+        (<code>idle</code>), which is how you defer loading until inputs are ready.
+      </div>
+
+      <h2>Try it — optimistic local write</h2>
+      <div class="demo">
+        <p class="demo__title">Live — edit the cached value without a network call</p>
+        <div class="row" style="margin-bottom:12px">
+          <input
+            [value]="draftName()"
+            (input)="draftName.set($any($event.target).value)"
+            placeholder="new name"
+          />
+          <button (click)="saveLocal()" [disabled]="!userResource.hasValue()">Save locally</button>
+          <button class="ghost" (click)="userResource.reload()">Reload from server</button>
+        </div>
+        <p class="row">
+          <span class="pill">status: {{ userResource.status() }}</span>
+        </p>
+        @if (userResource.hasValue()) {
+          <div class="code"><pre>name: {{ userResource.value().name }}</pre></div>
+        }
+      </div>
+      <div class="note">
+        <code>value</code> is a <strong>writable</strong> signal — <code>.set()</code>/<code>.update()</code>
+        it directly to patch the cache without re-running the loader. Status flips to
+        <code>'local'</code> and stays there until the next <code>reload()</code> or param
+        change re-syncs from the network.
+      </div>
+
+      <h2>resource() vs the alternatives</h2>
+      <table class="cmp">
+        <tr><th>Tool</th><th>Gives you</th><th>Reach for it when</th></tr>
+        <tr><td><code>resource()</code></td><td>value + status + error + isLoading signals, auto re-fetch, cancellation</td><td>reactive reads keyed off a signal (an id, a filter) with real loading/error UI</td></tr>
+        <tr><td><code>toSignal(http$)</code></td><td>a signal of the latest value</td><td>a one-shot fetch you just want as a signal; no built-in status/error</td></tr>
+        <tr><td>manual <code>subscribe()</code></td><td>full RxJS control</td><td>complex streams (debounce, combine, retry) — but you manage state + teardown</td></tr>
+        <tr><td>route <a routerLink="/resolvers">resolver</a></td><td>data before the route activates</td><td>small, critical data that must be present on first paint (blocks navigation)</td></tr>
+      </table>
+
+      <h2>Under the hood</h2>
+      <ul>
+        <li><strong>The <code>params</code> callback runs in a reactive context.</strong> Angular
+          tracks every signal it reads while producing the request value — much like
+          <code>effect()</code> — and reruns the loader whenever any of them change, not on a
+          timer or a manual trigger.</li>
+        <li><strong>Stale loads are aborted, not just ignored.</strong> Each loader call gets its
+          own <code>abortSignal</code> tied to that request's generation; when a newer request
+          supersedes it, that signal fires so a well-behaved <code>fetch</code> actually cancels
+          the network call instead of the response just being discarded client-side.</li>
+        <li><strong>Why it's still <code>&#64;experimental</code>.</strong> The shape is stable enough
+          to use, but the loader/stream split and how resources interact with SSR and hydration are
+          still being finalized — the API surface can still shift in a minor release.</li>
+        <li><strong><code>rxResource</code> cancels by unsubscribing, not aborting.</strong> Instead
+          of awaiting one Promise per request, it resubscribes to a fresh Observable from
+          <code>stream</code> on every params change and unsubscribes the previous one — push-based
+          cancellation that naturally supports operators like <code>retry</code> or
+          <code>debounceTime</code> that a raw <code>loader</code> can't.</li>
+        <li><strong>Writing <code>value</code> doesn't touch the loader.</strong>
+          <code>userResource.value.set(...)</code> patches the cached signal in place; it's a pure
+          local mutation, so it can't re-trigger <code>params</code>/<code>loader</code> tracking.</li>
+      </ul>
+
+      <h2>Pitfalls that show up in exams &amp; code review</h2>
+      <ul>
+        <li><strong>Reading params non-reactively.</strong> The <code>params</code> callback must
+          read signals so the loader re-runs — a plain variable won't trigger re-fetch.</li>
+        <li><strong>Ignoring <code>abortSignal</code>.</strong> Wire it into <code>fetch</code>
+          (or <code>rxResource</code>) so stale requests are actually cancelled.</li>
+        <li><strong>Expecting <code>value()</code> to always be set.</strong> It's
+          <code>undefined</code> while loading/idle — guard with <code>hasValue()</code> or
+          <code>isLoading()</code>.</li>
+        <li><strong>Observable loader in <code>resource()</code>.</strong> Use
+          <code>rxResource</code> with a <code>stream</code> for Observable sources.</li>
+        <li><strong>Forgetting the "no request" signal.</strong> Return <code>undefined</code>
+          from a param to stay <code>idle</code> until inputs are ready.</li>
+      </ul>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>How does a resource know to re-fetch?</summary>
+        <div>Its <code>params</code> callback reads signals; when any change, the loader re-runs
+        and the previous request is aborted.</div>
+      </details>
+      <details class="qa">
+        <summary><code>resource()</code> vs a route resolver?</summary>
+        <div><code>resource()</code> shows the route immediately and streams data in with
+        loading/error signals. A resolver blocks navigation until small, critical data is
+        ready.</div>
+      </details>
+      <details class="qa">
+        <summary>My loader is an Observable — which API?</summary>
+        <div><code>rxResource</code> from <code>&#64;angular/core/rxjs-interop</code>; pass a
+        <code>stream</code> instead of a <code>loader</code>.</div>
+      </details>
+
+      <h2>Key takeaways</h2>
+      <ul>
+        <li><code>resource()</code> turns async loads into reactive signal state.</li>
+        <li>A change to <code>params</code> re-runs the loader and cancels the old one.</li>
+        <li>Read <code>value</code>, <code>status</code>, <code>isLoading</code>, <code>error</code> as signals.</li>
+        <li>Use <code>rxResource</code> for Observable-based loaders.</li>
+      </ul>
+
+      <p><a routerLink="/testing-components">Next: Testing Components →</a></p>
+    </article>

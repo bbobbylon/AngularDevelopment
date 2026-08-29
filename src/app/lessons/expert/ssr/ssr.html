@@ -1,0 +1,171 @@
+<article class="lesson">
+  <span class="lesson__eyebrow">Expert · Rendering &amp; Delivery</span>
+  <h1>Server-Side Rendering (SSR)</h1>
+  <p class="lead">
+    With SSR, Angular renders your components to HTML on the server, so the browser
+    paints real content before a single byte of JavaScript executes — then the same
+    app boots on the client and <em>hydrates</em> the existing DOM. This page covers
+    the three delivery strategies, per-route render modes, SSR-safe coding patterns,
+    and the transfer cache that prevents double-fetching.
+  </p>
+
+  <h2>Three delivery strategies, one framework</h2>
+  <div class="demo">
+    <p class="demo__title">Interactive — follow a request through each strategy</p>
+    <div class="chips">
+      @for (s of strategies; track s) {
+        <button [class.on]="strategy() === s" (click)="strategy.set(s)">{{ s }}</button>
+      }
+    </div>
+    <p style="font-size:.9rem">{{ timelines[strategy()].blurb }}</p>
+    <ul class="timeline">
+      @for (step of timelines[strategy()].steps; track $index) {
+        <li>
+          <span class="actor" [class]="'actor ' + step.actor">{{ step.actor }}</span>
+          <span>{{ step.text }}</span>
+          @if (step.marker) { <span class="marker">{{ step.marker }}</span> }
+        </li>
+      }
+    </ul>
+    <p style="margin-top:10px;color:var(--text-muted);font-size:.85rem">
+      Note where FCP (first contentful paint) lands: CSR pays for download + bootstrap
+      + data fetch before showing anything; SSR/SSG paint before JavaScript even
+      arrives. Crawlers and link previews read the initial HTML — with CSR they may
+      see an empty shell.
+    </p>
+  </div>
+
+  <h2>Adding SSR</h2>
+  <div class="code"><pre>{{ setupSample }}</pre></div>
+  <p>
+    The build now emits a <strong>browser</strong> bundle and a <strong>server</strong>
+    bundle, plus a small Node server (<code>server.ts</code>, Express-based) you can
+    deploy or adapt. <code>ng serve</code> renders through the server engine in
+    development too — so SSR bugs surface immediately instead of in production.
+  </p>
+
+  <h2>Per-route render modes — the real architecture decision</h2>
+  <p>
+    Modern Angular doesn't force one strategy on the whole app. A
+    <code>ServerRoute[]</code> config assigns each route
+    <code>RenderMode.Server</code>, <code>RenderMode.Prerender</code> (default), or
+    <code>RenderMode.Client</code> — so a single deployment mixes static marketing
+    pages, per-request SSR, and client-only authenticated areas:
+  </p>
+  <div class="code"><pre>{{ renderModeSample }}</pre></div>
+  <div class="demo">
+    <p class="demo__title">Decision lab — pick a page, get the mode + the reasoning</p>
+    <div class="chips">
+      @for (p of pageKinds; track p.label) {
+        <button [class.on]="activePage() === p" (click)="activePage.set(p)">{{ p.label }}</button>
+      }
+    </div>
+    @if (activePage(); as p) {
+      <span class="mode-pill">RenderMode.{{ p.mode }}</span>
+      <p style="font-size:.9rem; margin:6px 0 10px">{{ p.why }}</p>
+      <div class="code" style="font-size:.82rem"><pre>{{ p.snippet }}</pre></div>
+    }
+  </div>
+
+  <h2>Writing SSR-safe code</h2>
+  <p>
+    On the server there is no <code>window</code>, <code>document</code>,
+    <code>localStorage</code>, <code>navigator</code>, or layout engine. The
+    number-one SSR bug is touching them during construction or rendering — the render
+    crashes (or silently produces wrong HTML) for every request:
+  </p>
+  <div class="code"><pre>{{ safeCodeSample }}</pre></div>
+  <table class="cmp">
+    <tr><th>Need</th><th>SSR-safe tool</th></tr>
+    <tr><td>Measure/manipulate the DOM after paint</td><td><code>afterNextRender()</code> — browser-only by design, never runs on the server</td></tr>
+    <tr><td>Branch logic per platform</td><td><code>isPlatformBrowser(inject(PLATFORM_ID))</code></td></tr>
+    <tr><td>Read the incoming request (cookies, headers)</td><td>inject <code>REQUEST</code> (Angular's server DI tokens)</td></tr>
+    <tr><td>Third-party browser-only library</td><td>dynamic <code>import()</code> inside <code>afterNextRender</code>, or <code>&#64;defer</code> the component using it</td></tr>
+    <tr><td>Storage</td><td>cookies (exist on both sides) or guard localStorage behind a platform check</td></tr>
+  </table>
+  <div class="warn">
+    <strong>Stability trap:</strong> the server waits for the app to become
+    <em>stable</em> (pending HttpClient requests resolved, no queued macrotasks)
+    before serializing. An innocent <code>setInterval</code> started in a constructor
+    keeps the app unstable — the server render hangs until a timeout. Start recurring
+    timers in <code>afterNextRender</code> so they only ever exist in the browser.
+  </div>
+
+  <h2>The double-fetch problem &amp; the transfer cache</h2>
+  <p>
+    The server fetched your data to render the page — then the client app boots and
+    fetches <em>the same data again</em>. Angular solves this with the
+    <strong>HTTP transfer cache</strong> (on by default with
+    <code>provideClientHydration()</code>): server-side <code>HttpClient</code>
+    responses are embedded in the HTML and replayed as instant cache hits during
+    hydration, then the cache is discarded:
+  </p>
+  <div class="code"><pre>{{ transferSample }}</pre></div>
+  <p>
+    For non-HttpClient data (a database read in a server route, a heavy computation),
+    use <code>TransferState</code> directly with <code>makeStateKey</code> — same
+    mechanism, manual keys.
+  </p>
+
+  <h2>Pitfalls seen in real deployments</h2>
+  <ul>
+    <li><strong>Auth-gated APIs return 401 during SSR</strong> — the server's HttpClient
+      does not automatically forward the user's cookies. Read them from the
+      <code>REQUEST</code> token and attach explicitly (or make those routes
+      <code>RenderMode.Client</code>).</li>
+    <li><strong>Absolute vs relative URLs</strong> — on the server, a relative
+      <code>/api/...</code> URL has no origin to resolve against unless the server
+      entry configures one. Interceptor that prefixes the API origin is the standard fix.</li>
+    <li><strong>Memory leaks are amplified</strong> — a leak that costs one browser tab
+      now costs a long-running Node process serving every user. Clean up in
+      <code>DestroyRef</code>/<code>ngOnDestroy</code> religiously.</li>
+    <li><strong>Different output per render</strong> — randomness or timestamps in
+      templates make the server HTML differ from the client's first render; that's a
+      hydration mismatch (covered in the <a routerLink="/hydration">Hydration lesson</a>).</li>
+    <li><strong>Prerender + late data</strong> — an SSG page is frozen at build time;
+      if its data changes hourly, either rebuild on a schedule, switch that route to
+      <code>RenderMode.Server</code>, or fetch the volatile part client-side.</li>
+  </ul>
+
+  <h2>Exam corner</h2>
+  <details class="qa">
+    <summary>When would you choose Prerender over Server rendering?</summary>
+    <div>When the page is the same for every visitor at request time — marketing pages,
+    docs, blog posts, enumerable product pages. It's rendered once at build (per param
+    set via <code>getPrerenderParams</code>) and served statically: no per-request
+    compute, best TTFB. Server mode is for per-request/personalized-but-crawlable
+    content.</div>
+  </details>
+  <details class="qa">
+    <summary>Why did the SSR response take 30 seconds, then render fine?</summary>
+    <div>Something kept the app from becoming stable — usually a recurring timer or a
+    never-completing observable tied to a macrotask started during bootstrap. The
+    server waits for stability before serializing. Move timers into
+    <code>afterNextRender</code>.</div>
+  </details>
+  <details class="qa">
+    <summary>How does Angular avoid fetching data twice (server + client)?</summary>
+    <div>The HTTP transfer cache: server-side HttpClient responses are serialized into
+    the HTML and replayed on the client during hydration. Enabled by default with
+    <code>provideClientHydration()</code>; tune with
+    <code>withHttpTransferCacheOptions()</code> (e.g. include POST or requests with
+    auth headers). Manual data goes through <code>TransferState</code>.</div>
+  </details>
+  <details class="qa">
+    <summary>Where does <code>localStorage</code> access belong in an SSR app?</summary>
+    <div>Behind a browser boundary: inside <code>afterNextRender()</code>, or guarded
+    by <code>isPlatformBrowser</code>. On the server it doesn't exist — unguarded
+    access throws for every request.</div>
+  </details>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>SSR renders per request; prerender renders at build; client mode opts a route out — mix all three via <code>ServerRoute</code> configs.</li>
+    <li>FCP happens before JavaScript with SSR/SSG; crawlers and previews see real HTML.</li>
+    <li>Guard browser globals (<code>afterNextRender</code> / <code>isPlatformBrowser</code>); keep timers out of bootstrap or the server render hangs.</li>
+    <li>The HTTP transfer cache kills the double fetch; <code>TransferState</code> is the manual escape hatch.</li>
+    <li>Server-side HttpClient forwards no cookies by itself — handle auth explicitly.</li>
+  </ul>
+
+  <p><a routerLink="/hydration">Next: Hydration →</a></p>
+</article>

@@ -1,0 +1,26 @@
+.box {
+  padding: 18px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  transition: all 0.15s ease;
+}
+.box--active {
+  border-color: var(--violet);
+  box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.25);
+}
+.box--ok {
+  background: rgba(46, 193, 107, 0.15);
+  border-color: var(--green);
+}
+.box--warn {
+  background: rgba(245, 166, 35, 0.15);
+  border-color: var(--amber);
+}
+.box--error {
+  background: rgba(221, 0, 49, 0.15);
+  border-color: var(--accent);
+}
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

@@ -1,0 +1,5 @@
+<span class="stepper" [class.stepper--disabled]="disabled()">
+  <button type="button" [disabled]="disabled()" (click)="step(-1)">−</button>
+  <strong>{{ value() }}</strong>
+  <button type="button" [disabled]="disabled()" (click)="step(1)">+</button>
+</span>

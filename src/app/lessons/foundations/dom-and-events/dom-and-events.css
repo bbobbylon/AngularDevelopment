@@ -1,0 +1,20 @@
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+     @media (max-width: 640px) { .split { grid-template-columns: 1fr; } }
+
+     .tree { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+     .tnode { background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 14px; font-family: monospace; font-size: .82rem; }
+     .tnode.sel { border-color: var(--accent); outline: 2px solid var(--accent); }
+
+     .bubble { border: 2px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; font-size: .82rem; color: var(--text-muted); }
+     .bubble.outer { background: rgba(99,102,241,.06); }
+     .bubble.middle { background: rgba(16,185,129,.08); margin-top: 6px; }
+     .bubble.inner { background: rgba(245,158,11,.12); margin-top: 6px; font-weight: 600; color: var(--text); }
+     .bubble:hover { border-color: var(--accent); }
+
+     /* Fixed dark console — colours must not come from theme vars (see styles.css --code-fg note). */
+     .console { background: var(--code-bg); color: var(--code-fg); border-radius: 8px; padding: 10px 14px; font-family: monospace; font-size: .82rem; min-height: 70px; margin-top: 8px; }
+     .console .dim { color: #8b93a8; }
+
+     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+     .qa div { padding: 10px 14px; font-size: .9rem; }

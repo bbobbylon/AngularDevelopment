@@ -301,3 +301,12 @@ DOCKER_PASSWORD=<token>
 - **For private projects**: Use GitHub Container Registry instead of Docker Hub
 
 Need help? Check the GitHub Actions logs for detailed error messages.
+
+---
+
+## Related Documents
+
+- [docs/CI-CD-PIPELINE.md](docs/CI-CD-PIPELINE.md) — The workflows in detail
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — What is being deployed and why it is static
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — Checks to run before shipping
+- [README.md](README.md) — Quick start

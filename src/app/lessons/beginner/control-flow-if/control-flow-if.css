@@ -1,0 +1,15 @@
+table.cmp { width: 100%; border-collapse: collapse; font-size: .84rem; margin: 12px 0; }
+table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.cmp th { background: var(--bg-elevated); }
+.ok { color: var(--green); font-weight: 700; }
+.bad { color: #ef4444; font-weight: 700; }
+
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 8px; }
+.split__box { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--bg-card); }
+.split__box h4 { margin: 0 0 8px; font-size: .82rem; }
+.split__box input { width: 100%; }
+.verdict { margin-top: 8px; font-size: .78rem; }
+
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

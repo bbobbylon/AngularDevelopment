@@ -1,0 +1,215 @@
+<article class="lesson">
+  <span class="lesson__eyebrow">TypeScript · Language Features</span>
+  <h1>Decorators</h1>
+  <p class="lead">
+    A decorator is a function prefixed with <code>&#64;</code> that attaches
+    metadata or behavior to a class, method, accessor, property or parameter.
+    Angular is built on them — and understanding what they really are (plain
+    functions with a calling convention) demystifies half the framework,
+    including why <code>&#64;Component</code> never even runs in a production build.
+  </p>
+
+  <h2>The five targets — as Angular uses them</h2>
+  <div class="code"><pre>{{ fiveTargetsSample }}</pre></div>
+  <p>
+    Each decorator kind receives different arguments. That signature difference
+    is why you can't put <code>&#64;Component</code> on a method or
+    <code>&#64;Input</code> on a class — the function would be called with
+    arguments it doesn't expect.
+  </p>
+  <table class="cmp">
+    <tr><th>Kind</th><th>Receives (legacy dialect)</th><th>Angular examples</th></tr>
+    <tr><td>Class</td><td>the constructor function; may return a replacement class</td><td><code>&#64;Component</code>, <code>&#64;Directive</code>, <code>&#64;Injectable</code>, <code>&#64;Pipe</code></td></tr>
+    <tr><td>Method</td><td>prototype, method name, <code>PropertyDescriptor</code></td><td><code>&#64;HostListener</code></td></tr>
+    <tr><td>Property</td><td>prototype, property name — <em>no descriptor</em></td><td><code>&#64;Input</code>, <code>&#64;Output</code>, <code>&#64;ViewChild</code>, <code>&#64;HostBinding</code></td></tr>
+    <tr><td>Accessor</td><td>prototype, name, descriptor (get/set)</td><td><code>&#64;Input</code> on a setter</td></tr>
+    <tr><td>Parameter</td><td>target, method name, parameter index</td><td><code>&#64;Inject</code>, <code>&#64;Optional</code>, <code>&#64;Self</code>, <code>&#64;SkipSelf</code>, <code>&#64;Host</code></td></tr>
+  </table>
+
+  <h2>A decorator is just a function</h2>
+  <p>
+    A method decorator receives the prototype, the member name and the property
+    descriptor — mutate or replace <code>descriptor.value</code> and you've wrapped
+    the method for <em>every instance of the class, forever</em>. This is the whole
+    trick behind logging, memoization, debouncing and deprecation decorators:
+  </p>
+  <div class="code"><pre>{{ loggedSample }}</pre></div>
+  <div class="warn">
+    Decorators run <strong>once, at class-definition time</strong> — when the module
+    is first imported — not per instance and not per call. State captured in the
+    decorator's closure (like a cache) is therefore shared across all instances.
+    Design for that or key the state per-instance (e.g. a <code>WeakMap</code>).
+  </div>
+
+  <h2>Factories, and the two orderings everyone mixes up</h2>
+  <p>
+    A factory is a function that <em>returns</em> a decorator — that is why
+    Angular's decorators take arguments: <code>&#64;Component(&#123;...&#125;)</code>
+    calls <code>Component</code> with your metadata, and the returned function
+    decorates the class. With multiple decorators on one member there are two
+    distinct orders: <strong>factories evaluate top-down</strong> (they're just
+    expressions), then <strong>the returned decorators apply bottom-up</strong>
+    (composition, like nested function calls). The log below was produced for real
+    when this page's module loaded:
+  </p>
+  <div class="code"><pre>{{ orderSample }}</pre></div>
+  <div class="demo">
+    <p class="demo__title">Live — actual execution order, captured at module load</p>
+    <div class="order-log">
+      @for (line of orderLog; track $index) {
+        <p>{{ line }}</p>
+      }
+    </div>
+    <p style="margin-top:10px;color:var(--text-muted);font-size:.85rem">
+      Bottom-up application means the decorator <em>closest to the method</em> wraps
+      it first, and the one above wraps that wrapper — exactly like
+      <code>First(Second(method))</code>.
+    </p>
+  </div>
+
+  <h2>A real custom decorator, benchmarked live</h2>
+  <p>
+    <code>&#64;Memoize</code> below is a genuine legacy decorator compiled by this
+    project (our tsconfig sets <code>experimentalDecorators: true</code>). It swaps
+    the method for a caching wrapper. <code>fib(32)</code> naive recursion makes
+    ~7 million calls; memoized, recursive calls dispatch through the wrapper so it
+    does ~33:
+  </p>
+  <div class="code"><pre>{{ memoizeSample }}</pre></div>
+  <div class="demo">
+    <p class="demo__title">Live — run both implementations</p>
+    <button (click)="runBench()">Compute fib(32) both ways</button>
+    @if (benchPlain() !== null) {
+      <div class="bench">
+        <div class="card">
+          <h4>plain fib(32)</h4>
+          <strong>{{ benchPlain() }} ms</strong>
+        </div>
+        <div class="card">
+          <h4>&#64;Memoize fib(32)</h4>
+          <strong>{{ benchMemo() }} ms</strong>
+        </div>
+        <div class="card">
+          <h4>&#64;Memoize again (cache hit)</h4>
+          <strong>{{ benchMemoAgain() }} ms</strong>
+        </div>
+      </div>
+    }
+  </div>
+  <p>Other decorators worth having in your toolbox — same anatomy, different wrapper:</p>
+  <div class="code"><pre>{{ toolboxSample }}</pre></div>
+
+  <h2>What Angular actually does with them (AOT)</h2>
+  <p>
+    Here is the part that separates "knows the syntax" from "knows the system":
+    in a production (AOT) build, <strong><code>&#64;Component</code> never
+    executes</strong>. The Angular compiler (<code>ngtsc</code>) statically reads
+    the decorator's metadata at build time, compiles your template into
+    instructions, and replaces the decorator with generated static fields
+    (<code>ɵcmp</code>, <code>ɵfac</code>) on the class. The decorator is a
+    compile-time <em>marker</em>, not a runtime mechanism:
+  </p>
+  <div class="code"><pre>{{ aotSample }}</pre></div>
+  <ul>
+    <li><strong>JIT mode</strong> (rare today: some tests, dynamic compilation) is the
+      only place Angular decorators genuinely run at runtime — which is why
+      <code>experimentalDecorators</code> is still switched on in CLI projects.</li>
+    <li>This is also why decorator metadata must be <strong>statically analyzable</strong>:
+      <code>template: someRuntimeString()</code> breaks AOT because the compiler
+      can't evaluate it at build time.</li>
+    <li>And why you can't apply <code>&#64;Component</code> conditionally or at
+      runtime — by the time your code runs, the decorator is gone.</li>
+  </ul>
+
+  <h2>emitDecoratorMetadata — how constructor injection used to work</h2>
+  <p>
+    With <code>emitDecoratorMetadata</code>, TypeScript emits each constructor's
+    parameter <em>types</em> as runtime metadata. Angular's JIT DI read that to know
+    what to inject — it's why <code>constructor(private http: HttpClient)</code>
+    worked with no token in sight. AOT replaced this with generated factories, and
+    the modern <code>inject(HttpClient)</code> function needs no reflection at all —
+    one reason the framework is migrating away from parameter decorators entirely
+    (the TC39 standard doesn't even support them).
+  </p>
+  <div class="code"><pre>{{ diSample }}</pre></div>
+
+  <h2>Legacy vs TC39 stage-3 decorators</h2>
+  <p>
+    TypeScript 5 ships the standardized decorator proposal alongside the legacy
+    dialect. They are <em>different languages</em> with different signatures —
+    Angular still uses the legacy dialect (hence
+    <code>"experimentalDecorators": true</code> in this repo's tsconfig; remove it
+    and the compiler switches to stage-3 semantics and Angular's decorators break):
+  </p>
+  <table class="cmp">
+    <tr><th></th><th>Legacy (Angular today)</th><th>TC39 stage-3 (TS 5+ default)</th></tr>
+    <tr><td>Enabled by</td><td><code>experimentalDecorators: true</code></td><td>default when the flag is absent</td></tr>
+    <tr><td>Method signature</td><td><code>(target, key, descriptor)</code></td><td><code>(value, context)</code> — context has kind, name, <code>addInitializer</code></td></tr>
+    <tr><td>Parameter decorators</td><td>supported (<code>&#64;Inject</code>)</td><td><strong>not in the standard</strong></td></tr>
+    <tr><td>Metadata emit</td><td><code>emitDecoratorMetadata</code></td><td>separate metadata proposal</td></tr>
+    <tr><td>Replace a class/method</td><td>mutate descriptor / return class</td><td>return the replacement from the decorator</td></tr>
+  </table>
+
+  <h2>The signal era — the migration map</h2>
+  <p>
+    Modern Angular replaces most <em>member</em> decorators with plain functions that
+    create signals — no reflection, better types, works with the new compilation
+    model. The <em>class</em> decorators remain (they're the compiler's entry points):
+  </p>
+  <table class="cmp">
+    <tr><th>Decorator era</th><th>Signal era</th><th>Gained</th></tr>
+    <tr><td><code>&#64;Input() x = 0</code></td><td><code>x = input(0)</code></td><td>read-only signal, required inputs, transforms</td></tr>
+    <tr><td><code>&#64;Output() e = new EventEmitter()</code></td><td><code>e = output()</code></td><td>no RxJS coupling, cleaner types</td></tr>
+    <tr><td><code>&#64;Input</code> + <code>&#64;Output</code> pair</td><td><code>x = model(0)</code></td><td>two-way binding in one line</td></tr>
+    <tr><td><code>&#64;ViewChild('ref')</code></td><td><code>viewChild('ref')</code></td><td>signal, timing-safe, required variant</td></tr>
+    <tr><td><code>&#64;ContentChildren(Tab)</code></td><td><code>contentChildren(Tab)</code></td><td>signal of readonly array</td></tr>
+    <tr><td><code>constructor(&#64;Inject(TOKEN) t)</code></td><td><code>t = inject(TOKEN)</code></td><td>works in field initializers &amp; functions, inheritance-friendly</td></tr>
+    <tr><td><code>&#64;HostListener</code> / <code>&#64;HostBinding</code></td><td><code>host: &#123;...&#125;</code> metadata</td><td>statically analyzable, the style guide's preference</td></tr>
+    <tr><td><code>&#64;Component</code>, <code>&#64;Directive</code>, <code>&#64;Injectable</code>, <code>&#64;Pipe</code></td><td colspan="2">stay — they are how the compiler finds Angular classes</td></tr>
+  </table>
+
+  <h2>Exam corner</h2>
+  <details class="qa">
+    <summary>In what order do <code>&#64;A() &#64;B() method()</code> run?</summary>
+    <div>Factories evaluate top-down (A's factory, then B's), the returned decorators
+    apply bottom-up (B decorates the method, A decorates the result) — function
+    composition, <code>A(B(method))</code>.</div>
+  </details>
+  <details class="qa">
+    <summary>Does <code>&#64;Component</code> execute in a production build?</summary>
+    <div>No. AOT compilation reads it statically, generates <code>ɵcmp</code>/<code>ɵfac</code>
+    static fields, and drops the decorator. It only executes under JIT compilation.</div>
+  </details>
+  <details class="qa">
+    <summary>How many times does a method decorator run for 100 instances?</summary>
+    <div>Once — at class-definition time, when the module first loads. The rewritten
+    descriptor (and any closure state, like a memo cache) is shared by all 100
+    instances.</div>
+  </details>
+  <details class="qa">
+    <summary>Why can't Angular adopt TC39 decorators for <code>&#64;Inject</code>?</summary>
+    <div>The stage-3 standard has no parameter decorators. That's one driver behind
+    <code>inject()</code> — it moves DI out of constructor parameters entirely, so no
+    parameter decoration (or reflection metadata) is needed.</div>
+  </details>
+  <details class="qa">
+    <summary>Why must <code>&#64;Component</code> metadata be statically analyzable?</summary>
+    <div>Because the AOT compiler evaluates it at build time to generate template
+    instructions. A template or selector computed at runtime can't be compiled ahead
+    of time — the build fails.</div>
+  </details>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>A decorator is a plain function called with a target-kind-specific signature at class-definition time — once, not per instance.</li>
+    <li>Factories evaluate top-down; decorators apply bottom-up (composition).</li>
+    <li>In AOT builds Angular decorators are compile-time markers — <code>&#64;Component</code> never runs; JIT is the exception that keeps <code>experimentalDecorators</code> alive.</li>
+    <li>Angular uses the legacy dialect; TC39 stage-3 has different signatures and no parameter decorators.</li>
+    <li>Member decorators are migrating to signal functions (<code>input()</code>, <code>output()</code>, <code>viewChild()</code>, <code>inject()</code>); class decorators stay.</li>
+  </ul>
+
+  <p>
+    Drill this with the <a routerLink="/practice">TypeScript challenges</a>, then
+    continue to <a routerLink="/ts-modules">Modules, Imports &amp; Exports →</a>
+  </p>
+</article>

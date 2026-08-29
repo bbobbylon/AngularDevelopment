@@ -1,0 +1,16 @@
+<div class="tg">
+  <div class="tg__bar" role="tablist">
+    @for (label of labels(); track $index) {
+      <button
+        class="tg__tab"
+        [class.tg__tab--active]="active() === $index"
+        (click)="onTabClick($index)"
+        role="tab"
+      >{{ label.el.nativeElement.textContent }}</button>
+    }
+  </div>
+  <!-- The projected content is always in the DOM but we hide/show via CSS -->
+  <div class="tg__body">
+    <ng-content />
+  </div>
+</div>

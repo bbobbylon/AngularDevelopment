@@ -1,0 +1,22 @@
+.t { width: 100%; border-collapse: collapse; margin: 8px 0; }
+     .t td { padding: 10px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+     .t td:first-child { width: 150px; }
+     .field { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+     .field label { min-width: 80px; color: var(--text-muted); }
+     .field .mini { min-width: 0; font-size: .8rem; }
+
+     .trace-code { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; font-size: .88rem; }
+     .tline { display: flex; gap: 12px; padding: 6px 12px; cursor: pointer; border-bottom: 1px solid var(--border); }
+     .tline:last-child { border-bottom: none; }
+     .tline .ln { color: var(--text-muted); width: 16px; text-align: right; }
+     .tline.done { opacity: .55; }
+     .tline.now { background: rgba(99, 102, 241, .12); border-left: 3px solid var(--accent); }
+
+     .boxes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+     .box { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; min-width: 90px; text-align: center; }
+     .box-name { display: block; font-size: .72rem; padding: 3px 10px; background: var(--bg-elevated); color: var(--text-muted); font-family: monospace; }
+     .box-val { display: block; padding: 6px 10px; font-family: monospace; font-weight: 700; }
+
+     .qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+     .qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+     .qa div { padding: 10px 14px; font-size: .9rem; }

@@ -1,0 +1,314 @@
+    <article class="lesson">
+      <span class="lesson__eyebrow">Expert · Architecture</span>
+      <h1>State Management</h1>
+      <p class="lead">
+        Every Angular app manages state — values that change over time and drive the UI.
+        Choosing <em>where</em> that state lives and <em>who</em> can change it is one of
+        the most consequential architecture decisions you make.
+      </p>
+
+      <h2>The three tiers of state</h2>
+      <p>Think of state in three buckets before reaching for any library:</p>
+      <div class="state-tier">
+        <div class="tier-card">
+          <h4>Local / UI state</h4>
+          <p>Lives inside one component. Tooltip open, tab index, form dirty flag. Use a plain signal or class field.</p>
+        </div>
+        <div class="tier-card">
+          <h4>Feature / shared state</h4>
+          <p>Several components in a feature share it (cart, current user). Use a <strong>signal store service</strong>.</p>
+        </div>
+        <div class="tier-card">
+          <h4>Global / cross-feature state</h4>
+          <p>Auth session, theme, notifications. Signal store with <code>providedIn: 'root'</code> or NgRx.</p>
+        </div>
+      </div>
+
+      <h2>The signal store pattern (no library needed)</h2>
+      <p>
+        A signal store is just an <code>&#64;Injectable</code> that owns <strong>private</strong>
+        writable signals, exposes <strong>read-only</strong> signals and <code>computed</code>
+        selectors, and mutates state only through explicit methods. Components inject it and
+        <em>read</em>; they never write directly.
+      </p>
+      <div class="code">
+        <pre>&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
+export class CartStore {{ '{' }}
+  // --- private writable state ---
+  private readonly _items = signal&lt;CartItem[]&gt;([]);
+  private readonly _coupon = signal&lt;string | null&gt;(null);
+
+  // --- public read-only projections ---
+  readonly items   = this._items.asReadonly();
+  readonly coupon  = this._coupon.asReadonly();
+
+  // --- derived / computed selectors ---
+  readonly subtotal = computed(() =&gt;
+    this._items().reduce((s, i) =&gt; s + i.price * i.qty, 0)
+  );
+  readonly discount = computed(() =&gt;
+    this._coupon() === 'SAVE10' ? this.subtotal() * 0.1 : 0
+  );
+  readonly total = computed(() =&gt; this.subtotal() - this.discount());
+
+  // --- mutations: one clear entry-point per action ---
+  addItem(item: CartItem) {{ '{' }}
+    this._items.update(list =&gt; {{ '{' }}
+      const exists = list.find(i =&gt; i.id === item.id);
+      return exists
+        ? list.map(i =&gt; i.id === item.id ? {{ '{' }} ...i, qty: i.qty + 1 {{ '}' }} : i)
+        : [...list, {{ '{' }} ...item, qty: 1 {{ '}' }}];
+    {{ '}' }});
+  {{ '}' }}
+  removeItem(id: number) {{ '{' }} this._items.update(l =&gt; l.filter(i =&gt; i.id !== id)); {{ '}' }}
+  applyCoupon(code: string) {{ '{' }} this._coupon.set(code.toUpperCase()); {{ '}' }}
+  clearCart() {{ '{' }} this._items.set([]); this._coupon.set(null); {{ '}' }}
+{{ '}' }}</pre>
+      </div>
+      <div class="tip">
+        The contract that makes this pattern work: writable state is <strong>always private</strong>,
+        mutations go through <strong>named methods</strong>, and derived values use
+        <strong>computed()</strong>. Any component can inject the store but none can break
+        its invariants.
+      </div>
+
+      <h2>Live demo — signal store with filter + priority</h2>
+      <div class="demo">
+        <p class="demo__title">TodoStore — private signals, public computed, named mutations</p>
+        <div class="row" style="margin-bottom:10px;gap:8px;flex-wrap:wrap">
+          <input #t placeholder="New todo" style="flex:1;min-width:160px"
+            (keyup.enter)="store.add(t.value, $any(priorityRef.value)); t.value=''" />
+          <select #priorityRef style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;background:var(--surface);color:var(--text)">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <button (click)="store.add(t.value, $any(priorityRef.value)); t.value=''">Add</button>
+          <button class="ghost" (click)="store.clearDone()">Clear done</button>
+        </div>
+        <div class="filter-row">
+          @for (f of ['all','active','done']; track f) {
+            <button [class.active]="store.filter() === f" (click)="store.setFilter($any(f))">
+              {{ f }}
+            </button>
+          }
+          <span class="pill" style="margin-left:auto">{{ store.remaining() }}/{{ store.total() }} remaining</span>
+        </div>
+        <ul style="list-style:none;padding:0;margin:0">
+          @for (todo of store.filtered(); track todo.id) {
+            <li class="row" style="padding:5px 0;border-bottom:1px solid var(--border)">
+              <input type="checkbox" [checked]="todo.done" (change)="store.toggle(todo.id)" />
+              <span [style.textDecoration]="todo.done ? 'line-through' : 'none'"
+                    [style.opacity]="todo.done ? '0.5' : '1'" style="flex:1">
+                {{ todo.title }}
+              </span>
+              <span [class]="'priority-' + todo.priority" style="font-size:.8rem">
+                {{ todo.priority }}
+              </span>
+              <button class="ghost" style="padding:2px 8px;font-size:.8rem" (click)="store.remove(todo.id)">x</button>
+            </li>
+          }
+        </ul>
+        @if (store.allDone() && store.total() > 0) {
+          <p style="color:var(--green);margin-top:10px;text-align:center">All done!</p>
+        }
+      </div>
+
+      <h2>Persisting state to localStorage</h2>
+      <p>Hydrate from storage in the constructor; sync back in an effect:</p>
+      <div class="code">
+        <pre>&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
+export class ThemeStore {{ '{' }}
+  private readonly _theme = signal&lt;'light' | 'dark'&gt;(
+    (localStorage.getItem('theme') as 'light' | 'dark') ?? 'light'
+  );
+  readonly theme = this._theme.asReadonly();
+
+  constructor() {{ '{' }}
+    effect(() =&gt; {{ '{' }}
+      localStorage.setItem('theme', this._theme());
+    {{ '}' }});
+  {{ '}' }}
+  toggle() {{ '{' }} this._theme.update(t =&gt; (t === 'light' ? 'dark' : 'light')); {{ '}' }}
+{{ '}' }}</pre>
+      </div>
+
+      <h2>NgRx Signal Store — when you want structure</h2>
+      <p>
+        <code>&#64;ngrx/signals</code> wraps the same pattern with conventions: typed
+        state slices, built-in entity management, and RxJS-powered side effects.
+        The shape is identical in concept — private writes, public reads — but the
+        toolkit gives you entity CRUD helpers, devtools integration and a consistent
+        team API.
+      </p>
+      <div class="code">
+        <pre>// with &#64;ngrx/signals (separate package — install first)
+import {{ '{' }} signalStore, withState, withComputed, withMethods {{ '}' }}
+  from '&#64;ngrx/signals';
+
+export const TodoStore = signalStore(
+  {{ '{' }} providedIn: 'root' {{ '}' }},
+  withState({{ '{' }} todos: [] as Todo[], filter: 'all' as Filter {{ '}' }}),
+  withComputed((s) =&gt; ({{ '{' }}
+    remaining: computed(() =&gt; s.todos().filter(t =&gt; !t.done).length),
+  {{ '}' }})),
+  withMethods((store) =&gt; ({{ '{' }}
+    add(title: string) {{ '{' }}
+      // patchState is imported from '&#64;ngrx/signals' — shallow-merges a partial
+      patchState(store, {{ '{' }} todos: [...store.todos(), mk(title)] {{ '}' }});
+    {{ '}' }},
+  {{ '}' }}))
+);</pre>
+      </div>
+
+      <h2>NgRx Store — Redux for large teams</h2>
+      <p>
+        Classic NgRx (actions → reducers → selectors → effects) shines when you need
+        a strict, auditable flow, time-travel debugging, or a large team that must
+        reason about all state changes via an action log.
+      </p>
+      <div class="code">
+        <pre>// actions
+export const loadTodos    = createAction('[Todos] Load');
+export const todosLoaded  = createAction('[Todos] Loaded', props&lt;{{ '{' }} todos: Todo[] {{ '}' }}&gt;());
+export const todosFailed  = createAction('[Todos] Failed', props&lt;{{ '{' }} error: string {{ '}' }}&gt;());
+
+// reducer
+export const todosReducer = createReducer(
+  {{ '{' }} todos: [] as Todo[], loading: false, error: '' {{ '}' }},
+  on(loadTodos,  (s)    =&gt; ({{ '{' }} ...s, loading: true  {{ '}' }})),
+  on(todosLoaded,(s, a) =&gt; ({{ '{' }} ...s, loading: false, todos: a.todos {{ '}' }})),
+  on(todosFailed,(s, a) =&gt; ({{ '{' }} ...s, loading: false, error: a.error  {{ '}' }})),
+);
+
+// selector
+export const selectTodos   = (state: AppState) =&gt; state.todos.todos;
+export const selectLoading = (state: AppState) =&gt; state.todos.loading;
+
+// effect
+export class TodoEffects {{ '{' }}
+  loadTodos$ = createEffect(() =&gt;
+    this.actions$.pipe(
+      ofType(loadTodos),
+      switchMap(() =&gt; this.api.getAll().pipe(
+        map(todos =&gt; todosLoaded({{ '{' }} todos {{ '}' }})),
+        catchError(e  =&gt; of(todosFailed({{ '{' }} error: e.message {{ '}' }})))
+      ))
+    )
+  );
+{{ '}' }}</pre>
+      </div>
+
+      <h2>Choosing the right tool</h2>
+      <table class="mistakes-table">
+        <tr><th>Situation</th><th>Recommended approach</th></tr>
+        <tr><td>One component needs transient UI state</td><td class="good">Plain signal field</td></tr>
+        <tr><td>A feature's components share state (cart, wizard)</td><td class="good">Signal store service, <code>providers:[Store]</code></td></tr>
+        <tr><td>App-wide auth / theme / notifications</td><td class="good">Signal store, <code>providedIn:'root'</code></td></tr>
+        <tr><td>Large team, strict conventions, time-travel devtools</td><td class="good">NgRx Store</td></tr>
+        <tr><td>NgRx Store but you'd like signal ergonomics</td><td class="good">&#64;ngrx/signals signalStore</td></tr>
+        <tr><td>Every component has its own copy of shared state</td><td class="bad">Anti-pattern — use a shared store</td></tr>
+        <tr><td>Subjects scattered across multiple services</td><td class="bad">Anti-pattern — consolidate into a store</td></tr>
+      </table>
+
+      <h2>Common mistakes</h2>
+      <table class="mistakes-table">
+        <tr><th>Mistake</th><th>Fix</th></tr>
+        <tr>
+          <td class="bad">Expose writable signal: <code>readonly items = signal([])</code></td>
+          <td class="good">Use <code>.asReadonly()</code> on the public property</td>
+        </tr>
+        <tr>
+          <td class="bad">Mutate arrays in place: <code>this._items().push(x)</code></td>
+          <td class="good">Always use <code>update(l =&gt; [...l, x])</code> — immutable updates trigger CD</td>
+        </tr>
+        <tr>
+          <td class="bad">Reach for NgRx on a solo/small project</td>
+          <td class="good">Signal store is enough for &lt; 5 devs; add NgRx when the team and complexity justify it</td>
+        </tr>
+        <tr>
+          <td class="bad">Calling <code>effect()</code> inside a store method</td>
+          <td class="good"><code>effect()</code> is for side-effects triggered reactively; use it in <code>constructor</code></td>
+        </tr>
+      </table>
+
+      <h2>Async state — resource() and linkedSignal()</h2>
+      <p>
+        Server data is state too, and hand-rolling <code>loading/error/data</code>
+        triples in every store is boilerplate. Two signal-era primitives cover the
+        common shapes:
+      </p>
+      <div class="code">
+        <pre>// resource(): request params in, async loader out — with status signals built in
+readonly userId = signal(1);
+readonly user = resource({{ '{' }}
+  params: () =&gt; ({{ '{' }} id: this.userId() {{ '}' }}),          // reactive — re-fetches on change
+  loader: ({{ '{' }} params {{ '}' }}) =&gt; fetch('/api/users/' + params.id).then(r =&gt; r.json()),
+{{ '}' }});
+// user.value() · user.isLoading() · user.error() — no manual triple
+
+// linkedSignal(): writable state that RESETS when a source changes
+readonly options = input.required&lt;string[]&gt;();
+readonly selected = linkedSignal(() =&gt; this.options()[0]);
+// user picks an option → selected.set(...)  (writable!)
+// options input changes → selected resets to the new first option</pre>
+      </div>
+      <p>
+        Rule of thumb: <code>computed</code> for pure derivations,
+        <code>linkedSignal</code> when the derived value must also be user-writable,
+        <code>resource</code>/<code>httpResource</code> when the derivation is
+        asynchronous. All three slot straight into the store pattern above.
+      </p>
+
+      <h2>Exam corner</h2>
+      <details class="qa">
+        <summary>Why must the store expose <code>asReadonly()</code> signals instead of the writable ones?</summary>
+        <div>Encapsulation of invariants: with a writable signal any component could
+        <code>set()</code> arbitrary state, bypassing validation, derived-state
+        assumptions and the "one entry-point per action" audit trail. Read-only
+        projections make the named methods the only mutation path — the same reason
+        Redux only allows dispatching actions.</div>
+      </details>
+      <details class="qa">
+        <summary>A computed selector doesn't update after <code>this._items().push(x)</code>. Why?</summary>
+        <div>Signals compare by reference: <code>push</code> mutates the same array,
+        so the signal's value never "changed" and no consumer is notified. Immutable
+        updates (<code>update(l =&gt; [...l, x])</code>) produce a new reference —
+        that's what triggers <code>computed</code> recomputation and view marking.</div>
+      </details>
+      <details class="qa">
+        <summary>Feature store vs root store — how do you scope a store to one feature, and what's the lifetime difference?</summary>
+        <div><code>providedIn: 'root'</code> = one app-wide instance, lives forever.
+        Listing the store in a component's <code>providers</code> (or a lazy route's
+        <code>providers</code>) scopes one instance to that subtree/feature — created
+        with it, destroyed with it. Wizard/cart-per-page state belongs at feature
+        scope; auth/theme at root.</div>
+      </details>
+      <details class="qa">
+        <summary>When is classic NgRx genuinely worth its boilerplate over a signal store?</summary>
+        <div>When you need the action log itself: time-travel debugging, audit
+        requirements, many developers coordinating on shared state slices, or complex
+        cross-cutting side-effects modeled as effects listening to the same actions.
+        For most apps below that bar, the signal store gives the same guarantees with
+        a fraction of the ceremony.</div>
+      </details>
+      <details class="qa">
+        <summary>Where do side effects (persistence, analytics) belong in a signal store?</summary>
+        <div>In an <code>effect()</code> created in the store's constructor (an
+        injection context), reading the public signals — like the localStorage sync
+        above. Not inside mutation methods (they'd run imperatively and get skipped by
+        other mutation paths), and never in components (every consumer would duplicate
+        the side effect).</div>
+      </details>
+
+      <h2>Key takeaways</h2>
+      <ul>
+        <li>Classify state first: local → component field; shared → signal store; global → root store.</li>
+        <li>The contract: <strong>private writes, public reads, named mutations, derived via computed()</strong>.</li>
+        <li>Persist with <code>effect()</code> syncing to localStorage; hydrate in the constructor.</li>
+        <li>Reach for NgRx/ngrx-signals when you need time-travel, strict conventions, or entity helpers.</li>
+        <li>Always update state immutably — spread or filter, never push/splice in place.</li>
+      </ul>
+
+      <p><a routerLink="/dynamic-components">Next: Dynamic Components →</a></p>
+    </article>

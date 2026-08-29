@@ -1,0 +1,25 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 2px solid var(--badge-accent, var(--accent));
+  background: color-mix(in srgb, var(--badge-accent, var(--accent)) 12%, transparent);
+  font-weight: 600;
+  transition: all .2s ease;
+}
+/* Conditional on the HOST element's classes — set by the parent. */
+:host(.compact) {
+  padding: 3px 10px;
+  font-size: .78rem;
+  border-radius: 8px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--badge-accent, var(--accent));
+}
+/* This generic selector CANNOT leak — encapsulation scopes it here. */
+span { letter-spacing: .02em; }

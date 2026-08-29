@@ -1,0 +1,2 @@
+.slot-host { border: 2px dashed var(--accent); border-radius: 10px; padding: 14px 18px; }
+.slot-host__label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--accent); margin-bottom: 8px; }

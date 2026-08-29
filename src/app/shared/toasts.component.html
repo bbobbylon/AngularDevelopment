@@ -1,0 +1,16 @@
+@if (toast.count() > 0) {
+  <div class="toast-stack" aria-live="polite" aria-atomic="false">
+    @for (t of toast.toasts(); track t.id) {
+      <div
+        class="toast"
+        [class]="'toast toast--' + t.type"
+        role="status"
+        (click)="toast.dismiss(t.id)"
+        title="Click to dismiss"
+      >
+        <span class="toast__icon">{{ icons[t.type] }}</span>
+        <span class="toast__msg">{{ t.message }}</span>
+      </div>
+    }
+  </div>
+}

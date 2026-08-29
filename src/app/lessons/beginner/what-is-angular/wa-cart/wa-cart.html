@@ -1,0 +1,19 @@
+<div class="wa-demo-box wa-left">
+  @for (item of items(); track item.id) {
+    <div class="wa-line">
+      <span>{{ item.name }}</span>
+      <span>{{ item.price | currency }}</span>
+    </div>
+  } @empty {
+    <p class="wa-sub">Cart is empty — add something.</p>
+  }
+  <div class="wa-total">
+    <span>Total ({{ count() }} item{{ count() === 1 ? '' : 's' }})</span>
+    <strong>{{ total() | currency }}</strong>
+  </div>
+  <div class="row">
+    <button (click)="add('Coffee', 3.5)">+ Coffee</button>
+    <button (click)="add('Book', 14)">+ Book</button>
+    <button class="ghost" (click)="items.set([])">clear</button>
+  </div>
+</div>

@@ -1,0 +1,122 @@
+<article class="lesson">
+  <span class="lesson__eyebrow">Intermediate · Components &amp; Templates</span>
+  <h1>View Encapsulation &amp; Component Styles</h1>
+  <p class="lead">
+    Every component ships its own CSS — and that CSS mysteriously never
+    breaks the rest of the page. This lesson shows the machinery behind that
+    (attribute stamping), the three encapsulation modes, the
+    <code>:host</code> selector family, and the custom-property pattern that
+    replaces the deprecated <code>::ng-deep</code>.
+  </p>
+
+  <h2>Why component CSS cannot leak</h2>
+  <p>
+    With the default <strong>ViewEncapsulation.Emulated</strong>, a rule like
+    <code>p {{ '{' }} color: red {{ '}' }}</code> in one component colors only that
+    component's paragraphs. Pick a mode to see what the compiler actually emits:
+  </p>
+  <div class="demo">
+    <p class="demo__title">Explore the modes</p>
+    <div class="mode-chips">
+      @for (mode of modes; track mode) {
+        <button [class.on]="activeMode() === mode" (click)="activeMode.set(mode)">{{ mode }}</button>
+      }
+    </div>
+    <div class="code"><pre>{{ modeInfo[activeMode()].emitted }}</pre></div>
+    <p class="mode-meaning">{{ modeInfo[activeMode()].meaning }}</p>
+  </div>
+  <div class="note">
+    Encapsulation rewrites <strong>selectors</strong>. It does NOT block value
+    <strong>inheritance</strong> — font, color and CSS custom properties still flow
+    down the DOM as usual. That asymmetry powers the theming pattern below.
+  </div>
+
+  <h2>:host — styling the component's own tag</h2>
+  <p>
+    A component's scoped rules match elements <em>inside</em> its template. The tag
+    itself (<code>&lt;app-ve-badge&gt;</code>) belongs to the parent's markup — reach
+    it with <code>:host</code>. The badge below is a real child component:
+  </p>
+  <div class="code">
+    <pre>{{ hostSample }}</pre>
+  </div>
+  <div class="demo">
+    <p class="demo__title">Live — :host(.compact) reacts to a class the PARENT sets</p>
+    <div class="badge-row">
+      <app-ve-badge [class.compact]="compact()">Deployed</app-ve-badge>
+      <app-ve-badge [class.compact]="compact()">3 reviews due</app-ve-badge>
+      <button (click)="compact.set(!compact())">
+        {{ compact() ? 'Normal size' : 'Compact size' }}
+      </button>
+    </div>
+    <p style="font-size:.85rem; color:var(--text-muted); margin:0">
+      The parent writes <code>[class.compact]="compact()"</code> on the badge TAG;
+      the badge's own <code>:host(.compact)</code> rule does the rest. No inputs, no
+      style piercing. (<code>:host-context(.dark)</code> extends the idea to ancestor
+      conditions — theme switches.)
+    </p>
+  </div>
+  <div class="tip">
+    Custom elements default to <code>display: inline</code> — the single most common
+    :host rule is <code>:host {{ '{' }} display: block {{ '}' }}</code>. If a component's
+    width/margin "does nothing", check this first.
+  </div>
+
+  <h2>Restyling a child: the wrong way and the right way</h2>
+  <p>
+    A parent rule like <code>app-ve-badge .dot {{ '{' }} … {{ '}' }}</code> silently never
+    matches — the child's internals carry the CHILD's scoping attribute. The old
+    escape hatch <code>::ng-deep</code> pierces everything and is deprecated. The
+    maintainable pattern is a <strong>styling API</strong>: the child consumes a CSS
+    custom property, the parent sets it — inheritance carries it across the boundary.
+  </p>
+  <div class="code">
+    <pre>{{ themingSample }}</pre>
+  </div>
+  <div class="demo">
+    <p class="demo__title">Live — the parent themes the badges via --badge-accent</p>
+    <div class="theme-row">
+      Pick an accent:
+      @for (color of accents; track color) {
+        <button class="swatch-btn" [class.on]="accent() === color"
+          [style.background]="color" [attr.aria-label]="'accent ' + color"
+          (click)="accent.set(color)"></button>
+      }
+    </div>
+    <div class="badge-row" [style.--badge-accent]="accent()">
+      <app-ve-badge>Custom-property themed</app-ve-badge>
+      <app-ve-badge class="compact">me too</app-ve-badge>
+    </div>
+    <p style="font-size:.85rem; color:var(--text-muted); margin:0">
+      One style binding on the wrapper — <code>[style.--badge-accent]="accent()"</code> —
+      and every badge inside inherits it. The badge stays a black box.
+    </p>
+  </div>
+
+  <h2>Global styles vs component styles</h2>
+  <ul>
+    <li><strong>styles.css</strong> (registered in angular.json's "styles" array) is document-wide:
+      resets, typography, design tokens like <code>--accent</code> — this app's whole
+      light/dark theme is custom properties flipped on <code>&lt;html&gt;</code>.</li>
+    <li><strong>Component styles</strong> ship WITH the component — lazy-loaded pages bring their
+      CSS along — and are scoped by encapsulation.</li>
+    <li>The idiomatic split: global tokens, component-scoped consumption via <code>var()</code>.</li>
+  </ul>
+
+  <h2>Key takeaways</h2>
+  <ul>
+    <li>Emulated (default) = attribute stamping: styles cannot leak out; page styles still cascade in.</li>
+    <li>None = verbatim global CSS; ShadowDom = real isolation where globals stop working inside.</li>
+    <li><code>:host</code> styles the tag; <code>:host(.x)</code> / <code>:host-context(.x)</code> make it conditional.</li>
+    <li>Parents cannot match child internals — expose CSS custom properties instead of piercing (<code>::ng-deep</code> is deprecated).</li>
+    <li>Encapsulation blocks selector MATCHING, never value INHERITANCE — that is why var() theming works.</li>
+  </ul>
+
+  <p>
+    Drill this with the <a routerLink="/practice">Styling &amp; CSS challenges</a>,
+    or revisit <a routerLink="/class-style-binding">Class &amp; Style Binding</a> for
+    the binding syntax side.
+  </p>
+
+  <p><a routerLink="/di-providers">Next: DI Providers In Depth →</a></p>
+</article>

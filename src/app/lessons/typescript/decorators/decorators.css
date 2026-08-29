@@ -1,0 +1,15 @@
+table.cmp { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 12px 0; }
+table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.cmp th { background: var(--bg-elevated); }
+
+.order-log { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-family: monospace; font-size: .82rem; }
+.order-log p { margin: 3px 0; }
+
+.bench { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+.bench .card { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; background: var(--bg-card); min-width: 200px; }
+.bench .card h4 { margin: 0 0 6px; font-size: .82rem; color: var(--text-muted); font-weight: 600; }
+.bench .card strong { font-size: 1.15rem; font-family: monospace; }
+
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }

@@ -388,8 +388,9 @@ docker run -p 8080:80 angulartutorials:test
 
 ## Related Documents
 
-- [DEPLOYMENT.md](DEPLOYMENT.md) — Full deployment guide
-- [IMPROVEMENTS.md](../IMPROVEMENTS.md) — Feature documentation
+- [../DEPLOYMENT.md](../DEPLOYMENT.md) — Full deployment guide
+- [ARCHITECTURE.md](ARCHITECTURE.md) — System design and technology stack
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Pre-commit checks the pipeline mirrors
 - [.github/workflows/deploy-github-pages.yml](../.github/workflows/deploy-github-pages.yml) — Pages workflow
 - [.github/workflows/deploy-docker.yml](../.github/workflows/deploy-docker.yml) — Docker workflow
 

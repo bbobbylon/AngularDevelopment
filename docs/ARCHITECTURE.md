@@ -135,17 +135,34 @@ src/
     │
     └── lessons/
         ├── foundations/<id>/<id>.ts
-        ├── typescript/<id>/<id>.ts
-        ├── beginner/<id>/<id>.ts
-        ├── intermediate/<id>/<id>.ts
-        ├── expert/<id>/<id>.ts
-        └── projects/<id>/<id>.ts
+        ├── typescript/<id>/…
+        ├── beginner/<id>/…
+        ├── intermediate/<id>/…
+        ├── expert/<id>/…
+        └── projects/<id>/…
 ```
 
-One file per lesson, template and styles inline. That is unusual for an Angular app and
-deliberate here: a lesson is a teaching artefact, and having the explanation, the demo
-markup, the demo code and the styles in one file means a reader can follow it without
-jumping between four.
+Every component — lesson, page or shared — is a folder holding `.ts` + `.html` + `.css`,
+the conventional Angular split. A lesson whose demos need their own components gives
+each child a folder of its own beside the lesson:
+
+```
+lessons/expert/host-directives/
+├── host-directives.ts | .html | .css     the lesson
+├── elevate/elevate.ts                    a demo directive
+├── fancy-card/fancy-card.ts | .html | .css
+└── … six more demo components
+```
+
+```
+lessons/beginner/outputs/
+├── outputs.ts | .html | .css
+├── outputs.shared.ts                     RateEvent — needed by both sides
+└── rating/rating.ts | .html | .css
+```
+
+`<lesson>.shared.ts` exists in the seven lessons where a demo child and the lesson need
+the same declaration. It is what keeps imports acyclic; see §11.
 
 ---
 
@@ -190,8 +207,8 @@ filtered rows, the page count, the visible page and the summary totals are all
 ### 4.4 Lazy everything
 
 Every route uses `loadComponent`. A visit to one lesson downloads that lesson's chunk
-and nothing else — which matters, because 100 lessons with inline templates would be a
-very large single bundle.
+and nothing else — which matters, because 100 lessons and their ~47 demo components
+would otherwise be a very large single bundle.
 
 ### 4.5 Shared content, independent features
 
@@ -358,9 +375,19 @@ is the only thing lost. Static hosting anywhere, zero running cost, nothing to b
 lines each. NgRx is taught in the `state-management` lesson rather than depended on,
 which also keeps the lesson honest about when it is worth it.
 
-**Inline templates in lesson files.** Costs the usual template-in-a-string ergonomics;
-buys a lesson that reads as one document. For teaching artefacts that is the right
-trade, and it is not the pattern the lessons *recommend* for application code.
+**One folder per component, `.ts` + `.html` + `.css`.** Lessons were originally single
+files with inline templates, on the theory that a lesson reads better as one document.
+That stopped being true once several lessons passed a thousand lines and started
+declaring four to eight demo components each. The app now follows the same convention it
+teaches: markup in `.html`, styles in `.css`, and every demo component in its own folder
+beside the lesson that uses it.
+
+The one wrinkle this introduced is worth knowing about. When a demo component moves out
+of the lesson file, anything it shared with the lesson — a service, an interface, a
+const — cannot stay behind, or the parent would import the child while the child imports
+the parent. Those declarations are hoisted into a sibling `<lesson>.shared.ts`, which
+both sides import. Seven lessons have one; the rest needed no hoist. Imports therefore
+run strictly parent → child → shared, and no cycle is possible.
 
 **No CSS framework.** Custom properties and a small shared stylesheet. The lessons need
 to demonstrate view encapsulation, `:host`, and theming honestly, which a utility

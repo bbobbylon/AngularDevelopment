@@ -1,0 +1,6 @@
+<span class="badge" [class.badge--lg]="big()" [style.background]="color()">
+  {{ label() }}
+  @if (count() !== undefined) {
+    <strong>{{ count() }}</strong>
+  }
+</span>

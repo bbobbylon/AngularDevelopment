@@ -1,0 +1,145 @@
+@if (view() === 'map') {
+  <!-- ─── STUDY MAP ─────────────────────────────────────────────── -->
+  <header class="hero">
+    <span class="pill">Exam prep · certificates.dev</span>
+    <h1>Pass the Angular Certification</h1>
+    <p class="lead">
+      The official
+      <a href="https://certificates.dev/angular" target="_blank" rel="noopener">certificates.dev</a>
+      Angular certification has three levels. Every topic maps to a lesson here — work top to bottom
+      and you have covered the full syllabus. Then test yourself with the built-in exam simulator.
+    </p>
+    <p class="covered">
+      <strong>{{ totalCovered() }}</strong> lessons mapped across all three exams · every topic covered.
+    </p>
+  </header>
+
+  @for (lvl of levels(); track lvl.key) {
+    <section class="level">
+      <div class="level__head">
+        <h2 [attr.data-key]="lvl.key">{{ lvl.name }}</h2>
+        <span class="fmt">{{ lvl.format }}</span>
+      </div>
+      <p class="blurb">{{ lvl.blurb }}</p>
+      <p class="count">{{ lvl.count }} lessons</p>
+      <div class="topics">
+        @for (t of lvl.topics; track t.topic) {
+          <div class="topic">
+            <div class="topic__name">{{ t.topic }}</div>
+            <div class="chips">
+              @for (lesson of t.lessons; track lesson.id) {
+                <a class="chip" [class.chip--soon]="!lesson.built" [routerLink]="'/' + lesson.id">
+                  {{ lesson.title }}
+                </a>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <div class="sim-bar">
+        <p>Ready to test yourself? 20 questions · 40 min · ≥70% to pass</p>
+        <button class="sim-btn" (click)="startExam(lvl.key)">
+          Simulate Exam →
+        </button>
+      </div>
+    </section>
+  }
+
+  <p class="back"><a routerLink="/">← Back to all concepts</a></p>
+}
+
+@if (view() === 'exam') {
+  <!-- ─── EXAM ───────────────────────────────────────────────────── -->
+  <div class="exam-wrap">
+    <div class="exam-topbar">
+      <span class="exam-level-badge {{ examLevel() }}">{{ examLevel() }}</span>
+      <div class="exam-progress-bar-outer">
+        <div class="exam-progress-bar-inner"
+          [style.width]="((examIndex() + 1) / examQs().length * 100) + '%'"></div>
+      </div>
+      <span class="exam-qnum">Q {{ examIndex() + 1 }} / {{ examQs().length }}</span>
+      <span class="timer" [class.urgent]="examTimeLeft() < 120">{{ timerDisplay() }}</span>
+      <button class="exit-btn" (click)="exitExam()">✕ Exit</button>
+    </div>
+
+    @if (currentQ(); as q) {
+      <div class="q-card">
+        <p class="q-text">{{ q.q }}</p>
+        <div class="options">
+          @for (opt of q.opts; track $index) {
+            <button class="opt"
+              [class.selected]="examSel()[examIndex()] === $index && !examRevealed()[examIndex()]"
+              [class.correct]="examRevealed()[examIndex()] && $index === q.answer"
+              [class.wrong]="examRevealed()[examIndex()] && examSel()[examIndex()] === $index && $index !== q.answer"
+              [disabled]="examRevealed()[examIndex()]"
+              (click)="selectOpt($index)">
+              <span class="opt-letter">{{ letters[$index] }}</span>
+              {{ opt }}
+            </button>
+          }
+        </div>
+
+        @if (!examRevealed()[examIndex()]) {
+          <button class="check-btn"
+            [disabled]="examSel()[examIndex()] === null"
+            (click)="checkAnswer()">
+            Check Answer
+          </button>
+        }
+
+        @if (examRevealed()[examIndex()]) {
+          <div class="explanation"
+            [class.correct]="examSel()[examIndex()] === q.answer"
+            [class.wrong]="examSel()[examIndex()] !== q.answer">
+            <strong>{{ examSel()[examIndex()] === q.answer ? '✓ Correct!' : '✗ Not quite.' }}</strong>
+            {{ q.explanation }}
+          </div>
+          <button class="next-btn" (click)="nextQuestion()">
+            {{ examIndex() < examQs().length - 1 ? 'Next Question →' : 'See Results →' }}
+          </button>
+        }
+      </div>
+    }
+  </div>
+}
+
+@if (view() === 'results') {
+  <!-- ─── RESULTS ────────────────────────────────────────────────── -->
+  <div class="results">
+    <div class="score-circle" [class.passed]="examScore() >= passThreshold()" [class.failed]="examScore() < passThreshold()">
+      <span class="score-pct">{{ Math.round(examScore() / examQs().length * 100) }}%</span>
+      <span class="score-frac">{{ examScore() }} / {{ examQs().length }}</span>
+    </div>
+    <div class="pass-badge" [class.passed]="examScore() >= passThreshold()" [class.failed]="examScore() < passThreshold()">
+      {{ examScore() >= passThreshold() ? '✓ PASS' : '✗ FAIL' }}
+    </div>
+    <p class="result-msg">
+      @if (examScore() >= passThreshold()) {
+        Great work! You scored {{ examScore() }}/{{ examQs().length }} on the {{ examLevel() }} exam simulation.
+        Keep reviewing the lessons for any topics you missed.
+      } @else {
+        You scored {{ examScore() }}/{{ examQs().length }}. You need 70% ({{ passThreshold() }}/{{ examQs().length }}) to pass. Review the explanations
+        for the questions below and try again once you have studied those topics.
+      }
+    </p>
+    <div class="result-actions">
+      <button class="btn-primary" (click)="retryExam()">Try Again</button>
+      <button class="btn-ghost" (click)="exitExam()">Back to Study Map</button>
+    </div>
+
+    @if (missedQs().length > 0) {
+      <div class="review-list">
+        <h3>Questions to review ({{ missedQs().length }})</h3>
+        @for (item of missedQs(); track item.q.q) {
+          <div class="review-item">
+            <div>{{ item.q.q }}</div>
+            <div class="review-exp">
+              <strong style="color:#6366f1">Correct: {{ item.q.opts[item.q.answer] }}</strong>
+              — {{ item.q.explanation }}
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}

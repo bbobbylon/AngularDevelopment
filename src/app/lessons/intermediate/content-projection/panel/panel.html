@@ -1,0 +1,14 @@
+<div class="panel">
+  <header class="panel__head">
+    <ng-content select="[panel-title]">
+      <!-- fallback shown when nothing is projected into this slot -->
+      <span style="color:var(--text-muted);font-style:italic">No title provided</span>
+    </ng-content>
+  </header>
+  <div class="panel__body">
+    <ng-content />   <!-- default (catch-all) slot -->
+  </div>
+  <footer class="panel__foot">
+    <ng-content select="[panel-actions]" />
+  </footer>
+</div>

@@ -1,0 +1,13 @@
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 340px; }
+.qa { border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; overflow: hidden; }
+.qa summary { cursor: pointer; padding: 10px 14px; font-weight: 600; font-size: .92rem; background: var(--bg-elevated); }
+.qa div { padding: 10px 14px; font-size: .9rem; }
+
+table.lb { width: 100%; border-collapse: collapse; font-size: .84rem; margin: 8px 0 18px; }
+table.lb th, table.lb td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.lb th { background: var(--bg-elevated); }
+table.lb td:first-child { width: 38%; }
+
+table.cmp { width: 100%; border-collapse: collapse; font-size: .86rem; margin: 12px 0; }
+table.cmp th, table.cmp td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+table.cmp th { background: var(--bg-elevated); }

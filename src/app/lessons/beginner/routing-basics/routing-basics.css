@@ -1,0 +1,21 @@
+.navdemo {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.navdemo a {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+}
+.navdemo a.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+.matcher { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.matcher td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.matcher tr.hit { background: rgba(46, 193, 107, 0.12); }
+.matcher tr.hit td:first-child { border-left: 3px solid var(--green, #2ec16b); }
