@@ -47,6 +47,38 @@ auditTime / sampleTime:   emit the latest value on a timer</pre>
     <em>start another stream</em> (e.g. a keystroke that triggers an HTTP call). Your choice controls what happens when
     a new value arrives while a previous inner stream is still running:
   </p>
+
+  <h3>The mental model: four receptionists</h3>
+  <p>
+    You are already on a call and a second one comes in. There are exactly four sensible policies, and the four
+    operators are those four receptionists:
+  </p>
+  <ul>
+    <li>
+      <strong><code>switchMap</code> hangs up on the current caller</strong> to take the new one. Rude, and exactly
+      right when the old conversation is now pointless — nobody wants search results for the query they already finished
+      typing.
+    </li>
+    <li>
+      <strong><code>mergeMap</code> puts everyone on speakerphone</strong> and talks to all of them at once. Fastest,
+      and fine when the calls have nothing to do with each other.
+    </li>
+    <li>
+      <strong><code>concatMap</code> takes a message</strong> and calls each person back in the order they rang.
+      Slowest, and the only one that guarantees order.
+    </li>
+    <li>
+      <strong><code>exhaustMap</code> lets it ring out.</strong> Busy is busy. This is the receptionist you want on a
+      submit button, because the second and third impatient clicks are simply not answered.
+    </li>
+  </ul>
+
+  <app-remember>
+    <strong>Reads want <code>switchMap</code>. Writes never do.</strong> Cancelling a stale search is a feature;
+    cancelling a half-finished save is data loss. When the values represent something the server should keep, reach for
+    <code>concatMap</code> or <code>mergeMap</code>.
+  </app-remember>
+
   <div class="code">
     <pre>
 outer:          --a------b--------c----
@@ -82,6 +114,19 @@ exhaustMap:     --a1-a2----------c1-c2           ignore new while one is in flig
       <td>Ignore new values while one is in flight. <strong>Submit buttons</strong> — block double-submits.</td>
     </tr>
   </table>
+
+  <p>In practice you never weigh all four. You ask these in order and stop at the first yes:</p>
+
+  <app-flow
+    [steps]="choosing"
+    caption="Note that the first question settles most cases — which is also why `switchMap` ends up pasted into places it does not belong."
+  />
+
+  <app-predict
+    prompt="Speaking of which. This is `switchMap` doing exactly what it promises, in a place where that promise is a disaster. What reaches the server?"
+    [code]="autosaveSample"
+    answer="Almost nothing — plausibly just the very last draft, and possibly not even that. Every time the debounce settles, `switchMap` unsubscribes from the save that is still in flight, which aborts the request mid-write. Ten seconds of typing produces a handful of cancelled POSTs and one survivor. The cruel part is that it *looks* like it works in development, where the API answers in 20ms and nothing is ever still in flight when the next draft arrives. It only breaks on a slow connection, which is exactly when losing someone's work hurts most. `concatMap` queues the saves so every one lands in order; `exhaustMap` is the other reasonable answer if you would rather skip intermediate drafts than queue them."
+  />
 
   <h2>Try it — debounced, switchMapped "search"</h2>
   <div class="demo">
@@ -194,6 +239,14 @@ this.query$.pipe(
       settled value equals the previous one (e.g. type, delete, retype the same query).
     </li>
   </ul>
+
+  <app-quiz
+    question="A type-ahead moves its `catchError(() => of([]))` from inside the `switchMap` callback to the end of the outer `.pipe()`. The next search request fails with a 500. What does the user experience?"
+    [options]="catchOptions"
+    followUp="A rule that saves you every time: `catchError` belongs as close to the thing that can fail as you can put it. On the inner request it protects one lookup; on the outer stream it protects nothing and kills everything."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

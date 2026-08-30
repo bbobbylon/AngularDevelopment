@@ -222,21 +222,44 @@ export class ReactiveForms {
   /**
    * Sample: defining a typed form with `FormBuilder`.
    */
-  readonly modelSample = `private fb = inject(FormBuilder);
+  readonly modelSample = `// FormBuilder is sugar. Everything below could be written with \`new
+// FormGroup({ name: new FormControl(...) })\` — the builder just removes the
+// repetition, and infers the types for you.
+private fb = inject(FormBuilder);
 
 form = this.fb.group({
+  // Read the array positionally — this is the part that confuses people:
+  //   [0] initial value    [1] sync validator(s)    [2] async validator(s)
+  // TypeScript infers \`string | null\` for name from the 'Ada' at [0]. It is
+  // nullable because form.reset() sets every control back to null.
   name: ['Ada', [Validators.required, Validators.minLength(2)]],
+  // Validators.email checks the SHAPE of the address only. It cannot tell you
+  // the mailbox exists — that needs an async validator hitting your backend.
   email: ['ada@example.com', [Validators.required, Validators.email]],
+  // min/max are for numbers; minLength/maxLength are for strings. Swapping
+  // them silently never fires, which is a genuinely annoying afternoon.
   age: [36, [Validators.min(0), Validators.max(120)]],
 });`;
 
   /**
    * Sample: the template side — `[formGroup]`, `formControlName`, `ngSubmit`.
    */
-  readonly templateSample = `<form [formGroup]="form" (ngSubmit)="save()">
+  readonly templateSample = `<!-- [formGroup] binds the FormGroup you built in the class to this element.
+     Everything inside can now be addressed by control name. -->
+<!-- (ngSubmit), not (submit): Angular's directive intercepts the native
+     event, stops the browser's default page reload, and calls your method. -->
+<form [formGroup]="form" (ngSubmit)="save()">
+  <!-- formControlName is a plain string, NOT bound with brackets. It looks
+       up 'name' in the parent [formGroup] and wires up two-way sync via the
+       ControlValueAccessor. Misspell it and you get a runtime error. -->
   <input formControlName="name" />
   <input formControlName="email" />
+  <!-- type="number" makes Angular hand you a number rather than a string. -->
   <input type="number" formControlName="age" />
+  <!-- form.invalid is live: it flips the moment any validator fails, with no
+       subscription on your side. Note this disables the button before the
+       user has typed anything, which some designers dislike — the
+       alternative is to leave it enabled and show errors on submit. -->
   <button type="submit" [disabled]="form.invalid">Save</button>
 </form>`;
 
@@ -300,14 +323,24 @@ username = this.fb.control('ada', {
    * Sample: the class side of a `FormArray`.
    */
   readonly formArrayClassSample = `// class
+// A FormArray holds controls by INDEX rather than by name — the right shape
+// whenever the number of fields is decided at runtime.
+// Seeded with one control so the UI is never empty on first render.
 skills = this.fb.array([this.fb.control('Angular', Validators.required)]);
+// The array is nested inside a group, which is what the template's
+// [formGroup] binds to. Note it stores the same instance as \`skills\` above,
+// so this.skills and skillsForm.get('skills') are the one object.
 skillsForm = this.fb.group({ skills: this.skills });
 
 addSkill() {
+  // A NEW control per call. Reusing one instance would put the same object
+  // at two indices, and typing in one row would change both.
   this.skills.push(this.fb.control('', Validators.required));
 }
 
 removeSkill(i: number) {
+  // removeAt, not splice on .controls: it also detaches the control and
+  // re-runs the parent's validation. Splicing leaves the form's validity stale.
   this.skills.removeAt(i);
 }`;
 
@@ -317,9 +350,19 @@ removeSkill(i: number) {
    */
   readonly formArrayTemplateSample = `<!-- template -->
 <div [formGroup]="skillsForm">
+  <!-- formArrayName points at the 'skills' key inside skillsForm. Inside this
+       element, control names are INDICES rather than strings. -->
   <div formArrayName="skills">
+    <!-- track $index, not the control: the value changes as the user types,
+         so tracking by value would tear down and rebuild the input on every
+         keystroke and you would lose focus after each character. -->
     @for (ctrl of skills.controls; track $index; let i = $index) {
+      <!-- SQUARE BRACKETS here, unlike formControlName="name" above. The
+           index is a number expression, not a literal string — write
+           formControlName="i" and Angular looks for a control called "i". -->
       <input [formControlName]="i" />
+      <!-- type="button" is essential. The default inside a <form> is
+           type="submit", so omitting it makes "Remove" submit the form. -->
       <button type="button" (click)="removeSkill(i)">Remove</button>
     }
   </div>

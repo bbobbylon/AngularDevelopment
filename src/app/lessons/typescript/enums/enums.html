@@ -196,13 +196,24 @@ Object.values(LogLevel);   // ['debug', 'info', 'error'] — iterable at runtime
   <h2>Exhaustiveness — unions win here too</h2>
   <div class="code">
     <pre>
+// Direction is a literal union: 'north' | 'east' | 'south' | 'west'.
 function label(d: Direction): string {{ '{' }}
   switch (d) {{ '{' }}
+    // Each case NARROWS the union. After this line, TypeScript knows d can
+    // no longer be 'north' in the branches below.
     case 'north': return 'N';
     case 'east':  return 'E';
     case 'south': return 'S';
+    // After the fourth case, every member is accounted for, so in `default`
+    // the type of d has narrowed all the way down to `never`.
     case 'west':  return 'W';
+    // assertNever takes a `never` parameter. That is the trick: while the
+    // switch is exhaustive, d IS never and this compiles fine.
     default:      return assertNever(d);   // add 'up' to the union → compile error HERE
+    // Add 'up' to Direction and d is now 'up' here, not never — so the call
+    // fails to compile, pointing you at the exact switch you forgot to
+    // update. An unhandled case becomes a BUILD error instead of a bug
+    // someone finds in production six weeks later.
   {{ '}' }}
 {{ '}' }}</pre>
   </div>

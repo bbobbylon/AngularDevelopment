@@ -6,6 +6,27 @@
     matching interface and method to run code at the right moment.
   </p>
 
+  <h2>The mental model: a building site</h2>
+  <p>
+    Construction runs <strong>outside-in</strong>. The frame goes up before there are rooms, and a room cannot be built
+    before the floor it sits on. That is creation: a parent has to exist before it can render a child, so
+    <code>ngOnInit</code> fires on the parent first.
+  </p>
+  <p>
+    Sign-off runs <strong>inside-out</strong>. Each room is signed off, then the floor, then the building — because a
+    floor is not finished while a room on it is unfinished. That is <code>ngAfterViewInit</code>: children report ready
+    first, and the parent last.
+  </p>
+  <p>
+    Hold those two directions and the ordering questions answer themselves, including the one people reliably get wrong
+    in interviews.
+  </p>
+
+  <app-remember>
+    <strong>CID, then Content, then View, then Destroy.</strong> <u>C</u>hanges, <u>I</u>nit, <u>D</u>oCheck — then the
+    content pair, then the view pair, then destroy. Content always comes before View.
+  </app-remember>
+
   <h2>Try it — drive the hooks</h2>
   <div class="demo">
     <p class="demo__title">Live</p>
@@ -34,6 +55,18 @@
   </div>
 
   <h2>The hooks, in order</h2>
+
+  <app-flow
+    [steps]="order"
+    caption="The middle five repeat on every change-detection pass. Only the constructor, `ngOnInit` and `ngOnDestroy` happen exactly once."
+  />
+
+  <app-quiz
+    question="A parent component renders a child in its template. In what order do `Parent.ngOnInit`, `Child.ngOnInit`, `Parent.ngAfterViewInit` and `Child.ngAfterViewInit` fire?"
+    [options]="orderOptions"
+    followUp="Practical consequence: if a parent needs to measure or read something from a child, `ngAfterViewInit` is the first moment that is safe — the child is fully ready by then, and not a hook earlier."
+  />
+
   <table class="hooks">
     <tr>
       <th>Hook</th>
@@ -87,6 +120,12 @@
     <code>takeUntilDestroyed()</code> / <code>DestroyRef</code> instead of <code>ngOnDestroy</code>. But knowing the
     hooks is still essential.
   </div>
+  <app-predict
+    prompt="A component sets one of its own bound properties inside `ngAfterViewInit`. It renders fine in production. What happens in development?"
+    [code]="expressionChangedSample"
+    answer="`ExpressionChangedAfterItHasBeenCheckedError`, thrown straight into the console. Angular already rendered `loading…` during this pass, and then — after the check was finished — the value became `ready`. In development Angular runs a second verification pass, notices the binding disagrees with what it just rendered, and complains. It is not being fussy: it is telling you the screen and the model were briefly out of step, and in a bigger component that shows up as flicker. Fix it by moving the change earlier (`ngOnInit`), by writing to a signal, or by deferring with `queueMicrotask` so it lands in the next pass."
+  />
+
   <div class="warn">
     Avoid changing state inside <code>ngAfterViewInit</code>/<code>...Checked</code>
     that a binding already read this pass — in dev mode that triggers
@@ -123,6 +162,8 @@
       expensive to implement carelessly and why the "Try it" log above grows fast even from unrelated interactions.
     </li>
   </ul>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

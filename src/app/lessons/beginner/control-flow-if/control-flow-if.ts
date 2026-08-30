@@ -62,13 +62,24 @@ export class ControlFlowIf {
   /**
    * Sample: the full `@if` / `@else if` / `@else` form with an `as` alias.
    */
-  protected readonly basicSample = `@if (user(); as u) {
+  protected readonly basicSample = `<!-- The condition is any template expression. user() is a signal call, so
+     @if re-evaluates automatically whenever that signal changes. -->
+<!-- "; as u" aliases the RESULT of the condition. Inside this block u is
+     the non-null user, so you never write user()!.name or call user()
+     three times. Note the SEMICOLON — a comma is a syntax error here. -->
+@if (user(); as u) {
   <p>Welcome, {{ u.name }}</p>
+<!-- @else if / @else must sit on the same line as the closing brace. Put
+     them on a new line and Angular reads them as separate blocks. -->
 } @else if (loading()) {
   <p>Loading…</p>
 } @else {
+  <!-- Only reached when user() is falsy AND loading() is falsy. Branches
+     are checked top-down and exactly one runs. -->
   <p>Please log in</p>
-}`;
+}
+<!-- Unlike *ngIf, @if is built into the compiler: nothing to import, and
+     the untaken branches are never created in the DOM at all. -->`;
 
   /**
    * Sample: `@if` with the `async` pipe, unwrapping the observable once into a
@@ -82,13 +93,21 @@ export class ControlFlowIf {
    * Sample: migrating `*ngIf` with `then`/`else` template refs to `@if`.
    */
   protected readonly migrationSample = `<!-- BEFORE — *ngIf with then/else template refs -->
+<!-- The else branch has to live in a SEPARATE named ng-template, referenced
+     by #loading. Two places to read, and they can drift apart. -->
+<!-- Also note "as user" here uses a SPACE, while @if uses a semicolon —
+     one of the small syntax differences that trips people mid-migration. -->
 <div *ngIf="user$ | async as user; else loading">{{ user.name }}</div>
 <ng-template #loading><spinner /></ng-template>
 
 <!-- AFTER — inline @else, no template references -->
+<!-- Same behaviour, one contiguous block you can read top to bottom. The
+     ng-template and the #loading reference both disappear. -->
 @if (user$ | async; as user) {
   <div>{{ user.name }}</div>
 } @else {
   <spinner />
-}`;
+}
+<!-- Bonus: no CommonModule import. *ngIf is a directive that must be
+     imported; @if is compiler syntax, so it is always available. -->`;
 }

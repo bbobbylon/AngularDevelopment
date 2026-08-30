@@ -19,15 +19,18 @@
     <div class="split">
       <div class="code" style="margin: 0">
         <pre>
-&lt;body&gt;
-  &lt;header&gt;
-    &lt;h1&gt;My App&lt;/h1&gt;
+&lt;!-- Every tag below becomes one NODE in the tree on the right. --&gt;
+&lt;body&gt;                    &lt;!-- the root of what you can see --&gt;
+  &lt;header&gt;                &lt;!-- a CHILD of body --&gt;
+    &lt;h1&gt;My App&lt;/h1&gt;       &lt;!-- a child of header; "My App" is a TEXT node --&gt;
   &lt;/header&gt;
-  &lt;main&gt;
+  &lt;main&gt;                  &lt;!-- header's SIBLING — same parent, same level --&gt;
     &lt;p&gt;Welcome!&lt;/p&gt;
-    &lt;button&gt;Click&lt;/button&gt;
+    &lt;button&gt;Click&lt;/button&gt;  &lt;!-- p's sibling; both are children of main --&gt;
   &lt;/main&gt;
-&lt;/body&gt;</pre>
+&lt;/body&gt;
+&lt;!-- INDENTATION IS NESTING. That is the whole rule: how deep a tag sits in
+     the source is how deep its node sits in the tree. --&gt;</pre>
       </div>
       <div class="tree">
         @for (n of nodes; track n.id) {

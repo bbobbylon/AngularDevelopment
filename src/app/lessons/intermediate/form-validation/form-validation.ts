@@ -9,6 +9,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 
 /** Custom validator: value must contain a digit. */
 function hasDigit(): ValidatorFn {
@@ -38,11 +39,96 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
  */
 @Component({
   selector: 'app-lesson-form-validation',
-  imports: [RouterLink, ReactiveFormsModule],
+  imports: [RouterLink, ReactiveFormsModule, Faq, Flow, Predict, Quiz, Remember],
   templateUrl: './form-validation.html',
   styleUrl: './form-validation.css',
 })
 export class FormValidation {
+  /**
+   * The validation pipeline, in the order it actually executes. The gate at step
+   * four is the part that surprises people: async validators are not merely
+   * "slower", they are *conditional* on the synchronous pass coming back clean.
+   */
+  protected readonly pipeline = [
+    { label: 'DOM event', detail: '`input`, `blur` or `submit` — whichever `updateOn` selected' },
+    {
+      label: '`updateValueAndValidity()`',
+      detail: 'The control rebuilds its value, then its validity',
+    },
+    {
+      label: 'Sync validators run',
+      detail: 'Every one of them, every time; results merge into one object',
+    },
+    {
+      label: 'All returned `null`?',
+      detail: 'If any failed, stop here — status is INVALID and async never runs',
+      tone: 'warn' as const,
+    },
+    {
+      label: 'Async queue, status PENDING',
+      detail: 'Only reached when the sync pass came back clean',
+      tone: 'accent' as const,
+    },
+    {
+      label: 'Status settles',
+      detail: 'VALID or INVALID, and the `ng-*` CSS classes follow',
+      tone: 'good' as const,
+    },
+  ];
+
+  /** The setErrors trap, posed before "under the hood" explains it. */
+  protected readonly setErrorsSample = `// The server rejects the username, so you mark it by hand:
+this.ctrl('username').setErrors({ taken: true });
+// The message appears. Then the user edits the field —
+// they type a single character.
+
+// Is the "already taken" message still on screen?`;
+
+  /** Choices for the async-gating check. */
+  protected readonly asyncGateOptions = [
+    {
+      text: 'Yes — sync and async validators both run on every change',
+      why: 'They would, if the queues were independent. They are not: the async queue sits behind a gate that only opens when the synchronous pass returns clean.',
+    },
+    {
+      text: 'No — the sync failure short-circuits the async queue',
+      correct: true,
+      why: 'Angular runs the synchronous queue first and only starts the async one if the control came out valid. This is a deliberate optimisation: there is no point asking the server whether an empty string is taken.',
+    },
+    {
+      text: 'Yes, but the result is discarded once `required` fails',
+      why: 'The request would still have been sent, which is the cost the gate exists to avoid. Angular does not fire it and throw the answer away — it does not fire it at all.',
+    },
+    {
+      text: 'Only if `updateOn` is set to `blur`',
+      why: '`updateOn` chooses *which DOM event* triggers revalidation. It has no say in the ordering of the two validator queues, which is the same under every setting.',
+    },
+  ];
+
+  /** The doubts this lesson reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'Why does a validator return `null` when things are FINE? That feels backwards.',
+      a: 'Because it returns *the errors it found*, and finding none is `null`. Read the return type as "a report", not "a verdict": an empty report means nothing to complain about. It also makes merging trivial — Angular can spread every validator\'s object together, and absent keys simply are not there.',
+    },
+    {
+      q: 'Where exactly does a "passwords match" validator go?',
+      a: 'On the `FormGroup`, via its second argument: `fb.group({...}, { validators: passwordsMatch })`. A validator on a control receives only that control, and a control cannot see its siblings. Read the result from `form.errors`, not `confirm.errors` — that trips people up constantly, because the message *looks* like it belongs to the confirm field.',
+    },
+    {
+      q: 'What is the difference between `touched` and `dirty`?',
+      a: '`touched` means the user focused and then left the field — it is about *visiting*. `dirty` means the value changed — it is about *editing*. Tab straight through a form and every control is touched but pristine. For error display, `touched` is usually what you want: it means "they have had their chance at this field".',
+    },
+    {
+      q: 'Can I do an HTTP call inside a validator?',
+      a: 'Not in a synchronous one. Sync validators must be pure and return immediately — they run on every keystroke, and the framework has nowhere to put a promise. That is what the separate *async* validator slot is for; it returns an Observable or Promise and puts the control into `PENDING` while it waits.',
+    },
+    {
+      q: 'My custom validator never runs. What did I do wrong?',
+      a: 'Almost always: you passed the function instead of calling the factory. `hasDigit` is a factory that *returns* a `ValidatorFn`, so the array needs `hasDigit()`, with parentheses. Passing `hasDigit` hands Angular a function with the wrong signature, and it quietly does nothing useful.',
+    },
+  ];
+
   /**
    * Builds the form models.
    */

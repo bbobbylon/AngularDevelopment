@@ -36,7 +36,7 @@ conventions this work uses.
   `Compare` — the six components that close the five gaps the audit found in ~95 lessons.
   Covered by 30 tests in `teaching.spec.ts`.
 
-**Rollout: 5 of 100 lessons done.** The first pass took the weakest and most-read lessons:
+**Rollout: 19 of 100 lessons done.** The first pass took the weakest and most-read lessons:
 
 | Lesson                            | Before | After |
 | --------------------------------- | ------ | ----- |
@@ -46,9 +46,73 @@ conventions this work uses.
 | `beginner/outputs`                | 3/9    | 8/9   |
 | `intermediate/view-encapsulation` | 2/9    | 7/9   |
 
-**Remaining:** 95 lessons. Distribution as of 2026-08-29 is 2 at 1/9, 8 at 2/9, 29 at 3/9,
-46 at 4/9, 9 at 5/9. Work worst-first; the two 1/9 lessons are the `projects/` walkthroughs,
-which have a different shape and may need a diagram and a recap more than a quiz.
+Second pass (2026-08-29), clearing everything below 3/9:
+
+| Lesson                         | Before | After |
+| ------------------------------ | ------ | ----- |
+| `projects/task-manager`        | 1/9    | 9/9   |
+| `projects/auth-flow`           | 1/9    | 9/9   |
+| `projects/data-dashboard`      | 2/9    | 9/9   |
+| `beginner/workspace-config`    | 2/9    | 9/9   |
+| `intermediate/form-validation` | 2/9    | 9/9   |
+
+**Two audit detectors were wrong** and were fixed in the same pass, so scores before and
+after 2026-08-29 are not comparable:
+
+- "Interactive demo" only matched `signal(` and missed `signal<Foo>(…)` with an explicit
+  type argument — the more common spelling.
+- It also required an event binding, so a lesson driven entirely by a reactive form
+  (`[formGroup]`, `formControlName`) read as static. Both forms now count.
+
+Together these under-scored four lessons that needed no work at all. Re-run the audit
+before trusting an old ranking.
+
+Third pass (2026-08-29), working down the 3/9 band. All nine went 3/9 → 9/9:
+
+| Lesson                            | What it needed beyond the standard recipe                         |
+| --------------------------------- | ----------------------------------------------------------------- |
+| `beginner/class-style-binding`    | Compare of `[style.width]` vs `[style.width.px]`                  |
+| `beginner/control-flow-for`       | Compare of the two keyed diffs on a prepend                       |
+| `beginner/http-basics`            | New `.triggers` table: which calls actually send the request      |
+| `intermediate/route-params`       | **A whole new interactive demo** — a URL dissector (see below)    |
+| `intermediate/rxjs-operators`     | The four-receptionists analogy for the flattening operators       |
+| `beginner/builtin-directives`     | Also corrected an outdated "silently does nothing" claim → NG8103 |
+| `typescript/modules`              | Compare of static `import` vs dynamic `import()`                  |
+| `intermediate/ng-template-outlet` | —                                                                 |
+| `intermediate/content-projection` | —                                                                 |
+
+`route-params` was the only one in the band failing the **Interactive demo** signal, so it
+needed a real demo rather than copy: a live URL dissector that splits
+`/users/42;view=grid?tag=ng&tag=rxjs&sort=name#bio` into path segments, matrix params, query
+params (flagging repeated keys, which is what `getAll` exists for) and the fragment. That
+demo is doing the teaching the prose could not — the four mechanisms are genuinely different
+and people conflate them.
+
+**Remaining:** 81 lessons. Distribution: 14 at 3/9, 50 at 4/9, 12 at 5/9, 1 at 6/9, 1 at 7/9,
+3 at 8/9. Nothing is below 3/9. The 3/9 band still holds `json-and-apis`,
+`testing-services-http`, `structural-directives`, `attribute-directives`, `keyof-typeof`,
+`rxjs-subjects`, `mapped-conditional`, `testing-components`, `custom-pipes`, `narrowing`,
+`arrays-objects-basics`, `performance`, `security` and `services-di`.
+
+**Escaping braces in `<pre>` blocks.** Prettier's `angular` parser rejects a bare `{` inside
+a template — Angular reads it as the start of an ICU expression, and you get
+`SyntaxError: Unexpected character "EOF"` pointing at the end of the file rather than at the
+brace. Any code sample written directly in HTML needs `{{ '{' }}` / `{{ '}' }}`. Samples
+passed through a `.ts` string (a `Predict` `[code]` or a `Quiz` option) are unaffected, which
+is one more reason to keep long copy in the `.ts`.
+
+**On the `projects/` walkthroughs**, which turned out to need the full treatment rather
+than just a diagram: the recipe that worked was an analogy for the architecture (warehouse
+with one loading dock; festival wristband; production line), an `<app-flow>` of the runtime
+loop rather than the file tree, and a `<app-predict>` on the framework-level trap the
+project is built to teach — mutating a signal's array, `router.navigate()` from a guard,
+calling a method from a template. Their "What you practiced" heading also had to become
+"Recap — …" for the audit's recap detector to see it.
+
+One content bug surfaced while writing the `data-dashboard` quiz: `filtered` both filtered
+and sorted, so every header click invalidated the whole derivation chain including the
+KPIs. Sorting is now a separate `sorted` selector, which is both faster and the thing the
+lesson claims the architecture does.
 
 Per lesson the pass is roughly: read it, add a "the mental model:" paragraph if the analogy
 is missing, one `<app-remember>`, one `<app-predict>` on the classic trap, one `<app-quiz>`
@@ -84,6 +148,137 @@ Constraints that are not optional:
   package would contradict the curriculum.
 - Animation is a teaching opportunity: whatever ships here should be worth pointing at from
   the relevant lessons.
+- **An interaction effect must never change layout.** Shipped 2026-08-30: a CSS-only press
+  bloom on every `button`, painted in a pseudo-element clipped to the button's own box.
+  The rejected version of this in a sibling project injected a sized element into the
+  button, which joined the flow and shoved neighbouring buttons aside. Absolutely
+  positioned or `transform`/`opacity` only — never width/height/padding.
+
+Still to do here: panel/accordion open-close, list add/remove, richer route transitions.
+
+### 2.2 Presentation pass — "brain-friendly", every subject
+
+Requested repeatedly; escalated 2026-08-29 with a detailed critique. The standard is
+recorded as **Bar 3** in `.claude/CLAUDE.md`. The user's own summary of the goal: put the
+student "in the best possible position to land these jobs" — colour, visuals and active
+recall are the levers, not more prose.
+
+The critique, point by point, as acceptance criteria:
+
+1. **Contrast tiers.** Page background darkest → cards one step lighter → code blocks a
+   third tone entirely, near-black like a real terminal. Partly shipped 2026-08-30
+   (`--code-bg: #0d1117`, `--measure`); the card tier still needs separating.
+2. **Inline code restraint.** Reserve inline `<code>` for single symbols and short
+   identifiers. Full expressions like `new Mocha(new Whip(new HouseBlend()))` belong on
+   their own indented line, not mid-sentence — an eye that trips on a highlighted chip
+   every few words cannot read prose. Global style softened 2026-08-30; the _authoring_
+   habit still needs fixing lesson by lesson.
+3. **Line length.** Cap prose at ~65–75 characters even inside a full-width card. Shipped
+   2026-08-30 as `--measure: 68ch` with a `.full-width` opt-out.
+4. **Don't cram code into narrow columns.** Three-up card rows holding real code force
+   awkward wrapping and tiny effective font sizes. Either stack full-width, or keep the
+   columns for short explanatory text and move the code to one shared full-width block.
+5. **Colour must not do double duty.** When the accent is used for the badge, the H1, the
+   section header _and_ body emphasis, nothing is special any more. Narrow the accent to
+   one or two anchor uses; let a real syntax palette carry the code.
+6. **Vertical rhythm.** More space above a heading than below it, so it attaches to the
+   section it introduces. Shipped 2026-08-30 for `h2`/`h3`.
+
+### 2.3 Line-by-line code annotation — **first pass complete 2026-08-30**
+
+The single most-repeated request in the project's history. A one-line sentence above a
+30-line block is a defect. Every snippet needs comments on the lines that carry the idea,
+plus an annotated walkthrough for anything non-obvious. **Never assume the student can read
+the snippet** — they are here because they cannot yet.
+
+**Where it landed.** Measured with `scratchpad/audit-comments.mjs` (annotation ratio across
+every `<pre>` block in a lesson `.html` and every multi-line template-string sample in a
+lesson `.ts`):
+
+| | start | now |
+| --- | --- | --- |
+| annotation ratio | 32.7% | **42.5%** |
+| under-annotated blocks (≥8 lines, <2 comments) | 54 | **0** |
+
+Roughly 30 lessons were rewritten, worst-first. The biggest were `auth-flow` (256 loc),
+`testing-components` (201), `task-manager` (132), `data-dashboard` (103),
+`state-management` (96), `reactive-forms` (95), `decorators` (90), `services-di` (85).
+
+Three real defects surfaced while annotating and were fixed rather than documented:
+
+- `testing-services-http` — the marble test asserted an emission at frame 130 for a
+  `debounceTime(300)` that actually fires at 430. Rewritten with time-progression syntax.
+- `http-interceptors` — `inject(Router)` was called inside a `catchError` callback, which
+  is outside the injection context and throws NG0203. Hoisted into the interceptor body.
+- `resolvers`, `security`, `auth-flow` — guard/redirect samples now say *why* a `UrlTree`
+  beats `router.navigate()`, which was the trap the lesson's own Predict block tested.
+
+**What "done" does not mean.** The metric counts comment density, not comment quality.
+Ratio alone will happily reward noise, so treat 42.5% as a floor that stops regressions,
+not a target to optimise. Two authoring rules worth keeping:
+
+- A comment must say something the code does not. `// set loading to true` is worse than no
+  comment; `// reset HERE only — the success branch navigates away` earns its line.
+- **Comments cannot go inside a tag.** An HTML comment between an element's attributes is
+  invalid, and in a lesson it teaches the wrong thing. Hoist the explanation above the
+  element and cover the attributes as a group.
+
+**Escaping traps, all hit at least once during this pass** — every one fails the build or
+the format check, so run `npm run verify` before trusting a batch:
+
+- Raw `{` / `}` in a `<pre>` inside a template → NG5002. Use `{{ '{' }}`.
+- Raw `@` (`@for`, `@if`, `@Injectable`) in a template → parsed as a control-flow block.
+  Use `&#64;`.
+- Raw `<div>` / `<mark>` in a comment inside `<pre>` → opens a real tag and breaks the
+  Prettier parse. Escape as `&lt;` / `&gt;`.
+- A backtick inside a `.ts` template-string sample terminates the literal. Escape it or
+  use quotes.
+
+### 2.4 Syntax highlighting — finish the job
+
+Shipped 2026-08-30: the token set went from 6 roles to 11 (types, properties, methods,
+builtins, operators, dimmed punctuation), keywords are italic, and **the `Predict`
+component's code is highlighted at all** — it renders `.predict__code pre`, which the
+app-wide sweep in `app.ts` never selected, so every Predict sample in the curriculum had
+been rendering as flat white text.
+
+Remaining:
+
+- The sweep still skips anything inside `.demo`, and only runs once per navigation, so
+  code revealed later (accordions, `@defer`) is never tokenised. A directive or
+  `MutationObserver` would fix both.
+- No HTML/template mode — Angular template samples are tokenised with TypeScript rules.
+- Consider whether `highlight()` should take an explicit `lang`.
+
+### 2.5 Embedded live-coding editor (StackBlitz-style)
+
+Requested 2026-08-29 for the practice / project / challenge pages: a real editor in the
+page, the way StackBlitz embeds a full IDE. Options to evaluate, cheapest first:
+
+- **CodeMirror 6** — ~200 kB, editing + TS highlighting + linting, no execution.
+- **Monaco** (VS Code's editor) — real IntelliSense and the most familiar feel; heavy
+  (~2 MB+), needs a web worker, awkward with the current zero-dependency stance.
+- **WebContainers / StackBlitz SDK** — actually runs `npm install` and a dev server in the
+  browser. Closest to the ask, biggest commitment, cross-origin isolation headers required.
+- **Sandpack** (CodeSandbox) — middle ground; bundles and runs in-browser.
+
+Note this collides with a documented selling point: the app currently advertises "zero
+third-party UI or state libraries" and a hand-rolled highlighter. Decide deliberately.
+
+### 2.6 "Code with me" guided sections
+
+Requested 2026-08-29. For each concept that needs coding practice, a mode where the student
+codes along with a companion: hints as they go, tips at the right moment, and nudges of the
+form _"do you really want to implement it that way? Going this route instead gives you
+X, Y, Z."_ Distinct from the existing Coding Tasks page, which grades a finished answer —
+this one talks to you _while_ you write it. Depends on 2.5 for the editor.
+
+### 2.7 Thin tracks
+
+Raised 2026-08-29 about a sibling project. **Not applicable to this repo** — the curriculum
+here is Angular + TypeScript only (foundations, TypeScript, beginner, intermediate, expert,
+projects) and has no Ruby/Java/PHP tracks. The equivalent check here is lesson _depth_,
+which §1.1 already tracks.
 
 ---
 

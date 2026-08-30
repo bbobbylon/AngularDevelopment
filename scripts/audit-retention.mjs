@@ -86,8 +86,14 @@ const CHECKS = [
   {
     key: 'interactive',
     label: 'Interactive demo',
+    // Two ways a lesson can be genuinely interactive, and both count:
+    // an event binding driving signal state, or a live reactive form.
     test: (html, ts) =>
-      /\(click\)|\(input\)|\[\(ngModel\)\]|\(change\)/.test(html) && /signal\(|computed\(/.test(ts),
+      (/\(click\)|\(input\)|\[\(ngModel\)\]|\(change\)/.test(html) &&
+        // `signal<Foo>(…)` is as reactive as `signal(…)`; match the generic form too.
+        /\b(signal|computed|linkedSignal|model)\s*[<(]/.test(ts)) ||
+      (/\[formGroup\]|formControlName|\[formControl\]/.test(html) &&
+        /new FormGroup|new FormControl|fb\.group|formBuilder\.group/.test(ts)),
   },
 ];
 

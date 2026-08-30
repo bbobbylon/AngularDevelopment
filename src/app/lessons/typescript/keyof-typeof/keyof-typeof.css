@@ -1,17 +1,22 @@
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+.ops-wrap {
+  overflow-x: auto;
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+.ops {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  font-size: 0.87rem;
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+.ops th,
+.ops td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.ops th {
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }

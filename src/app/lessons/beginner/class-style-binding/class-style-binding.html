@@ -6,6 +6,24 @@
     bindings to whole objects.
   </p>
 
+  <h2>The mental model: sheets on an overhead projector</h2>
+  <p>
+    Picture the old classroom projector. The static <code>class="box"</code> is the bottom sheet, drawn once and never
+    erased. Every binding you add lays another transparent sheet on top of it — <code>[class]</code> one sheet,
+    <code>[class.box--active]</code> another. Nobody wipes anyone else's sheet clean; you see everything at once.
+  </p>
+  <p>
+    That single picture answers both of the questions people get wrong here. Why does <code>class="box"</code> survive a
+    <code>[class]</code> binding that never mentions it? Because the binding is a different sheet. And when two sheets
+    both draw <code>box--active</code>, which one do you see? The stack has a fixed order, and the per-class binding
+    sits on top.
+  </p>
+
+  <app-remember>
+    <strong>Bindings layer — they never replace.</strong> Static class, then <code>[class]</code> maps, then
+    <code>[class.x]</code> on top. If a class you did not expect is still there, something below is still drawing it.
+  </app-remember>
+
   <h2>Single class & style bindings</h2>
   <div class="demo">
     <p class="demo__title">Live</p>
@@ -34,6 +52,44 @@
     unit, e.g. <code>[style.width.px]</code> or <code>[style.width.%]</code>.
   </div>
 
+  <p>
+    That suffix is doing more work than it looks like it is. Drop it and nothing complains — which is precisely the
+    problem:
+  </p>
+
+  <app-compare
+    leftTitle="No suffix — silently does nothing"
+    leftTone="bad"
+    rightTitle="With `.px` — the unit is appended"
+    rightTone="good"
+    note="Angular does not validate or infer units. It concatenates yours onto the value and hands the string to the browser."
+  >
+    <div left>
+      <div class="code">
+        <pre>
+&lt;div [style.width]="8"&gt;
+
+// setProperty('width', '8')
+// → invalid CSS, dropped by the browser</pre>
+      </div>
+    </div>
+    <div right>
+      <div class="code">
+        <pre>
+&lt;div [style.width.px]="8"&gt;
+
+// setProperty('width', '8px')
+// → 8 pixels wide</pre>
+      </div>
+    </div>
+  </app-compare>
+
+  <app-quiz
+    question='A component renders `<div [style.width]="8">`. What does the user see?'
+    [options]="unitOptions"
+    followUp="The mirror-image mistake is worth knowing too: if the value is *already* a string with a unit, the suffix still appends. `[style.width.px]=&quot;'8em'&quot;` produces `8empx`, which the browser also drops. Suffix for numbers, bare binding for complete strings — never both."
+  />
+
   <h2>Binding many classes / styles at once</h2>
   <p>Bind an object or array to <code>[class]</code> / <code>[style]</code>:</p>
   <div class="demo">
@@ -57,6 +113,12 @@
 &lt;div [class]="{{ '{' }} active: isActive(), error: hasError() {{ '}' }}"
      [style]="{{ '{' }} color: 'red', fontWeight: '600' {{ '}' }}"&gt;...&lt;/div&gt;</pre>
   </div>
+
+  <app-predict
+    prompt="Here is the question the projector picture is meant to settle. Commit to an answer before you open it."
+    [code]="mergeSample"
+    answer='`class="card shadow active"` — all three. The `[class]` binding adds `active`; it has no opinion about `card` or `shadow`, so they stay exactly where they were. People expect `class="active"` because assignment is the intuition a template brings from JavaScript, where `el.className = &apos;active&apos;` really does wipe the rest. Angular&apos;s binding is not an assignment — it is one layer being told which of *its own* keys are on. Flip `isActive()` to false and you are back to `card shadow`, never to nothing.'
+  />
 
   <div class="note">
     Bound classes <strong>merge</strong> with the static <code>class</code> attribute — they don't replace it. Above,
@@ -117,6 +179,17 @@
   </div>
 
   <h2>Under the hood</h2>
+
+  <p>
+    Here is the projector picture again, this time as the actual resolution order Angular runs on every change-detection
+    pass:
+  </p>
+
+  <app-flow
+    [steps]="layers"
+    caption="Each source is compiled into its own styling instruction. Nothing rebuilds `className` from scratch, which is why one binding can never clobber another's classes."
+  />
+
   <ul>
     <li>
       <strong>Angular doesn't rebuild <code>className</code> from scratch.</strong> Each binding source — the static
@@ -174,30 +247,7 @@
     </li>
   </ul>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Does <code>[class]="{{ '{' }}…{{ '}' }}"</code> replace the static <code>class</code> attribute?
-    </summary>
-    <div>
-      No. Bound classes merge with the static <code>class</code>. The static ones stay applied; the binding only
-      adds/removes its own keys.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you set a pixel width from a number?</summary>
-    <div>
-      <code>[style.width.px]="n"</code> — the <code>.px</code> suffix appends the unit. Without a unit the value is
-      invalid CSS.
-    </div>
-  </details>
-  <details class="qa">
-    <summary><code>[class.x]</code> vs <code>ngClass</code> — which for new code?</summary>
-    <div>
-      Prefer the native <code>[class.x]</code> / <code>[class]</code> bindings: no directive import, and they're faster.
-      <code>ngClass</code>/<code>ngStyle</code> are the legacy equivalents.
-    </div>
-  </details>
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

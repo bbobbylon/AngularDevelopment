@@ -1,5 +1,6 @@
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 
 // ============================================================
 // WHAT YOU'LL BUILD: a Data Dashboard covering:
@@ -63,9 +64,10 @@ const PAGE_SIZE = 5;
  * "recalculate" call to forget, and no ordering problem between a filter change
  * and a re-sort.
  *
- * The cascade is worth reading top to bottom: `filtered` → `totalPages` →
- * `paginatedRows`, with `summary` hanging off `filtered` as well. Change one
- * filter and every one of those updates exactly once.
+ * The cascade is worth reading top to bottom: `filtered` → `sorted` →
+ * `paginatedRows`, with `totalPages` and `summary` hanging off `filtered` as
+ * well. Change one filter and every one of those updates exactly once; change
+ * the sort column and only the two selectors that depend on it do any work.
  */
 @Injectable({ providedIn: 'root' })
 class SalesStore {
@@ -132,33 +134,48 @@ class SalesStore {
   readonly page = this._page.asReadonly();
 
   /**
-   * Every row that passes the filters, in sort order. The root of the derivation
-   * chain.
+   * Every row that passes the filters. The root of the derivation chain.
+   *
+   * Deliberately does **not** sort. Filtering and sorting are split into two
+   * selectors so that each reads only the signals it genuinely needs: changing the
+   * sort column leaves this one's cache valid, and so leaves `totalPages` and
+   * `summary` — which both hang off it — untouched. Folding the sort in here would
+   * work identically on screen while invalidating the entire graph on every header
+   * click.
    */
   readonly filtered = computed(() => {
     const cat = this._catFilter();
     const reg = this._regionFilter();
     const mf = this._monthFrom();
     const mt = this._monthTo();
+    return this._data().filter(
+      (r) =>
+        (cat === 'all' || r.category === cat) &&
+        (reg === 'all' || r.region === reg) &&
+        r.month >= mf &&
+        r.month <= mt,
+    );
+  });
+
+  /**
+   * The filtered rows in sort order.
+   *
+   * Copies before sorting, because `Array.prototype.sort` mutates in place and the
+   * array it receives is `filtered`'s cached value — sorting it directly would
+   * corrupt a cache other selectors are still reading.
+   */
+  readonly sorted = computed(() => {
     const key = this._sortKey();
     const dir = this._sortDir();
-    return [...this._data()]
-      .filter(
-        (r) =>
-          (cat === 'all' || r.category === cat) &&
-          (reg === 'all' || r.region === reg) &&
-          r.month >= mf &&
-          r.month <= mt,
-      )
-      .sort((a, b) => {
-        const av = a[key],
-          bv = b[key];
-        const cmp =
-          typeof av === 'string'
-            ? (av as string).localeCompare(bv as string)
-            : (av as number) - (bv as number);
-        return dir === 'asc' ? cmp : -cmp;
-      });
+    return [...this.filtered()].sort((a, b) => {
+      const av = a[key],
+        bv = b[key];
+      const cmp =
+        typeof av === 'string'
+          ? (av as string).localeCompare(bv as string)
+          : (av as number) - (bv as number);
+      return dir === 'asc' ? cmp : -cmp;
+    });
   });
 
   /**
@@ -176,7 +193,7 @@ class SalesStore {
    */
   readonly paginatedRows = computed(() => {
     const p = Math.min(this._page(), this.totalPages());
-    return this.filtered().slice((p - 1) * PAGE_SIZE, p * PAGE_SIZE);
+    return this.sorted().slice((p - 1) * PAGE_SIZE, p * PAGE_SIZE);
   });
 
   /**
@@ -320,7 +337,7 @@ class SalesStore {
 @Component({
   selector: 'app-project-data-dashboard',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, Faq, Flow, Predict, Quiz, Remember],
   styleUrl: './data-dashboard.css',
   templateUrl: './data-dashboard.html',
 })
@@ -328,6 +345,89 @@ export class DataDashboard {
   /**
    * The store.
    */
+  /**
+   * The derivation chain, as stations on a line. Each `computed` reads only the
+   * stage above it, which is what makes a filter change and a sort change cost
+   * different amounts of work.
+   */
+  protected readonly pipeline = [
+    { label: '`_data`', detail: 'The raw records — the only writable signal in the chain' },
+    {
+      label: '`filtered`',
+      detail: 'Category, region and month narrow the set',
+      tone: 'accent' as const,
+    },
+    { label: '`sorted`', detail: 'Reorders them — the only station that reads the sort key' },
+    { label: '`totalPages`', detail: 'Reads the filtered *length*; sorting cannot change a count' },
+    { label: '`paginatedRows`', detail: 'Slices the current page out of `sorted`' },
+    {
+      label: '`summary`',
+      detail: 'KPIs branch off `filtered`, not off the page',
+      tone: 'good' as const,
+    },
+    { label: 'Template', detail: 'Reads the end of the chain; nothing computes in the markup' },
+  ];
+
+  /** The template-method trap, posed before step 4 names it. */
+  protected readonly templateCallSample = `// In the table template:
+<td>{{ formatCurrency(record.amount) }}</td>
+
+formatCurrency(n: number) {
+  console.count('formatCurrency');
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency', currency: 'USD',
+  }).format(n);
+}
+
+// 50 rows on screen. You type one character into a
+// search box that has nothing to do with the amounts.
+// What does the counter say?`;
+
+  /** Choices for the dependency-tracking check. */
+  protected readonly chainOptions = [
+    {
+      text: 'All five — a change anywhere invalidates the whole chain',
+      why: 'That is how a naive cache would behave. Signals track dependencies per *read*, so invalidation follows the actual graph: only selectors that touched `_sortKey`, directly or through something that did, are affected.',
+    },
+    {
+      text: '`sorted` and `paginatedRows`',
+      correct: true,
+      why: '`sorted` is the only selector that reads `_sortKey`, and `paginatedRows` slices `sorted`, so it goes stale too. `filtered` never looks at the sort key, so its cache stands — which means `totalPages` and `summary`, both of which read only `filtered`, are untouched. Reordering rows cannot change how many there are or what they add up to.',
+    },
+    {
+      text: '`filtered`, `sorted` and `paginatedRows`',
+      why: 'The dependency runs the other way. `sorted` reads `filtered`, so a *filter* change reaches sorting — but a sort change does not travel back *upstream*. `filtered` has no idea the sort key exists.',
+    },
+    {
+      text: 'None until something reads them',
+      why: 'The better instinct, and half right: `computed` is lazy, so nothing recomputes at the instant you call `set()`. But the template is reading these on the very next render, so the real question is which ones got *marked* stale — and that is `sorted` and `paginatedRows`.',
+    },
+  ];
+
+  /** The doubts this project reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'Why is a method call in the template so bad? It is the same function either way.',
+      a: "Same function, wildly different call count. Angular cannot know whether a method's result changed without calling it, so it calls it on *every* change-detection pass — for every row. A `computed` is asked once, caches, and is only re-asked when a signal it read actually changed. The work is identical; the number of times you pay for it is not.",
+    },
+    {
+      q: 'Is a long chain of computeds slow? This one is five deep.',
+      a: 'No, and depth is the wrong thing to worry about. Each link caches, so a five-stage chain where nothing changed costs five cheap version checks and zero recomputation. What costs you is *width* — a selector that reads a signal it does not need, dragging itself into invalidations that have nothing to do with it. Keep each `computed` reading the minimum.',
+    },
+    {
+      q: 'Why is the current page a signal but `totalPages` a computed?',
+      a: 'Because one is a decision and the other is a consequence. The user picks a page — nothing else determines it, so it has to be stored. Total pages is a fact about the filtered data; storing it would mean keeping it in step by hand, and the first filter change you forget leaves a pager offering page 7 of a 3-page list. If you can derive it, derive it.',
+    },
+    {
+      q: 'When would a pure pipe be better than a computed?',
+      a: 'When the formatting belongs to the *view*, not the data, and you want it reusable across templates. `{{ amount | currency }}` is memoised per input by Angular, so it has the same cheap-repeat property as a `computed`, and it keeps display concerns out of the store. Reach for `computed` when the derived value is shared or feeds other derivations; reach for a pure pipe when it is per-cell presentation.',
+    },
+    {
+      q: 'The KPIs read `filtered`, not `paginatedRows`. Is that a bug?',
+      a: 'It is the whole point. A total that changed when you turned the page would be describing your scroll position rather than your business. Paging is a *view* concern; the KPIs summarise the selection. Branching them off `filtered` is what makes them right, and it is the sort of decision the chain diagram makes obvious and prose usually hides.',
+    },
+  ];
+
   protected readonly store = inject(SalesStore);
   /**
    * The category options.

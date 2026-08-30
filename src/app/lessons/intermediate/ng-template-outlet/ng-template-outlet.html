@@ -7,6 +7,24 @@
     <code>&#64;for</code>, skeleton loaders, and every "bring-your-own-row" table/list component.
   </p>
 
+  <h2>The mental model: a rubber stamp</h2>
+  <p>
+    An <code>&lt;ng-template&gt;</code> is a rubber stamp. It carries the whole design, and it leaves no mark at all
+    until someone presses it down. Writing one changes nothing on the page — which is exactly why beginners write an
+    <code>&lt;ng-template&gt;</code>, see nothing, and conclude it is broken.
+  </p>
+  <p>
+    <code>NgTemplateOutlet</code> is the hand that presses. The <strong>context</strong> object is the ink you load
+    before each press: same stamp, different result every time. And passing a <code>TemplateRef</code> into a child
+    component is handing over your stamp so <em>they</em> decide where to press it, how many times, and with what ink —
+    which is the whole basis of every "bring your own row" table component you have ever used.
+  </p>
+
+  <app-remember>
+    <strong>A template is a stamp, not a mark. Context is the ink.</strong> If nothing appears, nobody pressed it; if
+    the wrong thing appears, check the ink.
+  </app-remember>
+
   <h2>1 — Define once, render multiple times</h2>
   <div class="code">
     <pre>
@@ -42,18 +60,40 @@
   </p>
   <div class="code">
     <pre>
+&lt;!-- #personRow is a TEMPLATE REFERENCE VARIABLE. It names this block so the
+     outlet below can point at it. Nothing here renders on its own — an
+     ng-template is a recipe, not a dish. --&gt;
+&lt;!-- let-p       (bare)      → reads context.$implicit
+     let-badge="badge"       → reads context.badge
+     The names on the LEFT are yours to choose; the strings on the RIGHT must
+     match the context keys exactly. --&gt;
 &lt;ng-template #personRow let-p let-badge="badge"&gt;
   &lt;strong&gt;{{ '{{' }} p.name {{ '}}' }}&lt;/strong&gt; — {{ '{{' }} p.role {{ '}}' }}
+  &lt;!-- badge is just a local variable in here, usable like any other. --&gt;
   &#64;if (badge) &#123; &lt;span&gt;{{ '{{' }} badge {{ '}}' }}&lt;/span&gt; &#125;
 &lt;/ng-template&gt;
 
 &#64;for (person of people(); track person.name) &#123;
+  &lt;!-- ng-container renders NO element of its own, so the loop produces clean
+       markup with no wrapper divs to fight in CSS.
+       [ngTemplateOutlet] says WHICH template to stamp out.
+       [ngTemplateOutletContext] supplies the data for it, rebuilt on every
+       iteration — same template, different values each time. $implicit is the
+       "main thing" the template is about; everything else gets a name.
+       (No comment can sit between the attributes below: that would be inside
+       the tag itself, which HTML does not allow.) --&gt;
   &lt;ng-container
     [ngTemplateOutlet]="personRow"
     [ngTemplateOutletContext]="&#123; $implicit: person, badge: person.role === 'Admin' ? '★' : '' &#125;"
   /&gt;
 &#125;</pre>
   </div>
+
+  <app-predict
+    prompt="Loading the wrong ink is the single most common mistake here, and it makes no noise at all. What does this render?"
+    [code]="contextSample"
+    answer='An empty `<span>`. Nothing errors, nothing warns, and the outlet reports for duty perfectly happily — it just hands the view a context with a `$implicit` key while the template is asking for a `person` key. The bare `let-x` shorthand reads `$implicit` and *only* `$implicit`; `let-person="person"` reads `context.person`, which does not exist. Two ways to fix it, and you should pick one and stick to it: change the template to `let-person` (reading `$implicit`), or change the context to `{ person: user }`. Use `$implicit` for the one main thing the template is about, and named keys for everything else.'
+  />
 
   <h2>Demo 2 — context per outlet</h2>
   <div class="demo">
@@ -132,8 +172,13 @@ protected readonly view = signal&lt;'compact' | 'detailed'&gt;('compact');
     <pre>
 &#64;Component(&#123;
   selector: 'app-slot-host',
+  // NgTemplateOutlet is a standalone directive — it must be imported to be
+  // usable in this template, exactly like any other directive.
   imports: [NgTemplateOutlet],
   template: `
+    &lt;!-- The child renders whatever it was handed. It has no idea what the
+         markup looks like, and that ignorance is the feature: SlotHost owns
+         WHERE and WHEN, the parent owns WHAT. --&gt;
     &lt;ng-container
       [ngTemplateOutlet]="template()"
       [ngTemplateOutletContext]="ctx()"
@@ -141,14 +186,24 @@ protected readonly view = signal&lt;'compact' | 'detailed'&gt;('compact');
   `,
 &#125;)
 export class SlotHost &#123;
+  // A TemplateRef is a first-class value — you can store it, pass it into an
+  // input, keep it in an array. .required because there is nothing sensible
+  // to render without one.
   template = input.required&lt;TemplateRef&lt;unknown&gt;&gt;();
+  // The data to feed it, defaulting to an empty object so a context-free
+  // template works with no extra binding at the call site.
   ctx      = input&lt;Record&lt;string, unknown&gt;&gt;(&#123;&#125;);
 &#125;
 
-// Parent
+// ---- Parent ----
+&lt;!-- Declared here, in the parent, so it can use the parent's own fields,
+     pipes and styles — even though SlotHost is what actually renders it. --&gt;
 &lt;ng-template #myRow let-who="who"&gt;
   &lt;p&gt;Hello {{ '{{' }} who {{ '}}' }}!&lt;/p&gt;
 &lt;/ng-template&gt;
+&lt;!-- Passing #myRow by name hands over the TemplateRef itself. This is the
+     mechanism behind Material tables, CDK overlays, and every
+     "bring-your-own-template" API you'll meet. --&gt;
 &lt;app-slot-host [template]="myRow" [ctx]="&#123; who: 'World' &#125;" /&gt;</pre>
   </div>
 
@@ -215,6 +270,16 @@ export class SlotHost &#123;
   </div>
 
   <h2>Under the hood</h2>
+
+  <p>
+    Written markup to nodes on the page, in five steps. The second one is where "markup as a value" stops being odd:
+  </p>
+
+  <app-flow
+    [steps]="stamping"
+    caption="`@if` and `@for` compile down to this exact machinery. `NgTemplateOutlet` just exposes it to you instead of hiding it inside a block."
+  />
+
   <ul>
     <li>
       <strong><code>TemplateRef</code> is a compiled, uninstantiated view factory.</strong>
@@ -277,6 +342,14 @@ export class SlotHost &#123;
       <code>NgTemplateOutlet</code> to stamp it out.
     </li>
   </ul>
+
+  <app-quiz
+    question="An outlet is rendering a row template. You leave the `TemplateRef` alone but hand it a brand-new context object with the same keys and different values. What does Angular do with the already-rendered view?"
+    [options]="reuseOptions"
+    followUp="Practical consequence: keep the shape of your context objects stable across renders. A key that appears only sometimes turns a cheap in-place update into a full teardown, and takes any focus or scroll position inside that view with it."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

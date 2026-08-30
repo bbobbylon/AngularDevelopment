@@ -43,19 +43,35 @@ export class ServicesDi {
   /**
    * Sample: defining a service with `@Injectable({ providedIn: 'root' })`.
    */
-  readonly serviceDefinitionSample = `@Injectable({ providedIn: 'root' })
+  readonly serviceDefinitionSample = `// @Injectable marks the class as something the injector can build.
+// providedIn: 'root' does two jobs at once: it registers the service on the
+// root injector, AND it makes the class tree-shakable — never inject it and
+// the bundler drops it entirely.
+@Injectable({ providedIn: 'root' })
 export class CartService {
+  // private: nothing outside this class can call .set() or .update().
   private readonly items = signal<string[]>([]);
+  // Derived, so the count can never disagree with the list. It recomputes
+  // itself; no code anywhere has to remember to keep it in sync.
   readonly count = computed(() => this.items().length);
+  // The public read handle. Same signal, minus the write methods, so
+  // components can display the items but cannot reach in and change them.
   readonly list = this.items.asReadonly();
 
+  // The three writers below are the ENTIRE surface for changing the cart.
   add(item: string) {
+    // Spread into a new array — a new reference is what makes the signal
+    // notify its consumers. items().push(item) would change nothing on screen.
     this.items.update(i => [...i, item]);
   }
   remove(index: number) {
+    // filter() already returns a new array. The \`_\` names the unused element,
+    // since only the index matters here.
     this.items.update(i => i.filter((_, idx) => idx !== index));
   }
   clear() {
+    // set() replaces the value outright; update() is for deriving the next
+    // value from the current one. Use whichever says what you mean.
     this.items.set([]);
   }
 }`;
@@ -81,16 +97,25 @@ export class ProductList {
    */
   readonly cartIndicatorSample = `@Component({
   selector: 'app-cart-indicator',
+  // Reads cart.count() straight from the injected service. No @Input, no
+  // event wiring — and no matter where this component sits in the tree, it
+  // sees the same numbers as every other consumer of CartService.
   template: '<span class="pill">🛒 cart: {{ cart.count() }} item(s)</span>',
 })
 export class CartIndicator {
+  // protected = visible to this class's TEMPLATE, invisible to other classes.
+  // (private would work at runtime but the template type-checker rejects it.)
+  // Note there is no providers array here: this component finds CartService
+  // by walking up to the root injector, where providedIn: 'root' put it.
   protected readonly cart = inject(CartService);
 }`;
 
   /**
    * Sample: a component-provided service, and the per-instance behaviour it gives.
    */
-  readonly counterWidgetSample = `@Injectable()                    // no providedIn — not registered anywhere yet
+  readonly counterWidgetSample = `// No providedIn. The class is injectABLE but not yet registered anywhere —
+// inject it without a provider in scope and you get NullInjectorError.
+@Injectable()
 export class CounterService {
   readonly count = signal(0);
   increment() { this.count.update(c => c + 1); }
@@ -99,10 +124,17 @@ export class CounterService {
 
 @Component({
   selector: 'app-counter-widget',
-  providers: [CounterService],   // ← THIS registers a scoped instance HERE
+  // ← THE ONE LINE THAT CHANGES EVERYTHING. Each instance of CounterWidget
+  // gets its OWN element injector, and this array registers CounterService
+  // on it. Put three widgets on a page and you get three counters, each
+  // counting independently — nothing is shared.
+  providers: [CounterService],
   template: '<span>{{ counter.count() }}</span>',
 })
 export class CounterWidget {
+  // Identical call to the root case. inject() looks the same either way; the
+  // provider location alone decides whether you get a shared singleton or a
+  // per-instance object. That is the whole idea worth carrying away.
   protected readonly counter = inject(CounterService);
 }`;
 

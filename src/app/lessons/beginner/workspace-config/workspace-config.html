@@ -8,6 +8,30 @@
     errors" into five-minute fixes.
   </p>
 
+  <h2>The mental model: building a house</h2>
+  <p>
+    Three files, three jobs, and the confusion is almost always about which one owns a given knob. Picture a building
+    site:
+  </p>
+  <ul>
+    <li>
+      <strong>package.json</strong> is the <strong>materials order</strong> — what gets delivered to the site, and which
+      of it is scaffolding that goes home again versus timber that stays in the walls.
+    </li>
+    <li>
+      <strong>angular.json</strong> is the <strong>build plan</strong> — which crew does which job, in what order, and
+      what the finished house has to weigh.
+    </li>
+    <li>
+      <strong>tsconfig</strong> is the <strong>building code</strong> — the rules your work is inspected against before
+      anyone is allowed to move in.
+    </li>
+  </ul>
+  <p>
+    You would not phone the lumber yard to change the floor plan. Most "mystery build errors" are exactly that call:
+    editing the wrong file for the problem you have.
+  </p>
+
   <h2>The three layers</h2>
   <div class="layer-grid">
     <div class="layer">
@@ -32,6 +56,21 @@
       </p>
     </div>
   </div>
+
+  <app-remember>
+    <strong>Install → Build → Compile.</strong> package.json installs, angular.json builds, tsconfig compiles. When you
+    do not know which file to edit, ask which of those three verbs your problem belongs to.
+  </app-remember>
+
+  <h2>When each file is read</h2>
+  <p>
+    The three do not run at once — each is consulted at a different moment of <code>ng build</code>. That ordering
+    explains most of their surprising behaviour:
+  </p>
+  <app-flow
+    [steps]="buildFlow"
+    caption="Look hard at step 2 — the word `once` is doing more work there than it appears to."
+  />
 
   <h2>Try it: where does this setting live?</h2>
   <div class="demo">
@@ -87,6 +126,12 @@
       sourcemaps and fast rebuilds. <code>fileReplacements</code> is the traditional environment-file swap.
     </li>
   </ul>
+  <app-predict
+    prompt="`ng serve` is running and hot-reloading your components happily. You add a global stylesheet to angular.json and save. Does the framework's CSS appear?"
+    [code]="liveEditSample"
+    answer="No — and nothing in the terminal tells you why. The dev server watches your *source* files, but it read `angular.json` once at boot and never looks again. Your edit is correct and completely inert until you stop the server and start it again. Whenever a config change 'does nothing', restart before you debug the change itself."
+  />
+
   <div class="warn">
     angular.json is read ONCE when the dev server boots. Source files are watched; workspace config is not — edit it and
     restart <code>ng serve</code>.
@@ -125,6 +170,14 @@
     type-checking into templates, so a wrong-typed <code>[input]</code>, a misspelled interpolation member, or an
     untyped <code>$event</code> fails the <em>build</em> instead of a user's session.
   </div>
+
+  <app-quiz
+    question="CI fails with `error TS2593: Cannot find name 'describe'`. It builds fine on your machine. What is the most likely cause?"
+    [options]="tsconfigOptions"
+    followUp="This is the whole reason the tsconfig family splits into leaves: two compilations, two file sets, two sets of ambient types."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

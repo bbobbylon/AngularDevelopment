@@ -16,6 +16,28 @@
         <li>Live stats: total, done, high-priority remaining</li>
       </ul>
 
+      <h2>The mental model: a warehouse with one loading dock</h2>
+      <p>
+        The store is a warehouse. The tasks are the stock on the shelves, and nobody
+        is allowed to wander in and rearrange them. Everything goes through one
+        loading dock: a short list of named operations — <code>add</code>,
+        <code>move</code>, <code>remove</code>, <code>clearDone</code>.
+      </p>
+      <p>
+        That is what <code>private readonly _tasks</code> plus
+        <code>readonly tasks = this._tasks.asReadonly()</code> buys you. Components
+        can <em>look</em> at the shelves as much as they like; to change anything
+        they have to go to the dock. When something is wrong with the board, the
+        list of things that could have caused it is the list of methods on the
+        store — not every template in the app.
+      </p>
+
+      <app-remember>
+        <strong>Private writes, public reads.</strong> One signal owns the state,
+        <code>asReadonly()</code> exposes it, and named methods are the only way in.
+        Break that rule anywhere and you lose the guarantee everywhere.
+      </app-remember>
+
       <h2>Architecture overview</h2>
       <div class="code">
         <pre>TaskManagerPage          ← host component (injects TaskStore)
@@ -25,21 +47,35 @@
 TaskStore (service)      ← signal store: private state, computed, methods</pre>
       </div>
 
+      <p>
+        That is the static picture — what contains what. The one worth memorising is
+        the moving picture: what happens between a click and the screen changing.
+      </p>
+      <app-flow
+        [steps]="loop"
+        caption="One direction, always. Data goes down through bindings, changes go up through methods — a cycle you can trace with a finger when something misbehaves."
+      />
+
       <h2>Step 1 — Define the data model</h2>
       <div class="step-callout">
         <h4>Concept: TypeScript interfaces for domain types</h4>
         Always start with your data model. Strong typing catches bugs before they reach the browser.
       </div>
       <div class="code">
-        <pre>type Priority = 'low' | 'medium' | 'high';
+        <pre>// UNION TYPES, not string. Typo 'hgih' anywhere in the app and the compiler
+// stops you; `string` would happily let it through to production. These also
+// give you autocomplete everywhere a Priority is expected.
+type Priority = 'low' | 'medium' | 'high';
 type Status   = 'todo' | 'in-progress' | 'done';
 
 interface Task {{ '{' }}
-  id: number;
-  title: string;
-  priority: Priority;
-  status: Status;
-  createdAt: number;         // Date.now() timestamp
+  id: number;                // stable identity — what &#64;for tracks by
+  title: string;             // the only field the user types
+  priority: Priority;        // reuses the union above, so it can't drift
+  status: Status;            // which Kanban column this task sits in
+  createdAt: number;         // Date.now() ms timestamp, not a Date object —
+                             // numbers survive JSON.stringify/parse intact,
+                             // and a Date would come back as a string
 {{ '}' }}</pre>
       </div>
 
@@ -63,43 +99,129 @@ remove(id: number): void</pre>
         localStorage is synced on every mutation.
       </div>
       <div class="code">
-        <pre>&#64;Injectable()
+        <pre>// No `providedIn: 'root'` — this store is provided by the page component,
+// so its state dies when you navigate away. Deliberate for a feature store.
+&#64;Injectable()
 class TaskStore {{ '{' }}
+  // ---- THE ONE SOURCE OF TRUTH ----
+  // `private` + the underscore convention: nothing outside this class can
+  // call .set() or .update() on it. `readonly` stops the field itself being
+  // reassigned. The initial value comes from localStorage, so a refresh
+  // restores your board.
   private readonly _tasks = signal&lt;Task[]&gt;(this.load());
 
+  // ---- READ-ONLY WINDOW ONTO IT ----
+  // asReadonly() returns the SAME signal with the write methods stripped from
+  // its type. Zero runtime cost — it's TypeScript telling components "look,
+  // don't touch". They must go through add/move/remove below.
   readonly tasks    = this._tasks.asReadonly();
+
+  // ---- DERIVED STATE ----
+  // The board needs three columns. Rather than store three arrays and keep
+  // them in sync (three chances to get it wrong), derive them from the one.
+  // Note the wrapping parens below. Without them JavaScript reads the braces
+  // as a function body rather than an object literal, and the computed
+  // returns undefined.
   readonly byStatus = computed(() =&gt; ({{ '{' }}
     todo:        this._tasks().filter(t =&gt; t.status === 'todo'),
+    // Quoted because the key contains a hyphen — not a plain identifier.
     'in-progress': this._tasks().filter(t =&gt; t.status === 'in-progress'),
     done:        this._tasks().filter(t =&gt; t.status === 'done'),
   {{ '}' }}));
+  // A second computed off the same source. Both recompute only when _tasks
+  // actually changes, and only if something is currently reading them.
   readonly stats = computed(() =&gt; ({{ '{' }}
     total: this._tasks().length,
     done:  this._tasks().filter(t =&gt; t.status === 'done').length,
+    // "High priority, still outstanding" — the number that belongs on a badge.
     high:  this._tasks().filter(t =&gt; t.priority === 'high' &amp;&amp; t.status !== 'done').length,
   {{ '}' }}));
 
+  // ---- MUTATIONS: the only way in ----
   add(title: string, priority: Priority) {{ '{' }}
+    // Build the full object here, in the store. The caller passes intent
+    // (title + priority); the store owns id, default status and timestamp.
     const task: Task = {{ '{' }} id: this.nextId++, title, priority, status: 'todo', createdAt: Date.now() {{ '}' }};
+    // update() takes the current value and returns the NEXT one. The spread
+    // builds a new array — a new reference — which is what makes the signal
+    // notify. `l.push(task)` would mutate in place and change nothing on screen.
     this._tasks.update(l =&gt; [...l, task]);
-    this.save();
+    this.save();   // persist after every mutation, so state survives reload
   {{ '}' }}
   move(id: number, status: Status) {{ '{' }}
+    // map() rebuilds the array; the ternary replaces only the matching task
+    // with a spread copy carrying the new status, and returns every other
+    // task untouched (same reference — so their TaskCards don't re-render).
     this._tasks.update(l =&gt; l.map(t =&gt; t.id === id ? {{ '{' }} ...t, status {{ '}' }} : t));
     this.save();
   {{ '}' }}
   remove(id: number) {{ '{' }}
+    // filter() naturally returns a new array, so this one is safe by default.
     this._tasks.update(l =&gt; l.filter(t =&gt; t.id !== id));
     this.save();
   {{ '}' }}
 
+  // ---- PERSISTENCE ----
+  // Reading this._tasks() inside save() is fine: it's a plain method call,
+  // not a computed, so it creates no reactive dependency.
   private save() {{ '{' }} localStorage.setItem('ng-tasks', JSON.stringify(this._tasks())); {{ '}' }}
   private load(): Task[] {{ '{' }}
+    // ?? '[]' covers the first-ever visit (getItem returns null).
     try {{ '{' }} return JSON.parse(localStorage.getItem('ng-tasks') ?? '[]'); {{ '}' }}
+    // The try/catch is not paranoia: one corrupted entry — a half-written
+    // value, a manual edit in DevTools — would otherwise throw during field
+    // initialisation and take the whole component down with it. Falling back
+    // to an empty board is far better than a blank screen.
     catch {{ '{' }} return []; {{ '}' }}
   {{ '}' }}
 {{ '}' }}</pre>
       </div>
+
+      <app-predict
+        prompt="A component reaches past the dock and pushes straight onto the array. The array genuinely gets longer. Does the board redraw?"
+        [code]="mutationSample"
+        answer="No — and this is the single most common way to break a signal store. `tasks()` hands back the array itself, so `push` really does add the task. But the signal still holds *the same array reference*, and signals compare with `Object.is`. Same reference in, same reference out, nothing to announce. The board is stale and there is no error to tell you. Replace, never mutate: `_tasks.update(list =&gt; [...list, task])` creates a new array, so the reference changes and every consumer wakes up."
+      />
+
+      <p>
+        Which is the real argument for the loading dock. It is not about tidiness —
+        it is that the correct way is only correct if it is the <em>only</em> way:
+      </p>
+
+      <app-compare
+        leftTitle="Reaching past the dock"
+        leftTone="bad"
+        rightTitle="Going through it"
+        rightTone="good"
+        note="Both compile. Both type-check. Only one of them redraws — which is why the writable signal is private."
+      >
+        <div left>
+          <div class="code">
+            <pre>// in a component
+store.tasks().push(task);
+store.tasks()[0].status = 'done';
+store.tasks().sort(byDate);
+
+// mutates in place → same reference
+// → no notification → stale board
+// → and nothing saved to storage</pre>
+          </div>
+        </div>
+        <div right>
+          <div class="code">
+            <pre>// in a component
+store.add(title, priority);
+store.move(id, 'done');
+
+// inside the store:
+this._tasks.update(l =&gt; [...l, task]);
+this.save();
+
+// new reference → consumers notified
+// → and save() cannot be forgotten</pre>
+          </div>
+        </div>
+      </app-compare>
 
       <h2>Step 4 — Host component</h2>
       <div class="step-callout">
@@ -110,30 +232,49 @@ class TaskStore {{ '{' }}
       <div class="code">
         <pre>&#64;Component({{ '{' }}
   standalone: true,
-  providers: [TaskStore],              // scoped to this component tree
+  // Providing it HERE, not with providedIn:'root', gives this component tree
+  // its own TaskStore instance. Two boards on one page would not share state,
+  // and leaving the route destroys the store with the component.
+  providers: [TaskStore],
   template: '
     &lt;div class="stat-row"&gt;
+      &lt;!-- stats() is called three times. That is fine: a computed caches its
+           result, so the filtering work happens once per change, not once per
+           interpolation. --&gt;
       &lt;span&gt;Total: {{ '{{' }} store.stats().total {{ '}}' }}&lt;/span&gt;
       &lt;span&gt;Done: {{ '{{' }} store.stats().done {{ '}}' }}&lt;/span&gt;
       &lt;span&gt;High priority: {{ '{{' }} store.stats().high {{ '}}' }}&lt;/span&gt;
     &lt;/div&gt;
 
-    &lt;!-- add form --&gt;
     &lt;div class="add-form"&gt;
+      &lt;!-- [(ngModel)] is two-way: typing updates newTitle, and clearing
+           newTitle in add() below empties the box on screen. --&gt;
       &lt;input [(ngModel)]="newTitle" placeholder="New task..." /&gt;
       &lt;select [(ngModel)]="newPriority"&gt;...&lt;/select&gt;
+      &lt;!-- The template calls the component method, never store.add directly,
+           because add() also has to reset the form. --&gt;
       &lt;button (click)="add()"&gt;Add Task&lt;/button&gt;
     &lt;/div&gt;
 
-    &lt;!-- board --&gt;
     &lt;div class="board"&gt;
+      &lt;!-- OUTER loop: the three column definitions. A static array, so
+           `track col.id` is just good hygiene here. --&gt;
       &#64;for (col of columns; track col.id) {{ '{' }}
         &lt;div class="column"&gt;
           &lt;div class="col-head"&gt;
             &lt;h3&gt;{{ '{{' }} col.label {{ '}}' }}&lt;/h3&gt;
+            &lt;!-- Indexing the byStatus record by the column id is what makes
+                 one loop body serve all three columns. --&gt;
             &lt;span class="col-count"&gt;{{ '{{' }} store.byStatus()[col.id].length {{ '}}' }}&lt;/span&gt;
           &lt;/div&gt;
+          &lt;!-- INNER loop: the tasks in this column. `track task.id` is the
+               line that matters — track by identity and moving a task keeps
+               its DOM node (and any animation or focus on it). Track by
+               index and Angular would recycle nodes into the wrong rows. --&gt;
           &#64;for (task of store.byStatus()[col.id]; track task.id) {{ '{' }}
+            &lt;!-- Data DOWN via [task]; events UP via (onMove)/(onRemove).
+                 $event is whatever the child passed to emit(), so here it is
+                 the {{ '{' }} id, status {{ '}' }} object and the plain number respectively. --&gt;
             &lt;app-task-card [task]="task"
               (onMove)="store.move($event.id, $event.status)"
               (onRemove)="store.remove($event)" /&gt;
@@ -144,12 +285,19 @@ class TaskStore {{ '{' }}
   '
 {{ '}' }})
 export class TaskManagerPage {{ '{' }}
+  // `protected` = reachable from the template, invisible to other classes.
+  // inject() is the field-initialiser form; no constructor needed.
   protected readonly store = inject(TaskStore);
+  // Plain fields, not signals — ngModel writes to them directly and these
+  // are transient form state, not application state the store should own.
   newTitle = '';
   newPriority: Priority = 'medium';
 
   add() {{ '{' }}
+    // The component's whole job: hand the store the user's intent...
     this.store.add(this.newTitle, this.newPriority);
+    // ...and reset the input. Note it does NOT reset newPriority — someone
+    // adding three high-priority tasks should not re-pick it each time.
     this.newTitle = '';
   {{ '}' }}
 {{ '}' }}</pre>
@@ -167,10 +315,19 @@ export class TaskManagerPage {{ '{' }}
   standalone: true,
   template: '
     &lt;div class="task-card"&gt;
+      &lt;!-- task is a SIGNAL, so every read is a call: task(), then .title. --&gt;
       &lt;p class="task-title"&gt;{{ '{{' }} task().title {{ '}}' }}&lt;/p&gt;
       &lt;div class="task-meta"&gt;
+        &lt;!-- Interpolation inside a class attribute builds a dynamic class
+             name: priority-high / priority-medium / priority-low, so one CSS
+             rule per priority colours the badge. --&gt;
         &lt;span class="priority priority-{{ '{{' }} task().priority {{ '}}' }}"&gt;{{ '{{' }} task().priority {{ '}}' }}&lt;/span&gt;
+        &lt;!-- Hide the "complete" button on tasks already done. --&gt;
         &#64;if (task().status !== 'done') {{ '{' }}
+          &lt;!-- emit() sends the payload to whatever the parent bound to
+               (onMove). The card decides WHAT happened; it has no idea how
+               the parent will store it. That ignorance is the point — this
+               component is reusable anywhere. --&gt;
           &lt;button (click)="onMove.emit({{ '{' }} id: task().id, status: 'done' {{ '}' }})"&gt;✓&lt;/button&gt;
         {{ '}' }}
         &lt;button (click)="onRemove.emit(task().id)"&gt;✕&lt;/button&gt;
@@ -179,9 +336,17 @@ export class TaskManagerPage {{ '{' }}
   '
 {{ '}' }})
 export class TaskCard {{ '{' }}
+  // .required means there is no default — forget [task] on the parent and
+  // the build fails, instead of rendering an undefined card at runtime.
   task = input.required&lt;Task&gt;();
+  // The type parameter IS the event payload contract. Emit the wrong shape
+  // and TypeScript catches it here, before the parent ever sees it.
   onMove   = output&lt;{{ '{' }} id: number; status: Status {{ '}' }}&gt;();
   onRemove = output&lt;number&gt;();
+  // Notice what is NOT here: no state, no store, no injected service. The
+  // card renders what it is given and reports what was clicked — nothing
+  // else. That is what "presentational component" means in practice, and it
+  // is why this class needs no test setup beyond setInput().
 {{ '}' }}</pre>
       </div>
 
@@ -260,7 +425,15 @@ export class TaskCard {{ '{' }}
         </div>
       </div>
 
-      <h2>What you practiced</h2>
+      <app-quiz
+        question="The store is registered with `providers: [TaskStore]` on the component, not `providedIn: 'root'`. What does that actually change?"
+        [options]="scopeOptions"
+        followUp="Scope is lifetime. Ask 'who should be able to see this state, and when should it die?' — the answer picks the provider for you."
+      />
+
+      <app-faq [items]="questions" />
+
+      <h2>Recap — what you practiced</h2>
       <ul>
         <li><strong>Signal store pattern</strong> — private writes, public reads, computed selectors, named mutations</li>
         <li><strong>Priority filter</strong> — a <code>_priorityFilter</code> signal applied inside <code>byStatus</code> computed</li>

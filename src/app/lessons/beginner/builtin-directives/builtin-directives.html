@@ -12,23 +12,61 @@
   <div class="note">
     These directives live in <code>&#64;angular/common</code>. A standalone component imports the ones it uses
     (<code>NgIf</code>, <code>NgFor</code>, …) — or the whole <code>CommonModule</code> in an NgModule app. Forget the
-    import and the <code>*ngIf</code> silently does nothing.
+    import and current Angular stops you at compile time with <code>NG8103</code>; older versions treated the
+    <code>*ngIf</code> as an unknown attribute and rendered the element unconditionally, with no error at all. Either
+    way, <code>&#64;if</code> has nothing to forget — that's one of its quieter advantages.
   </div>
 
-  <h2>The asterisk is sugar</h2>
+  <h2>The mental model: a stencil, not a node</h2>
   <p>
-    The <code>*</code> marks a <strong>structural</strong> directive — one that adds or removes DOM. It's shorthand:
-    Angular desugars it into an <code>&lt;ng-template&gt;</code>.
+    An <code>&lt;ng-template&gt;</code> is a stencil. It is a cut-out shape, and a cut-out is not ink on the page — you
+    can hold a stencil all day and nothing appears. Something has to decide to press it down, and how many times.
   </p>
+  <p>
+    That is the whole job of a structural directive. <code>*ngIf</code> holds one stencil and presses it once, or not at
+    all. <code>*ngFor</code> holds one stencil and presses it once per item. And the <code>*</code> is simply the
+    compiler being told <em>"turn this element into a stencil for me."</em>
+  </p>
+
+  <app-remember>
+    <strong>The star turns the tag into a stencil.</strong> One star per element — you only get one stencil, which is
+    why <code>*ngIf</code> and <code>*ngFor</code> cannot share a tag, and why <code>&lt;ng-container&gt;</code> exists
+    to give the second one somewhere to live.
+  </app-remember>
+
+  <h2>The asterisk is sugar</h2>
+
+  <app-quiz
+    question='Before the reveal: `<p *ngIf="loggedIn">Welcome</p>` is shorthand. What does the compiler actually turn it into?'
+    [options]="desugarOptions"
+    followUp="Once you can do this expansion in your head, the rest of the legacy syntax stops needing memorisation — every rule about structural directives is a consequence of the rewrite."
+  />
+
   <div class="code">
     <pre>
+&lt;!-- The star is sugar. One element, one attribute, nothing else visible. --&gt;
 &lt;p *ngIf="loggedIn"&gt;Welcome&lt;/p&gt;
 
 &lt;!-- is exactly --&gt;
+
+&lt;!-- The compiler LIFTS the host element into an &lt;ng-template&gt; wrapper.
+     That template is a blueprint: it is parsed, but nothing is rendered yet. --&gt;
 &lt;ng-template [ngIf]="loggedIn"&gt;
+  &lt;!-- The original element becomes the CONTENT of the blueprint. The &lt;p&gt; only
+       reaches the DOM when NgIf decides to stamp this template out. --&gt;
   &lt;p&gt;Welcome&lt;/p&gt;
+&lt;!-- The star is gone; what is left is an ordinary property binding, [ngIf],
+     feeding the directive that now sits on the template. --&gt;
 &lt;/ng-template&gt;</pre>
   </div>
+
+  <p>Step by step, this is what the compiler and the directive do between them:</p>
+
+  <app-flow
+    [steps]="desugar"
+    caption="Nothing here is hidden with CSS. `*ngIf` creates and destroys real DOM nodes — which is the difference that matters when the element is a component."
+  />
+
   <p>
     That's why you can't put two structural directives (<code>*ngIf</code> and <code>*ngFor</code>) on the same element
     — there's only one template slot. Wrap one in <code>&lt;ng-container&gt;</code>.
@@ -37,24 +75,49 @@
   <h2>*ngIf — with else, then &amp; as</h2>
   <div class="code">
     <pre>
+&lt;!-- `user as u` does two jobs at once: it tests `user` for truthiness AND
+     binds the result to a local `u` for the body. That is why you write
+     `u.name` and not `user!.name` — inside here, `u` cannot be null. --&gt;
 &lt;p *ngIf="user as u; else loading"&gt;Hi {{ '{{' }} u.name {{ '}}' }}&lt;/p&gt;
+
+&lt;!-- `#loading` is a template reference variable. It NAMES this blueprint so the
+     `else` above can point at it. Nothing renders here until NgIf asks for it. --&gt;
 &lt;ng-template #loading&gt;Loading…&lt;/ng-template&gt;
 
 &lt;!-- then/else both as templates --&gt;
+
+&lt;!-- With an explicit `then`, the host element's own content is ignored entirely
+     — hence the empty &lt;div&gt;. Both branches now live in named templates, so
+     this line is pure routing: true → `content`, false → `spinner`. --&gt;
 &lt;div *ngIf="ready; then content; else spinner"&gt;&lt;/div&gt;</pre>
   </div>
 
   <h2>*ngFor — track, index and the booleans</h2>
   <div class="code">
     <pre>
+&lt;!-- Read the quoted part as five clauses separated by `;`. It is Angular's
+     "microsyntax", not HTML — which is why no comment can go inside it:
+
+     let item of items   →  `item` is the current element; one &lt;li&gt; per entry
+     let i = index       →  0-based position. `index` is the built-in name,
+                            `i` is the local you invent to hold it
+     let first = first   →  true only on the very first iteration
+     let last  = last    →  true only on the very last  (`even`/`odd` alternate)
+     trackBy: trackById  →  names the function below; see the warning after --&gt;
 &lt;li *ngFor="let item of items;
             let i = index;
             let first = first; let last = last;
             let even = even; let odd = odd;
             trackBy: trackById"&gt;
+  &lt;!-- Every `let` name above is in scope here, and ONLY here — they belong to
+       this iteration, not to the component. --&gt;
   {{ '{{' }} i {{ '}}' }}: {{ '{{' }} item.name {{ '}}' }}
 &lt;/li&gt;
 
+&lt;!-- Lives in the component class, not the template. Angular calls it for every
+     item and uses the RETURNED VALUE as that row's identity. Returning
+     `item.id` means "a row is the same row if its id is the same" — so Angular
+     reuses the existing DOM node instead of destroying and rebuilding it. --&gt;
 trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
   </div>
   <div class="warn">
@@ -66,9 +129,17 @@ trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
   <h2>[ngSwitch]</h2>
   <div class="code">
     <pre>
+&lt;!-- [ngSwitch] is a PLAIN property binding — no star. It holds the value to
+     match against and does no rendering of its own; the container stays. --&gt;
 &lt;div [ngSwitch]="status"&gt;
+  &lt;!-- These DO have stars: each case is its own template, stamped out only
+       when its value matches. Note the quotes inside quotes — 'loading' is a
+       string literal in the expression, not an attribute value. --&gt;
   &lt;p *ngSwitchCase="'loading'"&gt;Loading…&lt;/p&gt;
   &lt;p *ngSwitchCase="'success'"&gt;Done&lt;/p&gt;
+  &lt;!-- The fallback. No expression to match, so it needs no value at all.
+       Matching is strict (===), which is the usual reason a case "silently"
+       never fires: a number 1 will not match the string '1'. --&gt;
   &lt;p *ngSwitchDefault&gt;Unknown&lt;/p&gt;
 &lt;/div&gt;</pre>
   </div>
@@ -228,6 +299,12 @@ trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
     </li>
   </ul>
 
+  <app-predict
+    prompt="The stencil model has a consequence people miss until it costs them. Think about what is still running here."
+    [code]="hiddenSample"
+    answer="Polling the server once a second and holding a socket open, for the whole hour. `[hidden]` is a CSS toggle — it sets `display: none` on an element that is still fully alive. The component was never destroyed, so `ngOnDestroy` never ran, the interval was never cleared and the socket was never closed. Swap it for `@if (showPlayer)` (or `*ngIf`) and the component is genuinely destroyed: subscriptions torn down, timers cleared, memory released. The trade-off is real in the other direction too — the player loses its position and has to rebuild when it comes back, which is exactly when `[hidden]` is the right choice. The rule is to ask whether you want the thing *gone* or merely *invisible*, and then say which one you meant."
+  />
+
   <h2>Common mistakes</h2>
   <table class="t">
     <tr>
@@ -257,6 +334,8 @@ trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
       <td>They merge. Static <code>class</code> plus <code>[ngClass]</code> object both apply; don't fight them.</td>
     </tr>
   </table>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

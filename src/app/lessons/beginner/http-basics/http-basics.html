@@ -6,6 +6,25 @@
     <strong>Observables</strong>, integrates with interceptors, and gives you typed responses.
   </p>
 
+  <h2>The mental model: a recipe card, not a meal</h2>
+  <p>
+    Here is the thing that trips up everyone arriving from <code>fetch</code>. When you call
+    <code>http.get('/api/posts')</code>, <strong>no request is sent.</strong> What you get back is a recipe card: a
+    written-down description of a request that could be made. It sits there doing nothing until somebody actually cooks
+    it — and in Angular, cooking is <code>subscribe()</code>.
+  </p>
+  <p>
+    Two consequences fall straight out of the picture, and between them they cover most beginner HTTP bugs. Nothing
+    happens if you never subscribe — no request, no error, no clue. And if you hand the same recipe card to three
+    different people, you get three meals, because a recipe is not a leftover. Three subscriptions means three network
+    requests.
+  </p>
+
+  <app-remember>
+    <strong><code>get()</code> hands you a recipe, not a result.</strong> Subscribing is cooking, and every subscriber
+    cooks their own.
+  </app-remember>
+
   <h2>1. Provide it once</h2>
   <div class="code">
     <pre>
@@ -53,10 +72,56 @@ load() &#123;
     }
   </div>
 
+  <app-predict
+    prompt="The recipe-card model makes a prediction. Commit to a number before you open this."
+    [code]="coldSample"
+    answer="Two. The variable holds a *description* of a request, not a request in flight and certainly not its result — so each `subscribe()` builds and sends its own. This is the shape of a genuinely expensive production bug: a component that reads the same Observable from four places quietly quadruples your API traffic, and nothing in the code looks wrong. The fixes are to subscribe once and share the value (`toSignal`, or the `async` pipe used once with `@if (data$ | async; as data)`), or to add `shareReplay(1)` to the pipeline so late subscribers get the cached response instead of a fresh call."
+  />
+
   <div class="note">
     <code>http.get()</code> is <strong>lazy</strong>: nothing happens until you <code>subscribe()</code> (or use the
     <code>async</code> pipe / <code>toSignal</code>). Each subscription fires a new request.
   </div>
+
+  <p>So it is worth knowing exactly which of the things you might write actually count as subscribing:</p>
+
+  <table class="triggers">
+    <tr>
+      <th>What you write</th>
+      <th>Request sent?</th>
+      <th>Cleans up after itself?</th>
+    </tr>
+    <tr>
+      <td><code>http.get(url)</code> alone</td>
+      <td>No</td>
+      <td>n/a — nothing started</td>
+    </tr>
+    <tr>
+      <td><code>.pipe(map(…), catchError(…))</code></td>
+      <td>No — <code>pipe</code> only builds a longer recipe</td>
+      <td>n/a</td>
+    </tr>
+    <tr>
+      <td><code>.subscribe(fn)</code></td>
+      <td>Yes</td>
+      <td>No — add <code>takeUntilDestroyed()</code></td>
+    </tr>
+    <tr>
+      <td><code>data$ | async</code> in a template</td>
+      <td>Yes, once per <code>async</code> in the template</td>
+      <td>Yes, on destroy</td>
+    </tr>
+    <tr>
+      <td><code>toSignal(http.get(url))</code></td>
+      <td>Yes</td>
+      <td>Yes, on destroy</td>
+    </tr>
+    <tr>
+      <td><code>await firstValueFrom(…)</code></td>
+      <td>Yes</td>
+      <td>Yes, on the first value</td>
+    </tr>
+  </table>
 
   <h2>The verbs</h2>
   <div class="code">
@@ -120,6 +185,17 @@ results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(&#96;/search?q=&#36;
   </div>
 
   <h2>Under the hood</h2>
+
+  <p>
+    Cooking the recipe is six steps, and it is worth holding them in order — nearly every HTTP topic you meet later is a
+    modification to exactly one of them:
+  </p>
+
+  <app-flow
+    [steps]="lifecycle"
+    caption="Interceptors run twice per request: once on the way down with the outgoing request, once on the way back with the response."
+  />
+
   <ul>
     <li>
       <strong>The request isn't built until <code>subscribe()</code> runs.</strong> <code>http.get()</code> returns a
@@ -175,29 +251,13 @@ results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(&#96;/search?q=&#36;
     </li>
   </ul>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Nothing happens when I call <code>http.get()</code>. Why?</summary>
-    <div>
-      It returns a cold Observable — it only runs on <code>subscribe()</code> (or via the <code>async</code> pipe /
-      <code>toSignal</code>).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you cancel an in-flight request?</summary>
-    <div>
-      Unsubscribe — with <code>withFetch()</code> it aborts via <code>AbortController</code>.
-      <code>switchMap</code> does this automatically for typeaheads; <code>async</code>/<code>toSignal</code>
-      unsubscribe on destroy.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What type is the error in <code>catchError</code>?</summary>
-    <div>
-      An <code>HttpErrorResponse</code> with <code>status</code>, <code>message</code>, and the parsed
-      <code>error</code> body. Branch on <code>status</code> for 401/404/500.
-    </div>
-  </details>
+  <app-quiz
+    question="A request is in flight and you unsubscribe from it — because `switchMap` superseded it, or because the component was destroyed. What happens to the network call?"
+    [options]="cancelOptions"
+    followUp="Practical upshot: navigating away from a page mid-load does not leave orphaned requests draining the connection pool, as long as you subscribed through `toSignal`, the `async` pipe, or `takeUntilDestroyed()`."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

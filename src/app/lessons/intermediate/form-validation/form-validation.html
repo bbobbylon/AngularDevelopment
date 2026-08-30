@@ -6,6 +6,24 @@
     exposes an <code>errors</code> object you use to show messages.
   </p>
 
+  <h2>The mental model: a pad of sticky notes</h2>
+  <p>
+    Picture every control with a small pad stuck to it. Each validator that <em>fails</em> writes one note with its own
+    name on it — <code>required</code>, <code>minlength</code>, <code>hasDigit</code>. Angular collects the notes into
+    one object, and that object is <code>control.errors</code>.
+  </p>
+  <p>
+    A clean control has no notes at all, which is why <code>errors</code> is <code>null</code> rather than
+    <code>&#123;&#125;</code> — and why a validator returns <code>null</code> to mean "valid". It isn't reporting
+    success; it's reporting <em>nothing to complain about</em>. Hold on to the pad: it explains two things later in this
+    lesson that otherwise look arbitrary.
+  </p>
+
+  <app-remember>
+    A validator returns <code>null</code> when it is <strong>happy</strong>, and an object when it is not. It hands back
+    <em>the complaints it found</em> — so no complaints means nothing to hand back.
+  </app-remember>
+
   <h2>Built-in validators</h2>
   <div class="code">
     <pre>
@@ -72,6 +90,50 @@ this.fb.group({{ '{' }} password: [''], confirm: [''] {{ '}' }},
   <p>
     Only show errors once a control is <code>touched</code> or <code>dirty</code>, so users are not yelled at before
     they type. Read errors with <code>control.errors?.['errorKey']</code>.
+  </p>
+  <p>
+    Those two words are not interchangeable, and picking the wrong one is why a form either nags too early or stays
+    silent too long. Every control carries five independent flags:
+  </p>
+  <table class="cmp">
+    <tr>
+      <th>Flag</th>
+      <th>Means</th>
+      <th>Flips when</th>
+    </tr>
+    <tr>
+      <td><code>touched</code> / <code>untouched</code></td>
+      <td>The user <em>visited</em> the field</td>
+      <td>On <code>blur</code> — focus left, whether or not anything was typed</td>
+    </tr>
+    <tr>
+      <td><code>dirty</code> / <code>pristine</code></td>
+      <td>The user <em>changed</em> the value</td>
+      <td>On the first value change from the UI (not from <code>setValue</code>)</td>
+    </tr>
+    <tr>
+      <td><code>valid</code> / <code>invalid</code></td>
+      <td>Validators are satisfied</td>
+      <td>Whenever <code>updateValueAndValidity()</code> runs</td>
+    </tr>
+    <tr>
+      <td><code>pending</code></td>
+      <td>An async validator is still deciding</td>
+      <td>Sync pass came back clean and the async queue started</td>
+    </tr>
+    <tr>
+      <td><code>disabled</code></td>
+      <td>Excluded from the form entirely</td>
+      <td>
+        <code>disable()</code> — note it drops out of <code>form.value</code> and always reports
+        <code>valid</code>
+      </td>
+    </tr>
+  </table>
+  <p>
+    Tab straight through a form without typing and every control is <strong>touched but pristine</strong>. That is the
+    case that decides which flag you want: <code>touched</code> means "they have had their chance at this field", which
+    is almost always the right moment to speak up.
   </p>
 
   <h2>Controlling when validation runs</h2>
@@ -142,30 +204,28 @@ ctrl.updateValueAndValidity();</pre>
     </li>
   </ul>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Where does a "passwords match" validator go?</summary>
-    <div>
-      On the <code>FormGroup</code> (its <code>validators</code> option), because it needs both sibling controls. Read
-      the result from <code>form.errors</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What does a validator return?</summary>
-    <div>
-      <code>null</code> when valid, or a <code>ValidationErrors</code> object (<code>&#123; keyName: true &#125;</code>)
-      when invalid. Keys from multiple validators merge.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you set an error from a server response?</summary>
-    <div>
-      <code>control.setErrors(&#123; taken: true &#125;)</code> — then optionally <code>updateValueAndValidity()</code>.
-      It stays until the control revalidates.
-    </div>
-  </details>
+  <app-faq [items]="questions" />
+
+  <app-predict
+    prompt="You mark a field invalid by hand after a server rejects it, then the user types one character. Is the message still there?"
+    [code]="setErrorsSample"
+    answer="It is gone. That keystroke triggers `updateValueAndValidity()`, which rebuilds `errors` from the validator functions — and none of them know anything about `taken`. Back to the sticky-note pad: `setErrors()` doesn't add a note, it throws away the whole pad and puts down a new one. The next revalidation does exactly the same thing to yours. To make a server error survive, it has to come from a validator the control actually owns (usually an async one), not be stapled on from outside."
+  />
 
   <h2>Under the hood</h2>
+
+  <p>Six steps run every time a control revalidates. The gate at step four is the one worth memorising:</p>
+  <app-flow
+    [steps]="pipeline"
+    caption="Sync validators are a filter, not just a first pass — the async queue never runs behind a failing one."
+  />
+
+  <app-quiz
+    question="A username control has `Validators.required` (sync) and a `uniqueUsername` async validator that calls your API. The field is empty. Does the HTTP request fire?"
+    [options]="asyncGateOptions"
+    followUp="Worth knowing for real apps too: this gate is free debouncing against your own backend, and it is why an async validator behind a `required` never sees an empty value."
+  />
+
   <ul>
     <li>
       <strong>A validator is just a function <code>(control) =&gt; ValidationErrors | null</code>.</strong>

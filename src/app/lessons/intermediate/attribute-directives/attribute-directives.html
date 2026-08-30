@@ -10,24 +10,64 @@
     <code>&#64;HostBinding</code>.
   </p>
 
+  <h2>The mental model: bolt-on accessories</h2>
+  <p>
+    A component is a vehicle — it has a body, a shape, an interior you designed. An attribute directive is a roof rack.
+    It has no engine and no chassis of its own; it bolts onto a car somebody else built and gives that car an ability it
+    did not have. On its own it is just a box of brackets.
+  </p>
+  <p>
+    Which explains the parts of the API that otherwise look arbitrary. Several racks fit the same car at once — unlike
+    structural directives, you can stack as many attribute directives on one element as you like. The rack borrows the
+    car's bodywork, which is what a <code>host</code> binding is: styling and listening on an element you do not own.
+    And when the car is scrapped, the rack goes with it — but the trailer you left parked in the street does not. That
+    trailer is the tooltip <code>div</code> you appended to <code>document.body</code>, and it is the one thing Angular
+    cannot clean up for you.
+  </p>
+
+  <app-remember>
+    <strong>A directive has no body of its own — it borrows the host's.</strong> Angular removes everything you attached
+    <em>to the host</em> automatically. Anything you created somewhere else is yours to destroy in
+    <code>ngOnDestroy</code>.
+  </app-remember>
+
   <h2>Modern directive anatomy</h2>
   <div class="code">
     <pre>
 &#64;Directive(&#123;
+  // The SQUARE BRACKETS make this an attribute selector: it matches any
+  // element carrying appHighlight. Drop them and you'd be matching a TAG
+  // called appHighlight, which is a component's job, not a directive's.
   selector: '[appHighlight]',
   standalone: true,
   // host: &#123;&#125; replaces every &#64;HostBinding — compiled away at build time
   host: &#123;
+    // Keys read exactly like template syntax: [property] binds, (event) listens.
+    // The VALUE is an expression string evaluated against this directive
+    // instance — which is why the double quotes are nested inside the single
+    // ones here. Without them Angular would look for a field named
+    // background-color.
     '[style.transition]': '"background-color .15s ease"',
     '[style.backgroundColor]': 'bg()',   // reads a signal
   &#125;,
 &#125;)
 export class HighlightDirective &#123;
-  // signal input — replaces &#64;Input()
+  // signal input — replaces &#64;Input(). The name of the field IS the attribute
+  // name, so &lt;div appHighlight="red"&gt; feeds this. The argument is the
+  // fallback used when the attribute is present but empty.
   appHighlight = input&lt;string&gt;('var(--amber)');
+  // Internal state. protected, because only this class and its host bindings
+  // need it — nothing outside should be able to set the colour directly.
   protected readonly bg = signal('');
 
+  // &#64;HostListener wires a DOM event on the HOST element to a method. Angular
+  // removes the listener automatically when the directive is destroyed —
+  // that automatic cleanup is exactly what a manual addEventListener lacks.
+  // Setting bg() here is all it takes: the host binding above is watching it,
+  // so the style updates with no direct DOM manipulation anywhere.
   &#64;HostListener('mouseenter') onEnter() &#123; this.bg.set(this.appHighlight()); &#125;
+  // Reset to '' rather than a colour, so the element falls back to whatever
+  // the stylesheet says instead of being locked to a hardcoded default.
   &#64;HostListener('mouseleave') onLeave() &#123; this.bg.set(''); &#125;
 &#125;</pre>
   </div>
@@ -62,6 +102,19 @@ export class HighlightDirective &#123;
       Green — <code>[appHighlight]="'rgba(46,193,107,.30)'"</code>
     </p>
   </div>
+
+  <h2>The life of a directive instance</h2>
+
+  <app-flow
+    [steps]="lifecycle"
+    caption="Two bugs live in this sequence: reading an input at step two, when it is only set at step three; and creating DOM outside the host, which step seven will not reclaim for you."
+  />
+
+  <app-quiz
+    question="A directive declares `text = input.required<string>()` and reads `this.text()` in its constructor to compute a starting value. What happens at runtime?"
+    [options]="timingOptions"
+    followUp="A useful rule of thumb for any injectable: the constructor is for wiring, `ngOnInit` is for reading. If you find yourself wanting input values during construction, what you actually want is an `effect()`."
+  />
 
   <h2>Injecting ElementRef and Renderer2</h2>
   <p>
@@ -137,27 +190,50 @@ export class BadgeDirective &#123;
     <pre>
 &#64;Directive(&#123; selector: '[appTooltip]', standalone: true &#125;)
 export class TooltipDirective implements OnDestroy &#123;
+  // alias lets the FIELD be called `text` (readable inside the class) while
+  // the ATTRIBUTE stays `appTooltip` (readable in the template). Without it
+  // you'd have to name the field appTooltip too.
   text = input&lt;string&gt;('', &#123; alias: 'appTooltip' &#125;);
 
+  // ElementRef wraps the host DOM node. The generic tells TypeScript it's an
+  // HTMLElement, so .nativeElement.getBoundingClientRect() type-checks.
   private readonly el     = inject&lt;ElementRef&lt;HTMLElement&gt;&gt;(ElementRef);
+  // Renderer2 instead of document.createElement: it's an abstraction over the
+  // DOM, so the same directive works during server-side rendering and inside
+  // a web worker, where `document` doesn't exist.
   private readonly renderer = inject(Renderer2);
+  // The handle on what we created. Null when no tooltip is showing — this
+  // field is the entire cleanup story, so it must stay accurate.
   private tip: HTMLElement | null = null;
 
   &#64;HostListener('mouseenter') show(): void &#123;
     this.tip = this.renderer.createElement('div');
     this.renderer.addClass(this.tip, 'app-tooltip');
+    // setProperty with 'textContent', not innerHTML — text can never be
+    // parsed as markup, so a tooltip string can't inject a script.
     this.renderer.setProperty(this.tip, 'textContent', this.text());
+    // Appended to document.body, NOT to the host. Deliberate: a tooltip
+    // nested inside the host would be clipped by any ancestor with
+    // overflow:hidden, and would inherit its stacking context.
     this.renderer.appendChild(document.body, this.tip);
     // position relative to host bounding box…
   &#125;
 
   &#64;HostListener('mouseleave') hide(): void &#123;
+    // The guard makes hide() idempotent, which is what lets ngOnDestroy call
+    // it blindly below.
     if (this.tip) &#123;
       this.renderer.removeChild(document.body, this.tip);
+      // Reset the handle, or a second hide() would try to remove a node that
+      // is no longer in the document.
       this.tip = null;
     &#125;
   &#125;
 
+  // THE LINE THAT MATTERS. Angular cleans up host listeners and host bindings
+  // for you — but this tooltip lives on document.body, outside the directive's
+  // view. Navigate away mid-hover without this and the tooltip is orphaned on
+  // screen forever. Rule: whatever YOU created, YOU destroy.
   ngOnDestroy(): void &#123; this.hide(); &#125;
 &#125;</pre>
   </div>
@@ -171,6 +247,18 @@ export class TooltipDirective implements OnDestroy &#123;
       <button [appDemoTooltip]="'Sends a copy to your inbox'">Share</button>
     </div>
   </div>
+
+  <h2>Spot what is missing</h2>
+  <p>
+    Here is the same tooltip with one line removed. Work out what goes wrong before you open it — and note that
+    everything about this directive looks symmetrical and correct.
+  </p>
+
+  <app-predict
+    prompt="Trace it: who removes the tooltip, and does that code ever get the chance to run?"
+    [code]="orphanSample"
+    answer="A tooltip is now stuck on the screen forever. Removing the button destroys the element, which destroys the directive — and `mouseleave` never fires on an element that no longer exists, so `hide()` is never called. The `div` is fine, though: it was appended to `document.body`, not to the button, so nothing about the button's removal touches it. It just floats there, pointing at empty space, until a full page reload. This is the exact failure mode the `ngOnDestroy(): void { this.hide(); }` line in the real directive exists to prevent, and it is worth internalising as a rule rather than a fix: **anything you create outside your host element, you must destroy yourself.** The same applies to a `setInterval`, a `ResizeObserver`, a `window` listener you added by hand, or a subscription. Host bindings and `@HostListener` are the exception — Angular tears those down, because they were on the host all along."
+  />
 
   <h2>Old patterns vs. modern equivalents</h2>
   <table class="t">
@@ -213,6 +301,8 @@ export class TooltipDirective implements OnDestroy &#123;
     Never write to <code>el.nativeElement</code> in a loop without <code>Renderer2</code> — raw DOM access breaks SSR
     and makes tests harder. Renderer2 methods are always safe.
   </div>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

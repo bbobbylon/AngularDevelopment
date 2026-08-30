@@ -7,6 +7,33 @@
     async timing issues.
   </p>
 
+  <h2>The mental model: you become the kitchen</h2>
+  <p>
+    Picture your service as a waiter. It writes an order — <code>GET /api/users/1</code> — clips the ticket to the rail
+    at the pass, and waits. In production a kitchen on the other side cooks something and hands back a plate. In a test,
+    <code>provideHttpClientTesting()</code> fires the kitchen and gives you the apron.
+  </p>
+  <p>
+    Everything else follows from that. <code>expectOne</code> is you reading a ticket off the rail — and complaining if
+    there are two tickets, or none. <code>flush</code> is you handing back a plate, with whatever is on it. And because
+    <em>you</em> are the kitchen, nothing at all happens until you act: there is no network, no timer, no waiting. Which
+    is why these tests are synchronous, and why <code>http.verify()</code> at the end — a glance at the rail to check no
+    ticket is still hanging there — is not optional politeness. It is the only thing that notices an order you never
+    cooked.
+  </p>
+
+  <app-remember>
+    <strong>Expect the ticket, flush the plate, verify the rail.</strong> Every HTTP test is those three moves in that
+    order. Skip the third and a test that asserted nothing at all still passes.
+  </app-remember>
+
+  <h2>What one expectOne/flush pair actually does</h2>
+
+  <app-flow
+    [steps]="loop"
+    caption="Seven steps, all on the same tick. `provideHttpClientTesting` swaps out only the last link in the chain, so everything above it — including your interceptors — is the real thing."
+  />
+
   <div class="tab-row">
     @for (t of tabs; track t.id) {
       <button [class.active]="activeTab() === t.id" (click)="activeTab.set(t.id)">
@@ -26,26 +53,55 @@
 // &#64;Injectable service with only signals — no http, no router, no deps:
 &#64;Injectable()
 export class CartService {{ '{' }}
+  // The single source of truth. `private` + the underscore convention means
+  // nothing outside this class can call .set() or .update() on it.
   private readonly _items = signal&lt;CartItem[]&gt;([]);
+
+  // The public face of the same signal. asReadonly() strips the write methods,
+  // so callers can read items() but cannot mutate your state behind your back.
   readonly items = this._items.asReadonly();
+
+  // Derived, not stored. computed() re-runs ONLY when _items actually changes,
+  // caches the result, and can never drift out of sync the way a manually
+  // maintained `total` field would. reduce() walks the array summing prices;
+  // `s` is the running total, `i` the current item.
   readonly total = computed(() =&gt; this._items().reduce((s, i) =&gt; s + i.price, 0));
 
+  // update() receives the current value and returns the NEXT one. The spread
+  // builds a brand-new array — signals compare by reference, so mutating the
+  // existing array with .push() would change nothing that anyone can observe.
   add(item: CartItem) {{ '{' }} this._items.update(l =&gt; [...l, item]); {{ '}' }}
+
+  // Same rule: filter() returns a new array rather than editing in place.
   remove(id: number) {{ '{' }} this._items.update(l =&gt; l.filter(i =&gt; i.id !== id)); {{ '}' }}
 {{ '}' }}
 
 // Test — no TestBed at all:
+// describe() groups related tests and gives the failure output a heading.
 describe('CartService', () =&gt; {{ '{' }}
+  // Declared here, assigned in beforeEach — so every test sees it, but each
+  // test gets a FRESH one. Sharing one instance across tests is how you get
+  // failures that depend on the order the tests happened to run in.
   let service: CartService;
 
+  // Runs before each `it` below, not once for the whole file.
   beforeEach(() =&gt; {{ '{' }}
     service = new CartService();       // plain constructor
   {{ '}' }});
 
+  // it() = one behaviour, described in words that read as a sentence with the
+  // describe() above it: "CartService adds items and computes total".
   it('adds items and computes total', () =&gt; {{ '{' }}
+    // Arrange + Act: drive the service through its public API only.
     service.add({{ '{' }} id: 1, name: 'Widget', price: 10 {{ '}' }});
     service.add({{ '{' }} id: 2, name: 'Gadget', price: 25 {{ '}' }});
+
+    // Assert. Note the parentheses: `items` is a signal, so `items()` READS it.
+    // Forgetting them compares the function object itself and always fails.
     expect(service.items().length).toBe(2);
+
+    // 10 + 25. Nothing recomputed this by hand — reading total() pulled the
+    // computed, which is exactly the behaviour under test.
     expect(service.total()).toBe(35);
   {{ '}' }});
 
@@ -66,13 +122,18 @@ describe('UserService', () =&gt; {{ '{' }}
   let service: UserService;
 
   beforeEach(() =&gt; {{ '{' }}
+    // Builds a throwaway injector for this test. `new UserService()` would
+    // throw here, because inject() needs an injection context to resolve from.
     TestBed.configureTestingModule({{ '{' }}
       providers: [
-        UserService,
-        provideHttpClient(),
-        provideHttpClientTesting(),
+        UserService,             // the thing under test
+        provideHttpClient(),     // the real HttpClient — nothing is faked yet…
+        provideHttpClientTesting(), // …until this swaps its BACKEND for a fake.
+                                 // Order matters: this must come after.
       ],
     {{ '}' }});
+
+    // Pulls the instance out of that injector, with its dependencies wired.
     service = TestBed.inject(UserService);
   {{ '}' }});
 {{ '}' }});</pre>
@@ -87,17 +148,26 @@ import {{ '{' }} provideHttpClient {{ '}' }} from '&#64;angular/common/http';
 import {{ '{' }} provideHttpClientTesting, HttpTestingController {{ '}' }}
   from '&#64;angular/common/http/testing';
 
+// The remote control for the fake backend: it lets you assert what was
+// requested and decide what comes back.
 let http: HttpTestingController;
+// The service under test — the thing that will call HttpClient.
 let api: UserApi;
 
 beforeEach(() =&gt; {{ '{' }}
   TestBed.configureTestingModule({{ '{' }}
     providers: [UserApi, provideHttpClient(), provideHttpClientTesting()],
   {{ '}' }});
+
+  // Both come from the SAME injector, which is what connects them: requests
+  // made by `api` land in this `http` controller's queue.
   http = TestBed.inject(HttpTestingController);
   api  = TestBed.inject(UserApi);
 {{ '}' }});
 
+// The safety net, and the reason silent tests get caught. verify() throws if
+// the service made a request that no expectOne() ever claimed — i.e. an
+// unexpected call — so a typo'd URL fails loudly instead of passing quietly.
 afterEach(() =&gt; http.verify());   // fails if any request was made but not handled</pre>
     </div>
 
@@ -105,16 +175,28 @@ afterEach(() =&gt; http.verify());   // fails if any request was made but not ha
     <div class="code">
       <pre>
 it('fetches a user', () =&gt; {{ '{' }}
+  // A capture variable. It stays undefined until the observable emits, which
+  // is what lets the final assertion prove the value actually arrived.
   let result: User | undefined;
+  // Subscribing is what SENDS the request — HttpClient observables are cold,
+  // so without this line nothing is ever dispatched and expectOne() fails.
   api.getUser(1).subscribe((u) =&gt; (result = u));
 
-  // Assert a request was made (expectOne throws if 0 or 2+ requests match):
+  // Claims the pending request and hands you a TestRequest. expectOne throws
+  // a descriptive error if zero requests match, or if two or more do.
   const req = http.expectOne('/api/users/1');
+  // req.request is the real HttpRequest object, so you can assert on anything
+  // the service set — the verb...
   expect(req.request.method).toBe('GET');
+  // ...and the headers. Worth checking: a missing Accept header is exactly the
+  // kind of bug that only shows up against a picky real backend.
   expect(req.request.headers.get('Accept')).toBe('application/json');
 
-  // Deliver the fake response — this synchronously resolves the observable:
+  // flush() plays the role of the server responding. It runs SYNCHRONOUSLY,
+  // so the subscribe callback above has already fired by the next line — no
+  // tick(), no await, no done().
   req.flush({{ '{' }} id: 1, name: 'Ada Lovelace', email: 'ada&#64;example.com' {{ '}' }});
+  // Now the captured value is populated.
   expect(result?.name).toBe('Ada Lovelace');
 {{ '}' }});</pre>
     </div>
@@ -124,23 +206,34 @@ it('fetches a user', () =&gt; {{ '{' }}
       <pre>
 it('handles 404 gracefully', () =&gt; {{ '{' }}
   let error: string | undefined;
+  // The OBSERVER-OBJECT form of subscribe, so you can supply an error handler.
   api.getUser(999).subscribe({{ '{' }}
+    // A guard clause: if next ever runs, the test fails immediately instead of
+    // quietly passing because `error` stayed undefined and nothing checked.
     next: () =&gt; fail('should not succeed'),
     error: (e) =&gt; (error = e.message),
   {{ '}' }});
 
   const req = http.expectOne('/api/users/999');
-  // flush() with status &gt;= 400 produces an HttpErrorResponse:
+  // flush() takes an optional second argument describing the response. Any
+  // status &gt;= 400 makes HttpClient wrap it in an HttpErrorResponse and push it
+  // down the error channel instead of next.
   req.flush('User not found', {{ '{' }} status: 404, statusText: 'Not Found' {{ '}' }});
+  // toContain, not toBe: Angular composes a longer message that embeds the
+  // status code, so matching the exact string would be brittle.
   expect(error).toContain('404');
 {{ '}' }});
 
 it('handles network error', () =&gt; {{ '{' }}
   let error: any;
+  // Shorthand observer — only the error channel is of interest here.
   api.getUser(1).subscribe({{ '{' }} error: e =&gt; (error = e) {{ '}' }});
 
   const req = http.expectOne('/api/users/1');
-  req.error(new ProgressEvent('error'));   // simulates a network failure
+  // A DIFFERENT failure mode from the 404 above, and the distinction matters:
+  // .error() means the request never reached the server at all — offline, DNS
+  // failure, CORS rejection. There is no status code, so error.status is 0.
+  req.error(new ProgressEvent('error'));
   expect(error).toBeTruthy();
 {{ '}' }});</pre>
     </div>
@@ -182,14 +275,26 @@ http.expectNone('/api/admin');         // ensure unauthenticated users never hit
       <pre>
 describe('authInterceptor', () =&gt; {{ '{' }}
   let http: HttpTestingController;
+  // Note: no service under test here. You inject HttpClient DIRECTLY, because
+  // the interceptor sits between HttpClient and the network — nothing else is
+  // needed to exercise it.
   let client: HttpClient;
+  // A stand-in for whatever the interceptor reads the token from. Declared as
+  // a const so the tests below can re-script it per case.
   const fakeAuth = {{ '{' }} accessToken: vi.fn().mockReturnValue('my-token') {{ '}' }};
 
   beforeEach(() =&gt; {{ '{' }}
     TestBed.configureTestingModule({{ '{' }}
       providers: [
+        // The interceptor will resolve AuthService from the injector, so this
+        // override is what actually controls the token it sees.
         {{ '{' }} provide: AuthService, useValue: fakeAuth {{ '}' }},
+        // Registers the real interceptor. withInterceptors() takes the array
+        // in run order — the first entry sees the request first.
         provideHttpClient(withInterceptors([authInterceptor])),
+        // MUST come after provideHttpClient(). It swaps the HTTP backend for
+        // the fake one; listed first, the real backend wins and your test
+        // attempts an actual network call.
         provideHttpClientTesting(),
       ],
     {{ '}' }});
@@ -198,16 +303,27 @@ describe('authInterceptor', () =&gt; {{ '{' }}
   {{ '}' }});
 
   it('attaches Authorization header', () =&gt; {{ '{' }}
+    // No callback needed — subscribing is only here to dispatch the request.
+    // The interceptor runs during this call, before the fake backend sees it.
     client.get('/api/profile').subscribe();
     const req = http.expectOne('/api/profile');
+    // The assertion IS the test: inspect the outgoing request and confirm the
+    // interceptor rewrote it. 'Bearer ' + the token from fakeAuth above.
     expect(req.request.headers.get('Authorization')).toBe('Bearer my-token');
+    // Respond so http.verify() in afterEach doesn't complain about an
+    // outstanding request.
     req.flush({{ '{' }} name: 'Ada' {{ '}' }});
   {{ '}' }});
 
   it('does not attach header when not logged in', () =&gt; {{ '{' }}
+    // ...Once — overrides the return value for the NEXT call only, so the
+    // describe-level 'my-token' default is untouched for other tests.
     fakeAuth.accessToken.mockReturnValueOnce(null);
     client.get('/api/profile').subscribe();
     const req = http.expectOne('/api/profile');
+    // .has() rather than .get(): asserting the header is ABSENT. This is the
+    // test people skip, and it's the one that catches an interceptor sending
+    // "Bearer null" to the server.
     expect(req.request.headers.has('Authorization')).toBe(false);
     req.flush({{ '{' }} name: 'Ada' {{ '}' }});
   {{ '}' }});
@@ -246,18 +362,37 @@ import {{ '{' }} TestScheduler {{ '}' }} from 'rxjs/testing';
 describe('debounceSearch$', () =&gt; {{ '{' }}
   let scheduler: TestScheduler;
   beforeEach(() =&gt; {{ '{' }}
+    // TestScheduler takes an ASSERTION FUNCTION, not a config object. RxJS
+    // calls it at the end of run() with the actual vs expected notification
+    // lists, and you delegate to whatever matcher your runner provides.
     scheduler = new TestScheduler((actual, expected) =&gt;
       expect(actual).toEqual(expected)
     );
   {{ '}' }});
 
   it('debounces search input by 300ms', () =&gt; {{ '{' }}
+    // Inside run(), RxJS patches time itself: every operator's delay runs on
+    // the virtual clock, so a 300ms debounce costs zero real milliseconds.
     scheduler.run({{ '{' }} hot, cold, expectObservable {{ '}' }} =&gt; {{ '{' }}
-      // Marble syntax: '-' = 10ms, '|' = complete, '#' = error
+      // Marble syntax: '-' = 10ms of silence, a letter = an emission at that
+      // frame, '|' = complete, '#' = error. The second argument maps each
+      // letter to the value it stands for.
+      // hot() = already running, emits regardless of subscribers (a Subject,
+      // a DOM event stream). cold() = starts fresh per subscriber (an HTTP
+      // call). Picking the wrong one is the #1 marble-test mistake.
+      // Count the characters to get the frames: 'a' at 10ms, 'b' at 30ms,
+      // 'c' at 130ms — a user typing "h", "he", then "hello".
       const input$  = hot('-a-b---------c', {{ '{' }} a:'h', b:'he', c:'hello' {{ '}' }});
+      // The operator chain under test.
       const result$ = input$.pipe(debounceTime(300));
-      // 'he' is swallowed; only 'hello' survives the 300ms silence
-      expectObservable(result$).toBe('-------------c', {{ '{' }} c:'hello' {{ '}' }});
+      // Now trace it. 'h' starts a 300ms timer; 'b' arrives 20ms later and
+      // RESTARTS it, so 'h' never emits. 'c' arrives at 130ms and restarts it
+      // again, killing 'he'. Nothing follows, so 'hello' finally emits 300ms
+      // after it arrived: 130 + 300 = frame 430.
+      // '430ms c' is time-progression syntax — clearer than counting 43
+      // dashes, and it's why the emission is NOT at frame 130. Getting this
+      // arithmetic wrong is the usual reason a marble test refuses to pass.
+      expectObservable(result$).toBe('430ms c', {{ '{' }} c:'hello' {{ '}' }});
     {{ '}' }});
   {{ '}' }});
 {{ '}' }});</pre>
@@ -266,21 +401,32 @@ describe('debounceSearch$', () =&gt; {{ '{' }}
     <h2>Simple Observable testing without marbles</h2>
     <div class="code">
       <pre>
+// The `done` callback tells the runner "this test is async — wait for me".
 it('maps and filters items', (done) =&gt; {{ '{' }}
+  // One emission containing the whole array (not five separate emissions).
   const source$ = of([1, 2, 3, 4, 5]);
   const result$ = source$.pipe(
+    // switchMap returns a NEW observable per emission; of() wraps the filtered
+    // array back into one so the chain keeps its Observable type.
     switchMap(arr =&gt; of(arr.filter(n =&gt; n % 2 === 0)))
   );
   result$.subscribe(arr =&gt; {{ '{' }}
     expect(arr).toEqual([2, 4]);
+    // Call done() INSIDE the subscription. Omit it and the test times out;
+    // put the expect() after the subscribe block instead and the test passes
+    // without ever running the assertion — a silent false green.
     done();
   {{ '}' }});
 {{ '}' }});
 
-// Or with fakeAsync + firstValueFrom:
+// A cleaner alternative when the observable emits once and completes.
 it('resolves the first value', fakeAsync(() =&gt; {{ '{' }}
   let val: number | undefined;
+  // firstValueFrom converts an Observable to a Promise that resolves with the
+  // first emission — no subscribe, no done(), no manual teardown.
   firstValueFrom(of(42)).then(v =&gt; (val = v));
+  // The .then() above is queued as a microtask; tick() drains it so the
+  // assertion sees the resolved value.
   tick();
   expect(val).toBe(42);
 {{ '}' }}));</pre>
@@ -290,13 +436,25 @@ it('resolves the first value', fakeAsync(() =&gt; {{ '{' }}
     <div class="code">
       <pre>
 it('toSignal reflects latest BehaviorSubject value', () =&gt; {{ '{' }}
+  // A BehaviorSubject always holds a current value — 10 to start.
   const subject$ = new BehaviorSubject(10);
+  // toSignal() needs an injection context (it registers a DestroyRef so the
+  // subscription is cleaned up). Calling it bare in a test throws NG0203;
+  // runInInjectionContext supplies the context TestBed already owns.
   const sig = TestBed.runInInjectionContext(() =&gt;
+    // requireSync tells Angular "this source emits immediately, so the signal
+    // has no undefined phase" — which is why sig() is typed number, not
+    // number | undefined. Pass it on a source that ISN'T synchronous and
+    // Angular throws at runtime rather than handing you a silent undefined.
     toSignal(subject$, {{ '{' }} requireSync: true {{ '}' }})
   );
+  // No subscribe, no async: the signal already has the subject's value.
   expect(sig()).toBe(10);
 
+  // Push a new value through the stream...
   subject$.next(20);
+  // ...and the signal reflects it synchronously. No detectChanges() needed —
+  // reading a signal never depends on change detection.
   expect(sig()).toBe(20);
 {{ '}' }});</pre>
     </div>
@@ -362,12 +520,21 @@ it('toSignal reflects latest BehaviorSubject value', () =&gt; {{ '{' }}
     <h2>Test organization</h2>
     <div class="code">
       <pre>
+// OUTER describe: names the unit under test. One per file.
 describe('UserService', () =&gt; {{ '{' }}
-  // Setup once per describe block in beforeEach
+  // Setup once per describe block in beforeEach — TestBed config, injections,
+  // and the afterEach(() =&gt; http.verify()) that guards the whole suite.
 
+  // NESTED describe per METHOD. This is the part worth copying: a failure
+  // reports as "UserService &gt; getUser() &gt; throws 404 for unknown id", which
+  // tells you where to look before you have read a single line of code.
   describe('getUser()', () =&gt; {{ '{' }}
+    // Name each it() after the BEHAVIOUR, not the implementation. "fetches
+    // user by id" survives a rewrite; "calls http.get with /api/users" does not.
     it('fetches user by id', ...);
     it('caches the result', ...);
+    // Always include the failure cases. A suite with only happy paths tells
+    // you the code works when nothing goes wrong, which is the easy half.
     it('throws 404 for unknown id', ...);
   {{ '}' }});
 
@@ -379,6 +546,26 @@ describe('UserService', () =&gt; {{ '{' }}
 {{ '}' }});</pre>
     </div>
   }
+
+  <h2>Before the takeaways: does this test pass?</h2>
+  <p>
+    Commit to an answer first. This shape shows up in real codebases constantly, and the reason it is dangerous is that
+    the test looks like it is checking something.
+  </p>
+
+  <app-predict
+    prompt="The expected name is wrong on purpose. Pass, or fail?"
+    [code]="silentSample"
+    answer="It passes — green, fast, and completely worthless. The subscribe callback holding your assertion never ran, because nothing ever delivered a response to it. `expectOne` only takes the ticket off the rail; without a `flush`, the observable never emits, the callback never fires, and an expectation that is never evaluated cannot fail. There are two fixes and you want both. Flush a response, so the callback actually runs. And put `afterEach(() => http.verify())` in the suite, which fails the test outright for leaving an unhandled request behind. That single line is the closest thing this area has to a seatbelt — it is what converts a silently-empty test into a loud one."
+  />
+
+  <app-quiz
+    question="A test calls `api.getUser(1)` and then `http.expectOne('/api/users/1')`, which fails with *Expected one matching request, found none*. The URL in the service is definitely right. What is wrong?"
+    [options]="coldOptions"
+    followUp="An empty `.subscribe()` is enough to fire the request when the emitted value does not matter — you are asserting on `req.request` anyway. If you want to assert on the response too, capture it: `let result; api.getUser(1).subscribe(r => (result = r));`"
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

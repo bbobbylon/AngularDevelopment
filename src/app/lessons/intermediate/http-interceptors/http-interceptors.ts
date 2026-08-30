@@ -126,27 +126,54 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   /**
    * Sample: an error interceptor with `retry` and `catchError`.
    */
-  protected readonly errorSample = `export const errorInterceptor: HttpInterceptorFn = (req, next) =>
-  next(req).pipe(
+  protected readonly errorSample = `export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  // Inject HERE, in the interceptor body. This is the injection context.
+  // Calling inject(Router) inside the catchError callback below would throw
+  // NG0203 — by the time the error arrives, the context is long gone.
+  const router = inject(Router);
+
+  return next(req).pipe(
+    // retry RESUBSCRIBES to the source on failure, which re-sends the whole
+    // request. count: 2 means up to three attempts total. The 500ms delay
+    // matters: retrying instantly usually just fails instantly.
+    // Note this retries EVERY error, including a 404 that will never
+    // succeed. Production code narrows it, e.g. only 5xx and network errors.
     retry({ count: 2, delay: 500 }),
+    // Reached only after the retries are exhausted.
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401) inject(Router).navigate(['/login']);
+      // 401 = the token is missing or expired. Bounce to login centrally, so
+      // not one component has to handle it.
+      if (err.status === 401) router.navigate(['/login']);
+      // RE-THROW. Handling the error here without this line would make every
+      // failed request look like it silently succeeded — the caller's error
+      // handler would never run and the UI would sit on a spinner forever.
       return throwError(() => err);
     }),
-  );`;
+  );
+};`;
 
   /**
    * Sample: short-circuiting — returning a response without calling `next()`, so
    * the request never leaves the browser.
    */
   protected readonly shortCircuitSample = `export const cacheInterceptor: HttpInterceptorFn = (req, next) => {
+  // Only GETs are safe to cache. A POST/PUT/DELETE changes server state, so
+  // replaying a stored response for one would be a serious bug.
   if (req.method !== 'GET') return next(req);
 
   const cached = cache.get(req.url);
+  // Returning an Observable WITHOUT calling next() ends the chain right here.
+  // The request never reaches the network, and the caller cannot tell the
+  // difference — it just receives a response, instantly.
   if (cached) return of(cached);   // ⛔ short-circuit — next() never runs, no network call
 
+  // Cache miss: let it through, and tap() records the response on the way
+  // back. tap observes without altering what the caller receives.
   return next(req).pipe(tap((event) => cache.set(req.url, event)));
-};`;
+};
+// Two things this simplified version skips: filtering for HttpResponse
+// events (next() also emits upload/download progress events), and any kind
+// of expiry. Cache forever and users will see stale data until they reload.`;
 
   /**
    * Sample: `HttpContextToken`, for per-request opt-outs. Without it the only way

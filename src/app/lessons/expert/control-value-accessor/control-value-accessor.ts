@@ -68,14 +68,29 @@ export class StarRating implements ControlValueAccessor { … }`;
    * Sample: a control that is also its own validator, via `NG_VALIDATORS`.
    */
   readonly validatorSample = `providers: [
+  // Two registrations of the SAME class against two different tokens: one
+  // makes it the control's value accessor, the other makes it a validator.
+  // useExisting (not useClass) is what guarantees they are the same instance —
+  // useClass would build a second copy that knows nothing about the first.
+  // forwardRef defers reading QtyStepper until the class exists; without it
+  // you get "Cannot access QtyStepper before initialization" at runtime.
+  // multi: true appends to the token's array instead of replacing it, so your
+  // validator joins the built-in ones rather than evicting them.
   { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => QtyStepper), multi: true },
   { provide: NG_VALIDATORS,     useExisting: forwardRef(() => QtyStepper), multi: true },
 ]
 export class QtyStepper implements ControlValueAccessor, Validator {
+  // validate() is called by the forms system, not by you, on every value change.
   validate(control: AbstractControl): ValidationErrors | null {
+    // control.value is typed "any" because a control can hold anything.
     const v = control.value as number;
+    // The RETURNED OBJECT is the error. Its key is what a template checks
+    // with errors?.['qtyTooLow']; the payload gives the template the numbers
+    // it needs to write a useful message instead of "invalid".
     if (v < this.min()) return { qtyTooLow:  { min: this.min(), actual: v } };
     if (v > this.max()) return { qtyTooHigh: { max: this.max(), actual: v } };
+    // null means VALID. This inversion catches everyone once: returning an
+    // object is failure, returning nothing is success.
     return null;
   }
 }`;

@@ -142,16 +142,30 @@ export class CartStore {{ '{' }}
     <pre>
 &#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
 export class ThemeStore {{ '{' }}
+  // HYDRATE — the signal's initial value comes straight from storage, so the
+  // correct theme is in place before the first render. Read it in ngOnInit
+  // instead and the user sees a flash of the wrong theme.
   private readonly _theme = signal&lt;'light' | 'dark'&gt;(
+    // getItem returns `string | null`. The cast narrows it to the union, and
+    // ?? 'light' covers the first visit. (A cast is a promise to the
+    // compiler, not a check — a junk value in storage would slip through.)
     (localStorage.getItem('theme') as 'light' | 'dark') ?? 'light'
   );
   readonly theme = this._theme.asReadonly();
 
   constructor() {{ '{' }}
+    // SYNC BACK — an effect must be created in an injection context, which
+    // the constructor provides. It runs once immediately, then again after
+    // every change to a signal it read.
     effect(() =&gt; {{ '{' }}
+      // Reading _theme() here is what SUBSCRIBES this effect to it. Tracking
+      // is automatic and dynamic: no dependency array to keep in sync.
+      // Persistence is exactly the right job for an effect — a side effect
+      // on the world outside Angular. Deriving a value is not; use computed.
       localStorage.setItem('theme', this._theme());
     {{ '}' }});
   {{ '}' }}
+  // The only writer. update() receives the current value and returns the next.
   toggle() {{ '{' }} this._theme.update(t =&gt; (t === 'light' ? 'dark' : 'light')); {{ '}' }}
 {{ '}' }}</pre>
   </div>
@@ -168,15 +182,26 @@ export class ThemeStore {{ '{' }}
 import {{ '{' }} signalStore, withState, withComputed, withMethods {{ '}' }}
   from '&#64;ngrx/signals';
 
+// signalStore() returns a class you can inject — the `with*` calls are
+// composable features applied in order, each one adding to the store's type.
 export const TodoStore = signalStore(
+  // Same option you'd pass to &#64;Injectable.
   {{ '{' }} providedIn: 'root' {{ '}' }},
+  // withState defines the state slice. Every top-level key here becomes a
+  // signal on the store automatically — you get store.todos() and
+  // store.filter() for free, no boilerplate declarations.
   withState({{ '{' }} todos: [] as Todo[], filter: 'all' as Filter {{ '}' }}),
+  // withComputed receives the store built so far, so `s.todos` already exists
+  // and is fully typed. This is the equivalent of an NgRx selector.
   withComputed((s) =&gt; ({{ '{' }}
     remaining: computed(() =&gt; s.todos().filter(t =&gt; !t.done).length),
   {{ '}' }})),
+  // withMethods is where the writers live — the store's public API.
   withMethods((store) =&gt; ({{ '{' }}
     add(title: string) {{ '{' }}
       // patchState is imported from '&#64;ngrx/signals' — shallow-merges a partial
+      // of the state, so you name only the keys you're changing and `filter`
+      // is left alone. Note the spread: same immutability rule as raw signals.
       patchState(store, {{ '{' }} todos: [...store.todos(), mk(title)] {{ '}' }});
     {{ '}' }},
   {{ '}' }}))
@@ -190,30 +215,54 @@ export const TodoStore = signalStore(
   </p>
   <div class="code">
     <pre>
-// actions
-export const loadTodos    = createAction('[Todos] Load');
+// ---- ACTIONS: every state change is one of these, and nothing else ----
+// The '[Source] Event' string convention is what makes the devtools log
+// readable: you can see at a glance WHERE an action came from.
+export const loadTodos    = createAction('[Todos] Load');   // no payload — just "go"
+// props&lt;T&gt;() declares the payload shape. Dispatch the wrong shape and it
+// fails to compile, which is most of NgRx's safety in one line.
 export const todosLoaded  = createAction('[Todos] Loaded', props&lt;{{ '{' }} todos: Todo[] {{ '}' }}&gt;());
 export const todosFailed  = createAction('[Todos] Failed', props&lt;{{ '{' }} error: string {{ '}' }}&gt;());
+// THREE actions for one request — that trio (start / success / failure) is
+// the pattern for every async operation in Redux-style state.
 
-// reducer
+// ---- REDUCER: (state, action) =&gt; new state. Pure. Synchronous. ----
 export const todosReducer = createReducer(
+  // Argument 1 is the initial state.
   {{ '{' }} todos: [] as Todo[], loading: false, error: '' {{ '}' }},
+  // Each on() maps an action to a handler. `s` is the current state, `a` the
+  // action. Every handler SPREADS the old state and returns a NEW object —
+  // never mutates — which is what powers time-travel debugging.
   on(loadTodos,  (s)    =&gt; ({{ '{' }} ...s, loading: true  {{ '}' }})),
   on(todosLoaded,(s, a) =&gt; ({{ '{' }} ...s, loading: false, todos: a.todos {{ '}' }})),
+  // Note both terminal handlers clear `loading`. Miss one and the spinner
+  // spins forever — the single most common NgRx bug.
   on(todosFailed,(s, a) =&gt; ({{ '{' }} ...s, loading: false, error: a.error  {{ '}' }})),
 );
 
-// selector
+// ---- SELECTORS: how components READ. Plain functions of the whole state ----
+// Components never reach into state.todos.todos themselves; they subscribe to
+// a selector, so the state shape can be refactored without touching them.
 export const selectTodos   = (state: AppState) =&gt; state.todos.todos;
 export const selectLoading = (state: AppState) =&gt; state.todos.loading;
 
-// effect
+// ---- EFFECTS: where the impure work goes. Actions in, actions out. ----
 export class TodoEffects {{ '{' }}
   loadTodos$ = createEffect(() =&gt;
+    // actions$ is a stream of EVERY action dispatched anywhere in the app.
     this.actions$.pipe(
+      // Filter it down to the one we care about.
       ofType(loadTodos),
+      // switchMap CANCELS an in-flight request when a new loadTodos arrives —
+      // the right choice here, since only the latest result matters. (Use
+      // concatMap for saves, where every one must complete.)
       switchMap(() =&gt; this.api.getAll().pipe(
+        // Success: turn the data into a new action for the reducer.
         map(todos =&gt; todosLoaded({{ '{' }} todos {{ '}' }})),
+        // Failure: turn the error into an action too. catchError is INSIDE
+        // the inner pipe on purpose — put it on the outer stream and one
+        // failed request kills actions$ permanently, silently breaking every
+        // future load. This is the classic NgRx trap.
         catchError(e  =&gt; of(todosFailed({{ '{' }} error: e.message {{ '}' }})))
       ))
     )

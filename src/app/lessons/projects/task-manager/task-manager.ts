@@ -1,6 +1,7 @@
 import { Component, computed, inject, Injectable, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 
 // ============================================================
 // WHAT YOU'LL BUILD: a full Task Manager app covering:
@@ -191,12 +192,94 @@ class TaskStore {
 @Component({
   selector: 'app-project-task-manager',
   standalone: true,
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, Compare, Faq, Flow, Predict, Quiz, Remember],
   providers: [TaskStore],
   styleUrl: './task-manager.css',
   templateUrl: './task-manager.html',
 })
 export class TaskManager {
+  /**
+   * One trip around the unidirectional loop. Every interaction on the board — add,
+   * move, remove, filter — takes exactly this path, which is the point of the
+   * architecture and the thing a reader should be able to recite afterwards.
+   */
+  protected readonly loop = [
+    { label: 'User clicks', detail: 'A button in the template fires an event' },
+    {
+      label: 'Component calls the store',
+      detail: 'It never touches state itself — only `store.move(id, status)`',
+    },
+    {
+      label: 'Store `.update()`s',
+      detail: 'A *new* array replaces the old one; the signal version ticks',
+      tone: 'accent' as const,
+    },
+    {
+      label: '`byStatus` recomputes',
+      detail: 'Derived state regroups the columns — nobody told it to',
+    },
+    {
+      label: 'Template re-renders',
+      detail: 'Only the bindings that read the changed signal',
+      tone: 'good' as const,
+    },
+    { label: '`save()` writes storage', detail: 'The board survives a refresh' },
+  ];
+
+  /** The mutation trap — the single most common way to break this board. */
+  protected readonly mutationSample = `// In a component, "just add one task":
+addTask(task: Task) {
+  this.store.tasks().push(task);
+}
+
+// The array really does contain the new task.
+// Does the board show it?`;
+
+  /** Choices for the provider-scope check. */
+  protected readonly scopeOptions = [
+    {
+      text: "Nothing visible — `providers` and `providedIn: 'root'` are two spellings of the same thing",
+      why: 'They both make the service injectable, but at different *scopes*, and scope decides lifetime. That difference is exactly what this board depends on.',
+    },
+    {
+      text: 'Each visit to the page gets a fresh store, seeded from localStorage',
+      correct: true,
+      why: 'A component-level provider creates one instance per component instance and destroys it with the component. Navigate away and back and you get a brand-new store — which re-runs `load()`, so the board rehydrates from storage rather than from a stale in-memory copy.',
+    },
+    {
+      text: 'The store becomes a singleton shared with every other lesson page',
+      why: "That is what `providedIn: 'root'` would do. Here the provider is on the component, so the instance cannot escape this component's subtree.",
+    },
+    {
+      text: 'Tasks stop persisting, because the store is destroyed on navigation',
+      why: 'Destroying the store loses nothing: `save()` already wrote every mutation to localStorage as it happened. That is precisely why the store can afford to be disposable.',
+    },
+  ];
+
+  /** The doubts this project reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'Why are the writable signals private with a separate read-only copy? It looks like ceremony.',
+      a: 'Because `asReadonly()` makes the rule enforceable instead of merely agreed. If components could call `tasks.set(...)`, then "what changes the board?" has as many answers as there are templates. With one private signal and a handful of named methods, the answer is a list you can read in one screen — and `save()` is guaranteed to run, because every write goes through a method that calls it.',
+    },
+    {
+      q: 'Why is `byStatus` one computed returning three lists, rather than three computeds?',
+      a: 'So the columns cannot disagree. One computed reads `_tasks` once and splits it, so all three lists always describe the same snapshot. Three separate computeds would each read independently — fine in practice today, but it makes an inconsistent intermediate state *representable*, and the cheapest bugs are the ones the shape rules out.',
+    },
+    {
+      q: 'Why `track task.id` and not `track $index`?',
+      a: 'Because tasks move between columns and get removed from the middle. With `$index`, deleting the first task shifts every later one up an index, and Angular concludes that every row changed — so it rebuilds DOM that was perfectly good, throwing away focus and animation state. A stable id lets it match rows to elements and move just the one that actually moved.',
+    },
+    {
+      q: 'Why save on every mutation instead of using an `effect()`?',
+      a: 'An `effect` would work and is arguably tidier. The trade-off is timing: effects are *scheduled*, so the write lands a microtask later, and a refresh in that gap loses the change. Calling `save()` inside the mutator makes the write synchronous with the change. At this size, boring and immediate beats elegant and deferred.',
+    },
+    {
+      q: 'The demo board is one component. The walkthrough splits it into four. Which is right?',
+      a: 'Both, for different jobs. The walkthrough shows the shape you want in a real app — `TaskCard` as a dumb leaf with an input and two outputs is reusable and independently testable. The live demo is deliberately flattened so you can read the whole thing in one file while learning. Splitting is what you do once the component stops fitting on a screen.',
+    },
+  ];
+
   /**
    * The board's store, provided here so each visit starts from storage rather than
    * from a stale instance.

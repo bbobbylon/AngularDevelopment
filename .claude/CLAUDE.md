@@ -2,7 +2,7 @@
 
 ## Recipe: scaffold a Spring Boot backend (reusable across projects)
 
-**Trigger:** when I ask to *add / spin up / generate / scaffold a Spring Boot backend* for any
+**Trigger:** when I ask to _add / spin up / generate / scaffold a Spring Boot backend_ for any
 project (e.g. "add a backend to this React app", "give this a Java API"), follow this recipe.
 It is the author's preferred, proven shape. Adapt the base package to the new project; everything
 else is the template.
@@ -20,6 +20,7 @@ its `src/main/java/com/bob/angularspringbootfullstack/**`, `pom.xml`, `src/main/
 `schema.sql`, and `documentation/backend-blueprint.md`. Copy the patterns, not the package name.
 
 ### Stack baseline
+
 - **Spring Boot (latest; currently 4.0.x)**, **Java 21**, **Maven**, **Lombok** (annotation processor,
   excluded from the boot jar). Always use the latest Spring/Java; modernize legacy patterns.
 - Starters: `web`/`webmvc`, `security`, `validation`, **`data-jdbc`** (core domain), `oauth2-client`
@@ -28,6 +29,7 @@ its `src/main/java/com/bob/angularspringbootfullstack/**`, `pom.xml`, `src/main/
 - Maven profiles `dev` (default) / `prod` / etc., each setting `spring.profiles.active`.
 
 ### Package layout (one package per responsibility, under the project's base package)
+
 `controller/` (thin `@RestController`s) → `service/` + `service/serviceimpl/` →
 `repo/` + `repo/repoimpl/`, supported by `query/` (SQL constants), `rowmapper/`, `model/`,
 `dto/` + `dtomapper/`, `form/` (request bodies), `enumeration/`, `event/` + `listener/`,
@@ -36,19 +38,23 @@ its `src/main/java/com/bob/angularspringbootfullstack/**`, `pom.xml`, `src/main/
 `utils/`, `constants/`, `seed/`.
 
 ### Data access — JDBC, NOT JPA, for the core domain (the signature pattern)
+
 Per aggregate, four cooperating pieces wired with **`NamedParameterJdbcTemplate`**:
+
 1. `XQuery` — `public static final String` SQL constants, **named** params (`:email`), documented.
 2. `XRowMapper` — `ResultSet` → model via Lombok builder.
 3. `XRepo` (interface) — CRUD contract.
 4. `XRepoImpl` (`@Repository`, `@RequiredArgsConstructor`) — `MapSqlParameterSource` to bind,
    `GeneratedKeyHolder` for inserts, `EmptyResultDataAccessException` = not-found, static-import the
    query constants. The user repo also implements `UserDetailsService.loadUserByUsername`.
+
 - Schema owned by an **idempotent `src/main/resources/schema.sql`** (`CREATE TABLE IF NOT EXISTS`,
   no DROPs, `spring.sql.init.mode: never` — run by hand). **Do NOT add Flyway/Liquibase** (the author
   removed it on purpose). If any JPA entities are used, add explicit `@Column` on every field
   (`globally_quoted_identifiers: true` bypasses the snake_case strategy).
 
 ### Security — stateless JWT, permission-based
+
 - `@EnableWebSecurity @EnableMethodSecurity`; `SessionCreationPolicy.STATELESS`; CSRF + httpBasic off;
   CORS bean whitelisting the SPA origin and exposing `Authorization` / `Jwt-Token`.
 - `AuthenticationManager` = `ProviderManager(DaoAuthenticationProvider)` + `BCryptPasswordEncoder`
@@ -64,6 +70,7 @@ Per aggregate, four cooperating pieces wired with **`NamedParameterJdbcTemplate`
   stale `Authorization` header.
 
 ### Conventions to apply
+
 - Every endpoint returns `ResponseEntity<HttpResponse>` — a standard envelope
   (`timeStamp`, `statusCode`, `status`, `message`, `Map data`, …), usually embedding the authenticated
   user alongside the payload.
@@ -72,6 +79,7 @@ Per aggregate, four cooperating pieces wired with **`NamedParameterJdbcTemplate`
 - Never reveal whether an email/identifier exists via error messages (user-enumeration risk).
 
 ### Do better than the reference (gaps to NOT copy)
+
 Add real tests (the reference has near-zero); put `@Valid` on every request body; keep business logic
 (password encoding, UUID/code generation, validation) in the **service** layer, not the repo; treat any
 SMS/2FA as a real integration, not a stub.
@@ -85,6 +93,7 @@ SMS/2FA as a real integration, not a stub.
 ### When to Create Documentation
 
 Trigger immediately when:
+
 - Starting a new project/repo
 - Adding a significant feature or module
 - Refactoring large sections
@@ -96,11 +105,13 @@ Trigger immediately when:
 Every repository MUST have these documentation files in `docs/` or root:
 
 #### 1. **SRS.md** (Software Requirements Specification)
+
 **Purpose:** Define what the system does and why
 
 **Location:** `docs/SRS.md` or `SRS.md`
 
 **Contents:**
+
 ```
 # Software Requirements Specification
 
@@ -140,11 +151,13 @@ Every repository MUST have these documentation files in `docs/` or root:
 ```
 
 #### 2. **ARCHITECTURE.md** (System Design)
+
 **Purpose:** Explain the technical structure and design decisions
 
 **Location:** `docs/ARCHITECTURE.md`
 
 **Contents:**
+
 ```
 # Architecture Documentation
 
@@ -161,13 +174,15 @@ Every repository MUST have these documentation files in `docs/` or root:
 
 ## 3. Directory Structure
 ```
+
 src/
-├── app/              # Frontend components
-├── api/              # API routes
-├── services/         # Business logic
-├── models/           # Data models
-├── utils/            # Helpers
-└── tests/            # Test files
+├── app/ # Frontend components
+├── api/ # API routes
+├── services/ # Business logic
+├── models/ # Data models
+├── utils/ # Helpers
+└── tests/ # Test files
+
 ```
 
 ## 4. Key Design Patterns
@@ -195,11 +210,13 @@ src/
 ```
 
 #### 3. **UI-DESIGN.md** (User Interface Design)
+
 **Purpose:** Document UI/UX decisions and design system
 
 **Location:** `docs/UI-DESIGN.md`
 
 **Contents:**
+
 ```
 # UI/UX Design Documentation
 
@@ -240,6 +257,7 @@ src/
 ```
 
 #### 4. **DEPLOYMENT.md** (How to Deploy)
+
 **Purpose:** Instructions for deploying to production
 
 **Location:** `docs/DEPLOYMENT.md` or `DEPLOYMENT.md`
@@ -261,22 +279,28 @@ src/
 **Status:** [Draft | Review | Final]
 
 ## Overview
+
 Brief description (2-3 sentences)
 
 ## Table of Contents
+
 - [Section 1](#section-1)
 - [Section 2](#section-2)
 
 ## Section 1
+
 Content here...
 
 ### Subsection
+
 More details...
 
 ## Section 2
+
 Content here...
 
 ## Related Documents
+
 - [Link to other docs]
 - [Reference materials]
 ```
@@ -297,22 +321,23 @@ Content here...
 
 ### Quick Reference: What Goes Where
 
-| Question | Document |
-|----------|----------|
-| What is the system supposed to do? | SRS.md |
-| How is it technically built? | ARCHITECTURE.md |
-| How does the UI look and work? | UI-DESIGN.md |
-| How do I deploy it? | DEPLOYMENT.md |
-| Why did you choose X over Y? | ARCHITECTURE.md |
-| Who are the users? | SRS.md |
-| What's the color palette? | UI-DESIGN.md |
-| How do I run tests? | README.md or DEVELOPMENT.md |
+| Question                           | Document                    |
+| ---------------------------------- | --------------------------- |
+| What is the system supposed to do? | SRS.md                      |
+| How is it technically built?       | ARCHITECTURE.md             |
+| How does the UI look and work?     | UI-DESIGN.md                |
+| How do I deploy it?                | DEPLOYMENT.md               |
+| Why did you choose X over Y?       | ARCHITECTURE.md             |
+| Who are the users?                 | SRS.md                      |
+| What's the color palette?          | UI-DESIGN.md                |
+| How do I run tests?                | README.md or DEVELOPMENT.md |
 
 ---
 
 ### Checklist for New Projects
 
 When creating a new repo, before any code:
+
 - [ ] Create `SRS.md` - Define requirements
 - [ ] Create `ARCHITECTURE.md` - Plan the design
 - [ ] Create `UI-DESIGN.md` - Plan the interface (if frontend)
@@ -320,6 +345,7 @@ When creating a new repo, before any code:
 - [ ] Create `README.md` - Quick start guide
 
 When working in existing repos:
+
 - [ ] Check if docs exist
 - [ ] Update/enhance if incomplete
 - [ ] Ensure docs match current code
@@ -334,7 +360,7 @@ to this repo and **overrides** generic guidance when they conflict.
 
 ## The Zero-to-Hero standard (how lessons must be written)
 
-This app is Angular exam/interview prep. The target is *Head First Design Patterns* — not
+This app is Angular exam/interview prep. The target is _Head First Design Patterns_ — not
 in tone-for-tone imitation, but in how seriously it takes the reader's memory. That book
 works because it teaches one idea several different ways and makes you do something with
 it. A wall of correct prose is not a lesson.
@@ -377,11 +403,56 @@ read, not as the verdict.
 `Quiz`, `Faq`, `Flow` and `Compare`, imported from the barrel
 (`../../../shared/teaching`). They are accessible by construction and already covered by
 tests, so a hand-rolled equivalent is strictly worse. `docs/CONTRIBUTING.md` §2A has the
-per-lesson budgets and the copy conventions — notably that option `why` text on *wrong*
+per-lesson budgets and the copy conventions — notably that option `why` text on _wrong_
 answers is the most valuable writing in a lesson, and that long copy lives in the `.ts`.
 
-**Rollout state:** 5 of 100 lessons done as of 2026-08-29 (see `docs/BACKLOG.md` §1.1 for
-the table and the remaining distribution). Continue worst-first.
+**Rollout state:** 19 of 100 lessons done as of 2026-08-29 (see `docs/BACKLOG.md` §1.1 for
+the tables and the remaining distribution). Nothing sits below 3/9 any more. Remaining
+distribution: 14 at 3/9, 50 at 4/9, 12 at 5/9, 5 at 6–8/9. Continue worst-first.
+
+**Trust the audit only after re-running it.** Two detectors were found wrong on 2026-08-29
+and fixed, which re-ranked ~14 lessons. If a score looks too low for a lesson you have
+read, suspect the regex before rewriting the lesson.
+
+**Bar 3 — presentation (established 2026-08-29, after repeated asks).** The user has now
+asked for these many times. Treat them as non-negotiable defaults on every lesson you
+touch, in every subject — **not just the Java design-pattern lessons**, which are the only
+ones that currently look right and which the user holds up as "kind of" the target.
+
+1. **Annotate code snippets line by line.** A single sentence above a 30-line block is not
+   acceptable and never was. Explain what individual lines _do_ — inline `//` trailing
+   comments on the lines that carry the idea, and a short annotated walkthrough under the
+   block for anything non-obvious. **Never assume the student can read the snippet.** The
+   student is here precisely because they cannot yet. If a line introduces a symbol, say
+   what the symbol is. This is the single most repeated request in the project's history.
+2. **Every snippet must be syntax highlighted, IDE-style.** Keywords, types, function
+   names, params, strings, numbers, comments and annotations all differently coloured;
+   weights and italics used the way a real editor does. Plain white monospace text is a
+   defect — see `src/app/shared/highlighter.ts`. The reference is a JetBrains editor
+   screenshot the user supplied: italic keywords, distinct method-name colour, coloured
+   parameter hints, a subtle background on doc comments.
+3. **Colour the prose too.** Key terms, the subject of the sentence, the thing that breaks —
+   these should be visually marked in the running text, not left as a grey wall. Colour is
+   a retention device here, used deliberately; that is the whole point of the exercise.
+4. **Visually rich, brain-friendly, in the Head First sense.** Images, arrows, hand-drawn
+   feeling annotations pointing _at_ parts of a diagram or code block, manipulated and
+   varied typography, callouts in the margin, characters/speech, before-and-after pairs.
+   The book's own description is the spec: _"a visually rich, brain-friendly format"_, "a
+   multi-sensory learning experience", "not a text-heavy approach that puts you to sleep."
+   A correct wall of prose fails this bar even when it is deep and accurate.
+5. **Motion.** Buttons, links, route changes, panels and lists should animate. The user
+   wants this and keeps asking. It must be _well executed_ — see below.
+
+**Motion rules (learned the hard way).** An interaction effect must never change layout:
+no element that appears on hover/click/focus may push a sibling aside or resize its host.
+Press feedback belongs in an absolutely-positioned, `overflow: hidden`-clipped layer, or in
+`transform`/`opacity` only. Honour `prefers-reduced-motion: reduce`. Prefer CSS and the
+View Transitions API; `@angular/animations` is deprecated and the `animations` lesson
+teaches that, so using it would contradict the curriculum.
+
+**Do not narrow the scope to one section.** When the user asks for a presentation change,
+they mean across all subjects — Angular, TypeScript, Java, Ruby, everything. Shipping it
+for one area and reporting success is the failure mode they have called out explicitly.
 
 ## Reminders specific to this repo
 

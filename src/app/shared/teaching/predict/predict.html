@@ -6,7 +6,7 @@
 
   @if (code()) {
     <div class="predict__code">
-      <pre>{{ code() }}</pre>
+      <pre [innerHTML]="highlightedCode()"></pre>
     </div>
   }
 

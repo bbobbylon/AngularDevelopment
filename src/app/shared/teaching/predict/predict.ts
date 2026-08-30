@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { highlight } from '../../highlighter';
 import { RichText } from '../rich-text/rich-text';
 
 /**
@@ -46,6 +47,20 @@ export class Predict {
 
   /** Optional code sample to reason about. Rendered verbatim in a `<pre>`. */
   readonly code = input<string>('');
+
+  /**
+   * The sample, tokenised into `<span class="hl-*">` markup.
+   *
+   * Highlighting happens here rather than in the app-wide sweep in `app.ts`,
+   * which only ever selected `.code pre`. This component's block is
+   * `.predict__code pre`, so it was missed entirely and every Predict sample in
+   * the curriculum rendered as flat, unhighlighted text — the one place a
+   * learner is being asked to read code closely.
+   *
+   * Safe to bind with `[innerHTML]`: {@link highlight} escapes every character
+   * it emits, so the sample is displayed as source rather than parsed as markup.
+   */
+  protected readonly highlightedCode = computed(() => highlight(this.code()));
 
   /** The reveal. May contain `backtick` code spans. */
   readonly answer = input.required<string>();

@@ -75,7 +75,22 @@ export class SignupForm {}`;
    * Sample: the anatomy of a template-driven form — `#f="ngForm"`, `ngSubmit`, the
    * `name` attribute, and validation state.
    */
-  readonly anatomySample = `<form #f="ngForm" (ngSubmit)="submit(f.value)">
+  readonly anatomySample = `<!-- #f="ngForm" exports the NgForm DIRECTIVE instance (not the DOM element)
+     into a local variable. That is what gives you f.value, f.valid, f.reset(). -->
+<!-- f.value is an object built from the name attributes below. -->
+<form #f="ngForm" (ngSubmit)="submit(f.value)">
+  <!-- Four things are happening on the input below, and no comment can sit
+       between them — that would be inside the tag, which HTML forbids:
+         name="name"       REQUIRED. It is the key this control gets in
+                           f.value, and without it ngModel throws. The #1
+                           template-forms mistake.
+         ngModel           Bare, no brackets, no value: registers the control
+                           with the form without binding a component field.
+         required /        Plain HTML validation attributes. Angular's
+         minlength="2"     directives pick these up as real validators.
+         #name="ngModel"   A SECOND export, this time of the NgModel directive
+                           for THIS control — what makes name.invalid and
+                           name.errors work in the block below. -->
   <input
     name="name"
     ngModel
@@ -83,8 +98,14 @@ export class SignupForm {}`;
     minlength="2"
     #name="ngModel"
   />
+  <!-- && name.touched is what stops every field screaming "required" before
+       the user has typed anything. Validity alone is not enough. -->
   @if (name.invalid && name.touched) {
+    <!-- errors is null when valid, so ?. avoids a read on null. The keys are
+         whatever the failing validators returned. -->
     @if (name.errors?.['required']) { Name is required. }
+    <!-- Bracket notation, not .minlength — errors is a plain index-signature
+         object, so dot access does not type-check. -->
     @if (name.errors?.['minlength']) { At least 2 characters. }
   }
 </form>`;

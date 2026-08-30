@@ -8,6 +8,101 @@
     the same component often stays mounted while that state changes.
   </p>
 
+  <h2>The mental model: a postal address</h2>
+  <p>
+    A URL carries several kinds of information at once, and they are as different from each other as the parts of an
+    address on a parcel. <strong>Path params</strong> are the street address — they say <em>which</em> house, they are
+    required, and changing one sends you somewhere else entirely. <strong>Query params</strong> are the delivery
+    instructions written on the label: "leave at the back door, ring twice." Optional, reorderable, and they never
+    change which house you are going to. The <strong>fragment</strong> is "and once you are inside, go to the kitchen" —
+    so purely a within-the-page instruction that the browser does not even send it to the server. And
+    <strong>matrix params</strong> are a note stapled to one specific line of the address rather than to the parcel as a
+    whole.
+  </p>
+
+  <app-remember>
+    <strong>Path says <u>which</u>. Query says <u>how</u>. Fragment says <u>where on the page</u>.</strong> If removing
+    it still leaves a URL that makes sense, it belongs in the query string.
+  </app-remember>
+
+  <h2>Live — dissect a URL</h2>
+  <p>
+    Edit the URL and watch the four mechanisms separate out. Try deleting <code>?tag=ng&amp;</code>, or adding a second
+    <code>;</code> param to a segment:
+  </p>
+  <div class="demo">
+    <p class="demo__title">Live — one URL, four kinds of parameter</p>
+    <div class="row" style="margin-bottom: 12px">
+      <input
+        aria-label="URL to dissect"
+        [value]="playgroundUrl()"
+        (input)="playgroundUrl.set($any($event.target).value)"
+        style="flex: 1; font-family: var(--font-mono, monospace)"
+      />
+    </div>
+
+    <table class="cmp">
+      <tr>
+        <th scope="row">Path segments</th>
+        <td>
+          @for (s of segments(); track $index) {
+            <code>{{ s }}</code>
+            @if (!$last) {
+              <span> / </span>
+            }
+          } @empty {
+            <em>(none)</em>
+          }
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          Matrix params<br /><small>read via <code>paramMap</code></small>
+        </th>
+        <td>
+          @for (p of matrixParams(); track $index) {
+            <code>{{ p.key }} = {{ p.value }}</code>
+            <span>&nbsp;</span>
+          } @empty {
+            <em>(none)</em>
+          }
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">
+          Query params<br /><small>read via <code>queryParamMap</code></small>
+        </th>
+        <td>
+          @for (p of queryParams(); track $index) {
+            <code>{{ p.key }} = {{ p.value }}</code>
+            <span>&nbsp;</span>
+          } @empty {
+            <em>(none)</em>
+          }
+          @if (repeatedKeys().length) {
+            <p style="color: var(--accent); font-size: 0.85rem; margin: 6px 0 0">
+              Repeated:
+              @for (k of repeatedKeys(); track k) {
+                <code>{{ k }}</code>
+              }
+              — <code>get()</code> gives you only the first. Use <code>getAll()</code>.
+            </p>
+          }
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">Fragment<br /><small>never sent to the server</small></th>
+        <td>
+          @if (fragment(); as f) {
+            <code>{{ f }}</code>
+          } @else {
+            <em>(none)</em>
+          }
+        </td>
+      </tr>
+    </table>
+  </div>
+
   <h2>Declaring &amp; reading path params</h2>
   <div class="code">
     <pre>{{ readSample }}</pre>
@@ -62,7 +157,14 @@
   </div>
 
   <h2>Setting query params: <code>queryParamsHandling</code></h2>
-  <p>When you navigate, what happens to the query params already in the URL depends on this option:</p>
+
+  <app-predict
+    prompt="Paginating a search page. Nothing here looks unusual — which is the problem. What is in the address bar afterwards?"
+    [code]="handlingTrap"
+    answer="`/search?page=2`. The search term, the sort and the view are gone. The default for `queryParamsHandling` is to *replace* the entire query string with what you passed, not to merge into it — so every param you did not mention is dropped. The bug reports arrive as &quot;pagination resets my filters&quot;, which sounds like a state-management problem and is actually one missing option. Pass `queryParamsHandling: 'merge'` and the other three survive; set a key to `null` in the same call when you genuinely want to remove it."
+  />
+
+  <p>What happens to the query params already in the URL depends entirely on this option:</p>
   <table class="cmp">
     <tr>
       <th>Value</th>
@@ -111,6 +213,17 @@
   </div>
 
   <h2>Under the hood</h2>
+
+  <p>
+    The staleness bug is not really about <code>snapshot</code> being a bad API. It is about what the router decides
+    here, in the middle:
+  </p>
+
+  <app-flow
+    [steps]="reuse"
+    caption="Reuse is keyed on the route *config*, not the param values — which is exactly why a component can outlive the id it was built for."
+  />
+
   <ul>
     <li>
       <strong>Reuse is a policy, not an accident.</strong> The default
@@ -169,35 +282,13 @@
     </li>
   </ul>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Navigating <code>/users/1</code> → <code>/users/2</code> doesn't update the page. Why?</summary>
-    <div>
-      You read <code>snapshot.paramMap</code>. The component is reused, so the snapshot is stale. Subscribe to
-      <code>route.paramMap</code> (or <code>toSignal</code> it).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you add <code>?page=2</code> without losing <code>?sort=name</code>?</summary>
-    <div>
-      Navigate with <code>queryParamsHandling: 'merge'</code>. To remove a param, set it to <code>null</code> in the
-      merge.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>The URL has <code>?tag=a&amp;tag=b</code>. How do you read both?</summary>
-    <div>
-      <code>route.snapshot.queryParamMap.getAll('tag')</code> → <code>['a','b']</code>. <code>get</code> returns only
-      <code>'a'</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Is a route param a number?</summary>
-    <div>
-      No — always a string or <code>null</code>. Convert and validate (<code>Number(id)</code>), and handle a
-      missing/NaN value.
-    </div>
-  </details>
+  <app-quiz
+    question="A component runs `const id = Number(route.snapshot.paramMap.get('id'));` and then guards with `if (isNaN(id)) return;`. The URL has no `id` at all. What is `id`?"
+    [options]="coercionOptions"
+    followUp="The habit worth forming: check the string for `null` before you convert it, not the number for `NaN` afterwards. `NaN` cannot tell you the difference between a missing param and a param that said `banana` — and only one of those is worth a 404."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

@@ -9,6 +9,26 @@
     stamp or clear that template on demand.
   </p>
 
+  <h2>The mental model: blueprints and a building lot</h2>
+  <p>
+    A <code>TemplateRef</code> is a set of architectural drawings. It is a real, complete description of a building —
+    every wall, every wire — and absolutely nobody lives in it. A <code>ViewContainerRef</code> is an empty lot with a
+    surveyor's stake in the ground. Your structural directive is the developer holding both, and
+    <code>createEmbeddedView</code> is the moment it decides to actually build.
+  </p>
+  <p>
+    Three things fall straight out of that picture. You can build the same drawings on the lot five times, which is
+    exactly what <code>*appRepeat</code> does below. <code>vcr.clear()</code> is demolition rather than boarding up the
+    windows — the components inside are destroyed and their subscriptions torn down, which is the real difference
+    between a structural directive and <code>[hidden]</code>. And the stake stays in the ground whether or not anything
+    is built on it, which is that <code>&lt;!--container--&gt;</code> comment you keep seeing in DevTools.
+  </p>
+
+  <app-remember>
+    <strong><code>TemplateRef</code> is the blueprint; <code>ViewContainerRef</code> is the lot.</strong> The
+    <code>*</code> is just the paperwork that turns your markup into drawings instead of a house.
+  </app-remember>
+
   <h2>The <code>*</code> is pure syntax sugar</h2>
   <p>
     The asterisk has no magic of its own — it tells Angular to wrap the host element in an
@@ -22,6 +42,13 @@
     <code>*ngIf</code> and <code>*ngFor</code> together is a compile error. You nest them (or, in modern Angular, use
     <code>&#64;if</code> inside <code>&#64;for</code>).
   </p>
+
+  <h2>The whole pipeline, in order</h2>
+
+  <app-flow
+    [steps]="pipeline"
+    caption="Only one element can be wrapped, which is why only one star per element. The wrapper is what the directive matches — your element is now cargo inside it."
+  />
 
   <h2>Anatomy of the directive</h2>
   <div class="code">
@@ -64,6 +91,18 @@
     <code>[hidden]</code> or <code>display:none</code>, where the element still exists. Removal means child components
     are destroyed and their subscriptions cleaned up.
   </div>
+
+  <h2>One character, and the whole thing inverts</h2>
+  <p>
+    Look at the binding below and decide before reading on. The directive is byte-for-byte the one you just read, and
+    the signal really is <code>false</code>.
+  </p>
+
+  <app-predict
+    prompt="`hidden` is a signal holding `false`. Does the paragraph render?"
+    [code]="signalSample"
+    answer="No — and worse, it will never render, no matter what you set the signal to. Without the parentheses you passed the signal **function itself**, not its value. A function object is truthy, so `condition` is permanently truthy, so the directive permanently takes the clear branch. Nothing warns you: `boolean` is what the setter declares, but a `*` binding is microsyntax rather than a normal type-checked expression, so `hidden` sails through. The tell is a condition that appears completely stuck — always on, or always off, regardless of the value you see in DevTools. Two habits kill it: read every template binding as *is this a value or a function?*, and prefer `input<boolean>()` over an `@Input` setter so the strict template checker gets a look at it."
+  />
 
   <h2>The microsyntax, decoded</h2>
   <p>
@@ -111,6 +150,12 @@
     </li>
   </ul>
 
+  <app-quiz
+    question="Take the `*appRepeat` above and delete the `this.vcr.clear()` line. The input goes from 3 to 5. How many elements are on the page afterwards?"
+    [options]="clearOptions"
+    followUp="The general rule for anything holding a `ViewContainerRef`: it is an imperative API. Nothing reconciles for you, nothing diffs, nothing cleans up. Every view that exists is one you inserted and did not remove — which is precisely the bookkeeping `@for`'s `track` was built to take off your hands."
+  />
+
   <h2>Type-checking the context</h2>
   <p>
     By default the template compiler doesn't know what type <code>n</code> or <code>i</code> are. A static
@@ -151,6 +196,8 @@
     reusable rendering pattern: role-based access (<code>*appHasRole</code>), a permission gate, or custom repetition
     with bespoke context.
   </div>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

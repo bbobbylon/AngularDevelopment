@@ -140,11 +140,21 @@ export class AsyncValidators {
    */
   readonly defineSample = `const TAKEN = ['admin', 'root', 'ada'];
 
+// A FACTORY that returns the validator, so you can configure it at the call
+// site. The returned function is what the forms system actually calls.
 function uniqueUsername(): AsyncValidatorFn {
   return (control: AbstractControl): Observable<ValidationErrors | null> =>
+    // In real code this line is an http.get(). of() stands in for it so the
+    // sample runs with no backend.
     of(TAKEN.includes(control.value.toLowerCase())).pipe(
       delay(700),                                   // pretend network latency
+      // Same inversion as sync validators: an OBJECT means invalid, null
+      // means valid. The key 'taken' is what the template checks for.
       map((taken) => (taken ? { taken: true } : null)),
+      // of() completes on its own, which matters: the control sits in PENDING
+      // until this stream COMPLETES. A source that only emits — an unended
+      // Subject, say — leaves the field pending forever and the submit
+      // button disabled with no visible reason.
     );
 }`;
 

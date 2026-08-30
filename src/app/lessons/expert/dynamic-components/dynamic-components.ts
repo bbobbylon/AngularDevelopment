@@ -176,21 +176,39 @@ current.set(WarningPanel);`;
    * Sample: `ViewContainerRef.createComponent`, the imperative form, and the
    * `ComponentRef` it returns.
    */
-  readonly imperativeSample = `private readonly vcr = inject(ViewContainerRef);
+  readonly imperativeSample = `// ViewContainerRef is the INSERTION POINT — a handle on a place in the DOM
+// where views can be added. Injected here, it points just AFTER this
+// component's own host element, not inside it.
+private readonly vcr = inject(ViewContainerRef);
+// Hold the reference or you cannot update or destroy what you created.
+// Typed with the component class, so setInput below is type-aware.
 private ref: ComponentRef<InfoPanel> | null = null;
 
 mount(): void {
+  // Remove anything previously created here. Without this, calling mount()
+  // twice stacks two panels — a genuinely common leak.
   this.vcr.clear();
+  // Pass the CLASS itself. No factory resolver, no NgModule: since Ivy the
+  // component class carries everything needed to instantiate it.
   this.ref = this.vcr.createComponent(InfoPanel);
+  // setInput, not assignment. It marks the view dirty AND runs the input's
+  // transform, so the component actually re-renders.
   this.ref.setInput('message', 'Created imperatively!');
 }
 
 update(msg: string): void {
+  // ?. because the panel may not be mounted. Assigning
+  // ref.instance.message directly WOULD change the field — and the screen
+  // would not update under OnPush, because nothing marked the view dirty.
   this.ref?.setInput('message', msg);   // NOT ref.instance.message = …
 }
 
 destroy(): void {
+  // Runs ngOnDestroy, removes the DOM node, and tears down any subscription
+  // registered on the ref.
   this.ref?.destroy();
+  // Null the field too, or you keep a reference to a destroyed component and
+  // the next update() silently does nothing.
   this.ref = null;
 }`;
 

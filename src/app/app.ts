@@ -127,7 +127,10 @@ export class App {
 
         // Re-apply syntax highlighting after each navigation.
         setTimeout(() => {
-          doc.querySelectorAll('.code pre').forEach((pre) => {
+          // `.code pre` is the overwhelmingly common shape, but a handful of
+          // lessons use a bare `<pre class="code-block">`; both are code the
+          // learner is meant to read closely, so both get tokenised.
+          doc.querySelectorAll('.code pre, pre.code-block').forEach((pre) => {
             if (pre.closest('.demo')) return;
             const text = pre.textContent ?? '';
             if (!text.trim()) return;

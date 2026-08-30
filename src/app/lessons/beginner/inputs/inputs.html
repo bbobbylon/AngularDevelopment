@@ -53,6 +53,13 @@ export class Badge {{ '{' }}
 
   <div class="code">
     <pre>
+&lt;!-- SQUARE BRACKETS mean "evaluate this as an expression". Without them,
+     label="label()" would pass the literal seven-character string. --&gt;
+&lt;!-- The parens are the parent READING its own signals. What the child
+     receives is the plain value, not the signal itself. --&gt;
+&lt;!-- Numbers and booleans especially need the brackets: [count]="3" passes
+     the number 3, while count="3" passes the string "3" — and [large]="false"
+     passes false, while large="false" passes a truthy non-empty string. --&gt;
 &lt;app-badge
   [label]="label()"
   [color]="color()"
@@ -112,11 +119,23 @@ slug = input('', {{ '{' }} transform: (v: string) =&gt; v.trim().toLowerCase() {
     <div left>
       <div class="code">
         <pre>
+// The OLD way. Derived state has to
+// be stored in its own field...
 &#64;Input() label = '';
 initials = '';
 
+// ...and manually recomputed in a
+// lifecycle hook.
 ngOnChanges(c: SimpleChanges) {{ '{' }}
+  // SimpleChanges is a plain object
+  // keyed by input NAME AS A STRING.
+  // Rename the input and this key
+  // silently stops matching — no
+  // compile error, no warning.
   if (c['label']) {{ '{' }}
+    // Forget this guard and it runs
+    // on EVERY input change, not just
+    // label's.
     this.initials =
       this.label.slice(0, 2).toUpperCase();
   {{ '}' }}

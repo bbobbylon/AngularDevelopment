@@ -193,7 +193,11 @@ class Api {
   /**
    * Sample: the evaluation-order demo, matching {@link First} and {@link Second}.
    */
-  readonly orderSample = `function First() {
+  readonly orderSample = `// A decorator FACTORY: a function that returns the actual decorator. The
+// outer body runs when the () is evaluated; the returned arrow runs when the
+// decorator is applied. Those are two different moments — that is the whole
+// point of this demo.
+function First() {
   log('1. First() factory evaluated');
   return (t, k, d) => log('4. First\\u2019s decorator applied');
 }
@@ -203,6 +207,12 @@ function Second() {
 }
 
 class OrderDemo {
+  // Read the numbers in the logs above, not the source order:
+  //   FACTORIES evaluate TOP-DOWN     → 1 then 2
+  //   DECORATORS apply BOTTOM-UP      → 3 then 4
+  // The mnemonic is that decorators wrap like an onion: the closest one to
+  // the method goes on first, and the outermost one wraps last (so it runs
+  // FIRST at call time). Same rule as function composition, f(g(x)).
   @First()
   @Second()
   method() {}
@@ -212,19 +222,39 @@ class OrderDemo {
    * Sample: the `@Memoize` implementation, including the caveat that the cache is
    * shared by all instances.
    */
-  readonly memoizeSample = `function Memoize(target: object, key: string, desc: PropertyDescriptor) {
+  readonly memoizeSample = `// A method decorator receives three arguments:
+//   target — the prototype (for a static method, the constructor)
+//   key    — the method's name as a string
+//   desc   — the property descriptor, whose .value IS the function itself
+function Memoize(target: object, key: string, desc: PropertyDescriptor) {
+  // Capture the original BEFORE overwriting it, or the replacement below
+  // would call itself and blow the stack.
   const original = desc.value;
-  const cache = new Map<string, unknown>();   // NOTE: shared by ALL instances
+  // NOTE: shared by ALL instances. The decorator runs once, on the prototype,
+  // so there is exactly one Map for the whole class — two Math2 objects share
+  // a cache. Fine for pure maths, a data leak for anything user-specific.
+  const cache = new Map<string, unknown>();
+  // Replace the method. \`function\`, not an arrow: an arrow would capture
+  // \`this\` from here (the module) instead of the calling instance.
   desc.value = function (...args: unknown[]) {
+    // Cheap structural cache key. Good enough for primitives; it would treat
+    // {a:1,b:2} and {b:2,a:1} as different, and chokes on circular objects.
     const k = JSON.stringify(args);
+    // .apply(this, args) forwards both the receiver and the arguments, so
+    // the original still sees the instance it was called on.
     if (!cache.has(k)) cache.set(k, original.apply(this, args));
     return cache.get(k);
   };
 }
 
 class Math2 {
+  // No parentheses — Memoize is used directly, not as a factory.
   @Memoize
   fib(n: number): number {
+    // The recursive calls go through this.fib, which is the DECORATED
+    // version, so every subproblem hits the cache too. That is what turns
+    // this from exponential into linear — and it only works because the
+    // decorator replaced the method on the prototype.
     return n < 2 ? n : this.fib(n - 1) + this.fib(n - 2);
   }
 }`;
@@ -234,13 +264,22 @@ class Math2 {
    */
   readonly toolboxSample = `// Debounce: coalesce rapid calls (resize/scroll/input handlers)
 function Debounce(ms: number) {
+  // A FACTORY, because it takes configuration. Called as @Debounce(300).
   return (t: object, k: string, d: PropertyDescriptor) => {
     const original = d.value;
+    // \`handle\` lives in the closure, so it persists between calls — that is
+    // the state machine. ReturnType<typeof setTimeout> types it correctly in
+    // both Node (an object) and the browser (a number).
     let handle: ReturnType<typeof setTimeout>;
     d.value = function (...args: unknown[]) {
+      // Cancel the previous pending call. This is the whole trick: fire the
+      // method 20 times quickly and the first 19 timers are torn down.
       clearTimeout(handle);
+      // Schedule a fresh one. Only ms of SILENCE lets it through.
       handle = setTimeout(() => original.apply(this, args), ms);
     };
+    // The catch: the method now returns undefined, because the real call
+    // happens later. Debounce things that act, not things that answer.
   };
 }
 
@@ -248,9 +287,17 @@ function Debounce(ms: number) {
 function Deprecated(alternative: string) {
   return (t: object, k: string, d: PropertyDescriptor) => {
     const original = d.value;
+    // Closure state again — one flag per decorated method.
     let warned = false;
     d.value = function (...args: unknown[]) {
+      // Warn ONCE, not on every call. A method called in a render loop would
+      // otherwise flood the console until nobody reads it any more.
+      // \`k\` is the method name the decorator was given, so the message names
+      // itself without you hardcoding a string.
       if (!warned) { console.warn(k + ' is deprecated; use ' + alternative); warned = true; }
+      // Crucially, it still WORKS — this decorator adds a warning, it does
+      // not break the caller. Behaviour-preserving wrapping is what makes
+      // decorators safe to sprinkle on an existing codebase.
       return original.apply(this, args);
     };
   };

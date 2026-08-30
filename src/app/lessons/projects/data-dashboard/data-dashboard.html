@@ -15,6 +15,25 @@
     <li>All computed from a signal store — zero redundant state</li>
   </ul>
 
+  <h2>The mental model: a production line</h2>
+  <p>
+    A dashboard is not a pile of state — it is <strong>one set of records with a line of machines bolted to it</strong>.
+    Raw rows go in at one end. The first station drops the ones that fail the filters. The next works out how many pages
+    that leaves. The next sorts and cuts out the slice you are looking at. The KPIs are a station tapped off the middle
+    of the line, not the end.
+  </p>
+  <p>
+    Only the raw records are <em>stored</em>. Everything else is a station, and a station only runs when something
+    upstream of it moves. That is why changing the sort is cheap and changing a filter is not — and why the pager and
+    the KPIs never disagree with the table, since all three are cut from the same line.
+  </p>
+
+  <app-remember>
+    Store the <strong>decisions</strong>, derive the <strong>consequences</strong>. The filters, the sort and the page
+    number are decisions. Row counts, totals and the visible slice are consequences — and a consequence you store by
+    hand is a consequence that will go stale.
+  </app-remember>
+
   <h2>Architecture overview</h2>
   <div class="code">
     <pre>
@@ -25,8 +44,9 @@ SalesStore (service)
   _sortKey:      Signal&lt;SortKey&gt;
   _sortDir:      Signal&lt;asc | desc&gt;
 
-  filtered: computed()  // applies filters + sort — the "view" of the data
-  summary:  computed()  // total, avg, byCategory, byRegion — all derived
+  filtered: computed()  // applies the filters only
+  sorted:   computed()  // reorders filtered() — reads the sort key, nothing else
+  summary:  computed()  // total, avg, byCategory, byRegion — all off filtered()
 
 DashboardPage
   injects SalesStore
@@ -37,12 +57,14 @@ DashboardPage
   <div class="code">
     <pre>
 interface SaleRecord {{ '{' }}
-  id: number;
+  id: number;        // stable key for &#64;for track — never the array index
   product: string;
+  // Inline union rather than `string`: the filter buttons, the grouping keys
+  // and this field can now never drift apart, because there is one list.
   category: 'hardware' | 'software' | 'services';
-  amount: number;
+  amount: number;    // currency in whole units; format at render time, not here
   region: 'north' | 'south' | 'east' | 'west';
-  month: number;
+  month: number;     // 1–12. A number sorts correctly; 'January' would not.
 {{ '}' }}
 
 // In production, load from HTTP:
@@ -62,41 +84,83 @@ interface SaleRecord {{ '{' }}
     <pre>
 &#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
 export class SalesStore {{ '{' }}
-  private readonly _data         = signal&lt;SaleRecord[]&gt;([]);
-  private readonly _catFilter    = signal&lt;'all' | Category&gt;('all');
+  // ---- SOURCES: five signals, and that is the entire mutable state ----
+  // Everything else on this class is derived. If you can name the sources,
+  // you can predict every pixel on the dashboard.
+  private readonly _data         = signal&lt;SaleRecord[]&gt;([]);      // the rows
+  private readonly _catFilter    = signal&lt;'all' | Category&gt;('all');   // 'all' = no filter
   private readonly _regionFilter = signal&lt;'all' | Region&gt;('all');
-  private readonly _sortKey      = signal&lt;SortKey&gt;('amount');
-  private readonly _sortDir      = signal&lt;'asc' | 'desc'&gt;('desc');
+  private readonly _sortKey      = signal&lt;SortKey&gt;('amount');     // which column
+  private readonly _sortDir      = signal&lt;'asc' | 'desc'&gt;('desc'); // biggest first
 
+  // Filtering and sorting are SEPARATE selectors on purpose —
+  // see the quiz below for what that buys you.
   readonly filtered = computed(() =&gt; {{ '{' }}
+    // Read both signals into locals FIRST. Reading them inside the filter
+    // callback would work, but it re-reads once per row; this reads once and
+    // makes the dependency list obvious at a glance.
     const cat = this._catFilter(), reg = this._regionFilter();
-    const key = this._sortKey(),   dir = this._sortDir();
-    return [...this._data()]
+    return this._data()
+      // Each clause short-circuits on 'all', so "no filter" costs one
+      // comparison rather than a special case elsewhere in the code.
       .filter(r =&gt; (cat === 'all' || r.category === cat)
-                &amp;&amp; (reg === 'all' || r.region === reg))
-      .sort((a, b) =&gt; {{ '{' }}
-        const cmp = typeof a[key] === 'string'
-          ? (a[key] as string).localeCompare(b[key] as string)
-          : (a[key] as number) - (b[key] as number);
-        return dir === 'asc' ? cmp : -cmp;
-      {{ '}' }});
+                &amp;&amp; (reg === 'all' || r.region === reg));
+  {{ '}' }});
+
+  readonly sorted = computed(() =&gt; {{ '{' }}
+    const key = this._sortKey(), dir = this._sortDir();
+    // THE SPREAD IS NOT OPTIONAL. Array.sort() sorts in place, and
+    // filtered() hands back its cached array — sorting it directly would
+    // mutate another computed's memoised value behind its back.
+    return [...this.filtered()].sort((a, b) =&gt; {{ '{' }}
+      // One comparator for both column types: localeCompare for text
+      // (handles accents and casing properly), subtraction for numbers.
+      // The `as` casts are needed because a[key] is a union of both.
+      const cmp = typeof a[key] === 'string'
+        ? (a[key] as string).localeCompare(b[key] as string)
+        : (a[key] as number) - (b[key] as number);
+      // Direction is applied by negating the result — one comparator, both
+      // directions, no duplicated logic.
+      return dir === 'asc' ? cmp : -cmp;
+    {{ '}' }});
   {{ '}' }});
 
   readonly summary = computed(() =&gt; {{ '{' }}
+    // Note: reads filtered(), NOT sorted(). The KPIs are the same numbers
+    // however you order the rows, so depending on sorted() would recompute
+    // them every time a user clicked a column header for nothing.
     const rows  = this.filtered();
     const total = rows.reduce((s, r) =&gt; s + r.amount, 0);
+    // `|| 1` guards the empty case: filter everything out and this would
+    // otherwise be 0/0 = NaN, which renders as literal "NaN" on the card.
     return {{ '{' }} total, count: rows.length, avg: Math.round(total / (rows.length || 1)) {{ '}' }};
   {{ '}' }});
 
+  // ---- The only writers. Components call these; they never touch signals. ----
   setCatFilter(v: string)    {{ '{' }} this._catFilter.set(v as any); {{ '}' }}
   setRegionFilter(v: string) {{ '{' }} this._regionFilter.set(v as any); {{ '}' }}
   setSort(key: SortKey) {{ '{' }}
+    // Clicking the column you are ALREADY sorted by flips the direction...
     if (this._sortKey() === key)
       this._sortDir.update(d =&gt; d === 'asc' ? 'desc' : 'asc');
+    // ...clicking a different one switches column and resets to descending,
+    // because "show me the biggest" is what people mean on a first click.
     else {{ '{' }} this._sortKey.set(key); this._sortDir.set('desc'); {{ '}' }}
   {{ '}' }}
 {{ '}' }}</pre>
   </div>
+
+  <p>Drawn out, the line looks like this — and the shape of it is what the next two sections are about:</p>
+  <app-flow
+    [steps]="pipeline"
+    caption="One writable signal at the top. Everything below it is derived, so nothing can fall out of step with anything else."
+  />
+
+  <app-quiz
+    question="You click a column header to change the sort. The store derives `filtered`, `sorted`, `totalPages`, `paginatedRows` and `summary`. Which of them actually re-run?"
+    [options]="chainOptions"
+    followUp="Dependencies are tracked per signal read, not per file. A selector is only invalidated by the signals it genuinely touched on its last run."
+  />
 
   <h2>Step 3 — Loading real data with resource()</h2>
   <div class="code">
@@ -108,29 +172,50 @@ export class SalesStore {{ '{' }}
 
   // rxResource fetches once on init, exposes isLoading/error/value signals:
   private salesResource = rxResource({{ '{' }}
+    // The loader runs automatically — there is no ngOnInit and no subscribe.
+    // rxResource subscribes for you and unsubscribes when the store is torn
+    // down, which is the whole reason to prefer it over a manual subscription.
     loader: () =&gt; this.http.get&lt;SaleRecord[]&gt;('/api/sales'),
   {{ '}' }});
 
+  // Re-export the resource's own signals under friendlier names. Components
+  // then depend on SalesStore, not on the fact that it uses rxResource — swap
+  // the implementation later and no template changes.
   readonly isLoading = this.salesResource.isLoading;
   readonly error     = this.salesResource.error;
 
   readonly filtered = computed(() =&gt; {{ '{' }}
+    // value() is `SaleRecord[] | undefined` — undefined during the first
+    // load. `?? []` means every downstream computed can assume an array and
+    // the table renders empty instead of crashing on .filter of undefined.
     const data = this.salesResource.value() ?? [];
     // ... same filter/sort logic
   {{ '}' }});
 {{ '}' }}
 
-// In template:
+// In template — all three states, in one chain, with no boolean flags:
 &#64;if (store.isLoading()) {{ '{' }}
+  &lt;!-- A skeleton, not a spinner: it reserves the layout so the page does not
+       jump when the rows land. --&gt;
   &lt;div class="loading-skeleton"&gt;Loading...&lt;/div&gt;
 {{ '}' }} &#64;else if (store.error()) {{ '{' }}
+  &lt;!-- Always give the user a way out. An error message with no retry button
+       forces a full page reload for what is often a transient blip. --&gt;
   &lt;div class="error"&gt;Failed to load data. &lt;button (click)="store.reload()"&gt;Retry&lt;/button&gt;&lt;/div&gt;
 {{ '}' }} &#64;else {{ '{' }}
-  &lt;!-- render the table --&gt;
+  &lt;!-- Only reached when loading finished AND nothing failed, so the table
+       below can read the data without any further guards. --&gt;
 {{ '}' }}</pre>
   </div>
 
   <h2>Step 4 — Performance: computed() vs. template methods</h2>
+
+  <app-predict
+    prompt="A formatting method is called straight from the table's markup. You type one character into an unrelated filter box. How many times does it run?"
+    [code]="templateCallSample"
+    answer="At least 50, and quite possibly several hundred. Angular has no way to know whether `formatCurrency(record.amount)` would return something different this time — the only way to find out is to call it. So it calls it, for every row, on every change-detection pass, and typing produces a pass per keystroke. The amounts did not change. The work is pure waste, and it scales with your row count exactly when you can least afford it: during interaction."
+  />
+
   <div class="step-callout">
     <h4>Never compute in the template — always use computed()</h4>
     A method call in the template runs on every CD pass. computed() runs only when its signal dependencies change. For a
@@ -284,7 +369,9 @@ export class CurrencyPipe implements PipeTransform {{ '{' }}
     }
   </div>
 
-  <h2>What you practiced</h2>
+  <app-faq [items]="questions" />
+
+  <h2>Recap — what you practiced</h2>
   <ul>
     <li>
       <strong>Signal store with filter/sort/page state</strong> — all UI state as signals, derived data as computed()

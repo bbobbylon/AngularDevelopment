@@ -8,6 +8,26 @@
     object → every derived union, check and autocomplete updates itself. Nothing drifts, ever.
   </p>
 
+  <h2>The mental model: formulas, not typed-in numbers</h2>
+  <p>
+    Think about a spreadsheet. You can type <code>47</code> into a cell, or you can type <code>=SUM(A1:A10)</code>. Both
+    show 47 today. Only one of them is still right after somebody edits row 6. Writing a type by hand is typing in the
+    number; <code>typeof</code>, <code>keyof</code> and <code>T[K]</code> are the formula bar.
+  </p>
+  <p>
+    The analogy keeps paying off. <code>as const</code> is telling the spreadsheet to keep the exact value rather than
+    rounding it — without it the literals widen and your formula returns <code>string</code>, which is the "any number
+    at all" of types. And erasure is the printout: formulas live in the file, but the page that comes out of the printer
+    has only values on it. Your bundle is the printout, which is why none of this costs a byte and also why none of it
+    can check data arriving at runtime.
+  </p>
+
+  <app-remember>
+    <strong><code>typeof</code> lifts, <code>keyof</code> lists, <code>[K]</code> looks up.</strong> Lift a value into a
+    type, list that type's keys, look up what is stored at one. Chain all three and you have read most of the generic
+    TypeScript you will ever meet.
+  </app-remember>
+
   <h2>typeof — lift a value into a type</h2>
   <div class="code">
     <pre>
@@ -107,6 +127,49 @@ type Role = (typeof roles)[number];   // 'admin' | 'editor' | 'viewer'
     </p>
   </div>
 
+  <h2>The three operators, side by side</h2>
+  <div class="ops-wrap">
+    <table class="ops">
+      <thead>
+        <tr>
+          <th>Operator</th>
+          <th>Takes</th>
+          <th>Gives</th>
+          <th>You will write</th>
+          <th>The usual trap</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (o of operators; track o.op) {
+          <tr>
+            <td>
+              <code>{{ o.op }}</code>
+            </td>
+            <td>{{ o.takes }}</td>
+            <td>{{ o.gives }}</td>
+            <td>
+              <code>{{ o.use }}</code>
+            </td>
+            <td>{{ o.trap }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The column that matters is <em>Takes</em>. <code>typeof</code> is the only one that reaches into the value world;
+    the other two operate purely on types. Get that straight and <code>keyof THEME</code> stops being a puzzle — it is
+    an error, because <code>THEME</code> is a value and <code>keyof</code> wanted a type. You needed
+    <code>keyof typeof THEME</code>, and now you know why the two words always appear together.
+  </p>
+
+  <h2>The chain, link by link</h2>
+
+  <app-flow
+    [steps]="chain"
+    caption="`(typeof ROUTES)[keyof typeof ROUTES]` looks impenetrable until you see it as these steps written on one line. Read it inside-out, like a formula."
+  />
+
   <h2>Build the classic type-safe getter, piece by piece</h2>
   <div class="code">
     <pre>
@@ -160,6 +223,24 @@ const key  = signal&lt;ThemeKey&gt;('primary');        // can ONLY hold real key
     </p>
   </div>
 
+  <h2>Two characters missing — does it still compile?</h2>
+  <p>
+    This is the same <code>T[number]</code> trick you just used, with one difference from the version above. Decide
+    whether the last line is an error before you open it.
+  </p>
+
+  <app-predict
+    prompt="`'emperor'` is obviously not a role. Is that a compile error?"
+    [code]="widenSample"
+    answer="It compiles happily, and that is the most expensive thing on this page. Without `as const`, TypeScript infers `roles` as `string[]` — the array is mutable, so the literals widen to their base type. `(typeof roles)[number]` then dutifully gives you `string`, and `Role` is just an alias for `string`, so every string on earth is a valid role. Nothing is wrong with any single step; the derivation worked perfectly on a type that had already lost its precision. This is the failure mode to fear with derived types generally: they do not break loudly, they quietly derive from something wider than you meant. Add `as const` and the same line becomes `'admin' | 'editor' | 'viewer'`, and `setRole('emperor')` finally fails. A quick way to check without changing anything: hover the type in your editor. If a derived union shows as `string`, the `as const` is missing somewhere upstream."
+  />
+
+  <app-quiz
+    question="Now the other direction. `const config = { retries: 3, url: '/api' } as const;` and `function update<K extends keyof typeof config>(key: K, value: (typeof config)[K]) {}`. Does `update('retries', 5)` compile?"
+    [options]="literalOptions"
+    followUp="Put the two together and you have the real rule: `as const` is right for tables you only read from, and wrong for objects you intend to write to. Deriving types is not free of judgement — you are choosing how much precision to keep."
+  />
+
   <h2>The pattern in the wild: const object instead of enum</h2>
   <div class="code">
     <pre>
@@ -212,50 +293,7 @@ function go(to: RouteKey) {{ '{' }} router.navigateByUrl(ROUTES[to]); {{ '}' }}<
     </li>
   </ul>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Why does <code>Object.keys(obj)</code> return <code>string[]</code> instead of <code>(keyof T)[]</code>?
-    </summary>
-    <div>
-      Structural typing: a value of type T may have <em>extra</em> properties beyond T (remember: extra members are
-      compatible via variables). So the honest static answer to "what keys might be there at runtime" is
-      <code>string[]</code>. When you control the object (a local const), the
-      <code>as (keyof typeof obj)[]</code> assertion is a reasonable, documented exception.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Derive the type of one item of <code>const rows = fetchRows()</code> where fetchRows returns <code>Row[]</code> —
-      without importing Row.
-    </summary>
-    <div>
-      <code>type OneRow = ReturnType&lt;typeof fetchRows&gt;[number]</code> — typeof lifts the function, ReturnType
-      extracts <code>Row[]</code>, and <code>[number]</code> indexes to the element. Chaining these operators to avoid
-      re-declaring shapes is exactly what they're for.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What's the difference between <code>keyof T</code> and <code>T[keyof T]</code>?</summary>
-    <div>
-      <code>keyof T</code> = union of the key <em>names</em> (<code>'id' | 'name'</code>); <code>T[keyof T]</code> =
-      union of the value <em>types</em> (index T by all its keys at once → <code>number | string</code>). Keys vs values
-      — the brackets do the hop.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      The getter compiles, but <code>prop(user, someString)</code> errors when <code>someString: string</code>. Why, and
-      what's the fix?
-    </summary>
-    <div>
-      <code>string</code> is wider than <code>keyof User</code> — the compiler can't prove an arbitrary string is a real
-      key. Fix at the source: type the variable as <code>keyof User</code>, or narrow it first (<code
-        >if (someString in user)</code
-      >
-      narrows in modern TS). The error is the feature: it's exactly how typo'd keys are kept out.
-    </div>
-  </details>
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

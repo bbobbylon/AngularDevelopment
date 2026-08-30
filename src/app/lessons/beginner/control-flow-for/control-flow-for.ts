@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 
 /**
  * A to-do item for the `@for` demo.
@@ -26,11 +27,88 @@ interface Task {
  */
 @Component({
   selector: 'app-lesson-control-flow-for',
-  imports: [RouterLink],
+  imports: [RouterLink, Compare, Faq, Flow, Predict, Quiz, Remember],
   templateUrl: './control-flow-for.html',
   styleUrl: './control-flow-for.css',
 })
 export class ControlFlowFor {
+  /**
+   * What one update to the bound collection actually costs. Spelled out because
+   * "Angular re-renders the list" is the wrong mental model and it is the one
+   * everyone arrives with — the whole point of `track` is that almost nothing is
+   * re-rendered.
+   */
+  protected readonly diff = [
+    { label: 'Collection changes', detail: 'A new array reference reaches the `@for` block' },
+    {
+      label: 'Compute track keys',
+      detail: 'Your `track` expression runs once per item, in order',
+      tone: 'accent' as const,
+    },
+    { label: 'Match against last pass', detail: 'Same key = same row. This is the whole trick' },
+    { label: 'Move, create, destroy', detail: 'Only rows whose keys changed are touched' },
+    {
+      label: 'Refresh the context',
+      detail: '`$index`, `$first`, `$last`, `$count` recomputed for every surviving row',
+      tone: 'good' as const,
+    },
+  ];
+
+  /** The prepend-with-$index trap, posed before the letters demo explains it. */
+  protected readonly prependSample = `@for (row of rows(); track $index) {
+  <input [placeholder]="row.name" />
+}
+
+// rows() is [Ada, Grace, Linus].
+// The user types "hello" into Ada's input.
+// Then a new row, Zoe, is prepended:
+// rows() becomes [Zoe, Ada, Grace, Linus].`;
+
+  /** Choices for the duplicate-key check. */
+  protected readonly duplicateOptions = [
+    {
+      text: 'The duplicates are silently de-duplicated — you see one row per unique key',
+      why: 'Angular never drops your data. It has no basis to decide which of two identically-keyed items is the "real" one, so discarding either would be a worse failure than complaining.',
+    },
+    {
+      text: 'It renders fine — `track` keys only have to be unique per render',
+      why: 'They have to be unique *within* a render, and that is exactly what has been violated here. Two rows claiming the same key in the same pass is the problem.',
+    },
+    {
+      text: 'A runtime error naming the duplicated key',
+      correct: true,
+      why: 'The keyed diff is a lookup from key to row. Two rows with the same key make that lookup ambiguous — Angular cannot tell which DOM node belongs to which item on the next pass — so it throws instead of guessing. The message names the offending key, which is usually enough to spot the bug. If the values genuinely can repeat and no id exists, `track $index` is the honest fallback.',
+    },
+    {
+      text: 'A compile-time error — the template will not build',
+      why: 'The compiler enforces that `track` is *present*, because that is checkable from the source. Whether the values it produces collide depends on runtime data, so it can only be caught when the list is actually rendered.',
+    },
+  ];
+
+  /** The doubts this lesson reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'Why is `track` mandatory when `trackBy` was optional?',
+      a: 'Because optional was the bug. `*ngFor` without `trackBy` fell back to tracking by object identity, which broke the moment anyone mapped or spread the array — the list looked correct and quietly rebuilt every row on every update. Nothing warned you. Making `track` part of the `@for` grammar converts a silent performance-and-state bug into a compile error you cannot ship past.',
+    },
+    {
+      q: 'Is `track $index` always wrong?',
+      a: 'No — it is wrong for lists that reorder, filter in the middle, or insert anywhere but the end. For a list that only ever grows at the end, or a static list of options, `$index` is a perfectly stable key and costs nothing. It is also the honest answer for primitive arrays that can contain duplicates, where no unique key exists to track.',
+    },
+    {
+      q: 'Can I use `track item` on an array of objects?',
+      a: 'You can, and it works as long as the objects are the *same references* between renders. The trouble is that idiomatic signal code rarely keeps them: `map`, spread and immutable updates all produce new objects, so every row looks new and the entire list is rebuilt. That is the exact failure `trackBy` used to hide. Track a stable id whenever your data has one.',
+    },
+    {
+      q: 'Does `@empty` run when my collection is `null`?',
+      a: 'No — it throws. `@empty` is a sibling branch that renders when the iterable has length 0, not a null-guard. A `null` or `undefined` collection gives `@for` nothing to iterate and errors out. Default to `[]` at the source, or wrap the whole block in an `@if`.',
+    },
+    {
+      q: 'Why do nested loops need different `let` aliases?',
+      a: 'Because the inner block\'s aliases shadow the outer ones by ordinary scoping rules. Write `let i = $index` at both levels and the inner `i` wins everywhere inside it, so your "row number" silently becomes the cell number. Name them for what they are — `let r = $index` outside, `let c = $index` inside — and the bug cannot happen.',
+    },
+  ];
+
   /**
    * Id source for new tasks. A counter rather than array length, so ids stay
    * unique after a removal.

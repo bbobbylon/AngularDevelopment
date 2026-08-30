@@ -1,3 +1,16 @@
+.triggers {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.triggers th,
+.triggers td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
 .qa {
   border: 1px solid var(--border);
   border-radius: 10px;

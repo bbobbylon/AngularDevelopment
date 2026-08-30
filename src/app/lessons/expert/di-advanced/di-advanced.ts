@@ -121,7 +121,14 @@ export const API_URL = new InjectionToken<string>('API_URL', {
   selector: 'app-rating',
   providers: [{
     provide: NG_VALUE_ACCESSOR,
+    // THE CIRCULARITY: this decorator runs while the class below is still
+    // being defined, so naming RatingControl directly here throws
+    // "Cannot access 'RatingControl' before initialization".
+    // forwardRef wraps it in an arrow that Angular calls LATER, once the
+    // class exists. The arrow is the delay; that is all forwardRef is.
     useExisting: forwardRef(() => RatingControl),  // class not defined yet
+    // useExisting, not useClass — resolve to the component instance Angular
+    // already created, not a second, disconnected copy of it.
     multi: true,
   }],
 })

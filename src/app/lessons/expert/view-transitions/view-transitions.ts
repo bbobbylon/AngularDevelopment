@@ -147,16 +147,28 @@ export const appConfig: ApplicationConfig = {
    * Sample: the keyframes this app animates with.
    */
   readonly cssSample = `/* ── the animation used in this app ── */
+/* The incoming page: starts slightly low and transparent, settles into place. */
 @keyframes vt-fade-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
 }
+/* The outgoing page leaves UPWARD while the new one arrives from below —
+   opposite directions, so the eye reads it as one continuous movement. */
 @keyframes vt-fade-out {
   from { opacity: 1; transform: none; }
   to   { opacity: 0; transform: translateY(-4px); }
 }
 
+/* These pseudo-elements do not exist in your markup — the browser creates
+   them for the duration of the transition and throws them away after. You
+   cannot inspect them in DevTools unless you pause the animation. */
+/* (root) is the default view-transition-name that covers the whole page. */
+/* 'both' = fill both directions, so the element holds its first keyframe
+   before the animation starts and its last one after it ends. Without it you
+   get a one-frame flash of the un-animated state at each end. */
 ::view-transition-new(root) { animation: vt-fade-in 0.22s ease both; }
+/* Note the out is FASTER than the in (0.18s vs 0.22s). Overlapping them
+   this way avoids a visible gap where neither page is fully present. */
 ::view-transition-old(root) { animation: vt-fade-out 0.18s ease both; }`;
 
   /**
@@ -167,10 +179,21 @@ export const appConfig: ApplicationConfig = {
 .card-thumbnail { view-transition-name: hero-image; }
 
 /* detail page */
+/* SAME NAME, different element, different page. That is the entire trick:
+   the browser pairs the two by name and animates position, size and shape
+   between them — so the thumbnail appears to grow into the hero image. */
 .detail-hero    { view-transition-name: hero-image; }
 
 /* keep the sticky nav from cross-fading with the page: pair it with itself */
-.site-header    { view-transition-name: header; }`;
+/* Anything WITHOUT a name is lumped into (root) and cross-fades as one
+   bitmap — including your fixed header, which then flickers. Giving it its
+   own name pairs it with itself across the navigation, so it sits still. */
+.site-header    { view-transition-name: header; }
+
+/* THE RULE THAT BITES: a view-transition-name must be UNIQUE on the page at
+   the moment of the transition. Put this class on ten cards in a list and
+   the browser throws and skips the animation entirely. Apply it to the one
+   card being clicked — usually via a dynamic [style.view-transition-name]. */`;
 
   /**
    * Sample: `onViewTransitionCreated`, for skipping the animation on navigations
@@ -195,6 +218,13 @@ export const appConfig: ApplicationConfig = {
   readonly reducedMotionSample = `@media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root),
   ::view-transition-new(root) {
+    /* 0.01ms rather than 'animation: none'. Setting none would cancel the
+       animation, and the transition machinery relies on an animation
+       FINISHING to tear its pseudo-elements down — cancel it and you can
+       strand the overlay on screen. An imperceptibly short duration still
+       fires the finish event, so everything cleans up normally. */
+    /* !important because these pseudo-element rules often live in a global
+       stylesheet that would otherwise win on specificity. */
     animation-duration: 0.01ms !important;
   }
 }`;

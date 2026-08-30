@@ -63,9 +63,16 @@ export class ControlFlowSwitch {
   /**
    * Sample: `@switch` with `@case` arms and a `@default`.
    */
-  protected readonly basicSample = `@switch (status()) {
+  protected readonly basicSample = `<!-- The expression is evaluated ONCE, then compared against each @case. -->
+@switch (status()) {
+  <!-- Comparison is strict === . No type coercion, so @case (1) will never
+       match the string '1' — a common source of a silently empty screen. -->
   @case ('loading') { <app-spinner /> }
   @case ('success') { <app-results /> }
+  <!-- No "break" needed: unlike JavaScript's switch, exactly one arm runs
+       and there is no fall-through to worry about. -->
+  <!-- @default is optional, but omitting it means an unmatched value
+       renders NOTHING at all — usually not what you want. -->
   @default          { <app-error />   }
 }`;
 

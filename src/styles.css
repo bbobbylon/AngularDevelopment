@@ -4,40 +4,90 @@
    lesson file can focus on demonstrating its concept.
    ============================================================ */
 
+/* ============================================================
+   COLOUR LEGEND — every hue has exactly one job.
+   ------------------------------------------------------------
+   The failure this replaces: indigo was simultaneously the
+   button colour, the link colour AND the inline-code tint, so
+   an indigo word in a paragraph carried no information — the
+   reader could not tell "click me" from "this is a symbol".
+   A colour that means three things means nothing.
+
+     indigo  (--accent)  interactive. Buttons, focus, controls.
+                         If it is indigo and solid, you can press it.
+     blue    (--blue)    links, and only links.
+     violet  (--violet)  NEW VOCABULARY (.term). The first time a
+                         word is used as a technical term.
+     amber   (--amber)   remember this (.key highlighter, .warn).
+     green   (--green)   correct / live / the right way (.good).
+     red     (--red)     wrong / broken / the trap (.bad).
+     neutral             inline code. Code is not a colour role;
+                         it is a typeface change with a tint.
+
+   Adding a hue means adding a job. If a new element needs
+   colour, ask which of these six it IS before inventing one.
+   ============================================================ */
 :root {
   /* ── Modern neutral (zinc) + indigo/violet palette ── */
-  --bg: #fafafa;
-  --bg-elevated: #f1f1f3;
-  --bg-card: #ffffff;
+
+  /* ---- Contrast tiers ----
+     Three deliberate steps, darkest surface to lightest, so depth
+     is readable without reading:
+       tier 1  --bg          the page. Never holds content directly.
+       tier 2  --bg-card     cards/demos float ABOVE the page.
+       tier 3  --code-bg     code sinks BELOW into a terminal.
+     The page tone is pulled off pure white on purpose: against
+     #fafafa a white card is invisible, and every demo box on the
+     site then reads as one undifferentiated column. */
+  --bg: #f1f1f4; /* tier 1 — page, the darkest light-mode surface */
+  --bg-elevated: #e7e7ec; /* inputs, wells: recessed within a card */
+  --bg-card: #ffffff; /* tier 2 — lifted, and clearly so */
   --surface: #ffffff;
-  --border: #e4e4e7;
+  --border: #dedee4;
   --text: #18181b;
-  --text-muted: #6b6b76;
-  --accent: #6366f1; /* indigo */
-  --accent-2: #8b5cf6; /* violet */
-  --violet: #7c3aed;
-  --green: #10b981;
-  --amber: #f59e0b;
+  --text-muted: #63636e;
+  --accent: #6366f1; /* indigo — INTERACTIVE ONLY */
+  --accent-2: #8b5cf6; /* violet, lighter step */
+  --violet: #7c3aed; /* new vocabulary */
+  --green: #10b981; /* correct / live */
+  --amber: #d97706; /* remember / warning (darkened for contrast on white) */
+  --red: #dc2626; /* wrong / the trap */
   --blue: #4f46e5; /* link color — deep indigo */
-  --code-bg: #1e1e2e; /* dark panel — keeps code readable */
+  --code-bg: #0d1117; /* near-black terminal tier — deliberately NOT --bg-card.
+                              A code block is a terminal, not another card; giving
+                              it its own tone is what lets the eye separate
+                              "container" from "content" without reading. */
   --code-fg: #d4d4e4; /* fixed light text for the dark code panel — NEVER inherit
                               --text here: in light mode that is near-black on near-black */
   --radius: 12px;
   --shadow: 0 4px 20px rgba(24, 24, 27, 0.08);
+  /* Comfortable measure for sustained reading. Prose is capped to this even
+     inside a full-width card: past ~75 characters the eye loses its place on
+     the return sweep, which is what makes an edge-to-edge paragraph feel like
+     a wall regardless of how well it is written. */
+  --measure: 68ch;
   color-scheme: light;
 }
 
 /* ---- Dark mode (toggled via data-theme="dark" on <html>) ---- */
 [data-theme="dark"] {
-  --bg: #0b0b0f;
-  --bg-elevated: #17171c;
-  --bg-card: #141419;
-  --surface: #141419;
-  --border: #27272e;
+  /* Same three tiers, inverted: the page is the darkest thing on
+     screen, cards lift out of it, and the code panel sits between
+     them — near-black but never darker than the page, or a code
+     block would look like a hole punched through the card. */
+  --bg: #08080b; /* tier 1 — page */
+  --bg-elevated: #1c1c23; /* recessed controls inside a card */
+  --bg-card: #17171f; /* tier 2 — lifted */
+  --surface: #17171f;
+  --border: #2c2c36;
   --text: #f4f4f5;
-  --text-muted: #9d9dab;
+  --text-muted: #a1a1b0;
   --accent: #818cf8;
   --accent-2: #a78bfa;
+  --violet: #c4b5fd;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --red: #fb7185;
   --blue: #a5b4fc;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
@@ -129,30 +179,149 @@ pre {
   line-height: 1.15;
 }
 
+/* Vertical rhythm: every heading gets markedly more space above than below, so
+   it visually attaches to the section it introduces instead of floating equally
+   between two. This is most of what turns a continuous page into a scannable
+   one — without it, headings, paragraphs and code all sit on the same beat and
+   nothing chunks. */
 .lesson h2 {
   font-size: 1.25rem;
-  margin: 36px 0 12px;
+  margin: 52px 0 14px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
 
 .lesson h3 {
   font-size: 1.02rem;
-  margin: 24px 0 8px;
+  margin: 34px 0 8px;
 }
 
 .lesson p {
   color: var(--text);
+  max-width: var(--measure);
 }
 
 .lesson ul,
 .lesson ol {
   color: var(--text);
+  max-width: var(--measure);
+}
+
+/* Opt-out for the cases that genuinely want the full column — a paragraph
+   introducing a wide table or a full-bleed diagram. */
+.lesson .full-width,
+.lesson p.full-width {
+  max-width: none;
 }
 
 .lead {
   font-size: 1.1rem;
   color: var(--text-muted);
+  max-width: var(--measure);
+}
+
+/* ---- Inline code in prose ----
+   Restrained on purpose. Inline code is frequent in this curriculum, and a
+   bordered, brightly-filled chip every few words turns a paragraph into an
+   obstacle course — the eye trips on the decoration instead of reading. A tint
+   and a colour shift are enough to say "this is a symbol". Anything longer than
+   a short identifier belongs in its own block, not mid-sentence.
+
+   NEUTRAL on purpose (see the colour legend at the top). It used to be tinted
+   with the accent, which made every identifier in a paragraph look like a link
+   or a button. The monospace face is already an unmistakable signal; it does
+   not need a hue as well, and spending one here would cost the hue everywhere
+   else. */
+.lesson :not(pre) > code {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+/* ============================================================
+   PROSE EMPHASIS — colour as a retention device
+   ------------------------------------------------------------
+   A page of uniformly-coloured text gives the eye nothing to
+   grab, so nothing survives the scroll. These four classes exist
+   so that a reader who only *skims* a lesson still leaves with
+   the vocabulary, the rule, and the trap.
+
+   Each maps to exactly one hue from the legend at the top of
+   this file, and each has a rule about when to use it. The rules
+   matter more than the colours: three highlighted phrases on a
+   screen is emphasis, fifteen is wallpaper.
+
+     <span class="term">structural directive</span>
+        Violet. The FIRST time a term is used as a term. Once per
+        term per lesson — the second use is just a word.
+
+     <span class="key">re-runs on every CD pass</span>
+        Amber highlighter. The one phrase in a section you would
+        want on the exam. Budget: about one per <h2>.
+
+     <span class="right">returns a new array</span>
+     <span class="wrong">mutates in place</span>
+        Green / red. Reserved for right-way vs wrong-way pairs.
+        They are strongest side by side in the same sentence,
+        which is exactly the comparison that sticks.
+
+   None of these are decoration. If removing the class would not
+   change what a skimmer takes away, it should not be there.
+
+   Named `right`/`wrong` and not `good`/`bad` deliberately: 97
+   places in the curriculum already use `.good`/`.bad` on table
+   cells and demo panels with their own component styles, and a
+   global rule of the same name would out-specify them and stamp
+   ✓/✗ into all of them. New global utilities need names nothing
+   else has claimed — check before adding one.
+   ============================================================ */
+
+/* Violet, semibold: a word being introduced AS vocabulary. */
+.lesson .term {
+  color: var(--violet);
+  font-weight: 650;
+}
+
+/* Amber highlighter. Painted as a background gradient covering the
+   bottom ~48% of the line box, so it reads like a marker stroke
+   rather than a filled chip — the text keeps sitting on the page
+   instead of being boxed off it. Also survives line wrapping,
+   which a border-based treatment does not. */
+.lesson .key {
+  background-image: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--amber) 30%, transparent) 48%,
+    transparent 48%
+  );
+  font-weight: 600;
+  padding: 0 0.12em;
+}
+
+.lesson .good,
+.lesson .bad {
+  font-weight: 600;
+}
+.lesson .good {
+  color: var(--green);
+}
+.lesson .bad {
+  color: var(--red);
+}
+
+/* The ✓ / ✗ marks are decorative duplicates of the colour, which is
+   the point: colour alone is never allowed to carry meaning, or the
+   ~8% of readers with a red/green deficiency lose the distinction
+   entirely. `aria-hidden` equivalent — generated content is not
+   announced by screen readers, and the surrounding prose already
+   says which is which. */
+.lesson .good::before {
+  content: "✓ ";
+}
+.lesson .bad::before {
+  content: "✗ ";
 }
 
 /* Live demo box */
@@ -203,25 +372,58 @@ pre {
   white-space: pre;
 }
 
-/* Syntax highlight token colours — applied by the global highlighter in app.ts */
+/* ---- Syntax highlight token colours ----
+   Applied by the global sweep in app.ts and by the Predict component. The goal
+   is an editor, not a diff: nine distinct token roles, with weight and italics
+   carrying meaning the way a real IDE uses them. A snippet where only keywords
+   and strings differ still reads as a grey wall, which is the failure this
+   palette exists to fix. Deliberately fixed (not themed) — the code panel is a
+   terminal in both light and dark mode. */
 .hl-kw {
   color: #c792ea;
+  font-style: italic; /* IntelliJ/Darcula italicises keywords — cheap, strong signal */
 }
 .hl-str {
   color: #c3e88d;
 }
 .hl-cmt {
-  color: #546e7a;
+  color: #6b7a8f;
   font-style: italic;
 }
 .hl-num {
   color: #f78c6c;
 }
 .hl-dec {
-  color: #82aaff;
+  color: #ffcb6b;
+  font-weight: 600;
 }
+/* A free function call — the thing being *done*, so it carries weight. */
 .hl-fn {
   color: #82aaff;
+  font-weight: 600;
+}
+/* A method call on something (`user.save()`) — same family, unbolded. */
+.hl-method {
+  color: #82aaff;
+}
+/* A property read (`user.name`) — quieter still. */
+.hl-prop {
+  color: #b2ccd6;
+}
+/* Classes, interfaces, enums, type names. */
+.hl-type {
+  color: #ffcb6b;
+}
+/* console, Math, signal(), inject() … resolved globals. */
+.hl-builtin {
+  color: #89ddff;
+}
+.hl-op {
+  color: #89ddff;
+}
+/* Braces, semicolons, commas — dimmed so structure recedes and names pop. */
+.hl-punct {
+  color: #8792a8;
 }
 
 /* Callouts */
@@ -265,7 +467,66 @@ button:hover {
 }
 
 button:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.985);
+}
+
+/* ---- Press feedback ----
+   A bloom that blossoms from the centre of the control on press and fades on
+   release. Deliberately CSS-only and pseudo-element based: it is painted in an
+   absolutely-positioned layer clipped to the button's own box, so it can never
+   change layout. An earlier attempt at this elsewhere injected a sized element
+   into the button, which joined the flow and shoved neighbouring buttons aside
+   to make room — the effect must be invisible to layout, always.
+
+   `inset: 0` + `border-radius: inherit` means it takes the button's exact
+   shape, so it can never look like a mismatched blob on a wide, short control. */
+button {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.45), transparent 62%);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+button:active::after {
+  opacity: 1;
+  transform: scale(1);
+  /* Instant on the way in, slow on the way out — that asymmetry is what makes
+     a press feel responsive rather than laggy. */
+  transition: none;
+}
+
+/* Ghost buttons sit on the page background, so a white bloom is invisible;
+   tint theirs with the accent instead. */
+button.ghost::after {
+  background: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--accent) 38%, transparent),
+    transparent 62%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  button::after {
+    transition: none;
+  }
+  button:active {
+    transform: none;
+  }
 }
 
 button.ghost {

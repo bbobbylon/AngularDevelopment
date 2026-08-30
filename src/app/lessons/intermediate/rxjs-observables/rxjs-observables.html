@@ -86,14 +86,28 @@ sub.unsubscribe();   // stop early — you stop receiving values</pre>
   <h2>Creating an Observable</h2>
   <div class="code">
     <pre>
+// The $ suffix is a convention meaning "this is a stream". Not required,
+// but every RxJS codebase you meet will use it.
+// This function body does NOT run now. It runs once per SUBSCRIBER — which
+// is exactly what makes an Observable cold.
 const obs$ = new Observable&lt;number&gt;(subscriber =&gt; {{ '{' }}
+  // next() pushes a value. Call it as many times as you like, whenever you
+  // like — synchronously here, but it could be inside a setTimeout or a
+  // WebSocket handler.
   subscriber.next(1);
   subscriber.next(2);
   subscriber.next(3);
+  // complete() ends the stream. Any next() after this is IGNORED, and the
+  // teardown below runs immediately.
   subscriber.complete();
   // optional teardown — runs on complete/error/unsubscribe:
+  // This is the Observable contract's cleanup slot: clear a timer, close a
+  // socket, remove a listener. Whatever you opened when the subscriber
+  // arrived, close it here. Skipping it is how RxJS memory leaks happen.
   return () =&gt; console.log('cleaning up');
-{{ '}' }});</pre>
+{{ '}' }});
+// Nothing above has executed yet. Until something calls obs$.subscribe(),
+// this is just a recipe sitting in a variable.</pre>
   </div>
   <p>You rarely build one by hand though — RxJS ships creation helpers for the common cases:</p>
   <div class="code">

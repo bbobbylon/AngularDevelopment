@@ -7,6 +7,24 @@
     subscribing, effect cleanup, and custom equality.
   </p>
 
+  <h2>The mental model: back to the spreadsheet</h2>
+  <p>
+    <a routerLink="/signals">Signals Basics</a> introduced the spreadsheet: a <code>signal</code> is a cell with a value
+    in it, a <code>computed</code> is a cell with a formula, and an <code>effect</code> is a cell that
+    <em>does something</em> when its inputs change.
+  </p>
+  <p>
+    <code>linkedSignal</code> is the one the spreadsheet analogy explains best. It's a formula cell
+    <strong>you are allowed to type over</strong>. Enter something by hand and it keeps your value — until one of the
+    formula's inputs changes, at which point the formula wins again and your entry is gone. That is not a bug in the
+    metaphor; it is precisely the behaviour, and it is why "selected item" state is the canonical use.
+  </p>
+
+  <app-remember>
+    <code>computed</code> is a formula. <code>linkedSignal</code> is a formula <strong>you can type over</strong>. If
+    you're writing an <code>effect</code> whose whole body copies one signal into another, you wanted one of those two.
+  </app-remember>
+
   <h2>Which derivation tool?</h2>
   <div class="code">
     <pre>
@@ -52,6 +70,12 @@ selected = linkedSignal(() =&gt; this.options()[0]);</pre>
     </p>
   </div>
 
+  <app-quiz
+    question="With `selected = linkedSignal(() => this.options()[0])`, the user picks 'Blue'. The list then reloads — and the new list still contains 'Blue'. What is `selected()` now?"
+    [options]="linkedOptions"
+    followUp="If you want the selection to survive when it is still valid, you need the `source` / `computation` form further down this page — it is the only one that gets handed the previous value."
+  />
+
   <h2>untracked — read without depending</h2>
   <p>
     Inside a <code>computed</code>/<code>effect</code>, reading a signal subscribes to it. Wrap a read in
@@ -63,8 +87,14 @@ selected = linkedSignal(() =&gt; this.options()[0]);</pre>
 // recomputes when a() changes — but NOT when b():
 sum = computed(() =&gt; this.a() + untracked(this.b));</pre>
   </div>
+  <app-predict
+    prompt="`sum` reads both `a` and `b`, but `b` through `untracked`. You change `b`. What does `sum()` return?"
+    [code]="untrackedSample"
+    answer="Still 101. `untracked` reads the value without recording a dependency, so changing `b` marks nothing dirty and `sum` keeps handing back its cached answer — a number that is now visibly wrong. Worse, it stays wrong until something *else* invalidates it: bump `a` by one and `sum` leaps from 101 to 502, picking up both changes at once. That delayed jump is the signature of an untracked read, and it is why this is a tool for deliberate exclusions rather than a habit."
+  />
+
   <div class="demo">
-    <p class="demo__title">Live</p>
+    <p class="demo__title">Live — try it: b++ several times, then a++ once</p>
     <p class="row">
       <span class="pill">a = {{ a() }}</span>
       <span class="pill">b = {{ b() }}</span>
@@ -116,6 +146,15 @@ selected = linkedSignal({{ '{' }}
     <code>if</code> branch that isn't taken this run creates no edge, and <code>untracked()</code> deliberately skips
     recording one.
   </p>
+  <p>
+    Six steps run between a write and the screen. The fifth is the one that is easy to forget and that explains a whole
+    class of "why didn't this update?" — and its mirror image, "why did <em>everything</em> update?":
+  </p>
+  <app-flow
+    [steps]="propagation"
+    caption="Equality is checked after recomputing, not before. A cheap `equal` function can stop an expensive ripple dead."
+  />
+
   <ul>
     <li>
       <strong>Pull, not push.</strong> Writing a signal doesn't eagerly recompute anything — it just bumps a version
@@ -160,6 +199,8 @@ selected = linkedSignal({{ '{' }}
       <td>Default equality is by reference; pass a fresh value (or a custom <code>equal</code>) so readers update.</td>
     </tr>
   </table>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

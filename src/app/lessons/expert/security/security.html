@@ -219,13 +219,20 @@ export const appConfig: ApplicationConfig = {{ '{' }}
     <div class="code">
       <pre>
 // Functional route guard — no class needed
+// `route` is the route being entered; `state` carries the full target URL.
 export const authGuard: CanActivateFn = (route, state) =&gt; {{ '{' }}
+  // inject() is legal here: Angular runs guards in an injection context.
   const auth = inject(AuthService);
   const router = inject(Router);
 
+  // true = let the navigation proceed unchanged.
   if (auth.isLoggedIn()) return true;
 
   // Save where they were going; redirect after login
+  // Returning a UrlTree cancels this navigation and starts the redirect as
+  // one atomic decision. Calling router.navigate() here instead would return
+  // a Promise — which is truthy, so the guard would ALLOW the navigation and
+  // the user would flash the protected page before being bounced.
   return router.createUrlTree(['/login'], {{ '{' }}
     queryParams: {{ '{' }} returnUrl: state.url {{ '}' }}
   {{ '}' }});
@@ -235,8 +242,13 @@ export const authGuard: CanActivateFn = (route, state) =&gt; {{ '{' }}
 {{ '{' }}
   path: 'dashboard',
   loadComponent: () =&gt; import('./dashboard').then(m =&gt; m.Dashboard),
+  // Runs BEFORE loadComponent, so the protected chunk is never even
+  // downloaded by an anonymous visitor.
   canActivate: [authGuard],
-{{ '}' }}</pre>
+{{ '}' }}
+// Security note: this is a UX control, not a security boundary. The guard
+// runs in the browser, where the user can edit it. Every protected API call
+// must independently verify the token server-side.</pre>
     </div>
 
     <h2>HTTP interceptor for token attachment</h2>
@@ -257,17 +269,32 @@ export const authInterceptor: HttpInterceptorFn = (req, next) =&gt; {{ '{' }}
 // Handle 401 → refresh token flow:
 export const refreshInterceptor: HttpInterceptorFn = (req, next) =&gt; {{ '{' }}
   const auth = inject(AuthService);
+  // Note this pipes the RESPONSE, not the request — everything above ran on
+  // the way out, this runs on the way back.
   return next(req).pipe(
     catchError(err =&gt; {{ '{' }}
+      // Re-throw anything that isn't an expired token. A 403 or a 500 must
+      // reach the caller untouched; only 401 means "try refreshing".
       if (err.status !== 401) throw err;
+      // Get a new access token. The refresh token itself normally lives in
+      // an HttpOnly cookie the browser attaches automatically, so it never
+      // passes through JavaScript and XSS cannot steal it.
       return auth.refreshToken().pipe(
+        // switchMap swaps the refresh stream for a RETRY of the original
+        // request, so the caller receives the real data and never learns
+        // that a refresh happened at all.
         switchMap(() =&gt; next(req.clone({{ '{' }}
+          // Re-read the token — auth.accessToken() now returns the NEW one.
           headers: req.headers.set('Authorization', 'Bearer ' + auth.accessToken())
         {{ '}' }})))
       );
     {{ '}' }})
   );
-{{ '}' }};</pre>
+{{ '}' }};
+// PRODUCTION GAP worth knowing: as written, ten parallel requests that all
+// 401 will fire ten refresh calls. Real implementations gate this behind a
+// shared in-flight subject so only the first request refreshes and the rest
+// queue behind it.</pre>
     </div>
   }
 

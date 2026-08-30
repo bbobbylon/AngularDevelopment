@@ -52,12 +52,22 @@ import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { routes } from './app.routes';
 
+// This object replaces the old AppModule. Everything that used to go in
+// @NgModule imports/providers now lives in one flat providers array.
 export const appConfig: ApplicationConfig = {
   providers: [
+    // Each provideX() is a FEATURE being switched on. Omit one and the
+    // corresponding feature simply is not available — inject Router without
+    // this line and you get NullInjectorError.
     provideRouter(routes),
+    // Note the parentheses: these are function CALLS that return providers,
+    // not classes. provideHttpClient takes optional features too, e.g.
+    // provideHttpClient(withInterceptors([authInterceptor])).
     provideHttpClient(),
   ],
-};`;
+};
+// Tree-shaking is why it works this way: never call provideHttpClient() and
+// the entire HTTP module is dropped from your bundle.`;
 
   /**
    * Sample: `app.routes.ts` — the route table, with a lazy `loadComponent`.

@@ -8,6 +8,60 @@
     <code>HttpClient</code> lesson later is built directly on them.
   </p>
 
+  <h2>The mental model: flat-pack furniture</h2>
+  <p>
+    You cannot post a chair. What you can post is a flat box of planks with a printed instruction sheet, and someone at
+    the other end rebuilds the chair from it. That is the whole idea of JSON.
+    <code>JSON.stringify</code> flat-packs a live object into text; <code>JSON.parse</code> assembles text back into a
+    live object. Different room, different country, different language — the box travels fine because everything in it
+    is flat.
+  </p>
+  <p>
+    Which immediately tells you what <em>cannot</em> go in the box. Not the carpenter — a function is a skill, not a
+    plank, and it does not survive the trip. Not "the leg that isn't there", because an empty slot is just an absent
+    plank. And a <code>Date</code> goes in as a printed label reading <code>2026-08-29T09:00:00Z</code>, so what comes
+    out is a label, not a date. Keep the box in your head and the rest of this page is mostly consequences.
+  </p>
+
+  <div class="wire">
+    <div class="wire__side">
+      <p class="wire__title">In your app (live values)</p>
+      <ul>
+        <li>objects and arrays</li>
+        <li>strings, numbers, booleans, null</li>
+        <li class="wire__lost">Date instances</li>
+        <li class="wire__lost">functions and methods</li>
+        <li class="wire__lost">undefined</li>
+        <li class="wire__lost">Map, Set, class identity</li>
+      </ul>
+    </div>
+    <div class="wire__pipe">
+      <p class="wire__title">On the wire</p>
+      <p class="wire__bytes">
+        <code>{{ '{' }}"name":"Ada","age":36{{ '}' }}</code>
+      </p>
+      <p class="wire__caption">Characters. Nothing else fits.</p>
+    </div>
+    <div class="wire__side">
+      <p class="wire__title">In the server (live values)</p>
+      <ul>
+        <li>objects and arrays</li>
+        <li>strings, numbers, booleans, null</li>
+        <li class="wire__lost">…and whatever it lost on its side</li>
+      </ul>
+    </div>
+  </div>
+  <p class="wire__legend">
+    Struck-through rows are the ones that do not make the crossing. Six types get on the wire; everything else is
+    converted to one of them or dropped without a word.
+  </p>
+
+  <app-remember>
+    <strong>Only flat things fit in the box.</strong> Six value types cross the wire — string, number, boolean, null,
+    array, object. A <code>Date</code> arrives as a string, and functions and <code>undefined</code> do not arrive at
+    all.
+  </app-remember>
+
   <h2>What is JSON?</h2>
   <p>
     JSON (JavaScript Object Notation) is <strong>text</strong> shaped like the objects and arrays you already know. That
@@ -100,6 +154,12 @@ JSON.parse(text).age    → {{ p.age }}</pre>
     }
   </div>
 
+  <app-quiz
+    question="You round-trip an object through JSON — `JSON.parse(JSON.stringify(user))` — where `user` is `{ id: 1, when: new Date(), tags: undefined, greet() { return 'hi'; } }`. What comes out the other side?"
+    [options]="roundTripOptions"
+    followUp="This is the most common source of the bug where a date works perfectly in the component that created it and throws `.getFullYear is not a function` the moment it comes back from the server. Same object, one wire crossing apart."
+  />
+
   <h2>What is an API?</h2>
   <p>
     An <strong>API</strong> (Application Programming Interface) is a server's
@@ -136,6 +196,70 @@ GET    /users/42/orders?status=open&page=2
       >) with every request — HTTP is stateless, so you prove who you are each time.
     </li>
   </ul>
+
+  <h3>The verbs, and the two words exams ask about</h3>
+  <p>
+    <strong>Safe</strong> means the call changes nothing on the server. <strong>Idempotent</strong> means making the
+    call ten times leaves the world in the same state as making it once. They are not the same thing —
+    <code>DELETE</code> changes plenty, but deleting user 42 five times still leaves exactly one user 42 gone. Almost
+    every REST rule you have been told to follow falls out of this table.
+  </p>
+  <div class="verbs-wrap">
+    <table class="verbs">
+      <thead>
+        <tr>
+          <th>Verb</th>
+          <th>Use</th>
+          <th>Safe</th>
+          <th>Idempotent</th>
+          <th>Body</th>
+          <th>What that buys you</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of verbs; track v.verb) {
+          <tr>
+            <td>
+              <code>{{ v.verb }}</code>
+            </td>
+            <td>{{ v.use }}</td>
+            <td>{{ v.safe }}</td>
+            <td>{{ v.idempotent }}</td>
+            <td>{{ v.body }}</td>
+            <td>{{ v.note }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Read the last column as advice you can act on. A network blip on a <code>PUT</code> is safe to retry automatically;
+    the same blip on a <code>POST</code> is not, which is the entire reason payment forms disable the button on click.
+  </p>
+
+  <h2>Before you read on: what does this return?</h2>
+  <p>
+    Two bugs live in the snippet below, and they are the two that every developer ships at least once. Commit to an
+    answer before you open it — the point is to find out which of them you already knew about.
+  </p>
+
+  <app-predict
+    prompt="Read it as the runtime does: what is `data`, and does the `catch` ever run?"
+    [code]="fetchSample"
+    answer="It returns `undefined`, and the `catch` never fires. Two separate mistakes stacked on each other. First, `fetch` resolves to a `Response` — status and headers — not to your parsed body, so `data` is a Response object and `data.name` is `undefined`. The variable name is doing the lying here; call it `res` and the bug is obvious. Second, a 404 is a successful exchange as far as `fetch` is concerned: you asked, the server answered. It only rejects when the answer never came at all — offline, DNS failure, CORS block. So the error path you carefully wrote is unreachable for exactly the errors you were worried about. The fix is two lines: check `res.ok` and throw yourself, then `await res.json()`."
+  />
+
+  <h2>What actually happens, step by step</h2>
+
+  <app-flow
+    [steps]="roundTrip"
+    caption="Both classic bugs are really one question — which step am I standing on? `fetch` resolves at step four; the data does not exist until step five."
+  />
+
+  <app-remember>
+    <strong>Two awaits: the envelope, then the letter.</strong> And <code>fetch</code> only rejects when no letter
+    arrived at all — a 404 or a 500 <em>is</em> a letter, so you check <code>res.ok</code> yourself.
+  </app-remember>
 
   <h2>Try it — ask a real API for data</h2>
   <div class="demo">
@@ -175,45 +299,18 @@ data.address.city   // from here on it's just objects — dot into the nesting</
     success/failure, and renders objects to the screen. Every piece of that sentence is a lesson you've now had.
   </div>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Why does <code>data.name</code> fail with "undefined" right after <code>const data = await fetch(url)</code>?
-    </summary>
-    <div>
-      One await short: <code>fetch</code> resolves to the <em>Response</em>
-      object (status, headers), not the parsed body. You need
-      <code>const data = await res.json()</code>. Symptom to memorize: a Response where you expected data = missing
-      <code>.json()</code> step.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>The server answered <code>500</code> but your <code>catch</code> around fetch never ran. Why?</summary>
-    <div>
-      <code>fetch</code> only rejects on <em>network</em> failure (offline, DNS, CORS). An HTTP error status is still a
-      completed exchange, so it resolves normally — you must check <code>res.ok</code>. Forgetting this means your app
-      happily tries to parse an error page as data.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Is <code>{{ '{' }} "when": "2026-07-10T09:00:00Z" {{ '}' }}</code> a date?
-    </summary>
-    <div>
-      No — JSON has no date type; it's a string in ISO format by convention. After parsing,
-      <code>typeof data.when === 'string'</code>; you convert explicitly with <code>new Date(data.when)</code>. APIs and
-      apps agreeing on ISO-8601 strings is convention, not grammar.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Design the endpoint: "mark notification #7 as read".</summary>
-    <div>
-      Most RESTful: <code>PATCH /notifications/7</code> with body <code>{{ '{' }} "read": true {{ '}' }}</code> — a
-      partial update of one field on one resource. <code>POST /notifications/7/mark-read</code> also exists in the wild
-      (action-style); what you should <em>not</em> do is <code>GET /markRead?id=7</code> — GET must never change data
-      (browsers prefetch and cache GETs, which would mark things read at random!).
-    </div>
-  </details>
+  <h2>Exam corner — design the endpoint</h2>
+  <p>
+    A classic interview warm-up: <em>"mark notification #7 as read."</em> Decide before reading on. The answer most
+    interviewers want is <code>PATCH /notifications/7</code> with the body
+    <code>{{ '{' }} "read": true {{ '}' }}</code> — a partial update of one field on one resource.
+    <code>POST /notifications/7/mark-read</code> is common in the wild and defensible, since not every action maps
+    cleanly onto CRUD. What loses you the point is <code>GET /markRead?id=7</code>, and now you know exactly why: GET is
+    safe, so browsers, proxies and link prefetchers all feel free to call it whenever they like. Ship that and
+    notifications start marking themselves read at random.
+  </p>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

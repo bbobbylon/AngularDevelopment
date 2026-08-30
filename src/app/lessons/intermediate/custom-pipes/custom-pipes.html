@@ -48,9 +48,20 @@ imports: [TruncatePipe]
   <h2>Demo 2 — sentenceCase (pure)</h2>
   <div class="code">
     <pre>
+// `name` is what you type in the template: {{ '{{' }} text | sentenceCase {{ '}}' }}.
+// It is NOT the class name, and it must be unique across everything the
+// template imports.
 &#64;Pipe(&#123; name: 'sentenceCase', standalone: true &#125;)
+// implements PipeTransform is optional at runtime but worth keeping: it makes
+// TypeScript check that transform() exists and is shaped correctly.
 export class SentenceCasePipe implements PipeTransform &#123;
+  // The FIRST parameter is always the piped value — the thing on the left of
+  // the |. Any further parameters come from :args in the template.
   transform(value: string): string &#123;
+    // charAt(0) rather than value[0]: on an empty string charAt returns ''
+    // instead of undefined, so this doesn't throw on ''.
+    // Note it returns a NEW string and never touches `value`. That purity is
+    // what makes a pipe safe to memoise — see the pure/impure section below.
     return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
   &#125;
 &#125;</pre>
@@ -78,17 +89,30 @@ export class SentenceCasePipe implements PipeTransform &#123;
     <pre>
 &#64;Pipe(&#123; name: 'filterBy', standalone: true &#125;)
 export class FilterByPipe implements PipeTransform &#123;
+  // GENERIC, so the pipe works on any array of objects and the return type
+  // stays T[] rather than collapsing to any. `keyof T` then makes `field`
+  // autocomplete to real property names — pass a typo and it won't compile.
   transform&lt;T extends Record&lt;string, unknown&gt;&gt;(
     items: T[], field: keyof T, query: string
   ): T[] &#123;
+    // Normalise ONCE, outside the loop, instead of per item.
     const q = query.trim().toLowerCase();
+    // Empty query → return the ORIGINAL array reference, not a copy. That
+    // matters: a fresh array every call would look like a change to OnPush
+    // consumers and defeat the memoisation this pipe relies on.
     if (!q) return items;
+    // String(...) coerces numbers, booleans and null safely, so filtering on
+    // a numeric column doesn't throw on .toLowerCase().
     return items.filter(i =&gt; String(i[field]).toLowerCase().includes(q));
   &#125;
 &#125;
 
-// Template:
-&#64;for (f of fruits | filterBy:'name':query(); track f.name) &#123; … &#125;</pre>
+// Template — arguments are colon-separated, in the order transform() declares
+// them after the value: 'name' → field, query() → query.
+&#64;for (f of fruits | filterBy:'name':query(); track f.name) &#123; … &#125;
+// This is PURE, so it re-runs only when `fruits`, 'name' or query() changes
+// by reference. Push into `fruits` instead of replacing it and the list will
+// not update — the classic filtering-pipe bug.</pre>
   </div>
   <div class="demo">
     <p class="demo__title">Live</p>
@@ -151,15 +175,30 @@ export class RelativeTimePipe implements PipeTransform &#123;
   </p>
   <div class="code">
     <pre>
+// pure: false makes this run on EVERY change-detection pass, not just when
+// its inputs change by reference. Expensive — and here it is arguably not
+// even needed, since term() is a signal that changes by value anyway.
 &#64;Pipe(&#123; name: 'highlight', standalone: true, pure: false &#125;)
 export class HighlightPipe implements PipeTransform &#123;
+  // Second parameter = the pipe argument: | highlight: term()
   transform(value: string, term: string): string &#123;
+    // Empty search term → return the input untouched, and skip building a
+    // regex that would match everything.
     if (!term) return value;
+    // The capture group ( ) is what $1 refers to in the replacement, so the
+    // matched text is preserved inside the &lt;mark&gt;.
+    // 'g' = replace every occurrence, 'i' = case-insensitive.
     return value.replace(new RegExp(&#96;($&#123;term&#125;)&#96;, 'gi'), '&lt;mark&gt;$1&lt;/mark&gt;');
+    // WARNING worth knowing: `term` goes into a regex unescaped, so a user
+    // typing "(" throws, and it goes into innerHTML below. Angular's
+    // sanitizer strips scripts, but a production version should escape both
+    // the regex metacharacters and the input text first.
   &#125;
 &#125;
 
 // Template: bind innerHTML because the pipe returns HTML
+// Interpolation would print the literal "&lt;mark&gt;" characters on screen —
+// [innerHTML] is what makes the browser parse them as markup.
 &lt;p [innerHTML]="sentence | highlight: term()"&gt;&lt;/p&gt;</pre>
   </div>
   <div class="demo">

@@ -10,15 +10,29 @@
   <h2>Declaring a resource</h2>
   <div class="code">
     <pre>
+// The input that drives the fetch. Change it and everything below reacts.
 userId = signal(1);
 
 userResource = resource({{ '{' }}
+  // params is a FUNCTION, so reading userId() inside it registers a
+  // dependency. Set userId to 2 and the loader re-runs automatically —
+  // there is no refresh() call anywhere in this component.
   params: () =&gt; this.userId(),                 // reactive — re-runs the loader
+  // The loader receives the resolved params plus an abortSignal.
   loader: async ({{ '{' }} params, abortSignal {{ '}' }}) =&gt; {{ '{' }}
+    // Passing abortSignal is the line people skip, and it is the best part:
+    // if userId changes again mid-flight, Angular ABORTS this request before
+    // starting the next. No wasted bandwidth, and no race where a slow
+    // response for user 1 lands after user 2 and overwrites the screen.
     const res = await fetch(`/users/${{ '{' }}params{{ '}' }}`, {{ '{' }} signal: abortSignal {{ '}' }});
+    // Note fetch does NOT reject on a 404 or 500 — res.ok is what you would
+    // check in production before parsing.
     return (await res.json()) as User;
   {{ '}' }},
-{{ '}' }});</pre>
+{{ '}' }});
+// What you get back: userResource.value(), .isLoading(), .error(), .status()
+// and .reload() — all signals, so the template needs no async pipe and no
+// subscription to clean up.</pre>
   </div>
 
   <h2>Try it — live fetch</h2>

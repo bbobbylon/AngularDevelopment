@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 
 /**
  * One import form, with the code that writes it and what it actually binds.
@@ -68,11 +69,98 @@ const IMPORT_KINDS: ImportKind[] = [
  */
 @Component({
   selector: 'app-lesson-ts-modules',
-  imports: [RouterLink],
+  imports: [RouterLink, Compare, Faq, Flow, Predict, Quiz, Remember],
   templateUrl: './modules.html',
   styleUrl: './modules.css',
 })
 export class Modules {
+  /**
+   * What happens the first time a module is imported. Worth drawing because two of
+   * the lesson's headline facts — that module state is a singleton, and that a
+   * circular import produces a half-initialised object rather than an obvious
+   * error — are both consequences of steps in this one sequence.
+   */
+  protected readonly loading = [
+    {
+      label: 'Something imports `./user`',
+      detail: 'The first import is what triggers everything below',
+    },
+    {
+      label: 'Its own imports resolve first',
+      detail: 'Depth-first. A module cannot run before what it depends on',
+      tone: 'accent' as const,
+    },
+    {
+      label: 'Top-level code runs — once',
+      detail: 'Every `const`, every side effect, exactly one time',
+    },
+    { label: 'The module is cached', detail: 'Its exports are recorded against the resolved path' },
+    {
+      label: 'Every later import is a cache hit',
+      detail: 'No re-run, no second copy. This is why module state is a singleton',
+      tone: 'good' as const,
+    },
+  ];
+
+  /** The barrel cycle. */
+  protected readonly cycleSample = `// core/index.ts  (the barrel)
+export * from './order-service';
+export * from './user-service';
+
+// core/user-service.ts
+import { OrderService } from './index';   // ← imports its own barrel
+export class UserService {
+  private orders = new OrderService();
+}
+
+// Dev server: fine. Production build: crash.
+// What is the error, and why only in production?`;
+
+  /** Choices for the module-singleton check. */
+  protected readonly singletonOptions = [
+    {
+      text: '`1` — each importing file gets its own copy of the module',
+      why: 'This is the intuition from `class` or from a factory function, where each consumer constructs its own. Modules do not work that way: they are evaluated once and cached against their resolved path, and every importer is handed the same object.',
+    },
+    {
+      text: '`2` — both files share one `count`',
+      correct: true,
+      why: 'A module runs its top-level code exactly once, on first import, and every later import is a cache hit. So `count` is one variable that both files are incrementing. This is genuinely useful — it is the simplest singleton in JavaScript — and genuinely dangerous, because the coupling is invisible at the call site. Angular DI gives you the same single-instance behaviour with an injector you can override in a test, which is why services beat module-level `let`.',
+    },
+    {
+      text: '`2`, but only because `a.ts` happened to run first',
+      why: 'The sharing is not an ordering accident — it would be one shared `count` regardless of who imports first. Order decides which call sees `1`; it does not decide whether the state is shared.',
+    },
+    {
+      text: 'Unpredictable — bundlers may or may not deduplicate the module',
+      why: 'Single evaluation per resolved specifier is part of the ES module specification, not a bundler optimisation. The one way to get two copies is to resolve the same file by two different paths, which is a build misconfiguration rather than normal behaviour.',
+    },
+  ];
+
+  /** The doubts this lesson reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'Are ES modules the same thing as Angular `NgModule`s?',
+      a: 'No, and the shared word is one of the more expensive collisions in the Angular vocabulary. An ES module is a *file* — a language feature about scope and imports. An `NgModule` was an Angular construct for declaring which components see which directives, and standalone components removed the need for it entirely. You use ES modules constantly; you will probably never write an `NgModule` again.',
+    },
+    {
+      q: 'Should I use barrel files at all?',
+      a: "For the public surface of a library, yes — that is exactly what an `index.ts` is for. Inside your own app, be sparing. A barrel adds a hop for the bundler to reason through, and it invites the cycle where a folder's own files import their own barrel. The rule that avoids nearly all the pain: never import your own barrel from inside the folder it describes.",
+    },
+    {
+      q: 'Why does `import type` exist when TypeScript already erases types?',
+      a: 'Because under `isolatedModules` — which this project uses, and which any modern build with esbuild or SWC effectively requires — each file is transpiled in isolation. The transpiler cannot open `./user` to check whether `User` is a type it should erase or a class it must keep, so you tell it locally. The bonus is real: an erased import creates no runtime dependency edge, so a cycle that was only ever about types simply stops existing.',
+    },
+    {
+      q: 'Does a namespace import (`import * as utils`) hurt tree-shaking?',
+      a: 'It can. Bundlers have got good at proving which members of a namespace object you actually touch, but the analysis is harder than for named imports and it gives up more easily — particularly if the object is passed around or indexed dynamically. Named imports state your intent in a form the bundler never has to infer, which is the main reason they are house style.',
+    },
+    {
+      q: 'Can I `import()` a path built at runtime?',
+      a: 'You can write it, and it will fail to code-split usefully. The bundler needs to see the target at build time to carve out a chunk for it; `import(someString)` gives it nothing to work with, so it either bundles everything that could match or leaves you with a runtime failure. This is why lazy routes are always written as an arrow function around a literal path.',
+    },
+  ];
+
   /**
    * The import forms the demo can step through.
    */

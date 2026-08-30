@@ -8,6 +8,25 @@
     <code>contentChildren()</code> to query projected nodes reactively.
   </p>
 
+  <h2>The mental model: a frame, not a picture</h2>
+  <p>
+    A component with an <code>&lt;ng-content&gt;</code> is a picture frame. It decides the shape of the opening and
+    everything around it — the border, the mount, the hook on the back. What it never does is make the photograph. The
+    photograph was printed somewhere else, by someone else, on their paper.
+  </p>
+  <p>
+    Hold onto that and three otherwise-baffling behaviours become obvious. The child's styles do not reach the projected
+    content, because the frame did not print the photo. The child cannot use <code>viewChild</code> to find it, because
+    a view query searches what the child itself drew. And the photo gets printed whether or not the frame ever hangs on
+    a wall — which is the trap in the next section.
+  </p>
+
+  <app-remember>
+    <strong>View is yours; content is theirs.</strong> <code>viewChild</code> searches your own template;
+    <code>contentChild</code> searches what was handed in from outside. One question settles it every time: did
+    <em>this</em> component's template contain that node?
+  </app-remember>
+
   <h2>1 — Single slot (default)</h2>
   <p>
     The simplest form: one <code>&lt;ng-content&gt;</code> absorbs everything the parent puts between the component's
@@ -41,21 +60,38 @@ export class Callout &#123;&#125;
     <pre>
 &#64;Component(&#123;
   template: `
+    &lt;!-- select takes a CSS selector. [panel-title] is an attribute selector,
+         so any element carrying that attribute lands in this slot. --&gt;
     &lt;header&gt;&lt;ng-content select="[panel-title]" /&gt;&lt;/header&gt;
+    &lt;!-- The unselected ng-content is the CATCH-ALL: everything that matched
+         no other slot ends up here. There can be only one. --&gt;
     &lt;div&gt;&lt;ng-content /&gt;&lt;/div&gt;           &lt;!-- default --&gt;
     &lt;footer&gt;&lt;ng-content select="[panel-actions]" /&gt;&lt;/footer&gt;
+    &lt;!-- ORDER MATTERS, but not the order you might expect. Slots are matched
+         top-down, and each projected node goes to the FIRST slot it matches.
+         Put the catch-all first and it swallows everything. --&gt;
   `,
 &#125;)
 export class Panel &#123;&#125;
 
 // parent
 &lt;app-panel&gt;
+  &lt;!-- A bare attribute, no value needed — it's just a marker for the
+       selector. Prefer attributes over classes here so a CSS refactor can't
+       silently break the layout. --&gt;
   &lt;h3 panel-title&gt;Invoice #42&lt;/h3&gt;
+  &lt;!-- No marker → falls through to the default slot. --&gt;
   &lt;p&gt;Body goes in the default slot.&lt;/p&gt;
+  &lt;!-- ng-container carries the marker WITHOUT adding an element, so the
+       footer gets the button and nothing else. Use it whenever you need to
+       tag a group of nodes for one slot. --&gt;
   &lt;ng-container panel-actions&gt;
     &lt;button&gt;Pay now&lt;/button&gt;
   &lt;/ng-container&gt;
-&lt;/app-panel&gt;</pre>
+&lt;/app-panel&gt;
+// The key idea: the PARENT owns the content and its bindings; the CHILD owns
+// only where it appears. Projected nodes are created in the parent's context,
+// which is why they can use the parent's fields and pipes.</pre>
   </div>
 
   <h2>Demo 1 — multi-slot Panel</h2>
@@ -107,22 +143,34 @@ export class Panel &#123;&#125;
 &#64;Component(&#123; selector: 'app-tab-group', … &#125;)
 export class TabGroup implements AfterContentInit &#123;
   // Returns a readonly Signal&lt;readonly TabLabel[]&gt;
+  // CONTENT children, not VIEW children: these live in the PARENT's markup
+  // and were projected in. viewChildren() would find nothing here.
   readonly labels  = contentChildren(TabLabel);   // ← directive token
   readonly panels  = contentChildren(TabPanel);
+  // Because it's a signal, the result stays correct when the parent adds or
+  // removes a tab at runtime — no manual QueryList subscription needed.
 
   ngAfterContentInit(): void &#123;
-    // labels() is live — reads it inside effect() to react to changes
+    // This hook is the earliest point at which projected content is
+    // guaranteed to exist. Read labels() in the constructor and you get [].
+    // labels() is live — read it inside effect() to react to changes
     console.log(this.labels().length, 'tabs found');
   &#125;
 &#125;
 
 // Parent template
 &lt;app-tab-group&gt;
+  &lt;!-- The parent writes a flat list. TabGroup discovers the structure by
+       QUERYING for the directives, rather than the parent having to pass a
+       config array. That is what makes this API feel declarative. --&gt;
   &lt;span tabLabel&gt;Overview&lt;/span&gt;
   &lt;div  tabPanel&gt;Overview content…&lt;/div&gt;
   &lt;span tabLabel&gt;Settings&lt;/span&gt;
   &lt;div  tabPanel&gt;Settings content…&lt;/div&gt;
-&lt;/app-tab-group&gt;</pre>
+&lt;/app-tab-group&gt;
+// Pairing is POSITIONAL: labels()[i] goes with panels()[i]. Nothing enforces
+// that, so a stray tabLabel with no matching tabPanel shifts every tab after
+// it — the bug to look for when a tab shows the wrong content.</pre>
   </div>
 
   <h2>Demo 3 — contentChildren() driving a tab bar</h2>
@@ -187,6 +235,19 @@ export class TabGroup implements AfterContentInit &#123;
     </app-badge-host>
   </div>
 
+  <h2>Who creates projected content, and when</h2>
+
+  <app-flow
+    [steps]="journey"
+    caption="Every surprising thing about projection follows from step one. `<ng-content>` is an insertion point, not a factory — it relocates nodes the parent already built."
+  />
+
+  <app-predict
+    prompt="The frame is closed and nobody ever opens it. Think about who printed the photo before you answer."
+    [code]="eagerSample"
+    answer="Yes. All fifty thousand rows, on page load, for a panel the user never opened. `SalesChart` is written in the *parent's* template, so the parent constructs it, runs its `ngOnInit` and fires its request — long before the accordion gets a chance to decide whether to show anything. The `@if` only controls whether the finished nodes are attached to the DOM; it has no power over whether they exist. Two real fixes. Wrap it in `@defer` in the **parent**, which genuinely delays creation. Or change the accordion's API to take a `TemplateRef` instead of projected content, so the child stamps it out only when it opens. The tell in review is any expensive component sitting inside a collapsed-by-default shell."
+  />
+
   <h2>Projection vs. ViewChild — which query to use?</h2>
   <table class="t">
     <thead>
@@ -226,6 +287,14 @@ export class TabGroup implements AfterContentInit &#123;
     <em>parent</em> or pass a template reference (<code>TemplateRef</code>) and render it lazily via
     <code>NgTemplateOutlet</code>.
   </div>
+
+  <app-quiz
+    question="A `TabGroup` tries to find its projected tabs with `viewChild(TabLabel)`. The signal is always `undefined`, even in `ngAfterViewInit`. What is going on?"
+    [options]="queryOptions"
+    followUp="A matching pair of lifecycle hooks exists for the same reason: `ngAfterContentInit` is the first moment projected content is in place, and `ngAfterViewInit` the first moment your own template is. Content always comes before View."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

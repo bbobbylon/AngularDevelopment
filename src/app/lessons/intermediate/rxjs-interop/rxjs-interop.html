@@ -9,6 +9,28 @@
     the boundary and use whichever fits each job.
   </p>
 
+  <h2>The mental model: a whiteboard and a ticker tape</h2>
+  <p>
+    A <strong>signal is a whiteboard</strong>. There is always exactly one thing written on it, and you can walk over
+    and read it whenever you like. Walk away for an hour, come back, and the current value is still there waiting.
+  </p>
+  <p>
+    An <strong>Observable is a ticker tape</strong>. Values go past. If you weren't watching when one went by, you
+    missed it — and until the first one arrives there is nothing to see at all.
+  </p>
+  <p>
+    That single difference generates almost everything else on this page. <code>toSignal</code> is someone standing by
+    the tape copying each value onto the whiteboard — and it's why the board needs an <code>initialValue</code> written
+    on it before the first value arrives, or it is blank (<code>undefined</code>). <code>toObservable</code> is a camera
+    pointed at the whiteboard that emits a photo whenever the writing changes.
+  </p>
+
+  <app-remember>
+    A signal <strong>always has a value</strong>. An Observable <strong>might not have one yet</strong>. Everything
+    about <code>initialValue</code>, <code>requireSync</code> and that <code>| undefined</code> in your types falls out
+    of that one difference.
+  </app-remember>
+
   <h2>Two bridges, two directions</h2>
   <div class="code">
     <pre>
@@ -42,6 +64,12 @@ clock = toSignal(interval(1000), {{ '{' }} initialValue: 0 {{ '}' }});
     <code>toSignal</code> in an injection context (or pass an <code>injector</code>).
   </div>
 
+  <app-predict
+    prompt="A service exposes an HTTP call through `toSignal` with no `initialValue`, and the template reads `.length` off it. What renders during the 200ms before the response lands?"
+    [code]="initialValueSample"
+    answer="Nothing renders — you get `TypeError: Cannot read properties of undefined (reading 'length')`. With no `initialValue`, the signal's type is `User[] | undefined` and its value is genuinely `undefined` until the first emission. The whiteboard is blank because nothing has come off the tape yet. TypeScript will actually warn you here if `strictTemplates` is on, which is one more reason to have it on — fix it with `{ initialValue: [] }`, so an empty list renders instead of a crash."
+  />
+
   <h2>toObservable — expose a signal as a stream</h2>
   <div class="code">
     <pre>
@@ -60,6 +88,22 @@ results$ = toObservable(this.query).pipe(
   </p>
 
   <h2>Try it — the full round-trip</h2>
+
+  <p>
+    The demo below is a debounced search box with the network call left out. Traced end to end, the shape is the one you
+    will reach for constantly — and the thing to notice is that both ends are signals:
+  </p>
+  <app-flow
+    [steps]="roundTrip"
+    caption="RxJS is somewhere the value visits, not somewhere it lives. Cross at the boundary and come straight back."
+  />
+
+  <app-quiz
+    question="`results$ = toObservable(query).pipe(debounceTime(300), switchMap(q => api.search(q)))`. The user types 'a', 'n', 'g' in quick succession. How many HTTP requests reach your server?"
+    [options]="pipelineOptions"
+    followUp="Worth separating in your head: `debounceTime` decides how many requests are *sent*, `switchMap` decides how many responses are *listened to*. You usually want both."
+  />
+
   <div class="demo">
     <p class="demo__title">Live — a signal → debounceTime(500) → back to a signal</p>
     <div class="row" style="margin-bottom: 10px">
@@ -168,6 +212,8 @@ constructor() {{ '{' }}
       </td>
     </tr>
   </table>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

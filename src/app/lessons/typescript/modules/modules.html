@@ -9,6 +9,24 @@
     modules ≠ Angular's legacy <code>NgModule</code> — unrelated concepts sharing a word.)
   </p>
 
+  <h2>The mental model: a shop with one window</h2>
+  <p>
+    A module file is a shop. There is a back room full of stock — every <code>const</code>, every helper function, every
+    bit of working state — and none of it is available to anyone outside. The only things the public can reach are the
+    items you put in the window, and <code>export</code> is the act of putting something there.
+  </p>
+  <p>
+    That is more than a metaphor for privacy. It is a promise about refactoring: anything not in the window is yours to
+    rename, restructure or delete, because nobody outside could have depended on it. And it sets up the barrel problem
+    later on — a barrel file is a <strong>mall directory</strong> listing every shop, which is convenient right up to
+    the moment a shop inside the mall consults the directory to find itself.
+  </p>
+
+  <app-remember>
+    <strong><code>export</code> is the only door out.</strong> Everything else in the file is back-room stock — private
+    by default, and safe to change.
+  </app-remember>
+
   <h2>What "module" changes: scope</h2>
   <div class="code">
     <pre>
@@ -75,6 +93,17 @@ import {{ '{' }} CartService {{ '}' }} from '&#64;app/core/cart';  // aliased �
     find module", check which of the three you've accidentally written.
   </p>
 
+  <h2>How a module actually loads</h2>
+  <p>
+    Two of the facts below — that a barrel can crash your production build, and that module-level state is shared by
+    everyone — both fall out of this one sequence:
+  </p>
+
+  <app-flow
+    [steps]="loading"
+    caption="The cycle bug lives in step two. If resolving an import leads back to a module that is already mid-evaluation, the loader hands over what exists so far rather than waiting — and what exists so far may be nothing."
+  />
+
   <h2>Re-exports &amp; barrels — and their sharp edge</h2>
   <div class="code">
     <pre>
@@ -86,6 +115,12 @@ export {{ '{' }} Logger as AppLogger {{ '}' }} from './logger';   // re-export w
 // consumers get one tidy import:
 import {{ '{' }} User, Logger {{ '}' }} from './core';</pre>
   </div>
+  <app-predict
+    prompt="This shipped, and it worked on every developer machine. Then the production build fell over on load. What is happening?"
+    [code]="cycleSample"
+    answer="`Cannot access 'OrderService' before initialization`. Follow the cycle: something imports the barrel, the barrel starts evaluating `order-service.ts`, which imports the barrel again — and the barrel is already mid-evaluation, so the loader hands back the partially-built namespace rather than waiting. `OrderService` has not been assigned into it yet, so `new OrderService()` reaches for a binding that exists but holds nothing. Why only in production? Because the dev server and the production bundler are free to order and hoist modules differently, and only one of those orders happens to trip the cycle. Two fixes, both cheap: have `user-service.ts` import `./order-service` directly instead of its own barrel, or — if the dependency is genuinely only a type — make it an `import type`, which erases the edge entirely and dissolves the cycle."
+  />
+
   <div class="warn">
     <strong>How barrels go wrong — the actual mechanism.</strong> Modules load once, in dependency order. If
     <code>a.ts</code> imports the barrel, and the barrel lists <code>b.ts</code>, and <code>b.ts</code> imports
@@ -130,6 +165,41 @@ const {{ '{' }} Chart {{ '}' }} = await import('./charts');   // downloaded only
     in the build output).
   </p>
 
+  <app-compare
+    leftTitle="Static `import` — always shipped"
+    rightTitle="Dynamic `import()` — shipped on demand"
+    rightTone="good"
+    note="Same module, same exports. The only difference is when the bytes reach the user — and that difference is the entire mechanism behind Angular lazy loading."
+  >
+    <div left>
+      <div class="code">
+        <pre>
+import {{ '{' }} Chart {{ '}' }} from './charts';
+
+// A declaration, hoisted to the top.
+// Must resolve at build time.
+// → lands in the initial bundle
+// → downloaded by every visitor,
+//   including the ones who never
+//   open a chart</pre>
+      </div>
+    </div>
+    <div right>
+      <div class="code">
+        <pre>
+const {{ '{' }} Chart {{ '}' }} = await import('./charts');
+
+// An expression returning a Promise.
+// Bundler sees the literal path.
+// → './charts' becomes its own chunk
+// → fetched the first time this
+//   line actually runs
+// → nothing for visitors who never
+//   open a chart</pre>
+      </div>
+    </div>
+  </app-compare>
+
   <h2>Module state is a singleton</h2>
   <div class="code">
     <pre>
@@ -148,6 +218,14 @@ next(); // b.ts → 2  ← SAME count. Modules execute once and are cached;
     state is invisible coupling; Angular's DI, which you'll meet soon, offers the same singleton-ness with far better
     testability and lifecycle control).
   </p>
+
+  <app-quiz
+    question="`counter.ts` has `let count = 0;` at module scope and exports `next = () => ++count`. `a.ts` imports it and calls `next()`. Then `b.ts` — a completely different file — imports it and calls `next()`. What does `b.ts` see?"
+    [options]="singletonOptions"
+    followUp="Use it deliberately and it is the neatest singleton in the language. Use it accidentally — a cache, a counter, a `let currentUser` — and you have global mutable state with no injection point, which is a nightmare to test and a worse one to server-render."
+  />
+
+  <app-faq [items]="questions" />
 
   <h2>Exam corner</h2>
   <details class="qa">

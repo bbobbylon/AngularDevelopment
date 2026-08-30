@@ -127,15 +127,28 @@ export class FormArrays {
    * Sample: setting up a `FormArray` of groups.
    */
   readonly setupSample = `protected readonly form = this.fb.group({
+  // A normal control alongside the array — a FormArray is just one more
+  // member of the group, not a special top-level thing.
   title: ['Office supplies', Validators.required],
+  // Seeded with one row so the form is never empty on first render.
   items: this.fb.array([this.newItem('Notebook', 3)]),   // a FormArray of groups
 });
 
+// A GETTER, not a field. The template calls items.controls in a loop, and a
+// getter always reads the live array. It also keeps the cast in exactly one
+// place instead of scattered through the template.
 protected get items(): FormArray {
+  // get() is typed loosely (AbstractControl | null), so the cast is what
+  // gives you .push() and .removeAt() back.
   return this.form.get('items') as FormArray;
 }
 
+// A FACTORY for one row. Every add() call needs a brand-new FormGroup —
+// reusing one instance would put the SAME control object in two rows, and
+// typing in one would change both.
 private newItem(name = '', qty = 1) {
+  // Defaults let the same function serve both the seed row above and the
+  // blank rows that add() creates.
   return this.fb.group({
     name: [name, Validators.required],
     qty: [qty, [Validators.min(1)]],
@@ -146,12 +159,19 @@ private newItem(name = '', qty = 1) {
    * Sample: adding and removing entries.
    */
   readonly addRemoveSample = `protected add() {
+  // push() MUTATES the FormArray in place — and that is correct here. A
+  // FormArray is not a signal; the template reads items.controls directly,
+  // and the array's own change notification handles the rest.
   this.items.push(this.newItem());
 }
 
 protected remove(i: number) {
+  // removeAt(i), not splice: it also unsubscribes the control and tells the
+  // parent to re-run validation. Reaching into .controls yourself would
+  // leave the form's validity stale.
   this.items.removeAt(i);
-}`;
+}
+// Also available: insert(i, ctrl), clear(), at(i), and .length.`;
 
   /**
    * Sample: a `FormArray` of primitives, and validating the array itself.
@@ -161,14 +181,23 @@ protected remove(i: number) {
   //    ^ array of plain FormControl<string>        ^ validator on the ARRAY, not the items
 });
 
+// The full generic FormArray<FormControl<string>> is worth spelling out: it
+// makes tags.at(0).value a string rather than any, all the way down.
 protected get tags(): FormArray<FormControl<string>> {
   return this.tagsForm.get('tags') as FormArray<FormControl<string>>;
 }
 
 protected addTag() {
+  // Read from a SEPARATE control that is not part of the array — the input
+  // box is UI state, not form data.
   const value = this.newTagCtrl.value.trim();
+  // Guard against empty/whitespace-only tags before they reach the array.
   if (!value) return;
+  // .nonNullable is what keeps the type FormControl<string> instead of
+  // FormControl<string | null> — and it also means reset() returns to the
+  // initial value rather than null.
   this.tags.push(this.fb.nonNullable.control(value));  // never null, matches string typing
+  // Clear the input so the user can type the next tag straight away.
   this.newTagCtrl.setValue('');
 }`;
 

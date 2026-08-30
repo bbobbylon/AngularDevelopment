@@ -1,6 +1,7 @@
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 
 // ============================================================
 // WHAT YOU'LL BUILD: an Auth Flow covering:
@@ -148,11 +149,99 @@ class MockAuthService {
 @Component({
   selector: 'app-project-auth-flow',
   standalone: true,
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, Faq, Flow, Predict, Quiz, Remember],
   styleUrl: './auth-flow.css',
   templateUrl: './auth-flow.html',
 })
 export class AuthFlow {
+  /**
+   * One authenticated request, end to end. Worth tracing once because every piece
+   * the walkthrough builds — service, interceptor, guard, refresh — is a station
+   * on this line, and knowing where each sits explains what each may assume.
+   */
+  protected readonly requestFlow = [
+    { label: 'Login', detail: 'Credentials go to the server exactly once; a token comes back' },
+    {
+      label: 'Token held in memory',
+      detail: 'A private field on the service — not localStorage',
+      tone: 'accent' as const,
+    },
+    {
+      label: 'Guard checks the route',
+      detail: 'Returns `true` or a `UrlTree` — never navigates itself',
+    },
+    {
+      label: 'Interceptor clones the request',
+      detail: 'Adds `Authorization: Bearer …` to every outgoing call',
+    },
+    {
+      label: 'Server validates',
+      detail: 'The signature proves the token was issued by you and is unexpired',
+    },
+    {
+      label: '401 → refresh → retry',
+      detail: 'The access token expired; swap it and replay the request once',
+      tone: 'warn' as const,
+    },
+  ];
+
+  /** The guard trap, posed before the "always return a UrlTree" callout. */
+  protected readonly guardSample = `export const authGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  if (auth.isLoggedIn()) return true;
+
+  return router.navigate(['/login']);   // looks reasonable
+};
+
+// The user is signed out and hits /profile. What happens?`;
+
+  /** Choices for the token-storage check. */
+  protected readonly storageOptions = [
+    {
+      text: '`localStorage`, so the session survives a refresh',
+      why: 'It does survive — and so does the token, in a place any JavaScript on the page can read with one line. A single XSS hole, including one in a third-party script you did not write, walks away with a valid session.',
+    },
+    {
+      text: 'A regular (non-HttpOnly) cookie, so the browser sends it automatically',
+      why: 'Automatic sending is exactly the problem: a cookie the browser attaches without being asked is what CSRF exploits. And without `HttpOnly` it is still readable by script, so it buys the risk without the protection.',
+    },
+    {
+      text: 'In memory, with a long-lived refresh token in an HttpOnly cookie',
+      correct: true,
+      why: 'This splits the two jobs. The access token is short-lived and lives where no script can read it after a reload — memory. The refresh token is long-lived but sits in an `HttpOnly` cookie, which JavaScript cannot touch at all, so an XSS payload cannot steal it. A refresh call on startup restores the session without ever exposing a readable credential.',
+    },
+    {
+      text: '`sessionStorage`, since it is cleared when the tab closes',
+      why: "Better than `localStorage` on lifetime, and no better at all on the thing that matters: it is still plain readable storage. `sessionStorage.getItem` is as available to an attacker's script as it is to yours.",
+    },
+  ];
+
+  /** The doubts this project reliably leaves behind. */
+  protected readonly questions = [
+    {
+      q: 'If the token must not go in localStorage, how does a real app survive a refresh?',
+      a: 'It re-earns the token instead of storing it. On startup the app calls a `/refresh` endpoint; the browser automatically attaches the `HttpOnly` refresh cookie, the server checks it and returns a fresh access token that goes straight into memory. The user sees an uninterrupted session, and at no point was a readable credential sitting in storage.',
+    },
+    {
+      q: 'What does `HttpOnly` actually do? It sounds like it is about HTTP versus HTTPS.',
+      a: 'Nothing to do with HTTPS — that is the `Secure` flag. `HttpOnly` means the cookie is invisible to JavaScript: `document.cookie` will not show it and no script can read it. The browser still sends it on requests. It is the one storage location in a browser that an XSS payload genuinely cannot reach, which is why the most valuable credential goes there.',
+    },
+    {
+      q: 'If the guard already blocks the route, why does the server need to check anything?',
+      a: "Because the guard is a *convenience*, not a defence. It runs in the user's browser, in code they can read and modify — anyone can open devtools and call the router directly. A guard exists to stop honest users from landing on a broken page. Authorisation is enforced on the server, every request, without exception.",
+    },
+    {
+      q: 'This demo keeps the user object in sessionStorage. Does that contradict the advice?',
+      a: 'No, because the user object is not a credential. Storing `{ name, email, role }` lets the UI render immediately on refresh without a flash of logged-out state; if an attacker reads or edits it, they get a wrong-looking navbar and nothing else. The *token* is what grants access, and that is what stays out of storage. Never trust the stored role for anything but rendering.',
+    },
+    {
+      q: 'Do I need CSRF protection if I send a bearer token in a header?',
+      a: "Generally no, and that is the quiet upside of headers. CSRF works because browsers attach cookies to cross-site requests automatically; an `Authorization` header is never attached automatically, so an attacker's page cannot forge one. The moment you put the refresh token in a cookie, though, that endpoint is cookie-authenticated and does need protecting — usually `SameSite=Strict` plus a CSRF token.",
+    },
+  ];
+
   /**
    * The auth service.
    */

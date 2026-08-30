@@ -7,6 +7,23 @@
     <code>routerLink</code>.
   </p>
 
+  <h2>The mental model: the queue at passport control</h2>
+  <p>
+    Picture a row of desks, each with a sign. You walk down the line and go to the
+    <strong>first desk whose sign fits you</strong> — you do not compare all of them and pick the best. Neither does the
+    router: it reads the route table top to bottom and stops at the first entry that matches.
+  </p>
+  <p>
+    Two consequences follow immediately, and between them they explain most routing bugs. Put a desk labelled "anyone"
+    (<code>**</code>) near the front and nobody ever reaches the specific desks behind it. And a sign that matches more
+    loosely than you intended will quietly claim traffic meant for something further down.
+  </p>
+
+  <app-remember>
+    <strong>First match wins.</strong> Specific routes go above general ones, and <code>**</code> goes last. If a route
+    "never fires", something above it matched first.
+  </app-remember>
+
   <h2>1. Define the routes</h2>
   <div class="code">
     <pre>
@@ -61,6 +78,12 @@ export const appConfig: ApplicationConfig = {{ '{' }}
     Use <code>[routerLinkActiveOptions]="{{ '{' }} exact: true {{ '}' }}"</code> on the home link so <code>/</code> is
     not marked active for every route (since every path starts with <code>/</code>).
   </div>
+
+  <app-quiz
+    question="Someone writes `<a href='/about'>About</a>` instead of using `routerLink`. It looks like it works. What actually happens on click?"
+    [options]="hrefOptions"
+    followUp="A useful tell in review: if one link feels slower than the rest of the app and the page flashes white, check whether it is an `href`."
+  />
 
   <h2>Links with params, query & fragment</h2>
   <div class="code">
@@ -123,6 +146,16 @@ goToUser(id: number) {{ '{' }}
   </div>
 
   <h2>Under the hood — how a URL is matched</h2>
+
+  <p>
+    Matching is only the middle of the story. One click on a <code>routerLink</code> sets off six steps, and nearly
+    every routing feature you meet later slots into one of the gaps between them:
+  </p>
+  <app-flow
+    [steps]="navigation"
+    caption="Note the last step. The address bar changes only once the navigation has succeeded — which is why a cancelled guard leaves the URL alone."
+  />
+
   <p>
     The router splits both the URL and each route's <code>path</code> into <strong>segments</strong> on <code>/</code>,
     then compares them left to right. A literal segment must equal the URL's; a <code>:param</code> segment matches any
@@ -131,6 +164,12 @@ goToUser(id: number) {{ '{' }}
     because the route only needs to match the <em>start</em>. That's usually what you want for parent routes with
     children — but it's a trap for redirects.
   </p>
+
+  <app-predict
+    prompt="An empty-path redirect with no `pathMatch`. The user navigates to /about. Where do they land?"
+    [code]="pathMatchSample"
+    answer="On /home — and so does every other URL in the app. Matching defaults to **prefix**, and the empty path is a prefix of literally every URL, so that first route claims /about before the router ever reaches the entry that would have handled it. The app looks broken in the strangest way: only the home page works. Add `pathMatch: 'full'` and the rule becomes 'match only when the whole URL is empty', which is what you meant. This is the single most-failed routing question on the exam, and the reason is that the buggy version *looks* obviously correct."
+  />
 
   <h2>Exam pitfalls</h2>
   <ul>
@@ -157,6 +196,8 @@ goToUser(id: number) {{ '{' }}
       <code>routerLink="users"</code> is relative to the current route. Mixing them up navigates somewhere surprising.
     </li>
   </ul>
+
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

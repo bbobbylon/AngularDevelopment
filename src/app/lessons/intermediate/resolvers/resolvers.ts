@@ -162,12 +162,24 @@ user = this.route.snapshot.data['user'] as User;`;
   protected readonly errorSample = `import { ResolveFn, RedirectCommand, Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 
+// The return type is a UNION: either the data, or an instruction to go
+// somewhere else. That union is the whole pattern.
 export const userResolver: ResolveFn<User | RedirectCommand> = (route) => {
+  // Both injected in the resolver body — this is the injection context.
   const api = inject(UserApi);
   const router = inject(Router);
+  // route.paramMap.get('id') returns string | null; the ! asserts it exists,
+  // which is safe because the route pattern declares :id.
   return api.getById(route.paramMap.get('id')!).pipe(
+    // ESSENTIAL. The router waits for the observable to COMPLETE, not just
+    // emit. A stream that emits and stays open freezes navigation on a blank
+    // screen with no error. first() completes after the first value.
     first(),                                   // complete → don't hang navigation
     catchError(() =>
+      // RETURNING a RedirectCommand beats calling router.navigate() here: it
+      // is one atomic decision the router acts on, so there is no half-loaded
+      // route and no competing navigation.
+      // parseUrl turns the string into the UrlTree the command expects.
       of(new RedirectCommand(router.parseUrl('/not-found'))),
     ),
   );

@@ -241,20 +241,35 @@ provideServiceWorker('ngsw-worker.js', {
 
   constructor() {
     // 1. react to the lifecycle
+    // versionUpdates emits several event types. VERSION_READY is the one that
+    // matters: the new version is fully downloaded and waiting to activate.
     this.updates.versionUpdates
+      // A TYPE PREDICATE ("e is VersionReadyEvent"), not just a boolean —
+      // that is what narrows the stream's type for everything downstream.
       .pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'))
       .subscribe(() => this.promptUser());
 
     // 2. long-lived tabs: poll (worker only auto-checks on navigation)
+    // Without this, a dashboard left open on a wall display for a week never
+    // notices a deploy — the worker only checks when the page navigates.
+    // 6 hours in ms. Poll far more often and you are just burning requests.
     setInterval(() => this.updates.checkForUpdate(), 6 * 60 * 60 * 1000);
 
     // 3. broken cache → only way out is a reload
+    // "Unrecoverable" means the worker's cached files no longer match what
+    // the server has — usually a deploy that deleted the hashed files this
+    // client still needs. Nothing can be fetched, so a hard reload is the
+    // only exit. This is the one case where reloading without asking is right.
     this.updates.unrecoverable.subscribe(() => document.location.reload());
   }
 
   async promptUser() {
+    // ASK, don't force. Reloading under someone mid-form loses their work.
     if (confirm('A new version is available. Reload?')) {
+      // activateUpdate() swaps the worker over to the new version...
       await this.updates.activateUpdate();
+      // ...and the reload is what makes the running page pick it up. Both
+      // steps are required: activate alone leaves the old code executing.
       document.location.reload();
     }
   }
@@ -266,14 +281,27 @@ provideServiceWorker('ngsw-worker.js', {
   readonly pushSample = `private swPush = inject(SwPush);
 
 async subscribe() {
+  // This triggers the browser's permission prompt. Call it from a real user
+  // gesture — a button click — not on page load. Browsers penalise
+  // unprompted requests, and a denied permission is hard to undo.
   const sub = await this.swPush.requestSubscription({
+    // The PUBLIC half of a VAPID key pair. The private half stays on your
+    // server and signs the pushes; this one is safe to ship in the bundle.
     serverPublicKey: VAPID_PUBLIC_KEY,
   });
+  // The subscription object contains the endpoint URL and the encryption
+  // keys for THIS browser. Your server must store it — without it there is
+  // no address to push to. Skip this line and the whole flow silently no-ops.
   await firstValueFrom(this.http.post('/api/push/subscribe', sub));
 }
 
 // receive while the app is open; clicks route the user somewhere useful
+// messages fires only when the tab is FOCUSED. When it isn't, the service
+// worker shows a system notification instead — a different code path.
 this.swPush.messages.subscribe(msg => this.toast.show(msg));
+// The payoff line. A notification that just opens the home page wastes the
+// interruption; routing to the thing it was about is the point.
 this.swPush.notificationClicks.subscribe(({ notification }) =>
+  // data is whatever your server put in the push payload, so you control it.
   this.router.navigateByUrl(notification.data.url));`;
 }
