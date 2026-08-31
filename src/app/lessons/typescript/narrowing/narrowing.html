@@ -1,268 +1,765 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Type System</span>
-  <h1>Type Narrowing & Guards</h1>
-  <p class="lead">
-    Narrowing is how TypeScript refines a broad type to a specific one inside a branch. The engine behind it is
-    <strong>control-flow analysis</strong>: the compiler walks every possible path through your function and maintains,
-    per <em>reference</em>, the set of types the value could still be at each location. An <code>if</code> splits the
-    set; an early <code>return</code> or <code>throw</code> removes paths; reassignment resets. Union types are only
-    usable <em>because</em> this analysis exists — a <code>string | number</code> is unusable until a check proves which
-    one you're holding.
-  </p>
-
-  <h2>Built-in narrowing — with each guard's pitfall</h2>
-  <div class="code">
-    <pre>
-function fmt(x: string | number) {{ '{' }}
-  if (typeof x === 'string') return x.trim();   // x: string here
-  return x.toFixed(2);                           // x: number here — the ELSE narrows too
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>typeof x === 'string'</code></strong> — primitives only. Pitfall:
-      <code>typeof null === 'object'</code> (a 30-year-old JS bug the spec keeps), and arrays are also
-      <code>'object'</code>. TS knows both quirks — <code>typeof x === 'object'</code> narrows to
-      <code>SomeObj | null</code>, keeping null in!
-    </li>
-    <li>
-      <strong><code>x instanceof Date</code></strong> — class instances via the prototype chain. Pitfall: fails across
-      realms (iframe/worker objects have different constructors) and never works for interfaces — they're erased.
-    </li>
-    <li>
-      <strong><code>'bark' in pet</code></strong> — property presence. Narrows unions by which members declare the key;
-      an <em>optional</em> property counts as present for narrowing even though it might be undefined at runtime.
-    </li>
-    <li>
-      <strong><code>Array.isArray(x)</code></strong> — the reliable array check (works cross-realm, unlike instanceof
-      Array).
-    </li>
-    <li>
-      <strong><code>x === 'admin'</code></strong> — equality narrows to the literal; <code>switch</code> is a stack of
-      these.
-    </li>
-    <li>
-      <strong><code>if (x)</code></strong> — truthiness, the blunt one (next warning).
-    </li>
-  </ul>
-  <div class="warn">
-    Truthiness narrowing is blunt: <code>0</code>, <code>''</code>, <code>NaN</code> and <code>false</code> are all
-    falsy. Given <code>count: number | undefined</code>, <code>if (count)</code> wrongly treats a legitimate 0 like
-    "absent". To exclude only null/undefined use <code>x != null</code> — the loose <code>!=</code> intentionally
-    catches both nullish values in one comparison (one of the two sanctioned uses of loose equality).
-  </div>
-
-  <h2>Discriminated unions — the workhorse pattern</h2>
-  <p>
-    A shared literal field (the <em>discriminant</em>) lets <code>switch</code> narrow perfectly. This is how request
-    state should be modeled: the impossible combinations (data present <em>and</em> error present) simply cannot be
-    expressed:
-  </p>
-  <div class="code">
-    <pre>
-type LoadState =
-  | {{ '{' }} status: 'loading' {{ '}' }}
-  | {{ '{' }} status: 'loaded'; data: string[] {{ '}' }}
-  | {{ '{' }} status: 'error';  message: string {{ '}' }};
-
-function render(s: LoadState) {{ '{' }}
-  switch (s.status) {{ '{' }}
-    case 'loading': return 'Spinner';
-    case 'loaded':  return s.data.length;   // s.data exists ONLY here
-    case 'error':   return s.message;       // s.message ONLY here
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — a discriminated-union state machine</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button [class.ghost]="state().status !== 'loading'" (click)="setLoading()">loading</button>
-      <button [class.ghost]="state().status !== 'loaded'" (click)="setLoaded()">loaded</button>
-      <button [class.ghost]="state().status !== 'error'" (click)="setError()">error</button>
-    </div>
-    @switch (state().status) {
-      @case ('loading') {
-        <p>⏳ Spinner — no data, no message, and the compiler won't let this branch touch either.</p>
-      }
-      @case ('loaded') {
-        <p>✅ {{ loadedData().join(', ') }} — <code>data</code> is available only in this branch.</p>
-      }
-      @case ('error') {
-        <p style="color: #ef4444">❌ {{ errorMessage() }} — <code>message</code> exists only here.</p>
-      }
-    }
-    <p style="font-size: 0.88rem; color: var(--text-muted)">
-      The template's <code>&#64;switch</code> mirrors the TS switch — Angular's template type-checker narrows
-      discriminated unions inside <code>&#64;case</code> branches exactly like the compiler does in code.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="6"
+    kicker="TypeScript · Type System"
+    title="Type Narrowing"
+    hand="or, how the compiler talks itself out of a union, one question at a time"
+    [stops]="stops"
+    [current]="5"
+  >
+    <p class="lead">
+      A union type says <em>"one of these"</em>. Narrowing is how you get from that to <em>"this one"</em> — and it is
+      not a cast, a hint, or a favour the compiler does you. It is bookkeeping: at every point in your function
+      TypeScript holds a <strong>set of types the value could still be</strong>, and every check you write shrinks that
+      set. Learn to see the set and every guard, every trap and every exam question on this topic turns into the same
+      question — <em>what is still on the list here?</em>
     </p>
-  </div>
-  <p>
-    Compare with the "bag of flags" alternative —
-    <code>{{ '{' }} loading: boolean; data?: string[]; error?: string {{ '}' }}</code> — which permits nonsense states
-    (<code>loading &amp;&amp; error</code>) and forces defensive <code>?.</code> everywhere. Making illegal states
-    unrepresentable is the single highest-leverage typing habit in application code.
-  </p>
+  </app-chapter>
 
-  <h2>User-defined type guards — powerful and trusted</h2>
-  <div class="code">
-    <pre>
-function isCat(p: Pet): p is Cat {{ '{' }} return p.type === 'cat'; {{ '}' }}
-if (isCat(pet)) pet.meow();   // pet narrowed to Cat
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A union is a value you are not allowed to touch.</h2>
 
-// generic guard — filter out nulls AND narrow the array type:
-function isPresent&lt;T&gt;(v: T): v is NonNullable&lt;T&gt; {{ '{' }} return v != null; {{ '}' }}
-const names = [a, null, b].filter(isPresent);   // string[], not (string|null)[]</pre>
-  </div>
-  <div class="warn">
-    <code>x is T</code> is a <strong>promise, not a proof</strong> — the compiler checks that the body <em>could</em> be
-    a guard, not that it's correct.
-    <code>function isCat(p: Pet): p is Cat {{ '{' }} return true; {{ '}' }}</code> compiles, and every caller now
-    mis-narrows. Guards concentrate trust: keep them tiny, test them, and put them next to the type they guard. (Since
-    TS 5.5 simple guards like <code>v =&gt; v != null</code> passed straight to <code>filter</code> get their predicate
-    <em>inferred</em> — no annotation needed.)
-  </div>
-
-  <h2>Assertion functions &amp; exhaustiveness</h2>
-  <div class="code">
-    <pre>
-// throws instead of returning false — narrows everything after the call:
-function assert(cond: unknown, msg: string): asserts cond {{ '{' }}
-  if (!cond) throw new Error(msg);
-{{ '}' }}
-assert(user, 'no user');   // below this line, user is non-null
-
-function assertIsUser(v: unknown): asserts v is User {{ '{' }} /* validate or throw */ {{ '}' }}
-
-function assertNever(x: never): never {{ '{' }} throw new Error('Unhandled: ' + x); {{ '}' }}
-// switch default: assertNever(s) — add a union member and forget a case → COMPILE error,
-// because the leftover member no longer narrows to never.</pre>
-  </div>
-  <ul>
-    <li>
-      Assertion functions must be called through an <em>explicitly typed</em> reference — a quirk of the feature:
-      <code>const a: typeof assert = assert</code> style annotations are required if you alias them.
-    </li>
-    <li>
-      <code>assertNever</code> turns "I handled every case" from a hope into a build guarantee. Wire it into every
-      switch over a discriminated union.
-    </li>
-  </ul>
-
-  <div class="demo">
-    <p class="demo__title">Live — custom guard picking a branch</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="pick('cat')">cat</button>
-      <button (click)="pick('dog')">dog</button>
-    </div>
     <p>
-      speak() → <strong>{{ sound() }}</strong>
+      You write <code>function fmt(x: string | number)</code>, and then you cannot do anything with <code>x</code>. Not
+      <code>x.trim()</code>. Not <code>x.toFixed(2)</code>. Not <code>x.length</code>. The compiler rejects all three,
+      and the error feels like an insult when you can plainly see the value in the debugger.
     </p>
-    <p style="font-size: 0.88rem; color: var(--text-muted)">
-      <code>isCat(pet) ? pet.meow() : pet.bark()</code> — in the true branch pet is Cat, in the false branch the
-      compiler has <em>subtracted</em> Cat, leaving Dog.
+
+    <p>
+      It is not being difficult. A union gives you the <strong>intersection of the members</strong>, not the union of
+      them — you may only touch what exists on <em>every</em> arm. And all <code>string</code> and
+      <code>number</code> have in common is <code>toString()</code> and <code>valueOf()</code>, neither of which is what
+      you came for. The compiler is holding two possibilities at once and refusing to guess between them, which is
+      exactly what you asked it to do when you wrote the <code>|</code>.
     </p>
-  </div>
 
-  <h2>Where narrowing is lost — and why</h2>
-  <div class="code">
-    <pre>
-function f(x: string | null) {{ '{' }}
-  if (x !== null) {{ '{' }}
-    setTimeout(() =&gt; x.length);   // ❌ pre-5.x error / still fragile: the closure may
-                                  //    run after x was reassigned somewhere
-    const y = x;                  // ✅ capture into a const —
-    setTimeout(() =&gt; y.length);   //    a const can never change, narrowing is permanent
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Closures:</strong> narrowing of a mutable (<code>let</code>) variable doesn't survive into callbacks that
-      might run later — the variable could be reassigned in between. Capture into a <code>const</code> first.
-    </li>
-    <li>
-      <strong>Function calls:</strong> calling any function resets narrowing on values that function could mutate
-      (properties especially) — the compiler can't prove the callee didn't change them.
-    </li>
-    <li>
-      <strong>Property narrowing is shallower than variable narrowing:</strong> <code>if (obj.a)</code> narrows
-      <code>obj.a</code>, but an intervening call or assignment to <code>obj</code> discards it. Destructure or copy to
-      a local const for anything long-lived. (Since TS 4.4 narrowing <em>does</em> flow through const aliases of
-      discriminants: <code>const {{ '{' }} status {{ '}' }} = s; if (status === 'loaded') …</code> narrows
-      <code>s</code>.)
-    </li>
-  </ul>
+    <p>So the real question is not "how do I make the error go away". It is:</p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      <code>typeof x === 'object'</code> where <code>x: string | Date | null</code> — what's x in the branch?
-    </summary>
-    <div>
-      <code>Date | null</code> — not just Date. <code>typeof null</code> is <code>'object'</code>, and TypeScript
-      faithfully models the JS quirk, so the null stays until you also check <code>x !== null</code>. The idiomatic
-      combined check: <code>if (typeof x === 'object' &amp;&amp; x !== null)</code>. Interviewers love this one because
-      it tests JS knowledge and TS modeling at once.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Why does <code>arr.filter(x =&gt; x != null)</code> historically stay <code>(T | null)[]</code>, and what are the
-      two fixes?
-    </summary>
-    <div>
-      A plain boolean-returning lambda gives the compiler no type-level information — filter's signature only sees
-      <code>(v) =&gt; boolean</code>. Fix 1: a predicate-typed guard,
-      <code>filter((x): x is T =&gt; x != null)</code> or a reusable <code>isPresent</code>. Fix 2: TypeScript 5.5+
-      infers the predicate automatically for simple single-return lambdas exactly like this one. Knowing both signals
-      you understand <em>why</em> it works, not just the incantation.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Your <code>switch</code> over a 3-state union compiles today. A teammate adds a 4th state next sprint. What makes
-      the switch fail the build instead of silently falling through?
-    </summary>
-    <div>
-      An exhaustiveness default: <code>default: assertNever(s)</code>. With 3 handled cases, <code>s</code> in the
-      default is <code>never</code> — fine. After the 4th state is added, <code>s</code> there is the new variant, which
-      is not assignable to <code>never</code>, so the call errors at compile time pointing at the exact switch. Without
-      it, the switch returns undefined for the new state at runtime.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A guard <code>isAdmin(u: User): u is Admin</code> contains a bug and returns true for everyone. Does the compiler
-      catch anything anywhere?
-    </summary>
-    <div>
-      No — type predicates are trusted axioms. Every call site now treats plain users as Admin with full compiler
-      blessing, and failures appear at runtime far from the guard. This is the same trust class as <code>as</code>-casts
-      and <code>!</code>, just better dressed. Consequence: guards deserve unit tests more than almost any other tiny
-      function, and validation guards at I/O boundaries (parsing JSON) should check <em>every</em> field they claim.
-    </div>
-  </details>
+    <ul>
+      <li>What counts as <strong>evidence</strong> that a value is one arm and not the other?</li>
+      <li>How long does that evidence <strong>stay valid</strong>?</li>
+      <li>And what silently <strong>throws it away</strong> without telling you?</li>
+    </ul>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Control-flow analysis tracks each reference's possible types through branches, returns and throws — both the if
-      and the else narrow.
-    </li>
-    <li>
-      Know the guard pitfalls: <code>typeof null === 'object'</code>, instanceof fails cross-realm and on interfaces,
-      truthiness eats <code>0</code>/<code>''</code> — use <code>x != null</code> for nullish-only.
-    </li>
-    <li>
-      Discriminated unions make illegal states unrepresentable — model loading/loaded/error this way, and Angular
-      templates narrow them in <code>&#64;switch</code>/<code>&#64;if</code> too.
-    </li>
-    <li>
-      <code>x is T</code> and <code>asserts</code> are trusted, not verified — keep guards tiny and tested.
-      <code>assertNever</code> in the default turns forgotten cases into build errors.
-    </li>
-    <li>Narrowing dies across closures, calls and mutation — capture narrowed values into <code>const</code>s.</li>
-  </ul>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here is one to commit to before you scroll. Given
+      <code>x: string | Date | null</code>, you write <code>if (typeof x === 'object')</code>.
+      <strong>Inside that branch, what does the compiler think <code>x</code> is?</strong> Say it out loud — there is a
+      live bench three sections down where you can watch the answer happen, and a quiz that will hold you to it.
+    </app-napkin>
+  </section>
 
-  <p><a routerLink="/ts-utility-types">Next: Utility Types →</a></p>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>The compiler is working a shortlist of suspects.</h2>
+
+    <p>
+      Picture a detective with five names on a whiteboard. They do not <em>add</em> a suspect because of new evidence —
+      the board was written the moment the case opened. Every fact that arrives does one thing only: it
+      <strong>crosses names off</strong>. When one name is left, that is your answer. When <em>no</em> names are left,
+      you have proved the scenario impossible.
+    </p>
+
+    <p>
+      That is control-flow analysis, almost exactly. The whiteboard is the type you declared. Each
+      <code>if</code>, <code>return</code>, <code>throw</code> and <code>switch</code> case is a fact that eliminates
+      arms. And the part that trips people up is the part detectives get for free:
+      <strong>an alibi cuts both ways</strong>. If <code>typeof x === 'string'</code> is true, only
+      <code>string</code> survives; if it is false, everything <em>except</em> <code>string</code> survives. You never
+      write the second check, and the <code>else</code> branch narrows anyway.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Narrowing is subtraction, not casting.</strong> A guard can only remove arms from the union you already
+      wrote — it can never invent a type that was not on the board. So when a narrowing result surprises you, the
+      question is never "what did it cast to?" It is
+      <span class="key">which arm did I fail to eliminate?</span>
+    </app-remember>
+
+    <app-flow
+      direction="vertical"
+      caption="Control-flow analysis, drawn out. Read the right-hand column as the whiteboard after each line."
+      [steps]="cfaSteps"
+    />
+
+    <app-code-lab
+      file="describe.ts"
+      [code]="cfaSample"
+      [notes]="cfaNotes"
+      notesLabel="Line by line — where each name leaves the board"
+    />
+  </section>
+
+  <!-- ============ 3. THE BENCH ============ -->
+  <section>
+    <p class="bf-eyebrow">See it move</p>
+    <h2>Apply a guard. Watch the list shrink.</h2>
+
+    <p>
+      Reading about a shrinking set is not the same as watching one shrink. Below is a real union of five arms and the
+      six built-in guards, wired up so you can walk the flow yourself. Pick a branch — the body of the <code>if</code>,
+      or the <code>else</code> — then apply a guard and read what the compiler would think on the next line.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the compiler's shortlist, one guard at a time</p>
+
+      <p class="nb-decl">
+        <span class="nb-decl__label">you declared</span>
+        <code>function f(x: string | number | string[] | Date | null)</code>
+      </p>
+
+      <div class="nb-shortlist" aria-hidden="true">
+        @for (candidate of shortlist(); track candidate.id) {
+          <span class="bf-chip nb-cand" [class.nb-cand--out]="candidate.out">{{ candidate.label }}</span>
+        }
+      </div>
+
+      <div class="row nb-branch">
+        <span class="nb-branch__label">Walk down the</span>
+        <button
+          type="button"
+          class="bf-btn bf-btn--ghost"
+          [attr.aria-pressed]="branch() === 'true'"
+          (click)="setBranch('true')"
+        >
+          true branch
+        </button>
+        <button
+          type="button"
+          class="bf-btn bf-btn--ghost"
+          [attr.aria-pressed]="branch() === 'false'"
+          (click)="setBranch('false')"
+        >
+          else branch
+        </button>
+      </div>
+
+      <div class="row nb-guards">
+        @for (guard of guards; track guard.id) {
+          <button
+            type="button"
+            [attr.aria-label]="
+              'Apply ' + guard.source + ', taking the ' + (branch() === 'true' ? 'true' : 'else') + ' branch'
+            "
+            (click)="apply(guard)"
+          >
+            {{ guard.source }}
+          </button>
+        }
+      </div>
+
+      <div class="nb-readout" role="status">
+        <p class="nb-readout__type">
+          <span class="nb-readout__label">x is now</span>
+          <code [class.nb-never]="isNever()">{{ typeText() }}</code>
+        </p>
+        <p class="nb-readout__verdict">{{ verdict() }}</p>
+      </div>
+
+      @if (hasSteps()) {
+        <ol class="nb-trace">
+          @for (row of trace(); track row.n) {
+            <li class="nb-trace__row">
+              <code class="nb-trace__src">{{ row.source }}</code>
+              <span class="nb-trace__res">
+                <span class="nb-trace__arrow" aria-hidden="true">→</span>
+                <code>{{ row.result }}</code>
+                @if (row.removed === 0) {
+                  <span class="nb-trace__nil">nothing eliminated — the compiler learned nothing here</span>
+                }
+              </span>
+              <span class="nb-trace__note">{{ row.note }}</span>
+            </li>
+          }
+        </ol>
+      }
+
+      <div class="row">
+        <button type="button" class="ghost" [disabled]="!hasSteps()" (click)="undo()">Undo the last guard</button>
+        <button type="button" class="ghost" [disabled]="!hasSteps()" (click)="resetBench()">
+          Reset to the declared type
+        </button>
+      </div>
+
+      <p class="demo__note">
+        Three things are worth doing here deliberately. Apply
+        <code>typeof x === 'object'</code> and count what survives — <code>null</code> is still there, and that one
+        surprise is worth a whole section on its own. Take the <strong>else</strong> branch of <code>if (x)</code> and
+        watch <code>string</code> and <code>number</code> refuse to leave. Then apply the same guard twice in a row: the
+        second one removes nothing, and the trace says so, because a guard that cannot eliminate anything teaches the
+        compiler nothing.
+      </p>
+    </div>
+
+    <p>
+      Two end states are worth naming now, because the rest of the lesson keeps returning to them. When the shortlist
+      reaches <strong>one</strong>, you have narrowed, and that type's own members are yours. When it reaches
+      <strong>zero</strong>, the compiler prints <code>never</code> — the empty type, held by no value at all — and that
+      is not a failure, it is a proof that execution cannot reach here.
+      <strong>Every exhaustiveness check you will ever write is built on that second case</strong>, and it comes back
+      with a vengeance four sections down.
+    </p>
+  </section>
+
+  <!-- ============ 4. TYPEOF ============ -->
+  <section>
+    <p class="bf-eyebrow">Guard 1 · the primitive one</p>
+    <h2>typeof knows about eight things. One of them is a lie.</h2>
+
+    <p>
+      <code>typeof</code> is a JavaScript operator that returns a string, and it can return exactly eight of them. That
+      is its strength and its ceiling: it separates the primitives cleanly and then dumps <em>everything else</em> into
+      one bucket labelled <code>"object"</code>.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        Every tag typeof can return, and what actually lands in each
+      </caption>
+      <thead>
+        <tr>
+          <th>Tag</th>
+          <th>What lands there</th>
+          <th>Worth knowing</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>"string"</code></td>
+          <td><code>string</code> and every string literal type</td>
+          <td>Clean. No surprises.</td>
+        </tr>
+        <tr>
+          <td><code>"number"</code></td>
+          <td><code>number</code>, including <code>NaN</code> and <code>Infinity</code></td>
+          <td><code>typeof NaN === "number"</code> — "not a number" is a number.</td>
+        </tr>
+        <tr>
+          <td><code>"bigint"</code>, <code>"boolean"</code>, <code>"symbol"</code></td>
+          <td>Their own primitives</td>
+          <td>Also clean.</td>
+        </tr>
+        <tr>
+          <td><code>"undefined"</code></td>
+          <td><code>undefined</code> only</td>
+          <td>The one nullish value <code>typeof</code> reports honestly.</td>
+        </tr>
+        <tr>
+          <td><code>"function"</code></td>
+          <td>Anything callable, classes included</td>
+          <td>A class is a function at runtime, so <code>typeof MyClass === "function"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>"object"</code></td>
+          <td>
+            Objects, arrays, <code>Date</code>, <code>Map</code>, <code>RegExp</code> —
+            <strong>and <code>null</code></strong>
+          </td>
+          <td><span class="bf-break">The bucket everything falls into.</span> Never enough on its own.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-code-lab
+      file="inspect.ts"
+      [code]="typeofSample"
+      [notes]="typeofNotes"
+      notesLabel="Line by line — three guards, three subtractions"
+    />
+
+    <div class="warn">
+      <strong>Comparing against a tag that does not exist is a compile error, not a false branch.</strong>
+      Typo <code>typeof v === 'strng'</code> and TypeScript raises
+      <strong>TS2367 — this comparison appears to be unintentional</strong>, then helpfully lists all eight legal tags.
+      It is one of the few places the compiler catches a string typo for you.
+    </div>
+
+    <app-quiz
+      [question]="typeofQuizQuestion"
+      [options]="typeofQuiz"
+      followUp="Prove it to yourself on the bench above: apply `typeof x === 'object'` and count the chips that are still lit."
+    />
+  </section>
+
+  <!-- ============ 5. TRUTHINESS ============ -->
+  <section>
+    <p class="bf-eyebrow">Guard 2 · the blunt one</p>
+    <h2>if (x) is the guard that eats your zeros.</h2>
+
+    <p>
+      Writing <code>if (x)</code> to mean "if <code>x</code> exists" is the most common narrowing habit in JavaScript,
+      and it is wrong roughly as often as your data contains a <code>0</code> or an empty string. JavaScript has
+      <strong>eight</strong> falsy values — <code>false</code>, <code>0</code>, <code>-0</code>, <code>0n</code>,
+      <code>""</code>, <code>null</code>, <code>undefined</code> and <code>NaN</code> — and only two of them mean
+      <em>absent</em>. A truthiness check cannot tell "absent" from <span class="bf-break">"legitimately zero"</span>.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — truthiness for absence"
+      leftTone="bad"
+      rightTitle="Right — ask the question you meant"
+      rightTone="good"
+      note="Both compile. Only one of them reports an inventory of zero items correctly."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ truthyWrongSample }}</pre>
+        </div>
+        <p>Reads well, tests fine on non-empty data, and misreports every legitimate zero.</p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ truthyRightSample }}</pre>
+        </div>
+        <p>
+          <code>== null</code> with one <code>=</code> is loose equality on purpose: it is true for
+          <code>null</code> and <code>undefined</code> and nothing else. This is one of the only two sanctioned uses of
+          <code>==</code> in TypeScript.
+        </p>
+      </div>
+    </app-compare>
+
+    <app-code-lab
+      file="label.ts"
+      [code]="truthySample"
+      [notes]="truthyNotes"
+      notesLabel="Line by line — the bug, the fix, and the branch nobody predicts"
+      [prompt]="truthyPrompt"
+      [output]="truthyOutput"
+      revealLabel="Reveal what the else branch holds"
+    />
+
+    <app-napkin lead="one to keep —" label="The rule for nullish checks">
+      Use <code>if (x)</code> only when you genuinely want <em>truthy</em>, and <code>if (x != null)</code> when you
+      want <em>present</em>. Say the two words out loud when you write the check; nearly every falsy bug is someone who
+      meant "present" and typed "truthy".
+    </app-napkin>
+  </section>
+
+  <!-- ============ 6. THE REST OF THE FAMILY ============ -->
+  <section>
+    <p class="bf-eyebrow">The whole family</p>
+    <h2>Every guard asks a different question, and every one is blind to something.</h2>
+
+    <p>
+      Five guards do almost all the work in real code. They are not interchangeable: each one asks a different runtime
+      question, and each has one blind spot that shows up in exams precisely because it shows up in production.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="typeof" kicker="primitives" tone="gold">
+        Eight tags, and only one of them covers all objects. Its blind spot is
+        <code>null</code>, which reports <code>"object"</code>.
+      </app-tape-card>
+      <app-tape-card heading="instanceof" kicker="classes" tone="accent">
+        Walks the prototype chain. Blind to <strong>interfaces</strong> (erased before runtime, error TS2693) and to
+        objects from another iframe or worker, which have a different <code>Date</code> entirely.
+      </app-tape-card>
+      <app-tape-card heading="in" kicker="shapes" tone="olive">
+        Narrows a union by which arm declares a key. Blind spot: an
+        <strong>optional</strong> property counts as declared, so <code>'x' in obj</code> can be true while
+        <code>obj.x</code> is <code>undefined</code>.
+      </app-tape-card>
+      <app-tape-card heading="Array.isArray" kicker="arrays" tone="olive">
+        The reliable array check, and the one that works across realms where
+        <code>instanceof Array</code> does not. It is a type predicate in the standard library — that is why it narrows.
+      </app-tape-card>
+      <app-tape-card heading="===" kicker="literals" tone="gold">
+        Comparison against a literal type. A <code>switch</code> is a stack of these. Blind spot: it only narrows when
+        the field is typed as a <strong>literal</strong>, not as <code>string</code>.
+      </app-tape-card>
+    </div>
+
+    <app-code-lab
+      file="act.ts"
+      [code]="familySample"
+      [notes]="familyNotes"
+      notesLabel="Line by line — four guards, four different questions"
+    />
+  </section>
+
+  <!-- ============ 7. DISCRIMINATED UNIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">The one the exam is about</p>
+    <h2>Give every arm a literal tag and the compiler does the rest.</h2>
+
+    <p>
+      If you take one <em>pattern</em> away from this page rather than one fact, take this one. A
+      <span class="term">discriminated union</span> is a union of object types that all declare the same field, each
+      with a different <strong>literal</strong> type. Comparing that one field identifies the whole arm — and once the
+      compiler knows the arm, it knows every property on it.
+    </p>
+
+    <app-compare
+      leftTitle="A bag of flags"
+      leftTone="bad"
+      rightTitle="A discriminated union"
+      rightTone="good"
+      note="The right-hand version has fewer properties, no optionals, and no defensive optional-chaining at any call site. Making illegal states unrepresentable is the highest-leverage typing habit in application code."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ flagsSample }}</pre>
+        </div>
+        <p>
+          Permits <code>loading &amp;&amp; error</code>, permits loaded-with-no-data, and forces <code>?.</code> on
+          every read because the compiler can never rule anything out.
+          <span class="bf-break">Eight states expressible, three of them meaningful.</span>
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ unionShapeSample }}</pre>
+        </div>
+        <p>
+          Exactly three states exist, and each carries precisely the data that state has.
+          <code>data</code> is not optional — it is <strong>absent</strong> unless you are loaded.
+        </p>
+      </div>
+    </app-compare>
+
+    <app-code-lab
+      file="load-state.ts"
+      [code]="unionSample"
+      [notes]="unionNotes"
+      notesLabel="Line by line — where the discriminant does its work"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — a discriminated-union state machine</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button
+          type="button"
+          [class.ghost]="state().status !== 'loading'"
+          [attr.aria-pressed]="state().status === 'loading'"
+          (click)="setLoading()"
+        >
+          loading
+        </button>
+        <button
+          type="button"
+          [class.ghost]="state().status !== 'loaded'"
+          [attr.aria-pressed]="state().status === 'loaded'"
+          (click)="setLoaded()"
+        >
+          loaded
+        </button>
+        <button
+          type="button"
+          [class.ghost]="state().status !== 'error'"
+          [attr.aria-pressed]="state().status === 'error'"
+          (click)="setError()"
+        >
+          error
+        </button>
+      </div>
+
+      @switch (state().status) {
+        @case ('loading') {
+          <p>⏳ Spinner — no data, no message, and the compiler will not let this branch touch either.</p>
+        }
+        @case ('loaded') {
+          <p>✅ {{ loadedData().join(', ') }} — <code>data</code> is reachable only in this branch.</p>
+        }
+        @case ('error') {
+          <p class="nb-error">❌ {{ errorMessage() }} — <code>message</code> exists only here.</p>
+        }
+      }
+
+      <p class="demo__note">
+        The template's <code>&#64;switch</code> is not a decorative mirror of the TypeScript one — Angular's template
+        type-checker runs the same control-flow analysis, so a discriminated union narrows inside
+        <code>&#64;case</code> exactly as it does in code. Try reading <code>message</code> from the
+        <code>&#64;case ('loaded')</code> block and the <em>build</em> fails, not the browser.
+      </p>
+    </div>
+
+    <div class="tip">
+      <strong>You can pull the discriminant out and still narrow the object.</strong> TypeScript 4.4 taught the compiler
+      to follow both halves of that, and both halves need a <code>const</code>. An <em>aliased condition</em> narrows —
+      <code>const isLoaded = s.status === 'loaded';</code> then <code>if (isLoaded)</code> gives you
+      <code>s.data</code>. So does an <em>aliased discriminant</em> — <code>const status = s.status;</code> then
+      <code>if (status === 'loaded')</code> narrows <code>s</code> itself, not merely <code>status</code>. TypeScript
+      4.6 added the destructured version, so <code>const &#123; status, data &#125; = s;</code> followed by a check on
+      <code>status</code> narrows <code>data</code> alongside it. Change any of those <code>const</code>s to a
+      <code>let</code> and it all stops working instantly, because a binding that could be reassigned is no longer
+      evidence about anything.
+    </div>
+
+    <app-predict
+      prompt="This object has exactly the right shape, field for field, and the assignment on line 2 still fails. Why?"
+      [code]="wideningSample"
+      [answer]="wideningAnswer"
+      revealLabel="Reveal why the shape is not enough"
+    />
+  </section>
+
+  <!-- ============ 8. TYPE PREDICATES ============ -->
+  <section>
+    <p class="bf-eyebrow">Your own guards</p>
+    <h2>Your own guard is a promise nobody checks.</h2>
+
+    <p>
+      Sometimes the check you need is too involved for an <code>if</code>. So you extract it into a function — and
+      discover the extraction <em>destroys</em> the narrowing, because a function returning <code>boolean</code> tells
+      the compiler an answer without telling it what the answer <em>means</em>. A
+      <span class="term">type predicate</span> is how you say what it means.
+    </p>
+
+    <app-bubbles
+      [turns]="predicateTalk"
+      caption="The whole contract, in six lines. Note which party is doing the checking — and which one is only doing the trusting."
+    />
+
+    <app-code-lab
+      file="guards.ts"
+      [code]="guardSample"
+      [notes]="guardNotes"
+      notesLabel="Line by line — the predicate, and the generic one worth stealing"
+    />
+
+    <app-predict
+      prompt="A predicate gets stubbed during a refactor and never un-stubbed. How much of this does the compiler complain about?"
+      [code]="liarSample"
+      [answer]="liarAnswer"
+      revealLabel="Reveal what the compiler says"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — a custom guard picking the branch</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button type="button" (click)="pick('cat')">cat</button>
+        <button type="button" (click)="pick('dog')">dog</button>
+      </div>
+      <p>
+        <code>speak()</code> →
+        <strong>{{ sound() }}</strong>
+      </p>
+      <p class="demo__note">
+        The expression behind those buttons is
+        <code>isCat(pet) ? pet.meow() : pet.bark()</code>. In the true arm <code>pet</code> is <code>Cat</code>, so
+        <code>meow</code> exists. In the false arm the compiler has <em>subtracted</em> <code>Cat</code> from the union,
+        leaving <code>Dog</code>, so <code>bark</code> exists. One predicate, two narrowings, no casts anywhere.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>A predicate is an axiom, not a proof.</strong> The compiler checks only that <code>Cat</code> is
+      <em>possible</em> for <code>p</code>, then believes the body without ever reading it. So keep guards tiny, keep
+      them beside the type they guard, and <strong>write tests for them</strong> — a type predicate is the one place
+      where a five-line function can silently break a whole codebase's type safety, and the only place a unit test is
+      checking the <em>compiler's</em> assumptions rather than yours.
+    </div>
+  </section>
+
+  <!-- ============ 9. ASSERTIONS AND NEVER ============ -->
+  <section>
+    <p class="bf-eyebrow">Narrowing by force</p>
+    <h2>Two more moves: assert it, or prove it cannot happen.</h2>
+
+    <p>
+      A predicate returns an answer you have to branch on. An
+      <span class="term">assertion function</span> does the opposite — it <strong>throws</strong> instead of returning
+      false, so if execution reaches the next line the claim held, and every line after the call is narrowed with no
+      <code>if</code> and no nesting.
+    </p>
+
+    <app-code-lab
+      file="assertions.ts"
+      [code]="assertSample"
+      [notes]="assertNotes"
+      notesLabel="Line by line — both asserts forms, plus the alias trap"
+    />
+
+    <p>
+      The last function in that snippet is the other half of this section, and it uses the strangest type in TypeScript.
+      <code>never</code> is the <strong>empty type</strong>: no value has it, so a parameter typed
+      <code>never</code> can only be satisfied by something the compiler has already eliminated. Put one at the bottom
+      of a <code>switch</code> and you have converted "I handled every case" from a hope into a build guarantee.
+    </p>
+
+    <app-code-lab
+      file="render.ts"
+      [code]="exhaustiveSample"
+      [notes]="exhaustiveNotes"
+      notesLabel="Line by line — the default case that is not about defaults"
+      [prompt]="exhaustivePrompt"
+      [output]="exhaustiveOutput"
+      revealLabel="Reveal what the build does"
+    />
+
+    <div class="tip">
+      <strong>Wire <code>assertNever</code> into every switch over a discriminated union.</strong> It costs one line and
+      it converts the most common class of "we forgot to handle the new state" bug from a production incident into a red
+      squiggle at the moment the union grows.
+    </div>
+  </section>
+
+  <!-- ============ 10. WHERE NARROWING DIES ============ -->
+  <section>
+    <p class="bf-eyebrow">The part nobody teaches</p>
+    <h2>Narrowing is about a place in the flow, not about a variable.</h2>
+
+    <p>
+      Everything so far has been about earning a narrower type. This section is about
+      <strong>keeping</strong> it, and it is where most real bugs live — because some of the things that destroy
+      narrowing produce a loud compiler error, and some of them
+      <span class="bf-break">produce nothing at all and crash in production instead</span>.
+    </p>
+
+    <p>
+      The bench below inserts one thing between the check and the use. Work through all eight; at least two of them will
+      not do what you expect.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — what happens between the check and the use</p>
+
+      <div class="row nb-scenarios">
+        @for (option of interruptions; track option.id) {
+          <button
+            type="button"
+            class="ghost"
+            [class.nb-chosen]="interruption().id === option.id"
+            [attr.aria-pressed]="interruption().id === option.id"
+            (click)="choose(option)"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+
+      <div class="code"><pre [innerHTML]="interruptionCode()"></pre></div>
+
+      <p class="nb-verdict" [class.nb-verdict--lost]="!interruption().survives" role="status">
+        <span class="nb-verdict__badge">{{ interruption().survives ? 'compiles' : 'error' }}</span>
+        {{ interruption().verdict }}
+      </p>
+
+      <p class="demo__note">{{ interruption().why }}</p>
+    </div>
+
+    <p>
+      Notice the shape of that list. <strong>Three</strong> things actually take the narrowing away — an assignment, a
+      closure over a variable that gets assigned, and a function boundary — and all three tell you loudly, at compile
+      time, on a line you can point at. The other three are worse, because the compiler <em>keeps</em> the narrowing and
+      the runtime is what moved underneath it. TypeScript chose usability over soundness there deliberately: resetting
+      narrowing after every call would make narrowed code impossible to write, since almost every line calls something.
+    </p>
+
+    <app-code-lab
+      file="schedule.ts"
+      [code]="closureSample"
+      [notes]="closureNotes"
+      notesLabel="Line by line — and why the error is not on the line that errors"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The six interruptions that change something, and which of them you hear about
+      </caption>
+      <thead>
+        <tr>
+          <th>What happens in between</th>
+          <th>Narrowing</th>
+          <th>Do you find out?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>You reassign the variable</td>
+          <td><strong>Lost</strong> — re-narrowed to the assigned type</td>
+          <td>Yes — compile error at the use</td>
+        </tr>
+        <tr>
+          <td>You pass it to another function</td>
+          <td><strong>Lost</strong> at the parameter list</td>
+          <td>Yes — the callee only sees its own declaration</td>
+        </tr>
+        <tr>
+          <td>You close over a variable that is assigned somewhere</td>
+          <td><strong>Lost</strong> inside the callback</td>
+          <td>Yes — TS18047, on a line that looks innocent</td>
+        </tr>
+        <tr>
+          <td>You call an unrelated function</td>
+          <td>Kept</td>
+          <td><span class="bf-break">No</span> — clean build, possible crash</td>
+        </tr>
+        <tr>
+          <td>You <code>await</code> something</td>
+          <td>Kept</td>
+          <td><span class="bf-break">No</span> — and the whole app ran in between</td>
+        </tr>
+        <tr>
+          <td>You read it through a <code>get</code> accessor</td>
+          <td>Kept, and the getter runs twice</td>
+          <td><span class="bf-break">No</span> — the second call may answer differently</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-quiz
+      [question]="lostQuizQuestion"
+      [options]="lostQuiz"
+      followUp="Pick “call some unrelated function” on the bench above to see the exact snippet the compiler is happy with."
+    />
+
+    <app-remember variant="hook">
+      If a value has to stay narrow across a call, an <code>await</code>, a callback or a getter,
+      <strong>copy it into a <code>const</code> the moment you narrow it</strong>. A <code>const</code> cannot be
+      reassigned, cannot be changed by a function you called, and cannot answer differently the second time you read it
+      — so the compiler's optimism becomes correct instead of merely convenient.
+    </app-remember>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Narrowing is <strong>subtraction from a shortlist</strong>, never a cast. A guard can only remove arms you
+        already declared, which is why the answer to "what is it here?" is always "whatever I failed to eliminate".
+      </li>
+      <li>
+        <strong>Both branches narrow.</strong> The <code>else</code> keeps the exact complement of the <code>if</code>,
+        and an early <code>return</code> narrows the whole rest of the function. Most people write half the guards they
+        think they wrote.
+      </li>
+      <li>
+        Learn the three blind spots by name: <code>typeof null === 'object'</code>, truthiness eats <code>0</code> and
+        <code>''</code>, and <code>instanceof</code> is useless on an interface. Use <code>x != null</code> when you
+        mean "present".
+      </li>
+      <li>
+        A <strong>discriminated union</strong> — one shared field, a different literal type per arm — makes illegal
+        states unrepresentable and narrows everywhere, TypeScript <code>switch</code> and Angular
+        <code>&#64;switch</code> alike. It stops working the moment the discriminant widens to <code>string</code>.
+      </li>
+      <li>
+        <code>x is T</code> and <code>asserts x is T</code> are <strong>trusted, not verified</strong>. The compiler
+        never reads the body. <code>assertNever</code> in a <code>switch</code> default turns a forgotten case into a
+        build error instead of an <code>undefined</code>.
+      </li>
+      <li>
+        Narrowing describes a <strong>point in the flow</strong>. Assignment and function boundaries take it away
+        loudly; a call, an <code>await</code> and a getter keep it while the runtime moves on without you.
+        <span class="key">Copy into a <code>const</code>.</span>
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-utility-types">Next: Utility Types →</a></p>
+  </section>
 </article>

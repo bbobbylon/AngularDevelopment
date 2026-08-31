@@ -1,13 +1,285 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
+/* Subjects — lesson-specific styling.
+
+   Almost nothing generic lives here. Tables, callouts, code panels, chips,
+   buttons, demo panels and the whole teaching set are themed by the shared
+   brain-friendly layer (`src/brain-friendly.css`), so the old `.t` table block
+   this file used to carry is gone — it was a per-lesson copy of rules the theme
+   now owns.
+
+   What is left is one bespoke thing: a marble diagram. No shared component
+   draws one, and none should — `app-flow` draws a sequence of *steps* and
+   `app-layers` draws containment, while a marble diagram draws several
+   subscribers' experience of the *same moments*, side by side. That
+   simultaneity is the entire claim of this lesson ("what does a latecomer
+   get?"), and it only reads if the rows line up column for column.
+
+   Hence the geometry rule that governs everything below: every cell is exactly
+   `--mb-cell` wide, including the empty ones, and a lane never gains or loses a
+   cell for cosmetic reasons. The `BehaviorSubject`'s seed occupies the first
+   column of its row and the other three rows spend that column on a blank, so
+   the four live lanes stay in step.
+
+   Motion contract (brain-friendly.css §12): the only animation here is an
+   opacity/transform entrance on a newly emitted marble, inside a
+   `prefers-reduced-motion: no-preference` guard. Nothing hovers, nothing
+   resizes, and no state change moves a neighbour. */
+
+/* ------------------------------------------------------------
+   1. THE MARBLE DIAGRAM
+   ------------------------------------------------------------ */
+
+.mb-timeline {
+  --mb-cell: 2rem;
+  --mb-gap: 0.55rem;
+  margin: 2rem 0;
+  /* The diagram scrolls inside itself rather than widening the page. Confined
+     here, at the figure, so every lane scrolls together and the columns cannot
+     drift apart — which is the one thing a marble diagram must never do. */
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
 }
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
+
+.mb-lanes {
+  min-width: max-content;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
-.t td:first-child {
-  width: 150px;
-  white-space: nowrap;
+
+.mb-lane {
+  display: grid;
+  grid-template-columns: 15rem max-content;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--bf-rule);
+  border-radius: 14px;
+  background: var(--bf-surface);
+}
+
+/* The name column is the accessible content of the row: the track itself is
+   `aria-hidden`, because "0 1 2 3" read aloud is noise. Anything a sighted
+   reader learns from the marbles has to be said here or in the caption. */
+.mb-lane__name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--bf-ink);
+}
+
+.mb-lane__got {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--bf-ink-2);
+}
+
+/* ---- The track ----
+   A dotted rule running the full width behind the cells, so the row reads as
+   time passing rather than as a row of badges. */
+.mb-track {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--mb-gap);
+  min-height: 2.6rem;
+}
+
+.mb-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px dotted color-mix(in srgb, var(--bf-ink) 26%, transparent);
+}
+
+.mb-track > * {
+  position: relative;
+  flex: 0 0 var(--mb-cell);
+}
+
+/* ---- The marbles ----
+   Three states, and none of them is carried by hue alone: `got` is solid,
+   `missed` is hollow with a dashed edge, and the neutral "emitted, nobody has
+   joined yet" state is solid in the accent. The demo note says the same thing
+   in words, and each lane prints what it received as text. */
+.mb-marble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--mb-cell);
+  height: var(--mb-cell);
+  border-radius: 50%;
+  border: 2px solid var(--bf-accent);
+  background: var(--bf-accent);
+  /* --bf-surface rather than --bf-bg: on the light palette a cream label on the
+     accent clears 4.5:1 only from the lighter of the two, and the marble label is
+     small bold text, which does not qualify for the 3:1 large-text allowance. */
+  color: var(--bf-surface);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: var(--bf-shadow);
+}
+
+.mb-marble--got {
+  border-color: var(--bf-olive);
+  background: var(--bf-olive);
+}
+
+.mb-marble--missed {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--bf-ink) 36%, transparent);
+  background: transparent;
+  color: var(--bf-ink-2);
+  box-shadow: none;
+}
+
+/* A column where nothing happened. It still occupies a cell — that is the whole
+   job — so the rows above and below stay aligned. */
+.mb-blank {
+  width: var(--mb-cell);
+  height: var(--mb-cell);
+}
+
+/* `complete()`, drawn the way marble diagrams have always drawn it. */
+.mb-end {
+  width: 3px;
+  height: calc(var(--mb-cell) * 1.05);
+  border-radius: 2px;
+  background: var(--bf-ink);
+  /* Narrower than a cell, so it centres in the column rather than filling it. */
+  margin: 0 calc((var(--mb-cell) - 3px) / 2);
+  flex-basis: 3px;
+}
+
+.mb-cap {
+  max-width: var(--bf-measure);
+  margin: 1rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--bf-ink) 86%, var(--bf-bg));
+}
+
+/* The live diagram sits inside a `.demo` panel, which already has a surface, so
+   its lanes recess instead of lifting — otherwise it reads as a card on a card. */
+.mb-timeline--live {
+  margin: 0.4rem 0 0;
+}
+
+.mb-lane--live {
+  background: var(--bf-bg);
+}
+
+/* ------------------------------------------------------------
+   2. SMALL READOUTS
+   ------------------------------------------------------------ */
+
+/* The "emitted so far" strip that rides along with the bench's title. */
+.mb-status {
+  display: inline-block;
+  margin-left: 0.6rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--bf-ink-2);
+}
+
+/* ---- The bus log ----
+   A live region, so the reader is told what happened without having to look
+   away from the buttons. Kept monospace: every line is a transcript of a call,
+   not prose. */
+.mb-log {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  background: var(--bf-surface-2);
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+/* The layer gives every `ol` in a lesson a padded, marker-coloured list with a
+   gap between items. A transcript wants none of that, and this is the lesson's
+   own markup rather than a shared component, so overriding is fair game — but
+   it has to out-specify `.lesson.bf ol > li`, hence the `.mb-log` prefix on
+   these two selectors rather than the bare block classes. */
+.mb-log .mb-log__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.mb-log .mb-log__line {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--bf-ink);
+  white-space: pre-wrap;
+}
+
+/* A delivery — something the subject actually pushed to somebody. Tinted so the
+   gap under a dropped `next()` is visible at a glance rather than on a re-read. */
+.mb-log .mb-log__line--in {
+  color: var(--bf-olive);
+  font-weight: 600;
+}
+
+.mb-log .mb-log__line--empty {
+  color: var(--bf-ink-2);
+  font-style: italic;
+}
+
+/* ------------------------------------------------------------
+   3. NARROW SCREENS
+   ------------------------------------------------------------ */
+
+@media (max-width: 620px) {
+  .mb-lane {
+    grid-template-columns: 10.5rem max-content;
+    gap: 0.75rem;
+  }
+
+  .mb-lane__name {
+    font-size: 0.76rem;
+  }
+
+  .mb-timeline {
+    --mb-cell: 1.75rem;
+    --mb-gap: 0.4rem;
+  }
+}
+
+/* ------------------------------------------------------------
+   4. MOTION
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A newly emitted value pops in. `@for` tracks by index, so the existing
+     marbles keep their DOM nodes and only the new cell animates — and because
+     the animation is scale + opacity inside a fixed-size cell, nothing in the
+     row moves while it plays. */
+  .mb-marble {
+    animation: mb-pop 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes mb-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }

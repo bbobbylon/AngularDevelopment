@@ -60,7 +60,7 @@
       @if (revealed()) {
         <div class="lab__output" [id]="panelId" role="status">
           <span class="lab__output-label">Output</span>
-          <span class="lab__output-body">{{ output() }}</span>
+          <span class="lab__output-body"><app-rich-text [text]="output()" /></span>
         </div>
       }
     }

@@ -1,17 +1,283 @@
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+/* Narrowing — lesson-specific styling.
+
+   Almost everything this page draws comes from the brain-friendly layer
+   (`src/brain-friendly.css`): tables, callouts, code panels, chips, buttons and
+   the whole teaching set are themed there, so nothing generic belongs here. The
+   old `.qa` block is gone for good — those exam questions are an `<app-faq>`
+   now, which is keyboard-operable and consistent with every other lesson.
+
+   What is left is the two live benches, and both are bespoke for the same
+   reason: this lesson's central claim is that narrowing is *subtraction from a
+   fixed set*, and no shared component draws a set with some of its members
+   crossed out. `app-flow` would show a sequence and `app-layers` containment;
+   neither says "these five names existed and three of them are now gone".
+
+   Motion contract (brain-friendly.css §12): every transition below is opacity,
+   colour or transform only, so no hover or state change can move the layout
+   under the pointer, and all of it is inside a reduced-motion guard. */
+
+/* ------------------------------------------------------------
+   1. THE GUARD BENCH
+   ------------------------------------------------------------ */
+
+/* The declared signature, sitting above the shortlist as the thing every guard
+   is whittling down. Labelled rather than captioned so it reads as a field. */
+.nb-decl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
+
+.nb-decl__label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
+}
+
+/* The shortlist itself. Every union member is always present; eliminated ones
+   are struck through rather than removed, because a list that merely got
+   shorter would not show that narrowing *subtracts from a fixed board*. The
+   strip is aria-hidden: it is a visual restatement of the `role="status"`
+   readout below it, which carries the same information as text. */
+.nb-shortlist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin: 0 0 1.2rem;
+}
+
+.nb-cand {
+  /* Fixed border width in both states so the strike-through cannot resize a
+     chip and reflow the row. */
+  border-width: 1px;
   font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+
+.nb-cand--out {
+  color: var(--bf-ink-2);
+  background: var(--bf-surface-2);
+  box-shadow: none;
+  opacity: 0.72;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--bf-danger);
+}
+
+/* The true/else selector. `.bf-btn[aria-pressed="true"]` already turns olive in
+   the shared layer, so only the label needs styling here. */
+.nb-branch {
+  margin-bottom: 0.9rem;
+}
+
+.nb-branch__label {
+  font-size: 0.8rem;
+  color: var(--bf-ink-2);
+}
+
+.nb-guards {
+  margin-bottom: 1.2rem;
+}
+
+/* The live readout. This is the accessible source of truth for the demo — the
+   chips above are decoration over it — so it states the type in words. */
+.nb-readout {
+  border-radius: var(--bf-r);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-surface-2);
+  padding: 0.95rem 1.15rem;
+}
+
+.nb-readout__type {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.5rem;
+}
+
+.nb-readout__label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
+}
+
+.nb-readout__type code {
+  font-size: 1rem;
+}
+
+/* `never` is the one readout that means something structural rather than
+   incidental, so it is marked in the danger hue *and* named in the verdict
+   sentence underneath — colour is never the only carrier. */
+.nb-readout__type code.nb-never {
+  color: var(--bf-danger);
+  background: var(--bf-danger-wash);
+  border-color: color-mix(in srgb, var(--bf-danger) 35%, transparent);
+}
+
+.nb-readout__verdict {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--bf-ink);
+  max-width: 62ch;
+}
+
+/* The trace: one row per applied guard, kept as an <ol> so the step numbers are
+   real list markers and the sequence is announced as a sequence. */
+.nb-trace {
+  margin: 1.2rem 0 1.1rem;
+  padding-left: 1.5em;
+}
+
+.nb-trace__row {
+  margin-bottom: 0.85rem;
+}
+
+.nb-trace__src {
+  font-size: 0.82rem;
+}
+
+.nb-trace__res {
+  display: block;
+  margin-top: 0.3rem;
+}
+
+.nb-trace__arrow {
+  color: var(--bf-accent);
+  font-weight: 700;
+  margin-right: 0.35rem;
+}
+
+/* A guard that removed nothing is the most instructive result on the bench, so
+   it gets said out loud rather than left as an unchanged chip row. */
+.nb-trace__nil {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--bf-danger);
+}
+
+.nb-trace__note {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--bf-ink-2);
+  max-width: 62ch;
+}
+
+/* ------------------------------------------------------------
+   2. THE SURVIVAL BENCH
+   ------------------------------------------------------------ */
+
+.nb-scenarios {
+  margin-bottom: 1rem;
+}
+
+/* Eight scenarios means eight buttons, and a row of eight solid accent pills is
+   an unreadable wall — so every button here carries `.ghost` and only the chosen
+   one is filled. The outline itself comes from the shared layer; all this adds
+   is a little weight, because these labels are short and sit at 0.92rem. */
+.lesson.bf .demo .nb-scenarios button {
+  font-weight: 600;
+}
+
+/* The selected scenario. `aria-pressed` carries it for assistive tech; this
+   carries it visually, with a weight change as well as a tint so it is not
+   distinguished by colour alone. */
+.lesson.bf .demo .nb-scenarios button.nb-chosen {
+  background: var(--bf-accent);
+  border-color: transparent;
+  color: var(--bf-bg);
+  font-weight: 800;
+}
+
+/* The verdict strip under the snippet. Two states, and each names itself in the
+   badge text ("compiles" / "error") so the hue is redundant. */
+.nb-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.65rem;
+  margin: 1rem 0 0;
+  padding: 0.7rem 1rem;
+  border-radius: var(--bf-r);
+  border: 1px solid color-mix(in srgb, var(--bf-olive) 32%, transparent);
+  background: var(--bf-olive-wash);
+  font-size: 0.93rem;
+  color: var(--bf-ink);
+}
+
+.nb-verdict--lost {
+  border-color: color-mix(in srgb, var(--bf-danger) 32%, transparent);
+  background: var(--bf-danger-wash);
+}
+
+.nb-verdict__badge {
+  padding: 0.1em 0.6em;
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-olive);
+  color: var(--bf-bg);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nb-verdict--lost .nb-verdict__badge {
+  background: var(--bf-danger);
+}
+
+/* ------------------------------------------------------------
+   3. ODDS AND ENDS
+   ------------------------------------------------------------ */
+
+/* 3.1 — the chosen scenario, on hover.
+
+   The selected button carries `.ghost` as well, so the shared layer's
+   `.lesson.bf .ghost:hover` is competing for its background. This rule out-ranks
+   it on specificity either way; what it adds is the brighter accent, so pointing
+   at the already-selected scenario still gives feedback instead of looking
+   inert. Colour only — nothing here can move the row. */
+.lesson.bf .demo .nb-scenarios button.nb-chosen:hover {
+  background: var(--bf-accent-bright);
+  color: var(--bf-bg);
+}
+
+/* 3.2 — the error arm of the state-machine demo. Previously a hard-coded hex,
+   which ignored both themes; the token is correct in light and dark. */
+.nb-error {
+  color: var(--bf-danger);
+}
+
+/* ------------------------------------------------------------
+   4. MOTION
+   Transitions only, opacity/colour/transform only, and skipped entirely for
+   readers who asked for less movement. Nothing here can change a box's size.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+  .nb-cand {
+    transition:
+      opacity 0.28s ease,
+      color 0.28s ease,
+      background-color 0.28s ease,
+      text-decoration-color 0.28s ease;
+  }
+
+  .lesson.bf .demo .nb-scenarios button {
+    transition:
+      background-color 0.16s ease,
+      color 0.16s ease,
+      transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .lesson.bf .demo .nb-scenarios button:active {
+    transform: scale(0.97);
+  }
 }

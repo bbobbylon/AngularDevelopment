@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { RichText } from '../rich-text/rich-text';
 
 /** Colour treatment for one side of the comparison. */
 export type CompareTone = 'neutral' | 'good' | 'bad';
@@ -43,15 +44,16 @@ export type CompareTone = 'neutral' | 'good' | 'bad';
  */
 @Component({
   selector: 'app-compare',
+  imports: [RichText],
   templateUrl: './compare.html',
   styleUrl: './compare.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Compare {
-  /** Heading for the left panel. Say what it *is*, e.g. "Before — `*ngIf`". */
+  /** Heading for the left panel. Say what it **is**, e.g. "Before — `*ngIf`". */
   readonly leftTitle = input.required<string>();
 
-  /** Heading for the right panel. */
+  /** Heading for the right panel. Supports `backticks` and `**bold**`. */
   readonly rightTitle = input.required<string>();
 
   /** Colour treatment for the left panel. */
@@ -60,7 +62,15 @@ export class Compare {
   /** Colour treatment for the right panel. */
   readonly rightTone = input<CompareTone>('neutral');
 
-  /** Optional one-line summary under both panels — the takeaway the comparison supports. */
+  /**
+   * Optional one-line summary under both panels — the takeaway the comparison supports.
+   *
+   * Like both titles, this renders through {@link RichText}: `backticks` become code and
+   * `**bold**` becomes emphasis. It used to be plain interpolation, which meant a backtick
+   * in a title showed up as a literal backtick — including in this component's own usage
+   * example. Two lesson migrations hit that within an hour of each other, which is what
+   * settled it: every string input in the teaching set now parses the same way.
+   */
   readonly note = input<string>('');
 
   /** Unique ids tying each panel to its heading via `aria-labelledby`. */

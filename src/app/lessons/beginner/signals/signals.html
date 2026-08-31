@@ -1,244 +1,628 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Signals</span>
-  <h1>Signals Basics</h1>
-  <p class="lead">
-    A <strong>signal</strong> is a value that announces when it changes. Anything that reads it — a template, a
-    <code>computed</code>, an <code>effect</code> — automatically re-runs when the value updates. Signals are the
-    foundation of modern Angular reactivity and the engine behind its change detection, so this is a lesson worth really
-    understanding.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Beginner · Signals"
+    title="Signals Basics"
+    hand="or, how a value learns to shout"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      A <strong>signal</strong> is a value that announces when it changes. Anything that reads it — a template, a
+      <code>computed</code>, an <code>effect</code> — re-runs on its own when the value moves. Three functions is the
+      whole API, and you can learn them in ten minutes. The other twenty minutes on this page are the part that stops
+      signals surprising you: <strong>when the work actually happens</strong>, <strong>what counts as a change</strong>,
+      and <strong>the five ways to make one look broken</strong>.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: a spreadsheet</h2>
-  <p>The clearest way to picture signals is a <strong>spreadsheet</strong>:</p>
-  <ul>
-    <li>A <strong>signal</strong> is a cell holding a value, like <code>A1 = 5</code>.</li>
-    <li>
-      A <strong>computed</strong> is a formula cell, like <code>B1 = A1 * 2</code>. Change <code>A1</code> and
-      <code>B1</code> recalculates <em>by itself</em>.
-    </li>
-    <li>
-      An <strong>effect</strong> is a cell that <em>does something</em> (sends an email, saves a file) whenever the
-      cells it watches change.
-    </li>
-  </ul>
-  <p>
-    You never manually tell the spreadsheet to recalculate — it tracks which cells depend on which, and updates exactly
-    what's affected. Signals give your Angular code that same automatic, fine-grained reactivity.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You changed the number. Nobody told the screen.</h2>
 
-  <h2>Why not just a normal variable?</h2>
-  <div class="code">
-    <pre>
-let count = 0;          // a plain variable
-count = 5;              // changed it… but nothing KNOWS it changed.
-                        // the screen, derived values — all now out of date.
+    <p>
+      Assigning a value in JavaScript is a completely silent act. <code>count = 5</code> writes one slot in memory and
+      that is the end of it. No event fires. Nothing in the language will call you back. The old number is still painted
+      on the screen, the total that was calculated from it is still wrong, and
+      <strong>not one line of code has any idea.</strong>
+    </p>
 
-count = signal(0);      // a signal
-count.set(5);           // everything that read count() re-runs automatically</pre>
-  </div>
-  <p>
-    A plain variable is a silent box. A signal is a box that <strong>shouts "I changed!"</strong> so the UI and any
-    derived values stay correct without you wiring anything up. That announcement is the whole point.
-  </p>
-
-  <h2>signal() — a writable value</h2>
-  <div class="code">
-    <pre>
-count = signal(0);   // create
-count();             // READ  → 0   (call it like a function — note the parentheses)
-count.set(5);        // WRITE a brand-new value → 5
-count.update(n =&gt; n + 1);   // WRITE based on the current value → 6
-
-// custom equality — skip notifications when "unchanged" by your rule:
-user = signal(initial, {{ '{' }} equal: (a, b) =&gt; a.id === b.id {{ '}' }});</pre>
-  </div>
-  <p>
-    Use <code>set</code> for a brand-new value and <code>update</code> when the new value depends on the old. Signals
-    compare with <code>Object.is</code> by default, so setting an object to a <em>new</em> reference always notifies —
-    treat signal values as <strong>immutable</strong> (replace, don't mutate in place).
-  </p>
-
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row">
-      <button (click)="count.update((n) => n - 1)">−</button>
-      <span class="pill" style="font-size: 1.1rem">count = {{ count() }}</span>
-      <button (click)="count.update((n) => n + 1)">+</button>
-      <button class="ghost" (click)="count.set(0)">reset</button>
+    <div class="code">
+      <pre>{{ plainVsSignalSample }}</pre>
     </div>
-  </div>
 
-  <app-remember>
-    A signal is a value that <strong>announces when it changes</strong>. Everything else — <code>computed</code>,
-    <code>effect</code>, zoneless change detection — is built on that one behaviour.
-  </app-remember>
-
-  <app-predict
-    prompt="`items` is a signal holding an array. Does the template re-render after this runs?"
-    [code]="mutationSample"
-    answer="No. `push` mutates the array that `items` already holds, so the signal's value — the array *reference* — never changed. Signals compare with `Object.is`, which sees the same reference and concludes nothing happened. Replace instead of mutating: `items.update(list => [...list, 'c'])`."
-  />
-
-  <h2>computed() — derived & cached</h2>
-  <p>
-    A <code>computed</code> signal derives its value from other signals. Read it like any signal; it recomputes only
-    when a dependency actually changes, and caches the result in between.
-  </p>
-  <div class="code">
-    <pre>
-doubled = computed(() =&gt; this.count() * 2);
-parity  = computed(() =&gt; this.count() % 2 === 0 ? 'even' : 'odd');</pre>
-  </div>
-  <p>
-    <code>computed</code> is <strong>lazy</strong> (it doesn't run until something reads it) and
-    <strong>memoized</strong> (re-runs only after a dependency changes). Its dependencies are tracked
-    <em>dynamically</em> — only the signals read on the last run count. Keep the function <strong>pure</strong>: no
-    writes, no side effects, just compute and return.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — these update themselves from count()</p>
     <p>
-      doubled = <strong>{{ doubled() }}</strong>
+      That is the entire problem signals exist to solve. A plain variable is a <span class="term">silent box</span>. A
+      signal is a box that <span class="key">keeps a list of everyone who has ever read it</span> and tells them the
+      moment its contents change. Everything else on this page — <code>computed</code>, <code>effect</code>, zoneless
+      change detection — is built on that one behaviour.
     </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Before you scroll: <strong>who does the telling?</strong> Most people guess that Angular quietly watches the field
+      and notices. It does not — there is no hook in JavaScript that fires when you read or write
+      <code>obj.count</code>, so watching is not on the menu. Hold your guess. The real answer is stranger and better,
+      and it explains every signals bug you are ever going to write.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular handed you a spreadsheet.</h2>
+
     <p>
-      parity = <strong>{{ parity() }}</strong>
+      You already know this system. Type <code>5</code> into cell <strong>A1</strong>. In <strong>B1</strong> type
+      <code>= A1 * 2</code>. Change A1 to <code>7</code> and B1 becomes <code>14</code> — and you never told it to. You
+      did not write an update function, subscribe to A1, or remember to refresh anything. The sheet knows that B1 read
+      A1, because <em>reading it is how the formula was written</em>.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">Click +/− above — you never told these to recompute.</p>
-  </div>
 
-  <h2>effect() — run side effects</h2>
-  <p>
-    An <code>effect</code> runs whenever any signal it reads changes. Use it for <em>side effects</em> — logging, saving
-    to <code>localStorage</code>, driving a non-Angular chart library. Not for deriving values; that's
-    <code>computed</code>'s job.
-  </p>
-  <div class="code">
-    <pre>
-constructor() {{ '{' }}
-  effect((onCleanup) =&gt; {{ '{' }}
-    const value = this.count();
-    console.log('count is now', value);
-    onCleanup(() =&gt; {{ '{' }} /* runs before the next run & on destroy */ {{ '}' }});
-  {{ '}' }});
-{{ '}' }}</pre>
-  </div>
-  <p>
-    An effect runs <strong>once immediately</strong>, then again whenever a signal it read changes. Create it in an
-    injection context (a constructor or field initializer) so Angular cleans it up automatically when the component is
-    destroyed; <code>onCleanup</code> tears down work (timers, subscriptions) between runs.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — an effect logs every change to count()</p>
-    <ol class="log">
-      @for (line of effectLog(); track $index) {
-        <li>{{ line }}</li>
-      }
-    </ol>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Click the +/− buttons above and watch entries appear here.
+    <p class="bf-hand bf-hand--note">that last sentence is the whole trick — reading is subscribing</p>
+
+    <p>
+      Signals are that spreadsheet, in your component. And the analogy keeps paying out past the introduction, because a
+      spreadsheet has a second habit worth stealing:
+      <strong>it does not recalculate a cell nobody is looking at.</strong> Scroll a formula off screen, change its
+      inputs a hundred times, and the sheet does the arithmetic exactly once — when you scroll back. Signals do the same
+      thing, and <em>Laziness &amp; caching</em> below is where that stops being trivia and starts being the answer to
+      “why did my <code>computed</code> run four times?”
     </p>
-  </div>
 
-  <app-quiz
-    question="An effect logs `count()`. You then run `count.set(1); count.set(2); count.set(3);` in one function. How many times does the effect log?"
-    [options]="batchOptions"
-    followUp="This is why an effect is a poor place to derive values — it does not see every intermediate state, only the settled one."
-  />
+    <div class="bf-grid-3">
+      <app-tape-card heading="signal()" kicker="a cell" tone="accent">
+        Holds a value you can write to. <code>A1 = 5</code>. It is the only one of the three you are allowed to
+        <code>set</code>.
+      </app-tape-card>
+      <app-tape-card heading="computed()" kicker="a formula cell" tone="olive">
+        Holds a value <em>derived</em> from other cells. <code>B1 = A1 * 2</code>. Read-only, cached, and it
+        recalculates itself.
+      </app-tape-card>
+      <app-tape-card heading="effect()" kicker="a macro">
+        Holds no value at all. It <em>does</em> something — logs, saves, redraws a chart — whenever a cell it watched
+        changes.
+      </app-tape-card>
+    </div>
 
-  <h2>Under the hood</h2>
-  <p>
-    A signal is not magic — it's a small object holding a value plus a
-    <strong>version counter</strong> and a set of subscribed "consumers" (a <code>computed</code>, an
-    <code>effect</code>, or a template binding).
-  </p>
+    <app-remember variant="mnemonic">
+      <strong>Hold, derive, do.</strong> <code>signal</code> holds a value, <code>computed</code> derives one, and
+      <code>effect</code> does something with them. If you catch yourself deriving inside an <code>effect</code>, you
+      have reached for the wrong one of the three.
+    </app-remember>
+  </section>
 
-  <p>
-    The step people skip when picturing this is the third one. Writing to a signal does <em>not</em> recompute anything;
-    it only marks. The work happens later, and only if someone asks:
-  </p>
+  <!-- ============ 3. THE WRITABLE SIGNAL ============ -->
+  <section>
+    <p class="bf-eyebrow">The primitive</p>
+    <h2>A signal is a box with a mailing list.</h2>
 
-  <app-flow
-    [steps]="propagation"
-    caption="Pull, not push. A `computed` nobody reads may never run again, no matter how often its sources change."
-  />
-  <ul>
-    <li>
-      <strong>Reading tracks, writing bumps the version.</strong> Calling <code>count()</code> inside a reactive context
-      (a <code>computed</code> body, an <code>effect</code>, or template evaluation) registers that context as a
-      consumer. Calling <code>.set()</code>/<code>.update()</code>
-      bumps the signal's version and marks every registered consumer
-      <em>dirty</em> — it does not run them synchronously.
-    </li>
-    <li>
-      <strong><code>computed</code> is lazy, so "dirty" just means "maybe stale."</strong>
-      Marking it dirty schedules nothing; the next time something actually
-      <em>reads</em> the computed, it checks whether any dependency's version changed and only then re-runs the formula.
-      Read a computed that nobody ever reads again, and its function may never re-run at all.
-    </li>
-    <li>
-      <strong><code>effect</code> runs are scheduled, not immediate.</strong> Angular batches effect execution into the
-      app's next change-detection pass (a microtask), so several <code>.set()</code> calls in the same synchronous block
-      only trigger one effect run with the final values — not one run per <code>set</code>.
-    </li>
-    <li>
-      <strong>This is also how OnPush + zoneless change detection works.</strong>
-      A template binding is itself a consumer. When a signal it read changes version, Angular marks
-      <em>only that component</em> for a re-check — not the whole tree — which is the fine-grained update
-      <a routerLink="/onpush">OnPush</a>
-      relies on and why apps can drop Zone.js entirely once everything reactive is signal-driven.
-    </li>
-  </ul>
+    <p>
+      Here is every method a writable signal has. There are four, and two of them you will use in the first five
+      minutes.
+    </p>
 
-  <h2>Common mistakes</h2>
-  <table class="t">
-    <tr>
-      <td>Forgetting the <code>()</code></td>
-      <td>
-        <code>{{ '{{' }} count {{ '}}' }}</code> shows the function itself; you need
-        <code>{{ '{{' }} count() {{ '}}' }}</code> to read the value.
-      </td>
-    </tr>
-    <tr>
-      <td>Mutating instead of replacing</td>
-      <td><code>arr().push(x)</code> won't notify — do <code>arr.update(a =&gt; [...a, x])</code>.</td>
-    </tr>
-    <tr>
-      <td>Using <code>effect</code> to set a signal</td>
-      <td>If you're deriving a value, use <code>computed</code> — it's simpler and glitch-free.</td>
-    </tr>
-    <tr>
-      <td>Reading a signal outside reactivity</td>
-      <td>
-        Reading in a one-off function gives a snapshot; it won't "stay live" unless read in a template/computed/effect.
-      </td>
-    </tr>
-  </table>
+    <app-code-lab
+      file="signal-api.ts"
+      [code]="signalApiSample"
+      [notes]="signalApiNotes"
+      notesLabel="Line by line — what each symbol is"
+    />
 
-  <h2>Why signals?</h2>
-  <ul>
-    <li>
-      <strong>Fine-grained:</strong> Angular updates exactly what depends on a changed signal — not the whole page.
-    </li>
-    <li><strong>Glitch-free:</strong> reads are always consistent within a tick; no half-updated states.</li>
-    <li><strong>Zoneless-ready:</strong> they enable change detection without Zone.js.</li>
-    <li><strong>Ergonomic:</strong> <code>computed</code> replaces piles of <code>ngOnChanges</code> boilerplate.</li>
-  </ul>
+    <p>
+      Use <code>set</code> for a brand-new value and <code>update</code> when the new value is built from the old one.
+      And treat what is inside the box as <strong>immutable</strong>: by default a signal decides whether something
+      changed with <code>Object.is</code>, which for an object or an array means
+      <span class="bf-break">the same reference is the same value, no matter what you did to its contents.</span>
+      There is a live proof of that down in <em>The traps</em>, because it is the single most common way to make a
+      signal look broken.
+    </p>
 
-  <app-faq [items]="questions" />
+    <div class="demo">
+      <p class="demo__title">Live — one writable signal</p>
+      <div class="row">
+        <button (click)="count.update((n) => n - 1)" aria-label="Decrement the count">−</button>
+        <span class="pill" style="font-size: 1.1rem">count = {{ count() }}</span>
+        <button (click)="count.update((n) => n + 1)" aria-label="Increment the count">+</button>
+        <button class="ghost" (click)="count.set(0)">reset</button>
+      </div>
+      <p class="demo__note">
+        The <code>+</code> and <code>−</code> buttons call <code>update</code> because the new value depends on the old
+        one; <code>reset</code> calls <code>set</code> because <code>0</code> does not. Keep this counter in view — the
+        next three demos are all wired to it.
+      </p>
+    </div>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>signal(v)</code> holds a value; read with <code>()</code>, write with <code>set</code>/<code>update</code>.
-    </li>
-    <li><code>computed(fn)</code> derives a cached, lazy value from other signals — keep it pure.</li>
-    <li><code>effect(fn)</code> runs side effects when its dependencies change (and once immediately).</li>
-    <li>Reading a signal inside a reactive context auto-subscribes you; treat values as immutable.</li>
-  </ul>
+  <!-- ============ 4. COMPUTED ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Derivation</p>
+    <h2>Derive it. Never keep a second copy in sync.</h2>
 
-  <p>
-    <a routerLink="/services-di">← Services &amp; DI</a> &nbsp;·&nbsp;
-    <a routerLink="/signals-advanced">Advanced Signals</a> &nbsp;·&nbsp;
-    <a routerLink="/routing-basics">Next: Routing Basics →</a>
-  </p>
+    <p>
+      The first thing everyone wants after one signal is a second value calculated from it. There are two ways to do
+      that, they look about equally reasonable, and only one of them is right.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — an effect writing a second signal"
+      leftTone="bad"
+      rightTitle="Right — a computed"
+      rightTone="good"
+      note="Same output, until it isn't. The left version has two sources of truth and a gap between them; the right one has a single source of truth and no gap at all."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ effectDeriveSample }}</pre>
+        </div>
+        <p>
+          <code>total</code> is now <strong>a second copy of the truth</strong>. It is briefly wrong every time
+          <code>price</code> changes, because the effect runs <em>after</em> the change, not during it. Read
+          <code>total()</code> in that gap and you get the previous answer. Add a second effect that reads
+          <code>total</code> and you have built a chain of stale values by hand.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ computedDeriveSample }}</pre>
+        </div>
+        <p>
+          <code>total</code> is not stored anywhere. It <em>is</em> the multiplication, and there is no moment at which
+          it disagrees with its inputs. Fewer lines is the least of it: this version cannot be stale, cannot be written
+          to by accident, and cannot fall out of sync, because there is nothing to keep in sync.
+        </p>
+      </div>
+    </app-compare>
+
+    <p>
+      A <code>computed</code> tracks its dependencies <span class="term">dynamically</span> — not from a list you
+      declare, but from the signals its body actually read on its <em>most recent</em> run. That has a consequence
+      people are routinely caught by, and line 9 below is where it lives.
+    </p>
+
+    <app-code-lab
+      file="cart.component.ts"
+      [code]="derivedSample"
+      [notes]="derivedNotes"
+      notesLabel="Line by line — and the trap on line 9"
+      prompt="`showTax` is `false`. You call `taxRate.set(0.5)`, then read `total()`. Does the body re-run?"
+      output="No. On its last run the body returned before it ever reached taxRate(), so total has no dependency on taxRate at all — the write marks nothing, and the cached number comes straight back. Set showTax to true and the edge appears on the very next run."
+      revealLabel="Reveal the answer"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — two derivations off the counter above</p>
+      <div class="row">
+        <span class="pill">doubled = {{ doubled() }}</span>
+        <span class="pill">parity = {{ parity() }}</span>
+      </div>
+      <p class="demo__note">
+        Press <code>+</code> and <code>−</code> above. You never told either of these to recompute, there is no
+        subscription anywhere in this component, and neither value is stored — they are recalculated from
+        <code>count</code> the moment something asks for them. Which brings us to the interesting question.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. LAZINESS AND CACHING ============ -->
+  <section>
+    <p class="bf-eyebrow">Laziness &amp; caching</p>
+    <h2>A formula nobody reads never runs.</h2>
+
+    <p>
+      Here is where most people's mental model is quietly wrong. They picture a write <em>pushing</em> new values
+      outward through the graph: change <code>count</code>, and <code>doubled</code> recalculates, and then the template
+      updates. Reasonable, and backwards. Signals <strong>pull</strong>. A write does almost nothing; the read does the
+      work.
+    </p>
+
+    <app-bubbles
+      [turns]="pullTalk"
+      caption="What passes between a template and a `computed` on a single read. Note how often the answer arrives without the formula running."
+    />
+
+    <app-napkin lead="before you press it —" label="Predict before using the demo">
+      The demo below has one <code>computed</code> with a run counter wired into its body. Nothing on screen reads it
+      until you press <strong>“read it once”</strong>. Commit to a number now: if you press
+      <strong>“change the source”</strong> five times and <em>then</em> read it once — how many times will the body have
+      run? And if you read it a second time straight after, without touching the source?
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — a computed with its body counted</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="bumpLazySource()">Change the source → {{ lazySource() }}</button>
+        <button (click)="peekLazy()">Read it once</button>
+        <button class="ghost" (click)="resetLazy()">reset</button>
+      </div>
+      <div class="row">
+        <span class="pill">source = {{ lazySource() }}</span>
+        <span class="pill">last value read = {{ lazyReadout() }}</span>
+        <span class="pill">times the body ran = {{ lazyRunsSeen() }}</span>
+      </div>
+      <p class="demo__note">
+        Change the source as often as you like: the run count stays where it is, and the value on screen goes visibly
+        stale. One read collects the whole backlog in a single run. Read again without changing anything and the count
+        does <em>not</em> move — that is the cache answering. <strong>Lazy</strong> means the body waits to be asked;
+        <strong>memoised</strong> means it refuses to answer twice.
+      </p>
+    </div>
+
+    <app-quiz
+      question="`source` is a signal, and `derived = computed(() => source() * 10)`. Nothing on screen reads `derived`. You call `source.set(1)`, `source.set(2)`, `source.set(3)` — and only then read `derived()` once. How many times has the computed's body run?"
+      [options]="lazyOptions"
+      followUp="Reproduce it in the demo above: three presses of “change the source”, then one read."
+    />
+  </section>
+
+  <!-- ============ 6. EFFECTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Side effects</p>
+    <h2>Effects are for doing, not for deriving.</h2>
+
+    <p>
+      An <code>effect</code> runs whenever any signal it read changes — once immediately when it is created, then again
+      on each change. It returns nothing, and that is the point: it exists for the work that has no return value.
+      Writing to <code>localStorage</code>. Logging. Handing a value to a charting library that knows nothing about
+      Angular. Anything where the <em>doing</em> is the result.
+    </p>
+
+    <app-code-lab
+      file="user-panel.component.ts"
+      [code]="effectSample"
+      [notes]="effectNotes"
+      notesLabel="Line by line — cleanup, and who owns the effect"
+    />
+
+    <p>
+      Two things on that snippet are worth carrying away on their own. <strong>Cleanup</strong>: whatever your effect
+      opens, <code>onCleanup</code> is where you close it, and it fires before the <em>next</em> run as well as on
+      destroy — so an effect that opens a socket per user never has two open at once. And <strong>ownership</strong>: an
+      effect created outside an injection context has nothing to be destroyed with, so Angular refuses to create it
+      rather than <span class="bf-break">letting you leak one per click</span>.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — an effect logging every change to the counter</p>
+      <ol class="log">
+        @for (line of effectLog(); track $index) {
+          <li>{{ line }}</li>
+        }
+      </ol>
+      <p class="demo__note">
+        Press <code>+</code> and <code>−</code> at the top and entries appear here. Notice the first line arrived
+        without anyone pressing anything — an effect always runs once on creation, which is a difference from
+        <code>computed</code> worth committing to memory.
+      </p>
+    </div>
+
+    <app-quiz
+      question="An effect logs `count()`. You then run `count.set(1); count.set(2); count.set(3);` inside one function. How many times does the effect log?"
+      [options]="batchOptions"
+      followUp="This is also why an effect is a poor place to derive a value: it does not see every intermediate state, only the settled one."
+    />
+  </section>
+
+  <!-- ============ 7. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Pull, not push.</h2>
+
+    <p>
+      A signal is not magic and it is not big. It is an object holding a value, a
+      <span class="term">version counter</span>, and a set of consumers — the <code>computed</code>s,
+      <code>effect</code>s and template bindings that have read it. The step almost everyone skips when picturing this
+      is the third one.
+    </p>
+
+    <app-flow
+      [steps]="propagation"
+      caption="Pull, not push. A `computed` nobody reads may never run again, no matter how often its sources change."
+    />
+
+    <ul>
+      <li>
+        <strong>Reading tracks; writing bumps a version.</strong> Calling <code>count()</code> inside a reactive context
+        — a <code>computed</code> body, an <code>effect</code>, or template evaluation — registers that context as a
+        consumer. Calling <code>set</code> or <code>update</code> increments the signal's version and marks every
+        registered consumer dirty. It does not run a single one of them.
+      </li>
+      <li>
+        <strong>"Dirty" means "maybe stale", not "wrong".</strong> When something finally reads a dirty
+        <code>computed</code>, it compares the versions of everything it read last time. All unchanged? Hand back the
+        cached value without running the body at all. This is why a signal set back to the value it already had costs
+        nothing downstream.
+      </li>
+      <li>
+        <strong>Equality stops the ripple.</strong> After a <code>computed</code> re-runs, its new result is compared
+        with its old one. Equal by <code>Object.is</code> — or by your own <code>equal</code> function — and its
+        consumers are never notified. A change can travel one hop and die.
+      </li>
+      <li>
+        <strong>A template binding is a consumer like any other.</strong> Which is exactly how
+        <a routerLink="/onpush">OnPush</a> and zoneless <a routerLink="/change-detection">change detection</a> work: a
+        signal write marks only the components that read it, so Angular can update a leaf without walking the tree — and
+        an app whose state is all signals no longer needs Zone.js at all.
+      </li>
+    </ul>
+
+    <p>
+      Reading a derived value is therefore a journey <em>inward</em>. Each layer runs, and in running, reads the layer
+      beneath it:
+    </p>
+
+    <app-layers
+      [core]="{ label: 'count', sub: 'signal(0)' }"
+      [rings]="[
+        { label: 'Template', sub: 'the binding' },
+        { label: 'summary', sub: 'computed' },
+        { label: 'doubled', sub: 'computed' },
+      ]"
+      arrow="one read starts here"
+      caption="Reading `summary()` runs its body, which reads `doubled()`, which runs **its** body, which finally reads `count()`. Nobody declared that graph — it was discovered on the way in, and it is thrown away and rebuilt on every run. The value then travels back out, cached at each layer it passes, so the second read of the same tick touches nothing."
+    />
+  </section>
+
+  <!-- ============ 8. GLITCH-FREE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The guarantee</p>
+    <h2>You never see a half-updated value.</h2>
+
+    <p>
+      Reactive systems have a famous failure mode called a <span class="term">glitch</span>: for one instant, two values
+      that are supposed to agree do not, because the update reached one of them first. It happens whenever a source
+      reaches the same reader by two paths of different lengths — and that shape is far more common than it sounds.
+    </p>
+
+    <figure class="diamond-fig">
+      <svg class="diamond" viewBox="0 0 440 250" aria-hidden="true" focusable="false">
+        <rect class="diamond__box diamond__box--src" x="155" y="12" width="130" height="48" rx="14" />
+        <text class="diamond__name" x="220" y="34" text-anchor="middle">first</text>
+        <text class="diamond__role" x="220" y="50" text-anchor="middle">SIGNAL</text>
+
+        <rect class="diamond__box diamond__box--derived" x="15" y="160" width="150" height="48" rx="14" />
+        <text class="diamond__name" x="90" y="182" text-anchor="middle">full</text>
+        <text class="diamond__role" x="90" y="198" text-anchor="middle">COMPUTED</text>
+
+        <rect class="diamond__box diamond__box--sink" x="270" y="160" width="155" height="48" rx="14" />
+        <text class="diamond__name" x="347" y="182" text-anchor="middle">the effect</text>
+        <text class="diamond__role" x="347" y="198" text-anchor="middle">READS BOTH</text>
+
+        <path class="diamond__edge" d="M190 62 L105 150" />
+        <path class="diamond__head" d="M100 156 L104 144.6 L111.2 151.5 Z" />
+
+        <path class="diamond__edge" d="M255 62 L325 149" />
+        <path class="diamond__head" d="M330 156 L319.2 150.5 L327 144.3 Z" />
+
+        <path class="diamond__edge" d="M168 184 L256 184" />
+        <path class="diamond__head" d="M266 184 L255 179 L255 189 Z" />
+
+        <text class="diamond__tag" x="22" y="112">the long path · 2 hops</text>
+        <text class="diamond__tag" x="424" y="112" text-anchor="end">the short path · 1 hop</text>
+
+        <text class="diamond__hand" x="292" y="236" text-anchor="end">one run, not two</text>
+        <path class="diamond__hand-arrow" d="M300 230 C 320 228, 335 224, 342 214" />
+        <path class="diamond__hand-head" d="M344 211 L342.7 220.9 L335.3 216 Z" />
+      </svg>
+      <figcaption>
+        The diamond. <code>first</code> reaches the effect twice — once directly, once through <code>full</code> — by
+        two paths of different lengths. A naive push system walks them one at a time, so the effect fires on the short
+        path first and sees the new first name beside the old full name. Signals mark the <em>whole</em> affected graph
+        before recomputing any of it, so both paths always land together.
+      </figcaption>
+    </figure>
+
+    <app-code-lab
+      file="name-panel.component.ts"
+      [code]="glitchSample"
+      [notes]="glitchNotes"
+      notesLabel="Line by line — the shape that would glitch"
+      prompt="How many times does the effect log, and what does it print?"
+      output="Once. It logs Grace, then Grace Lovelace. Never twice — and never the inconsistent pair Grace next to Ada Lovelace, not even for a microtask."
+      revealLabel="Reveal the output"
+    />
+
+    <p>
+      You get this for free and will probably never think about it — which is the point. It is also the strongest
+      argument for the rule back in <em>Derivation</em>: derive with a <code>computed</code> and the guarantee holds;
+      derive by hand inside an <code>effect</code> and
+      <span class="bf-break">you have built the glitch back in yourself</span>, because your copy updates one tick after
+      the thing it copies.
+    </p>
+  </section>
+
+  <!-- ============ 9. THE TRAPS ============ -->
+  <section>
+    <p class="bf-eyebrow">The traps</p>
+    <h2>Five ways to make a signal look broken.</h2>
+
+    <p>
+      Every one of these produces code that runs without error and screens that do not update. That combination is what
+      makes them worth memorising — there is nothing in the console to search for.
+    </p>
+
+    <app-predict
+      prompt="`items` is a signal holding an array. Does the template re-render after this runs?"
+      [code]="mutationSample"
+      answer="No. `push` changes the array that `items` already holds, so the signal's value — the array **reference** — never changed. `Object.is` sees the same array and concludes nothing happened, so no consumer is notified. Replace instead of mutating: `items.update(list => [...list, 'c'])`."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — mutate against replace, on the same signal</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button class="ghost" (click)="mutateItems()">Mutate — <code>items().push(…)</code></button>
+        <button (click)="replaceItems()">Replace — <code>items.update(…)</code></button>
+        <button class="ghost" (click)="nudge()">No-op click (forces a render)</button>
+        <button class="ghost" (click)="resetItems()">reset</button>
+      </div>
+      <ul class="items">
+        @for (item of items(); track $index) {
+          <li class="pill">{{ item }}</li>
+        }
+      </ul>
+      <p class="demo__note">
+        Press <strong>mutate</strong> three times: nothing appears. Press <strong>replace</strong> once and all four new
+        entries arrive together — the ghosts were in the array the whole time. Press <strong>mutate</strong> again and
+        then the <strong>no-op</strong> button, which changes no state at all, and the missing item shows up anyway. The
+        writes were never lost. They were <strong>never announced</strong>, and something unrelated happened to cause a
+        render later.
+      </p>
+    </div>
+
+    <app-remember variant="rule">
+      A signal compares with <code>Object.is</code>. For an object or an array that means
+      <strong>same reference, no news</strong> — so <strong>replace, never mutate</strong>.
+      <code>update(list =&gt; [...list, x])</code>, not <code>list().push(x)</code>.
+    </app-remember>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        the five, and what each one looks like when it bites
+      </caption>
+      <thead>
+        <tr>
+          <th>The mistake</th>
+          <th>What actually happens</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Forgetting the <code>()</code></td>
+          <td>
+            <code>{{ '{{' }} count {{ '}}' }}</code> renders the function object itself, so you get
+            <code>function () {{ '{' }} … {{ '}' }}</code> on the page instead of a number. You need
+            <code>{{ '{{' }} count() {{ '}}' }}</code> — and no dependency was registered either, so the binding would
+            never have updated anyway.
+          </td>
+        </tr>
+        <tr>
+          <td>Mutating instead of replacing</td>
+          <td>
+            <code>arr().push(x)</code> changes the array but not the reference, so nothing is notified. Use
+            <code>arr.update(a =&gt; [...a, x])</code>. The same applies to <code>obj().name = 'x'</code>.
+          </td>
+        </tr>
+        <tr>
+          <td>Using <code>effect</code> to set a signal</td>
+          <td>
+            You have created a second source of truth that is stale for one tick, and an extra change-detection pass to
+            keep it fed. Use <code>computed</code>: simpler, synchronous, glitch-free.
+          </td>
+        </tr>
+        <tr>
+          <td>Reading a signal outside a reactive context</td>
+          <td>
+            <code>const n = this.count()</code> inside a click handler is a <em>snapshot</em>. Nothing tracks it and
+            nothing re-runs — the value in your local variable is frozen at the instant you read it.
+          </td>
+        </tr>
+        <tr>
+          <td>Creating an <code>effect</code> outside an injection context</td>
+          <td>
+            NG0203. An effect needs an owner to be destroyed with; created in <code>ngOnInit</code> or a callback it has
+            none. Move it to the constructor or a field initialiser, or pass
+            <code>{{ '{' }} injector {{ '}' }}</code> explicitly.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 10. WHAT COMES NEXT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Once this is second nature</p>
+    <h2>Three more, in the next lesson.</h2>
+
+    <p>
+      You do not need any of these today. They are listed here so that when you meet the names you already know which
+      hole each one fills — every one of them is a variation on something on this page.
+    </p>
+
+    <table class="t">
+      <thead>
+        <tr>
+          <th>API</th>
+          <th>The hole it fills</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>linkedSignal(fn)</code></td>
+          <td>
+            A <code>computed</code> you are also allowed to write to — a formula cell you can type over, which goes back
+            to being a formula the next time its source changes. The classic use is a selection that should reset when
+            the list behind it reloads.
+          </td>
+        </tr>
+        <tr>
+          <td><code>untracked(fn)</code></td>
+          <td>
+            Read a signal <em>without</em> creating a dependency on it. A deliberate hole in the graph — occasionally
+            exactly right, and a reliable way to produce a value that is quietly wrong if used as a habit.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code>{{ '{' }} equal {{ '}' }}</code>
+          </td>
+          <td>
+            Your own answer to "did this change?", as on line 12 of the first snippet. A cheap comparison here can stop
+            an expensive ripple dead — for example, treating two fetched objects with the same <code>id</code> as
+            identical.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      <strong>Signals also power the modern stack around them:</strong>
+      <code>input()</code>, <code>output()</code>, <code>model()</code>, <code>viewChild()</code> and
+      <code>resource()</code> are all signal-based, so once this page makes sense, most of the current Angular API
+      surface is already familiar shapes.
+    </div>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <strong>Reading is subscribing.</strong> <code>count()</code> is a call, and the call is what registers you as a
+        consumer. That is why the parentheses are not optional and why there is no dependency list to keep in sync.
+      </li>
+      <li>
+        <strong>Hold, derive, do.</strong> <code>signal</code> holds a value, <code>computed</code> derives one and
+        stays pure, <code>effect</code> does the impure work. Deriving inside an <code>effect</code> builds a second
+        source of truth that is always one tick behind.
+      </li>
+      <li>
+        <strong>Writes mark; reads run.</strong> A <code>set()</code> bumps a version and flags consumers — nothing
+        else. A <code>computed</code> nobody reads may never run again, and a read that finds every version unchanged
+        returns the cache without running anything.
+      </li>
+      <li>
+        <strong>Same reference, no news.</strong> Equality is <code>Object.is</code> unless you supply
+        <code>equal</code>, so mutating an array or object inside a signal notifies nobody. Replace it.
+      </li>
+      <li>
+        <strong>Effects are scheduled and owned.</strong> They run once on creation, batch multiple writes into one run,
+        clean up through <code>onCleanup</code> before every re-run, and must be created where Angular can tie them to a
+        lifetime.
+      </li>
+    </ul>
+
+    <p>
+      <a routerLink="/services-di">← Services &amp; DI</a> &nbsp;·&nbsp;
+      <a routerLink="/signals-advanced">Signals Advanced</a> &nbsp;·&nbsp;
+      <a routerLink="/routing-basics">Next: Routing Basics →</a>
+    </p>
+  </section>
 </article>

@@ -1,214 +1,691 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · RxJS</span>
-  <h1>Subjects</h1>
-  <p class="lead">
-    A regular Observable is a <em>cold</em> producer — each subscriber gets its own private run. A
-    <strong>Subject</strong> is different: it's both an Observable <em>and</em> an Observer. You can
-    <code>next()</code> values <em>into</em> it, and it <strong>multicasts</strong> them to every subscriber at once.
-    That makes it the classic building block for event buses and shared state.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Intermediate · RxJS"
+    title="Subjects"
+    hand="or, what do you tell somebody who walks in halfway through the conversation?"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      An Observable is a stream you can <em>watch</em>. A <strong>Subject</strong> is a stream you can watch
+      <em>and speak into</em> — it is an Observable and an Observer at the same time, which is why you can call
+      <code>next()</code> on one. That single extra ability is what lets imperative code ("the user clicked", "the
+      socket said something") get into a reactive pipeline at all, and it is what turns one private run into a broadcast
+      everyone shares. There are four flavours, and they differ in exactly one respect:
+      <span class="key">what a subscriber is told when it arrives late</span>.
+    </p>
+  </app-chapter>
 
-  <h2>Observable vs Subject in one picture</h2>
-  <div class="code">
-    <pre>
-Cold Observable — each subscriber gets a fresh, independent run:
-  subA: --1--2--3--|
-  subB:    --1--2--3--|    (its OWN run, started when it subscribed)
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You cannot speak into an Observable.</h2>
 
-Subject — ONE run, the same values pushed to everyone (multicast):
-  you:  --A--B-----C--      (you call .next('A'), .next('B'), …)
-  subA: --A--B-----C--
-  subB: -----B-----C--      (joined after A, so only sees B and C onward)</pre>
-  </div>
+    <p>
+      Everything in the previous two lessons flowed one way. You <em>described</em> a producer —
+      <code>interval()</code>, <code>http.get()</code>, <code>fromEvent()</code> — and then you subscribed and watched
+      it run. At no point were you allowed to reach in from the side and say "and now, a 7". There is no
+      <code>next()</code> on an <code>Observable</code>. There is nowhere to put one.
+    </p>
 
-  <h2>The four flavors</h2>
-  <table class="t">
-    <tr>
-      <td><code>Subject</code></td>
-      <td>No memory. Subscribers only get values emitted <em>after</em> they subscribe.</td>
-    </tr>
-    <tr>
-      <td><code>BehaviorSubject</code></td>
-      <td>
-        Holds a <strong>current value</strong>; new subscribers immediately get the latest.
-        <strong>Ideal for state.</strong>
-      </td>
-    </tr>
-    <tr>
-      <td><code>ReplaySubject</code></td>
-      <td>Replays the last <em>N</em> values to new subscribers.</td>
-    </tr>
-    <tr>
-      <td><code>AsyncSubject</code></td>
-      <td>Emits only the <em>final</em> value, and only once it completes.</td>
-    </tr>
-  </table>
+    <p>
+      That is a problem the moment your values come from something the observable does not own. A button in one
+      component. A message off a WebSocket. A toast that any of forty places might want to raise. You have a value and
+      an audience, and the tool you know about only works when the producer and the subscription are the same piece of
+      code.
+    </p>
 
-  <div class="code">
-    <pre>
-The difference is what a LATE subscriber sees (joins after 1,2,3 emitted):
+    <p>And there is a second, quieter problem sitting next to it:</p>
 
-Subject:           late sub → (nothing until the next emission)
-BehaviorSubject(0):late sub → 3            (the current value, immediately)
-ReplaySubject(2):  late sub → 2, 3          (the last two, immediately)
-AsyncSubject:      late sub → (nothing until complete, then the last value)</pre>
-  </div>
+    <ul>
+      <li>An Observable is <strong>cold</strong> — the producer is built <em>inside</em> the subscribe call.</li>
+      <li>So two subscribers do not share a run. They get <strong>two runs</strong>.</li>
+      <li>Which means two timers, two WebSocket connections, or <span class="bf-break">two HTTP requests</span>.</li>
+    </ul>
 
-  <h2>BehaviorSubject for shared state</h2>
-  <div class="code">
-    <pre>
-private count$ = new BehaviorSubject&lt;number&gt;(0);
-readonly count = this.count$.asObservable();   // expose READ-ONLY
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Commit to this before you scroll. A stream emits <code>1</code>, then <code>2</code>, then <code>3</code>. Only
+      <em>now</em> does a second subscriber arrive. <strong>What should it be told?</strong> Write down an answer — and
+      then notice that you cannot, because "it depends" is the honest response and the thing it depends on is the whole
+      of this lesson. There are four different right answers below, and a live bench that will show you all four at
+      once.
+    </app-napkin>
+  </section>
 
-increment() {{ '{' }} this.count$.next(this.count$.value + 1); {{ '}' }}
-//                                  ^ .value reads the current value synchronously</pre>
-  </div>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An Observable is a recipe. A Subject is a radio station.</h2>
 
-  <h2>Try it — multicast to two subscribers</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a BehaviorSubject pushing to two subscribers</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="emit()">Emit next value</button>
-      <button class="ghost" (click)="lateSubscribe()" [disabled]="lateJoined()">Add a late subscriber</button>
+    <p>
+      Hand two people the same recipe and you get two dinners. The recipe is not the food; it is instructions for making
+      food, and it runs again from the top for every person who picks it up. That is a
+      <span class="term">cold</span> Observable, exactly: the code that produces values sits inside the subscribe
+      function, so subscribing is what <em>runs</em> it, and every subscriber runs their own copy.
+    </p>
+
+    <p>
+      A radio station is the other thing entirely. There is one broadcast, going out now, whether or not anyone is
+      listening. Everybody tuned in hears the same words at the same moment — that is
+      <span class="term">multicast</span> — and if you switch the radio on halfway through the news, the first half is
+      simply gone. That is <span class="term">hot</span>. A Subject is the station: you hold the microphone, you call
+      <code>next()</code>, and everyone currently tuned in hears it.
+    </p>
+
+    <p>
+      Which leaves precisely one interesting question, and it is the question the four flavours exist to answer
+      differently. <strong>Somebody tunes in late. What do you tell them?</strong>
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Nothing, Now, Rewind, Finale.</strong> That is the four flavours in the order you will be asked about
+      them. <code>Subject</code> tells a latecomer <em>nothing</em>. <code>BehaviorSubject</code> tells it what is true
+      <em>now</em>. <code>ReplaySubject</code> <em>rewinds</em> the last N. <code>AsyncSubject</code> says nothing until
+      the <em>finale</em>, then hands over one value.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="lateTalk"
+      caption="The whole difference between the four types is in this one exchange. Everything else about them — the API, the constructor, the internals — is identical."
+    />
+  </section>
+
+  <!-- ============ 3. WHAT A SUBJECT ACTUALLY IS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A Subject is an array and a for-loop.</h2>
+
+    <p>
+      This is one of the rare places in Angular where the real implementation is small enough to just read. Strip the
+      scheduling, the operator plumbing and the error handling out of RxJS's <code>Subject</code> and what is left is a
+      list of callbacks and a loop over it. Everything surprising about Subjects falls out of these twenty lines.
+    </p>
+
+    <app-code-lab
+      file="mini-subject.ts — a Subject with the plumbing removed"
+      [code]="miniSubjectSample"
+      [notes]="miniSubjectNotes"
+      notesLabel="Line by line — and every surprise this explains"
+      prompt="Two subscribers are registered, and you call `next(1)` exactly once. How many times does anything that *produces* a value run?"
+      output="Zero. There is no producer to run — next() is a for-loop over two stored callbacks, so one call in becomes two deliveries out. That is multicast. The cold Observable from the previous lesson would have run its subscribe function twice, once per subscriber, and produced two independent 1s."
+      revealLabel="Reveal the answer"
+    />
+
+    <p>
+      Read line 6 and line 11 together and you have the whole of "a terminated Subject is dead". Read line 12 and you
+      have the whole of "multicast". There is no clever machinery here — which is precisely why a Subject is the thing
+      RxJS reaches for whenever it needs to share a stream.
+    </p>
+
+    <app-flow
+      direction="vertical"
+      caption="The life of a Subject. Note that there is no arrow back from the last two steps: `complete()` and `error()` are one-way doors."
+      [steps]="lifecycle"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — one subject, two subscribers, one list of callbacks</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button type="button" (click)="emit()">Emit the next value</button>
+        <button type="button" class="ghost" (click)="lateSubscribe()" [disabled]="lateJoined()">
+          Add a late subscriber
+        </button>
+      </div>
+      <div class="row" style="flex-wrap: wrap">
+        <span class="pill">current value: {{ current() }}</span>
+        <span class="pill">A (joined at the start): {{ a().join(', ') || '—' }}</span>
+        <span class="pill">B (joined late): {{ b().join(', ') || 'not joined' }}</span>
+      </div>
+      <p class="demo__note">
+        Press emit three or four times and watch A collect every value — one <code>next()</code>, one delivery, because
+        A is the only callback in the list. Now add B and press emit again: <strong>both</strong> lists grow by the same
+        number on the same click. That is the for-loop on line 12 doing its only job. B also received something the
+        instant it joined, which a plain <code>Subject</code> would never have given it — that is a
+        <code>BehaviorSubject</code> thing, and it is what the next two sections are about.
+      </p>
     </div>
+  </section>
+
+  <!-- ============ 4. COLD VS HOT ============ -->
+  <section>
+    <p class="bf-eyebrow">Cold and hot</p>
+    <h2>Cold means everybody gets a private run.</h2>
+
     <p>
-      BehaviorSubject current value: <strong>{{ current() }}</strong>
+      "Cold" and "hot" sound like properties of the data. They are not. They are a statement about
+      <strong>where the producer lives</strong>. If the thing that makes the values is created inside the subscribe
+      function, every subscription builds a new one, and the stream is cold. If the producer already exists and the
+      subscribe function only adds you to a list, the stream is hot.
     </p>
+
+    <figure class="mb-timeline">
+      <div class="mb-lanes">
+        @for (track of coldTracks; track track.name) {
+          <div class="mb-lane">
+            <span class="mb-lane__name">{{ track.name }}</span>
+            <span class="mb-track" aria-hidden="true">
+              @for (tick of track.ticks; track $index) {
+                @if (tick.kind === 'value') {
+                  <span
+                    class="mb-marble"
+                    [class.mb-marble--got]="tick.tone === 'got'"
+                    [class.mb-marble--missed]="tick.tone === 'missed'"
+                    >{{ tick.label }}</span
+                  >
+                } @else if (tick.kind === 'end') {
+                  <span class="mb-end"></span>
+                } @else {
+                  <span class="mb-blank"></span>
+                }
+              }
+            </span>
+          </div>
+        }
+      </div>
+      <figcaption class="mb-cap">
+        Cold — <code>interval(1000)</code>. B's row is the point: it does not join A's run, it starts a second one, and
+        its first value is <code>0</code> all over again.
+      </figcaption>
+    </figure>
+
+    <figure class="mb-timeline">
+      <div class="mb-lanes">
+        @for (track of hotTracks; track track.name) {
+          <div class="mb-lane">
+            <span class="mb-lane__name">{{ track.name }}</span>
+            <span class="mb-track" aria-hidden="true">
+              @for (tick of track.ticks; track $index) {
+                @if (tick.kind === 'value') {
+                  <span
+                    class="mb-marble"
+                    [class.mb-marble--got]="tick.tone === 'got'"
+                    [class.mb-marble--missed]="tick.tone === 'missed'"
+                    >{{ tick.label }}</span
+                  >
+                } @else if (tick.kind === 'end') {
+                  <span class="mb-end"></span>
+                } @else {
+                  <span class="mb-blank"></span>
+                }
+              }
+            </span>
+          </div>
+        }
+      </div>
+      <figcaption class="mb-cap">
+        Hot — a <code>Subject</code>. One run, shared. B sees the same <code>3</code> and <code>4</code> that A does,
+        and the two hollow marbles are the price of arriving late: those values happened, and nobody kept them.
+      </figcaption>
+    </figure>
+
     <p>
-      Subscriber A (joined at start) saw: <code>{{ a().join(', ') || '—' }}</code>
+      So how do you get from the first picture to the second? You put a Subject in the middle. It subscribes to the cold
+      source <strong>once</strong>, and then everybody subscribes to <em>it</em>. This is not a workaround — it is the
+      mechanism RxJS itself uses, and once you have seen the wiring by hand, <code>share()</code> stops looking like
+      magic.
     </p>
+
+    <app-code-lab
+      file="share-a-cold-source.ts"
+      [code]="multicastSample"
+      [notes]="multicastNotes"
+      notesLabel="Line by line — the trick is on line 4"
+    />
+
+    <app-quiz
+      question="`const data$ = this.http.get('/api/items');` Two different components each call `data$.subscribe(…)`. How many HTTP requests leave the browser?"
+      [options]="coldQuiz"
+      followUp="This is the single most common RxJS bug in Angular apps, and `shareReplay(1)` — a ReplaySubject with wiring around it — is the usual fix."
+    />
+  </section>
+
+  <!-- ============ 5. THE FOUR FLAVOURS ============ -->
+  <section>
+    <p class="bf-eyebrow">The four flavours</p>
+    <h2>Four types. One question.</h2>
+
     <p>
-      Subscriber B (joined late) saw: <code>{{ b().join(', ') || '— not joined' }}</code>
+      All four are Subjects: all four multicast, all four take a <code>next()</code>, all four die on
+      <code>complete()</code>. The only thing they disagree about is what happens in the instant a new subscriber
+      arrives — which, when you think about it, is the only decision there is to make.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Emit a few values, then add the late subscriber — B immediately receives the
-      <em>current</em> value on joining. That's the BehaviorSubject difference; a plain Subject would give B nothing
-      until the next emit.
-    </p>
-  </div>
 
-  <h2>The event-bus pattern</h2>
-  <div class="code">
-    <pre>
-&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
-export class NotificationBus {{ '{' }}
-  private events$ = new Subject&lt;string&gt;();
-  readonly messages = this.events$.asObservable();   // others subscribe to this
-  notify(msg: string) {{ '{' }} this.events$.next(msg); {{ '}' }}     // anyone can publish
-{{ '}' }}</pre>
-  </div>
-  <p>Unrelated components can communicate without knowing about each other — one publishes, others subscribe.</p>
-
-  <div class="warn">
-    A Subject is <strong>hot &amp; multicast</strong>, and once it <code>complete()</code>s or errors it is
-    <strong>terminated</strong> — further <code>next()</code> calls are ignored, and a new subscriber to a completed
-    Subject gets only the completion. Never expose the raw Subject; return <code>.asObservable()</code> so consumers
-    can't push or complete it.
-  </div>
-
-  <div class="note">
-    In modern Angular, a <strong>signal</strong> often replaces a <code>BehaviorSubject</code> for component/service
-    state — it's simpler, has no subscription to manage, and integrates with change detection. Reach for a Subject when
-    you specifically need an <em>event stream</em> you can pipe RxJS operators through (debounce a search box, buffer
-    clicks, etc.).
-  </div>
-
-  <h2>Live #2 — the four flavors, one late subscriber</h2>
-  <p>
-    This is the whole point of the four types. Emit a few values into all four subjects, optionally
-    <em>complete</em> them, then add a late subscriber and see exactly what each one delivers on join:
-  </p>
-  <div class="demo">
-    <p class="demo__title">
-      Live — emitted so far: <code>{{ emitted().join(', ') || '—' }}</code
-      >{{ done() ? ' (completed)' : '' }}
-    </p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="emitAll()" [disabled]="done()">Emit next</button>
-      <button class="ghost" (click)="completeAll()" [disabled]="done()">complete()</button>
-      <button (click)="subscribeLate()" [disabled]="lateJoined2()">Add late subscriber</button>
-      <button class="ghost" (click)="resetFlavors()">reset</button>
+    <div class="bf-grid-2">
+      <app-tape-card heading="Subject" kicker="a latecomer gets: nothing">
+        No memory whatsoever. You hear values emitted strictly <em>after</em> you subscribed. The right default for
+        <strong>events</strong>: a click that already happened is not news.
+      </app-tape-card>
+      <app-tape-card heading="BehaviorSubject" kicker="a latecomer gets: the current value" tone="accent">
+        Requires a seed value in the constructor, so there is <em>always</em> one to hand over. Has a synchronous
+        <code>.value</code> getter. The classic — and now usually superseded — way to hold <strong>state</strong>.
+      </app-tape-card>
+      <app-tape-card heading="ReplaySubject(n)" kicker="a latecomer gets: the last n" tone="olive">
+        Keeps a buffer and replays it on subscribe. Takes an optional time window too, so
+        <code>ReplaySubject(5, 30_000)</code> means "the last five, from the last 30 seconds".
+      </app-tape-card>
+      <app-tape-card heading="AsyncSubject" kicker="a latecomer gets: nothing, then the finale" tone="blue">
+        Silent until <code>complete()</code>, then delivers exactly one value — the last one — to everyone, past and
+        future. Rare in app code; it is the shape of "a promise, done the RxJS way".
+      </app-tape-card>
     </div>
-    <table class="t">
-      <tr>
-        <th>Flavor</th>
-        <th>Late subscriber received</th>
-      </tr>
-      <tr>
-        <td><code>Subject</code></td>
-        <td>
-          <code>{{ show(lateSubject()) }}</code>
-        </td>
-      </tr>
-      <tr>
-        <td><code>BehaviorSubject(0)</code></td>
-        <td>
-          <code>{{ show(lateBehavior()) }}</code>
-        </td>
-      </tr>
-      <tr>
-        <td><code>ReplaySubject(2)</code></td>
-        <td>
-          <code>{{ show(lateReplay()) }}</code>
-        </td>
-      </tr>
-      <tr>
-        <td><code>AsyncSubject</code></td>
-        <td>
-          <code>{{ show(lateAsync()) }}</code>
-        </td>
-      </tr>
+
+    <table>
+      <caption class="bf-table-caption">
+        Emit 1, 2, 3 — then subscribe. What arrives?
+      </caption>
+      <thead>
+        <tr>
+          <th>Flavour</th>
+          <th>Late subscriber receives</th>
+          <th>Reach for it when</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Subject</code></td>
+          <td>nothing (until the next emission)</td>
+          <td>Something <em>happened</em>: a click, a toast, a "saved" notification</td>
+        </tr>
+        <tr>
+          <td><code>BehaviorSubject(0)</code></td>
+          <td><code>3</code>, immediately</td>
+          <td>Something <em>is</em>: the current user, the open panel, a filter</td>
+        </tr>
+        <tr>
+          <td><code>ReplaySubject(2)</code></td>
+          <td><code>2, 3</code>, immediately</td>
+          <td>Recent history matters: a log tail, "cache the last response"</td>
+        </tr>
+        <tr>
+          <td><code>AsyncSubject</code></td>
+          <td>nothing until <code>complete()</code>, then <code>3</code></td>
+          <td>One result, computed once, that everyone should end up with</td>
+        </tr>
+      </tbody>
     </table>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Plain <code>Subject</code> gives the latecomer nothing already-emitted; <code>BehaviorSubject</code> replays just
-      the current value; <code>ReplaySubject(2)</code> replays the last two; <code>AsyncSubject</code> stays silent
-      until you press <code>complete()</code>, then delivers only the final value.
+
+    <p>
+      That table is the thing to be able to reproduce under exam conditions. So rather than asking you to trust it, here
+      are four real subjects, wired to four real buttons.
+      <strong>Emit a few values, then add a late subscriber</strong>, and read the rows off the page instead of off the
+      table.
     </p>
-  </div>
 
-  <h2>Under the hood — how multicast works</h2>
-  <p>
-    A Subject keeps an internal <strong>list of observers</strong>. Calling <code>next(v)</code> simply loops that list
-    and pushes <code>v</code> to each one — that's the entire multicast mechanism. A plain Observable has no such list:
-    its subscribe callback re-runs per subscriber, which is why it's unicast. The flavors differ only in what they do
-    <em>at subscribe time</em>: <code>BehaviorSubject</code> immediately emits its stored current value,
-    <code>ReplaySubject</code> replays a buffer, <code>AsyncSubject</code> waits for completion. Once a Subject
-    completes or errors, its observer list is cleared and it will never emit again.
-  </p>
+    <div class="demo">
+      <p class="demo__title">
+        Live — four subjects, the same values, one latecomer
+        <span class="mb-status">
+          emitted so far: <code>{{ emitted().join(', ') || '—' }}</code
+          >{{ done() ? ' · completed' : '' }}
+        </span>
+      </p>
 
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      <strong>next() after complete() is silently ignored.</strong> A completed Subject is dead; new subscribers get
-      only the completion notification (or, for BehaviorSubject/ReplaySubject, the buffered value then completion).
-    </li>
-    <li>
-      <strong>Exposing the raw Subject.</strong> Return <code>.asObservable()</code> so consumers can't
-      <code>next()</code> or <code>complete()</code> your stream from outside.
-    </li>
-    <li>
-      <strong><code>BehaviorSubject</code> requires an initial value</strong> — that's why new subscribers always get
-      something. A plain <code>Subject</code> has none.
-    </li>
-    <li>
-      <strong>Reading <code>.value</code> everywhere.</strong> It's handy but pulls you out of the reactive flow;
-      overusing it is a code smell — prefer piping, or a signal.
-    </li>
-    <li>
-      <strong>Leaks.</strong> A Subject is an infinite hot stream; subscribers must unsubscribe (<code>async</code>
-      pipe, <code>takeUntilDestroyed</code>) or they pile up.
-    </li>
-  </ul>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button type="button" (click)="emitAll()" [disabled]="done()">Emit the next value into all four</button>
+        <button type="button" class="ghost" (click)="completeAll()" [disabled]="done()">
+          <code>complete()</code> all four
+        </button>
+        <button type="button" (click)="subscribeLate()" [disabled]="lateJoined2()">Add the late subscriber</button>
+        <button type="button" class="ghost" (click)="resetFlavors()">Reset the bench</button>
+      </div>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>A Subject is an Observable you can also push into; it <strong>multicasts</strong> to all subscribers.</li>
-    <li>
-      <code>BehaviorSubject</code> holds a current value (great for state); <code>ReplaySubject</code> replays history.
-    </li>
-    <li>A late subscriber's experience differs per flavor — that's the whole point of the four.</li>
-    <li>Expose <code>.asObservable()</code> to keep <code>next()</code> private; prefer signals for plain state.</li>
-  </ul>
+      <div class="mb-timeline mb-timeline--live">
+        <div class="mb-lanes" role="status">
+          @for (lane of lanes(); track lane.name) {
+            <div class="mb-lane mb-lane--live">
+              <span class="mb-lane__name">
+                <code>{{ lane.name }}</code>
+                <span class="mb-lane__got">late subscriber got: {{ lane.received }}</span>
+              </span>
+              <span class="mb-track" aria-hidden="true">
+                @for (tick of lane.ticks; track $index) {
+                  @if (tick.kind === 'value') {
+                    <span
+                      class="mb-marble"
+                      [class.mb-marble--got]="tick.tone === 'got'"
+                      [class.mb-marble--missed]="tick.tone === 'missed'"
+                      >{{ tick.label }}</span
+                    >
+                  } @else if (tick.kind === 'end') {
+                    <span class="mb-end"></span>
+                  } @else {
+                    <span class="mb-blank"></span>
+                  }
+                }
+              </span>
+            </div>
+          }
+        </div>
+      </div>
 
-  <p><a routerLink="/rxjs-interop">Next: Signals ↔ RxJS Interop →</a></p>
+      <p class="demo__note">
+        Solid marbles are values the late subscriber received; hollow ones went past it. The lone marble in the
+        <code>BehaviorSubject</code> lane's first column is its <strong>seed</strong> — a value nobody emitted, which
+        exists purely so that there is always something to hand a newcomer. The vertical bar is <code>complete()</code>.
+        Now do the run that matters:
+        <strong>reset, emit three, complete, and only then add the late subscriber.</strong> Three of the four rows do
+        what you expect. One of them does not.
+      </p>
+    </div>
+
+    <app-quiz
+      question="You push `1`, `2`, `3` into a `BehaviorSubject(0)` and then call `complete()`. Now a brand-new subscriber subscribes. What does it receive?"
+      [options]="completedQuiz"
+      followUp="Run exactly that sequence on the bench above — reset, emit three times, complete, then add the late subscriber — and read the BehaviorSubject row."
+    />
+  </section>
+
+  <!-- ============ 6. TERMINATION ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap</p>
+    <h2>complete() and error() are one-way doors.</h2>
+
+    <p>
+      A Subject has exactly one thing it can never take back. <code>complete()</code> and <code>error()</code> both
+      empty the observer list, both set a stopped flag, and both store the ending so that every subscriber arriving
+      afterwards can be handed it immediately. There is <span class="bf-break">no way back</span>. Not a method, not a
+      flag, not a trick — you replace the subject or you live without it.
+    </p>
+
+    <p>
+      The cruel part is how quiet the failure is. Calling <code>next()</code> on a terminated Subject does not throw,
+      does not warn and does not queue. It returns.
+    </p>
+
+    <app-code-lab
+      file="termination.ts"
+      [code]="terminationSample"
+      [notes]="terminationNotes"
+      notesLabel="Line by line — including the line that does nothing"
+      prompt="After line 6, is `bus.closed` true — and is there any way to get this bus working again?"
+      output="closed is FALSE, and no. Only subject.unsubscribe() sets closed to true; error() and complete() set a separate isStopped flag instead. Either way the observer list is emptied and the ending is stored, so every future subscriber is handed it the moment it arrives. You cannot restart a terminated Subject — you replace it."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-napkin lead="go on —" label="Try this on the bench below">
+      Do this in order and watch the log: add a listener, publish twice, press <code>error()</code>, then
+      <strong>publish twice more</strong>. Those last two lines appear in the log with nothing underneath them. Then add
+      a second listener and watch it get handed the error it was never present for.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — an event bus you are allowed to kill</p>
+
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button type="button" (click)="publishToBus()">Publish an event</button>
+        <button type="button" (click)="addBusListener()">Add a listener</button>
+        <button type="button" class="ghost" (click)="completeBus()" [disabled]="busState() !== 'live'">
+          <code>complete()</code>
+        </button>
+        <button type="button" class="ghost" (click)="failBus()" [disabled]="busState() !== 'live'">
+          <code>error()</code>
+        </button>
+        <button type="button" class="ghost" (click)="resetBus()">New bus</button>
+      </div>
+
+      <div class="row" style="flex-wrap: wrap">
+        <span class="pill">state: {{ busState() }}</span>
+        <span class="pill">listeners subscribed: {{ busListeners() }}</span>
+        <span class="pill">bus.observed: {{ busObserved() }}</span>
+      </div>
+
+      <div class="mb-log" role="log" aria-label="Event bus activity log">
+        <ol class="mb-log__list">
+          @for (line of busLog(); track $index) {
+            <li class="mb-log__line" [class.mb-log__line--in]="line.startsWith('  →')">{{ line }}</li>
+          }
+          @if (!busLog().length) {
+            <li class="mb-log__line mb-log__line--empty">Nothing has happened yet. Add a listener, then publish.</li>
+          }
+        </ol>
+      </div>
+
+      <p class="demo__note">
+        Two readings to take away. First, <code>bus.observed</code> — RxJS's own "is anyone still listening?" flag —
+        flips to <code>false</code> the moment you terminate, because the observer list was emptied, not paused. Second,
+        a <code>next()</code> after termination logs the call and then <em>nothing</em>: no delivery line, no error, no
+        clue. If you are ever debugging "my event definitely fired and nothing happened", check whether something
+        completed the subject first.
+      </p>
+    </div>
+
+    <app-predict
+      prompt="A `BehaviorSubject` is completed, and then somebody calls `next()` on it one more time. What did the subscriber see — and what does `state$.value` read afterwards?"
+      [code]="valueDriftSample"
+      answer="The subscriber logged `saw 1` and nothing else. But `state$.value` reads **99**. `BehaviorSubject.next()` writes the new value into its internal slot *before* it checks whether it is allowed to emit — so the getter and the stream disagree, permanently and silently. This is the strongest argument in the lesson against reading `.value` outside a debugger: it is the one part of a Subject that can look right while the stream is wrong. After `error()` it is worse still — `.value` throws the stored error at whoever reads it."
+      revealLabel="Reveal what actually happens"
+    />
+  </section>
+
+  <!-- ============ 7. ASOBSERVABLE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The discipline</p>
+    <h2>Never hand out the microphone.</h2>
+
+    <p>
+      A public Subject is a public <code>next()</code>, a public <code>complete()</code> and a public
+      <code>error()</code>. Every file in the application can now write to your state, and — much worse — any one of
+      them can <span class="bf-break">terminate a stream the whole app depends on</span>, from a line of code nobody
+      will think to look at.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — the subject is the API"
+      leftTone="bad"
+      rightTitle="Right — the subject is private"
+      rightTone="good"
+      note="Same behaviour for every legitimate consumer. The difference only shows up on the day somebody writes the line you did not expect."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ leakySample }}</pre>
+        </div>
+        <p>
+          There is no way to find out who writes to this, no place to put a breakpoint, and no defence against the
+          second line.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ sealedSample }}</pre>
+        </div>
+        <p>One named method is the only way in, so "who changes the user?" is a search rather than an investigation.</p>
+      </div>
+    </app-compare>
+
+    <app-code-lab
+      file="notification-bus.ts"
+      [code]="busServiceSample"
+      [notes]="busServiceNotes"
+      notesLabel="Line by line — why there are two names for one stream"
+    />
+
+    <div class="tip">
+      <strong>The shape to memorise:</strong> <code>private readonly x = new Subject&lt;T&gt;()</code>, then
+      <code>readonly x$ = this.x.asObservable()</code>, then one public method per thing that can happen. If you find
+      yourself typing <code>public</code> in front of a Subject, that is the moment to stop.
+    </div>
+  </section>
+
+  <!-- ============ 8. UNSUBSCRIBING ============ -->
+  <section>
+    <p class="bf-eyebrow">The leak</p>
+    <h2>A Subject never ends on its own.</h2>
+
+    <p>
+      An <code>http.get()</code> completes after one response, so a subscription to it cleans itself up and forgetting
+      to unsubscribe costs you nothing. A Subject modelling an ongoing feed has no such courtesy: it is
+      <strong>infinite by design</strong>. Subscribe in a component, navigate away, and your callback is still in that
+      array — holding a reference to a component that no longer exists, and still running every time somebody calls
+      <code>next()</code>.
+    </p>
+
+    <p>
+      There are three tools, and picking between them is easy. Use the <code>async</code> pipe when the value goes
+      straight into a template. Use <code>toSignal()</code> when it goes into a signal. Use
+      <code>takeUntilDestroyed()</code> when you are subscribing for a genuine side effect.
+    </p>
+
+    <app-code-lab
+      file="toast-host.component.ts"
+      [code]="teardownSample"
+      [notes]="teardownNotes"
+      notesLabel="Line by line — the two ways to call it, and why there are two"
+    />
+
+    <div class="warn">
+      <strong>Do not "clean up" by completing somebody else's subject.</strong> Calling <code>complete()</code> in your
+      <code>ngOnDestroy</code> on a <code>providedIn: 'root'</code> subject does not unsubscribe you — it kills the
+      stream for the entire application, permanently, and the symptom shows up in a completely unrelated component.
+    </div>
+  </section>
+
+  <!-- ============ 9. THE MODERN FRAMING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">In Angular 21</p>
+    <h2>Most BehaviorSubjects want to be signals.</h2>
+
+    <p>
+      For about a decade, "hold state in a <code>BehaviorSubject</code>, expose it with <code>asObservable()</code>,
+      read it with the <code>async</code> pipe" was simply the answer. It is now the second-best answer for the most
+      common case, because a signal offers the identical contract —
+      <em>always has a current value, always readable synchronously</em> — with no subscription, no teardown, and change
+      detection that understands it natively.
+    </p>
+
+    <app-compare
+      leftTitle="2018 — state in a BehaviorSubject"
+      leftTone="neutral"
+      rightTitle="2026 — state in a signal"
+      rightTone="good"
+      note="Nothing about the BehaviorSubject version is broken. It is just carrying a subscription, an async pipe and a teardown obligation to deliver a number."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ behaviorStateSample }}</pre>
+        </div>
+        <p>
+          Reading it in TypeScript means <code>.value</code> (which can drift) or another subscription (which can leak).
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ signalStateSample }}</pre>
+        </div>
+        <p>
+          Reading it anywhere means <code>count()</code>. Nothing to unsubscribe, and a <code>computed()</code> away
+          from derived state.
+        </p>
+      </div>
+    </app-compare>
+
+    <p>
+      So when is a Subject still the right tool? Whenever the thing you are modelling is
+      <strong>not a value but an occurrence</strong> — and especially whenever you need
+      <span class="key">time semantics</span>. A signal has no vocabulary for "wait 300 milliseconds", "only if nothing
+      newer arrives", "cancel the previous one". RxJS is built out of those words, and that is why this next component
+      is still the correct shape in a signals-first application.
+    </p>
+
+    <app-code-lab
+      file="search.component.ts"
+      [code]="searchSample"
+      [notes]="searchNotes"
+      notesLabel="Line by line — a Subject earning its place"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The decision, in one row each
+      </caption>
+      <thead>
+        <tr>
+          <th>What you have</th>
+          <th>Reach for</th>
+          <th>Because</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>The current user, a filter, an open/closed flag</td>
+          <td><code>signal()</code></td>
+          <td>"What is it right now?" has an answer, so it is state</td>
+        </tr>
+        <tr>
+          <td>Keystrokes, clicks, socket messages, toasts</td>
+          <td><code>Subject</code></td>
+          <td>"What is it right now?" is meaningless — these are things that happened</td>
+        </tr>
+        <tr>
+          <td>Anything needing debounce, retry, cancel, buffer</td>
+          <td><code>Subject</code> + operators</td>
+          <td>Time semantics; a signal cannot express "later, if nothing else happens"</td>
+        </tr>
+        <tr>
+          <td>A stream whose latest value the template renders</td>
+          <td><code>toSignal(stream$)</code></td>
+          <td>Keeps RxJS for the pipeline and hands the template a signal</td>
+        </tr>
+        <tr>
+          <td>A signal an RxJS pipeline needs to consume</td>
+          <td><code>toObservable(sig)</code></td>
+          <td>The bridge runs both ways — see the <a routerLink="/rxjs-interop">interop lesson</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-remember variant="rule">
+      <strong>State is a signal. Events are a Subject.</strong> If "what is it right now?" has a sensible answer, you
+      want a signal. If the only sensible question is "what just happened?", you want a Subject — and if the answer
+      involves the word <em>when</em>, you definitely do.
+    </app-remember>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A Subject is <strong>both an Observable and an Observer</strong>. That is not trivia — it is why you can call
+        <code>next()</code> on it, and why you can pass it straight to <code>coldSource$.subscribe(subject)</code>.
+      </li>
+      <li>
+        Inside, it is <strong>a list of callbacks and a for-loop</strong>. That is the whole of multicasting, and it is
+        why subscribing to a Subject starts nothing while subscribing to a cold Observable runs a producer.
+      </li>
+      <li>
+        <strong>Nothing, Now, Rewind, Finale.</strong> <code>Subject</code>, <code>BehaviorSubject</code>,
+        <code>ReplaySubject(n)</code>, <code>AsyncSubject</code> — four answers to the one question of what a latecomer
+        is told.
+      </li>
+      <li>
+        <code>complete()</code> and <code>error()</code> are permanent. The observer list is emptied, later
+        <code>next()</code> calls are <strong>silently dropped</strong>, and newcomers are handed the stored ending. And
+        a completed <code>BehaviorSubject</code> gives a newcomer <em>nothing</em> — where a
+        <code>ReplaySubject</code> still replays.
+      </li>
+      <li>
+        Keep the subject <code>private</code> and publish <code>asObservable()</code>. It returns a real object without
+        <code>next()</code> on it, so this is a fence rather than a convention. And a Subject never completes on its
+        own, so <strong>always tear the subscription down</strong> — <code>async</code> pipe, <code>toSignal()</code> or
+        <code>takeUntilDestroyed()</code>.
+      </li>
+      <li>
+        <strong>State is a signal; events are a Subject.</strong> In a modern Angular app most
+        <code>BehaviorSubject</code>s are legacy state, but a debounced, cancelled, retried stream of things that
+        happened is exactly what RxJS is for.
+      </li>
+    </ul>
+
+    <p><a routerLink="/rxjs-interop">Next: Signals ↔ RxJS Interop, where the two halves meet →</a></p>
+  </section>
 </article>

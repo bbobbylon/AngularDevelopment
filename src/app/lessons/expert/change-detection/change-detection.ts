@@ -234,7 +234,7 @@ this.count.set(1);
   protected readonly signalsNotes: CodeNote[] = [
     {
       line: 1,
-      text: 'Creating the signal does nothing special. The interesting part happens when a *template* calls `count()` — that read quietly registers the view as a consumer of this signal.',
+      text: 'Creating the signal does nothing special. The interesting part happens when a **template** calls `count()` — that read quietly registers the view as a consumer of this signal.',
     },
     {
       line: 3,
@@ -272,7 +272,7 @@ ngOnInit() {
     },
     {
       line: 5,
-      text: '`ngOnInit` on the child runs during that same pass, and here it reaches back up and writes to state the parent is bound to. Data is now flowing *up* through a binding that only flows down.',
+      text: '`ngOnInit` on the child runs during that same pass, and here it reaches back up and writes to state the parent is bound to. Data is now flowing **up** through a binding that only flows down.',
     },
     {
       line: 6,
@@ -300,7 +300,7 @@ inject(ApplicationRef).tick();`;
   protected readonly cdrNotes: CodeNote[] = [
     {
       line: 1,
-      text: "`ChangeDetectorRef` is the handle to *this component's own view*. `inject()` is the modern way to get it; the constructor-parameter form does the same thing.",
+      text: "`ChangeDetectorRef` is the handle to **this component's own view**. `inject()` is the modern way to get it; the constructor-parameter form does the same thing.",
     },
     {
       line: 3,
@@ -336,7 +336,7 @@ inject(ApplicationRef).tick();`;
   protected readonly quizOptions: QuizOption[] = [
     {
       text: 'The counter shows the new value immediately — the field changed.',
-      why: 'The field really did change; the *screen* is what has not. Angular only reads a binding during a pass, and a plain assignment inside `setTimeout` schedules nothing. Reading and rendering are different moments.',
+      why: 'The field really did change; the **screen** is what has not. Angular only reads a binding during a pass, and a plain assignment inside `setTimeout` schedules nothing. Reading and rendering are different moments.',
     },
     {
       text: 'Nothing changes until something else schedules a pass — then it jumps to the current value.',
@@ -345,7 +345,7 @@ inject(ApplicationRef).tick();`;
     },
     {
       text: 'Nothing changes, ever. Angular only renders signals.',
-      why: 'Plain fields render fine — every pre-signals Angular app was built on them. What plain fields cannot do is *notify*. Cause a pass by any means and the field renders normally.',
+      why: 'Plain fields render fine — every pre-signals Angular app was built on them. What plain fields cannot do is **notify**. Cause a pass by any means and the field renders normally.',
     },
     {
       text: 'It throws NG0100, because the value changed after the view was checked.',
@@ -357,7 +357,7 @@ inject(ApplicationRef).tick();`;
   protected readonly questions: FaqItem[] = [
     {
       q: 'If the pass walks the whole tree anyway, how is OnPush faster?',
-      a: 'It walks the tree but does not *check* every view. Reaching an OnPush view that is not dirty and has no changed input costs one flag test, and the entire subtree below it is skipped. The walk is cheap; running update functions and evaluating bindings is what costs, and that is what gets pruned.',
+      a: 'It walks the tree but does not **check** every view. Reaching an OnPush view that is not dirty and has no changed input costs one flag test, and the entire subtree below it is skipped. The walk is cheap; running update functions and evaluating bindings is what costs, and that is what gets pruned.',
     },
     {
       q: "I called `markForCheck()` and nothing happened. Isn't it supposed to re-render?",
@@ -365,11 +365,11 @@ inject(ApplicationRef).tick();`;
     },
     {
       q: 'Why does clicking a button that does nothing still make the counters move?',
-      a: 'Angular wraps every template listener. The wrapper marks the view dirty and notifies the scheduler *before* your handler runs — it cannot know in advance that your handler will change nothing. So a no-op click costs a real pass. That is exactly why an expensive expression in a binding hurts: it pays that cost on every one.',
+      a: 'Angular wraps every template listener. The wrapper marks the view dirty and notifies the scheduler **before** your handler runs — it cannot know in advance that your handler will change nothing. So a no-op click costs a real pass. That is exactly why an expensive expression in a binding hurts: it pays that cost on every one.',
     },
     {
       q: 'Is `===` on every binding not slow for a big app?',
-      a: 'The comparison is not the cost — it is a flat array read and one reference compare per slot, and a large app has thousands of those, not millions. What gets expensive is what happens *before* the compare: a getter that sorts a list, a function call in a binding, a pipe that is not pure. Move that work into a `computed()` and the pass gets its speed back.',
+      a: 'The comparison is not the cost — it is a flat array read and one reference compare per slot, and a large app has thousands of those, not millions. What gets expensive is what happens **before** the compare: a getter that sorts a list, a function call in a binding, a pipe that is not pure. Move that work into a `computed()` and the pass gets its speed back.',
     },
     {
       q: 'Does using signals mean I can drop OnPush?',

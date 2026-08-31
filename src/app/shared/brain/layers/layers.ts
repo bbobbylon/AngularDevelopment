@@ -78,7 +78,7 @@ export class Layers {
   /** Handwritten label on the arrow pointing at the core. Empty hides the arrow. */
   readonly arrow = input<string>('');
 
-  /** Sentence under the diagram. Supports `backticks`; `**bold**` is not parsed. */
+  /** Sentence under the diagram. Supports `backticks` and `**bold**`. */
   readonly caption = input<string>('');
 
   /** Ring count clamped to what the CSS has insets for. */

@@ -1,305 +1,752 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Programming from Zero</span>
-  <h1>Arrays &amp; Objects</h1>
-  <p class="lead">
-    Single values are useful, but real apps deal with <em>collections</em> and <em>structured</em> data. The two
-    workhorses are <strong>arrays</strong> (ordered lists) and <strong>objects</strong> (labelled groups). Almost
-    everything in Angular is arrays of objects — and hiding inside them is the concept (<em>references</em>) that will
-    explain half the mysterious bugs you'll ever debug. We take both seriously here.
-  </p>
-
-  <h2>Arrays — ordered lists</h2>
-  <p>
-    An array is a list of values in square brackets. Each item has a position — an <strong>index</strong> — counting
-    from <strong>0</strong>:
-  </p>
-  <div class="code">
-    <pre>
-const fruits = ['apple', 'banana', 'cherry'];
-//                 [0]      [1]       [2]
-
-fruits[0]         // 'apple'    ← first item = index 0, not 1
-fruits[2]         // 'cherry'
-fruits.length     // 3
-fruits[fruits.length - 1]   // 'cherry' — the classic "last item" formula
-fruits[9]         // undefined  — off the end is not an error, just nothing</pre>
-  </div>
-  <div class="note">
-    Zero-based counting trips up every beginner: first = <code>[0]</code>, last = <code>[length - 1]</code>. Off-by-one
-    mistakes here are so common they have a name (OBOE — off-by-one error). When a loop misses the last item or reads
-    <code>undefined</code>, check the boundary first.
-  </div>
-
-  <h2>The everyday array toolkit</h2>
-  <div class="code">
-    <pre>
-const list = ['a', 'b', 'c'];
-
-// grow & shrink (these MUTATE — change the array in place):
-list.push('d');       // add to end        → ['a','b','c','d']
-list.pop();           // remove from end   → ['a','b','c']   (returns 'd')
-list.splice(1, 1);    // remove 1 at index 1 → ['a','c']
-
-// ask questions (these don't change anything):
-list.includes('b')          // true / false
-list.indexOf('c')           // 1  (or -1 if absent)
-list.find(x => x === 'c')   // 'c' — first item passing a test
-list.join(', ')             // 'a, b, c' — array → string
-
-// transform into NEW arrays (originals untouched — from Decisions & Loops):
-list.map(x => x.toUpperCase())     // ['A','B','C']
-list.filter(x => x !== 'b')        // ['a','c']
-[...list].sort()                   // sorted COPY (bare .sort() mutates!)</pre>
-  </div>
-  <p>
-    Notice the two families: methods that <strong>mutate</strong> (push, pop, splice, sort) and methods that
-    <strong>return a new array</strong> (map, filter, slice). Keep the distinction in your head — it becomes a hard rule
-    in Angular, where handing out <em>new</em> arrays is how the framework notices change. More on why below.
-  </p>
-
-  <h2>Try it — a live array</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 10px">
-      <input aria-label="add a fruit" #f placeholder="add a fruit" (keyup.enter)="add(f.value); f.value = ''" />
-      <button (click)="add(f.value); f.value = ''">Add</button>
-    </div>
-    <ul>
-      @for (fruit of fruits(); track $index) {
-        <li>
-          <code>fruits[{{ $index }}]</code> = '{{ fruit }}'
-          <button class="ghost" (click)="removeAt($index)">remove</button>
-        </li>
-      } @empty {
-        <li style="color: var(--text-muted)">The array is empty: []</li>
-      }
-    </ul>
-    <p class="pill">fruits.length = {{ fruits().length }} · last index = {{ fruits().length - 1 }}</p>
-  </div>
-
-  <h2>Objects — labelled groups</h2>
-  <p>
-    An array holds items by <em>position</em>; an object holds values by <strong>name</strong> (a <em>key</em>, also
-    called a property). It groups related facts about one thing:
-  </p>
-  <div class="code">
-    <pre>
-const person = {{ '{' }}
-  name: 'Ada',       // key "name"   → value 'Ada'
-  age: 36,           // key "age"    → value 36
-  member: true,
-{{ '}' }};
-
-person.name          // 'Ada'  — dot access: the everyday way
-person['name']       // 'Ada'  — bracket access: same thing, but…
-const k = 'age';
-person[k]            // 36     — …brackets accept a VARIABLE key. Dots can't.
-person.age = 37;     // change a property
-person.email         // undefined — missing keys aren't errors, just undefined</pre>
-  </div>
-  <p>
-    Values can be anything — including other objects and arrays. Real data nests, and you read it by chaining accessors
-    left to right, one hop at a time:
-  </p>
-  <div class="code">
-    <pre>
-const order = {{ '{' }}
-  id: 42,
-  customer: {{ '{' }} name: 'Ada', address: {{ '{' }} city: 'London' {{ '}' }} {{ '}' }},
-  items: [ {{ '{' }} sku: 'A1', qty: 2 {{ '}' }}, {{ '{' }} sku: 'B2', qty: 1 {{ '}' }} ],
-{{ '}' }};
-
-order.customer.address.city   // 'London'  (object → object → object → value)
-order.items[0].qty            // 2         (object → array → object → value)</pre>
-  </div>
-
-  <div class="demo">
-    <p class="demo__title">Live — one object's properties</p>
-    <div class="field">
-      <label>name</label
-      ><input aria-label="name" [value]="person().name" (input)="setName($any($event.target).value)" />
-    </div>
-    <div class="field">
-      <label>age</label
-      ><input aria-label="age" type="number" [value]="person().age" (input)="setAge(+$any($event.target).value)" />
-    </div>
-    <div class="code">
-      <pre>
-person = {{ json() }}
-
-person.name → '{{ person().name }}'
-person.age  → {{ person().age }}</pre>
-    </div>
-  </div>
-
-  <h2>The combo: arrays of objects</h2>
-  <div class="code">
-    <pre>
-const people = [
-  {{ '{' }} name: 'Ada',   age: 36 {{ '}' }},
-  {{ '{' }} name: 'Grace', age: 41 {{ '}' }},
-  {{ '{' }} name: 'Alan',  age: 29 {{ '}' }},
-];
-
-people[1].name                          // 'Grace' — second record, its name
-people.filter(p => p.age > 30)          // the over-30s (a new array)
-people.map(p => p.name)                 // ['Ada','Grace','Alan']
-people.find(p => p.name === 'Alan')     // the whole Alan object</pre>
-  </div>
-  <p>
-    A list of users, a cart of products, a feed of posts — all arrays of objects, all queried with the same
-    map/filter/find vocabulary. The lesson list in this app's sidebar is literally one.
-  </p>
-
-  <h2>The big one: value vs reference</h2>
-  <p>
-    In Programming Basics you saw assignment <em>copy</em> a number from one box to another. Objects and arrays behave
-    differently — and this difference is the root cause of a whole genus of bugs. A variable never holds the object
-    itself; it holds a <strong>reference</strong> — an arrow pointing to where the object lives. Assignment copies
-    <em>the arrow, not the object</em>:
-  </p>
-  <div class="code">
-    <pre>
-// primitives: the VALUE is copied — independent boxes
-let a = 5;
-let b = a;      // b gets its own 5
-a = 10;         // b is still 5 ✅
-
-// objects: the REFERENCE is copied — one object, two arrows
-const x = {{ '{' }} count: 5 {{ '}' }};
-const y = x;    // y points at the SAME object
-x.count = 10;
-y.count         // 10 (!) — there was only ever one object</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — two variables, one object</p>
-    <div class="row" style="margin-bottom: 8px">
-      <button (click)="bumpShared()">x.count++ (mutate via x)</button>
-      <button class="ghost" (click)="cloneShared()">y = {{ '{' }}...x{{ '}' }} (make y a real copy)</button>
-      <button class="ghost" (click)="resetShared()">Reset</button>
-    </div>
-    <div class="code">
-      <pre>
-x.count → {{ sharedX().count }}
-y.count → {{ sharedY().count }}   {{
-          linked() ? '← same object: y moved too!' : '← separate copy: y is independent now'
-        }}</pre>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      While x and y share one object, mutating through either arrow changes "both" — because there is no both. After the
-      spread copy, they truly diverge.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Foundations · Programming from Zero"
+    title="Arrays &amp; Objects"
+    hand="or, why two lists that look identical flatly refuse to be equal"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      A variable holds one thing. Real programs deal in <strong>many things</strong> (a list of users, a cart of
+      products) and in <strong>one thing with many parts</strong> (a user's name, age and email). Those are arrays and
+      objects, and between them they are the shape of essentially all app data. Hiding inside them is one idea —
+      <strong>references</strong> — that will later explain why a screen refuses to update even though your data is
+      perfectly correct. We take that idea very seriously on this page.
     </p>
-  </div>
-  <p>Consequences you'll hit constantly:</p>
-  <ul>
-    <li>
-      <code>x === y</code> compares the <em>arrows</em>, not the contents: two identical-looking objects are
-      <code>!==</code> unless they're literally the same one. (<code
-        >{{ '{' }}a: 1{{ '}' }} === {{ '{' }}a: 1{{ '}' }}</code
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You cannot name three hundred variables.</h2>
+
+    <p>
+      So far every value you have stored got its own name. That works beautifully for two things and falls apart at
+      four:
+    </p>
+
+    <div class="code">
+      <pre>{{ tooManyNames }}</pre>
+    </div>
+
+    <p>
+      The moment you write <code>fruit3</code>, you have already lost. You cannot loop over those names. You cannot ask
+      how many there are. You cannot add a fourth without editing your code. What you actually wanted was
+      <span class="key">one name holding many values</span> — and, separately,
+      <span class="key">one name holding many labelled facts about a single thing</span>. Those two wishes are exactly
+      what arrays and objects are.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Before any of that, a question to keep in your pocket. You make two shopping lists. Both say
+      <code>['milk']</code> — same word, same single item, written on two different pieces of paper. In JavaScript that
+      is <code>const a = ['milk']</code> and <code>const b = ['milk']</code>.
+      <strong>Is <code>a === b</code> true?</strong>
+      Commit to an answer now. Nearly everyone gets this wrong the first time, and the reason it is wrong is the most
+      useful thing on this page.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ARRAYS — ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An array is a row of numbered lockers.</h2>
+
+    <p>
+      Picture a corridor of lockers bolted together in a row. Each locker holds one thing. Nobody named them — they are
+      just numbered, left to right, and the number is how you get at what is inside. Add a locker to the end of the row
+      and the row gets longer; take one away and it gets shorter. The row itself has one name; the lockers have
+      positions.
+    </p>
+
+    <p>
+      That is an array. The position is called an <span class="term">index</span>, and here is the part that catches
+      everyone: <strong>the first locker is number 0</strong>, not number 1. The count and the last index are therefore
+      never the same number, which is a fact worth staring at for a moment.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 730 210"
+        role="img"
+        aria-label="Three boxes in a row holding apple, banana and cherry. They are numbered 0, 1 and 2 from left to right. A bracket above all three is labelled length equals 3, and an arrow points at the third box, labelled last equals length minus 1."
+        class="dia__svg"
       >
-      is <code>false</code>.)
-    </li>
-    <li>
-      <code>const person</code> seals the <em>arrow</em>, not the object — <code>person.age = 37</code> is legal on a
-      const. Only reassigning the variable is blocked.
-    </li>
-    <li>
-      Pass an object into a function and the function receives the same arrow — its mutations are visible to the caller.
-      Spooky action at a distance, unless the function copies first.
-    </li>
-    <li>
-      Angular (and every modern framework) leans on reference checks to detect change cheaply: "new arrow = something
-      changed". Mutate in place and the arrow stays the same — the classic <em>screen didn't update</em> bug you'll
-      dissect properly in the OnPush lesson.
-    </li>
-  </ul>
+        <defs>
+          <marker
+            id="aob-arrow-ruler"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
 
-  <h2>Copying and unpacking — spread &amp; destructuring</h2>
-  <div class="code">
-    <pre>
-// SPREAD (...) — copy contents into a fresh object/array:
-const copy    = {{ '{' }} ...person {{ '}' }};              // new object, same properties
-const updated = {{ '{' }} ...person, age: 37 {{ '}' }};     // copy + override one key ← THE
-                                             //   pattern for updating state
-const more    = [...fruits, 'date'];         // new array = old items + one
+        <!-- length bracket -->
+        <path d="M 30 44 L 30 32 L 510 32 L 510 44" class="dia-rule" fill="none" />
+        <text x="270" y="22" text-anchor="middle" class="dia-mono dia-mono--sm">fruits.length = 3</text>
 
-// ⚠️ spread is SHALLOW: one level deep. Nested objects are still shared arrows:
-const c = {{ '{' }} ...order {{ '}' }};
-c.customer === order.customer   // true — the inner object came along by reference
+        <!-- the three lockers -->
+        <rect x="30" y="55" width="150" height="72" rx="14" class="dia-box" />
+        <rect x="195" y="55" width="150" height="72" rx="14" class="dia-box" />
+        <rect x="360" y="55" width="150" height="72" rx="14" class="dia-box dia-box--lit" />
+        <text x="105" y="99" text-anchor="middle" class="dia-mono">'apple'</text>
+        <text x="270" y="99" text-anchor="middle" class="dia-mono">'banana'</text>
+        <text x="435" y="99" text-anchor="middle" class="dia-mono">'cherry'</text>
 
-// DESTRUCTURING — unpack into variables, mirror-image of building:
-const {{ '{' }} name, age {{ '}' }} = person;   // name = 'Ada', age = 36
-const [first, second] = fruits;     // first = 'apple', second = 'banana'</pre>
-  </div>
-  <p>
-    <code>{{ '{' }} ...old, changed: newValue {{ '}' }}</code> is the single most-typed pattern in modern Angular state
-    code — this lesson's own demo handlers use it (look at <code>setName</code> in the source: it builds a
-    <em>new</em> person rather than mutating, so the signal sees a new reference and updates the view).
-  </p>
+        <!-- the index ruler -->
+        <text x="105" y="158" text-anchor="middle" class="dia-num">0</text>
+        <text x="270" y="158" text-anchor="middle" class="dia-num">1</text>
+        <text x="435" y="158" text-anchor="middle" class="dia-num">2</text>
+        <text x="270" y="188" text-anchor="middle" class="dia-mono dia-mono--sm">
+          index — starts at zero, ends at 2
+        </text>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why is <code>['a','b','c'][3]</code> not an error, and what is it?</summary>
-    <div>
-      <code>undefined</code> — reading past the end just finds nothing there. The error comes one step later, when you
-      treat it like a value: <code>list[3].toUpperCase()</code> throws "cannot read properties of undefined". When you
-      see that message, hunt for the out-of-range read or missing key one line earlier.
+        <!-- the handwritten pointer -->
+        <text x="712" y="62" text-anchor="end" class="dia-hand">last = length − 1</text>
+        <text x="712" y="90" text-anchor="end" class="dia-hand">…never length!</text>
+        <path
+          d="M 600 108 C 570 116, 545 114, 519 104"
+          class="dia-rule"
+          fill="none"
+          marker-end="url(#aob-arrow-ruler)"
+        />
+      </svg>
+      <figcaption>
+        Three items, so <code>length</code> is 3 — but the highest index is 2. Every off-by-one bug you will ever write
+        lives in the gap between those two numbers.
+      </figcaption>
+    </figure>
+
+    <app-code-lab
+      file="fruits.ts"
+      [code]="arraySample"
+      [notes]="arrayNotes"
+      notesLabel="Every symbol on these seven lines"
+    />
+
+    <div class="warn">
+      <strong>OBOE — the off-by-one error.</strong> It is so common it has an acronym. When a loop misses the last item,
+      or you read <code>undefined</code> from a list you can see has data in it, check the boundary before you check
+      anything else: <code>[0]</code> is first, <code>[length - 1]</code> is last, and <code>[length]</code> is always
+      one step into the void.
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>const user = {{ '{' }}name: 'Ada'{{ '}' }}; user.name = 'Grace';</code> — does const stop this?
-    </summary>
-    <div>
-      No. <code>const</code> seals the variable→object arrow, not the object's insides. Mutation is legal; only
-      <code>user = otherThing</code> fails. Immutability of contents is a <em>discipline</em> (or TypeScript's
-      <code>readonly</code>), not something const provides.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>A function receives an array, sorts it, and suddenly the caller's list is reordered too. Why?</summary>
-    <div>
-      Arrays travel by reference, and <code>.sort()</code> mutates in place — the function reordered the caller's
-      one-and-only array. Fix: sort a copy, <code>[...arr].sort(…)</code>. Interviewers love this one because it tests
-      references AND the mutate-vs-copy method families at once.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      After <code>const b = {{ '{' }}...a{{ '}' }}</code
-      >, changing <code>b.settings.theme</code> also changes <code>a.settings.theme</code>. Explain.
-    </summary>
-    <div>
-      Spread copies one level: <code>b</code> is a new object, but <code>b.settings</code> is the same inner object as
-      <code>a.settings</code> (a copied arrow). That's "shallow copy". For independent nested state, copy the inner
-      level too: <code>{{ '{' }}...a, settings: {{ '{' }}...a.settings, theme: 'dark'{{ '}' }}{{ '}' }}</code
-      >.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Arrays are ordered (index from 0, last = <code>length - 1</code>); objects are named (keys, dot or bracket
-      access); real data nests both, read left-to-right one hop at a time.
-    </li>
-    <li>
-      Know the two method families: mutators (<code>push</code>, <code>splice</code>, <code>sort</code>) vs producers of
-      new arrays (<code>map</code>, <code>filter</code>, <code>slice</code>).
-    </li>
-    <li>
-      <strong>Objects and arrays travel by reference</strong> — assignment copies the arrow, <code>===</code> compares
-      arrows, const seals only the arrow, and functions mutate their caller's data unless they copy.
-    </li>
-    <li>
-      Copy with spread (<code>{{ '{' }}...obj, key: newVal{{ '}' }}</code
-      >) — remembering it's shallow — and unpack with destructuring.
-    </li>
-    <li>
-      "New reference = change happened" is the deal you'll strike with Angular later; the habit of copying instead of
-      mutating starts now.
-    </li>
-  </ul>
+  <!-- ============ 3. THE TOOLKIT, AND WHAT SHAPE COMES BACK ============ -->
+  <section>
+    <p class="bf-eyebrow">The toolkit</p>
+    <h2>Two families of method. Tell them apart.</h2>
 
-  <p><a routerLink="/decisions-loops">Next: Decisions &amp; Loops →</a></p>
+    <p>
+      Arrays come with a few dozen built-in methods, and they split cleanly into two families that behave in opposite
+      ways. Confusing the families is the source of a genuinely nasty class of bug, so learn the split before you learn
+      any individual method.
+    </p>
+
+    <app-compare
+      leftTitle="Mutators — they change the original"
+      rightTitle="Producers — they build something new"
+      leftTone="bad"
+      rightTone="good"
+      note="Neither family is wrong. But a mutator edits data that other code may also be holding a reference to, and that is where the surprises live — which is exactly what the next section is about."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ mutatorsSample }}</pre>
+        </div>
+        <p>
+          <code>push</code>, <code>pop</code>, <code>shift</code>, <code>unshift</code>, <code>splice</code>,
+          <code>sort</code>, <code>reverse</code>. They edit the array <strong>in place</strong> and mostly return
+          something else entirely — <code>push</code> hands back the new length, <code>pop</code> hands back the item it
+          removed.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ producersSample }}</pre>
+        </div>
+        <p>
+          <code>map</code>, <code>filter</code>, <code>slice</code>, <code>concat</code>, <code>join</code>. They read
+          the original, leave it exactly as it was, and hand you back a <strong>new</strong> value. Nothing you were
+          holding changes underneath you.
+        </p>
+      </div>
+    </app-compare>
+
+    <h3>The four you will use every day</h3>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="map" kicker="array in → array out" tone="olive">
+        "Turn every item into something else." One in, one out — the result is
+        <strong>always the same length</strong> as the original.
+      </app-tape-card>
+      <app-tape-card heading="filter" kicker="array in → array out" tone="olive">
+        "Keep only the items that pass this test." Same items, fewer of them. When nothing passes you get
+        <code>[]</code> — an empty array, <strong>never</strong> <code>undefined</code>.
+      </app-tape-card>
+      <app-tape-card heading="find" kicker="array in → one item out" tone="accent">
+        "Give me the first one that passes." Not a list — <strong>the item itself</strong>, or
+        <code>undefined</code> when there is no match. This is the one people trip over.
+      </app-tape-card>
+      <app-tape-card heading="reduce" kicker="array in → anything out" tone="accent">
+        "Boil the whole list down to one value." A total, a longest name, a lookup object — whatever you build in the
+        function you hand it.
+      </app-tape-card>
+    </div>
+
+    <app-code-lab
+      file="prices.ts"
+      [code]="methodsSample"
+      [notes]="methodsNotes"
+      notesLabel="What each argument is, and what falls out"
+      prompt="Before the reveal: after all four of those lines have run, what is in `prices`?"
+      output="[12, 5, 30, 8] — exactly what it started as. None of map, filter, find or reduce touches the array it was called on. All four read it and build something new."
+      revealLabel="Reveal what `prices` holds"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        What comes back — the column people get wrong under exam pressure
+      </caption>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>The question it answers</th>
+          <th>What you get back</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>map(fn)</code></td>
+          <td>Turn each item into something else</td>
+          <td>A new array, <strong>always the same length</strong></td>
+        </tr>
+        <tr>
+          <td><code>filter(fn)</code></td>
+          <td>Keep the ones that pass</td>
+          <td>A new array, 0 to length items — <code>[]</code> when none match</td>
+        </tr>
+        <tr>
+          <td><code>find(fn)</code></td>
+          <td>Where is the first one that passes?</td>
+          <td>One <em>item</em>, or <code>undefined</code></td>
+        </tr>
+        <tr>
+          <td><code>findIndex(fn)</code></td>
+          <td>What position is it at?</td>
+          <td>A number, or <code>-1</code> — never <code>undefined</code></td>
+        </tr>
+        <tr>
+          <td><code>indexOf(v)</code></td>
+          <td>Where is this exact value?</td>
+          <td>A number, or <code>-1</code> — and it looks with <code>===</code></td>
+        </tr>
+        <tr>
+          <td><code>reduce(fn, seed)</code></td>
+          <td>Boil it all down to one thing</td>
+          <td>Whatever you built — number, string, object, array</td>
+        </tr>
+        <tr>
+          <td><code>some(fn)</code> / <code>every(fn)</code></td>
+          <td>Any of them? All of them?</td>
+          <td><code>true</code> or <code>false</code></td>
+        </tr>
+        <tr>
+          <td><code>includes(v)</code></td>
+          <td>Is this exact value in here?</td>
+          <td><code>true</code> or <code>false</code></td>
+        </tr>
+        <tr>
+          <td><code>slice(a, b)</code></td>
+          <td>Give me a section of it</td>
+          <td>A new array — the original is untouched</td>
+        </tr>
+        <tr>
+          <td><code>splice(i, n)</code></td>
+          <td>Cut a section out of it</td>
+          <td>The removed items — and <span class="bf-break">the original is changed</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="demo">
+      <p class="demo__title">Live — one array, four methods, four different shapes</p>
+      <div class="row" style="margin-bottom: 12px">
+        <input aria-label="add a fruit" #f placeholder="add a fruit" (keyup.enter)="add(f.value); f.value = ''" />
+        <button (click)="add(f.value); f.value = ''">Add</button>
+      </div>
+      <ul class="slots">
+        @for (fruit of fruits(); track $index) {
+          <li>
+            <code>fruits[{{ $index }}]</code> = '{{ fruit }}'
+            <button class="ghost" (click)="removeAt($index)">remove '{{ fruit }}'</button>
+          </li>
+        } @empty {
+          <li class="slots__empty">The array is empty. It is still an array: <code>[]</code>, length 0.</li>
+        }
+      </ul>
+
+      <p class="pill">
+        fruits.length = {{ fruits().length }} ·
+        @if (fruits().length) {
+          last index = {{ fruits().length - 1 }}
+        } @else {
+          no last index — an empty list has no slots at all
+        }
+      </p>
+
+      <div class="row" style="margin: 14px 0 10px">
+        <label class="field__label" for="fruit-filter">test:</label>
+        <input
+          id="fruit-filter"
+          placeholder="type letters to match"
+          [value]="query()"
+          (input)="query.set($any($event.target).value)"
+        />
+      </div>
+
+      <pre class="readout">{{ readoutMethods() }}</pre>
+
+      <p class="demo__note">
+        Type a few letters that match nothing at all and watch the two middle lines part company:
+        <code>filter</code> gives you an <strong>empty array</strong> you can safely count, loop over and render, while
+        <code>find</code> gives you <strong>undefined</strong> — and asking <code>undefined</code> for
+        <code>.length</code> is a crash. Same question, two shapes, two very different Tuesdays.
+      </p>
+    </div>
+
+    <app-quiz
+      question="`const found = [1, 2, 3].filter((n) => n > 10);` — what is `found`?"
+      [options]="shapeQuizOptions"
+      followUp="Prove it in the demo above: type “zzz” into the test box and read the two middle lines."
+    />
+  </section>
+
+  <!-- ============ 4. OBJECTS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The other shape</p>
+    <h2>An object labels its slots instead of numbering them.</h2>
+
+    <p>
+      Same corridor, different building. This time each locker has a <strong>name</strong> written on the door instead
+      of a number — think of a paper form, where every box has a printed label beside it: <em>Name</em>, <em>Age</em>,
+      <em>Member?</em>. You do not fetch the value in box two; you fetch the value labelled <code>age</code>.
+    </p>
+
+    <p>
+      A label is called a <span class="term">key</span> (or a <span class="term">property</span> — the words are used
+      interchangeably), and what sits behind it is the <span class="term">value</span>. An object is a bag of key–value
+      pairs describing <em>one thing</em>. Order is irrelevant, because nothing is found by position.
+    </p>
+
+    <app-code-lab
+      file="person.ts"
+      [code]="objectSample"
+      [notes]="objectNotes"
+      notesLabel="Curly braces, dots, and the one thing brackets can do that dots cannot"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — one object, its keys, and a bracket lookup you control</p>
+      <div class="field">
+        <label class="field__label" for="p-name">name</label>
+        <input id="p-name" [value]="person().name" (input)="setName($any($event.target).value)" />
+      </div>
+      <div class="field">
+        <label class="field__label" for="p-age">age</label>
+        <input id="p-age" type="number" [value]="person().age" (input)="setAge(+$any($event.target).value)" />
+      </div>
+      <div class="field">
+        <label class="field__label" for="p-key">key</label>
+        <select id="p-key" [value]="probeKey()" (change)="setProbeKey($any($event.target).value)">
+          <option value="name">name</option>
+          <option value="age">age</option>
+          <option value="member">member</option>
+        </select>
+      </div>
+
+      <pre class="readout">{{ readoutObject() }}</pre>
+
+      <p class="demo__note">
+        The last line is the whole argument for bracket access. <code>key</code> is a variable whose contents you are
+        changing from a dropdown, and <code>person[key]</code> follows it. Swap in a dot and it breaks:
+        <code>person.key</code> hunts for a property literally spelled <code>k-e-y</code>, finds none, and quietly hands
+        back <code>undefined</code>.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>The error message never points at the broken line.</strong> A missing key gives you
+      <code>undefined</code> and no complaint — same as reading past the end of an array. So
+      <code>person.adress.city</code> (note the typo) does not blow up where the typo is:
+      <code>person.adress</code> quietly evaluates to <code>undefined</code>, and it is asking <em>that</em> for
+      <code>.city</code> that explodes. Read <code>Cannot read properties of undefined (reading 'city')</code> as:
+      <span class="bf-break">whatever was immediately left of <code>.city</code> was nothing</span>. When you only want
+      a value if the parent exists, <code>person.adress?.city</code> — the
+      <span class="term">optional chaining</span> operator — hands back <code>undefined</code> instead of crashing.
+    </div>
+  </section>
+
+  <!-- ============ 5. NESTING ============ -->
+  <section>
+    <p class="bf-eyebrow">The shape of real data</p>
+    <h2>Almost everything is an array of objects.</h2>
+
+    <p>
+      Neither shape is exclusive: an object's value can be an array, and an array's slot can hold an object. Stack them
+      and you get the shape that virtually all application data arrives in — a list of records, each record a labelled
+      group. A cart of products. A feed of posts. The lesson list in this app's sidebar is literally one of these.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'qty: 2', sub: 'the number you were after' }"
+      [rings]="[
+        { label: 'order', sub: 'an object — reach in by name' },
+        { label: 'items', sub: 'an array — reach in by number' },
+        { label: 'items[0]', sub: 'an object again' },
+      ]"
+      arrow="order.items[0].qty"
+      caption="Every accessor peels one ring. `order` is the outer object, `.items` gets you the array inside it, `[0]` gets you the object in its first slot, and `.qty` finally gets you a plain number. Four names, three hops — and at each hop you should be able to say what kind of thing you are now holding."
+    />
+
+    <app-code-lab
+      file="order.ts"
+      [code]="nestedSample"
+      [notes]="nestedNotes"
+      notesLabel="One hop at a time, left to right"
+    />
+
+    <p>
+      Notice that nothing new was introduced to make that work. There is no "nested object" feature — a value can be
+      anything, objects and arrays are values, and that single rule is what produces every shape you will ever meet.
+      Reading them is always the same discipline:
+      <span class="key">go left to right, one hop at a time, naming the type you are holding at every step</span>.
+    </p>
+
+    <h3>The combination, queried</h3>
+
+    <p>
+      And here is why the two halves of this lesson were worth learning together. You reach into the list with the
+      <em>array</em> vocabulary — <code>map</code>, <code>filter</code>, <code>find</code>, a number in brackets — and
+      then into whatever it hands you with the <em>object</em> vocabulary, a key after a dot. Every table, cart and feed
+      you will ever render is this one snippet with different words in it.
+    </p>
+
+    <app-code-lab
+      file="people.ts"
+      [code]="peopleSample"
+      [notes]="peopleNotes"
+      notesLabel="Which vocabulary each accessor is speaking"
+    />
+  </section>
+
+  <!-- ============ 6. THE BIG ONE: REFERENCES ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap</p>
+    <h2>A variable never holds an object.</h2>
+
+    <p>
+      Back in Programming Basics, assignment copied a value: <code>let b = a</code> put a second, independent
+      <code>5</code> into a second box. Objects and arrays <span class="bf-break">do not behave that way at all</span>,
+      and the difference is the root cause of an entire genus of bug.
+    </p>
+
+    <p>
+      Here is the sentence to memorise before anything else: a variable holding an object does not contain the object.
+      Somewhere in memory there is an object, and the variable contains an <span class="term">arrow</span> pointing at
+      it — an address, a note saying "it's over there". Assignment copies
+      <strong>the arrow, not the thing at the end of it</strong>.
+    </p>
+
+    <app-bubbles
+      [turns]="holderTalk"
+      caption="Who is actually holding the data. Note the array's last line: there is no `both` — there is one array and two names pointing at it."
+    />
+
+    <div class="bf-grid-2">
+      <figure class="dia">
+        <svg
+          viewBox="0 0 340 175"
+          role="img"
+          aria-label="Two separate boxes, one named a and one named b, each containing the number five. There is no connection between them."
+          class="dia__svg"
+        >
+          <text x="24" y="38" class="dia-mono dia-mono--sm">let a</text>
+          <rect x="20" y="48" width="130" height="72" rx="14" class="dia-box" />
+          <text x="85" y="93" text-anchor="middle" class="dia-mono">5</text>
+
+          <text x="194" y="38" class="dia-mono dia-mono--sm">let b</text>
+          <rect x="190" y="48" width="130" height="72" rx="14" class="dia-box" />
+          <text x="255" y="93" text-anchor="middle" class="dia-mono">5</text>
+
+          <text x="170" y="152" text-anchor="middle" class="dia-hand">two boxes, two fives</text>
+        </svg>
+        <figcaption>
+          <strong>Primitives</strong> — numbers, text, <code>true</code>/<code>false</code>. The value itself is copied,
+          so the boxes are genuinely independent.
+        </figcaption>
+      </figure>
+
+      <figure class="dia">
+        <svg
+          viewBox="0 0 340 175"
+          role="img"
+          aria-label="Two small boxes named x and y, each with an arrow pointing to one single shared object containing count colon ten."
+          class="dia__svg"
+        >
+          <defs>
+            <marker
+              id="aob-arrow-ref"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+            </marker>
+          </defs>
+
+          <text x="20" y="34" class="dia-mono dia-mono--sm">const x</text>
+          <rect x="16" y="42" width="62" height="40" rx="12" class="dia-box" />
+          <text x="47" y="68" text-anchor="middle" class="dia-mono">→</text>
+
+          <text x="20" y="112" class="dia-mono dia-mono--sm">const y</text>
+          <rect x="16" y="120" width="62" height="40" rx="12" class="dia-box" />
+          <text x="47" y="146" text-anchor="middle" class="dia-mono">→</text>
+
+          <path d="M 84 62 C 130 62, 140 74, 176 82" class="dia-rule" fill="none" marker-end="url(#aob-arrow-ref)" />
+          <path d="M 84 140 C 130 140, 140 110, 176 96" class="dia-rule" fill="none" marker-end="url(#aob-arrow-ref)" />
+
+          <rect x="182" y="54" width="145" height="70" rx="16" class="dia-box dia-box--solid" />
+          <text x="254" y="95" text-anchor="middle" class="dia-mono dia-mono--on-solid">&#123; count: 10 &#125;</text>
+          <text x="254" y="150" text-anchor="middle" class="dia-hand">one object!</text>
+        </svg>
+        <figcaption>
+          <strong>Objects and arrays.</strong> Two names, two arrows, <em>one</em> object. Edit through either arrow and
+          the other one sees it, because there is nothing else to see.
+        </figcaption>
+      </figure>
+    </div>
+
+    <app-code-lab
+      file="references.ts"
+      [code]="referenceSample"
+      [notes]="referenceNotes"
+      notesLabel="The same fourteen lines the diagrams above are drawing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — two variables, one object</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="bumpShared()">x.count++ — mutate through x</button>
+        <button class="ghost" (click)="cloneShared()">y = &#123; ...x &#125; — give y a real copy</button>
+        <button class="ghost" (click)="resetShared()">Reset</button>
+      </div>
+
+      <pre class="readout">{{ readoutShared() }}</pre>
+
+      <p class="demo__note">
+        Press <strong>x.count++</strong> a few times: <code>y</code> climbs too, and <code>x === y</code> reads
+        <code>true</code>, because there is only ever one object. Now press the copy button — <code>===</code> flips to
+        <code>false</code> and the two numbers go their separate ways forever. Nothing about the <em>contents</em>
+        changed at the moment you copied. What changed is that there are now two objects.
+      </p>
+    </div>
+
+    <p>
+      Which finally answers the napkin from the top of the page: <code>const a = ['milk']</code> and
+      <code>const b = ['milk']</code> are <strong><code>a === b</code> → <code>false</code></strong
+      >. Two separate <code>[ ]</code> literals ran, so two arrays exist, and <code>===</code> was never looking at the
+      milk. It was comparing the arrows.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Boxes hold values. Arrows hold objects.</strong> Copy a box and you get a second value. Copy an arrow and
+      you get a second way to reach the <em>same</em> object — and <code>===</code> only ever asks whether two arrows
+      land in the same place.
+    </app-remember>
+
+    <h3>Four consequences you will meet this week</h3>
+    <ul>
+      <li>
+        <strong><code>===</code> compares arrows, not contents.</strong> Two objects with identical properties are
+        <code>!==</code> unless they are literally the same object. There is no built-in operator that compares
+        contents.
+      </li>
+      <li>
+        <strong><code>const</code> seals the arrow, not the object.</strong>
+        <code>const person = &#123; age: 36 &#125;; person.age = 37;</code> is perfectly legal. Only pointing
+        <code>person</code> at something else is blocked.
+      </li>
+      <li>
+        <strong>A function receives your arrow, not a copy of your data.</strong> Anything it mutates, it mutates for
+        you too. Spooky action at a distance, unless the function copies first.
+      </li>
+      <li>
+        <strong>Frameworks lean on this to detect change cheaply.</strong> "New arrow = something happened" is fast to
+        check. Mutate in place and the arrow never moves — which is
+        <span class="bf-break">the screen didn't update</span>, coming to a lesson near you.
+      </li>
+    </ul>
+
+    <app-predict
+      prompt="`topThree` sorts the scores it is given and returns the first three. Trace both logs before you reveal — what does each one print?"
+      [code]="sortTrapSample"
+      answer="`top` is `[9, 7, 4]`, which is what you wanted. But `myScores` is now `[9, 7, 4, 1]` — **the caller's array has been reordered behind its back**. Two things combined to do that. First, `topThree` was handed a copy of the **arrow**, so `scores` and `myScores` are one array, not two. Second, `.sort()` is a mutator: it rearranges in place rather than returning a fresh list. The fix is five characters — `[...scores].sort((a, b) => b - a)` sorts a copy and leaves the caller alone. Interviewers love this question because it catches references and the mutator/producer split in one go."
+      revealLabel="Reveal both logs"
+    />
+
+    <app-quiz
+      question="`const a = ['x']; const b = ['x']; const c = a;` — which comparison is `true`?"
+      [options]="referenceQuizOptions"
+      followUp="The live demo above is this exact question with a button attached: `c` is the linked state, `b` is what you get after pressing copy."
+    />
+  </section>
+
+  <!-- ============ 7. COPYING AND UNPACKING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The way out</p>
+    <h2>Three dots make a real copy.</h2>
+
+    <p>
+      If sharing an object by accident is the problem, deliberately making a new one is the fix. The tool is the
+      <span class="term">spread operator</span> — three dots — and it reads as "pour everything from that into this new
+      one".
+    </p>
+
+    <app-code-lab
+      file="copying.ts"
+      [code]="spreadSample"
+      [notes]="spreadNotes"
+      notesLabel="Pouring one object into another, and the level it stops at"
+    />
+
+    <app-remember variant="rule">
+      <strong>Spread copies the top drawer only.</strong> Everything one level down is still shared. Copy at every level
+      you intend to change —
+      <code>&#123; ...user, settings: &#123; ...user.settings, theme: 'dark' &#125; &#125;</code> — or use
+      <code>structuredClone()</code> when you genuinely need the whole thing duplicated.
+    </app-remember>
+
+    <app-predict
+      prompt="`b` is a spread copy of `a`. Then both a top-level property and a nested one are changed through `b`. What do the two reads of `a` show?"
+      [code]="shallowTrapSample"
+      answer="`a.name` is still `'Ada'`, but `a.settings.theme` is now `'dark'`. Spread copied `a`'s properties **one level deep**: `name` held a string, so `b` got its own copy of it, but `settings` held an object, so what `b` got was a copy of the **arrow**. `a.settings` and `b.settings` are one object with two parents. That is the whole meaning of the phrase “shallow copy”, and it is why the pattern you will type a thousand times spreads at every level it touches."
+      revealLabel="Reveal both reads"
+    />
+
+    <h3>Destructuring — the same idea, running backwards</h3>
+
+    <p>
+      Spread pours values <em>into</em> a new container. <span class="term">Destructuring</span> pulls them
+      <em>out</em> into ordinary variables. It uses the same braces and brackets, on the other side of the
+      <code>=</code>, which is exactly why it looks so wrong the first time you see it.
+    </p>
+
+    <app-code-lab
+      file="unpacking.ts"
+      [code]="destructureSample"
+      [notes]="destructureNotes"
+      notesLabel="Reading a line that runs right to left"
+    />
+
+    <app-napkin lead="the trick is —" label="How to read destructuring">
+      Read it <strong>right to left</strong>. The thing after the <code>=</code> is what you have; the braces before it
+      are a shopping list of what you want out of it. <code>const &#123; name &#125; = person</code> is not building an
+      object called <code>name</code> — it is saying "from <code>person</code>, hand me the <code>name</code>". Say the
+      sentence out loud a few times and the syntax stops fighting you.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 8. THE FORWARD CONNECTION ============ -->
+  <section>
+    <p class="bf-eyebrow">Why this matters later</p>
+    <h2>This is the Angular bug you have not hit yet.</h2>
+
+    <p>
+      Everything above is plain JavaScript, and you would be forgiven for filing it under trivia. It is not. Angular —
+      and React, and Vue — decide what to redraw by comparing the value a template used last time against the value it
+      has now, with <code>===</code>. You already know what <code>===</code> does to objects: it compares arrows.
+    </p>
+
+    <app-flow
+      [steps]="staleFlow"
+      caption="The path a mutation takes to a stale screen. Every individual step is reasonable, which is precisely why the bug is so hard to see — at no point was there a moment where anything could have noticed."
+      direction="vertical"
+    />
+
+    <app-code-lab
+      file="todos.component.ts"
+      [code]="angularSample"
+      [notes]="angularNotes"
+      notesLabel="Two lines that do the same thing to your data and opposite things to your screen"
+    />
+
+    <p>
+      Which is why this very lesson's demos are written the way they are. Look at
+      <code>add()</code> in this page's source: it does <code>[...list, v]</code> rather than <code>list.push(v)</code>,
+      and <code>setName()</code> does <code>&#123; ...p, name &#125;</code> rather than <code>p.name = name</code>. Not
+      style — those are the versions that <em>render</em>. The habit of copying instead of mutating starts here, months
+      before you meet the framework that demands it.
+    </p>
+
+    <div class="tip">
+      <strong>The bargain, stated once:</strong> you promise to hand Angular a new array or a new object whenever
+      something changes, and in exchange Angular promises to notice with one cheap comparison instead of scanning your
+      data. The <a routerLink="/signals">signals</a> and <a routerLink="/onpush">OnPush</a> lessons are both,
+      underneath, about keeping your end of it.
+    </div>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <strong>Arrays are numbered, objects are named.</strong> First is <code>[0]</code>, last is
+        <code>[length - 1]</code>, and reading past either end — or asking for a key that is not there — gives you
+        <code>undefined</code> rather than an error. The crash always arrives one hop later.
+      </li>
+      <li>
+        <strong>Know what shape comes back.</strong> <code>map</code> and <code>filter</code> hand you arrays;
+        <code>find</code> hands you one item or <code>undefined</code>; <code>reduce</code> hands you whatever you
+        built. And <code>push</code>, <code>splice</code> and <code>sort</code> change the original while
+        <code>map</code>, <code>filter</code> and <code>slice</code> never do.
+      </li>
+      <li>
+        <strong>A variable never holds an object — it holds an arrow to one.</strong> Assignment copies the arrow, so
+        two names can share one object; <code>===</code> compares arrows, so two identical objects are not equal;
+        <code>const</code> freezes the arrow, not the contents; and a function you pass an object to is editing
+        <em>yours</em>.
+      </li>
+      <li>
+        <strong>Copy with spread, and remember it is shallow.</strong>
+        <code>&#123; ...old, key: newValue &#125;</code> is the single most-typed pattern in modern app code — but
+        anything one level down is still shared, so spread at every level you mean to change.
+      </li>
+      <li>
+        <strong>"New reference = something changed" is the deal you will strike with Angular.</strong> Mutating in place
+        keeps the arrow identical, the framework's <code>===</code> says nothing happened, and your correct data sits
+        behind a stale screen. Start copying now and that bug never gets to exist.
+      </li>
+    </ul>
+
+    <p><a routerLink="/decisions-loops">Next: Decisions &amp; Loops →</a></p>
+  </section>
 </article>

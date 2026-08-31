@@ -1,25 +1,178 @@
+/* Tables, callouts, demo panels and pills are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css §14–15), so the `.t` block
+   that used to live here is gone — it was a per-lesson copy of a rule the theme
+   owns. What is left is genuinely specific to this lesson: the effect log, the
+   inline list the mutation demo renders, and the glitch diamond. */
+
+/* ── The effect log ──────────────────────────────────────────────────────────
+   Dressed as console output rather than as prose, because the point of the demo
+   is that these lines were written by something the reader never called. */
 .log {
   background: var(--code-bg);
   color: var(--code-fg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 12px 12px 12px 32px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
   font-size: 0.82rem;
   max-height: 180px;
   overflow: auto;
   margin: 0 0 10px;
 }
-.t {
+
+/* ── The mutate/replace demo's list ──────────────────────────────────────────
+   A real <ul>, so the entries are announced as a list and their count is read
+   out — which is the number the demo is actually about. Laid out inline and
+   with the layer's drawn bullet suppressed, because each item already has the
+   pill shape to separate it from its neighbour. */
+.items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding-left: 0;
+  min-height: 32px;
+}
+
+.items > li {
+  margin: 0;
+}
+
+.items > li::before {
+  content: none;
+}
+
+/* ── The glitch diamond ──────────────────────────────────────────────────────
+   Hand-authored SVG rather than an <app-flow>, because the thing being taught
+   IS the shape: one source reaching one reader by two paths of different
+   lengths. Drawn left-to-right as a sequence, that property disappears.
+
+   Every colour is a --bf-* token so the figure follows the page into dark mode,
+   and the whole <svg> is aria-hidden with the information repeated in the
+   <figcaption> — a diagram that has to be re-read as a sentence is better done
+   as a sentence for anyone who cannot see it. */
+.diamond-fig {
+  margin: 1.8rem 0;
+}
+
+.diamond {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
+  max-width: 480px;
+  height: auto;
+  margin: 0 auto;
 }
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
+
+/* Matches the caption treatment the shared figures (app-flow, app-layers) use,
+   so the three kinds of diagram on this page read as one family. */
+.diamond-fig figcaption {
+  max-width: 60ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
 }
-.t td:first-child {
-  width: 240px;
+
+.diamond__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+.diamond__box--src {
+  fill: var(--bf-accent-wash);
+  stroke: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+.diamond__box--derived {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+}
+
+.diamond__box--sink {
+  fill: var(--bf-gold-wash);
+  stroke: color-mix(in srgb, var(--bf-gold) 45%, transparent);
+}
+
+.diamond__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.diamond__role {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.diamond__edge {
+  fill: none;
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.diamond__head {
+  fill: var(--bf-accent);
+}
+
+.diamond__tag {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+/* The author's own annotation, in the margin voice — the one thing on the
+   diagram that is a comment rather than a part of the mechanism. */
+.diamond__hand {
+  fill: var(--bf-gold);
+  font-family: var(--font-hand);
+  font-size: 21px;
+}
+
+.diamond__hand-arrow {
+  fill: none;
+  stroke: var(--bf-gold);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.diamond__hand-head {
+  fill: var(--bf-gold);
+}
+
+/* The edges draw themselves in on first paint: a dependency graph is a thing
+   that gets built, and watching it built reads as one. Transform/opacity-free
+   and purely decorative, so dropping it under reduced motion costs nothing. */
+@media (prefers-reduced-motion: no-preference) {
+  .diamond__edge {
+    stroke-dasharray: 140;
+    stroke-dashoffset: 140;
+    animation: diamond-draw 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+  }
+
+  .diamond__head,
+  .diamond__hand,
+  .diamond__hand-arrow,
+  .diamond__hand-head {
+    opacity: 0;
+    animation: diamond-fade 0.4s ease 0.75s forwards;
+  }
+
+  @keyframes diamond-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes diamond-fade {
+    to {
+      opacity: 1;
+    }
+  }
 }

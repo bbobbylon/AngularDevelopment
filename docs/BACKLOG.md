@@ -169,10 +169,49 @@ mechanism → same idea in four modes), and copying that shape is most of the jo
 **Requested 2026-08-31** alongside the redesign: _"do a full sweep of the app and see what
 needs more lessons or examples for that specific concept."_
 
-Swept all 100 lessons with parallel agents, one per curriculum slice, then adversarially
-verified every claimed gap against the actual lesson files (many "missing" things turned
-out to be present in quiz `why` text or FAQ answers rather than in the prose, and were
-dropped). What survived is below.
+Swept all 100 lessons with 21 parallel agents, one per curriculum slice, each reading the
+`.ts` as well as the `.html` — a lot of this app's teaching lives in quiz `why` text and
+FAQ answers rather than in visible prose. Every claimed gap then went to a second agent
+whose stated default was that the claim was **wrong** and which had to grep the lesson
+before confirming it.
+
+**Every finding is in [COVERAGE-SWEEP.md](COVERAGE-SWEEP.md)**, per lesson, with what to
+add. The summary:
+
+| | |
+| --- | --- |
+| Confirmed gaps | **412** — 196 high, 203 medium, 13 low |
+| Concepts with no lesson at all | **50** |
+| Biggest single kind | missing failure mode (101) |
+| Heaviest tier | Intermediate (107 gaps over 26 lessons) |
+
+**Four themes worth doing as a batch rather than lesson by lesson**, because they repeat
+everywhere and are much cheaper and more coherent fixed together:
+
+1. **Nothing ever fails.** 101 findings are a missing failure mode. The curriculum is
+   strong on how an API works and weak on what it looks like when it breaks — no rejected
+   promise, no NG error code read aloud, no rejected `git push`. A learner who has never
+   seen the message cannot recognise it under pressure, which is exactly the situation
+   this app exists to prepare them for.
+2. **The Angular 21 surface is ahead of the curriculum.** `httpResource`, Signal Forms,
+   `linkedSignal`, `router.events` and `EnvironmentProviders` are name-dropped and taught
+   nowhere; 26 findings are an API that has moved under a lesson. This one decays further
+   every release, so it is the most time-sensitive item in this file.
+3. **The web platform underneath Angular is assumed.** No HTML lesson, no CSS lesson, and
+   CORS named as a cause of failure three times without ever being explained — in a tier
+   whose blurb promises "no prior experience assumed".
+4. **Delivery stops at `ng build`.** Nothing covers what the output actually is, why a
+   deep link 404s without a server rewrite, or how metadata reaches a crawler — in a tier
+   called Rendering & Delivery.
+
+**Suggested order.** Theme 2 first (it rots), then theme 1 folded into the redesign pass
+in §1.2 — a lesson being rewritten for presentation is already open, and adding its
+failure modes then costs a fraction of a separate visit. Themes 3 and 4 are new lessons,
+so they are a decision about scope rather than a backlog item to grind through.
+
+**A caution.** The adversarial pass dropped only one claim of 413. That is a sign the
+finders were careful, not proof every survivor is real — read the lesson before acting on
+a line.
 
 ---
 
@@ -371,6 +410,7 @@ Kept short — detail lives in the docs each item updated.
 
 ## Related Documents
 
+- [COVERAGE-SWEEP.md](COVERAGE-SWEEP.md) — every coverage finding from §1.3, per lesson
 - [CONTRIBUTING.md](CONTRIBUTING.md) — the depth standard and how to add lessons
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how the app is built
 - [UI-DESIGN.md](UI-DESIGN.md) — design system, motion, accessibility

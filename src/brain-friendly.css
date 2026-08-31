@@ -1122,18 +1122,56 @@ html.bf-page {
   color: var(--bf-ink-2);
 }
 
-.lesson.bf .demo button:not(.bf-btn) {
+/* `:not(.ghost)` matters: without it this rule out-specifies the `.ghost` rule
+   below and every button in a demo comes out solid orange, which loses the
+   primary/secondary distinction the demos rely on to say which button is the
+   point and which is the control. */
+.lesson.bf .demo button:not(.bf-btn):not(.ghost) {
   border-radius: var(--bf-r-pill);
   background: var(--bf-accent);
   color: var(--bf-bg);
   font-family: var(--font-body);
+  font-size: 0.92rem;
   font-weight: 600;
   padding: 0.55em 1.1em;
 }
 
-.lesson.bf .demo button:not(.bf-btn):hover {
+.lesson.bf .demo button:not(.bf-btn):not(.ghost):hover {
   background: var(--bf-accent-bright);
   filter: none;
+}
+
+.lesson.bf .demo button.ghost {
+  border-radius: var(--bf-r-pill);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  padding: 0.55em 1.1em;
+}
+
+/* Inline code inside a button inherits the button's colour rather than the
+   prose accent, or a solid orange button ends up with an orange chip on it. */
+.lesson.bf .demo button code {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border-color: transparent;
+  color: inherit;
+}
+
+/* Neither theme styled a disabled button, so an undo control that had nothing
+   to undo looked exactly like one that did — a demo silently lying about its
+   own state. Opacity plus the cursor, both of which survive any tone. */
+.lesson.bf button:disabled,
+.lesson.bf .bf-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.lesson.bf button:disabled:hover,
+.lesson.bf .bf-btn:disabled:hover {
+  transform: none;
+  filter: none;
+  box-shadow: none;
 }
 
 /* ============================================================

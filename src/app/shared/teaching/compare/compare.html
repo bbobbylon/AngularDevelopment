@@ -1,14 +1,14 @@
 <div class="compare">
   <div class="compare__grid">
     <section class="compare__side" [class]="'compare__side--' + leftTone()" [attr.aria-labelledby]="leftId">
-      <h4 class="compare__title" [id]="leftId">{{ leftTitle() }}</h4>
+      <h4 class="compare__title" [id]="leftId"><app-rich-text [text]="leftTitle()" /></h4>
       <div class="compare__body">
         <ng-content select="[left]" />
       </div>
     </section>
 
     <section class="compare__side" [class]="'compare__side--' + rightTone()" [attr.aria-labelledby]="rightId">
-      <h4 class="compare__title" [id]="rightId">{{ rightTitle() }}</h4>
+      <h4 class="compare__title" [id]="rightId"><app-rich-text [text]="rightTitle()" /></h4>
       <div class="compare__body">
         <ng-content select="[right]" />
       </div>
@@ -16,6 +16,6 @@
   </div>
 
   @if (note()) {
-    <p class="compare__note">{{ note() }}</p>
+    <p class="compare__note"><app-rich-text [text]="note()" /></p>
   }
 </div>

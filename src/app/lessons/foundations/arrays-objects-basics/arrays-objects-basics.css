@@ -1,34 +1,173 @@
+/* Tables, callouts, demo panels, pills and the code window are all styled by
+   the shared brain-friendly layer now (src/brain-friendly.css §14–15), so the
+   `.qa` accordion and the table rules that used to live here are gone — the
+   exam questions on this page are an `<app-faq>`, which is keyboard-accessible
+   and consistent with every other migrated lesson.
+
+   What is left is genuinely specific to this lesson: the two hand-drawn
+   diagrams, the live readout panels, and the labelled demo fields. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAMS
+   Two SVGs carry this lesson: the index ruler (which exists to put the
+   gap between `length` and the last index in front of the reader's
+   eyes) and the boxes-versus-arrows pair (which is the single most
+   important picture on the page).
+
+   Every colour comes from a --bf-* token rather than a literal, so both
+   diagrams follow the reader's light/dark choice with no duplicate
+   rules, and both stay on the palette the rest of the layer uses.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
+}
+
+.dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+/* A container drawn on the page: the same surface + hairline as a .bf-card,
+   so a box in a diagram reads as the same kind of object as a box in the
+   layout. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+/* The one box the arrow is pointing at. */
+.dia-box--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+/* The physical thing everything else points at — clay, per the layer's
+   convention that clay means "the solid object in a diagram". */
+.dia-box--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 13px;
+  fill: var(--bf-ink-2);
+}
+
+.dia-mono--on-solid {
+  fill: var(--bf-clay-ink);
+  font-weight: 600;
+}
+
+/* Index digits: big, in the accent, because the numbers *are* the lesson
+   in that diagram. */
+.dia-num {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  fill: var(--bf-accent);
+}
+
+/* The author's handwriting, inside the picture. Same face and hue as
+   `.bf-hand` in the running text, so the margin voice sounds the same
+   whether it is set in HTML or drawn in SVG. */
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. LIVE READOUTS
+   Deliberately NOT `.code pre`. `app.ts` re-highlights every `.code pre`
+   after navigation by overwriting its innerHTML, and although that sweep
+   already skips anything inside `.demo`, a live readout should not be
+   depending on that exemption: the interpolation here re-renders on every
+   keystroke, and a tokeniser that overwrote it would wipe the panel the
+   first time the reader typed. So these wear the editor's clothes without
+   ever joining the sweep, whatever the sweep's rules become.
+   ------------------------------------------------------------------ */
+.readout {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  border-radius: var(--bf-r);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.75;
+  overflow-x: auto;
+  white-space: pre;
+  box-shadow: var(--bf-shadow);
+}
+
+/* ------------------------------------------------------------------
+   3. DEMO FIELDS AND THE SLOT LIST
+   ------------------------------------------------------------------ */
 .field {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
 }
-.field label {
-  min-width: 70px;
-  color: var(--text-muted);
-}
-ul {
-  padding-left: 18px;
-}
-li {
-  margin: 4px 0;
+
+.field__label {
+  min-width: 52px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+/* The live array, drawn as a list of slots. The bullet is suppressed
+   because each row already announces its own index, and a dot in front
+   of `fruits[0]` reads as a second, competing marker. */
+ul.slots {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+
+ul.slots > li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+
+ul.slots > li::before {
+  display: none;
+}
+
+ul.slots .slots__empty {
+  color: var(--bf-ink-2);
+  font-style: italic;
 }

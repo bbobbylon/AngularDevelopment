@@ -95,7 +95,7 @@ export class CodeLab {
   /** Predict prompt for the bottom strip. Empty hides the strip. */
   readonly prompt = input<string>('');
 
-  /** What the snippet prints. Revealed by the strip's button. */
+  /** What the snippet prints. Revealed by the strip's button. Supports `backticks` and `**bold**`. */
   readonly output = input<string>('');
 
   /** Button copy for the reveal. */
