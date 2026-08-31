@@ -598,7 +598,7 @@ export class RxjsSubjects implements OnDestroy {
     },
     {
       line: 2,
-      text: '`observers` is the entire difference between a Subject and an Observable. The type `((value: T) => void)[]` reads as *array of functions that take a `T` and return nothing* — one entry per subscriber, **held by the subject itself**. An Observable owns no such list, which is why it cannot multicast.',
+      text: '`observers` is the entire difference between a Subject and an Observable. The type `((value: T) => void)[]` reads as **array of functions that take a** `T` **and return nothing** — one entry per subscriber, **held by the subject itself**. An Observable owns no such list, which is why it cannot multicast.',
     },
     {
       line: 5,
@@ -618,7 +618,7 @@ export class RxjsSubjects implements OnDestroy {
     },
     {
       line: 12,
-      text: 'The multicast mechanism, complete. `[...this.observers]` copies the array first, so a listener that unsubscribes *during* the loop cannot shift the array under the iterator. Then each `fn` is handed **the same** `value` — one call in, N deliveries out.',
+      text: 'The multicast mechanism, complete. `[...this.observers]` copies the array first, so a listener that unsubscribes **during** the loop cannot shift the array under the iterator. Then each `fn` is handed **the same** `value` — one call in, N deliveries out.',
     },
     {
       line: 17,
@@ -647,7 +647,7 @@ const shared$ = ticks$.pipe(share());    // share() builds that Subject and subs
   protected readonly multicastNotes: CodeNote[] = [
     {
       line: 1,
-      text: '`interval(1000)` is a **cold** source: the timer is created *inside* its subscribe function, so two subscribers means two timers, each counting from `0` at its own moment. The `$` on `ticks$` is only a naming convention meaning "this is a stream".',
+      text: '`interval(1000)` is a **cold** source: the timer is created **inside** its subscribe function, so two subscribers means two timers, each counting from `0` at its own moment. The `$` on `ticks$` is only a naming convention meaning "this is a stream".',
     },
     {
       line: 2,
@@ -764,7 +764,7 @@ onOpenPanel(): void {
   protected readonly teardownNotes: CodeNote[] = [
     {
       line: 2,
-      text: '`DestroyRef` is an injectable object that represents *this component being destroyed*; you can hand it around, and `onDestroy()` on it registers a callback. `inject()` may only run in an **injection context**, and a field initializer is one.',
+      text: '`DestroyRef` is an injectable object that represents **this component being destroyed**; you can hand it around, and `onDestroy()` on it registers a callback. `inject()` may only run in an **injection context**, and a field initializer is one.',
     },
     {
       line: 6,
@@ -772,7 +772,7 @@ onOpenPanel(): void {
     },
     {
       line: 12,
-      text: 'The same operator, called from a click handler. There is no ambient injector inside an event callback, so you pass the `DestroyRef` you captured on line 2. Omit it here and Angular throws *"takeUntilDestroyed() can only be used within an injection context"* at runtime, not at build time.',
+      text: 'The same operator, called from a click handler. There is no ambient injector inside an event callback, so you pass the `DestroyRef` you captured on line 2. Omit it here and Angular throws **"takeUntilDestroyed() can only be used within an injection context"** at runtime, not at build time.',
     },
     {
       line: 13,
@@ -883,7 +883,7 @@ increment(): void { this.count.update((c) => c + 1); }
   protected readonly coldQuiz: QuizOption[] = [
     {
       text: 'One. Both components are subscribing to the same observable object.',
-      why: 'They are — and it makes no difference. A cold Observable is a **recipe, not a dish**: the code that makes the request lives *inside* the function that `subscribe` calls, so every subscription runs it again. Sharing the object shares the instructions, not the result.',
+      why: 'They are — and it makes no difference. A cold Observable is a **recipe, not a dish**: the code that makes the request lives **inside** the function that `subscribe` calls, so every subscription runs it again. Sharing the object shares the instructions, not the result.',
     },
     {
       text: 'Two. Each subscriber gets its own private run of the producer.',
@@ -920,7 +920,7 @@ increment(): void { this.count.update((c) => c + 1); }
     {
       text: 'Nothing but the completion notification.',
       correct: true,
-      why: 'Correct, and it catches almost everyone. Now hold it next to the sibling case: a `ReplaySubject(2)` in the *same* state **does** replay `2, 3` first, because it pushes its buffer before checking the stopped flag. Same scenario, opposite answer — which is exactly why "BehaviorSubject is just ReplaySubject(1)" is wrong.',
+      why: 'Correct, and it catches almost everyone. Now hold it next to the sibling case: a `ReplaySubject(2)` in the **same** state **does** replay `2, 3` first, because it pushes its buffer before checking the stopped flag. Same scenario, opposite answer — which is exactly why "BehaviorSubject is just ReplaySubject(1)" is wrong.',
     },
     {
       text: 'It throws `ObjectUnsubscribedError`, because the subject is closed.',
@@ -932,7 +932,7 @@ increment(): void { this.count.update((c) => c + 1); }
   protected readonly questions: FaqItem[] = [
     {
       q: 'Is a Subject just an `EventEmitter` with a longer name?',
-      a: "Almost literally — Angular's `EventEmitter` **extends** `Subject`. The difference is what each is *for*. `EventEmitter` is the type of an `@Output`, and Angular's own docs say to use it only there; the modern spelling is the `output()` function anyway. Anything living in a service should be a real `Subject`, so that nobody reading the code assumes there is a component boundary involved.",
+      a: "Almost literally — Angular's `EventEmitter` **extends** `Subject`. The difference is what each is **for**. `EventEmitter` is the type of an `@Output`, and Angular's own docs say to use it only there; the modern spelling is the `output()` function anyway. Anything living in a service should be a real `Subject`, so that nobody reading the code assumes there is a component boundary involved.",
     },
     {
       q: 'Is `BehaviorSubject` the same as `ReplaySubject(1)`?',
@@ -944,7 +944,7 @@ increment(): void { this.count.update((c) => c + 1); }
     },
     {
       q: 'Do I really have to unsubscribe? My subject never errors and never completes.',
-      a: 'That is *precisely* when you have to. A subscription ends by itself when the stream **completes**, and a Subject modelling an ongoing feed never does — so every component that subscribes and forgets leaves a live callback holding a reference to a destroyed component. Use `takeUntilDestroyed()`, the `async` pipe, or `toSignal()`. And note that completing a subject you *own* in `ngOnDestroy` is a different thing entirely: it releases your subscribers, and does nothing about your own subscriptions to other streams.',
+      a: 'That is **precisely** when you have to. A subscription ends by itself when the stream **completes**, and a Subject modelling an ongoing feed never does — so every component that subscribes and forgets leaves a live callback holding a reference to a destroyed component. Use `takeUntilDestroyed()`, the `async` pipe, or `toSignal()`. And note that completing a subject you **own** in `ngOnDestroy` is a different thing entirely: it releases your subscribers, and does nothing about your own subscriptions to other streams.',
     },
     {
       q: 'Every article I have read says `BehaviorSubject` for state. Is that wrong now?',

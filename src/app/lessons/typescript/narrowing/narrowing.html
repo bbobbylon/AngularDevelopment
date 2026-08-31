@@ -612,7 +612,7 @@
     </p>
 
     <p>
-      The bench below inserts one thing between the check and the use. Work through all eight; at least two of them will
+      The bench below inserts one thing between the check and the use. Work through all nine; at least two of them will
       not do what you expect.
     </p>
 
@@ -644,11 +644,12 @@
     </div>
 
     <p>
-      Notice the shape of that list. <strong>Three</strong> things actually take the narrowing away — an assignment, a
-      closure over a variable that gets assigned, and a function boundary — and all three tell you loudly, at compile
-      time, on a line you can point at. The other three are worse, because the compiler <em>keeps</em> the narrowing and
-      the runtime is what moved underneath it. TypeScript chose usability over soundness there deliberately: resetting
-      narrowing after every call would make narrowed code impossible to write, since almost every line calls something.
+      Notice the shape of that list. <strong>Four</strong> things actually take the narrowing away — an assignment, a
+      closure over a variable that gets assigned, reading the checked value through a second call instead of a
+      reference, and a function boundary — and all four tell you loudly, at compile time, on a line you can point at.
+      The other three are worse, because the compiler <em>keeps</em> the narrowing and the runtime is what moved
+      underneath it. TypeScript chose usability over soundness there deliberately: resetting narrowing after every call
+      would make narrowed code impossible to write, since almost every line calls something.
     </p>
 
     <app-code-lab
@@ -660,7 +661,7 @@
 
     <table>
       <caption class="bf-table-caption">
-        The six interruptions that change something, and which of them you hear about
+        The seven interruptions that change something, and which of them you hear about
       </caption>
       <thead>
         <tr>
@@ -699,6 +700,11 @@
           <td>You read it through a <code>get</code> accessor</td>
           <td>Kept, and the getter runs twice</td>
           <td><span class="bf-break">No</span> — the second call may answer differently</td>
+        </tr>
+        <tr>
+          <td>You check it through a signal call, then read it through another</td>
+          <td><strong>Never applied</strong> — a call expression is not a reference</td>
+          <td>Yes — TS2531, on the very next line</td>
         </tr>
       </tbody>
     </table>

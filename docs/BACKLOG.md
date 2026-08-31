@@ -143,7 +143,9 @@ of that section."_ This supersedes §2.2 as the concrete plan for Bar 3.
 - Five lessons migrated, **one per track** so the layer is proven against an absolute
   beginner and an expert before it goes wider: `expert/change-detection` (the reference
   implementation), `beginner/signals`, `intermediate/rxjs-subjects`,
-  `typescript/narrowing`, `foundations/arrays-objects-basics`.
+  `typescript/narrowing`, `foundations/arrays-objects-basics`. All five went through a
+  full write pass and a separate adversarial review pass, and all five now score 9/9 on
+  `audit-retention.mjs` (was 24 lessons at 9/9 before this batch, 28 after).
 
 **Remaining: 95 lessons.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
@@ -178,17 +180,17 @@ before confirming it.
 **Every finding is in [COVERAGE-SWEEP.md](COVERAGE-SWEEP.md)**, per lesson, with what to
 add. The summary:
 
-| | |
-| --- | --- |
-| Confirmed gaps | **412** — 196 high, 203 medium, 13 low |
-| Concepts with no lesson at all | **50** |
-| Biggest single kind | missing failure mode (101) |
-| Heaviest tier | Intermediate (107 gaps over 26 lessons) |
+|                                |                                         |
+| ------------------------------ | --------------------------------------- |
+| Confirmed gaps                 | **401** — 193 high, 195 medium, 13 low  |
+| Concepts with no lesson at all | **50**                                  |
+| Biggest single kind            | missing failure mode (96)               |
+| Heaviest tier                  | Intermediate (105 gaps over 26 lessons) |
 
 **Four themes worth doing as a batch rather than lesson by lesson**, because they repeat
 everywhere and are much cheaper and more coherent fixed together:
 
-1. **Nothing ever fails.** 101 findings are a missing failure mode. The curriculum is
+1. **Nothing ever fails.** 96 findings are a missing failure mode. The curriculum is
    strong on how an API works and weak on what it looks like when it breaks — no rejected
    promise, no NG error code read aloud, no rejected `git push`. A learner who has never
    seen the message cannot recognise it under pressure, which is exactly the situation
@@ -209,9 +211,9 @@ in §1.2 — a lesson being rewritten for presentation is already open, and addi
 failure modes then costs a fraction of a separate visit. Themes 3 and 4 are new lessons,
 so they are a decision about scope rather than a backlog item to grind through.
 
-**A caution.** The adversarial pass dropped only one claim of 413. That is a sign the
-finders were careful, not proof every survivor is real — read the lesson before acting on
-a line.
+**A caution.** The adversarial pass dropped 12 of 413 raw claims (about 3%). That is a
+sign the finders were careful, not proof every survivor is real — read the lesson before
+acting on a line.
 
 ---
 

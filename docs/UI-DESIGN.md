@@ -410,11 +410,16 @@ restate the line in English.**
 
 ### 9.6 Rollout state
 
-Migrated as of 2026-08-31: `expert/change-detection` (the reference implementation — copy
-its shape), `beginner/signals`, `intermediate/rxjs-subjects`, `typescript/narrowing`,
-`foundations/arrays-objects-basics`. One per track, deliberately, so the layer is proven
-against an absolute-beginner audience and an expert one before it goes wider. The
-remaining 95 are tracked in `BACKLOG.md` §1.2.
+Migrated as of 2026-08-31, all through the full write-then-adversarially-review cycle
+and scoring 9/9 on the retention audit: `expert/change-detection` (the reference
+implementation — copy its shape), `beginner/signals`, `intermediate/rxjs-subjects`,
+`typescript/narrowing`, `foundations/arrays-objects-basics`. One per track, deliberately,
+so the layer is proven against an absolute-beginner audience and an expert one before it
+goes wider — and the review pass earned its place: it caught a compile-breaking template
+literal in `narrowing.ts`, a fictional signal named in a diagram in `signals.html`, a
+demo in `arrays-objects-basics` that contradicted its own teaching point, and stray
+single-asterisk emphasis left over from before `**bold**` parsing existed. The remaining
+95 are tracked in `BACKLOG.md` §1.2.
 
 ---
 

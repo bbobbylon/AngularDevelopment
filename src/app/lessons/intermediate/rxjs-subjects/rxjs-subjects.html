@@ -107,7 +107,7 @@
       [code]="miniSubjectSample"
       [notes]="miniSubjectNotes"
       notesLabel="Line by line — and every surprise this explains"
-      prompt="Two subscribers are registered, and you call `next(1)` exactly once. How many times does anything that *produces* a value run?"
+      prompt="Two subscribers are registered, and you call `next(1)` exactly once. How many times does anything that **produces** a value run?"
       output="Zero. There is no producer to run — next() is a for-loop over two stored callbacks, so one call in becomes two deliveries out. That is multicast. The cold Observable from the previous lesson would have run its subscribe function twice, once per subscriber, and produced two independent 1s."
       revealLabel="Reveal the answer"
     />
@@ -453,7 +453,7 @@
     <app-predict
       prompt="A `BehaviorSubject` is completed, and then somebody calls `next()` on it one more time. What did the subscriber see — and what does `state$.value` read afterwards?"
       [code]="valueDriftSample"
-      answer="The subscriber logged `saw 1` and nothing else. But `state$.value` reads **99**. `BehaviorSubject.next()` writes the new value into its internal slot *before* it checks whether it is allowed to emit — so the getter and the stream disagree, permanently and silently. This is the strongest argument in the lesson against reading `.value` outside a debugger: it is the one part of a Subject that can look right while the stream is wrong. After `error()` it is worse still — `.value` throws the stored error at whoever reads it."
+      answer="The subscriber logged `saw 1` and nothing else. But `state$.value` reads **99**. `BehaviorSubject.next()` writes the new value into its internal slot **before** it checks whether it is allowed to emit — so the getter and the stream disagree, permanently and silently. This is the strongest argument in the lesson against reading `.value` outside a debugger: it is the one part of a Subject that can look right while the stream is wrong. After `error()` it is worse still — `.value` throws the stored error at whoever reads it."
       revealLabel="Reveal what actually happens"
     />
   </section>

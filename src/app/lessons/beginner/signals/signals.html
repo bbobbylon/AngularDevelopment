@@ -186,7 +186,7 @@
       [notes]="derivedNotes"
       notesLabel="Line by line — and the trap on line 9"
       prompt="`showTax` is `false`. You call `taxRate.set(0.5)`, then read `total()`. Does the body re-run?"
-      output="No. On its last run the body returned before it ever reached taxRate(), so total has no dependency on taxRate at all — the write marks nothing, and the cached number comes straight back. Set showTax to true and the edge appears on the very next run."
+      output="No. On its last run the body returned before it ever reached `taxRate()`, so `total` has no dependency on `taxRate` at all — the write marks nothing, and the cached number comes straight back. Set `showTax` to `true` and the edge appears on the very next run."
       revealLabel="Reveal the answer"
     />
 
@@ -355,11 +355,10 @@
       [core]="{ label: 'count', sub: 'signal(0)' }"
       [rings]="[
         { label: 'Template', sub: 'the binding' },
-        { label: 'summary', sub: 'computed' },
         { label: 'doubled', sub: 'computed' },
       ]"
       arrow="one read starts here"
-      caption="Reading `summary()` runs its body, which reads `doubled()`, which runs **its** body, which finally reads `count()`. Nobody declared that graph — it was discovered on the way in, and it is thrown away and rebuilt on every run. The value then travels back out, cached at each layer it passes, so the second read of the same tick touches nothing."
+      caption="Reading `doubled()` — the same `computed` from the demo above — runs its body, which reads `count()`. Nobody declared that dependency; it was discovered on the way in, and it is thrown away and rebuilt on every run. The value then travels back out, cached at the layer it passes through, so the second read of the same tick touches nothing."
     />
   </section>
 
@@ -418,7 +417,7 @@
       [notes]="glitchNotes"
       notesLabel="Line by line — the shape that would glitch"
       prompt="How many times does the effect log, and what does it print?"
-      output="Once. It logs Grace, then Grace Lovelace. Never twice — and never the inconsistent pair Grace next to Ada Lovelace, not even for a microtask."
+      output="Once. It logs `Grace`, then `Grace Lovelace`. Never twice — and never the inconsistent pair `Grace` next to `Ada Lovelace`, not even for a microtask."
       revealLabel="Reveal the output"
     />
 

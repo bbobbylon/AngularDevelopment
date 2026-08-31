@@ -134,14 +134,14 @@ inventing markup. Import from the barrel:
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 ```
 
-| Component        | Use it for                                        | Rough budget per lesson |
-| ---------------- | ------------------------------------------------- | ----------------------- |
+| Component        | Use it for                                        | Rough budget per lesson            |
+| ---------------- | ------------------------------------------------- | ---------------------------------- |
 | `<app-remember>` | The one sentence that must survive                | 1–2 (a hook, and at most one rule) |
-| `<app-predict>`  | Ask before telling — commit, then reveal          | 1–2                     |
-| `<app-quiz>`     | Active recall with explained wrong answers        | 1–2                     |
-| `<app-flow>`     | A step diagram — sequences, pipelines, lifecycles | 1                       |
-| `<app-compare>`  | Before/after, old API/new API, wrong/right        | as needed               |
-| `<app-faq>`      | The doubts a learner hesitates to ask out loud    | 1, 3–5 items            |
+| `<app-predict>`  | Ask before telling — commit, then reveal          | 1–2                                |
+| `<app-quiz>`     | Active recall with explained wrong answers        | 1–2                                |
+| `<app-flow>`     | A step diagram — sequences, pipelines, lifecycles | 1                                  |
+| `<app-compare>`  | Before/after, old API/new API, wrong/right        | as needed                          |
+| `<app-faq>`      | The doubts a learner hesitates to ask out loud    | 1, 3–5 items                       |
 
 The budgets matter. Three `<app-remember>` boxes highlight nothing, and a page of quizzes
 reads as a worksheet rather than a lesson. Two `<app-remember>`s are the ceiling and only
