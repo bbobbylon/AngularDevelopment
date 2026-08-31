@@ -1,0 +1,93 @@
+<figure class="lab" [attr.aria-label]="file() ? 'Code sample: ' + file() : 'Code sample'">
+  <div class="lab__window">
+    <div class="lab__chrome">
+      <span class="lab__dot lab__dot--a" aria-hidden="true"></span>
+      <span class="lab__dot lab__dot--b" aria-hidden="true"></span>
+      <span class="lab__dot lab__dot--c" aria-hidden="true"></span>
+      @if (file()) {
+        <span class="lab__file">{{ file() }}</span>
+      }
+    </div>
+
+    <!--
+      Deliberately NOT a <pre>. Each line is its own block with `white-space: pre`
+      and a single [innerHTML] binding, so the template's own indentation can
+      never leak into the rendered code — which is exactly what happens when a
+      formatter reflows control-flow blocks inside a whitespace-sensitive tag.
+    -->
+    <div class="lab__scroll">
+      <div class="lab__code">
+        @for (line of lines(); track line.number) {
+          <div
+            class="lab__line"
+            [class.lab__line--lit]="line.marker !== 0 && line.marker === active()"
+            [class.lab__line--noted]="line.marker !== 0"
+          >
+            <span class="lab__text" [innerHTML]="line.html"></span>
+            @if (line.marker) {
+              <button
+                type="button"
+                class="lab__marker"
+                [class.lab__marker--lit]="line.marker === active()"
+                [attr.aria-pressed]="line.marker === active()"
+                [attr.aria-label]="'Note ' + line.marker + ', about line ' + line.number"
+                (click)="toggle(line.marker)"
+              >
+                {{ line.marker }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (prompt()) {
+      <div class="lab__strip">
+        <p class="lab__prompt"><app-rich-text [text]="prompt()" /></p>
+        @if (!revealed()) {
+          <button
+            type="button"
+            class="lab__reveal"
+            [attr.aria-expanded]="false"
+            [attr.aria-controls]="panelId"
+            (click)="reveal()"
+          >
+            {{ revealLabel() }}
+          </button>
+        }
+      </div>
+
+      @if (revealed()) {
+        <div class="lab__output" [id]="panelId" role="status">
+          <span class="lab__output-label">Output</span>
+          <span class="lab__output-body">{{ output() }}</span>
+        </div>
+      }
+    }
+  </div>
+
+  @if (ordered().length) {
+    <div class="lab__notes">
+      <p class="lab__notes-label">{{ notesLabel() }}</p>
+      <ol class="lab__note-list">
+        @for (note of ordered(); track note.number) {
+          <li>
+            <button
+              type="button"
+              class="lab__note"
+              [class.lab__note--lit]="note.number === active()"
+              [attr.aria-pressed]="note.number === active()"
+              (click)="toggle(note.number)"
+            >
+              <span class="lab__note-num" aria-hidden="true">{{ note.number }}</span>
+              <span class="lab__note-body">
+                <span class="lab__note-line">line {{ note.line }}</span>
+                <app-rich-text [text]="note.text" />
+              </span>
+            </button>
+          </li>
+        }
+      </ol>
+    </div>
+  }
+</figure>

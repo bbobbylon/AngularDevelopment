@@ -114,15 +114,10 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  /* Figtree, self-hosted — see src/fonts.css. Set from the shared token rather
+     than a literal stack so the whole app (not just redesigned lessons) moves
+     in one edit if the reading face is ever changed. */
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   line-height: 1.6;
 }
@@ -138,8 +133,24 @@ a:hover {
 
 code,
 pre {
-  font-family:
-    "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
+}
+
+/* Ligatures OFF, everywhere code appears.
+   JetBrains Mono ships programming ligatures, so `===` renders as a single
+   triple-bar glyph, `=>` as one arrow, `!=` as one crossed-equals. In an editor
+   that is a nice touch for someone who already knows what those operators are.
+   In a teaching app it is a defect: a learner reading about strict equality has
+   to be able to count three equals signs, and a beginner meeting `=>` for the
+   first time cannot tell it is two characters. */
+code,
+pre,
+kbd,
+samp {
+  font-variant-ligatures: none;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
 }
 
 /* ---------- Lesson scaffolding ---------- */

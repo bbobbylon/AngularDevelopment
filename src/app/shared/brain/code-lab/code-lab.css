@@ -1,0 +1,343 @@
+.lab {
+  margin: 2rem 0;
+}
+
+/* ---- The window ----
+   Dressed as an editor because the reference for this whole layer is a
+   JetBrains screenshot. The chrome is not decoration: a snippet that looks like
+   a file in an IDE is read as "this is real code I could run", and a snippet in
+   a plain grey box is read as "this is an illustration". */
+.lab__window {
+  border-radius: var(--bf-r);
+  overflow: hidden;
+  background: var(--bf-code-bg);
+  border: 1px solid var(--bf-rule);
+  box-shadow: var(--bf-shadow);
+}
+
+.lab__chrome {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.6rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.lab__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.lab__dot--a {
+  background: var(--bf-accent);
+}
+.lab__dot--b {
+  background: var(--bf-gold);
+}
+.lab__dot--c {
+  background: var(--bf-olive);
+}
+
+.lab__file {
+  margin-left: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #9a9187;
+}
+
+/* Horizontal overflow is confined to this element so a long line scrolls the
+   snippet, never the page. */
+.lab__scroll {
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.lab__code {
+  counter-reset: lab-line;
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 1.75;
+  color: var(--bf-code-ink);
+  min-width: max-content;
+}
+
+/* Each line is a row: gutter number (a CSS counter, so it is never selected or
+   copied with the code), the code itself, then the note marker pinned to the
+   right edge. */
+.lab__line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 1.75em;
+  padding: 0 3.2rem 0 0;
+  white-space: pre;
+  counter-increment: lab-line;
+}
+
+.lab__line::before {
+  content: counter(lab-line);
+  flex: 0 0 3rem;
+  padding-right: 0.9rem;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.22);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* An annotated line carries a permanent, very quiet tint, so a reader can see
+   at a glance which lines have something to say before touching anything. */
+.lab__line--noted {
+  background: rgba(226, 118, 79, 0.06);
+}
+
+.lab__line--lit {
+  background: rgba(226, 118, 79, 0.16);
+  box-shadow: inset 3px 0 0 var(--bf-accent);
+}
+
+.lab__text {
+  white-space: pre;
+}
+
+/* ---- The marker ----
+   Absolutely positioned inside the row's reserved right padding, so lighting
+   one up, or having none at all, never shifts a single character of code. */
+.lab__marker {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--bf-accent) 55%, transparent);
+  border-radius: 50%;
+  background: rgba(226, 118, 79, 0.14);
+  color: var(--bf-accent-bright);
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lab__marker:hover,
+.lab__marker--lit {
+  background: var(--bf-accent);
+  border-color: var(--bf-accent);
+  color: #1c1815;
+  transform: translateY(-50%) scale(1.12);
+}
+
+.lab__marker:focus-visible {
+  outline: 2px solid var(--bf-gold);
+  outline-offset: 2px;
+}
+
+/* ---- Predict strip ---- */
+.lab__strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1.1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.lab__prompt {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #b6ada3;
+}
+
+.lab__prompt code {
+  color: var(--bf-accent-bright);
+}
+
+/* Gold, because in this layer gold means "commit to an answer". It is the only
+   button on the page that colour, which is what makes it findable. */
+.lab__reveal {
+  flex: 0 0 auto;
+  padding: 0.55em 1.1em;
+  border: none;
+  border-radius: 10px;
+  background: var(--bf-gold-bright);
+  color: #2a1c05;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.16s ease;
+}
+
+.lab__reveal:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.lab__reveal:active {
+  transform: scale(0.97);
+}
+
+.lab__output {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1.1rem 1.1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(169, 187, 126, 0.08);
+}
+
+.lab__output-label {
+  font-family: var(--font-body);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bf-olive);
+}
+
+.lab__output-body {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: #cfe0b0;
+  white-space: pre-wrap;
+}
+
+/* ---- The walkthrough ---- */
+.lab__notes {
+  margin-top: 1rem;
+}
+
+.lab__notes-label {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
+}
+
+.lab__note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lab__note-list > li {
+  margin: 0;
+}
+
+.lab__note-list > li::before {
+  content: none;
+}
+
+/* A full-width button rather than a list item with a click handler: the note is
+   genuinely actionable (it lights its line), so it should be reachable by tab
+   and announce its pressed state. */
+.lab__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.93rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--bf-ink) 86%, var(--bf-bg));
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.lab__note:hover {
+  background: var(--bf-surface);
+  border-color: var(--bf-rule);
+}
+
+.lab__note--lit {
+  background: var(--bf-accent-wash);
+  border-color: color-mix(in srgb, var(--bf-accent) 35%, transparent);
+  color: var(--bf-ink);
+}
+
+.lab__note-num {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 0.15rem;
+  border-radius: 50%;
+  background: var(--bf-accent);
+  color: var(--bf-bg);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lab__note-body {
+  min-width: 0;
+}
+
+.lab__note-line {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--bf-ink-2);
+}
+
+.lab__note-body code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--bf-accent);
+  background: var(--bf-accent-wash);
+  border-radius: 6px;
+  padding: 0.05em 0.35em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab__marker,
+  .lab__reveal,
+  .lab__note {
+    transition: none;
+  }
+
+  .lab__marker:hover,
+  .lab__marker--lit {
+    transform: translateY(-50%);
+  }
+
+  .lab__reveal:hover {
+    transform: none;
+  }
+}

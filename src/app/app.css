@@ -48,6 +48,22 @@
   text-decoration: none;
 }
 
+/* The mark's fills used to be hard-coded Angular indigo. They are tokens now so
+   that a theme which repaints the whole shell — the brain-friendly layer does
+   exactly that on a migrated lesson — does not leave one indigo shield sitting
+   in the corner of a warm page. */
+.brand__shield {
+  fill: var(--accent);
+}
+
+.brand__shield-dark {
+  fill: color-mix(in srgb, var(--accent) 78%, #000);
+}
+
+.brand__letter {
+  fill: var(--bg-card);
+}
+
 .topbar__links {
   display: flex;
   gap: 20px;

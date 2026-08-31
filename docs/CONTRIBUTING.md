@@ -15,6 +15,7 @@ the guards that hold the content together. The bar for a lesson here is higher t
 - [1. Adding a lesson](#1-adding-a-lesson)
 - [2. The depth standard](#2-the-depth-standard)
 - [2A. The retention standard](#2a-the-retention-standard)
+- [2B. The presentation standard](#2b-the-presentation-standard)
 - [3. Lesson file anatomy](#3-lesson-file-anatomy)
 - [4. Adding practice questions](#4-adding-practice-questions)
 - [5. Option-length balancing](#5-option-length-balancing)
@@ -149,9 +150,11 @@ reads as a worksheet rather than a lesson.
 
 - **Wrong answers need explanations too.** The `why` on an incorrect `QuizOption` is where
   the misconception actually gets corrected — it is the most valuable text in the component.
-- **Strings support `backtick` code spans.** `Quiz`, `Faq`, `Predict` and `Flow` take copy as
-  data, and backticks render as `<code>`. There is deliberately no HTML-in-strings escape
-  hatch — see `shared/teaching/inline-code.ts` for why.
+- **Strings support `backtick` code spans and `**bold**`.** `Quiz`, `Faq`, `Predict`, `Flow`
+  and the whole presentation set take copy as data; backticks render as `<code>` and double
+  asterisks as `<strong>`. Those two are the entire vocabulary. There is deliberately no
+  HTML-in-strings escape hatch — see `shared/teaching/inline-code.ts` for why, and for why
+  the list stops at two.
 - **Long copy lives in the `.ts`.** Options arrays, FAQ items and code samples go in the
   component class as named fields, not inline in the template. It keeps the template
   readable and the strings diffable.
@@ -168,6 +171,104 @@ node scripts/audit-retention.mjs --detail signals   # which signals one lesson i
 
 The scores are proxies, not judgements — a lesson can score 9/9 and still be dull. Use the
 ranking to decide _what to look at_, then read it.
+
+---
+
+## 2B. The presentation standard
+
+Depth makes a lesson correct. Retention makes it stick. Presentation decides whether the
+reader gets far enough in to find out. The bar is recorded as **Bar 3** in
+`.claude/CLAUDE.md`; `src/app/shared/brain/` and `src/brain-friendly.css` are how you meet
+it without inventing markup. The rationale for every choice is in
+[UI-DESIGN.md §9](UI-DESIGN.md#9-the-brain-friendly-layer).
+
+### 2B.1 Opting a lesson in
+
+```html
+<article class="lesson bf" bfPage></article>
+```
+
+Both are required — see `shared/brain/bf-page.directive.ts` for why the class alone is not
+enough. Then import what you need from the barrel:
+
+```ts
+import { BfPage, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
+```
+
+### 2B.2 The presentation set
+
+| Component         | Use it for                                                    | Budget             |
+| ----------------- | ------------------------------------------------------------- | ------------------ |
+| `<app-chapter>`   | The lesson header. Numeral, track badge, "you are here" rail  | exactly 1          |
+| `<app-code-lab>`  | Any substantial snippet, with numbered per-line notes         | 1 per real snippet |
+| `<app-layers>`    | One thing _contains_ another — DI, CD, interceptors, closures | 0–1                |
+| `<app-bubbles>`   | A two-party contract, staged as dialogue                      | 0–1, 4–6 turns     |
+| `<app-tape-card>` | Three to five short parallel named things, in a `.bf-grid-3`  | one row            |
+| `<app-napkin>`    | The one thing per section the reader should stop and _do_     | 1–2 per lesson     |
+
+Reach for the one whose job matches. Using `<app-layers>` for a pipeline or
+`<app-bubbles>` for a monologue is worse than using neither, because the shape then tells
+the reader something untrue about the idea.
+
+### 2B.3 Section rhythm
+
+Every section opens with an eyebrow and a short declarative headline:
+
+```html
+<section>
+  <p class="bf-eyebrow">The problem</p>
+  <h2>Your data changed. Who tells the screen?</h2>
+</section>
+```
+
+Headlines are sentences with a full stop, not noun phrases. "Change detection scheduling"
+is a heading in a manual; "When does Angular decide to look?" is a heading in a book.
+
+### 2B.4 Annotating code — the non-negotiable one
+
+This is the most-repeated request in the project's history, and every previous attempt
+drifted back to one sentence above a 30-line block. Do not do that.
+
+```ts
+protected readonly notes: CodeNote[] = [
+  {
+    line: 9,
+    text: 'The whole game, on one line. It calls `ctx.count()`, compares the result with the value already parked in slot 1 using `===`, and touches the DOM **only if they differ**.',
+  },
+];
+```
+
+- **Say what the symbols are.** If a line introduces `rf`, `ctx`, `ɵɵadvance` or `asserts`,
+  the note says what that is. "This sets the value" is a failing note.
+- **Never assume the reader can read the snippet.** They are here because they cannot yet.
+- Keep trailing `//` comments in the source too — the note and the comment do different
+  jobs, and the highlighter colours the comment.
+- `line` is **1-based** and counted against the raw string, so re-check the numbers after
+  any edit to the sample.
+
+### 2B.5 Colouring prose
+
+Colour is a retention device here, spent deliberately. Four treatments, four meanings:
+
+| Markup                    | Means                                   |
+| ------------------------- | --------------------------------------- |
+| `<strong>`                | the subject of the sentence — full ink  |
+| `<span class="term">`     | new vocabulary, first technical use     |
+| `<span class="key">`      | the highlighter — one or two per lesson |
+| `<span class="bf-break">` | the thing that fails; naming the trap   |
+
+If everything is marked, nothing is. A section with more than two or three of these has
+lost the plot.
+
+### 2B.6 What not to do
+
+- **No hover or press effect may change layout.** Transform and opacity only, or an
+  absolutely-positioned clipped overlay. A hover that resizes its host shoves the page
+  around under the pointer.
+- **No hard-coded colours.** Use the `--bf-*` tokens; the whole-shell remap depends on it.
+- **All motion inside `prefers-reduced-motion: no-preference`.**
+- **Do not restyle a shared component from a lesson stylesheet.** If the layer is wrong
+  for every lesson, fix the layer.
 
 ---
 

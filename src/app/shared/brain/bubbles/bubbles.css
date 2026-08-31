@@ -1,0 +1,109 @@
+.bubbles {
+  margin: 2rem 0;
+}
+
+.bubbles__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin: 0;
+}
+
+/* Each turn is a column: the speaker's name sits above their bubble, in the
+   hand face, so the two parties are told apart by *handwriting* before any
+   colour or position is read. */
+.bubble {
+  display: flex;
+  flex-direction: column;
+  max-width: 78%;
+  margin: 0;
+}
+
+/* The right-hand speaker is pushed over rather than the list being centred, so
+   a one-sided conversation still looks deliberate. */
+.bubble--right {
+  align-self: flex-end;
+  align-items: flex-end;
+  text-align: left;
+}
+
+.bubble__who {
+  margin: 0 0 0.15rem;
+  padding: 0 0.9rem;
+  font-family: var(--font-hand);
+  font-size: 1.18rem;
+  line-height: 1.1;
+  color: var(--bf-ink-2);
+}
+
+.bubble--right .bubble__who {
+  color: var(--bf-accent);
+}
+
+.bubble__says {
+  position: relative;
+  margin: 0;
+  padding: 0.85rem 1.15rem;
+  border-radius: 20px 20px 20px 6px;
+  background: var(--bf-surface);
+  border: 1px solid var(--bf-rule);
+  box-shadow: var(--bf-shadow);
+  font-size: 0.97rem;
+  line-height: 1.6;
+  color: var(--bf-ink);
+}
+
+/* The second speaker gets the warm tint and the mirrored tail. Two carriers of
+   "different person" — fill and corner — so the distinction holds in greyscale. */
+.bubble--right .bubble__says {
+  border-radius: 20px 20px 6px 20px;
+  background: color-mix(in srgb, var(--bf-gold) 14%, var(--bf-surface));
+  border-color: color-mix(in srgb, var(--bf-gold) 26%, transparent);
+}
+
+.bubble__says code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.bubbles__caption {
+  margin-top: 1rem;
+  font-size: 0.86rem;
+  color: var(--bf-ink-2);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bubble {
+    animation: bubble-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Staggered so the exchange plays as a conversation arriving rather than a
+     block appearing. Capped at five: past that the last bubble would wait long
+     enough for the delay to read as a stall. */
+  .bubble:nth-child(2) {
+    animation-delay: 0.08s;
+  }
+  .bubble:nth-child(3) {
+    animation-delay: 0.16s;
+  }
+  .bubble:nth-child(4) {
+    animation-delay: 0.24s;
+  }
+  .bubble:nth-child(n + 5) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes bubble-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+  }
+}
+
+@media (max-width: 560px) {
+  .bubble {
+    max-width: 100%;
+  }
+}

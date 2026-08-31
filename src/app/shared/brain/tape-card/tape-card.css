@@ -1,0 +1,114 @@
+/* Padding-top leaves room for the tape to overhang the top edge without the
+   heading colliding with it. The tape is absolutely positioned so it can hang
+   OUTSIDE the card box — the overhang is what makes it read as tape stuck on
+   rather than as a coloured header band. */
+.tape-card {
+  --tape: var(--bf-gold);
+
+  position: relative;
+  height: 100%;
+  margin-top: 9px;
+  padding: 1.9rem 1.5rem 1.5rem;
+  border-radius: var(--bf-r-lg);
+  background: var(--bf-surface);
+  border: 1px solid var(--bf-rule);
+  box-shadow: var(--bf-shadow);
+  transition:
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.22s ease;
+}
+
+.tape-card--accent {
+  --tape: var(--bf-accent);
+}
+.tape-card--olive {
+  --tape: var(--bf-olive);
+}
+.tape-card--blue {
+  --tape: var(--bf-blue);
+}
+
+/* Hover lifts the whole card by 2px. Transform only — the card's box never
+   changes size, so a grid of these does not reflow under the pointer. */
+.tape-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bf-shadow-lift);
+}
+
+/* ---- The tape ----
+   Repeating-linear-gradient hatching, cheaper and crisper than an SVG, and it
+   scales with the element. The clip-path nicks the right corner so the strip
+   looks torn rather than cut. */
+.tape-card__tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1.2deg);
+  width: 92px;
+  height: 20px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--tape) 78%, transparent) 0 6px,
+    color-mix(in srgb, var(--tape) 22%, var(--bf-bg)) 6px 12px
+  );
+  clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%);
+  opacity: 0.9;
+}
+
+/* The pin sits in the middle of the tape in the accent, so every card in a row
+   has one small saturated point at the same height — a repeating anchor the eye
+   uses to parse the row as a set. */
+.tape-card__pin {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--bf-accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.tape-card__kicker {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--tape);
+}
+
+.tape-card__heading {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.22rem;
+  line-height: 1.2;
+  color: var(--bf-ink);
+}
+
+.tape-card__content {
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--bf-ink) 84%, var(--bf-bg));
+}
+
+.tape-card__content > :first-child {
+  margin-top: 0;
+}
+
+.tape-card__content > :last-child {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tape-card {
+    transition: none;
+  }
+
+  .tape-card:hover {
+    transform: none;
+  }
+}

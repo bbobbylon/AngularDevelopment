@@ -399,25 +399,45 @@ ranks them worst-first — then read the weakest and report. Do not assume a lon
 passes; length is bar 1, not bar 2. The scores are proxies: use them to choose what to
 read, not as the verdict.
 
-**Do not hand-roll the markup.** `src/app/shared/teaching/` has `Remember`, `Predict`,
-`Quiz`, `Faq`, `Flow` and `Compare`, imported from the barrel
-(`../../../shared/teaching`). They are accessible by construction and already covered by
-tests, so a hand-rolled equivalent is strictly worse. `docs/CONTRIBUTING.md` §2A has the
-per-lesson budgets and the copy conventions — notably that option `why` text on _wrong_
-answers is the most valuable writing in a lesson, and that long copy lives in the `.ts`.
+**Do not hand-roll the markup.** There are now two component sets, and a migrated lesson
+uses both:
 
-**Rollout state:** 19 of 100 lessons done as of 2026-08-29 (see `docs/BACKLOG.md` §1.1 for
-the tables and the remaining distribution). Nothing sits below 3/9 any more. Remaining
-distribution: 14 at 3/9, 50 at 4/9, 12 at 5/9, 5 at 6–8/9. Continue worst-first.
+- `src/app/shared/teaching/` — `Remember`, `Predict`, `Quiz`, `Faq`, `Flow`, `Compare`.
+  The *retention* devices. Barrel: `../../../shared/teaching`.
+- `src/app/shared/brain/` — `Chapter`, `CodeLab`, `Layers`, `Bubbles`, `TapeCard`,
+  `Napkin`, `BfPage`. The *presentation* devices, added 2026-08-31. Barrel:
+  `../../../shared/brain`.
+
+Both are accessible by construction and covered by tests, so a hand-rolled equivalent is
+strictly worse. `docs/CONTRIBUTING.md` §2A has the retention budgets and copy conventions
+— notably that option `why` text on _wrong_ answers is the most valuable writing in a
+lesson, and that long copy lives in the `.ts` — and §2B has the presentation budgets, the
+section rhythm, and the line-annotation rules.
+
+**Rollout state:** 19 of 100 lessons through the retention pass as of 2026-08-29 (see
+`docs/BACKLOG.md` §1.1). Nothing sits below 3/9 any more. Continue worst-first.
+
+**The retention pass and the presentation pass are now one pass.** Since 2026-08-31,
+migrating a lesson to the brain-friendly layer means rewriting it against the nine-point
+bar anyway, so do both at once and count it once. `docs/BACKLOG.md` §1.2 tracks it.
 
 **Trust the audit only after re-running it.** Two detectors were found wrong on 2026-08-29
 and fixed, which re-ranked ~14 lessons. If a score looks too low for a lesson you have
 read, suspect the regex before rewriting the lesson.
 
-**Bar 3 — presentation (established 2026-08-29, after repeated asks).** The user has now
-asked for these many times. Treat them as non-negotiable defaults on every lesson you
-touch, in every subject — **not just the Java design-pattern lessons**, which are the only
-ones that currently look right and which the user holds up as "kind of" the target.
+**Bar 3 — presentation (established 2026-08-29, after repeated asks; a visual arrived
+2026-08-31).** The user has now asked for these many times. Treat them as non-negotiable
+defaults on every lesson you touch, in every subject.
+
+**There is now a concrete implementation of this bar, and a reference lesson.** On
+2026-08-31 the user supplied screenshots of a Head First style chapter and asked for that
+treatment. It shipped as the brain-friendly layer: `src/brain-friendly.css`,
+`src/app/shared/brain/`, `src/fonts.css`. **Read
+`src/app/lessons/expert/change-detection/change-detection.ts` and `.html` before
+presenting any lesson** — its class JSDoc records the teaching order the layer is built
+around (pose the problem → analogy → mechanism → the same idea in four modes), and
+copying that shape is most of the job. Full rationale in `docs/UI-DESIGN.md` §9, authoring
+rules in `docs/CONTRIBUTING.md` §2B, rollout in `docs/BACKLOG.md` §1.2.
 
 1. **Annotate code snippets line by line.** A single sentence above a 30-line block is not
    acceptable and never was. Explain what individual lines _do_ — inline `//` trailing

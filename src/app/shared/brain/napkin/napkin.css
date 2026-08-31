@@ -1,0 +1,69 @@
+/* The tear is a mask, not a border image: two repeating-conic gradients eat
+   semicircular bites out of the top and bottom edges, which gives a real torn
+   silhouette that the page background shows through. A border-image would
+   need an asset and would not adapt to the card's tint. */
+.napkin {
+  --tear: 9px;
+
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 2.2rem 0;
+  padding: 1.35rem 1.6rem;
+  transform: rotate(-0.45deg);
+  background: color-mix(in srgb, var(--bf-gold) 10%, var(--bf-surface));
+  color: var(--bf-ink);
+  font-size: 1rem;
+  line-height: 1.65;
+  filter: drop-shadow(0 3px 8px rgba(60, 44, 28, 0.14));
+
+  -webkit-mask:
+    radial-gradient(var(--tear) at 50% 0, transparent 98%, #000) 50% 0 / 26px var(--tear) repeat-x,
+    radial-gradient(var(--tear) at 50% 100%, transparent 98%, #000) 50% 100% / 26px var(--tear)
+      repeat-x,
+    linear-gradient(#000 0 0) 50% 50% / 100% calc(100% - 2 * var(--tear)) no-repeat;
+  mask:
+    radial-gradient(var(--tear) at 50% 0, transparent 98%, #000) 50% 0 / 26px var(--tear) repeat-x,
+    radial-gradient(var(--tear) at 50% 100%, transparent 98%, #000) 50% 100% / 26px var(--tear)
+      repeat-x,
+    linear-gradient(#000 0 0) 50% 50% / 100% calc(100% - 2 * var(--tear)) no-repeat;
+}
+
+[data-theme="dark"] .napkin {
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.5));
+}
+
+/* Held to a fixed width and vertically centred on the first line, so a
+   one-line and a four-line note both look like the same object with more
+   written on it. */
+.napkin__lead {
+  flex: 0 0 auto;
+  padding-top: 0.15rem;
+  font-family: var(--font-hand);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--bf-accent);
+  white-space: nowrap;
+  transform: rotate(-2deg);
+}
+
+.napkin__body {
+  min-width: 0;
+  max-width: 58ch;
+}
+
+.napkin__body > :first-child {
+  margin-top: 0;
+}
+
+.napkin__body > :last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 520px) {
+  .napkin {
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}

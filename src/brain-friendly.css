@@ -1,0 +1,1229 @@
+/* ============================================================
+   BRAIN-FRIENDLY LAYER
+   ------------------------------------------------------------
+   The "Head First" presentation language for lessons, added
+   2026-08-31 from a visual the author supplied (docs/UI-DESIGN.md
+   §9). It is a SECOND skin over the app's original indigo/zinc
+   theme, not a replacement:
+
+     - the tokens below (--bf-*, --font-*) are global and always
+       defined, in both colour schemes;
+     - the look only applies to a lesson that opts in by putting
+       `bf` on its root <article class="lesson bf">.
+
+   That opt-in is deliberate. Migrating 100 lessons is a rollout,
+   not a commit, and a half-migrated app where every page is
+   *slightly* redesigned reads worse than one where each page is
+   either clearly old or clearly new. A lesson moves when it is
+   rewritten to use the devices, not before.
+
+   ------------------------------------------------------------
+   WHY THIS LOOKS THE WAY IT DOES
+
+   The original theme optimised for calm: one neutral column,
+   restrained colour, everything the same weight. That is a good
+   reference manual and a bad teacher. A learner scrolling a
+   correct grey wall retains almost none of it, and the app's
+   whole premise is retention.
+
+   So every rule here exists to make the eye land somewhere on
+   purpose:
+
+     1. FOUR TYPEFACES, FOUR JOBS. A display serif for the thing
+        you are meant to remember, a friendly sans for reading,
+        a handwriting face for the author talking to you in the
+        margin, and the IDE's own mono for code. When the voice
+        changes, the typeface changes — so the reader always
+        knows who is speaking without being told.
+     2. WARM PAPER, NOT SCREEN GREY. Cream in light mode, warm
+        near-black in dark. Grey-on-grey is what a spec looks
+        like; paper is what a book looks like.
+     3. COLOUR AS INFORMATION. Orange is "look here", gold is
+        "commit an answer", olive is "the right way", clay-red is
+        "the trap", blue is "someone is asking a question". Six
+        jobs, six hues — see the legend in styles.css, which this
+        extends rather than contradicts.
+     4. ROOM. Big radii, big gutters, a 66ch measure and 1.75
+        line-height. Density is the enemy of a page you are
+        supposed to think inside of.
+
+   ------------------------------------------------------------
+   ACCESSIBILITY CONTRACT — do not break these when extending:
+     - every foreground/background pair here clears WCAG AA (4.5:1
+       for body, 3:1 for large display text) in BOTH schemes;
+     - nothing communicates by colour alone — every tinted panel
+       also carries a label, an icon or a shape;
+     - all motion is inside a `prefers-reduced-motion: no-preference`
+       guard, or is transform/opacity only and trivially skippable;
+     - no hover/press effect may change layout. Press feedback is
+       transform + a clipped overlay, never a size or margin
+       change, or the page jitters under the pointer.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. TOKENS — light ("paper")
+   The light palette is the warm cream of a printed book page.
+   --bf-bg is the page, --bf-surface lifts a card off it, and
+   --bf-surface-2 recesses a chip or a well back into it. Three
+   steps, same as the base theme, so depth is readable without
+   reading.
+   ------------------------------------------------------------ */
+:root {
+  --font-display: "Playfair Display", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body:
+    "Figtree", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-hand: "Caveat", "Bradley Hand", "Segoe Script", cursive;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --bf-bg: #f6ecdb;
+  --bf-surface: #fffaf1;
+  --bf-surface-2: #ece0ca;
+  --bf-ink: #241f1a;
+  --bf-ink-2: #6b5f52;
+  --bf-rule: rgba(36, 31, 26, 0.15);
+
+  /* orange — "look here". Section eyebrows, the author's own voice,
+     inline symbols in prose, the arrow that points at the thing. */
+  --bf-accent: #b8551f;
+  --bf-accent-bright: #d4622a;
+  --bf-accent-wash: #fae4d3;
+
+  /* gold — "commit to an answer". Predict/reveal affordances and the
+     hazard tape on a definition card. Nothing else. */
+  --bf-gold: #96690a;
+  --bf-gold-bright: #c68f1c;
+  --bf-gold-wash: #f7e8c2;
+
+  /* olive — "this is the way that works". */
+  --bf-olive: #4e5f33;
+  --bf-olive-wash: #e6ecd6;
+
+  /* clay red — "this is the trap". */
+  --bf-danger: #a4432c;
+  --bf-danger-wash: #f8e1d9;
+
+  /* blue — "a learner is asking something". Q&A only. */
+  --bf-blue: #2c5b87;
+  --bf-blue-wash: #e0eaf4;
+
+  /* the solid, physical object in a diagram */
+  --bf-clay: #c08e5e;
+  --bf-clay-ink: #2a1c10;
+
+  --bf-code-bg: #1e1b18;
+  --bf-code-ink: #d6cec4;
+
+  --bf-r: 18px;
+  --bf-r-lg: 26px;
+  --bf-r-pill: 999px;
+  --bf-shadow: 0 2px 6px rgba(60, 44, 28, 0.09), 0 10px 30px rgba(60, 44, 28, 0.08);
+  --bf-shadow-lift: 0 4px 10px rgba(60, 44, 28, 0.12), 0 18px 44px rgba(60, 44, 28, 0.14);
+
+  /* Reading measure. Narrower than the base theme's 68ch because the
+     body face here has a taller x-height, which makes the same
+     character count feel longer on the return sweep. */
+  --bf-measure: 66ch;
+}
+
+/* ------------------------------------------------------------
+   2. TOKENS — dark ("lamplight")
+   Not the light palette inverted. The page goes warm near-black,
+   the accent brightens (an orange that reads on cream is muddy on
+   black), and every wash flips from a pale tint to a deep one at
+   the same *relative* distance from the page, so the same card
+   keeps the same amount of presence in both schemes.
+   ------------------------------------------------------------ */
+[data-theme="dark"] {
+  --bf-bg: #1c1815;
+  --bf-surface: #2a2420;
+  --bf-surface-2: #342d27;
+  --bf-ink: #f3ebe0;
+  --bf-ink-2: #b8aa9b;
+  --bf-rule: rgba(243, 235, 224, 0.14);
+
+  --bf-accent: #e2764f;
+  --bf-accent-bright: #f08a63;
+  --bf-accent-wash: #3a251c;
+
+  --bf-gold: #e8c86a;
+  --bf-gold-bright: #f2d585;
+  --bf-gold-wash: #37301e;
+
+  --bf-olive: #a9bb7e;
+  --bf-olive-wash: #2b2d1d;
+
+  --bf-danger: #e08a6c;
+  --bf-danger-wash: #3b2019;
+
+  --bf-blue: #8fb7de;
+  --bf-blue-wash: #212e3a;
+
+  --bf-clay: #bd8b5e;
+  --bf-clay-ink: #21160c;
+
+  --bf-code-bg: #17130f;
+  --bf-code-ink: #cfc6bb;
+
+  --bf-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 12px 34px rgba(0, 0, 0, 0.44);
+  --bf-shadow-lift: 0 4px 10px rgba(0, 0, 0, 0.46), 0 20px 50px rgba(0, 0, 0, 0.55);
+}
+
+/* ------------------------------------------------------------
+   3. THE PAGE
+   A `bf` lesson repaints the whole viewport, not just its own
+   column — a cream article floating on the app's zinc page would
+   look like an embedded iframe. `.bf-page` is set on <html> by
+   the lesson host while such a lesson is on screen.
+   ------------------------------------------------------------ */
+html.bf-page,
+html.bf-page body {
+  background: var(--bf-bg);
+  color: var(--bf-ink);
+}
+
+/* The app shell — top bar, footer, progress bar, toasts — is styled from the
+   BASE theme's tokens, not from --bf-*. Rather than re-selecting every one of
+   those elements here, `.bf-page` simply re-points the base tokens at the
+   brain-friendly palette for as long as a migrated lesson is on screen.
+   One remap, and the whole chrome warms up with the page.
+
+   This is why the layer never hard-codes a colour outside §1 and §2: the
+   remap below is only possible because both palettes speak in tokens. */
+html.bf-page {
+  --bg: var(--bf-bg);
+  --bg-elevated: var(--bf-surface-2);
+  --bg-card: var(--bf-surface);
+  --surface: var(--bf-surface);
+  --border: var(--bf-rule);
+  --text: var(--bf-ink);
+  --text-muted: var(--bf-ink-2);
+  --accent: var(--bf-accent);
+  --accent-2: var(--bf-gold);
+  --violet: var(--bf-accent);
+  --green: var(--bf-olive);
+  --amber: var(--bf-gold);
+  --red: var(--bf-danger);
+  --blue: var(--bf-blue);
+  --code-bg: var(--bf-code-bg);
+  --code-fg: var(--bf-code-ink);
+  --radius: var(--bf-r);
+  --shadow: var(--bf-shadow);
+}
+
+/* ------------------------------------------------------------
+   4. LESSON SCOPE — typography
+   ------------------------------------------------------------ */
+.lesson.bf {
+  max-width: 860px;
+  font-family: var(--font-body);
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--bf-ink);
+  padding-bottom: 96px;
+  /* Optical sizing + slightly loosened tracking: Figtree is drawn
+     tight, and at reading size on a warm ground it needs air. */
+  letter-spacing: 0.003em;
+}
+
+.lesson.bf p,
+.lesson.bf li {
+  color: var(--bf-ink);
+  max-width: var(--bf-measure);
+}
+
+/* Body copy sits one step back from headings and marked terms so
+   that the things worth landing on are the things that are darkest.
+   This is the core of the "the brain focuses on the right thing"
+   requirement: emphasis is spent, not sprayed. */
+.lesson.bf p {
+  color: color-mix(in srgb, var(--bf-ink) 88%, var(--bf-bg));
+  margin: 0 0 1.15em;
+}
+
+.lesson.bf h1,
+.lesson.bf h2,
+.lesson.bf h3,
+.lesson.bf h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--bf-ink);
+  letter-spacing: -0.005em;
+}
+
+.lesson.bf h1 {
+  font-size: clamp(2.4rem, 6vw, 3.5rem);
+  line-height: 1.06;
+  margin: 0 0 0.35em;
+}
+
+/* No underline rule and a lot of air above: in this language a
+   section is announced by its eyebrow (§5) and separated by space,
+   not by a hairline. Borders between sections make a page look like
+   a form. */
+.lesson.bf h2 {
+  font-size: clamp(1.65rem, 3.6vw, 2.25rem);
+  line-height: 1.15;
+  margin: 0 0 0.6em;
+  padding: 0;
+  border: 0;
+  max-width: 20ch;
+}
+
+.lesson.bf h3 {
+  font-size: 1.3rem;
+  line-height: 1.25;
+  margin: 2.4em 0 0.5em;
+}
+
+.lesson.bf > section {
+  margin: 0 0 5rem;
+}
+
+.lesson.bf .lead {
+  font-family: var(--font-body);
+  font-size: 1.15rem;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--bf-ink) 82%, var(--bf-bg));
+  max-width: 62ch;
+}
+
+/* ------------------------------------------------------------
+   5. SECTION EYEBROW — "— THE PROBLEM"
+   The dash is drawn, not typed, so it keeps its weight at every
+   font size and never wraps away from its label.
+   ------------------------------------------------------------ */
+.bf-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin: 0 0 1.1em;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bf-accent);
+}
+
+.bf-eyebrow::before {
+  content: "";
+  flex: 0 0 28px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.bf-eyebrow--gold {
+  color: var(--bf-gold);
+}
+.bf-eyebrow--olive {
+  color: var(--bf-olive);
+}
+.bf-eyebrow--blue {
+  color: var(--bf-blue);
+}
+
+/* ------------------------------------------------------------
+   6. THE MARGIN VOICE — handwriting
+   Caveat, always in the accent, always short. This is the author
+   leaning over your shoulder: a subtitle, a label on an arrow, an
+   aside next to a diagram. It is never used for anything a reader
+   must be able to read carefully, because a handwriting face at
+   length is hostile — and never for anything load-bearing that a
+   screen reader would need announced differently.
+   ------------------------------------------------------------ */
+.bf-hand {
+  font-family: var(--font-hand);
+  font-weight: 500;
+  color: var(--bf-accent);
+  line-height: 1.35;
+}
+
+.lesson.bf .bf-hand--sub {
+  display: block;
+  font-size: clamp(1.5rem, 3.4vw, 2rem);
+  max-width: 34ch;
+  margin: 0 0 2rem;
+}
+
+.bf-hand--note {
+  font-size: 1.22rem;
+  color: var(--bf-ink-2);
+}
+
+/* ------------------------------------------------------------
+   7. PROSE COLOUR
+   The requirement was explicit: colour the running text, do not
+   leave a grey wall. The discipline that keeps it from becoming
+   confetti is that each treatment means one thing.
+   ------------------------------------------------------------ */
+
+/* <strong> is "this is the subject of the sentence" — it goes to
+   full ink while the surrounding copy sits at 88%. That contrast
+   step is what makes a scanned paragraph give up its point. */
+.lesson.bf strong,
+.lesson.bf b {
+  font-weight: 700;
+  color: var(--bf-ink);
+}
+
+/* .term — new vocabulary, the first time a word is used technically.
+   Underlined rather than tinted so it survives being inside a
+   <strong>, and so it is distinguishable without colour vision. */
+.lesson.bf .term {
+  color: var(--bf-accent);
+  font-weight: 600;
+  background: none;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--bf-accent) 40%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* .key — the highlighter. Drawn as a marker sweep that sits behind
+   the text baseline-up, the way a real highlighter lands. */
+.lesson.bf .key {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--bf-gold) 30%, transparent) 0,
+    color-mix(in srgb, var(--bf-gold) 30%, transparent) 0.62em,
+    transparent 0.62em
+  );
+  color: var(--bf-ink);
+  font-weight: 600;
+  padding: 0 0.12em;
+  border-radius: 2px;
+}
+
+/* .bf-break — the thing that fails. Reserved for naming the trap. */
+.lesson.bf .bf-break {
+  color: var(--bf-danger);
+  font-weight: 700;
+}
+
+/* Inline code. Unlike the base theme (which keeps it neutral on
+   purpose), here it is tinted: on a warm paper ground a grey chip
+   disappears, and a symbol in a sentence is exactly the kind of
+   thing the eye should be able to find without reading. */
+.lesson.bf :not(pre) > code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--bf-accent);
+  background: var(--bf-accent-wash);
+  border: 1px solid color-mix(in srgb, var(--bf-accent) 22%, transparent);
+  border-radius: 7px;
+  padding: 0.08em 0.4em;
+}
+
+/* Underlines are for links inside running text only. A link that is a piece of
+   structure — a stop on the chapter rail, a card that happens to navigate — is
+   already obviously interactive from its shape, and underlining it makes the
+   layout look like a bibliography.
+
+   Structural links opt out with `bf-plain-link`. A marker class rather than a
+   list of component selectors here, so a new component can join the layer
+   without this file having to learn its class names. */
+.lesson.bf :is(p, li, td, figcaption, .lead) a:not(.bf-plain-link) {
+  color: var(--bf-blue);
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--bf-blue) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.lesson.bf a {
+  color: var(--bf-blue);
+}
+
+.lesson.bf a:hover {
+  color: var(--bf-accent);
+}
+
+/* Lists get a drawn marker in the accent — a bullet is a place the
+   eye stops, so it may as well carry the hue that means "here". */
+.lesson.bf ul {
+  list-style: none;
+  padding-left: 1.6em;
+}
+
+.lesson.bf ul > li {
+  position: relative;
+  margin-bottom: 0.6em;
+}
+
+.lesson.bf ul > li::before {
+  content: "";
+  position: absolute;
+  left: -1.15em;
+  top: 0.72em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bf-accent);
+}
+
+.lesson.bf ol {
+  padding-left: 1.5em;
+}
+
+.lesson.bf ol > li {
+  margin-bottom: 0.6em;
+}
+
+.lesson.bf ol > li::marker {
+  color: var(--bf-accent);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------
+   8. SURFACES
+   One card shape, five tints. Big radius, soft shadow, no border
+   in dark mode (the lift does the separating) and a hairline in
+   light mode (where a shadow alone on cream is invisible).
+   ------------------------------------------------------------ */
+.bf-card {
+  background: var(--bf-surface);
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r-lg);
+  padding: 1.5rem 1.65rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.bf-card--sunk {
+  background: var(--bf-surface-2);
+  box-shadow: none;
+}
+
+.bf-card--problem {
+  background: var(--bf-danger-wash);
+  border-color: color-mix(in srgb, var(--bf-danger) 30%, transparent);
+}
+
+.bf-card--solution {
+  background: var(--bf-olive-wash);
+  border-color: color-mix(in srgb, var(--bf-olive) 30%, transparent);
+}
+
+.bf-card__label {
+  margin: 0 0 1rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--bf-ink);
+}
+
+/* A chip: a class name, a value, a step. Monospace because these are
+   always symbols, never prose. */
+.bf-chip {
+  display: inline-block;
+  padding: 0.32em 0.7em;
+  border-radius: 10px;
+  background: var(--bf-surface);
+  border: 1px solid var(--bf-rule);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--bf-ink);
+  box-shadow: var(--bf-shadow);
+}
+
+.bf-chip--accent {
+  background: var(--bf-accent);
+  border-color: transparent;
+  color: var(--bf-bg);
+  font-weight: 600;
+}
+
+/* The scattered pile. Every odd chip tips one way and every even one
+   the other, so a list of combinations *looks* like an unmanageable
+   heap before a single word explains that it is one. Rotation is
+   deterministic (nth-child), not random, so it never reflows. */
+.bf-scatter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 0.6rem;
+  padding: 0.35rem 0;
+}
+
+.bf-scatter > * {
+  transform: rotate(-1.4deg);
+}
+.bf-scatter > :nth-child(2n) {
+  transform: rotate(1.9deg);
+}
+.bf-scatter > :nth-child(3n) {
+  transform: rotate(-0.6deg);
+}
+.bf-scatter > :nth-child(5n) {
+  transform: rotate(2.4deg);
+}
+
+/* ------------------------------------------------------------
+   9. THE CODE PANEL
+   The reference the author gave for this is a JetBrains editor
+   screenshot, so the panel is dressed as an editor window: title
+   bar with traffic lights and a filename, JetBrains Mono, and the
+   Darcula token palette below. `.hl-*` classes come from
+   shared/highlighter.ts; these override the base theme's
+   Palenight colours inside a `bf` lesson only.
+   ------------------------------------------------------------ */
+.lesson.bf .code {
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  font-family: var(--font-mono);
+  font-size: 0.83rem;
+  line-height: 1.7;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .code pre,
+.lesson.bf pre {
+  font-family: var(--font-mono);
+}
+
+/* Darcula (JetBrains "New UI" dark) token colours. Italic keywords
+   and a distinct method-name hue are the two things that make a
+   snippet read as an editor rather than as coloured text. */
+.lesson.bf .hl-kw {
+  color: #cf8e6d;
+  font-style: italic;
+}
+.lesson.bf .hl-str {
+  color: #6aab73;
+}
+.lesson.bf .hl-cmt {
+  color: #7f8792;
+  font-style: italic;
+}
+.lesson.bf .hl-num {
+  color: #2aacb8;
+}
+.lesson.bf .hl-dec {
+  color: #b3ae60;
+  font-weight: 600;
+}
+.lesson.bf .hl-fn {
+  color: #56a8f5;
+  font-weight: 600;
+}
+.lesson.bf .hl-method {
+  color: #56a8f5;
+}
+.lesson.bf .hl-prop {
+  color: #c77dbb;
+}
+.lesson.bf .hl-type {
+  color: #4fc0c0;
+}
+.lesson.bf .hl-builtin {
+  color: #4fc0c0;
+}
+.lesson.bf .hl-op {
+  color: #bcbec4;
+}
+.lesson.bf .hl-punct {
+  color: #8b8f96;
+}
+
+/* ------------------------------------------------------------
+   10. BUTTONS
+   Pill, display face, and press feedback that is transform-only.
+   The lift-on-hover is 1px — enough to feel alive, small enough
+   that a grid of them does not shimmer.
+   ------------------------------------------------------------ */
+.lesson.bf .bf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.62em 1.25em;
+  border: 1px solid transparent;
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-accent);
+  color: var(--bf-bg);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.lesson.bf .bf-btn:hover {
+  transform: translateY(-1px);
+  background: var(--bf-accent-bright);
+  box-shadow: var(--bf-shadow-lift);
+}
+
+.lesson.bf .bf-btn:active {
+  transform: translateY(0) scale(0.975);
+  box-shadow: none;
+}
+
+.lesson.bf .bf-btn--gold {
+  background: var(--bf-gold-bright);
+  color: #2a1c05;
+}
+
+.lesson.bf .bf-btn--ghost {
+  background: transparent;
+  border-color: var(--bf-rule);
+  color: var(--bf-ink);
+}
+
+.lesson.bf .bf-btn--ghost:hover {
+  background: var(--bf-surface);
+  color: var(--bf-ink);
+}
+
+.lesson.bf .bf-btn[aria-pressed="true"] {
+  background: var(--bf-olive);
+  color: var(--bf-bg);
+}
+
+/* One focus ring for everything interactive in the layer. Offset so
+   it never overlaps the element's own rounding. */
+.lesson.bf :is(button, a, summary, [tabindex]):focus-visible,
+.bf-chapter :is(button, a):focus-visible {
+  outline: 3px solid var(--bf-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------
+   11. GRID HELPERS
+   ------------------------------------------------------------ */
+.bf-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.bf-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.bf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  align-items: flex-start;
+}
+
+/* "↓ wrapped by" style connector between stacked chips. */
+.bf-stack__link {
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+  color: var(--bf-ink-2);
+  padding-left: 0.9rem;
+}
+
+/* ------------------------------------------------------------
+   12. MOTION
+   Entrance animations only, all opacity+transform, all skipped
+   under prefers-reduced-motion. Nothing here changes layout, so a
+   dropped animation costs nothing but the animation.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes bf-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes bf-rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes bf-draw {
+    from {
+      stroke-dashoffset: var(--bf-dash, 400);
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  .bf-pop {
+    animation: bf-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  .bf-rise {
+    animation: bf-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Reveal-on-scroll: the shared RevealOnScroll directive adds
+     .reveal--visible. In this layer the entrance is a touch longer
+     and springier than the base theme's, because the elements
+     entering are cards and diagrams rather than paragraphs. */
+  .lesson.bf .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .lesson.bf .reveal--visible {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------
+   13. PRINT
+   Drop the paper tint and the shadows; keep the structure.
+   ------------------------------------------------------------ */
+@media print {
+  .lesson.bf {
+    --bf-bg: #fff;
+    --bf-surface: #fff;
+  }
+
+  .bf-card,
+  .bf-chip {
+    box-shadow: none;
+  }
+}
+
+/* ============================================================
+   14. THE TEACHING SET, RESTYLED
+   ------------------------------------------------------------
+   `shared/teaching/` (Remember, Quiz, Predict, Faq, Flow,
+   Compare) predates this layer and is used by all 100 lessons.
+   Those components keep their own encapsulated styles for the
+   original theme; the rules below re-dress them inside a `bf`
+   lesson only.
+
+   Global CSS can reach them because Angular's emulated view
+   encapsulation scopes a component's OWN rules to its host —
+   it does not stop other stylesheets from selecting its
+   elements. That is exactly what makes a theme layer possible
+   without touching six component files, and it is why these
+   selectors use each component's public block class
+   (`.quiz`, `.faq`, …) rather than anything generated.
+
+   Rule for anyone extending this: restyle, never restructure.
+   The components' markup and behaviour are covered by tests in
+   teaching.spec.ts; this section may only change how they look.
+   ============================================================ */
+
+/* ---- Remember: the one line to carry out of the lesson ---- */
+.lesson.bf .remember {
+  border: 1px solid color-mix(in srgb, var(--bf-gold) 34%, transparent);
+  border-left: 5px solid var(--bf-gold);
+  border-radius: var(--bf-r);
+  background: color-mix(in srgb, var(--bf-gold) 12%, var(--bf-surface));
+  padding: 1.15rem 1.4rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .remember--rule {
+  border-color: color-mix(in srgb, var(--bf-olive) 34%, transparent);
+  border-left-color: var(--bf-olive);
+  background: color-mix(in srgb, var(--bf-olive) 12%, var(--bf-surface));
+}
+
+.lesson.bf .remember--mnemonic {
+  border-color: color-mix(in srgb, var(--bf-accent) 34%, transparent);
+  border-left-color: var(--bf-accent);
+  background: color-mix(in srgb, var(--bf-accent) 10%, var(--bf-surface));
+}
+
+.lesson.bf .remember__label {
+  font-family: var(--font-body);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--bf-ink-2);
+}
+
+/* Display serif and a size bump: this is the sentence the lesson exists to
+   leave behind, so it is set like a pull quote rather than like body copy. */
+.lesson.bf .remember__body {
+  font-family: var(--font-display);
+  font-size: 1.22rem;
+  line-height: 1.45;
+  color: var(--bf-ink);
+}
+
+/* ---- Quiz ---- */
+.lesson.bf .quiz {
+  border-radius: var(--bf-r-lg);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-surface);
+  padding: 1.5rem 1.6rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .quiz__badge,
+.lesson.bf .predict__badge {
+  background: var(--bf-gold-wash);
+  color: var(--bf-gold);
+  border-radius: var(--bf-r-pill);
+  font-family: var(--font-body);
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.lesson.bf .quiz__question {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--bf-ink);
+}
+
+.lesson.bf .quiz__option {
+  border-radius: 14px;
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-bg);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lesson.bf .quiz__option:hover {
+  border-color: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+  transform: translateX(2px);
+}
+
+.lesson.bf .quiz__option--right {
+  border-color: var(--bf-olive);
+  background: var(--bf-olive-wash);
+}
+
+.lesson.bf .quiz__option--wrong {
+  border-color: var(--bf-danger);
+  background: var(--bf-danger-wash);
+}
+
+.lesson.bf .quiz__verdict {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--bf-danger);
+}
+
+.lesson.bf .quiz__verdict--right {
+  color: var(--bf-olive);
+}
+
+/* The `why` on a wrong option is the most valuable writing in a lesson
+   (CONTRIBUTING §2A), so it is set at full reading size, not as fine print. */
+.lesson.bf .quiz__why {
+  font-size: 0.97rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--bf-ink) 88%, var(--bf-bg));
+}
+
+/* ---- Predict ---- */
+.lesson.bf .predict {
+  border-radius: var(--bf-r-lg);
+  border: 1px solid color-mix(in srgb, var(--bf-gold) 30%, transparent);
+  background: color-mix(in srgb, var(--bf-gold) 9%, var(--bf-surface));
+  padding: 1.5rem 1.6rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .predict__code {
+  border-radius: var(--bf-r);
+  background: var(--bf-code-bg);
+  font-family: var(--font-mono);
+}
+
+.lesson.bf .predict__button {
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-gold-bright);
+  color: #2a1c05;
+  font-family: var(--font-body);
+  font-weight: 700;
+  border: none;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.16s ease;
+}
+
+.lesson.bf .predict__button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+}
+
+.lesson.bf .predict__answer {
+  border-radius: var(--bf-r);
+  background: var(--bf-olive-wash);
+  border: 1px solid color-mix(in srgb, var(--bf-olive) 30%, transparent);
+}
+
+.lesson.bf .predict__answer-label {
+  color: var(--bf-olive);
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+/* ---- FAQ — "questions from the back row" ----
+   Blue is the layer's "someone is asking something" hue and is used nowhere
+   else, so a reader learns in one lesson that a blue rule means a question. */
+.lesson.bf .faq__heading {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--bf-ink);
+}
+
+.lesson.bf .faq__item {
+  border: 1px solid var(--bf-rule);
+  border-left: 4px solid var(--bf-blue);
+  border-radius: var(--bf-r);
+  background: var(--bf-surface);
+  padding: 0.35rem 1.2rem;
+  margin-bottom: 0.7rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .faq__q {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--bf-ink);
+}
+
+.lesson.bf .faq__q::marker {
+  color: var(--bf-blue);
+}
+
+.lesson.bf .faq__a {
+  font-size: 0.97rem;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--bf-ink) 86%, var(--bf-bg));
+}
+
+/* ---- Flow ---- */
+.lesson.bf .flow__step {
+  border-radius: 14px;
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-surface);
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .flow__step--accent {
+  border-color: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+  background: var(--bf-accent-wash);
+}
+
+.lesson.bf .flow__step--good {
+  border-color: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+  background: var(--bf-olive-wash);
+}
+
+.lesson.bf .flow__step--warn {
+  border-color: color-mix(in srgb, var(--bf-gold) 45%, transparent);
+  background: var(--bf-gold-wash);
+}
+
+.lesson.bf .flow__label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  color: var(--bf-ink);
+}
+
+.lesson.bf .flow__detail,
+.lesson.bf .flow__caption {
+  color: var(--bf-ink-2);
+}
+
+/* ---- Compare ---- */
+.lesson.bf .compare__side {
+  border-radius: var(--bf-r-lg);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-surface);
+  padding: 1.3rem 1.45rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .compare__side--good {
+  border-color: color-mix(in srgb, var(--bf-olive) 38%, transparent);
+  background: var(--bf-olive-wash);
+}
+
+.lesson.bf .compare__side--bad {
+  border-color: color-mix(in srgb, var(--bf-danger) 38%, transparent);
+  background: var(--bf-danger-wash);
+}
+
+.lesson.bf .compare__title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--bf-ink);
+}
+
+.lesson.bf .compare__note {
+  color: var(--bf-ink-2);
+  font-size: 0.92rem;
+}
+
+/* ---- Base-theme callouts, softened to match ---- */
+.lesson.bf .note,
+.lesson.bf .tip,
+.lesson.bf .warn {
+  border-radius: 0 var(--bf-r) var(--bf-r) 0;
+  font-size: 0.97rem;
+  line-height: 1.7;
+}
+
+.lesson.bf .note {
+  border-color: var(--bf-blue);
+  background: var(--bf-blue-wash);
+}
+
+.lesson.bf .tip {
+  border-color: var(--bf-olive);
+  background: var(--bf-olive-wash);
+}
+
+.lesson.bf .warn {
+  border-color: var(--bf-gold);
+  background: var(--bf-gold-wash);
+}
+
+/* ---- Demo panels ---- */
+.lesson.bf .demo {
+  border-radius: var(--bf-r-lg);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-surface);
+  padding: 1.4rem 1.5rem;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf .demo__title {
+  font-family: var(--font-body);
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  color: var(--bf-ink-2);
+}
+
+.lesson.bf .demo button:not(.bf-btn) {
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-accent);
+  color: var(--bf-bg);
+  font-family: var(--font-body);
+  font-weight: 600;
+  padding: 0.55em 1.1em;
+}
+
+.lesson.bf .demo button:not(.bf-btn):hover {
+  background: var(--bf-accent-bright);
+  filter: none;
+}
+
+/* ============================================================
+   15. TABLES AND SMALL SHARED BITS
+   ------------------------------------------------------------
+   Lessons each declare their own `.t` / `.cmp` table classes in
+   their component stylesheet — a historical accident, but one
+   that means a theme cannot restyle tables by class name. So
+   these target the element inside a `bf` lesson instead, and a
+   migrated lesson can delete its table CSS entirely.
+   ============================================================ */
+.lesson.bf table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  background: var(--bf-surface);
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  overflow: hidden;
+  box-shadow: var(--bf-shadow);
+}
+
+.lesson.bf th,
+.lesson.bf td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--bf-rule);
+}
+
+.lesson.bf tr:last-child td {
+  border-bottom: 0;
+}
+
+.lesson.bf th {
+  background: var(--bf-surface-2);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
+}
+
+/* Zebra striping is skipped on purpose: with a tinted header and a card border
+   the rows are already grouped, and stripes on a warm ground read as damage. */
+.lesson.bf tbody tr:hover td {
+  background: color-mix(in srgb, var(--bf-accent) 6%, transparent);
+}
+
+/* A table caption is the one place a hand-written label belongs inside a data
+   structure — it is the author naming the table, not part of the data. */
+.lesson.bf .bf-table-caption {
+  caption-side: top;
+  padding: 0.9rem 1rem 0.4rem;
+  font-family: var(--font-hand);
+  font-size: 1.25rem;
+  text-align: left;
+  color: var(--bf-accent);
+}
+
+/* The explanatory line under a live demo. Quieter than body copy because it is
+   commentary on the thing above it, not a new point. */
+.lesson.bf .demo__note {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+/* Pills used by demo readouts. */
+.lesson.bf .pill {
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-surface-2);
+  border: 1px solid var(--bf-rule);
+  color: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.35em 0.85em;
+}
+
+.lesson.bf .ghost {
+  background: transparent;
+  border: 1px solid var(--bf-rule);
+  color: var(--bf-ink);
+}
+
+.lesson.bf .ghost:hover {
+  background: var(--bf-surface-2);
+  filter: none;
+}

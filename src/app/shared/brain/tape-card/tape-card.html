@@ -1,0 +1,15 @@
+<section class="tape-card" [class]="'tape-card--' + tone()">
+  <span class="tape-card__tape" aria-hidden="true">
+    <span class="tape-card__pin"></span>
+  </span>
+
+  <div class="tape-card__body">
+    @if (kicker()) {
+      <span class="tape-card__kicker">{{ kicker() }}</span>
+    }
+    <h4 class="tape-card__heading">{{ heading() }}</h4>
+    <div class="tape-card__content">
+      <ng-content />
+    </div>
+  </div>
+</section>

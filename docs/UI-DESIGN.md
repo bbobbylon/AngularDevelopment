@@ -1,7 +1,7 @@
 # UI/UX Design Documentation
 
-**Version:** 1.0
-**Last Updated:** 2026-08-29
+**Version:** 2.0
+**Last Updated:** 2026-08-31
 **Status:** Final
 
 ## Overview
@@ -21,7 +21,8 @@ typography and contrast get the attention that decoration does not.
 - [6. Accessibility](#6-accessibility)
 - [7. Styling conventions](#7-styling-conventions)
 - [8. Motion](#8-motion)
-- [9. Print](#9-print)
+- [9. The brain-friendly layer](#9-the-brain-friendly-layer)
+- [10. Print](#10-print)
 
 ---
 
@@ -301,7 +302,123 @@ All of it is suppressed under `prefers-reduced-motion: reduce`.
 
 ---
 
-## 9. Print
+## 9. The brain-friendly layer
+
+Added 2026-08-31, from a visual the author supplied after a long series of asks recorded
+as **Bar 3** in `.claude/CLAUDE.md` and as §2.2 of the backlog. It is a second skin over
+everything in §1–§8, not a replacement for it, and it is where the app's presentation is
+heading.
+
+### 9.1 Why a second skin rather than an edit
+
+The original theme optimises for calm: one neutral column, restrained colour, everything
+the same weight. That is a good reference manual and a bad teacher — a learner scrolling a
+correct grey wall retains very little of it, and retention is the app's entire premise.
+The brief was "bubbly, welcoming… notice how the brain naturally focuses on certain
+things — those things should be the important stuff."
+
+So the layer exists to make the eye land somewhere **on purpose**, and it is opt-in per
+lesson because migrating 100 lessons is a rollout rather than a commit. A half-migrated
+app where every page is _slightly_ redesigned reads worse than one where each page is
+clearly old or clearly new.
+
+A lesson opts in with two things on its root element:
+
+```html
+<article class="lesson bf" bfPage></article>
+```
+
+`class="bf"` scopes the typography and palette. The `bfPage` directive (
+`shared/brain/bf-page.directive.ts`) adds `bf-page` to `<html>` for as long as the lesson
+is mounted, which re-points the base theme's tokens at the warm palette so the top bar,
+footer and progress bar warm up with the page. Without it the article looks like an
+embedded iframe.
+
+### 9.2 The four voices
+
+Four self-hosted families, four jobs — `src/fonts.css`, files in `public/fonts/`, latin
+and latin-ext subsets only (~200 kB actually fetched). When the voice changes, the
+typeface changes, so the reader always knows who is speaking.
+
+| Token            | Family           | Job                                                     |
+| ---------------- | ---------------- | ------------------------------------------------------- |
+| `--font-display` | Playfair Display | Headlines and chapter titles — the thing to remember    |
+| `--font-body`    | Figtree          | All reading copy and UI. Now the app-wide body face     |
+| `--font-hand`    | Caveat           | Margin voice: annotations, "you are here", captions     |
+| `--font-mono`    | JetBrains Mono   | Every snippet, matching the IDE the reference came from |
+
+Nothing outside `fonts.css` and the token block names a font, so a family is swapped in
+one line. Code ligatures are **off** everywhere (`font-variant-ligatures: none`): a
+learner reading about strict equality has to be able to count three `=` signs, and
+JetBrains Mono would otherwise draw them as one glyph.
+
+### 9.3 Palette
+
+Warm paper in light, warm lamplight in dark — not one inverted into the other. Six hues,
+six jobs, extending rather than contradicting the colour legend at the top of
+`styles.css`. Every pair clears WCAG AA in both schemes.
+
+| Token            | Light     | Dark      | Means                                             |
+| ---------------- | --------- | --------- | ------------------------------------------------- |
+| `--bf-bg`        | `#f6ecdb` | `#1c1815` | the page                                          |
+| `--bf-surface`   | `#fffaf1` | `#2a2420` | a card, lifted off it                             |
+| `--bf-surface-2` | `#ece0ca` | `#342d27` | a chip or well, recessed into it                  |
+| `--bf-ink`       | `#241f1a` | `#f3ebe0` | text                                              |
+| `--bf-ink-2`     | `#6b5f52` | `#b8aa9b` | secondary text                                    |
+| `--bf-accent`    | `#b8551f` | `#e2764f` | **look here** — eyebrows, the hand voice, symbols |
+| `--bf-gold`      | `#96690a` | `#e8c86a` | **commit to an answer** — predict/reveal, tape    |
+| `--bf-olive`     | `#4e5f33` | `#a9bb7e` | **the way that works**                            |
+| `--bf-danger`    | `#a4432c` | `#e08a6c` | **the trap**                                      |
+| `--bf-blue`      | `#2c5b87` | `#8fb7de` | **someone is asking a question** — Q&A only       |
+| `--bf-clay`      | `#c08e5e` | `#bd8b5e` | the solid object at the centre of a diagram       |
+
+Body copy sits at 88% ink while headings and `<strong>` go to full ink. That one step is
+most of what makes a scanned paragraph give up its point.
+
+### 9.4 The presentation set — `src/app/shared/brain/`
+
+`shared/teaching/` owns _retention_ devices; this set owns _presentation_. They compose,
+and a migrated lesson uses both.
+
+| Component       | Reach for it when                                                     |
+| --------------- | --------------------------------------------------------------------- |
+| `app-chapter`   | opening a lesson — ghost numeral, track badge, "you are here" rail    |
+| `app-code-lab`  | any substantial snippet: an editor window with numbered line notes    |
+| `app-layers`    | one thing _contains_ another (DI, CD, interceptors, closures, `pipe`) |
+| `app-bubbles`   | a two-party contract learners get backwards — stage it as dialogue    |
+| `app-tape-card` | three to five short parallel named things                             |
+| `app-napkin`    | the one thing per section the reader should stop and _do_             |
+
+`app-code-lab` is the answer to the most-repeated request in the project's history. Notes
+are typed data (`{ line, text }`), the marker and the note light each other up, and both
+directions are reachable from the keyboard. **A note must say what the symbols are, not
+restate the line in English.**
+
+### 9.5 Rules for extending it
+
+- **Restyle, never restructure** the existing teaching components. Their markup and
+  behaviour are covered by `teaching.spec.ts`; §14 of `brain-friendly.css` may only
+  change how they look.
+- **No hover or press effect may change layout.** Press feedback is `transform`/`opacity`
+  or a clipped overlay — never a size, margin or padding change, or the page jitters
+  under the pointer.
+- **All motion sits inside a `prefers-reduced-motion: no-preference` guard.**
+- **Nothing communicates by colour alone.** Every tinted panel also carries a label or a
+  shape.
+- **No hard-coded colours outside the token blocks.** The whole-shell remap in §3 of
+  `brain-friendly.css` only works because both palettes speak in tokens.
+
+### 9.6 Rollout state
+
+Migrated as of 2026-08-31: `expert/change-detection` (the reference implementation — copy
+its shape), `beginner/signals`, `intermediate/rxjs-subjects`, `typescript/narrowing`,
+`foundations/arrays-objects-basics`. One per track, deliberately, so the layer is proven
+against an absolute-beginner audience and an expert one before it goes wider. The
+remaining 95 are tracked in `BACKLOG.md` §1.2.
+
+---
+
+## 10. Print
 
 The Glossary offers a print button. Global `@media print` rules hide the scroll bar,
 topbar, footer and toasts so the printed page is content only. As noted in §7, these

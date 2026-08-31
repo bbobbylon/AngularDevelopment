@@ -1,7 +1,7 @@
 # Backlog
 
-**Version:** 1.0
-**Last Updated:** 2026-08-29
+**Version:** 1.1
+**Last Updated:** 2026-08-31
 **Status:** Living document
 
 ## Overview
@@ -120,6 +120,60 @@ on the idea learners get wrong, an `<app-flow>` if anything is a sequence, and a
 `<app-faq>` of 3–5 real doubts. Budget an hour a lesson to do it properly; the copy is the
 work, not the wiring.
 
+### 1.2 Brain-friendly redesign — roll out to the remaining 95 lessons
+
+**Requested 2026-08-31**, with a visual: the author supplied screenshots of a Head First
+style Decorator chapter and asked for that treatment — _"Notice how bubbly, welcoming it
+is. NOT JUST THE COLOR but font, spacing, interactiveness, brain-friendliness… notice how
+the brain naturally focuses on certain things — those things should be the important stuff
+of that section."_ This supersedes §2.2 as the concrete plan for Bar 3.
+
+**Shipped 2026-08-31 — the layer and five pilot lessons.**
+
+- `src/fonts.css` + `public/fonts/` — four self-hosted families (Playfair Display,
+  Figtree, Caveat, JetBrains Mono), latin + latin-ext only. Figtree is now the app-wide
+  body face and JetBrains Mono the app-wide code face; code ligatures are off everywhere.
+- `src/brain-friendly.css` — the warm paper/lamplight palette in both schemes, the `.bf`
+  lesson scope, prose colour rules, the whole-shell token remap on `html.bf-page`, and a
+  restyle of all six existing teaching components.
+- `src/app/shared/brain/` — `Chapter`, `CodeLab`, `Layers`, `Bubbles`, `TapeCard`,
+  `Napkin`, `BfPage`.
+- `segmentInlineCode` now supports `**bold**` alongside `` `backticks` `` so annotation
+  copy can emphasise a word without reaching for HTML.
+- Five lessons migrated, **one per track** so the layer is proven against an absolute
+  beginner and an expert before it goes wider: `expert/change-detection` (the reference
+  implementation), `beginner/signals`, `intermediate/rxjs-subjects`,
+  `typescript/narrowing`, `foundations/arrays-objects-basics`.
+
+**Remaining: 95 lessons.** Order them worst-first by `node scripts/audit-retention.mjs`,
+exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
+means rewriting it against the nine-point bar anyway. Roughly an hour each; the copy is
+the work, not the wiring. Read
+`src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
+records the teaching order the layer is designed around (pose the problem → analogy →
+mechanism → same idea in four modes), and copying that shape is most of the job.
+
+**Open questions the author should settle before the bulk pass:**
+
+- **Fonts.** Caveat is a print-hand; the supplied screenshots use a more connected script.
+  Swapping is a one-line change to `--font-hand`. Same for `--font-display` if Playfair
+  Display is not the intended serif.
+- **The non-lesson pages.** Home, Certification, Practice, Interview, Glossary and the
+  dashboards are untouched and still read as the old app. They need the same treatment or
+  the migrated lessons will feel like a different product.
+- **Light mode.** Both palettes are implemented and both pass contrast, but only the dark
+  one has been reviewed against the reference, which was itself dark.
+
+### 1.3 Coverage sweep — concepts that need more lessons or examples
+
+**Requested 2026-08-31** alongside the redesign: _"do a full sweep of the app and see what
+needs more lessons or examples for that specific concept."_
+
+Swept all 100 lessons with parallel agents, one per curriculum slice, then adversarially
+verified every claimed gap against the actual lesson files (many "missing" things turned
+out to be present in quiz `why` text or FAQ answers rather than in the prose, and were
+dropped). What survived is below.
+
 ---
 
 ## 2. Next
@@ -195,10 +249,10 @@ the snippet** — they are here because they cannot yet.
 every `<pre>` block in a lesson `.html` and every multi-line template-string sample in a
 lesson `.ts`):
 
-| | start | now |
-| --- | --- | --- |
-| annotation ratio | 32.7% | **42.5%** |
-| under-annotated blocks (≥8 lines, <2 comments) | 54 | **0** |
+|                                                | start | now       |
+| ---------------------------------------------- | ----- | --------- |
+| annotation ratio                               | 32.7% | **42.5%** |
+| under-annotated blocks (≥8 lines, <2 comments) | 54    | **0**     |
 
 Roughly 30 lessons were rewritten, worst-first. The biggest were `auth-flow` (256 loc),
 `testing-components` (201), `task-manager` (132), `data-dashboard` (103),
@@ -210,7 +264,7 @@ Three real defects surfaced while annotating and were fixed rather than document
   `debounceTime(300)` that actually fires at 430. Rewritten with time-progression syntax.
 - `http-interceptors` — `inject(Router)` was called inside a `catchError` callback, which
   is outside the injection context and throws NG0203. Hoisted into the interceptor body.
-- `resolvers`, `security`, `auth-flow` — guard/redirect samples now say *why* a `UrlTree`
+- `resolvers`, `security`, `auth-flow` — guard/redirect samples now say _why_ a `UrlTree`
   beats `router.navigate()`, which was the trap the lesson's own Predict block tested.
 
 **What "done" does not mean.** The metric counts comment density, not comment quality.

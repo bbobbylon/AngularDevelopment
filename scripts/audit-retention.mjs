@@ -31,6 +31,10 @@ const CHECKS = [
     label: 'Visual',
     test: (html) =>
       /<app-flow[\s/>]/i.test(html) ||
+      // app-layers (shared/brain) draws a containment diagram — concentric rings
+      // around a core. Added when the brain-friendly layer landed; it is a real
+      // visual by the same standard app-flow is.
+      /<app-layers[\s/>]/i.test(html) ||
       /<svg[\s>]/i.test(html) ||
       /class="[^"]*\b(diagram|flow|timeline|pipeline|tree|graph|axis|lane)\b/i.test(html),
   },
@@ -67,7 +71,8 @@ const CHECKS = [
     key: 'qanda',
     label: 'Q&A',
     test: (html) =>
-      /<app-faq[\s/>]/i.test(html) || /no dumb questions|<details[\s>]|class="[^"]*\bfaq\b/i.test(html),
+      /<app-faq[\s/>]/i.test(html) ||
+      /no dumb questions|<details[\s>]|class="[^"]*\bfaq\b/i.test(html),
   },
   {
     key: 'selftest',
@@ -89,6 +94,10 @@ const CHECKS = [
     // Two ways a lesson can be genuinely interactive, and both count:
     // an event binding driving signal state, or a live reactive form.
     test: (html, ts) =>
+      // app-code-lab is interactive on its own terms: clicking a line marker or a
+      // note lights the matching pair, and the reveal strip withholds the output
+      // until the reader commits. No lesson-level signal needed.
+      /<app-code-lab[\s/>]/i.test(html) ||
       (/\(click\)|\(input\)|\[\(ngModel\)\]|\(change\)/.test(html) &&
         // `signal<Foo>(…)` is as reactive as `signal(…)`; match the generic form too.
         /\b(signal|computed|linkedSignal|model)\s*[<(]/.test(ts)) ||
@@ -171,7 +180,9 @@ if (args[0] === '--json') {
   for (const r of results) buckets.set(r.score, (buckets.get(r.score) ?? 0) + 1);
   console.log(`\n  ${results.length} lessons. Distribution:`);
   for (const score of [...buckets.keys()].sort((a, b) => a - b)) {
-    console.log(`    ${score}/${CHECKS.length}  ${'█'.repeat(buckets.get(score))} ${buckets.get(score)}`);
+    console.log(
+      `    ${score}/${CHECKS.length}  ${'█'.repeat(buckets.get(score))} ${buckets.get(score)}`,
+    );
   }
   console.log();
 }

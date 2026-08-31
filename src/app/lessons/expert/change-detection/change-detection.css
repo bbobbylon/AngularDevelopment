@@ -1,55 +1,16 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-  margin: 12px 0;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why this file is nearly empty — the
+   `.t` / `.cmp` / `.qa` blocks that used to live here were per-lesson copies of
+   rules the theme now owns. `.qa` in particular is gone for good: the exam
+   questions on this page are an `<app-faq>` now, which is keyboard-accessible
+   and consistent with every other lesson.
 
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
+   Anything left here has to be genuinely specific to change detection. */
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+/* The two child components in the OnPush demo must be the same height whatever
+   their counters read, or the taller one looks like it is doing more work. */
+.demo app-cd-default-child,
+.demo app-cd-onpush-child {
+  display: block;
+  height: 100%;
 }

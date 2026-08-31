@@ -1,0 +1,14 @@
+<figure class="bubbles">
+  <dl class="bubbles__list">
+    @for (turn of turns(); track $index; let i = $index) {
+      <div class="bubble" [class.bubble--right]="i % 2 === 1">
+        <dt class="bubble__who">{{ turn.who }}</dt>
+        <dd class="bubble__says"><app-rich-text [text]="turn.says" /></dd>
+      </div>
+    }
+  </dl>
+
+  @if (caption()) {
+    <figcaption class="bubbles__caption"><app-rich-text [text]="caption()" /></figcaption>
+  }
+</figure>

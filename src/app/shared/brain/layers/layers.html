@@ -1,0 +1,44 @@
+<figure class="layers-fig">
+  <div class="layers" [class]="'layers layers--n' + depth()">
+    @for (ring of rings(); track $index) {
+      <div class="layers__ring" aria-hidden="true">
+        <span class="layers__label">
+          {{ ring.label }}
+          @if (ring.sub) {
+            <span class="layers__sub"> · {{ ring.sub }}</span>
+          }
+        </span>
+      </div>
+    }
+
+    <div class="layers__core" aria-hidden="true">
+      <span class="layers__core-label">{{ core().label }}</span>
+      @if (core().sub) {
+        <span class="layers__core-sub">{{ core().sub }}</span>
+      }
+    </div>
+
+    @if (arrow()) {
+      <span class="layers__arrow" aria-hidden="true">
+        <span class="layers__arrow-text">{{ arrow() }}</span>
+        <svg class="layers__arrow-svg" viewBox="0 0 120 78" fill="none" focusable="false">
+          <path d="M112 8 C 92 14, 60 24, 34 58" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+          <path d="M28 66 L 34 48 L 46 58 Z" fill="currentColor" />
+        </svg>
+      </span>
+    }
+
+    <!-- The same containment, spelled out for assistive tech. Visually hidden
+         because sighted readers already have it from the rings. -->
+    <ol class="layers__sr">
+      @for (ring of inward(); track $index) {
+        <li>{{ ring.label }}{{ ring.sub ? ' — ' + ring.sub : '' }}, which wraps:</li>
+      }
+      <li>{{ core().label }}{{ core().sub ? ' — ' + core().sub : '' }}</li>
+    </ol>
+  </div>
+
+  @if (caption()) {
+    <figcaption class="layers-fig__caption"><app-rich-text [text]="caption()" /></figcaption>
+  }
+</figure>

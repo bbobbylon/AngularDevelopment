@@ -1,0 +1,39 @@
+<header class="chapter">
+  @if (number()) {
+    <span class="chapter__numeral" aria-hidden="true">{{ number() }}</span>
+  }
+
+  @if (kicker()) {
+    <span class="chapter__badge">{{ kicker() }}</span>
+  }
+
+  @if (showRail()) {
+    <nav class="chapter__rail" aria-label="Where this sits in the track">
+      <ol class="rail">
+        @for (stop of stops(); track stop.label; let i = $index) {
+          <li class="rail__stop" [class.rail__stop--here]="i === current()">
+            @if (i === current()) {
+              <span class="rail__here" aria-hidden="true">you are here</span>
+            }
+            <span class="rail__dot" aria-hidden="true"></span>
+            @if (stop.id && i !== current()) {
+              <a class="rail__label bf-plain-link" [routerLink]="'/' + stop.id">{{ stop.label }}</a>
+            } @else {
+              <span class="rail__label" [attr.aria-current]="i === current() ? 'step' : null">{{ stop.label }}</span>
+            }
+          </li>
+        }
+      </ol>
+    </nav>
+  }
+
+  <h1 class="chapter__title">{{ title() }}</h1>
+
+  @if (hand()) {
+    <span class="bf-hand bf-hand--sub">{{ hand() }}</span>
+  }
+
+  <div class="chapter__lead">
+    <ng-content />
+  </div>
+</header>

@@ -1,0 +1,211 @@
+.layers-fig {
+  margin: 2.2rem 0;
+}
+
+/* Padding scales with ring count so the core keeps the same size no matter how
+   deep the nest is — the container grows outward, the subject does not shrink.
+   --step is the gap between rings; --lip is the extra room the top-left label
+   needs above the ring it belongs to. */
+.layers {
+  --step: 26px;
+  --lip: 14px;
+
+  position: relative;
+  isolation: isolate;
+  margin: 0 auto;
+  max-width: 620px;
+}
+
+.layers--n1 {
+  padding: calc(1 * var(--step) + var(--lip)) calc(1 * var(--step) + 10px);
+}
+.layers--n2 {
+  padding: calc(2 * var(--step) + var(--lip)) calc(2 * var(--step) + 10px);
+}
+.layers--n3 {
+  padding: calc(3 * var(--step) + var(--lip)) calc(3 * var(--step) + 10px);
+}
+.layers--n4 {
+  padding: calc(4 * var(--step) + var(--lip)) calc(4 * var(--step) + 10px);
+}
+
+/* Dotted rather than solid: a solid nested rectangle reads as a container you
+   could click, a dotted one reads as a boundary drawn around something. */
+.layers__ring {
+  position: absolute;
+  border: 2px dotted color-mix(in srgb, var(--bf-ink) 34%, transparent);
+  border-radius: var(--bf-r-lg);
+  pointer-events: none;
+}
+
+.layers__ring:nth-child(1) {
+  inset: 0;
+}
+.layers__ring:nth-child(2) {
+  inset: var(--step);
+}
+.layers__ring:nth-child(3) {
+  inset: calc(2 * var(--step));
+}
+.layers__ring:nth-child(4) {
+  inset: calc(3 * var(--step));
+}
+
+/* The label straddles the ring's top edge with the page colour behind it, so
+   the dotted line appears to pass behind the text — the way a hand-drawn
+   annotation on a diagram actually looks. */
+.layers__label {
+  position: absolute;
+  top: -0.72em;
+  left: 14px;
+  padding: 0 7px;
+  background: var(--bf-bg);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--bf-ink);
+  white-space: nowrap;
+}
+
+.layers__sub {
+  color: var(--bf-ink-2);
+}
+
+/* The one solid, filled, opaque thing in the picture: the object that actually
+   does the work. Everything else is a wrapper drawn in outline. */
+.layers__core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 92px;
+  padding: 1.2rem 1.5rem;
+  border-radius: var(--bf-r);
+  background: var(--bf-clay);
+  color: var(--bf-clay-ink);
+  text-align: center;
+  box-shadow: var(--bf-shadow);
+}
+
+.layers__core-label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.layers__core-sub {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  opacity: 0.85;
+}
+
+/* ---- The pointing arrow ----
+   Anchored to the container's top-right and drawn at a fixed size, so the
+   curve keeps its hand-drawn proportions instead of being stretched by the
+   diagram's aspect ratio. Hidden below 620px, where there is no margin left
+   for it to live in and it would cross the rings. */
+.layers__arrow {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  z-index: 2;
+  display: block;
+  width: 120px;
+  color: var(--bf-accent);
+  pointer-events: none;
+}
+
+.layers__arrow-text {
+  display: block;
+  margin-bottom: -2px;
+  transform: rotate(-4deg);
+  font-family: var(--font-hand);
+  font-size: 1.1rem;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.layers__arrow-svg {
+  display: block;
+  width: 120px;
+  height: 78px;
+}
+
+/* Visually hidden, still in the accessible tree. Not `display: none`, which
+   would take it out of the tree entirely and lose the containment description. */
+.layers__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.layers-fig__caption {
+  max-width: var(--bf-measure);
+  margin: 1.4rem auto 0;
+  font-size: 0.97rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--bf-ink) 86%, var(--bf-bg));
+}
+
+@media (max-width: 620px) {
+  .layers {
+    --step: 16px;
+  }
+
+  .layers__arrow {
+    display: none;
+  }
+
+  .layers__label {
+    font-size: 0.68rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Rings fade in from the outside in, which traces the direction a call
+     travels through them. 90ms apart: fast enough not to be a wait, slow
+     enough to read as a sequence. */
+  .layers__ring {
+    animation: layer-in 0.45s ease both;
+  }
+
+  .layers__ring:nth-child(2) {
+    animation-delay: 0.09s;
+  }
+  .layers__ring:nth-child(3) {
+    animation-delay: 0.18s;
+  }
+  .layers__ring:nth-child(4) {
+    animation-delay: 0.27s;
+  }
+
+  .layers__core {
+    animation: layer-core-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.32s both;
+  }
+
+  .layers__arrow {
+    animation: layer-in 0.4s ease 0.5s both;
+  }
+
+  @keyframes layer-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes layer-core-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+}
