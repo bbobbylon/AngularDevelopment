@@ -253,11 +253,11 @@ export class Comment {
       text: 'This line is the whole vulnerability. `.nativeElement` is the raw browser `Element`; setting `.innerHTML` on it calls the browser\'s own HTML parser **directly**. There is no Angular binding here for the sanitizer to hook into — `html` reaches the DOM exactly as it was passed in.',
     },
     {
-      line: 12,
+      line: 13,
       text: '`sanitizer.sanitize(SecurityContext.HTML, html)` is the *exact* function Angular calls internally for every `[innerHTML]` binding — it is a public, injectable method, callable by hand whenever you genuinely need to leave the template layer.',
     },
     {
-      line: 13,
+      line: 14,
       text: '`?? \'\'` matters: `sanitize()` returns `null` for a context it cannot process at all, not an empty string. Skip the fallback and `innerHTML` gets assigned the literal `null` — which JavaScript happily stringifies into the visible text `"null"`.',
     },
   ];
