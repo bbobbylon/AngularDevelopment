@@ -1,23 +1,9 @@
-.table-wrap {
-  overflow-x: auto;
-  margin: 10px 0 22px;
-}
-table.grid {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-}
-table.grid th,
-table.grid td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.grid th {
-  background: var(--bg-elevated);
-}
-table.grid td:first-child,
-table.grid th:first-child {
-  min-width: 220px;
-}
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css), which is why this file is empty — the
+   `.table-wrap` / `table.grid` rules that used to live here were a per-lesson
+   copy of the old pre-migration table styling, and the current markup uses
+   the theme's own `<table class="t">` instead (see services-di.html), so
+   they had nothing left to style.
+
+   Nothing in this lesson needs styling beyond what the shared layer and
+   `styles.css` already provide. */

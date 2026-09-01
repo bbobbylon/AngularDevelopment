@@ -247,7 +247,7 @@ export class CartIndicator {
   protected readonly cartQuizOptions: QuizOption[] = [
     {
       text: 'It shows 0 — a brand-new component always starts from zero.',
-      why: "That's true for a component's *own* fields, but `cart` isn't one — it's a reference to the one shared `CartService` instance. The indicator shows whatever that instance currently holds, never zero just because the badge is new.",
+      why: "That's true for a component's **own** fields, but `cart` isn't one — it's a reference to the one shared `CartService` instance. The indicator shows whatever that instance currently holds, never zero just because the badge is new.",
     },
     {
       text: 'It shows whatever the shared cart currently holds — the same number as the other two.',
@@ -317,7 +317,7 @@ export class CounterWidget {
     },
     {
       line: 16,
-      text: '`providers: [CounterService]` inside `@Component` — creates a brand-new element injector for *this* component and stocks it with its own `CounterService`. This is the entire difference from `CartService`.',
+      text: '`providers: [CounterService]` inside `@Component` — creates a brand-new element injector for **this** component and stocks it with its own `CounterService`. This is the entire difference from `CartService`.',
     },
     {
       line: 23,
@@ -530,7 +530,7 @@ export class ApiService {
     },
     {
       q: 'If two unrelated components both write providers: [CounterService], do they ever share state?',
-      a: "No. `providers` on a component creates a new element injector for *that* component every time it's instantiated — two `<app-counter-widget>` elements on a page are two separate instantiations, so they get two separate injectors, each with its own `CounterService`. 'Same class' and 'same instance' are different questions, and this lesson's second demo exists to make that visible.",
+      a: "No. `providers` on a component creates a new element injector for **that** component every time it's instantiated — two `<app-counter-widget>` elements on a page are two separate instantiations, so they get two separate injectors, each with its own `CounterService`. 'Same class' and 'same instance' are different questions, and this lesson's second demo exists to make that visible.",
     },
   ];
 }

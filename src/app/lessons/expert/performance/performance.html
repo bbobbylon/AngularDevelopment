@@ -226,6 +226,14 @@
       expression in <code>computed()</code> gives Angular something to check first: has anything this depends on
       actually changed?
     </p>
+    <p>
+      Angular's own <a routerLink="/pipes">pipes</a> draw the identical line. A <strong>pure</strong> pipe — the default
+      — is memoized just like <code>computed()</code>: Angular skips re-running <code>transform()</code> unless the
+      input reference itself changed. An <strong>impure</strong> pipe (<code>pure: false</code>) re-runs on every single
+      pass, same as the naive method below. Reach for <code>computed()</code> for anything you derive yourself; the
+      impure escape hatch exists for the rare case a pipe must notice a mutation nothing else announced — and it costs
+      full price every time it does.
+    </p>
 
     <app-compare
       leftTitle="A function call in the binding"
@@ -480,6 +488,13 @@
           <td><code>takeUntilDestroyed</code> / <code>toSignal</code> / the <code>async</code> pipe</td>
           <td>No subscription outlives the component that created it</td>
         </tr>
+        <tr>
+          <td>Zoneless, once every component above is already clean</td>
+          <td>
+            Removes Zone.js's own overhead app-wide — see the <a routerLink="/zoneless">Zoneless</a> lesson; the biggest
+            single lever here, and the last one to pull
+          </td>
+        </tr>
       </tbody>
     </table>
   </section>
@@ -601,6 +616,16 @@
       notesLabel="What each line is doing"
     />
 
+    <p>
+      "Supplied by the loader" a moment ago was doing real work: <code>NgOptimizedImage</code> never resizes an image
+      itself — every URL is delegated through an <code>ImageLoader</code>, configured once, app-wide. Point it at a CDN
+      that can resize on request and the same <code>ngSrc</code> starts producing a real <code>srcset</code> instead of
+      one fixed file; skip the config entirely and <code>ngSrc</code> is treated as a literal URL, no resizing at all.
+    </p>
+    <div class="code">
+      <pre>{{ imageLoaderSample }}</pre>
+    </div>
+
     <table class="t">
       <caption class="bf-table-caption">
         What NgOptimizedImage does for you
@@ -677,6 +702,16 @@
       </li>
       <li>Which single component dominates the widest bar — the one worth fixing first, before recording again.</li>
     </ul>
+
+    <h3>Lighthouse and the Performance tab — two more instruments</h3>
+    <p>
+      The Angular DevTools profiler above answers "which component." These two answer "is the page fast at all" and
+      "what's the browser doing when the cause isn't Angular" — a slow third-party script, an oversized image decode,
+      layout thrashing.
+    </p>
+    <div class="code">
+      <pre>{{ lighthouseWorkflowSample }}</pre>
+    </div>
 
     <h3>Finding it in the bundle, not just the runtime</h3>
     <div class="code">

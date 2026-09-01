@@ -243,6 +243,14 @@
     />
 
     <p>
+      Distribution runs <span class="term">however the union was spelled</span> — even when you didn't spell it as a
+      union yourself. <code>boolean</code> is secretly <code>true | false</code>, so
+      <code>Exclude&lt;boolean, true&gt;</code> distributes over both members and comes out as <code>false</code>, not
+      <code>never</code>. A tidy proof that distribution operates on the union's actual members, not on how confident
+      you feel that <code>T</code> "isn't really a union."
+    </p>
+
+    <p>
       When you <em>don't</em> want that — when <code>T</code> should be treated as one whole union, not iterated — wrap
       both sides in a one-element tuple. A tuple is no longer a bare type parameter, so the special case never fires:
     </p>
@@ -405,9 +413,9 @@
     <h2>Recursion has a depth limit, and one shape of it hits sooner.</h2>
 
     <app-predict
-      prompt="type Naive<N extends number, R extends unknown[] = []> = R['length'] extends N ? R : [...Naive<N, R>, unknown]; — will type Big = Naive<2000>; compile?"
+      prompt="type Naive<N extends number, R extends unknown[] = []> = R['length'] extends N ? R : [...Naive<N, [...R, unknown]>]; — will type Big = Naive<200>; compile?"
       [code]="naiveRecursionSample"
-      answer="No — `error TS2589: Type instantiation is excessively deep and possibly infinite.` The recursive call isn't the direct result of a branch; it's wrapped inside a spread (`[...Naive<N, R>, unknown]`), so the compiler has to keep every pending frame alive while it works through 2,000 levels, and gives up. Move the recursive call into tail position — make it the WHOLE branch, not part of one — and the identical-looking type sails through instead."
+      answer="No — `error TS2589: Type instantiation is excessively deep and possibly infinite.` The recursive call isn't the direct result of a branch; it's wrapped inside a spread (`[...Naive<N, [...R, unknown]>]`), so the compiler has to keep every pending frame alive while it works through 200 levels, and gives up. Move the recursive call into tail position — make it the WHOLE branch, not part of one — and the identical-looking type sails through instead."
       revealLabel="Reveal whether it compiles"
     />
 
@@ -467,6 +475,17 @@
       Notice <code>MyOmit</code>: it's <code>Pick</code> of (<code>keyof T</code> minus <code>K</code>) — utility types
       compose exactly like functions. Being able to derive these on a whiteboard is a common senior interview
       checkpoint, and now each one is a line you understand rather than a line you memorised.
+    </p>
+
+    <p>
+      One more idiom worth having ready: collecting a union of a type's own optional key <em>names</em>.
+      <code
+        >type OptionalKeys&lt;T&gt; = {{ '{' }} [K in keyof T]-?: undefined extends T[K] ? K : never {{ '}' }}[keyof
+        T]</code
+      >
+      — the mapped type writes each key's own name (or <code>never</code>) as its <strong>value</strong>, and indexing
+      the whole thing by <code>[keyof T]</code> unions every value together. Map to answers, then collect — the same
+      two-step shape shows up all over library-internals types.
     </p>
 
     <div class="tip">

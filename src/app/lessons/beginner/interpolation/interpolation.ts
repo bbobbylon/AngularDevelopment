@@ -1,4 +1,4 @@
-import { Component, afterEveryRender, computed, signal } from '@angular/core';
+import { Component, afterRenderEffect, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
@@ -61,10 +61,19 @@ export class Interpolation {
    * `noisyDouble()` a second time within the same tick (to verify nothing changed), so
    * `noisyRuns` itself is already one increment ahead of what the first pass rendered by the
    * time that second pass re-reads it — binding straight to `noisyRuns` would make the two
-   * passes disagree and throw ExpressionChangedAfterItHasBeenCheckedError. Snapshotting it
-   * once per full render (below, via `afterEveryRender`) keeps it stable for the whole tick.
+   * passes disagree and throw ExpressionChangedAfterItHasBeenCheckedError.
+   *
+   * A SIGNAL, snapshotted once per render (below, via `afterRenderEffect`) — not a plain
+   * field written from `afterEveryRender`, which was this field's original shape and still
+   * threw the same NG0100 on the very first render. A plain field is compared by the LView's
+   * own before/after read of that exact template expression; `afterEveryRender` can still
+   * write it before dev mode's checkNoChanges verify re-reads the template, so the verify
+   * pass sees a value the original render never painted. `afterRenderEffect` exists
+   * specifically for this: it is exempt from the verify comparison, and a signal write from
+   * inside it schedules its OWN next pass rather than needing to already agree with the one
+   * that just finished.
    */
-  protected noisyRunsDisplay = 0;
+  protected readonly noisyRunsDisplay = signal(0);
   /** Called directly from the template; re-executes on every change-detection pass that reaches it. */
   protected noisyDouble(): number {
     this.noisyRuns++;
@@ -82,8 +91,8 @@ export class Interpolation {
    * causing the very bug the demo is not about.
    */
   constructor() {
-    afterEveryRender(() => {
-      this.noisyRunsDisplay = this.noisyRuns;
+    afterRenderEffect(() => {
+      this.noisyRunsDisplay.set(this.noisyRuns);
     });
   }
 

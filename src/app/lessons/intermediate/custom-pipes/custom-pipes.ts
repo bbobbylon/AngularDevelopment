@@ -714,7 +714,7 @@ export class MiniAsyncPipe implements PipeTransform, OnDestroy {
   protected readonly miniAsyncNotes: CodeNote[] = [
     {
       line: 1,
-      text: "`pure: false` is load-bearing here, not a shortcut: this pipe's return value changes on the Observable's own schedule — a socket message, an interval tick — which is not a change to any *argument* the pipe was called with. There is nothing for the default memoisation to key off.",
+      text: "`pure: false` is load-bearing here, not a shortcut: this pipe's return value changes on the Observable's own schedule — a socket message, an interval tick — which is not a change to any **argument** the pipe was called with. There is nothing for the default memoisation to key off.",
     },
     {
       line: 3,

@@ -1,29 +1,10 @@
-.pipes {
-  width: 100%;
-  border-collapse: collapse;
-}
-.pipes td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-}
-.pipes td:first-child {
-  width: 220px;
-  color: var(--text-muted);
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+/* Tables, callouts, demo panels and pills are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css §14–15), so the `.pipes`
+   table block and the `.qa` details/summary block that used to live here are
+   both gone — `.pipes` was a per-lesson copy of a rule the theme now owns for
+   bare `<table>`, and `.qa` was replaced outright by `<app-faq>`, which is
+   keyboard-accessible and consistent with every other migrated lesson.
+
+   Nothing left needs lesson-specific CSS: every demo on this page reuses the
+   shared `.demo` / `.row` / `.pill` / `.code` / `.warn` / `.tip` classes from
+   the base theme, restyled for this layer by brain-friendly.css. */

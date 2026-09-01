@@ -564,9 +564,9 @@ type Route = Params<'/users/:id/posts/:postId'>;
   /** Sample: recursion that is not in tail position, and blows the depth limit. */
   protected readonly naiveRecursionSample = `type Naive<N extends number, R extends unknown[] = []> = R['length'] extends N
   ? R
-  : [...Naive<N, R>, unknown];
+  : [...Naive<N, [...R, unknown]>];
 
-type Big = Naive<2000>;
+type Big = Naive<200>;
 // error TS2589: Type instantiation is excessively
 //               deep and possibly infinite.`;
 
@@ -575,7 +575,7 @@ type Big = Naive<2000>;
   ? R
   : Repeat<N, [...R, unknown]>;
 
-type Big = Repeat<2000>;   // fine — recurses in tail position`;
+type Big = Repeat<200>;   // fine — recurses in tail position`;
 
   /** Sample: the `Prettify` trick, before and after a hover. */
   protected readonly prettifySample = `type Prettify<T> = { [K in keyof T]: T[K] } & {};
@@ -648,8 +648,8 @@ type MyReturnType<T> = T extends (...a: never[]) => infer R ? R : never;`;
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {
-      q: `Why does Partial<string[]> come out as (string | undefined)[] and not an object with a length property?`,
-      a: `Because \`Partial\` is written as \`{ [K in keyof T]?: T[K] }\`, with \`T\` used bare inside \`keyof T\` — that bareness is what makes a mapped type **homomorphic**, and a homomorphic mapped type copies the input's own structure instead of building a fresh object. Feed it an array and you get an array back; feed it a tuple and you get a tuple back, arity and all. The object-shaped result only happens for a mapped type that loops over something OTHER than a bare \`keyof T\` — \`Pick\`, for instance, loops over the caller's chosen keys, not \`T\`'s own, and always produces a plain object.`,
+      q: `What does keyof give you for a union of differently-shaped types — say { a: number } | { b: string }?`,
+      a: `\`never\`. \`keyof\` a union keeps only the keys guaranteed to exist on **every** member — a value of the union might be either shape, so only shared keys are safe to read through it — and these two objects share none. It's the same caution the homomorphic special case above teaches: mapped types (and \`keyof\` itself) stop doing what you'd expect the moment a union is involved. Distribute with a conditional type first if you need to map each member of a union on its own.`,
     },
     {
       q: `What's the actual difference between T extends U as a generic constraint and T extends U ? X : Y as a conditional type?`,
