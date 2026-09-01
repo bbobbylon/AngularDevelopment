@@ -1,73 +1,38 @@
-.tab-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+/* Security & Sanitization — lesson-specific styling.
+
+   Tables, callouts, code panels, chips, buttons, the demo panel and the whole
+   teaching/brain set are themed by the shared brain-friendly layer
+   (`src/brain-friendly.css`), so the old `.tab-row` / `.sec-table` / `.bad` /
+   `.good` / `.owasp-grid` block this file used to carry is gone — every one of
+   those was a per-lesson copy of rules the theme (or the base `styles.css`,
+   for `.good`/`.bad`) now owns. The OWASP grid is `.bf-grid-3` of `.bf-card`s
+   in the markup now, and the tab strip is gone entirely — the lesson scrolls
+   as one page instead of five hidden panels, per the brain-friendly layer's
+   own rhythm.
+
+   What's left is genuinely specific to this lesson's two rendered-HTML
+   preview boxes. */
+
+/* The two boxes an attack payload actually renders into: the sanitized
+   [innerHTML] preview in the main lab, and both sides of the "escaping the
+   sanitizer" compare. Dashed rather than solid, so it reads as a *preview
+   pane* rather than another card — the content inside it is untrusted, and
+   the border says so before anything renders. */
+.lesson.bf .xss-preview {
+  min-height: 2.6em;
+  padding: 0.7rem 0.95rem;
+  border: 1px dashed var(--bf-rule);
+  border-radius: var(--bf-r);
+  background: var(--bf-surface);
 }
-.tab-row button {
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-.tab-row button.active {
-  background: #6366f1;
-  color: #fff;
-  border-color: #6366f1;
-}
-.sec-table {
+
+/* The payload editor needs room and a monospace face; neither is a default
+   for a bare <textarea>, and this is the only lesson with a free-text HTML
+   payload box. */
+.lesson.bf .demo textarea {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.87rem;
-  margin: 12px 0;
-}
-.sec-table th {
-  background: var(--surface);
-  padding: 8px 10px;
-  text-align: left;
-  border-bottom: 2px solid var(--border);
-}
-.sec-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.bad {
-  color: #ef4444;
-}
-.good {
-  color: #22c55e;
-}
-.owasp-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
-  margin: 12px 0;
-}
-.owasp-card {
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-}
-.owasp-card h4 {
-  margin: 0 0 4px;
-  font-size: 0.88rem;
-}
-.owasp-card p {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-.severity-high {
-  border-left: 3px solid #ef4444;
-}
-.severity-med {
-  border-left: 3px solid #f59e0b;
-}
-.severity-low {
-  border-left: 3px solid #22c55e;
+  min-height: 4.5rem;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
 }

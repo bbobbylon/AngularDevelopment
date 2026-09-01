@@ -1,4 +1,12 @@
-import { Component, ElementRef, SecurityContext, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  SecurityContext,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
@@ -212,7 +220,7 @@ export class Security {
     },
     {
       line: 6,
-      text: '`[innerHTML]` is a property binding to the DOM\'s own `innerHTML` setter. Angular intercepts the value first and runs it through `SecurityContext.HTML`, which keeps structural tags (`<b>`, `<ul>`, `<a>`) and strips `<script>` and any `on*` attribute.',
+      text: "`[innerHTML]` is a property binding to the DOM's own `innerHTML` setter. Angular intercepts the value first and runs it through `SecurityContext.HTML`, which keeps structural tags (`<b>`, `<ul>`, `<a>`) and strips `<script>` and any `on*` attribute.",
     },
     {
       line: 10,
@@ -250,7 +258,7 @@ export class Comment {
     },
     {
       line: 8,
-      text: 'This line is the whole vulnerability. `.nativeElement` is the raw browser `Element`; setting `.innerHTML` on it calls the browser\'s own HTML parser **directly**. There is no Angular binding here for the sanitizer to hook into — `html` reaches the DOM exactly as it was passed in.',
+      text: "This line is the whole vulnerability. `.nativeElement` is the raw browser `Element`; setting `.innerHTML` on it calls the browser's own HTML parser **directly**. There is no Angular binding here for the sanitizer to hook into — `html` reaches the DOM exactly as it was passed in.",
     },
     {
       line: 13,
@@ -283,11 +291,11 @@ export class VideoPlayer {
   protected readonly bypassNotes: CodeNote[] = [
     {
       line: 1,
-      text: '`DomSanitizer` is Angular\'s own escape hatch — the same service the framework uses internally, available to your code via `inject()`.',
+      text: "`DomSanitizer` is Angular's own escape hatch — the same service the framework uses internally, available to your code via `inject()`.",
     },
     {
       line: 9,
-      text: '`bypassSecurityTrustResourceUrl` returns a special wrapped value, not a plain string. Angular\'s template binding recognizes the wrapper and skips sanitizing it entirely — for this one value only.',
+      text: "`bypassSecurityTrustResourceUrl` returns a special wrapped value, not a plain string. Angular's template binding recognizes the wrapper and skips sanitizing it entirely — for this one value only.",
     },
     {
       line: 10,
@@ -295,7 +303,7 @@ export class VideoPlayer {
     },
     {
       line: 15,
-      text: 'The wrapped value binds exactly like an ordinary `[src]` — the component using it cannot tell the difference. Which is exactly why every `bypassSecurityTrust*` call needs a reviewer\'s eyes: nothing downstream will catch a mistake here.',
+      text: "The wrapped value binds exactly like an ordinary `[src]` — the component using it cannot tell the difference. Which is exactly why every `bypassSecurityTrust*` call needs a reviewer's eyes: nothing downstream will catch a mistake here.",
     },
   ];
 
@@ -375,7 +383,7 @@ export const appConfig: ApplicationConfig = {
   protected readonly cspNonceNotes: CodeNote[] = [
     {
       line: 2,
-      text: '`ngCspNonce` is a special attribute Angular\'s renderer recognizes on the root element. It copies whatever value you give it onto every `<style>` tag Angular itself injects at runtime — which is what lets you delete `\'unsafe-inline\'` from `style-src`.',
+      text: "`ngCspNonce` is a special attribute Angular's renderer recognizes on the root element. It copies whatever value you give it onto every `<style>` tag Angular itself injects at runtime — which is what lets you delete `'unsafe-inline'` from `style-src`.",
     },
     {
       line: 7,
@@ -383,7 +391,7 @@ export const appConfig: ApplicationConfig = {
     },
     {
       line: 11,
-      text: '`autoCsp` is an Angular CLI build option (`angular.json` → `security.autoCsp`). It hashes every script the build produces and writes a strict `script-src` policy that needs neither a nonce nor `\'unsafe-inline\'` — the least code for the strongest policy, useful when there is no per-request server to template a nonce into.',
+      text: "`autoCsp` is an Angular CLI build option (`angular.json` → `security.autoCsp`). It hashes every script the build produces and writes a strict `script-src` policy that needs neither a nonce nor `'unsafe-inline'` — the least code for the strongest policy, useful when there is no per-request server to template a nonce into.",
     },
   ];
 
@@ -401,10 +409,14 @@ export const appConfig: ApplicationConfig = {
     },
     {
       label: 'The server checks the header',
-      detail: 'The forged request carries no X-XSRF-TOKEN — only your real page could read the cookie and mirror it.',
+      detail:
+        'The forged request carries no X-XSRF-TOKEN — only your real page could read the cookie and mirror it.',
       tone: 'good',
     },
-    { label: 'Request rejected', detail: 'The cookie alone was never enough to prove the request came from you.' },
+    {
+      label: 'Request rejected',
+      detail: 'The cookie alone was never enough to prove the request came from you.',
+    },
   ];
 
   /** Sample: enabling Angular's built-in double-submit-cookie XSRF handling. */
@@ -424,7 +436,7 @@ export const appConfig: ApplicationConfig = {
   protected readonly xsrfConfigNotes: CodeNote[] = [
     {
       line: 5,
-      text: '`withXsrfConfiguration` turns on Angular\'s built-in **double-submit cookie** handling inside `HttpClient` — nothing else to import or wire up.',
+      text: "`withXsrfConfiguration` turns on Angular's built-in **double-submit cookie** handling inside `HttpClient` — nothing else to import or wire up.",
     },
     {
       line: 6,
@@ -432,7 +444,7 @@ export const appConfig: ApplicationConfig = {
     },
     {
       line: 7,
-      text: '`headerName` — for every matching request (see the note below), Angular reads that cookie\'s current value and copies it into this header automatically. Your server\'s whole job is checking that the two match.',
+      text: "`headerName` — for every matching request (see the note below), Angular reads that cookie's current value and copies it into this header automatically. Your server's whole job is checking that the two match.",
     },
   ];
 
@@ -482,11 +494,11 @@ export const authGuard: CanActivateFn = (route, state) => {
       text: '`createUrlTree()` builds a navigation target as **data**, without navigating yet. Returning it hands the decision back to the router as one atomic step — there is no window where the protected route is briefly active.',
     },
     {
-      line: 22,
+      line: 23,
       text: '`loadComponent` is a lazy import — the entire reason to put the guard on the **route** rather than inside the component. The chunk is never fetched at all if `canActivate` says no.',
     },
     {
-      line: 25,
+      line: 26,
       text: '`canActivate` takes an **array** — a route can carry more than one guard, and all of them must allow the navigation for it to proceed.',
     },
     {
@@ -637,7 +649,7 @@ export const environment = {
     {
       code: 'A08',
       title: 'Software & Data Integrity Failures',
-      body: 'Subresource Integrity hashes on any third-party CDN script; audit npm dependencies — a compromised package runs with your app\'s full DOM access.',
+      body: "Subresource Integrity hashes on any third-party CDN script; audit npm dependencies — a compromised package runs with your app's full DOM access.",
     },
   ];
 
@@ -647,7 +659,7 @@ export const environment = {
   protected readonly contextQuizOptions: QuizOption[] = [
     {
       text: "Call `bypassSecurityTrustHtml(bio)` before binding it — it's the official escape hatch, so it's the right tool for user content.",
-      why: "Backwards. `bypassSecurityTrust*` means \"I, the developer, vouch that no part of this string is attacker-controlled.\" A user's own bio is the definition of attacker-controlled — this is precisely the misuse the method's name is trying to warn you away from.",
+      why: 'Backwards. `bypassSecurityTrust*` means "I, the developer, vouch that no part of this string is attacker-controlled." A user\'s own bio is the definition of attacker-controlled — this is precisely the misuse the method\'s name is trying to warn you away from.',
     },
     {
       text: "Bind it with plain `[innerHTML]` and let Angular's sanitizer do its job.",
@@ -656,7 +668,7 @@ export const environment = {
     },
     {
       text: 'Render it with `{{ bio }}` interpolation, so the bold and italic tags are escaped safely.',
-      why: "Safe, but not what was asked for — interpolation would show the reader literal `<b>` and `</b>` characters instead of bold text. Escaping and rendering-safely-as-HTML are different goals, and interpolation only achieves the first.",
+      why: 'Safe, but not what was asked for — interpolation would show the reader literal `<b>` and `</b>` characters instead of bold text. Escaping and rendering-safely-as-HTML are different goals, and interpolation only achieves the first.',
     },
     {
       text: 'Strip all tags yourself with a regular expression before rendering.',
@@ -680,11 +692,11 @@ export const environment = {
     },
     {
       text: 'The payload string itself was different the second time.',
-      why: "It was the identical string, assigned two different ways. If the payload had mattered here, the point of the demo would be lost — the whole lesson is that the SAME string behaves differently depending only on how it reaches the DOM.",
+      why: 'It was the identical string, assigned two different ways. If the payload had mattered here, the point of the demo would be lost — the whole lesson is that the SAME string behaves differently depending only on how it reaches the DOM.',
     },
     {
       text: '`ElementRef` is deprecated, so its `nativeElement` no longer respects the sanitizer.',
-      why: "`ElementRef` isn't deprecated, and it never respected the sanitizer to begin with — this isn't a gap that recently opened. Direct DOM access has always bypassed the binding layer. The lesson isn't \"avoid ElementRef\"; it's \"know that raw DOM APIs skip the binding layer entirely.\"",
+      why: '`ElementRef` isn\'t deprecated, and it never respected the sanitizer to begin with — this isn\'t a gap that recently opened. Direct DOM access has always bypassed the binding layer. The lesson isn\'t "avoid ElementRef"; it\'s "know that raw DOM APIs skip the binding layer entirely."',
     },
   ];
 
@@ -694,24 +706,39 @@ export const environment = {
 
   /** JWT storage tradeoffs, three ways. */
   protected readonly storageOptions = [
-    { storage: 'localStorage', xss: 'High — any script on the page can read it', csrf: 'None', verdict: 'Avoid for session tokens' },
-    { storage: 'JS memory (signal/service)', xss: 'Lower — gone on refresh', csrf: 'None', verdict: 'OK for short-lived access tokens' },
-    { storage: 'HttpOnly cookie (server-set)', xss: 'None — JavaScript cannot read it', csrf: 'Present — needs a CSRF token', verdict: 'Best for refresh tokens' },
+    {
+      storage: 'localStorage',
+      xss: 'High — any script on the page can read it',
+      csrf: 'None',
+      verdict: 'Avoid for session tokens',
+    },
+    {
+      storage: 'JS memory (signal/service)',
+      xss: 'Lower — gone on refresh',
+      csrf: 'None',
+      verdict: 'OK for short-lived access tokens',
+    },
+    {
+      storage: 'HttpOnly cookie (server-set)',
+      xss: 'None — JavaScript cannot read it',
+      csrf: 'Present — needs a CSRF token',
+      verdict: 'Best for refresh tokens',
+    },
   ];
 
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {
-      q: "If Angular already sanitizes everything automatically, why does `DomSanitizer` even need to exist as a service I can inject?",
+      q: 'If Angular already sanitizes everything automatically, why does `DomSanitizer` even need to exist as a service I can inject?',
       a: 'Two reasons. Sometimes you legitimately need to render something the automatic sanitizer would strip — a trusted video embed, a PDF viewer — and `bypassSecurityTrust*` is how you tell Angular "I already checked this one." And `sanitizer.sanitize()` lets you run the exact same logic Angular runs internally against a value before doing something manual with it — the safe way to write to `nativeElement.innerHTML` by hand, on the rare occasion you truly need to.',
     },
     {
       q: 'Does the sanitizer protect against SQL injection or other backend attacks?',
-      a: "No — it only ever touches what gets written into the DOM in the browser. Your backend needs its own defenses (parameterized queries, input validation) regardless of what Angular does on the client. Client-side sanitization and server-side validation solve completely different problems, and neither substitutes for the other.",
+      a: 'No — it only ever touches what gets written into the DOM in the browser. Your backend needs its own defenses (parameterized queries, input validation) regardless of what Angular does on the client. Client-side sanitization and server-side validation solve completely different problems, and neither substitutes for the other.',
     },
     {
-      q: "Is `localStorage` really unsafe if my app has zero XSS bugs?",
-      a: "In theory — but that is a bet on a negative you can never fully prove, across every dependency you ship today and every one you add later. A single vulnerable npm package with page access can read `localStorage` directly; it cannot read an `HttpOnly` cookie no matter how it got in. The advice isn't \"you definitely have an XSS bug,\" it's \"don't let one be catastrophic if it shows up.\"",
+      q: 'Is `localStorage` really unsafe if my app has zero XSS bugs?',
+      a: 'In theory — but that is a bet on a negative you can never fully prove, across every dependency you ship today and every one you add later. A single vulnerable npm package with page access can read `localStorage` directly; it cannot read an `HttpOnly` cookie no matter how it got in. The advice isn\'t "you definitely have an XSS bug," it\'s "don\'t let one be catastrophic if it shows up."',
     },
     {
       q: "My app doesn't use cookie-based sessions — do I need to think about CSRF at all?",
