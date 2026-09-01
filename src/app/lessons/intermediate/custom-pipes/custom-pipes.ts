@@ -538,7 +538,7 @@ export class SentenceCasePipe implements PipeTransform {
       text: 'One parameter, so this pipe never takes `:args` — just `{{ value | sentenceCase }}`, nothing after a colon.',
     },
     {
-      line: 9,
+      line: 10,
       text: "Returns a **brand-new** string; `value` itself is never touched. That immutability is exactly what makes memoisation safe — see the mental-model section above for what the cache is actually holding.",
     },
   ];
@@ -569,19 +569,19 @@ export class FilterByPipe implements PipeTransform {
   /** Notes for {@link filterBySample}. */
   protected readonly filterByNotes: CodeNote[] = [
     {
-      line: 5,
+      line: 6,
       text: '`T extends object` lets this work on any array of objects while keeping the return type `T[]` instead of collapsing to `any[]`. `keyof T` is what makes `field` autocomplete to real property names.',
     },
     {
-      line: 6,
+      line: 7,
       text: 'Normalised **once**, outside the filter — not recomputed on every item.',
     },
     {
-      line: 10,
+      line: 11,
       text: 'Returning the exact same reference on an empty query matters: the pure-pipe wrapper around this function compares ITS OWN cached input by `===`, and a fresh `[...items]` copy on every call would look like a change and throw the memoisation away for nothing.',
     },
     {
-      line: 11,
+      line: 12,
       text: "`String(...)` coerces numbers, booleans and `null` safely, so filtering a numeric column does not throw on `.toLowerCase()`. `.includes` — not `===` — is what makes this a substring search rather than an exact match.",
     },
   ];
@@ -613,19 +613,19 @@ export class RelativeTimePipe implements PipeTransform {
   /** Notes for {@link relativeTimeSample}. */
   protected readonly relativeTimeNotes: CodeNote[] = [
     {
-      line: 4,
+      line: 5,
       text: '`inject(DatePipe)` — a pipe runs inside an injection context, so the same `inject()` you use in components and other pipes works here too. This one reuses Angular\'s **built-in** `DatePipe` instead of reimplementing date formatting.',
     },
     {
-      line: 8,
+      line: 9,
       text: '`60_000` is milliseconds in a minute. The underscore is a digit separator TypeScript ignores — it is there purely so a human can count the zeros.',
     },
     {
-      line: 15,
+      line: 17,
       text: 'The built-in pipe is not a component or a template concern here — it is just an injected object with its own `transform()`, called directly like any other method. `?? isoDate` covers the one case it can return `null`: an unparsable date string.',
     },
     {
-      line: 18,
+      line: 21,
       text: '`DatePipe` goes in the host component\'s `providers` array — not its `imports` — because nothing in the template writes `| date` directly; only this pipe\'s own field needs it resolved.',
     },
   ];
@@ -663,7 +663,7 @@ export class HighlightPipe implements PipeTransform {
       text: "Regex metacharacters in the user's own text — `.`, `*`, `(`, `[` and so on — would otherwise be parsed as pattern syntax instead of literal characters. `\\\\$&` in the replacement means 'put the whole match back, with a backslash in front of it'.",
     },
     {
-      line: 13,
+      line: 16,
       text: "Binds to `[innerHTML]` because the output is a string **containing markup**. Plain interpolation would print the literal text `<mark>` instead of parsing it — Angular's sanitizer still runs and strips anything dangerous, but only `[innerHTML]` asks it to parse the string as HTML at all.",
     },
   ];
@@ -737,8 +737,8 @@ export class MiniAsyncPipe implements PipeTransform, OnDestroy {
       text: "This is the entire reason a value ever reaches the screen: the subscription's callback fires on every emission, and `markForCheck()` is what turns 'I have a new value' into 'a pass will actually come and read it'.",
     },
     {
-      line: 33,
-      text: 'This is Angular\'s real `async` pipe, with the null-handling and Promise support stripped out — same shape, same idea: subscribe on the way in, mark for check on every value, unsubscribe on the way out.',
+      line: 36,
+      text: 'This whole shape — subscribe on the way in, `markForCheck()` on every value, unsubscribe here on the way out — is Angular\'s real `async` pipe, with the null-handling and Promise support stripped away.',
     },
   ];
 

@@ -205,6 +205,22 @@ export class MappedConditional {
     { label: 'Mapped & Conditional' },
   ];
 
+  /**
+   * The template-literal-type syntax shown on the vocabulary tape-card and in
+   * the recap table.
+   *
+   * Kept as a bound field rather than typed directly into the template: the
+   * literal `{` inside a plain attribute or text node is read by Angular's
+   * template parser as the start of an ICU expression, so any copy containing
+   * a brace has to be bound instead — see `narrowing.ts` for the same rule
+   * applied to longer copy.
+   */
+  protected readonly templateLiteralSyntax = '`on${K}`';
+
+  /** The homomorphic quiz's question, bound for the same brace reason. */
+  protected readonly homomorphicQuizQuestion =
+    'type Partial<T> = { [K in keyof T]?: T[K] }. What does Partial<string[]> resolve to?';
+
   /** Sample: `Partial<T>`'s real, one-line definition. */
   protected readonly partialSourceSample = `type Partial<T> = { [K in keyof T]?: T[K] };`;
 
@@ -248,7 +264,7 @@ type B = PickAt<[boolean, string], 0>;       // { 0: boolean }`;
   protected readonly homomorphicNotes: CodeNote[] = [
     {
       line: 1,
-      text: '`keyof T` appears with `T` completely bare — nothing wraps it. That bareness is the trigger for a special case: TypeScript treats this mapped type as **homomorphic** and copies `T`\'s own structure (array, tuple, readonly-ness) instead of building a plain object.',
+      text: "`keyof T` appears with `T` completely bare — nothing wraps it. That bareness is the trigger for a special case: TypeScript treats this mapped type as **homomorphic** and copies `T`'s own structure (array, tuple, readonly-ness) instead of building a plain object.",
     },
     {
       line: 2,
@@ -324,7 +340,7 @@ type B = IsString<42>;     // 'no'`;
     },
     {
       line: 4,
-      text: '`42` is a number, and `number` is never assignable to `string` — the test is false, so the whole type is the literal `\'no\'`.',
+      text: "`42` is a number, and `number` is never assignable to `string` — the test is false, so the whole type is the literal `'no'`.",
     },
   ];
 
@@ -348,7 +364,7 @@ type B = Unwrap<Promise<string>>;   // string`;
     },
     {
       line: 3,
-      text: '`infer R` sits in **return position** of a function-type pattern. `never[]` is used instead of `any[]` for the parameters on purpose — it accepts a wider range of function shapes, because a function\'s parameters are checked contravariantly. This is the real `ReturnType<T>`.',
+      text: "`infer R` sits in **return position** of a function-type pattern. `never[]` is used instead of `any[]` for the parameters on purpose — it accepts a wider range of function shapes, because a function's parameters are checked contravariantly. This is the real `ReturnType<T>`.",
     },
     {
       line: 5,
@@ -371,7 +387,10 @@ type B = Unwrap<Promise<string>>;   // string`;
   ];
 
   /** The core of {@link deepUnwrapRings} — where the recursion bottoms out. */
-  protected readonly deepUnwrapCore: Layer = { label: 'T', sub: 'a plain value — recursion stops here' };
+  protected readonly deepUnwrapCore: Layer = {
+    label: 'T',
+    sub: 'a plain value — recursion stops here',
+  };
 
   /** Sample: the distribution rule, and the tuple-wrap that switches it off. */
   protected readonly distributiveSample = `type ToArray<T> = T extends unknown ? T[] : never;
@@ -400,10 +419,13 @@ type B = ToArrayND<string | number>;
     },
     {
       who: 'The conditional',
-      says: '`T extends U ? never : T`, and you fed me a bare `T` with a union. I don\'t run once — I run once per member.',
+      says: "`T extends U ? never : T`, and you fed me a bare `T` with a union. I don't run once — I run once per member.",
     },
     { who: "'a'", says: "extends 'b'? No. I survive." },
-    { who: "'b'", says: "extends 'b'? Yes — so I become `never`, and `never` vanishes out of a union." },
+    {
+      who: "'b'",
+      says: "extends 'b'? Yes — so I become `never`, and `never` vanishes out of a union.",
+    },
     { who: "'c'", says: "extends 'b'? No. I survive too." },
     {
       who: 'The conditional',
@@ -565,7 +587,7 @@ type Clean    = Prettify<Combined>;`;
   protected readonly prettifyNotes: CodeNote[] = [
     {
       line: 1,
-      text: 'The mapped type does nothing structurally — it loops over `T`\'s own keys and copies each one straight through. Its job is to force the compiler to **flatten** the type into a fresh object literal before displaying it; the trailing `& {}` nudges the checker into evaluating it eagerly.',
+      text: "The mapped type does nothing structurally — it loops over `T`'s own keys and copies each one straight through. Its job is to force the compiler to **flatten** the type into a fresh object literal before displaying it; the trailing `& {}` nudges the checker into evaluating it eagerly.",
     },
     {
       line: 3,
@@ -591,11 +613,11 @@ type MyReturnType<T> = T extends (...a: never[]) => infer R ? R : never;`;
   protected readonly rebuildStdlibNotes: CodeNote[] = [
     {
       line: 1,
-      text: '`MyPartial` — the loop from the very first section, verbatim. This is not *like* `Partial`; the standard library\'s real implementation is this line.',
+      text: "`MyPartial` — the loop from the very first section, verbatim. This is not *like* `Partial`; the standard library's real implementation is this line.",
     },
     {
       line: 2,
-      text: '`MyRequired` — the `-?` modifier strips optionality from every key. Combined with looking up `T[K]`\'s own type, this is the actual `Required<T>`.',
+      text: "`MyRequired` — the `-?` modifier strips optionality from every key. Combined with looking up `T[K]`'s own type, this is the actual `Required<T>`.",
     },
     {
       line: 3,
@@ -603,7 +625,7 @@ type MyReturnType<T> = T extends (...a: never[]) => infer R ? R : never;`;
     },
     {
       line: 4,
-      text: '`MyPick` — loops over `K` (the caller\'s chosen keys), not over `keyof T`. This is the non-homomorphic shape from earlier: it always produces a plain object.',
+      text: "`MyPick` — loops over `K` (the caller's chosen keys), not over `keyof T`. This is the non-homomorphic shape from earlier: it always produces a plain object.",
     },
     {
       line: 5,
@@ -619,7 +641,7 @@ type MyReturnType<T> = T extends (...a: never[]) => infer R ? R : never;`;
     },
     {
       line: 8,
-      text: '`MyReturnType` — the `infer` pattern from the mechanism section, matched against a function\'s RETURN position this time instead of its parameters.',
+      text: "`MyReturnType` — the `infer` pattern from the mechanism section, matched against a function's RETURN position this time instead of its parameters.",
     },
   ];
 
