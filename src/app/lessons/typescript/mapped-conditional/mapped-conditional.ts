@@ -648,7 +648,7 @@ type MyReturnType<T> = T extends (...a: never[]) => infer R ? R : never;`;
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {
-      q: `Why does Partial<string[]> come out as (string | undefined)[] and not an object with a length??`,
+      q: `Why does Partial<string[]> come out as (string | undefined)[] and not an object with a length property?`,
       a: `Because \`Partial\` is written as \`{ [K in keyof T]?: T[K] }\`, with \`T\` used bare inside \`keyof T\` — that bareness is what makes a mapped type **homomorphic**, and a homomorphic mapped type copies the input's own structure instead of building a fresh object. Feed it an array and you get an array back; feed it a tuple and you get a tuple back, arity and all. The object-shaped result only happens for a mapped type that loops over something OTHER than a bare \`keyof T\` — \`Pick\`, for instance, loops over the caller's chosen keys, not \`T\`'s own, and always produces a plain object.`,
     },
     {

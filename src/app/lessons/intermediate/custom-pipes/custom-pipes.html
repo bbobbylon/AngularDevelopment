@@ -8,11 +8,11 @@
     [current]="0"
   >
     <p class="lead">
-      A pipe formats a value for display — currency, a relative date, a filtered list — without moving that logic
-      into the component class or repeating it in five templates. The mechanics are five minutes of work: decorate a
-      class with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's
-      <code>imports</code>, and write <code>|</code> in the template. What is worth the other forty minutes is what
-      <strong>pure</strong> actually promises you, exactly what breaks it, and the one honest reason to give it up.
+      A pipe formats a value for display — currency, a relative date, a filtered list — without moving that logic into
+      the component class or repeating it in five templates. The mechanics are five minutes of work: decorate a class
+      with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's <code>imports</code>, and
+      write <code>|</code> in the template. What is worth the other forty minutes is what <strong>pure</strong> actually
+      promises you, exactly what breaks it, and the one honest reason to give it up.
     </p>
   </app-chapter>
 
@@ -22,31 +22,40 @@
     <h2>Where does formatting for the screen actually live?</h2>
 
     <p>
-      Say you need to show <code>"3m ago"</code> instead of a raw ISO timestamp. Nothing stops you from formatting it
-      in the component — a getter, a method called from the template, or a field you write to when the data arrives.
-      All three work. All three also share a problem you will not notice until the component is checked a lot:
+      Say you need to show <code>"3m ago"</code> instead of a raw ISO timestamp. Nothing stops you from formatting it in
+      the component — a getter, a method called from the template, or a field you write to when the data arrives. All
+      three work. All three also share a problem you will not notice until the component is checked a lot:
       <span class="key">none of them remember the answer they gave last time</span>.
     </p>
 
     <ul>
-      <li>A <strong>getter</strong> re-runs its whole body on every single read — and a template reads it once per binding, per check.</li>
-      <li>A <strong>method call</strong> in a binding, <code>{{ '{{' }} formatPrice(price) {{ '}}' }}</code>, is exactly the same cost with worse syntax.</li>
-      <li>Formatting <strong>at the source</strong> — storing <code>"$4.00"</code> instead of <code>4</code> — throws the real number away, so the next thing that needs to do math with it can't.</li>
+      <li>
+        A <strong>getter</strong> re-runs its whole body on every single read — and a template reads it once per
+        binding, per check.
+      </li>
+      <li>
+        A <strong>method call</strong> in a binding, <code>{{ '{{' }} formatPrice(price) {{ '}}' }}</code>, is exactly
+        the same cost with worse syntax.
+      </li>
+      <li>
+        Formatting <strong>at the source</strong> — storing <code>"$4.00"</code> instead of <code>4</code> — throws the
+        real number away, so the next thing that needs to do math with it can't.
+      </li>
     </ul>
 
     <p>
       A pipe is the fourth option, and it is the only one of the four that can be genuinely cheap — because, unlike a
-      getter, a <span class="term">pure</span> pipe is allowed to remember its last answer and skip the work
-      entirely when nothing has changed. That single fact is most of this lesson.
+      getter, a <span class="term">pure</span> pipe is allowed to remember its last answer and skip the work entirely
+      when nothing has changed. That single fact is most of this lesson.
     </p>
 
     <app-napkin lead="hang on —" label="Predict before reading on">
       Picture a component checked forty times a second — nothing exotic, that's just forty clicks somewhere in a
       Default-strategy app. Its template has <code>{{ '{{' }} getFormattedPrice() {{ '}}' }}</code>, a getter that
-      formats a number as currency. How many times does the formatting logic inside that getter actually run in that
-      one second? Now guess again for <code>{{ '{{' }} price | currency {{ '}}' }}</code> on the same component, the
-      same forty checks, formatting the exact same unchanged <code>price</code>. Both lines show identical text on
-      screen. They do not cost the same — keep reading to find out why.
+      formats a number as currency. How many times does the formatting logic inside that getter actually run in that one
+      second? Now guess again for <code>{{ '{{' }} price | currency {{ '}}' }}</code> on the same component, the same
+      forty checks, formatting the exact same unchanged <code>price</code>. Both lines show identical text on screen.
+      They do not cost the same — keep reading to find out why.
     </app-napkin>
   </section>
 
@@ -57,18 +66,18 @@
 
     <p>
       Picture a bouncer at a door who is only allowed to hold <strong>one photo</strong> at a time. Someone walks up;
-      the bouncer compares their face against the photo. Different person? Take a new photo, replace the old one,
-      let them through after doing the actual work of checking ID. <em>Same</em> person as the photo — recognisably,
-      unmistakably the same, not just similar — and the bouncer waves them through on sight, no ID check, no new
-      photo. That is the entire deal a pure pipe offers Angular: one slot of memory, one comparison, and real work
-      only on a miss.
+      the bouncer compares their face against the photo. Different person? Take a new photo, replace the old one, let
+      them through after doing the actual work of checking ID. <em>Same</em> person as the photo — recognisably,
+      unmistakably the same, not just similar — and the bouncer waves them through on sight, no ID check, no new photo.
+      That is the entire deal a pure pipe offers Angular: one slot of memory, one comparison, and real work only on a
+      miss.
     </p>
 
     <p>
       The comparison the bouncer makes is <code>===</code>, not "looks similar" — <span class="term">reference</span>
-      equality, the strictest kind. Two arrays with identical contents are two different people to this bouncer if
-      they are not the literal same object in memory. That detail is not a footnote; it is the entire cause of the
-      single most common pipe bug there is, and there is a live demo of it a few sections down.
+      equality, the strictest kind. Two arrays with identical contents are two different people to this bouncer if they
+      are not the literal same object in memory. That detail is not a footnote; it is the entire cause of the single
+      most common pipe bug there is, and there is a live demo of it a few sections down.
     </p>
 
     <app-remember variant="mnemonic">
@@ -88,16 +97,11 @@
     <h2>A pipe is a class with one method — transform().</h2>
 
     <p>
-      Here is the whole shape, with the pipe that trims long text down to size. Read it once with the notes; every
-      other pipe in this lesson is the same skeleton with a different <code>transform()</code>.
+      Here is the whole shape, with the pipe that trims long text down to size. Read it once with the notes; every other
+      pipe in this lesson is the same skeleton with a different <code>transform()</code>.
     </p>
 
-    <app-code-lab
-      file="truncate.pipe.ts"
-      [code]="truncateSample"
-      [notes]="truncateNotes"
-      notesLabel="Line by line"
-    />
+    <app-code-lab file="truncate.pipe.ts" [code]="truncateSample" [notes]="truncateNotes" notesLabel="Line by line" />
 
     <div class="demo">
       <p class="demo__title">Live — truncate (pure), with its default arguments exposed as a slider</p>
@@ -113,20 +117,21 @@
       />
       <p><span class="pill">original</span> {{ longText }}</p>
       <p>
-        <span class="pill" style="color: var(--bf-olive)">| truncate:{{ limit() }}</span> {{ longText | truncate: limit() }}
+        <span class="pill" style="color: var(--bf-olive)">| truncate:{{ limit() }}</span>
+        {{ longText | truncate: limit() }}
       </p>
       <p class="demo__note">
         Drag the slider back and forth — every position is a genuinely new <code>limit</code> argument, so the pipe's
-        Polaroid never matches and <code>transform()</code> really does run on every single frame. That is fine: it
-        is meant to. The interesting case is what happens when nothing changes at all, which is what the next demo
-        below is built to show.
+        Polaroid never matches and <code>transform()</code> really does run on every single frame. That is fine: it is
+        meant to. The interesting case is what happens when nothing changes at all, which is what the next demo below is
+        built to show.
       </p>
     </div>
 
     <div class="warn">
-      One more rule worth knowing up front: the string in <code>name</code> is what you type after <code>|</code>,
-      and it must be <strong>unique</strong> across everything a component's <code>imports</code> array pulls in.
-      Two different pipes both named <code>format</code> is a silent last-one-wins, not a compile error.
+      One more rule worth knowing up front: the string in <code>name</code> is what you type after <code>|</code>, and
+      it must be <strong>unique</strong> across everything a component's <code>imports</code> array pulls in. Two
+      different pipes both named <code>format</code> is a silent last-one-wins, not a compile error.
     </div>
   </section>
 
@@ -136,8 +141,8 @@
     <h2>Pipes chain left to right — but <code>|</code> doesn't bind the way you'd guess.</h2>
 
     <p>
-      Chaining is just function composition with different punctuation: each pipe's output becomes the next pipe's
-      first argument, in the order they're written.
+      Chaining is just function composition with different punctuation: each pipe's output becomes the next pipe's first
+      argument, in the order they're written.
     </p>
 
     <app-code-lab
@@ -168,16 +173,16 @@
 
     <p>
       One more thing about that <code>|</code>: inside a template expression it is <strong>always</strong> the pipe
-      operator, never bitwise OR. Write <code>a | b</code> expecting a bitwise trick from another language and
-      Angular goes looking for a pipe named <code>b</code> — and fails to compile if there isn't one.
+      operator, never bitwise OR. Write <code>a | b</code> expecting a bitwise trick from another language and Angular
+      goes looking for a pipe named <code>b</code> — and fails to compile if there isn't one.
     </p>
 
-    <p>
-      Now the trap. Pipes combine with the ternary operator in a way that looks obvious and is not:
-    </p>
+    <p>Now the trap. Pipes combine with the ternary operator in a way that looks obvious and is not:</p>
 
     <app-predict
-      prompt="`{{ '{{' }} isAdmin ? name : fallback | uppercase {{ '}}' }}` — which part of this actually gets uppercased?"
+      prompt="`{{
+        '{{'
+      }} isAdmin ? name : fallback | uppercase {{ '}}' }}` — which part of this actually gets uppercased?"
       code="{{ '{{' }} isAdmin ? name : fallback | uppercase {{ '}}' }}"
       answer="Only `fallback`. Angular's template parser resolves a pipe expression **inside each branch** of a ternary, not around the whole thing — so this reads as `isAdmin ? name : (fallback | uppercase)`. `name` is never touched, and nothing warns you: it's a silently half-applied transform. Fix it by parenthesising the whole conditional: `(isAdmin ? name : fallback) | uppercase`. The same rule governs `??` — `a ?? b | pipe` only pipes `b` — and it's why a pipe **argument** containing a ternary needs its own parens too: `value | filterBy: (useId ? 'id' : 'name')`."
       revealLabel="Reveal what actually gets uppercased"
@@ -191,31 +196,26 @@
 
     <p>
       Nothing about the Polaroid changes when the value flowing through it is an array instead of a string —
-      <code>===</code> on an array compares its <strong>address</strong>, not its contents. That single fact both
-      makes a filter pipe fast and sets the trap for the single most common pipe bug in real apps.
+      <code>===</code> on an array compares its <strong>address</strong>, not its contents. That single fact both makes
+      a filter pipe fast and sets the trap for the single most common pipe bug in real apps.
     </p>
 
-    <app-code-lab
-      file="filter-by.pipe.ts"
-      [code]="filterBySample"
-      [notes]="filterByNotes"
-      notesLabel="Line by line"
-    />
+    <app-code-lab file="filter-by.pipe.ts" [code]="filterBySample" [notes]="filterByNotes" notesLabel="Line by line" />
 
     <div class="bf-grid-3">
       <app-tape-card heading="Mutate, don't replace" kicker="the demo below" tone="accent">
         Pushing into an array Angular already has a reference to changes its <em>contents</em> but not its
         <em>address</em>. A pure pipe compares addresses.
       </app-tape-card>
-      <app-tape-card heading="A fresh literal argument" kicker="&#124; filterBy: &#123; field &#125;" tone="accent">
+      <app-tape-card heading="A fresh literal argument" kicker="| filterBy: { field }" tone="accent">
         An object or array literal written inline in a template is a brand-new reference on
         <strong>every single check</strong>, so the pipe never gets to reuse its cache at all — even when nothing
         meaningful changed.
       </app-tape-card>
       <app-tape-card heading="Hidden impurity" kicker="pure by default" tone="accent">
-        A pipe marked pure (the default) that quietly reads <code>Date.now()</code> or a mutable module-level
-        variable can produce a genuinely different answer while Angular still sees the same input reference — and
-        skips calling it. The output goes stale until something unrelated finally changes.
+        A pipe marked pure (the default) that quietly reads <code>Date.now()</code> or a mutable module-level variable
+        can produce a genuinely different answer while Angular still sees the same input reference — and skips calling
+        it. The output goes stale until something unrelated finally changes.
       </app-tape-card>
     </div>
 
@@ -253,11 +253,11 @@
         }
       </div>
       <p class="demo__note">
-        "In the array" jumps immediately on <strong>every</strong> press — that count reads <code>fruits.length</code>
-        directly, no pipe involved. The pill row is the honest one: after <strong>mutate</strong> it does not budge,
-        because <code>filterBy</code>'s cached <code>items</code> argument is still the exact same array reference it
-        was last time. After <strong>replace</strong> a Kiwi finally appears, because that button built a whole new
-        array — a different reference, a cache miss, a real re-run.
+        "In the array" jumps immediately on <strong>every</strong> press — that count reads
+        <code>fruits.length</code> directly, no pipe involved. The pill row is the honest one: after
+        <strong>mutate</strong> it does not budge, because <code>filterBy</code>'s cached <code>items</code> argument is
+        still the exact same array reference it was last time. After <strong>replace</strong> a Kiwi finally appears,
+        because that button built a whole new array — a different reference, a cache miss, a real re-run.
       </p>
     </div>
 
@@ -305,9 +305,9 @@
     <h2><code>pure: false</code> means "ask me on every single check."</h2>
 
     <p>
-      Sometimes a pipe genuinely needs to react to something a reference comparison cannot see — here, characters
-      typed into a search box highlighting matches inside text that hasn't itself changed. <code>pure: false</code>
-      switches off the Polaroid entirely: no cache, no skipped calls, <code>transform()</code> runs on
+      Sometimes a pipe genuinely needs to react to something a reference comparison cannot see — here, characters typed
+      into a search box highlighting matches inside text that hasn't itself changed. <code>pure: false</code> switches
+      off the Polaroid entirely: no cache, no skipped calls, <code>transform()</code> runs on
       <strong>every</strong> change-detection pass that reaches this view, whether or not its arguments moved.
     </p>
 
@@ -330,8 +330,8 @@
         <p style="margin: 4px 0" [innerHTML]="item | highlight: highlightQuery()"></p>
       }
       <p class="demo__note">
-        This works here because this whole component uses the Default strategy, which checks every view on every
-        pass regardless of what changed. That is not a guarantee — read on.
+        This works here because this whole component uses the Default strategy, which checks every view on every pass
+        regardless of what changed. That is not a guarantee — read on.
       </p>
     </div>
 
@@ -355,12 +355,20 @@
       note="Same pipe, same pure: false. The fix is entirely on the component side — give the view a reason to be marked dirty."
     >
       <div left>
-        <div class="code"><pre>{{ onPushImpureBadSample }}</pre></div>
-        <div class="code"><pre>{{ onPushImpureBadTemplate }}</pre></div>
+        <div class="code">
+          <pre>{{ onPushImpureBadSample }}</pre>
+        </div>
+        <div class="code">
+          <pre>{{ onPushImpureBadTemplate }}</pre>
+        </div>
       </div>
       <div right>
-        <div class="code"><pre>{{ onPushImpureGoodSample }}</pre></div>
-        <div class="code"><pre>{{ onPushImpureGoodTemplate }}</pre></div>
+        <div class="code">
+          <pre>{{ onPushImpureGoodSample }}</pre>
+        </div>
+        <div class="code">
+          <pre>{{ onPushImpureGoodTemplate }}</pre>
+        </div>
       </div>
     </app-compare>
   </section>
@@ -373,8 +381,8 @@
     <p>
       There is exactly one honest reason to reach for <code>pure: false</code> that has nothing to do with "the
       arguments didn't change but I need to re-check anyway": a pipe whose value changes on
-      <strong>its own schedule</strong> — a timer, a socket, an Observable — because there is no argument change to
-      key a cache off in the first place. Angular's own built-in <code>async</code> pipe is exactly this. Here it is,
+      <strong>its own schedule</strong> — a timer, a socket, an Observable — because there is no argument change to key
+      a cache off in the first place. Angular's own built-in <code>async</code> pipe is exactly this. Here it is,
       rebuilt from scratch.
     </p>
 
@@ -402,11 +410,11 @@
         </div>
       }
       <p class="demo__note">
-        Mount the clocks and the subscription count jumps to <strong>2</strong> — two separate bindings, two
-        separate <code>MiniAsyncPipe</code> instances, two independent subscriptions to the same
-        <code>ticks$</code>. Unmount, and it drops straight back to <strong>0</strong>: Angular destroyed both
-        bindings, which called <code>ngOnDestroy</code> on both pipe instances, which unsubscribed both. Nothing
-        about that cleanup was written by you.
+        Mount the clocks and the subscription count jumps to <strong>2</strong> — two separate bindings, two separate
+        <code>MiniAsyncPipe</code> instances, two independent subscriptions to the same <code>ticks$</code>. Unmount,
+        and it drops straight back to <strong>0</strong>: Angular destroyed both bindings, which called
+        <code>ngOnDestroy</code> on both pipe instances, which unsubscribed both. Nothing about that cleanup was written
+        by you.
         <br />
         recent activity: {{ activityLog.entries().join(' · ') || 'nothing yet — mount the clocks above' }}
       </p>
@@ -459,9 +467,9 @@
     </table>
 
     <app-remember variant="rule">
-      Reach for <code>computed()</code> before <code>pure: false</code>. The one legitimate reason to write an
-      impure pipe is that it owns something that needs tearing down — a subscription, a timer — not that its output
-      merely changes on its own.
+      Reach for <code>computed()</code> before <code>pure: false</code>. The one legitimate reason to write an impure
+      pipe is that it owns something that needs tearing down — a subscription, a timer — not that its output merely
+      changes on its own.
     </app-remember>
 
     <app-quiz
@@ -490,8 +498,8 @@
       </li>
       <li>
         <strong>Pure by default means single-slot memoisation, per binding site</strong> — not a shared, keyed cache.
-        Two identical bindings never share a result, and the slot is overwritten the instant an argument's
-        reference changes.
+        Two identical bindings never share a result, and the slot is overwritten the instant an argument's reference
+        changes.
       </li>
       <li>
         That cache is exactly why <strong>mutating an array (or object)</strong> you pipe does not render — the
@@ -499,8 +507,8 @@
       </li>
       <li>
         <strong>Impure (<code>pure: false</code>) reruns on every check that reaches its view</strong> — costly, and
-        still silent inside an OnPush component nothing else marks dirty. Its one honest use is owning something
-        with a teardown: a subscription, a timer, <code>ngOnDestroy</code> required.
+        still silent inside an OnPush component nothing else marks dirty. Its one honest use is owning something with a
+        teardown: a subscription, a timer, <code>ngOnDestroy</code> required.
       </li>
       <li>
         The pipe operator binds <strong>tighter</strong> than a ternary's branches —

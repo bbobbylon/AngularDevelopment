@@ -497,7 +497,7 @@ export class TruncatePipe implements PipeTransform {
     },
     {
       line: 2,
-      text: "`implements PipeTransform` is not required at runtime — Angular just looks for a method called `transform`. Keep it anyway: it makes TypeScript check the method exists and is shaped correctly.",
+      text: '`implements PipeTransform` is not required at runtime — Angular just looks for a method called `transform`. Keep it anyway: it makes TypeScript check the method exists and is shaped correctly.',
     },
     {
       line: 3,
@@ -505,11 +505,11 @@ export class TruncatePipe implements PipeTransform {
     },
     {
       line: 4,
-      text: "Guard before touching `.length`: this line is why `{{ someValue | truncate }}` renders nothing instead of throwing when `someValue` is `null` or `undefined`.",
+      text: 'Guard before touching `.length`: this line is why `{{ someValue | truncate }}` renders nothing instead of throwing when `someValue` is `null` or `undefined`.',
     },
     {
       line: 5,
-      text: "The whole job, in one expression: cut to `limit` characters and add `trail` only if the string was actually over the limit. Note it builds and returns a **new** string — `value` itself is never written to.",
+      text: 'The whole job, in one expression: cut to `limit` characters and add `trail` only if the string was actually over the limit. Note it builds and returns a **new** string — `value` itself is never written to.',
     },
   ];
 
@@ -531,7 +531,7 @@ export class SentenceCasePipe implements PipeTransform {
   protected readonly sentenceCaseNotes: CodeNote[] = [
     {
       line: 1,
-      text: "The template-facing name — `sentenceCase` — is completely independent of the class name. Every pipe a template imports needs a **unique** name; two pipes both named `format` collide and only one wins.",
+      text: 'The template-facing name — `sentenceCase` — is completely independent of the class name. Every pipe a template imports needs a **unique** name; two pipes both named `format` collide and only one wins.',
     },
     {
       line: 6,
@@ -539,7 +539,7 @@ export class SentenceCasePipe implements PipeTransform {
     },
     {
       line: 10,
-      text: "Returns a **brand-new** string; `value` itself is never touched. That immutability is exactly what makes memoisation safe — see the mental-model section above for what the cache is actually holding.",
+      text: 'Returns a **brand-new** string; `value` itself is never touched. That immutability is exactly what makes memoisation safe — see the mental-model section above for what the cache is actually holding.',
     },
   ];
 
@@ -582,7 +582,7 @@ export class FilterByPipe implements PipeTransform {
     },
     {
       line: 12,
-      text: "`String(...)` coerces numbers, booleans and `null` safely, so filtering a numeric column does not throw on `.toLowerCase()`. `.includes` — not `===` — is what makes this a substring search rather than an exact match.",
+      text: '`String(...)` coerces numbers, booleans and `null` safely, so filtering a numeric column does not throw on `.toLowerCase()`. `.includes` — not `===` — is what makes this a substring search rather than an exact match.',
     },
   ];
 
@@ -614,7 +614,7 @@ export class RelativeTimePipe implements PipeTransform {
   protected readonly relativeTimeNotes: CodeNote[] = [
     {
       line: 5,
-      text: '`inject(DatePipe)` — a pipe runs inside an injection context, so the same `inject()` you use in components and other pipes works here too. This one reuses Angular\'s **built-in** `DatePipe` instead of reimplementing date formatting.',
+      text: "`inject(DatePipe)` — a pipe runs inside an injection context, so the same `inject()` you use in components and other pipes works here too. This one reuses Angular's **built-in** `DatePipe` instead of reimplementing date formatting.",
     },
     {
       line: 9,
@@ -626,7 +626,7 @@ export class RelativeTimePipe implements PipeTransform {
     },
     {
       line: 21,
-      text: '`DatePipe` goes in the host component\'s `providers` array — not its `imports` — because nothing in the template writes `| date` directly; only this pipe\'s own field needs it resolved.',
+      text: "`DatePipe` goes in the host component's `providers` array — not its `imports` — because nothing in the template writes `| date` directly; only this pipe's own field needs it resolved.",
     },
   ];
 
@@ -718,7 +718,7 @@ export class MiniAsyncPipe implements PipeTransform, OnDestroy {
     },
     {
       line: 3,
-      text: "`ChangeDetectorRef` is how a pipe — like a component — gets a handle onto the view it belongs to, so it can ask for a re-check later.",
+      text: '`ChangeDetectorRef` is how a pipe — like a component — gets a handle onto the view it belongs to, so it can ask for a re-check later.',
     },
     {
       line: 9,
@@ -730,7 +730,7 @@ export class MiniAsyncPipe implements PipeTransform, OnDestroy {
     },
     {
       line: 18,
-      text: "`subscribe()` is what actually starts the work. Nothing before this line has produced a value; a `miniAsync` on a source nobody has piped in yet returns `null` and does nothing.",
+      text: '`subscribe()` is what actually starts the work. Nothing before this line has produced a value; a `miniAsync` on a source nobody has piped in yet returns `null` and does nothing.',
     },
     {
       line: 22,
@@ -738,7 +738,7 @@ export class MiniAsyncPipe implements PipeTransform, OnDestroy {
     },
     {
       line: 36,
-      text: 'This whole shape — subscribe on the way in, `markForCheck()` on every value, unsubscribe here on the way out — is Angular\'s real `async` pipe, with the null-handling and Promise support stripped away.',
+      text: "This whole shape — subscribe on the way in, `markForCheck()` on every value, unsubscribe here on the way out — is Angular's real `async` pipe, with the null-handling and Promise support stripped away.",
     },
   ];
 
@@ -779,7 +779,7 @@ class ResultsPanel {
     {
       text: 'Exactly one input/output pair, held per binding instance, replaced the moment the input changes.',
       correct: true,
-      why: "Right. Each binding site gets its own pipe instance holding a single-slot memory — the last input it saw and the last output it produced. A different reference and the slot is overwritten and `transform()` runs again; the same reference and the stored output is handed back untouched.",
+      why: 'Right. Each binding site gets its own pipe instance holding a single-slot memory — the last input it saw and the last output it produced. A different reference and the slot is overwritten and `transform()` runs again; the same reference and the stored output is handed back untouched.',
     },
     {
       text: "Nothing — 'pure' just means the function has no side effects, so Angular still calls transform() on every check.",
@@ -797,17 +797,17 @@ class ResultsPanel {
    */
   protected readonly toolQuiz: QuizOption[] = [
     {
-      text: "A pure pipe: `todos | incomplete`.",
+      text: 'A pure pipe: `todos | incomplete`.',
       why: 'This is exactly the mutate-vs-replace demo above, one level up. A pure pipe compares `todos` by reference; items pushed in never change that reference, so the cache keeps handing back the old, incomplete-at-the-time list.',
     },
     {
-      text: "Make the pipe impure (pure: false).",
+      text: 'Make the pipe impure (pure: false).',
       why: 'It would work, in the sense that it reruns on every check that reaches this view — but it now re-filters the whole array on every single one of those checks, forever, whether or not anything actually changed. A real cost for a problem signals solve for free.',
     },
     {
       text: 'Store `todos` as a signal and derive the incomplete ones with `computed()`.',
       correct: true,
-      why: "Right. `computed()` recomputes only when a signal it reads changes, caches its result once for every reader rather than per binding site, and a template that reads it registers as a dependent automatically. This is the modern default the whole lesson keeps pointing back to.",
+      why: 'Right. `computed()` recomputes only when a signal it reads changes, caches its result once for every reader rather than per binding site, and a template that reads it registers as a dependent automatically. This is the modern default the whole lesson keeps pointing back to.',
     },
     {
       text: 'Filter directly in the template: `@for (t of todos.filter(x => !x.done); …)`.',
@@ -831,11 +831,11 @@ class ResultsPanel {
     },
     {
       q: 'Is `miniAsync` above really what the built-in async pipe does?',
-      a: "Same shape, smaller. Subscribe on the way in, `markForCheck()` on every value, unsubscribe on the way out. The real `async` pipe additionally unwraps Promises (not just Observables), returns `null` while nothing has arrived yet rather than a stale value carried over from a previous source, and is tested against a long list of edge cases this version was never asked to handle.",
+      a: 'Same shape, smaller. Subscribe on the way in, `markForCheck()` on every value, unsubscribe on the way out. The real `async` pipe additionally unwraps Promises (not just Observables), returns `null` while nothing has arrived yet rather than a stale value carried over from a previous source, and is tested against a long list of edge cases this version was never asked to handle.',
     },
     {
       q: 'What happens if transform() throws?',
-      a: "The same thing as a template expression throwing: Angular does not catch it for you, and the error can crash the render. A pipe that parses, divides, or reaches into a nested property should guard itself the same way any code that runs on every check should — a null check or a `try/catch` around the risky part, not an assumption that bad input can never arrive.",
+      a: 'The same thing as a template expression throwing: Angular does not catch it for you, and the error can crash the render. A pipe that parses, divides, or reaches into a nested property should guard itself the same way any code that runs on every check should — a null check or a `try/catch` around the risky part, not an assumption that bad input can never arrive.',
     },
   ];
 }
