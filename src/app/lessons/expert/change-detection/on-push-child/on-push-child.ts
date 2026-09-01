@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 
 // ── OnPush demo child — re-checks only when its input changes / it's marked ──
 
@@ -14,17 +14,22 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export class OnPushChild {
   /** A real input this time — the parent binding is what marks this view dirty. */
   readonly value = input(0);
+
   /**
-   * How many times this view has been checked.
-   */
-  private ticks = 0;
-  /**
-   * The check count, incremented as a side effect of being read.
+   * The check count.
    *
-   * A getter in a template runs once per check of that view, so reading it *is*
-   * the measurement. Deliberately impure — normally a bug, here the instrument.
+   * A template getter that increments on every read looks like the obvious
+   * instrument, and it was this component's original one — but dev mode reads
+   * every binding twice per pass to verify nothing moved, and a getter with a
+   * side effect guarantees the two reads disagree, throwing NG0100 on the very
+   * page that goes on to explain NG0100. `ngDoCheck` is the honest fix: it fires
+   * once per real check of *this* view — respecting OnPush's own skip logic —
+   * and, being a lifecycle hook rather than a bound expression, is outside the
+   * verify comparison entirely.
    */
-  protected get checks(): number {
-    return ++this.ticks;
+  protected readonly checks = signal(0);
+
+  ngDoCheck(): void {
+    this.checks.update((n) => n + 1);
   }
 }

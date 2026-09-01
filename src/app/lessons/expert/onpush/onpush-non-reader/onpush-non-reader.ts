@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { TickerStore } from '../onpush.shared';
 
 /** OnPush child that does NOT read the signal — never re-checked by its writes. */
@@ -15,14 +15,14 @@ export class OnpushNonReader {
    */
   readonly snapshot = inject(TickerStore).count();
   /**
-   * How many times this view has been checked.
-   */
-  private n = 0;
-  /**
    * The check count. Stays put while the store changes, because this view never
    * read the signal reactively and so was never registered as a consumer.
+   * Incremented from `ngDoCheck` rather than a template getter, which would
+   * throw NG0100 in dev mode (see `expert/change-detection`'s `OnPushChild.checks`).
    */
-  get tick() {
-    return ++this.n;
+  protected readonly tick = signal(0);
+
+  ngDoCheck(): void {
+    this.tick.update((n) => n + 1);
   }
 }

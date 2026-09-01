@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 
 // ── Default (CheckAlways) child ──────────────────────────────────────────────
 
@@ -13,13 +13,12 @@ import { Component } from '@angular/core';
 })
 export class DefaultChild {
   /**
-   * How many times this view has been checked.
+   * The check count. See {@link OnPushChild.checks} for why this is a signal
+   * incremented from `ngDoCheck`, not a getter incremented from the template.
    */
-  private ticks = 0;
-  /**
-   * The check count. See {@link OnPushChild.checks}.
-   */
-  protected get checks(): number {
-    return ++this.ticks;
+  protected readonly checks = signal(0);
+
+  ngDoCheck(): void {
+    this.checks.update((n) => n + 1);
   }
 }

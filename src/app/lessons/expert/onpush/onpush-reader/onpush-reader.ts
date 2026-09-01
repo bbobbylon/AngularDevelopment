@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { TickerStore } from '../onpush.shared';
 
 /** OnPush child that READS the shared signal — updates when it changes. */
@@ -15,13 +15,13 @@ export class OnpushReader {
    */
   readonly store = inject(TickerStore);
   /**
-   * How many times this view has been checked.
+   * The check count. Moves whenever the shared count is written — incremented
+   * from `ngDoCheck` rather than a template getter, which would throw NG0100 in
+   * dev mode (see `expert/change-detection`'s `OnPushChild.checks`).
    */
-  private n = 0;
-  /**
-   * The check count. Moves whenever the shared count is written.
-   */
-  get tick() {
-    return ++this.n;
+  protected readonly tick = signal(0);
+
+  ngDoCheck(): void {
+    this.tick.update((n) => n + 1);
   }
 }

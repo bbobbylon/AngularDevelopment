@@ -140,7 +140,7 @@
       <span class="pill">a: {{ a() }}</span>
       <span class="pill">b: {{ b() }}</span>
       <span class="pill">c: {{ c() }}</span>
-      <span class="pill" style="color: var(--violet)">render passes over this view: {{ renderCount }}</span>
+      <span class="pill" style="color: var(--violet)">render passes over this view: {{ renderCount() }}</span>
     </p>
     <div class="row">
       <button (click)="writeAllThree()">a.set / b.set / c.set — in one handler</button>

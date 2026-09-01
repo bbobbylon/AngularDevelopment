@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 
 /** OnPush child with an OBJECT input — the star of the mutation trap demo. */
 @Component({
@@ -14,13 +14,13 @@ export class OnpushMutateChild {
    */
   user = input.required<{ name: string; clicks: number }>();
   /**
-   * How many times this view has been checked.
+   * The check count, incremented from `ngDoCheck` rather than a template getter —
+   * see `expert/change-detection`'s `OnPushChild.checks` for why a getter that
+   * mutates on read throws NG0100 in dev mode.
    */
-  private n = 0;
-  /**
-   * The check count.
-   */
-  get tick() {
-    return ++this.n;
+  protected readonly tick = signal(0);
+
+  ngDoCheck(): void {
+    this.tick.update((n) => n + 1);
   }
 }

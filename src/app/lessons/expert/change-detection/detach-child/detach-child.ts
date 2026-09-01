@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, inject, input } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, input, signal } from '@angular/core';
 
 // ── Detachable child — cdr.detach() removes it from the tree entirely ───────
 
@@ -24,14 +24,15 @@ export class DetachChild {
    */
   private readonly cdr = inject(ChangeDetectorRef);
   /**
-   * How many times this view has been checked.
+   * The check count. Freezes while detached, which is the demo — `ngDoCheck`
+   * (see {@link OnPushChild.checks} for why it replaced a template getter here)
+   * naturally never fires for a detached view, since detaching removes the view
+   * from the traversal that would call it.
    */
-  private ticks = 0;
-  /**
-   * The check count. Freezes while detached, which is the demo.
-   */
-  protected get checks(): number {
-    return ++this.ticks;
+  protected readonly checks = signal(0);
+
+  ngDoCheck(): void {
+    this.checks.update((n) => n + 1);
   }
 
   /**

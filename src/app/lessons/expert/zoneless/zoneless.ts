@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, afterRenderEffect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
@@ -13,6 +13,10 @@ import { RouterLink } from '@angular/router';
   templateUrl: './zoneless.html',
 })
 export class Zoneless {
+  constructor() {
+    afterRenderEffect(() => this.renderCount.update((n) => n + 1));
+  }
+
   /**
    * A plain field, written by a `setTimeout`. In a zoneless app nothing notices,
    * which is the demo.
@@ -41,13 +45,16 @@ export class Zoneless {
    */
   protected readonly c = signal(0);
   /**
-   * How many times this view has been checked.
+   * How many render passes have reached this view.
+   *
+   * Incremented from `afterRenderEffect` rather than a template getter — a
+   * getter that mutates on read is guaranteed to disagree with itself on dev
+   * mode's double-read verify pass, throwing NG0100 (see
+   * `expert/change-detection`'s `passes` field for the full story).
+   * `afterRenderEffect` runs once per application render, strictly after the
+   * verify window.
    */
-  private renders = 0;
-  /** Increments once per check of this view — a live render-pass counter. */
-  protected get renderCount() {
-    return ++this.renders;
-  }
+  protected readonly renderCount = signal(0);
 
   /**
    * Sequence number for plain writes, so each one is distinguishable.

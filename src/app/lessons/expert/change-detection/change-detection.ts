@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, afterRenderEffect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
@@ -67,9 +67,23 @@ import { DetachChild } from './detach-child/detach-child';
 })
 export class ChangeDetection {
   /**
-   * How many times the lesson component has been checked.
+   * How many passes have reached this lesson's own view.
+   *
+   * Deliberately NOT a getter that increments on every read (`get renderTick() {
+   * return ++this.ticks; }`), which is what this field replaced. That pattern reads
+   * as an elegant way to "count checks" but is actually a live NG0100 generator: dev
+   * mode reads every template expression twice per pass to verify nothing moved, and
+   * a getter with a side effect guarantees the two reads disagree. `afterRenderEffect`
+   * runs once per pass, strictly after rendering and outside the verify window, so
+   * counting here is safe — and it is also the more honest place to count from, since
+   * it fires only on passes that actually reached the DOM.
    */
-  private ticks = 0;
+  protected readonly passes = signal(0);
+
+  constructor() {
+    afterRenderEffect(() => this.passes.update((n) => n + 1));
+  }
+
   /**
    * A counter driving the demo.
    */
@@ -91,12 +105,6 @@ export class ChangeDetection {
    */
   protected plainVal = 0;
 
-  /**
-   * The lesson component's own check count.
-   */
-  protected get renderTick(): number {
-    return ++this.ticks;
-  }
   /**
    * Does nothing, deliberately.
    *

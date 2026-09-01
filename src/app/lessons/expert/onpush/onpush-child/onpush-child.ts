@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 
 /** An OnPush child — only re-checked when an input reference changes (or it's marked dirty). */
 @Component({
@@ -13,11 +13,14 @@ export class OnpushChild {
    */
   value = input(0);
   /**
-   * How many times this view has been checked.
+   * The check count, incremented from `ngDoCheck` — fires once per real check of
+   * THIS view, and being a lifecycle hook rather than a bound expression, is
+   * exempt from dev mode's double-read verify pass (a template getter that
+   * mutates on read is not, and throws NG0100).
    */
-  private n = 0;
-  /** Getter runs once per check of THIS view — a live change-detection counter. */
-  get tick() {
-    return ++this.n;
+  protected readonly tick = signal(0);
+
+  ngDoCheck(): void {
+    this.tick.update((n) => n + 1);
   }
 }

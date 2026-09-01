@@ -1,6 +1,6 @@
 <div class="box" [class.box--off]="detached">
   <div class="box__label">{{ detached ? 'DETACHED from the CD tree' : 'attached' }}</div>
-  <div class="box__checks">template checks: {{ checks }}</div>
+  <div class="box__checks">template checks: {{ checks() }}</div>
   <div>
     value input: <strong>{{ value() }}</strong>
   </div>
