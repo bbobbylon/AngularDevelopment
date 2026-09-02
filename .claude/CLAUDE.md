@@ -414,8 +414,9 @@ strictly worse. `docs/CONTRIBUTING.md` §2A has the retention budgets and copy c
 lesson, and that long copy lives in the `.ts` — and §2B has the presentation budgets, the
 section rhythm, and the line-annotation rules.
 
-**Rollout state:** 19 of 100 lessons through the retention pass as of 2026-08-29 (see
-`docs/BACKLOG.md` §1.1). Nothing sits below 3/9 any more. Continue worst-first.
+**Rollout state:** 29 of 100 lessons through the combined retention + brain-friendly pass
+as of 2026-09-02 (see `docs/BACKLOG.md` §1.2, which also has two build-breaking traps worth
+reading before the next batch). Nothing sits below 3/9 any more. Continue worst-first.
 
 **The retention pass and the presentation pass are now one pass.** Since 2026-08-31,
 migrating a lesson to the brain-friendly layer means rewriting it against the nine-point

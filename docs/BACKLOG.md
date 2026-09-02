@@ -147,13 +147,34 @@ of that section."_ This supersedes §2.2 as the concrete plan for Bar 3.
   full write pass and a separate adversarial review pass, and all five now score 9/9 on
   `audit-retention.mjs` (was 24 lessons at 9/9 before this batch, 28 after).
 
-**Remaining: 95 lessons.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Rollout: 29 of 100 lessons done (as of 2026-09-02).** Three worst-first batches of 8
+landed on top of the five pilots: `mapped-conditional`, `custom-pipes`, `performance`,
+`security`, `services-di`, `pipes`, `control-flow-switch`, `resource-api` (batch 1);
+`router-children-lazy`, `ngmodules`, `why-typescript-angular`, `functions-basics`,
+`view-queries`, `after-render`, `ts-nullish`, `libraries-schematics` (batch 2);
+`di-providers`, `control-flow-if`, `dom-and-events`, `ts-generics`, `ts-async`,
+`http-interceptors`, `hydration`, `debugging-basics` (batch 3). Every batch went through a
+write pass, an independent adversarial review pass, and a manual verification sweep (trap
+greps, `tsc --noEmit`, `prettier --check`, `ng build`, a headless route check, and
+`audit-retention.mjs`) before committing — agent self-reports were wrong often enough
+(placeholder summaries, silent NG0100/build-break regressions) that trusting them without
+re-checking would have shipped bugs.
+
+**Remaining: 71 lessons.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
 means rewriting it against the nine-point bar anyway. Roughly an hour each; the copy is
 the work, not the wiring. Read
 `src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
 records the teaching order the layer is designed around (pose the problem → analogy →
 mechanism → same idea in four modes), and copying that shape is most of the job.
+
+**Two traps worth knowing before the next batch** (both cost a build break to discover):
+a getter or an `afterRender`-family-written plain field bound directly in a template throws
+NG0100 unless the write goes through a `signal()` (see `expert/change-detection`'s JSDoc);
+and in real template *body* text (not just attribute strings), even a single unescaped `{`
+or `}` — e.g. a JS template-literal placeholder like `` `HTTP ${res.status}` `` inside a
+`<code>` sample — fails `ng build` with NG5002 and must be escaped individually as
+`` {{ '{' }} ``/`` {{ '}' }} ``, not just double-brace pairs.
 
 **Open questions the author should settle before the bulk pass:**
 
