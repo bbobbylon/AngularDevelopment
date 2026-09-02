@@ -1,66 +1,71 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.bad {
-  color: #ef4444;
-  font-weight: 700;
-}
+/* Tables, callouts, demo panels and pills are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css §14–15), so the `.cmp` /
+   `.qa` blocks that used to live here are gone — they were per-lesson copies
+   of rules the theme now owns, and the exam questions are an `<app-faq>` now.
 
+   What's left is genuinely specific to this lesson: the two-panel split used
+   by three different demos, and the small console-style log for the
+   viewChild() demo. */
+
+/* ── The split panels ────────────────────────────────────────────────────
+   Reused by the truthiness-trap demo, the scheduling demo and the
+   destroy-vs-hide demo — three different proofs, one "two things side by
+   side" shape. `--border` / `--bg-card` are base-theme tokens that
+   `html.bf-page` re-points at the brain-friendly palette for the whole time
+   this lesson is mounted, so this needs no `--bf-*` tokens of its own. */
 .split {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 14px;
   margin-top: 8px;
 }
+
 .split__box {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
   background: var(--bg-card);
 }
+
 .split__box h4 {
   margin: 0 0 8px;
   font-size: 0.82rem;
 }
+
 .split__box input {
   width: 100%;
 }
+
 .verdict {
   margin-top: 8px;
   font-size: 0.78rem;
 }
 
-.qa {
+/* Standalone, not scoped to `.verdict` — the truthiness demo also uses a
+   bare `.bad` on the "block hidden" placeholder itself. */
+.ok {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.bad {
+  color: var(--red);
+  font-weight: 700;
+}
+
+/* ── The ref-appearance log ──────────────────────────────────────────────
+   Dressed as console output rather than as prose, same treatment the
+   signals lesson gives its effect log — the point is that these lines were
+   written by an `effect()` the reader never called directly. */
+.log {
+  background: var(--code-bg);
+  color: var(--code-fg);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  border-radius: 12px;
+  padding: 12px 12px 12px 32px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  max-height: 160px;
+  overflow: auto;
+  margin: 10px 0 0;
 }

@@ -1,0 +1,29 @@
+/* The host defaults to `display: inline`, which would let the block-level
+   content below sit oddly next to the sibling <input> in the split panel. */
+:host {
+  display: block;
+}
+
+/* A small dashed-border tag rather than a full .demo card — this sits INSIDE
+   an existing demo panel, so it needs to read as a component, not as another
+   nested panel competing with the one around it. */
+.toggle-child {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+}
+
+.toggle-child__id {
+  margin: 0 0 2px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.toggle-child__status {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}

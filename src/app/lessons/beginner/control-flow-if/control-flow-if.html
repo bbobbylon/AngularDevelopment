@@ -1,259 +1,586 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Control Flow</span>
-  <h1>Control Flow: &#64;if / &#64;else</h1>
-  <p class="lead">
-    The built-in <code>&#64;if</code> block conditionally includes part of a template. It replaced the older
-    <code>*ngIf</code> directive and needs no imports — it is part of the template <em>language</em>, compiled directly
-    by Angular rather than resolved as a directive at runtime. This page goes from the syntax to the traps: the
-    truthiness of <code>; as</code>, why a false branch throws away state, and how it maps from <code>*ngIf</code>.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · Control Flow"
+    title="Control Flow: &#64;if / &#64;else"
+    hand="or, how a template decides which reality gets to exist"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      The built-in <code>&#64;if</code> block picks which version of your UI is real right now — and, this page's actual
+      subject, <strong>throws the losing version away completely</strong>. It replaced the old
+      <code>*ngIf</code> directive and needs no import: it's compiled straight into your component, not resolved by a
+      directive at runtime. You'll leave knowing exactly what <code>&#64;if</code> compiles to,
+      <strong>when</strong> its condition reruns, why <code>; as</code> is a compiler requirement rather than a style
+      choice, and what happens to a <code>viewChild()</code> sitting inside a branch that just disappeared.
+    </p>
+  </app-chapter>
 
-  <h2>&#64;if, &#64;else if, &#64;else</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 14px">
-      <button (click)="logIn('admin')">Log in as admin</button>
-      <button (click)="logIn('member')">Log in as member</button>
-      <button class="ghost" (click)="user.set(null)">Log out</button>
-    </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A template can only be one truth at a time.</h2>
 
-    @if (user(); as u) {
-      <p>
-        ✅ Welcome back, <strong>{{ u.name }}</strong
-        >.
-      </p>
-      @if (u.role === 'admin') {
-        <p class="pill">You have admin privileges.</p>
+    <p>
+      Write a component with a logged-in view and a logged-out view and you've written
+      <strong>two different UIs</strong>
+      for the same patch of the page. A live DOM, though, can only ever hold one of them at once — so something has to
+      decide which one exists right now, and something has to deal with whichever one just lost.
+    </p>
+
+    <ul>
+      <li>Which branch wins? (the <strong>condition</strong>)</li>
+      <li>What happens to the branch that loses? (<strong>creation and destruction</strong>)</li>
+      <li>
+        What if the losing branch was holding onto something — a half-typed answer, a scroll position, a subscription?
+      </li>
+    </ul>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Type a sentence into a text box. Make the box disappear. Bring it back. Is your sentence still sitting there, or
+      is the box starting from nothing? Most people guess it survives — text boxes usually do, everywhere else in
+      software. There's a live version of exactly this a few sections down; hold your guess until you get there.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>&#64;if evicts. [hidden] just draws the blinds.</h2>
+
+    <p>
+      Picture two ways a landlord can deal with a room. One way: change the locks, clear it out, hand back the keys —
+      the tenant is gone, and whoever moves in next starts from an empty room with no memory of who lived there before.
+      The other way: just close the blinds. The tenant is still inside, their furniture is exactly where they left it,
+      and opening the blinds again reveals the room precisely as it was.
+    </p>
+
+    <p>
+      <code>&#64;if</code> is the first landlord. <code>[hidden]</code> — and <code>display: none</code> — is the
+      second. Neither is wrong; they solve different problems, and picking between them out of habit rather than by
+      which one you actually need is exactly where a live demo, a few sections from now, will catch you out.
+    </p>
+
+    <app-bubbles
+      [turns]="evictionTalk"
+      caption="Same page, two APIs, and the one property that actually separates them: what happens to the loser."
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>Eviction, not a blackout.</strong> A false <code>&#64;if</code> branch doesn't dim the lights — it tears
+      the whole room out: DOM, component instances, their signals, scroll position, focus, all of it. Reach for
+      <code>[hidden]</code> when the tenant needs to stay.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE BASIC SYNTAX + LIVE DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow">The syntax</p>
+    <h2>Three blocks, one winner.</h2>
+
+    <p>
+      Here's the whole shape: an <code>&#64;if</code>, as many <code>&#64;else if</code>s as you need, and one optional
+      <code>&#64;else</code> at the end. Angular checks them top to bottom and stops at the first match — there's no
+      fall-through, and no bare <code>&#64;else</code> standing on its own.
+    </p>
+
+    <app-code-lab
+      file="login-banner.html"
+      [code]="basicSample"
+      [notes]="basicNotes"
+      notesLabel="Line by line — including the two rules that trip people mid-chain"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 14px">
+        <button (click)="logIn('admin')">Log in as admin</button>
+        <button (click)="logIn('member')">Log in as member</button>
+        <button class="ghost" (click)="user.set(null)">Log out</button>
+      </div>
+
+      @if (user(); as u) {
+        <p>
+          ✅ Welcome back, <strong>{{ u.name }}</strong
+          >.
+        </p>
+        @if (u.role === 'admin') {
+          <p class="pill">You have admin privileges.</p>
+        } @else {
+          <p class="pill">Standard member access.</p>
+        }
       } @else {
-        <p class="pill">Standard member access.</p>
+        <p>👋 Please log in to continue.</p>
       }
-    } @else {
-      <p>👋 Please log in to continue.</p>
-    }
-  </div>
-  <div class="code">
-    <pre>{{ basicSample }}</pre>
-  </div>
-  <div class="note">
-    The branches are checked top-to-bottom and exactly one wins — there is no fall-through. Only
-    <code>&#64;if</code> can start the chain; <code>&#64;else if</code> and <code>&#64;else</code> must immediately
-    follow it (no markup between the <code>&#125;</code> and the next <code>&#64;else</code>).
-  </div>
 
-  <h2>The <code>as</code> alias — and its truthiness trap</h2>
-  <p>
-    <code>&#64;if (expr; as name)</code> stores the condition's result in a local, read-only template variable so you
-    can reuse it and narrow away <code>null</code>. The gotcha: the block shows only when <code>expr</code> is
-    <strong>truthy</strong>, so a legitimate <code>0</code>, <code>''</code>, or <code>false</code> makes the whole
-    block vanish. Watch it happen:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — step the count down to 0</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="count.update((c) => c + 1)">+1</button>
-      <button (click)="count.update((c) => c - 1)">−1</button>
-      <button class="ghost" (click)="count.set(0)">Set to 0</button>
-      <span class="pill">count = {{ count() }}</span>
+      <p class="demo__note">
+        Nesting works exactly like this: the inner block checking <code>u.role</code> only exists at all once the outer
+        block is already showing — Angular never even builds it while <code>u</code> is <code>null</code>.
+      </p>
     </div>
-    <div class="split">
-      <div class="split__box">
-        <h4><code>&#64;if (count(); as c)</code></h4>
-        @if (count(); as c) {
-          <div>
-            Items: <strong>{{ c }}</strong>
-          </div>
-        } @else {
-          <div class="bad">— block hidden —</div>
-        }
-        <div class="verdict bad">disappears at 0 (0 is falsy)</div>
-      </div>
-      <div class="split__box">
-        <h4><code>&#64;if (count() !== null)</code></h4>
-        @if (count() !== null) {
-          <div>
-            Items: <strong>{{ count() }}</strong>
-          </div>
-        } @else {
-          <div>— block hidden —</div>
-        }
-        <div class="verdict ok">shows 0 correctly (explicit test)</div>
-      </div>
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Reach for <code>; as</code> to narrow an <em>object/nullable</em>. For a number or boolean, test explicitly (<code
-        >count() !== null</code
-      >, <code>flag() === true</code>) so a falsy-but-valid value still renders.
+  </section>
+
+  <!-- ============ 4. ; AS — REQUIRED, NOT A NICETY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The <code>; as</code> alias</p>
+    <h2>; as isn't a nicety. It's the only thing that compiles.</h2>
+
+    <p>
+      The pitch you'll usually hear for <code>; as</code> is convenience — reuse the value, skip repeating
+      <code>user()</code>. That's true, and it undersells it. Under <code>strictTemplates</code> — this app's own
+      default, and most real ones — the version without it doesn't just look worse. It doesn't compile.
     </p>
-  </div>
-  <div class="tip">
-    With the <code>async</code> pipe the alias earns its keep — unwrap the Observable once, narrow away
-    <code>null</code>, and reuse the value:
-    <div class="code" style="margin-top: 8px">
-      <pre>{{ asyncSample }}</pre>
-    </div>
-  </div>
 
-  <h2>A false branch is destroyed — state included</h2>
-  <p>
-    <code>&#64;if</code> compiles to an embedded view that is <em>created</em> when the condition becomes truthy and
-    <em>destroyed</em> when it becomes falsy. Destroyed means gone: the DOM nodes, any component instances inside, their
-    signals, and scroll/focus/uncontrolled-input state all reset next time the block reappears. That's different from
-    hiding with CSS, where the element stays alive. Type into both boxes, hide, then show again:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — &#64;if vs [hidden]</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="showBoxes.update((v) => !v)">{{ showBoxes() ? 'Hide' : 'Show' }} both</button>
-      <span class="pill">{{ showBoxes() ? 'visible' : 'hidden' }}</span>
-    </div>
-    <div class="split">
-      <div class="split__box">
-        <h4><code>&#64;if</code> — element removed</h4>
-        @if (showBoxes()) {
-          <input aria-label="type, then hide + show" placeholder="type, then hide + show" />
-        }
-        <div class="verdict bad">text is lost — the input was destroyed</div>
-      </div>
-      <div class="split__box">
-        <h4><code>[hidden]</code> — element kept</h4>
-        <input aria-label="type, then hide + show" [hidden]="!showBoxes()" placeholder="type, then hide + show" />
-        <div class="verdict ok">text survives — the input stayed in the DOM</div>
-      </div>
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Use <code>&#64;if</code> to genuinely add/remove work (don't render, don't subscribe, don't run a heavy child).
-      Use <code>[hidden]</code> / <code>display:none</code> only for cheap, frequent toggles where you must preserve
-      state.
-    </p>
-  </div>
-
-  <h2>Coming from <code>*ngIf</code></h2>
-  <p>
-    <code>*ngIf</code> is the old structural directive; <code>&#64;if</code> is template syntax that replaces it. The
-    most-missed detail in a migration is the <code>then</code>/<code>else</code> template-ref pattern —
-    <code>&#64;if</code> folds those extra <code>&lt;ng-template&gt;</code>s into inline branches:
-  </p>
-  <div class="code">
-    <pre>{{ migrationSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th><code>&#64;if</code> (modern)</th>
-      <th><code>*ngIf</code> (legacy)</th>
-    </tr>
-    <tr>
-      <td>Import</td>
-      <td class="ok">none — built in</td>
-      <td><code>CommonModule</code> / <code>NgIf</code></td>
-    </tr>
-    <tr>
-      <td>Else</td>
-      <td>inline <code>&#64;else</code> block</td>
-      <td><code>[ngIfElse]</code> + a <code>&lt;ng-template #ref&gt;</code></td>
-    </tr>
-    <tr>
-      <td>Then</td>
-      <td>the block body</td>
-      <td><code>[ngIfThen]</code> template ref (swappable)</td>
-    </tr>
-    <tr>
-      <td>Alias</td>
-      <td><code>; as x</code></td>
-      <td><code>; else e; let x</code> context</td>
-    </tr>
-    <tr>
-      <td>Type narrowing</td>
-      <td class="ok">stronger — the compiler knows the branch</td>
-      <td>weaker in some cases</td>
-    </tr>
-    <tr>
-      <td>Cost</td>
-      <td class="ok">no directive instance to instantiate</td>
-      <td>a directive per usage</td>
-    </tr>
-  </table>
-  <div class="tip">
-    Migrate a whole project automatically with
-    <code>ng generate &#64;angular/core:control-flow</code> — it rewrites <code>*ngIf</code>/<code>*ngFor</code>/<code
-      >*ngSwitch</code
+    <app-compare
+      leftTitle="Doesn't compile — user() called twice"
+      leftTone="bad"
+      rightTitle="Compiles — the alias captures the call"
+      rightTone="good"
+      note="TypeScript can't narrow through a function call. `user()` being truthy on the condition line says nothing about what a second, separate call to `user()` will return — as far as the compiler knows, it could return anything at all. `; as` (or `@let`) captures the result once, and it's *that* variable which gets narrowed. The same rule catches `@switch` and `@let` in their own lessons — one rule, three syntaxes."
     >
-    to the block syntax.
-  </div>
+      <div left>
+        <div class="code">
+          <pre>{{ noAliasSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ withAliasSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>The <code>; as</code> truthiness trap.</strong> <code>&#64;if (count(); as c)</code> hides on
-      <code>0</code>/<code>''</code>/<code>false</code>. Test explicitly for value-types.
-    </li>
-    <li>
-      <strong>State loss on toggle.</strong> A false <code>&#64;if</code> destroys the subtree — form input, scroll
-      position and child component state reset. Use <code>[hidden]</code> when that matters.
-    </li>
-    <li>
-      <strong>No bare <code>&#64;else</code>.</strong> <code>&#64;else</code> must attach to an <code>&#64;if</code>;
-      there's no standalone else.
-    </li>
-    <li>
-      <strong>Markup between branches breaks the chain.</strong> Anything (even whitespace text nodes with content)
-      between <code>&#125;</code> and <code>&#64;else</code> is a compile error.
-    </li>
-    <li>
-      <strong>Heavy work in both branches.</strong> Only the winning branch is instantiated — but a
-      <code>&#64;defer</code> or expensive child in a branch that flips often re-pays its setup each time it returns.
-    </li>
-  </ul>
+    <p>
+      Even once a value is captured, there's a second, unrelated way to lose it: <code>; as</code> only decides what
+      happens <strong>after</strong> the condition passes — it does nothing to change what counts as passing. Watch what
+      happens at exactly zero.
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why did my block vanish when the value is a valid <code>0</code>?</summary>
-    <div>
-      <code>&#64;if (n(); as x)</code> renders only when <code>n()</code> is truthy, and <code>0</code> is falsy. Use an
-      explicit condition like <code>&#64;if (n() !== null)</code> or <code>&#64;if (n() >= 0)</code>.
+    <div class="demo">
+      <p class="demo__title">Live — step the count down to 0</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="count.update((c) => c + 1)">+1</button>
+        <button (click)="count.update((c) => c - 1)">−1</button>
+        <button class="ghost" (click)="count.set(0)">Set to 0</button>
+        <span class="pill">count = {{ count() }}</span>
+      </div>
+      <div class="split">
+        <div class="split__box">
+          <h4><code>&#64;if (count(); as c)</code></h4>
+          @if (count(); as c) {
+            <div>
+              Items: <strong>{{ c }}</strong>
+            </div>
+          } @else {
+            <div class="bad">— block hidden —</div>
+          }
+          <div class="verdict bad">disappears at 0 (0 is falsy)</div>
+        </div>
+        <div class="split__box">
+          <h4><code>&#64;if (count() !== null)</code></h4>
+          @if (count() !== null) {
+            <div>
+              Items: <strong>{{ count() }}</strong>
+            </div>
+          } @else {
+            <div>— block hidden —</div>
+          }
+          <div class="verdict ok">shows 0 correctly (explicit test)</div>
+        </div>
+      </div>
+      <p class="demo__note">
+        Reach for <code>; as</code> to narrow an <em>object or nullable</em>. For a number or boolean, test explicitly
+        (<code>count() !== null</code>, <code>flag() === true</code>) so a falsy-but-valid value still renders.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Does <code>&#64;if</code> hide the element or remove it?</summary>
-    <div>
-      Remove. It creates the embedded view when true and destroys it when false, so DOM nodes and any state inside are
-      gone. CSS <code>display:none</code> / <code>[hidden]</code> keeps the element alive.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What replaces <code>*ngIf="x; else tpl"</code> with a <code>&lt;ng-template #tpl&gt;</code>?</summary>
-    <div>
-      An inline <code>&#64;else</code> block: <code>&#64;if (x) &#123; … &#125; &#64;else &#123; … &#125;</code>. No
-      template reference variable needed.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Do you need to import anything to use <code>&#64;if</code>?</summary>
-    <div>
-      No. Built-in control flow is part of the template compiler — unlike <code>*ngIf</code>, which needed
-      <code>CommonModule</code>/<code>NgIf</code>.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>&#64;if</code> / <code>&#64;else if</code> / <code>&#64;else</code> handle conditionals — built into the
-      template, no import.
-    </li>
-    <li>
-      <code>; as alias</code> captures and narrows the condition, but only when it's <strong>truthy</strong> — beware
-      <code>0</code>/<code>''</code>/<code>false</code>.
-    </li>
-    <li>
-      A false branch is <strong>destroyed</strong>: DOM and state reset. Use <code>[hidden]</code> to preserve state on
-      cheap toggles.
-    </li>
-    <li>
-      It replaces <code>*ngIf</code> with inline <code>&#64;else</code> (no then/else template refs) and stronger type
-      narrowing.
-    </li>
-  </ul>
+    <app-quiz
+      question="A signal holds `0`. You guard a paragraph with `@if (count(); as c)` — printing `c` inside it — and fall back to `@else`, which just prints 'none'. What actually renders?"
+      [options]="truthinessOptions"
+      followUp="Reproduce it above: press 'Set to 0' and watch the aliased block disappear while the explicit-test one keeps showing 0."
+    />
 
-  <p><a routerLink="/control-flow-for">Next: Control Flow — &#64;for →</a></p>
+    <div class="tip">
+      With the <code>async</code> pipe the alias earns its keep twice over — unwrap the observable once, narrow away
+      <code>null</code>, and reuse the value:
+      <div class="code" style="margin-top: 8px">
+        <pre>{{ asyncSample }}</pre>
+      </div>
+    </div>
+
+    <app-remember variant="rule">
+      <code>; as</code> isn't style. TypeScript cannot narrow through a <strong>function call</strong>, so a second,
+      separate call to <code>user()</code> inside the block fails to compile — capture the call's result once and narrow
+      that instead.
+    </app-remember>
+  </section>
+
+  <!-- ============ 5. UNDER THE HOOD — WHAT IT COMPILES TO ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>One &#64;if compiles to two functions and a switch.</h2>
+
+    <p>
+      Your template isn't interpreted at runtime. It's compiled, ahead of time, into ordinary functions — one per
+      branch, plus a single instruction in the parent that decides which branch, if any, is currently active.
+    </p>
+
+    <app-code-lab
+      file="greeting.template.js — what the compiler emitted"
+      [code]="compiledSample"
+      [notes]="compiledNotes"
+      notesLabel="What each piece is doing"
+      prompt="`user()` was already truthy last pass, and it's still truthy this pass. Does line 7 destroy and recreate the view anyway?"
+      output="No. Same slot number both times (0), so ɵɵconditional does nothing extra — it only destroys/creates when the slot it picks actually changes. An unchanged truthy value just means the branch's own update pass (line 19) reruns on the view that's already there, exactly like any other binding."
+      revealLabel="Reveal the answer"
+    />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Embedded view" kicker="one branch's DOM" tone="accent">
+        The nodes and bindings for exactly one branch. Building or throwing away one of these, as a whole, is the
+        entirety of what <code>&#64;if</code> does — nothing in between.
+      </app-tape-card>
+      <app-tape-card heading="ɵɵtemplate" kicker="declared once, at Create" tone="gold">
+        Registers a branch's template function under a slot number. Runs once per branch, ever — it does not create
+        anything by itself, it just makes the branch available to be created later.
+      </app-tape-card>
+      <app-tape-card heading="ɵɵconditional" kicker="the actual switch" tone="olive">
+        Runs on every Update pass. Picks a slot number; a changed slot destroys the old view and creates the new one.
+        This one call is the whole of <code>&#64;if</code> / <code>&#64;else</code>.
+      </app-tape-card>
+    </div>
+
+    <div class="warn">
+      <strong>"&#64;if is slow" is almost always about what's inside the branch, not the check itself.</strong>
+      Picking a slot is one comparison. What costs real time is whatever the winning branch's own update pass does — and
+      that runs every time a pass reaches it, same as any other binding.
+    </div>
+  </section>
+
+  <!-- ============ 6. SCHEDULING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Scheduling</p>
+    <h2>The condition doesn't run once. It reruns every pass that reaches it.</h2>
+
+    <p>
+      The line above is the part most explanations skip. A condition isn't asked once when the branch first appears —
+      it's asked again on every single change-detection pass that reaches this view, exactly like an interpolation or a
+      property binding would be. What decides whether that pass happens at all is a completely separate question, and
+      it's the one that catches people.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — a signal-gated branch against a plain-field-gated one</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="readySignal.set(!readySignal())">Toggle the signal</button>
+        <button class="ghost" (click)="flipPlainSilently()">Flip the plain field, silently</button>
+        <button class="ghost" (click)="nudge()">No-op click (still schedules a pass)</button>
+      </div>
+      <div class="split">
+        <div class="split__box">
+          <h4><code>&#64;if (readySignal())</code></h4>
+          @if (readySignal()) {
+            <div class="pill">ready</div>
+          } @else {
+            <div class="pill">not ready</div>
+          }
+        </div>
+        <div class="split__box">
+          <h4><code>&#64;if (readyPlain)</code></h4>
+          @if (readyPlain) {
+            <div class="pill">ready</div>
+          } @else {
+            <div class="pill">not ready</div>
+          }
+        </div>
+      </div>
+      <p class="demo__note">
+        Press the first button and the left panel flips immediately — reading <code>readySignal()</code> inside the
+        condition registered this view as a consumer, so <code>.set()</code> marks it and schedules the very pass that
+        reruns the condition. Press "flip the plain field, silently" as many times as you like: the right panel does not
+        move, because nothing about a plain assignment inside a <code>setTimeout</code> marks anything or schedules
+        anything. Now press the no-op button — which changes no state at all — and the right panel catches up in one
+        jump. The write was never lost. It was never announced, and something unrelated finally caused the pass that
+        reads it.
+      </p>
+    </div>
+
+    <app-flow
+      [steps]="schedulingSteps"
+      caption="A plain field never gets past step 1 — there's nothing to register, so nothing here fires on its own. The branch isn't wrong forever, though: the moment ANY pass reaches this view for any reason, step 4 happens anyway, and the condition catches up to reality."
+    />
+
+    <app-quiz
+      question="readyPlain starts false. You press 'flip the plain field, silently', then wait a few seconds without touching anything else. What does the plain-gated `@if` show?"
+      [options]="schedulingOptions"
+    />
+  </section>
+
+  <!-- ============ 7. KEEP THE CHECK ITSELF CHEAP ============ -->
+  <section>
+    <p class="bf-eyebrow">One more cost</p>
+    <h2>Don't let the condition do real work.</h2>
+
+    <p>
+      "Reruns on every reachable pass" has a sharper edge than it first looks: whatever expression sits inside
+      <code>&#64;if (…)</code> reruns too, in full, every single time — including any allocation it performs, whether or
+      not the branch is about to flip.
+    </p>
+
+    <app-compare
+      leftTitle="The condition does the work itself"
+      leftTone="bad"
+      rightTitle="A computed() does the work once"
+      rightTone="good"
+      note="Same result, different cost. The left version re-filters — and reallocates a throwaway array — on every pass that reaches this view, whether or not `items` changed at all. The right version's `computed()` only recalculates when `items` itself changes, and `@if` just reads a cached boolean back."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ expensiveConditionSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ cheapConditionSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      The same warning covers the branch's own <em>content</em>, not just its condition: only the winning branch is ever
+      instantiated, but a heavy child or a <code>&#64;defer</code> sitting inside a branch that flips often pays its
+      whole setup cost again on every single return trip.
+    </p>
+  </section>
+
+  <!-- ============ 8. DESTROYED STATE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The eviction, made concrete</p>
+    <h2>Losing a branch means losing everything inside it.</h2>
+
+    <p>
+      <code>&#64;if</code> compiles to an embedded view that is <em>created</em> when the condition turns truthy and
+      <em>destroyed</em> when it turns falsy. Destroyed means gone: the DOM nodes, any component instances inside them,
+      their signals, and any scroll/focus/typed-text state all reset the next time the block reappears — because there
+      is no "next time" for any of that, only a fresh start. Type into both boxes, hide, then show again.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — &#64;if vs [hidden]</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="showBoxes.set(!showBoxes())">{{ showBoxes() ? 'Hide' : 'Show' }} both</button>
+        <span class="pill">{{ showBoxes() ? 'visible' : 'hidden' }}</span>
+      </div>
+      <div class="split">
+        <div class="split__box">
+          <h4><code>&#64;if</code> — element removed</h4>
+          @if (showBoxes()) {
+            <input aria-label="type, then hide + show" placeholder="type, then hide + show" />
+            <app-toggle-child />
+          }
+          <div class="verdict bad">text lost, and a brand-new child was built</div>
+        </div>
+        <div class="split__box">
+          <h4><code>[hidden]</code> — element kept</h4>
+          <input aria-label="type, then hide + show" [hidden]="!showBoxes()" placeholder="type, then hide + show" />
+          <app-toggle-child [hidden]="!showBoxes()" />
+          <div class="verdict ok">text survives, and it's the same child throughout</div>
+        </div>
+      </div>
+      <p class="demo__note">
+        Watch the "instance #" number in the left panel: it climbs every single time you show the boxes, because a fresh
+        <code>ToggleChild</code> is constructed and fetches all over again. The right panel's number never moves after
+        the first render — <code>[hidden]</code> never destroyed it, so there was never anything to rebuild or refetch.
+      </p>
+    </div>
+
+    <app-predict
+      prompt="Close the panel, reopen it, close it, reopen it — four clicks total. How many times will the @if child's ngOnInit have run by the end, and what about the [hidden] child's?"
+      answer="The @if child: twice — once per time the branch turned true, because each reopen builds a fresh instance from nothing. The [hidden] child: still once — it was only ever constructed the first time either box appeared; hiding it never destroys it, so nothing re-runs its ngOnInit no matter how many times it's toggled."
+    />
+
+    <div class="tip">
+      <strong>The decision rule:</strong> cheap, frequent, and must keep state (a panel you flip constantly, a form
+      mid-edit) → <code>[hidden]</code>. Expensive and rare (a modal, a whole route-level page) → <code>&#64;if</code>.
+      Expensive <em>and</em> frequent → keep the actual data outside the branch entirely — a service-level signal, a
+      cached resource — so throwing the view away is cheap even though the view itself really is destroyed.
+    </div>
+  </section>
+
+  <!-- ============ 9. REFS DISAPPEAR TOO ============ -->
+  <section>
+    <p class="bf-eyebrow">One more consequence</p>
+    <h2>Even your reference to it disappears.</h2>
+
+    <p>
+      The eviction two sections back takes more than the DOM with it. Anything you asked Angular to remember
+      <em>about</em> that DOM — a <code>viewChild()</code>, the older <code>&#64;ViewChild</code> decorator — goes with
+      it too, and that's what catches people who assume a query just... has the answer, permanently, once.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — a viewChild() pointed inside an &#64;if</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="showRefBox.set(!showRefBox())">{{ showRefBox() ? 'Close' : 'Open' }} the box</button>
+        <button class="ghost" (click)="checkRef()">Check the ref right now</button>
+      </div>
+      @if (showRefBox()) {
+        <input
+          #refBox
+          aria-label="type something, then close the box"
+          placeholder="type something, then close the box"
+        />
+      }
+      <p class="demo__note" style="margin: 10px 0">
+        <span class="pill">{{ refCheck() }}</span>
+      </p>
+      <p class="demo__note">
+        Type something, press "check the ref" — found. Close the box, press it again — undefined, because the branch
+        destroyed it. Open the box back up and type something new: the log below reacts on its own the instant the query
+        actually has an answer, without you pressing anything.
+      </p>
+      <ol class="log">
+        @for (line of refAppearances(); track $index) {
+          <li>{{ line }}</li>
+        } @empty {
+          <li>— nothing yet —</li>
+        }
+      </ol>
+    </div>
+
+    <app-predict
+      prompt="You call showRefBox.set(true) and, on the very next line of the same function, read refBox(). Is the element already there?"
+      answer="No — still undefined. Writing to a signal schedules a change-detection pass; it doesn't run one synchronously. refBox() only starts returning the element once that pass has actually happened and built the branch's view, which can be a tick after the write that caused it. This is exactly why the log above is wired to an effect() rather than checked once in ngOnInit: an effect reruns automatically the moment the signal's value genuinely changes, so it never has to guess whether that tick has passed yet."
+    />
+
+    <div class="note">
+      The signal <code>viewChild()</code> handles this on its own — it's simply <code>undefined</code> until there's an
+      answer. The older decorator form, <code>&#64;ViewChild('refBox', &#123; static: true &#125;)</code>, isn't just
+      unnecessary here — it's invalid. <code>static: true</code> promises Angular the target exists before the very
+      first check, which nothing inside an <code>&#64;if</code>, <code>&#64;for</code> or <code>&#64;defer</code> can
+      ever promise. Reach for <a routerLink="/view-queries">the view-queries lesson</a> for the rest of that API.
+    </div>
+  </section>
+
+  <!-- ============ 10. COMING FROM *ngIf ============ -->
+  <section>
+    <p class="bf-eyebrow">Coming from *ngIf</p>
+    <h2>*ngIf still works. Here's what &#64;if replaced.</h2>
+
+    <p>
+      <code>*ngIf</code> is the old structural directive; <code>&#64;if</code> is template syntax that replaces it. The
+      most-missed detail in a migration is the <code>then</code>/<code>else</code> template-ref pattern —
+      <code>&#64;if</code> folds those extra <code>&lt;ng-template&gt;</code>s into inline branches.
+    </p>
+
+    <app-compare
+      leftTitle="Before — *ngIf with then/else refs"
+      leftTone="bad"
+      rightTitle="After — inline @if / @else"
+      rightTone="good"
+      note="Also note the small syntax difference right there in the alias: legacy `as user` uses a SPACE; `@if` uses a `; as user` semicolon. One of the smaller things that trips people up mid-migration."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ legacySample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ modernSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <table>
+      <caption class="bf-table-caption">
+        &#64;if against *ngIf, feature by feature
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>&#64;if (modern)</th>
+          <th>*ngIf (legacy)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Import</td>
+          <td class="ok">none — built in</td>
+          <td><code>CommonModule</code> / <code>NgIf</code></td>
+        </tr>
+        <tr>
+          <td>Else</td>
+          <td>inline &#64;else block</td>
+          <td><code>[ngIfElse]</code> + a <code>&lt;ng-template #ref&gt;</code></td>
+        </tr>
+        <tr>
+          <td>Then</td>
+          <td>the block body</td>
+          <td><code>[ngIfThen]</code> template ref (swappable)</td>
+        </tr>
+        <tr>
+          <td>Alias</td>
+          <td><code>; as x</code></td>
+          <td><code>; else e; let x</code> context</td>
+        </tr>
+        <tr>
+          <td>Type narrowing</td>
+          <td class="ok">stronger — the compiler knows the branch</td>
+          <td>weaker in some cases</td>
+        </tr>
+        <tr>
+          <td>Cost</td>
+          <td class="ok">no directive instance to instantiate</td>
+          <td>a directive per usage</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      Migrate a whole project automatically with <code>ng generate &#64;angular/core:control-flow</code> — it rewrites
+      <code>*ngIf</code>/<code>*ngFor</code>/<code>*ngSwitch</code> to the block syntax for you.
+    </div>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <strong>&#64;if evicts; it doesn't hide.</strong> A false branch's DOM, component instances and their state are
+        destroyed, not paused — reopening it builds something new from scratch.
+      </li>
+      <li>
+        The condition <strong>reruns every pass that reaches it</strong>, exactly like any other binding. A signal read
+        inside it registers this view as a consumer, so a <code>.set()</code> schedules the pass that catches it; a
+        plain field only catches up whenever something else causes one.
+      </li>
+      <li>
+        <strong>; as isn't a nicety.</strong> TypeScript can't narrow through a function call, so reading the same call
+        a second time inside the block fails to compile under strict templates — capture the result once and narrow that
+        instead.
+      </li>
+      <li>
+        A <strong>ref inside &#64;if disappears with the branch.</strong> <code>viewChild()</code> is
+        <code>undefined</code> while the branch is false, and for a beat right after it flips true — read it from an
+        <code>effect()</code>, not <code>ngOnInit</code>.
+      </li>
+      <li>
+        It replaced <strong>*ngIf</strong> with an inline &#64;else (no <code>&lt;ng-template&gt;</code>, no reference
+        to keep in sync), no import, and narrowing the compiler can actually rely on.
+      </li>
+    </ul>
+
+    <p><a routerLink="/control-flow-for">Next: Control Flow — &#64;for →</a></p>
+  </section>
 </article>
