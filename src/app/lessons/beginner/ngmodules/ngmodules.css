@@ -1,13 +1,8 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-}
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 160px;
-  white-space: nowrap;
-}
+/* Table, code panel and demo-button styling now comes from the shared
+   brain-friendly layer (src/brain-friendly.css §9, §14, §15), which is why
+   this file is empty — the old `.t` table rule that used to live here was a
+   per-lesson copy of a rule the theme now owns generically for any `<table>`
+   inside a `.lesson.bf` article.
+
+   Nothing on this page needs anything beyond what the layer and the shared
+   teaching/presentation components already provide. */

@@ -1,67 +1,178 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-  font-size: 0.9rem;
-}
-.t th,
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+/* Tables, callouts, demo panels, pills and the code window are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css §14-15), so this file only carries what
+   is genuinely specific to this lesson: the two hand-drawn diagrams and the JS/TS outcome
+   columns in the live bug-hunt demo. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAMS
+   Two SVGs: the cost-of-a-bug bar chart (the organising idea of the whole page) and the
+   superset Venn diagram (the coverage-sweep addition — TS contains JS, not the reverse).
+
+   Every colour comes from a --bf-* token, never a literal, so both diagrams follow the
+   reader's light/dark choice for free and stay on the same palette as everything else in
+   the layer. Class names deliberately match the `.dia-*` convention already established in
+   `arrays-objects-basics` so a reader who has seen one migrated lesson recognises the shape
+   in another — each lesson's styles are view-encapsulated, so there is no collision to
+   worry about reusing the names.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
 }
 
+.dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+/* The author's handwriting, inside the picture — same face and hue as `.bf-hand` in the
+   running text, so the margin voice sounds the same whether it's set in HTML or drawn. */
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 20px;
+  fill: var(--bf-accent);
+}
+
+/* --- 1a. The cost-of-a-bug bar chart --- */
+.dia-bar {
+  stroke-width: 1.5;
+}
+.dia-bar--good {
+  fill: var(--bf-olive-wash);
+  stroke: var(--bf-olive);
+}
+.dia-bar--warn {
+  fill: var(--bf-gold-wash);
+  stroke: var(--bf-gold);
+}
+.dia-bar--bad {
+  fill: var(--bf-danger-wash);
+  stroke: var(--bf-danger);
+}
+
+.dia-bar-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  fill: var(--bf-ink-2);
+}
+
+.dia-bar-cost {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.dia-bar-cost--good {
+  fill: var(--bf-olive);
+}
+.dia-bar-cost--warn {
+  fill: var(--bf-gold);
+}
+.dia-bar-cost--bad {
+  fill: var(--bf-danger);
+}
+
+.dia-bar-detail {
+  font-family: var(--font-body);
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+
+/* --- 1b. The superset Venn diagram --- */
+.dia-venn-outer {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+}
+
+.dia-venn-inner {
+  fill: var(--bf-olive-wash);
+  stroke: var(--bf-olive);
+  stroke-width: 2;
+}
+
+.dia-venn-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+}
+.dia-venn-title--outer {
+  fill: var(--bf-accent);
+}
+.dia-venn-title--inner {
+  fill: var(--bf-olive);
+}
+
+.dia-venn-sub {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  fill: var(--bf-ink-2);
+}
+
+/* ------------------------------------------------------------------
+   2. THE BUG-HUNT DEMO
+   The two outcome columns sit either side of a live, reactive <app-code-lab> — see the
+   component doc comment on `hunt` for why the code sample itself is bound reactively
+   rather than left as a static `.code` block.
+   ------------------------------------------------------------------ */
 .vs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 1rem;
+  margin: 1.3rem 0 0;
 }
 @media (max-width: 640px) {
   .vs {
     grid-template-columns: 1fr;
   }
 }
+
 .vs-col {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 0.88rem;
-}
-.vs-col h4 {
-  margin: 0 0 6px;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.vs-col.js {
-  border-left: 3px solid var(--amber);
-}
-.vs-col.ts {
-  border-left: 3px solid var(--accent);
+  border-radius: var(--bf-r);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-surface);
+  padding: 1rem 1.15rem;
+  font-size: 0.92rem;
+  box-shadow: var(--bf-shadow);
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+.vs-col h4 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+
+/* Danger for the JavaScript outcome (this column is always the one where the bug got
+   through), olive for the TypeScript outcome (the way that works) — reusing the layer's
+   own colour vocabulary rather than inventing a third meaning for a third hue. */
+.vs-col.js {
+  border-left: 4px solid var(--bf-danger);
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+.vs-col.ts {
+  border-left: 4px solid var(--bf-olive);
 }
