@@ -1,56 +1,12 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-td.bad {
-  color: #ef4444;
-}
+/* Everything else (tables, callouts, code panels, counters-as-pills) comes
+   from the brain-friendly layer (src/brain-friendly.css) now that this
+   lesson opts in via `class="lesson bf"` — see docs/CONTRIBUTING.md §2B.
+   Only the one bespoke demo widget below needs its own rule. */
 
-.counter-box {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 16px;
-  background: var(--bg-card);
-  min-width: 180px;
-}
-.counter-box small {
-  color: var(--text-muted);
-  font-size: 0.74rem;
-}
-.counter-box strong {
-  font-family: monospace;
-  font-size: 1.2rem;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
+.lesson.bf .measure-box {
   padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  border-radius: var(--bf-r);
+  background: var(--bf-surface-2);
+  border: 1px solid var(--bf-accent);
+  transition: width 0.15s ease;
 }

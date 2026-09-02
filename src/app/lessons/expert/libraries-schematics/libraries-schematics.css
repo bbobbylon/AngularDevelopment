@@ -1,65 +1,33 @@
-.chips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 0 0 12px;
-}
-.chips button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 6px 14px;
-  font-size: 0.84rem;
-}
-.chips button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.field-pill {
-  display: inline-block;
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 0.86rem;
-  padding: 4px 12px;
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--accent);
-  margin: 8px 0 6px;
+/* Libraries & Schematics — lesson-specific styling.
+
+   Tables, callouts, code panels and the whole teaching/presentation set are
+   themed by the brain-friendly layer (src/brain-friendly.css); the old
+   `.chips` / `.field-pill` / `table.cmp` / `.qa` blocks that used to live
+   here were per-lesson copies of rules the theme now owns, so this file is
+   nearly empty.
+
+   What's left is the one live demo's chip-picker buttons. The picker lives
+   in a plain `.bf-card`, not `.demo` — deliberately, because the shared
+   layer forces any plain `button` inside `.demo` into a solid accent pill
+   (brain-friendly.css §14), which would swallow the "which one is selected"
+   distinction this demo depends on. Outside `.demo`, the buttons fall back
+   to the shared `.ghost` look (border, transparent fill); these rules only
+   add the monospace "this is a package name" treatment and the selected
+   state on top of it. Colour and background only, so picking a different
+   package never resizes a chip or reflows the row. */
+
+.lesson.bf .bf-card .dep-picker button {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
 }
 
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
+.lesson.bf .bf-card .dep-picker button.dep-chip--on {
+  background: var(--bf-accent);
+  border-color: var(--bf-accent);
+  color: var(--bf-bg);
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+.lesson.bf .bf-card .dep-picker button.dep-chip--on:hover {
+  background: var(--bf-accent-bright);
+  color: var(--bf-bg);
 }

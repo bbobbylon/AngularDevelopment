@@ -486,7 +486,7 @@
 
     <table>
       <caption class="bf-table-caption">
-        Six traps, and the one-line fix for each
+        Seven traps, and the one-line fix for each
       </caption>
       <thead>
         <tr>
@@ -505,6 +505,14 @@
           <td>Guarding a lazy route with <code>canActivate</code> only</td>
           <td>The chunk still downloads before the guard denies entry.</td>
           <td>Use <code>canMatch</code> to skip the download entirely.</td>
+        </tr>
+        <tr>
+          <td><code>loadChildren</code> resolves to the wrong shape</td>
+          <td>
+            It must resolve to a <code>Routes</code> array — a named export or the file's default export. A component
+            class, an <code>NgModule</code>, or a plain object breaks at navigation time, not at build time.
+          </td>
+          <td>Export a <code>Routes</code> array (named or default) from the target file.</td>
         </tr>
         <tr>
           <td>A stray value import un-lazies a route</td>

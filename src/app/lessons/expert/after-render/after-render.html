@@ -1,239 +1,489 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Runtime &amp; Performance</span>
-  <h1>afterNextRender &amp; afterEveryRender</h1>
-  <p class="lead">
-    Some work can only happen after Angular has written to the DOM: measuring an element, wiring a chart library,
-    focusing a node. The render hooks are the sanctioned home for it — they run <em>after</em> rendering completes,
-    outside change detection, and <strong>never on the server</strong>. That last property quietly replaced a whole
-    genre of <code>isPlatformBrowser</code> boilerplate.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="6"
+    kicker="Angular Expert · Runtime"
+    title="afterRender & afterNextRender"
+    hand="or, the difference between “the DOM exists” and “you may touch it now”"
+    [stops]="stops"
+    [current]="5"
+  >
+    <p class="lead">
+      Some work can only happen after Angular has actually painted something: measuring an element, wiring up a chart
+      library, focusing a node. Getting that right is not one fact, it's three —
+      <strong>how many times</strong> a hook fires, <strong>what it's allowed to do</strong> while it runs, and
+      <strong>how long it lives</strong> — and this page proves each one with something you can click, not just
+      something you can read.
+    </p>
+  </app-chapter>
 
-  <h2>Why not ngAfterViewInit?</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>ngAfterViewInit / ngAfterViewChecked</th>
-      <th>afterNextRender / afterEveryRender</th>
-    </tr>
-    <tr>
-      <td>Runs during</td>
-      <td>change detection (mid-cycle)</td>
-      <td>after the whole render pass finishes</td>
-    </tr>
-    <tr>
-      <td>On the server (SSR)</td>
-      <td class="bad"><strong>yes</strong> — your DOM code crashes every request</td>
-      <td><strong>never</strong> — browser-only by contract</td>
-    </tr>
-    <tr>
-      <td>Sees final DOM of…</td>
-      <td>this component's view only</td>
-      <td>the entire application</td>
-    </tr>
-    <tr>
-      <td>Batching discipline</td>
-      <td>none — read/write interleaving is on you</td>
-      <td>explicit phases prevent layout thrashing</td>
-    </tr>
-    <tr>
-      <td>Registered from</td>
-      <td>lifecycle interface</td>
-      <td>any injection context (constructor, or pass an injector)</td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>{{ hooksSample }}</pre>
-  </div>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>The DOM exists in your template. Does it exist in the browser yet?</h2>
 
-  <h2>Live — measure after render</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div
-      #boxEl
-      [style.width.%]="boxWidth()"
-      style="
-        padding: 10px;
-        background: var(--bg-elevated);
-        border: 1px solid var(--violet);
-        border-radius: 8px;
-        transition: width 0.15s;
-      "
+    <p>
+      By the time <code>ngOnInit</code> runs, your template has already been compiled into the exact function you'll
+      meet in a minute — every element it describes has a slot reserved for it. It is extremely easy to read that as
+      "the DOM is ready", and it is not close to true:
+    </p>
+
+    <div class="code">
+      <pre>{{ earlyReadSample }}</pre>
+    </div>
+
+    <p>
+      Zero. Not wrong, not late — the browser genuinely has not laid this element out yet, because change detection has
+      not finished writing it into the page. <code>ngAfterViewInit</code> gets you further — the children now exist —
+      but it still runs <em>mid-check</em>, before the browser has necessarily settled the layout. And on the server it
+      runs against a <code>document</code> that either has no real layout engine behind it at all, or doesn't recognise
+      a browser-only API your third-party code assumes exists.
+      <span class="bf-break">Every request crashes the same way</span>, forever, until someone notices.
+    </p>
+
+    <p>Which is really three separate promises a lifecycle hook would need to make, and this one keeps none of them:</p>
+
+    <ul>
+      <li>How many times does it get to run — <strong>once, ever</strong>, is a different promise from every time.</li>
+      <li>
+        What is it allowed to do while it runs — reading a layout and writing one in the same breath is how you get the
+        browser doing extra work.
+      </li>
+      <li>How long does it stick around — <strong>forever</strong>, by default, whether you meant that or not.</li>
+    </ul>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two counters live further down this page. One is meant to fire exactly once; the other, on every single render.
+      Before you scroll — if a render hook writes to a signal that its own template reads, what happens to the page?
+      There's a live version to check yourself against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Render hooks are building inspectors, not architects.</h2>
+
+    <p>
+      Picture two different jobs on a construction site. The <strong>architects</strong> revise the blueprint constantly
+      — every change to the plan gets redrawn, whether or not a single brick has been laid — and they do this work in
+      the blueprint office, which doesn't need a real building to exist at all. That's change detection: it runs on
+      every platform, including the one with no browser and no real DOM, just a description of one being assembled into
+      a string of HTML.
+    </p>
+
+    <p>
+      The <strong>inspectors</strong> are a different role entirely. An inspector only ever walks a physical, finished
+      building — never the blueprint office — and that isn't a habit, it's the whole of the job.
+      <span class="term">Render hooks are the inspectors</span>: browser-only, by contract, not by convention.
+    </p>
+
+    <p>
+      Two shifts work the site. The <strong>final-walkthrough inspector</strong> — <code>afterNextRender</code> — shows
+      up exactly once, right after construction finishes, checks the wiring, hooks up the utilities, and never comes
+      back. The <strong>daily inspector</strong> — <code>afterEveryRender</code> — is back after every change to the
+      building, however small, and has to move fast, because there's always a next visit.
+    </p>
+
+    <p>
+      And there's a rule the whole site depends on: inspectors are never allowed to phone the architects and ask for a
+      blueprint revision. If they did, the architects would redraw it, the crew would rebuild, and the inspector would
+      be called back in to check the rebuild — forever.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Once. Every. Only when it's dirty.</strong> That's the whole cadence of the three render hooks, in the
+      order you'll meet them: <code>afterNextRender</code> fires once, <code>afterEveryRender</code> fires on every
+      render forever, and <code>afterRenderEffect</code> fires only on a render where something it actually reads
+      changed.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="hookTalk"
+      caption="What a finished render actually announces — and the one rule that keeps the announcement from becoming a loop."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Three functions, one shared contract.</h2>
+
+    <p>
+      All three hooks below share the same non-negotiables: register them from an injection context — a constructor is
+      the easy way; anywhere else, capture an <code>Injector</code> and pass it — and they simply do not exist as far as
+      the server is concerned. The callback is never invoked, not skipped, not caught,
+      <span class="key">never called</span>. What tells them apart is timing.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="afterNextRender" kicker="once" tone="gold">
+        Fires on the first render this component reaches, then never again. The right place for
+        <code>new ThirdPartyWidget(...)</code> — anything that must happen exactly once.
+      </app-tape-card>
+      <app-tape-card heading="afterEveryRender" kicker="every render" tone="accent">
+        Fires after every render the whole app produces, unconditionally, for as long as it's registered. No memory of
+        what changed — only that something did.
+      </app-tape-card>
+      <app-tape-card heading="afterRenderEffect" kicker="only when dirty" tone="olive">
+        A reactive computation wearing a render hook's timing. Runs at least once, then only on a render where a signal
+        it reads actually changed.
+      </app-tape-card>
+    </div>
+
+    <app-flow
+      caption="One application render pass, start to finish. The last four steps are the hooks — every one of them starts only once the CD pass before it has fully finished, unlike `ngAfterViewChecked`, which used to run mid-check."
+      [steps]="pipelineSteps"
+    />
+
+    <app-code-lab
+      file="widget-host.component.ts — the two hooks you'll use most"
+      [code]="hooksSample"
+      [notes]="hooksNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 4. QUESTION 1: FREQUENCY ============ -->
+  <section>
+    <p class="bf-eyebrow">Question 1 of 3 · frequency</p>
+    <h2>How many times does a hook actually run?</h2>
+
+    <app-compare leftTitle="afterNextRender — once" rightTitle="afterEveryRender — every render">
+      <div left>
+        <p>
+          Choose this when the work is genuinely one-shot: constructing a third-party widget, focusing an element on
+          entry, reading a value you'll never need again. Getting called a second time would be a bug, not a feature.
+        </p>
+      </div>
+      <div right>
+        <p>
+          Choose this when the DOM needs to track something continuously and nothing else can watch it for you — syncing
+          a <code>&lt;canvas&gt;</code>'s pixel size to its CSS size, say. It has to justify running on
+          <em>every</em> render of the entire app, so keep the body trivial.
+        </p>
+      </div>
+    </app-compare>
+
+    <p>
+      <code>afterRenderEffect</code>, next, is the answer to "I want the second one, but only when something specific
+      changed" — the middle ground neither of these covers.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the first correct measurement</p>
+      <div #boxEl class="measure-box" [style.width.%]="boxWidth()">I am {{ measuredPx() }} px wide.</div>
+      <div class="row" style="margin-top: 12px">
+        <input aria-label="Box width" type="range" min="20" max="100" [value]="boxWidth()" (input)="resize($event)" />
+        <button class="ghost" (click)="measure()">Re-measure</button>
+      </div>
+      <p class="demo__note">
+        That first number came from <code>afterNextRender</code> — the earliest moment this element is guaranteed to
+        exist, laid out, in a real browser. Read it in <code>ngOnInit</code> instead and you get <code>0</code>; read it
+        during SSR and there's no layout engine behind <code>document</code> to ask at all.
+      </p>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — proof of the cadence above, not just the claim</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 12px">
+        <span class="pill">afterNextRender ran: <strong #onceEl>0</strong></span>
+        <span class="pill">afterEveryRender ran: <strong #everyEl>0</strong></span>
+        <span class="pill">afterRenderEffect ran: {{ effectRuns() }}</span>
+      </div>
+      <div class="row">
+        <button (click)="ticks.set(ticks() + 1)">Trigger a render (tick {{ ticks() }})</button>
+      </div>
+      <p class="demo__note">
+        Press the tick button a few times without touching the slider: the middle counter climbs on every press, the
+        first stays at 1, and the third doesn't move — it only reads <code>boxWidth()</code>, and the tick button never
+        touches it. Now drag the slider: the third counter finally joins in, because that's the one signal it actually
+        depends on.
+      </p>
+    </div>
+
+    <app-remember variant="rule">
+      Write to the DOM inside <code>afterEveryRender</code> / <code>afterNextRender</code>; write to a signal only if
+      you're certain the hook doesn't read it back. The first two counters above go straight to
+      <code>textContent</code> for exactly that reason — a signal write there would mark this view dirty, which
+      schedules the very render that runs the hook again.
+    </app-remember>
+
+    <app-quiz
+      question="You click 'Trigger a render' three times without touching the slider. What do the three counters show afterward?"
+      [options]="quizOptions"
+      followUp="Try it above, then drag the slider and watch the third counter finally join in."
+    />
+  </section>
+
+  <!-- ============ 5. QUESTION 2: DISCIPLINE ============ -->
+  <section>
+    <p class="bf-eyebrow">Question 2 of 3 · discipline</p>
+    <h2>What is a hook allowed to do while it runs?</h2>
+
+    <p>
+      Interleaving DOM reads and writes forces the browser into repeated synchronous layout passes — write, then a read
+      forces layout, then a write invalidates it, then a read forces it again. The phases you saw in the flow diagram
+      above exist to stop that: every hook's work is sorted into one of four buckets, and every bucket runs app-wide
+      before the next one starts.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        The four phases, in the order they run after every single render
+      </caption>
+      <thead>
+        <tr>
+          <th>Phase</th>
+          <th>Order</th>
+          <th>For</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>earlyRead</code></td>
+          <td>1</td>
+          <td>reading layout needed to <em>compute</em> a write — measure before you reposition</td>
+        </tr>
+        <tr>
+          <td><code>write</code></td>
+          <td>2</td>
+          <td>DOM writes — styles, attributes, canvas sizing</td>
+        </tr>
+        <tr>
+          <td><code>mixedReadWrite</code></td>
+          <td>3 — the default</td>
+          <td>
+            genuinely interleaved read/write, and where every unphased bare callback lands, from any of the three hook
+            functions
+          </td>
+        </tr>
+        <tr>
+          <td><code>read</code></td>
+          <td>4</td>
+          <td>final measurements, after every write has landed</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-code-lab
+      file="tooltip.component.ts — afterEveryRender's phases"
+      [code]="phasesSample"
+      [notes]="phasesNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-predict
+      prompt="Two hooks are registered with plain callbacks — no phase object. One calls `getBoundingClientRect()`; the other sets a `style.transform`. Does the app-wide phase system still batch all the reads before all the writes?"
+      answer="No. A bare callback — for any of the three hook functions — always runs in `mixedReadWrite`, the phase deliberately meant for reads and writes that cannot be pulled apart. Batching only happens for work you've explicitly sorted into `earlyRead` and `write`; two unphased hooks interleave exactly like two `ngAfterViewChecked` callbacks always did."
+      revealLabel="Reveal the answer"
+    />
+
+    <p>
+      <code>afterRenderEffect</code> uses the same four names, but the contract underneath is different enough to trip
+      you up if you assume it's identical:
+    </p>
+
+    <app-code-lab
+      file="tooltip.component.ts — afterRenderEffect's phases"
+      [code]="effectPhasesSample"
+      [notes]="effectPhasesNotes"
+      notesLabel="What each line is doing"
+      prompt="A sibling component's unrelated signal changes, forcing a render pass elsewhere in the app. Does this hook's `write` run again?"
+      output="No — nothing this hook reads changed, so neither phase is dirty and neither one runs. A render happening somewhere in the app is not, by itself, a reason for `afterRenderEffect` to do anything; that's exactly the gap between this and `afterEveryRender`."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 6. QUESTION 3: LIFETIME ============ -->
+  <section>
+    <p class="bf-eyebrow">Question 3 of 3 · lifetime</p>
+    <h2>How long does a hook stick around?</h2>
+
+    <p>
+      Every one of these functions returns an <code>AfterRenderRef</code>, and almost nobody keeps it — because by
+      default, each hook ties its own teardown to the nearest <code>DestroyRef</code> for you. That default has one
+      sharp edge: "nearest" means whichever injector you handed it, not necessarily the component you meant.
+    </p>
+
+    <app-predict
+      prompt="A component injects the app's root `EnvironmentInjector` and registers `afterEveryRender(() => this.sync(), { injector: rootInjector })`. The router destroys this component a minute later. Does the hook stop?"
+      answer="No. `manualCleanup` defaults to `false`, so Angular does try to auto-cancel the hook — but it ties that cleanup to the `DestroyRef` reachable from the injector you PASSED, not to the component. The root injector's `DestroyRef` only fires when the whole application shuts down, so the hook keeps running against a `nativeElement` that no longer exists in the document. Pass the component's own injector — just omit `injector` entirely — or call `.destroy()` yourself from the component's own `DestroyRef.onDestroy`."
+      revealLabel="Reveal the answer"
+    />
+
+    <p>
+      Two different kinds of "stop" live on these hooks, and they aren't interchangeable.
+      <code>ref.destroy()</code> shuts the whole hook down — no phase of it runs again. <code>onCleanup</code>,
+      available inside every phase callback (including <code>afterRenderEffect</code>'s), is smaller: it runs right
+      before <em>that phase's next invocation</em>, or on destroy if there never is one — the tool for undoing one run's
+      side effect before the next one starts.
+    </p>
+
+    <div class="code">
+      <pre>{{ manualCleanupSample }}</pre>
+    </div>
+
+    <p>
+      Pass <code>&#123; manualCleanup: true &#125;</code> only when you intend to call <code>.destroy()</code> yourself
+      — otherwise Angular already wires it up for you, which is correct almost all of the time.
+    </p>
+  </section>
+
+  <!-- ============ 7. THE COMPLETE RECIPE ============ -->
+  <section>
+    <p class="bf-eyebrow">Putting the three together</p>
+    <h2>The widget recipe hasn't changed shape. One tool in it has.</h2>
+
+    <p>
+      Create once, sync continuously, tear down on destroy — that structure is unchanged. What moved is which hook does
+      the middle step:
+    </p>
+
+    <app-compare
+      leftTitle="Before — a nested `effect()`"
+      leftTone="bad"
+      rightTitle="Now — `afterRenderEffect`"
+      rightTone="good"
+      note="Creation is still `afterNextRender`'s job — only the update step moved."
     >
-      I am {{ measuredPx() }} px wide.
-    </div>
-    <div class="row" style="margin-top: 12px">
-      <input aria-label="Box width" type="range" min="20" max="100" [value]="boxWidth()" (input)="resize($event)" />
-      <button class="ghost" (click)="measure()">Re-measure</button>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The initial width was read in <code>afterNextRender</code> — the earliest moment the element measurably exists.
-      Reading it in <code>ngOnInit</code>
-      returns 0 (not laid out yet); on the server it would throw.
-    </p>
-  </div>
-
-  <h2>Live — proof that afterEveryRender means EVERY render</h2>
-  <div class="demo">
-    <p class="demo__title">Live — run counters (written straight to the DOM)</p>
-    <div class="row">
-      <div class="counter-box">
-        <small>afterNextRender ran</small>
-        <strong #onceEl>0</strong>
+      <div left>
+        <div class="code">
+          <pre>{{ recipeOldSample }}</pre>
+        </div>
       </div>
-      <div class="counter-box">
-        <small>afterEveryRender ran</small>
-        <strong #everyEl>0</strong>
+      <div right>
+        <div class="code">
+          <pre>{{ recipeNewSample }}</pre>
+        </div>
       </div>
-      <button (click)="ticks.set(ticks() + 1)">Trigger a render (tick {{ ticks() }})</button>
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Every button click (and the slider above) re-renders the page — the right counter climbs, the left one stays at 1.
-      The counters are written with
-      <code>textContent</code> <em>inside the hook itself</em>: updating a signal there would schedule another render,
-      which runs the hook again… an infinite loop. Render hooks read the DOM and write the DOM — they should not write
-      state that re-triggers rendering.
+    </app-compare>
+
+    <p>
+      So which one is "right"? Creation still belongs to <code>afterNextRender</code> — you want it to run exactly once,
+      tied to nothing, and <code>afterRenderEffect</code>'s "at least once, then only when dirty" contract is a worse
+      fit for a line that must never repeat. Reach for <code>afterRenderEffect</code> the moment your render-hook code
+      exists to keep the DOM in sync with a signal — which, in practice, is most of what used to live inside that nested
+      <code>effect()</code>, injector and all.
     </p>
-  </div>
 
-  <h2>Phases — the layout-thrashing defense</h2>
-  <p>
-    Interleaving DOM reads and writes forces the browser into repeated synchronous layout passes (write → read forces
-    layout → write invalidates it → read forces it again…). The hooks take a phase object and run all registered
-    callbacks phase by phase across the whole app — every read batched before every write:
-  </p>
-  <div class="code">
-    <pre>{{ phasesSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Phase</th>
-      <th>Order</th>
-      <th>For</th>
-    </tr>
-    <tr>
-      <td><code>earlyRead</code></td>
-      <td>1</td>
-      <td>read layout needed to <em>compute</em> a write (measure before reposition)</td>
-    </tr>
-    <tr>
-      <td><code>write</code></td>
-      <td>2</td>
-      <td>DOM writes — styles, attributes, canvas sizing</td>
-    </tr>
-    <tr>
-      <td><code>mixedReadWrite</code></td>
-      <td>3</td>
-      <td>genuinely interleaved read/write (avoid if separable)</td>
-    </tr>
-    <tr>
-      <td><code>read</code></td>
-      <td>4</td>
-      <td>final measurements after all writes landed</td>
-    </tr>
-  </table>
+    <app-code-lab
+      file="chart-host.component.ts — the complete recipe, current shape"
+      [code]="recipeSample"
+      [notes]="recipeNotes"
+      notesLabel="What each line is doing"
+      [prompt]="recipePrompt"
+      [output]="recipeOutput"
+      revealLabel="Reveal the answer"
+    />
+  </section>
 
-  <h2>The third-party widget recipe</h2>
-  <p>
-    The complete lifecycle for wrapping a non-Angular library (chart, map, editor) — creation after first render,
-    updates via effect, teardown on destroy:
-  </p>
-  <div class="code">
-    <pre>{{ chartSample }}</pre>
-  </div>
+  <!-- ============ 8. THE RIGHT TOOL FOR THE JOB ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>The right tool for the job.</h2>
 
-  <h2>The right tool for the job</h2>
-  <table class="cmp">
-    <tr>
-      <th>Need</th>
-      <th>Tool</th>
-    </tr>
-    <tr>
-      <td>One-time DOM setup / measurement</td>
-      <td><code>afterNextRender</code></td>
-    </tr>
-    <tr>
-      <td>Keep DOM in sync after each render</td>
-      <td><code>afterEveryRender</code> (tiny callbacks, right phase)</td>
-    </tr>
-    <tr>
-      <td>React to an <em>element</em> resizing (not renders)</td>
-      <td><code>ResizeObserver</code> — renders don't imply resizes, resizes don't imply renders</td>
-    </tr>
-    <tr>
-      <td>Per-frame animation work</td>
-      <td><code>requestAnimationFrame</code> loop — render hooks fire per render, not per frame</td>
-    </tr>
-    <tr>
-      <td>React to signal changes (no DOM)</td>
-      <td><code>effect()</code> — reaching for render hooks without DOM work is a smell</td>
-    </tr>
-  </table>
+    <table>
+      <thead>
+        <tr>
+          <th>Need</th>
+          <th>Tool</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>One-time DOM setup or measurement</td>
+          <td><code>afterNextRender</code></td>
+        </tr>
+        <tr>
+          <td>Keep the DOM in sync after every single render, unconditionally</td>
+          <td><code>afterEveryRender</code> — tiny callbacks, right phase</td>
+        </tr>
+        <tr>
+          <td>Keep the DOM in sync with a specific signal</td>
+          <td><code>afterRenderEffect</code> — dependency-gated, guaranteed to run after render</td>
+        </tr>
+        <tr>
+          <td>React to an <em>element</em> resizing, not a render</td>
+          <td><code>ResizeObserver</code> — renders don't imply resizes, resizes don't imply renders</td>
+        </tr>
+        <tr>
+          <td>Per-frame animation work</td>
+          <td><code>requestAnimationFrame</code> loop — render hooks fire per render, not per frame</td>
+        </tr>
+        <tr>
+          <td>React to signal changes with no DOM involved</td>
+          <td><code>effect()</code> — reaching for a render hook without DOM work is a smell</td>
+        </tr>
+      </tbody>
+    </table>
 
-  <h2>Pitfalls</h2>
-  <ul>
-    <li>
-      <strong>NG0203 outside injection context</strong> — calling the hooks in a click handler or timer. Register in the
-      constructor, or pass <code>&#123; injector &#125;</code> captured earlier.
-    </li>
-    <li>
-      <strong>Signal writes inside the hook</strong> — schedules another render → runs the hook again → loop. Write to
-      the DOM, or guard with real equality.
-    </li>
-    <li>
-      <strong>Measuring too early anyway</strong> — fonts and images load after first render and change layout; for
-      size-sensitive work pair the initial measurement with a <code>ResizeObserver</code>.
-    </li>
-    <li>
-      <strong>Heavy afterEveryRender callbacks</strong> — they run on <em>every</em> render of the whole app; treat them
-      like code inside a hot loop.
-    </li>
-    <li>
-      <strong>Old name:</strong> <code>afterRender</code> was renamed <code>afterEveryRender</code> — you'll see both in
-      code from different years.
-    </li>
-  </ul>
+    <p>Pitfalls, collected:</p>
+    <ul>
+      <li>
+        <strong>NG0203 outside an injection context</strong> — calling a hook from a click handler or a timer. Register
+        in the constructor, or pass <code>&#123; injector &#125;</code> captured earlier.
+      </li>
+      <li>
+        <strong>A signal write inside the wrong hook</strong> — schedules another render, which runs the hook again,
+        forever. True without qualification for <code>afterEveryRender</code>/<code>afterNextRender</code>, whose bodies
+        run unconditionally: write to any signal your own templates read there and each render creates the next one.
+        <code>afterRenderEffect</code> narrows the danger to signals it itself reads — see the "rule" box above.
+      </li>
+      <li>
+        <strong>Measuring too early anyway</strong> — fonts and images load after the first render and change layout.
+        For anything size-sensitive, pair the initial read with a <code>ResizeObserver</code>.
+      </li>
+      <li>
+        <strong>Heavy afterEveryRender callbacks</strong> — they run on <em>every</em> render of the whole app; treat
+        the body like code inside a hot loop.
+      </li>
+      <li>
+        <strong>Old name:</strong> <code>afterRender</code> was renamed <code>afterEveryRender</code> — you'll see both
+        in code from different years, meaning the same thing.
+      </li>
+    </ul>
+  </section>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why is <code>afterNextRender</code> the SSR-safe home for DOM code?</summary>
-    <div>
-      Its contract is browser-only — the callback simply never executes during server rendering, so
-      <code>window</code>/<code>document</code> access can't crash the server. It replaces the manual
-      <code>isPlatformBrowser</code> guard for post-render work.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What is layout thrashing, and how do the phases prevent it?</summary>
-    <div>
-      Alternating writes and layout reads forces the browser to recompute layout synchronously multiple times per frame.
-      The phase system batches every registered callback app-wide: all earlyReads, then all writes, then reads — one
-      layout pass instead of N.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does setting a signal inside <code>afterEveryRender</code> hang the app?</summary>
-    <div>
-      The write schedules change detection; the render completes and runs <code>afterEveryRender</code> again, which
-      writes again — an infinite render loop. Render hooks output to the DOM, not to reactive state.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Chart must re-render when its data signal changes AND survive SSR. Structure?</summary>
-    <div>
-      Create the chart in <code>afterNextRender</code>; inside it, start an <code>effect</code> (with the captured
-      injector) that reads the data signal and calls <code>chart.update()</code>; destroy via
-      <code>DestroyRef.onDestroy</code>. Creation, updates and teardown each use the right primitive.
-    </div>
-  </details>
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Render hooks run after rendering, outside CD, browser-only — the sanctioned home for DOM work.</li>
-    <li><code>afterNextRender</code> = one-shot setup; <code>afterEveryRender</code> = per-render sync, kept tiny.</li>
-    <li>Phases (earlyRead → write → mixedReadWrite → read) batch app-wide to kill layout thrashing.</li>
-    <li>Don't write reactive state from the hooks; don't use them where ResizeObserver/rAF/effect fit better.</li>
-    <li>They need an injection context — constructor, or pass an injector.</li>
-  </ul>
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-  <p><a routerLink="/ssr">Next: Server-Side Rendering →</a></p>
+    <ul>
+      <li>
+        Change detection runs everywhere, including the server. <strong>Render hooks are the narrower promise</strong>
+        — browser-only, always after the DOM is real, never mid-check.
+      </li>
+      <li>
+        <code>afterNextRender</code> is once; <code>afterEveryRender</code> is every render, forever;
+        <code>afterRenderEffect</code> is only when something it reads changed.
+        <strong>Once, every, only-when-dirty</strong> — the whole cadence in three words.
+      </li>
+      <li>
+        A bare callback always lands in <code>mixedReadWrite</code>. <strong>Batching only happens</strong> when you
+        explicitly sort your work into <code>earlyRead</code> and <code>write</code>.
+      </li>
+      <li>
+        Never write, inside a hook, to a signal that same hook — or its own template — reads.
+        <strong>That's the one way to make an inspector call the architects back.</strong>
+      </li>
+      <li>
+        Hooks clean themselves up via <code>DestroyRef</code> by default —
+        <strong>but only relative to whichever injector you gave them.</strong> Hand them the wrong one and they outlive
+        the component.
+      </li>
+      <li>
+        The chart-host recipe hasn't changed its shape — create once, sync continuously, tear down on destroy —
+        <strong>only which tool does the middle step.</strong>
+      </li>
+    </ul>
+
+    <p><a routerLink="/ssr">Next: Server-Side Rendering →</a></p>
+  </section>
 </article>

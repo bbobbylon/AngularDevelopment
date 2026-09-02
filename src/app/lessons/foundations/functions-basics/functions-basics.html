@@ -484,6 +484,14 @@ total = bill + tip({{ bill() }}, {{ percent() }})   →   {{ total() }}</pre>
       click; RxJS, effects and route guards are callbacks end to end. Get comfortable passing functions and half the
       framework's API surface stops looking mysterious.
     </p>
+
+    <p>
+      There's a quieter payoff too, easy to miss once you're chasing callbacks: a function lets you
+      <span class="key">name an idea</span>. <code>calculateTotal()</code>, <code>isLoggedIn()</code>,
+      <code>sendEmail()</code> read like sentences and hide their messy insides from whoever calls them. Most good
+      programs turn out to be a lot of small, well-named functions calling each other — Angular itself is thousands of
+      them.
+    </p>
   </section>
 
   <!-- ============ 10. PURE VS SIDE-EFFECTING ============ -->

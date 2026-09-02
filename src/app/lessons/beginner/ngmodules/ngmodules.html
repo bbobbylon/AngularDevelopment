@@ -288,7 +288,8 @@ export function provideFeature(config: FeatureConfig) {{ '{' }}
       </app-tape-card>
       <app-tape-card heading="SharedModule" kicker="reusable pieces" tone="accent">
         Declares and <strong>exports</strong> reusable components, pipes and directives so every feature module can
-        import it. Never put a singleton service here — five importers means five instances.
+        import it. Never put a singleton service here — five <strong>lazy-loaded</strong> importers means five
+        instances.
       </app-tape-card>
       <app-tape-card heading="CoreModule" kicker="app-wide singletons" tone="blue">
         Services and one-off things (a nav bar) meant to exist exactly once, imported <strong>only</strong> by
@@ -341,9 +342,11 @@ export function provideFeature(config: FeatureConfig) {{ '{' }}
     </p>
 
     <p>
-      It's the injector half that hides a genuine surprise. Every NgModule — including every lazy-loaded feature module
-      — creates its own <span class="term">environment injector</span>, entirely separate from the compilation-scope
-      question above.
+      It's the injector half that hides a genuine surprise. An eagerly imported NgModule doesn't get an injector of its
+      own at all — its <code>providers</code> flatten straight into the same root injector as everything else, so
+      there's no surprise there. A <strong>lazy-loaded</strong> feature module is the exception: because the router
+      instantiates it separately, after the app is already running, it gets its own
+      <span class="term">environment injector</span>, entirely separate from the compilation-scope question above.
     </p>
 
     <app-predict

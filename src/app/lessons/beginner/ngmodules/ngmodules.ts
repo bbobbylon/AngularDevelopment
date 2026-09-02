@@ -147,7 +147,7 @@ imports: [Greeting]`;
   /** Line-by-line walkthrough of {@link standaloneSample}. */
   protected readonly standaloneNotes: CodeNote[] = [
     {
-      line: 3,
+      line: 2,
       text: 'No `standalone: false` here — this IS the default, the unwritten shape every lesson before this one in this app has used.',
     },
     {
@@ -155,11 +155,11 @@ imports: [Greeting]`;
       text: "The component's OWN `imports`, not a module's. `CommonModule` — or, more idiomatically today, nothing at all, since built-in `@if`/`@for` need no import — is declared right where it's used, instead of inherited from whichever module happened to declare this component.",
     },
     {
-      line: 6,
+      line: 7,
       text: 'Nothing wraps this class. `Greeting` IS the unit: there is no `GreetingModule` to also write, keep in sync, or forget to export from.',
     },
     {
-      line: 9,
+      line: 10,
       text: "Using it somewhere else is one line: add the class itself to the consumer's `imports` array. No `exports` bucket and no import-the-module-that-exports-it indirection — the two-door rule from earlier collapses into a single door.",
     },
   ];

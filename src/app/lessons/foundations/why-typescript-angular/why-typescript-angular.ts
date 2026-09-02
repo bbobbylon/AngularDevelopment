@@ -37,7 +37,7 @@ greet(42);`,
     notes: [
       {
         line: 1,
-        text: '`name` has no type — nothing after it says what kind of value is allowed. In a `.ts` file with no `noImplicitAny`, an untyped parameter like this is silently typed **`any`**, which turns checking off for it completely.',
+        text: '`name` has no type — nothing after it says what kind of value is allowed. In a `.ts` file with no `noImplicitAny`, an untyped parameter like this is **silently** typed `any`, which turns checking off for it completely.',
       },
       {
         line: 2,
@@ -294,7 +294,7 @@ double(21);`;
   protected readonly implicitAnyQuizOptions: QuizOption[] = [
     {
       text: 'TypeScript refuses to compile — passing a number where a string is expected is exactly what it exists to catch.',
-      why: "This is the trap in believing 'it's a `.ts` file' is the safety. Without an annotation, `id`'s type defaults to **implicit `any`**, which turns checking off for that parameter entirely — TypeScript raises nothing because it isn't checking. Add `id: string` to the signature and this exact call would fail to compile.",
+      why: "This is the trap in believing 'it's a `.ts` file' is the safety. Without an annotation, `id`'s type defaults to **implicit** `any`, which turns checking off for that parameter entirely — TypeScript raises nothing because it isn't checking. Add `id: string` to the signature and this exact call would fail to compile.",
     },
     {
       text: 'It compiles, and crashes at runtime with `id.trim is not a function` — the same failure as if the file were still `.js`.',
@@ -307,7 +307,7 @@ double(21);`;
     },
     {
       text: "It fails to compile with `Property 'trim' does not exist on type 'number'`.",
-      why: "That's the message you'd get if `id` were explicitly typed `number` — but it isn't typed at all here. An **inferred or implicit `any`** parameter gets no such check. This describes what `noImplicitAny` would force, not what a bare `.ts` file with no annotations gives you for free.",
+      why: "That's the message you'd get if `id` were explicitly typed `number` — but it isn't typed at all here. An **inferred or implicit** `any` parameter gets no such check. This describes what `noImplicitAny` would force, not what a bare `.ts` file with no annotations gives you for free.",
     },
   ];
 
