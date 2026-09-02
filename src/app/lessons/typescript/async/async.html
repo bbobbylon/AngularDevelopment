@@ -254,6 +254,15 @@ console.log('2: sync');</pre>
       followUp="return p hands the still-pending promise to the caller and pops this function's try/catch off the stack in the same instant — the rejection happens later, with nobody home."
     />
 
+    <div class="note">
+      A rejection has to exist before <code>return await</code> can save it — and <code>fetch()</code> hands you fewer
+      of those than people assume. Its promise rejects only on a <strong>network</strong> failure — DNS, offline, CORS.
+      A <code>404</code> or <code>500</code> is still a normal, fulfilled response: <code>res.ok</code> is
+      <code>false</code>, but nothing throws. Skip the check —
+      <code>if (!res.ok) throw new Error(`HTTP ${{ '{' }}res.status{{ '}' }}`);</code> — and a failed request sails
+      straight through your <code>catch</code> block untouched.
+    </div>
+
     <p>
       That's the famous trap. The far more common one doesn't involve <code>try</code>/<code>catch</code> at all — it's
       a single method call that quietly never waits for anything:

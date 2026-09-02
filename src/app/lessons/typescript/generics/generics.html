@@ -1,259 +1,532 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Type System</span>
-  <h1>Generics</h1>
-  <p class="lead">
-    Generics let one piece of code serve <em>many</em> types without losing safety. A type parameter like
-    <code>T</code> is a variable in type space, filled in per call site — and almost always filled in by
-    <strong>inference</strong>, not by you. They're the <code>&lt;T&gt;</code> threaded through all of Angular:
-    <code>signal&lt;T&gt;</code>, <code>Observable&lt;T&gt;</code>, <code>FormControl&lt;T&gt;</code>,
-    <code>HttpClient.get&lt;T&gt;</code>. This page covers how inference decides, how constraints unlock members, and
-    the one generic pattern that <em>looks</em> safe but is secretly a cast.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="TypeScript · Type System"
+    title="Generics"
+    hand="or, how one function learns to keep every caller's secret"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      A <span class="term">generic</span> is a promise, not a mystery: hand a function or a class a value of
+      <em>some</em> type, and it hands you back something built from that <strong>exact</strong> type — never a looser
+      one it made up along the way. <code>T</code> is a variable, but it lives in type space, and — the part almost
+      everyone misses — you almost never fill it in yourself. TypeScript reads it straight off your arguments. Every
+      <code>&lt;T&gt;</code> threaded through Angular — <code>signal&lt;T&gt;</code>, <code>Observable&lt;T&gt;</code>,
+      <code>FormControl&lt;T&gt;</code>, <code>HttpClient.get&lt;T&gt;</code> — is running on exactly the rules this
+      lesson covers, plus the one trap that looks identical to safety and isn't.
+    </p>
+  </app-chapter>
 
-  <h2>Generic functions — and how T is actually inferred</h2>
-  <div class="code">
-    <pre>
-function identity&lt;T&gt;(value: T): T {{ '{' }} return value; {{ '}' }}
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2><code>any</code> works. It also stops checking anything.</h2>
 
-const a = identity('hi');          // T = string (widened from 'hi')
-const b = identity(42);            // T = number
-const c = identity&lt;boolean&gt;(true); // explicit — rarely needed</pre>
-  </div>
-  <p>Inference follows a few rules worth knowing by name:</p>
-  <ul>
-    <li>
-      <strong>Arguments drive it.</strong> T is solved from the argument types at the call. If T appears in several
-      parameters, the compiler unions the candidates and picks the best common supertype —
-      <code>pair(1, 'a')</code> against <code>pair&lt;T&gt;(a: T, b: T)</code> infers <code>string | number</code> (or
-      errors if no sensible common type exists).
-    </li>
-    <li>
-      <strong>Literals widen by default.</strong> <code>identity('hi')</code> gives <code>string</code>, not
-      <code>'hi'</code> — mutable positions widen literal types. When you <em>want</em> literals preserved, constrain
-      toward them (<code>T extends string</code> nudges inference literal-ward) or use a
-      <strong>const type parameter</strong>: <code>function pick&lt;const T&gt;(v: T)</code> keeps
-      <code>pick(['a','b'])</code> as <code>readonly ['a','b']</code> — the call-site equivalent of
-      <code>as const</code>.
-    </li>
-    <li>
-      <strong>Context flows backward too.</strong> In <code>const f: (x: number) =&gt; void = x =&gt; …</code>, the
-      lambda's parameter is inferred from the target type — that's why callbacks in <code>map</code>/<code
-        >subscribe</code
+    <p>
+      Say you want a function that hands back exactly what was passed in — a pass-through, an identity. The obvious
+      first attempt reaches for <code>any</code>, and it compiles, and it runs, and it quietly throws away every reason
+      you were using TypeScript in the first place.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Three ways to write "give me back whatever I handed you": one function per type, one function typed
+      <code>(value: any): any</code>, and one function typed <code>&lt;T&gt;(value: T): T</code>.
+      <strong
+        >Only one of the three lets <code>identity(42).toFixed(2)</code> compile AND catches
+        <code>identity(42).toUpperCase()</code> as an error.</strong
       >
-      never need annotations.
-    </li>
-    <li>
-      <strong>Partial explicit arguments aren't a thing:</strong> supply all type arguments or none. (API designers work
-      around it by splitting functions — the "curried factory" pattern.)
-    </li>
-  </ul>
+      Decide which before you scroll — the panel right below settles it.
+    </app-napkin>
 
-  <h2>Generic classes</h2>
-  <div class="code">
-    <pre>
-class Box&lt;T&gt; {{ '{' }}
-  constructor(public value: T) {{ '{' }}{{ '}' }}
-  map&lt;U&gt;(fn: (v: T) =&gt; U): Box&lt;U&gt; {{ '{' }} return new Box(fn(this.value)); {{ '}' }}
-{{ '}' }}
+    <app-compare
+      leftTitle="Wrong — reach for `any`"
+      leftTone="bad"
+      rightTitle="Right — reach for `&lt;T&gt;`"
+      rightTone="good"
+      note="Same call shape, same runtime behaviour if you get it wrong — the only difference is whether the compiler is still watching."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ naiveSample }}</pre>
+        </div>
+        <p>
+          <code>any</code> is not "unknown yet" — it is <span class="bf-break">checking switched off</span> for
+          everything that touches this value, for the rest of its life.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ genericIntroSample }}</pre>
+        </div>
+        <p>
+          <code>T</code> is solved from the argument, and the return type is <code>T</code> too — so whatever went in
+          comes back out with its exact type intact, not <code>any</code>, not a widened guess.
+        </p>
+      </div>
+    </app-compare>
 
-new Box(2).map(n =&gt; n * 10).map(n =&gt; n + '!');  // Box&lt;number&gt; → Box&lt;number&gt; → Box&lt;string&gt;</pre>
-  </div>
-  <p>
-    Two parameters cooperate here: the class's <code>T</code> is fixed per instance, while <code>map</code> introduces
-    its own <code>U</code> per call — the output type may differ from the input, and the compiler threads it through the
-    whole chain. This is precisely the shape of RxJS: an <code>Observable&lt;T&gt;</code> whose
-    <code>pipe(map(fn))</code> produces <code>Observable&lt;U&gt;</code>, with every operator a link that transforms the
-    type parameter.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — a Box chain, number in, string out</p>
-    <div class="row">
-      <input
-        aria-label="Seed value"
-        type="number"
-        [value]="seed()"
-        (input)="seed.set(+$any($event.target).value)"
-        style="width: 90px"
-      />
-      <span class="pill">{{ boxResult() }}</span>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      new Box(n).map(n =&gt; n * 10).map(n =&gt; <code>'#' + n</code>) — hover the chain in an editor and watch T flow:
-      number → number → string.
+    <p>
+      That is the entire subject of this lesson: how a <code>T</code> gets solved, what buys you the right to touch what
+      is inside it, and the one place a label gets printed on a box the compiler never actually checked.
     </p>
-  </div>
+  </section>
 
-  <h2>Constraints with <code>extends</code></h2>
-  <p>
-    An unconstrained <code>T</code> could be anything, so you can't touch its members — the constraint is what buys you
-    capabilities:
-  </p>
-  <div class="code">
-    <pre>
-interface Entity {{ '{' }} id: number; {{ '}' }}
-function byId&lt;T extends Entity&gt;(items: T[], id: number): T | undefined {{ '{' }}
-  return items.find(i =&gt; i.id === id);   // .id guaranteed by the constraint
-{{ '}' }}
-// crucial: the caller's FULL type survives — byId(users, 1) returns User | undefined,
-// not Entity | undefined. A non-generic (items: Entity[]) signature would THROW AWAY
-// everything about User except id. That's the whole reason to write the generic.
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A generic is a label on a box, not a peek inside.</h2>
 
-// Tie one parameter to another with keyof — fully checked property access:
-function prop&lt;T, K extends keyof T&gt;(obj: T, key: K): T[K] {{ '{' }}
-  return obj[key];
-{{ '}' }}
-prop({{ '{' }} name: 'Ada', age: 36 {{ '}' }}, 'age');   // returns number; 'foo' → compile error</pre>
-  </div>
-  <p>
-    <code>K extends keyof T</code> is the most important constraint idiom in the language — it's the typed foundation
-    under form builders, table column configs, <code>pluck</code>-style helpers, and state selectors. The return type
-    <code>T[K]</code> (indexed access) resolves per call: <code>'age'</code> → number, <code>'name'</code> → string.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — byId(users, id), constraint in action</p>
-    <div class="row">
-      @for (u of users; track u.id) {
-        <button class="ghost" (click)="lookup.set(u.id)">id {{ u.id }}</button>
-      }
-      <button class="ghost" (click)="lookup.set(99)">id 99</button>
-    </div>
-    <p style="margin-top: 10px">
-      Found: <strong>{{ found() }}</strong>
+    <p>
+      Think of a generic as a <span class="term">labelled shipping box</span>. A courier moving boxes around never needs
+      to open one — they only need to read the label and make sure a box's contents never get swapped for something
+      else's. <code>Box&lt;T&gt;</code> works exactly like that courier: it can hold <em>any</em> <code>T</code> you
+      hand it, move it, wrap it in a bigger box, hand it straight back — all without ever caring what is actually
+      inside. The moment it needs to open the box and use a specific capability — call <code>.bark()</code>, read
+      <code>.id</code> — it needs a <span class="term">constraint</span>: proof, in writing, of what the label
+      guarantees.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The <code>| undefined</code> in the return type is doing real work — id 99 forces the not-found branch, and the
-      compiler forced us to write it.
+
+    <app-remember variant="mnemonic">
+      <strong>A generic doesn't look inside the box.</strong> It reads the label once — infers <code>T</code> from what
+      you handed it — and every promise it makes afterwards is built from <span class="key">that exact T</span>, never a
+      looser one it invented.
+    </app-remember>
+
+    <p>
+      That is the whole subject laid out in order: how the label gets read (inference, next), what buys you the right to
+      open the box (constraints), and the one place a label is printed on a box nobody actually checked (the cast trap).
     </p>
-  </div>
+  </section>
 
-  <h2>The trap: a return-only generic is a disguised cast</h2>
-  <div class="code">
-    <pre>
-function fetchJson&lt;T&gt;(url: string): Promise&lt;T&gt; {{ '{' }}
-  return fetch(url).then(r =&gt; r.json());   // json() returns any — T is NEVER checked
-{{ '}' }}
-const user = await fetchJson&lt;User&gt;('/api/user');  // feels safe. Is exactly `as User`.</pre>
-  </div>
-  <p>
-    When <code>T</code> appears only in the return type, inference has nothing to solve from — the caller just asserts
-    whatever they like. Nothing at runtime verifies the payload. Angular's <code>http.get&lt;User&gt;(url)</code> is
-    this same honest lie: a convenient <em>assertion</em> about the wire format, not a validation. That's fine as long
-    as you know it — and it's why schema validators (zod, valibot) exist for boundaries you don't trust. Rule of thumb:
-    a type parameter should appear in <strong>two</strong>
-    positions (two params, or a param and the return) to be pulling real weight; used once, it's either a cast or noise.
-  </p>
+  <!-- ============ 3. HOW T IS INFERRED ============ -->
+  <section>
+    <p class="bf-eyebrow">How it actually gets solved</p>
+    <h2>T is solved from your arguments — almost never from what you type.</h2>
 
-  <h2>Generic interfaces, aliases, defaults</h2>
-  <div class="code">
-    <pre>
-interface ApiResult&lt;T = unknown&gt; {{ '{' }} data: T; status: number; {{ '}' }}
-type Dict&lt;V&gt; = Record&lt;string, V&gt;;
-type Pair&lt;A, B = A&gt; = [A, B];              // defaults may reference earlier params
+    <p>
+      Reach for <code>&lt;T&gt;</code> explicitly and most of the time TypeScript already found the same answer without
+      you. <span class="term">Inference</span> is the compiler reading your call site and working backward to a type
+      parameter, and it follows a small, learnable set of rules.
+    </p>
 
-const r: ApiResult&lt;User[]&gt; = {{ '{' }} data: [], status: 200 {{ '}' }};
-const s: ApiResult = {{ '{' }} data: whoKnows, status: 200 {{ '}' }};  // default kicks in: T = unknown</pre>
-  </div>
-  <p>
-    Note the default is <code>unknown</code>, not <code>any</code> — consumers of <code>s.data</code> must narrow before
-    use. Defaulting to <code>any</code> would silently switch off checking for everyone who forgot the argument;
-    defaulting to <code>unknown</code> makes forgetting safe.
-  </p>
+    <app-flow
+      direction="vertical"
+      caption="How T gets solved, one call at a time. Read the right-hand column as what the compiler is actually doing."
+      [steps]="inferenceSteps"
+    />
 
-  <h2>Generics across Angular's API surface</h2>
-  <div class="code">
-    <pre>
-count = signal&lt;number&gt;(0);              // usually inferred: signal(0)
-saved = output&lt;User&gt;();                  // the event payload type
-email = new FormControl&lt;string&gt;('');     // typed forms — value is string, not any
-const TOKEN = new InjectionToken&lt;AppConfig&gt;('config');  // inject(TOKEN): AppConfig
-this.http.get&lt;User[]&gt;('/api/users');     // the honest-lie assertion from above
-readonly box = viewChild&lt;ElementRef&gt;('box');  // query result type</pre>
-  </div>
-  <p>
-    Mostly you <em>consume</em> these generics rather than write your own — but the payoff compounds: a
-    <code>FormControl&lt;string&gt;</code> makes <code>.value</code> a string everywhere; an
-    <code>InjectionToken&lt;AppConfig&gt;</code> types every <code>inject(TOKEN)</code> in the app. One annotation at
-    the definition, checking at every use.
-  </p>
+    <app-code-lab
+      file="identity.ts"
+      [code]="inferenceSample"
+      [notes]="inferenceNotes"
+      notesLabel="Line by line — where each candidate for T comes from"
+    />
 
-  <div class="warn">
-    Don't over-genericize. If a type parameter appears only once, replace it with a plain type (or recognize you've
-    written a cast). If a function never relies on what T is, <code>unknown</code> often serves better. Generic
-    gymnastics in application code is usually a smell — the standard library and framework already did the hard
-    generics; your job is mostly good constraints on small helpers.
-  </div>
+    <app-predict
+      [prompt]="literalPredictPrompt"
+      [code]="literalPredictCode"
+      [answer]="literalPredictAnswer"
+      revealLabel="Reveal the two fixes"
+    />
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Why does <code>byId&lt;T extends Entity&gt;(items: T[])</code> beat <code>byId(items: Entity[])</code> when both
-      compile?
-    </summary>
-    <div>
-      Information preservation. With <code>Entity[]</code>, a <code>User[]</code> argument is <em>accepted</em> (arrays
-      are covariant here) but the return type collapses to <code>Entity | undefined</code> — name, email, everything
-      beyond <code>id</code> is gone, and callers cast to get it back. The generic keeps the caller's own T flowing
-      through to the return. Generics aren't about accepting more types — constraints handle that — they're about
-      <em>not forgetting</em> which type came in.
+    <p>
+      One more rule worth knowing by name: <strong>context flows backward too.</strong> In
+      <code>const f: (x: number) =&gt; void = x =&gt; …</code>, the lambda's parameter is inferred from the
+      <em>target</em> type it is being assigned to — which is why a callback inside <code>.map()</code> or
+      <code>.subscribe()</code> never needs its own annotation.
+    </p>
+
+    <h3>One more inference trap: a second argument can silently widen the first.</h3>
+
+    <p>
+      Sometimes <code>T</code> has more than one candidate site, and <em>every</em> site gets to vote — including one
+      you only meant as a fallback. TypeScript 5.4 added <code>NoInfer&lt;T&gt;</code> specifically to opt a parameter
+      out of that vote.
+    </p>
+
+    <app-code-lab
+      file="street-light.ts"
+      [code]="noInferSample"
+      [notes]="noInferNotes"
+      notesLabel="Line by line — the vote nobody meant to cast"
+    />
+  </section>
+
+  <!-- ============ 4. GENERIC CLASSES ============ -->
+  <section>
+    <p class="bf-eyebrow">Generic classes</p>
+    <h2>A class fixes T once. Its methods can each open a new one.</h2>
+
+    <p>
+      Two parameters cooperate in a generic class, and mixing them up is the single most common confusion in this
+      section: the class's own <code>T</code> is fixed the moment an instance is created, while a method can introduce a
+      <em>second</em>, independent parameter that is solved fresh on every call.
+    </p>
+
+    <app-code-lab
+      file="box.ts"
+      [code]="boxSample"
+      [notes]="boxNotes"
+      notesLabel="Line by line — two type parameters, two different lifetimes"
+    />
+
+    <app-layers
+      [core]="boxCore"
+      [rings]="boxRings"
+      arrow="new Box(value)"
+      caption="One ring, because a `Box` only ever wraps one value. The class never reads inside `T` — it just remembers the label and hands you back a new box, correctly labelled, every time you call `.map`."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — a Box chain, number in, string out</p>
+      <div class="row">
+        <input
+          aria-label="Seed value"
+          type="number"
+          [value]="seed()"
+          (input)="seed.set(+$any($event.target).value)"
+          style="width: 90px"
+        />
+        <span class="pill">{{ boxResult() }}</span>
+      </div>
+      <p class="demo__note">
+        <code>new Box(n).map(n =&gt; n * 10).map(n =&gt; '#' + n)</code> — change the seed and watch the pill update.
+        <code>T</code> starts as <code>number</code>, the first <code>.map</code> keeps it <code>number</code>, and the
+        second turns it into <code>string</code>. Nothing here was declared by hand; every step is inferred.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>const x = identity('hi')</code> types as <code>string</code>, but you need <code>'hi'</code>. Two fixes?
-    </summary>
-    <div>
-      (1) <code>identity('hi' as const)</code> — the caller pins the literal. (2) Change the signature:
-      <code>identity&lt;const T&gt;(v: T)</code> (TS 5.0+) or <code>identity&lt;T extends string&gt;(v: T)</code> — both
-      make inference prefer the literal. The underlying rule: literal types widen in mutable positions unless something
-      (a const assertion, a const type param, or a literal-flavored constraint) tells inference to keep them.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Is <code>this.http.get&lt;User&gt;('/api/user')</code> type-safe? Defend your answer.</summary>
-    <div>
-      Compile-time consistent, runtime unverified. T appears only in the return position, so nothing checks the actual
-      JSON — the generic is an assertion that flows nice types through your app while the server can send anything. It's
-      still worth writing (it documents intent and types all downstream code), but boundary trust is a separate
-      decision: validate with a schema/guard where the contract is shaky, e.g. third-party APIs. Being able to
-      articulate "generics are compile-time only" is the point of the question.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Design a <code>setProp(obj, key, value)</code> that rejects wrong value types per key. What's the signature?
-    </summary>
-    <div>
-      <code>function setProp&lt;T, K extends keyof T&gt;(obj: T, key: K, value: T[K]): void</code>. The trick is
-      <em>reusing</em> K in the value position: once K is pinned to a specific literal key by the call,
-      <code>T[K]</code> resolves to exactly that property's type — <code>setProp(user, 'age', 'old')</code> fails
-      because <code>T['age']</code> is number. Three parameters, one constraint, zero runtime cost: the pattern behind
-      every typed state-update helper.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      T is solved from arguments (with best-common-supertype across candidates); literals widen unless pinned by
-      <code>as const</code>, a <code>const</code> type param, or a literal-leaning constraint.
-    </li>
-    <li>
-      Constraints buy member access; <code>K extends keyof T</code> + <code>T[K]</code> is the idiom under typed
-      property access, selectors and form helpers.
-    </li>
-    <li>
-      Generics exist to <em>preserve</em> the caller's type through your code — a parameter used only once (especially
-      return-only, like <code>http.get&lt;T&gt;</code>) is a compile-time assertion, not safety.
-    </li>
-    <li>
-      Default type params to <code>unknown</code>, never <code>any</code>; classes fix T per instance while methods add
-      fresh params per call (the RxJS shape).
-    </li>
-    <li>
-      Angular's signals, outputs, typed forms, tokens and HTTP are all generic — consume them precisely before inventing
-      your own.
-    </li>
-  </ul>
+    <p>
+      This is precisely the shape RxJS runs on: an <code>Observable&lt;T&gt;</code> whose
+      <code>pipe(map(fn))</code> produces an <code>Observable&lt;U&gt;</code>, with every operator in the chain a link
+      that transforms the type parameter the same way <code>.map</code> does here.
+    </p>
+  </section>
 
-  <p><a routerLink="/components">Next: Angular Components →</a></p>
+  <!-- ============ 5. CONSTRAINTS WITH EXTENDS ============ -->
+  <section>
+    <p class="bf-eyebrow">Constraints with extends</p>
+    <h2>Without extends, T has no members at all.</h2>
+
+    <p>
+      An unconstrained <code>T</code> could be anything, so you cannot touch a single one of its properties — the
+      constraint is what buys you that capability, and it is worth internalising as a trade: you promise the compiler
+      <code>T</code> has at least <em>this much</em>, and in exchange you get to use it.
+    </p>
+
+    <app-code-lab
+      file="by-id.ts"
+      [code]="byIdSample"
+      [notes]="byIdNotes"
+      notesLabel="Line by line — what the constraint buys, and what survives"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — byId(users, id), the constraint in action</p>
+      <div class="row">
+        @for (u of users; track u.id) {
+          <button class="ghost" (click)="lookup.set(u.id)">id {{ u.id }}</button>
+        }
+        <button class="ghost" (click)="lookup.set(99)">id 99</button>
+      </div>
+      <p style="margin-top: 10px">
+        Found: <strong>{{ found() }}</strong>
+      </p>
+      <p class="demo__note">
+        The <code>| undefined</code> in the return type is doing real work — id 99 forces the not-found branch, and the
+        compiler forced this lesson to write it.
+      </p>
+    </div>
+
+    <app-quiz
+      [question]="byIdQuizQuestion"
+      [options]="byIdQuiz"
+      followUp="Reread line 10 of the annotated sample above with this in mind — it is the whole argument in one call."
+    />
+
+    <h3>Tying one parameter to another: K extends keyof T.</h3>
+
+    <p>
+      <span class="term">K extends keyof T</span> is the most important constraint idiom in the language — the typed
+      foundation under form builders, table column configs, <code>pluck</code>-style helpers, and state selectors.
+    </p>
+
+    <app-code-lab
+      file="prop.ts"
+      [code]="propSample"
+      [notes]="propNotes"
+      notesLabel="Line by line — two constraints, one contract"
+    />
+
+    <app-predict
+      [prompt]="setPropPrompt"
+      [code]="setPropCode"
+      [answer]="setPropAnswer"
+      revealLabel="Reveal the signature"
+    />
+  </section>
+
+  <!-- ============ 6. THE CAST TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap</p>
+    <h2>A type parameter used once is a cast wearing a costume.</h2>
+
+    <p>
+      Every generic so far has had <code>T</code> pulling weight in <strong>two</strong> places — a parameter and the
+      return, or two parameters. Here is what happens when it only shows up in one.
+    </p>
+
+    <app-code-lab
+      file="fetch-json.ts"
+      [code]="fetchJsonSample"
+      [notes]="fetchJsonNotes"
+      notesLabel="Line by line — where the safety quietly stops"
+    />
+
+    <app-remember variant="rule">
+      A type parameter earns its keep by appearing in <strong>two</strong> positions — two parameters, or a parameter
+      and the return. Show up <span class="key">once, especially return-only</span>, and it isn't inference doing the
+      work. It's you, asserting.
+    </app-remember>
+
+    <p>
+      Angular's <code>http.get&lt;User&gt;(url)</code> is this exact same honest lie: a convenient
+      <em>assertion</em> about the wire format, not a validation. That is fine as long as you know it — and it is why
+      schema validators (zod, valibot) exist for boundaries you do not fully trust.
+    </p>
+
+    <app-quiz
+      [question]="httpQuizQuestion"
+      [options]="httpQuiz"
+      followUp="Keep this shape in mind — the DI section right below makes the identical honest promise, for the identical reason."
+    />
+  </section>
+
+  <!-- ============ 7. GENERICS ARE ERASED — AND SO IS YOUR DI TOKEN ============ -->
+  <section>
+    <p class="bf-eyebrow">Erasure meets DI</p>
+    <h2>T doesn't survive to runtime, and neither does your injector's patience for it.</h2>
+
+    <p>
+      Every generic in this lesson compiles to plain JavaScript with no trace of <code>&lt;T&gt;</code> left in it. That
+      is invisible right up until you try to use <code>T</code> to pick a dependency — because Angular's injector
+      matches providers by the identity of a runtime value, and there is no runtime value called <code>T</code>.
+    </p>
+
+    <app-bubbles
+      [turns]="diTalk"
+      caption="Notice which party is doing the asking, and which one only ever sees a bare class."
+    />
+
+    <app-code-lab
+      file="repo.ts"
+      [code]="diSample"
+      [notes]="diNotes"
+      notesLabel="Line by line — the illegal call, the legal one that erased T, and the two fixes"
+    />
+
+    <div class="warn">
+      <strong>The sharper trap isn't a compile error — it's a silent collision.</strong> Register two providers for the
+      bare <code>Repo</code> token hoping for a different <code>T</code> each and the second registration wins; the
+      first is simply gone, with no warning from either the compiler or Angular at runtime.
+    </div>
+  </section>
+
+  <!-- ============ 8. VARIANCE ============ -->
+  <section>
+    <p class="bf-eyebrow">Variance</p>
+    <h2>Box&lt;Dog&gt; and Box&lt;Animal&gt; aren't interchangeable in both directions.</h2>
+
+    <p>
+      Everything generic in this lesson has been safe to substitute so far — but substitution has a
+      <strong>direction</strong>, and getting it backwards is a standard interview trap.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      <code>Box&lt;Dog&gt;</code> — assignable to <code>Box&lt;Animal&gt;</code>? Now flip it: is
+      <code>Box&lt;Animal&gt;</code> assignable to <code>Box&lt;Dog&gt;</code>? They cannot both be yes. Decide before
+      you scroll — the panel below settles it in both directions, and whichever one you got wrong is the one worth
+      remembering.
+    </app-napkin>
+
+    <app-compare
+      leftTitle="Covariant — T only comes out"
+      leftTone="good"
+      rightTitle="Contravariant — T only goes in"
+      rightTone="good"
+      note="Both directions are sound. What flips is which one is safe, and it depends entirely on WHERE T sits in the type."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ covariantSample }}</pre>
+        </div>
+        <p>
+          <code>value: T</code> only ever hands <code>T</code> <em>out</em>. A box that produces a <code>Dog</code> can
+          safely stand in for a box that produces an <code>Animal</code> — every <code>Dog</code> already
+          <em>is</em> one.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ contravariantSample }}</pre>
+        </div>
+        <p>
+          <code>accept(v: T)</code> only ever takes <code>T</code> <em>in</em>. Something that can accept <em>any</em>
+          <code>Animal</code> can certainly accept a <code>Dog</code> — the direction flips because the position
+          flipped.
+        </p>
+      </div>
+    </app-compare>
+
+    <p>
+      Both of those hold at runtime, not just at compile time. Arrays are the one place TypeScript knowingly lets an
+      <span class="bf-break">unsound</span> version of the covariant rule through.
+    </p>
+
+    <app-code-lab
+      file="unsound-array.ts"
+      [code]="arrayUnsoundSample"
+      [notes]="arrayUnsoundNotes"
+      notesLabel="Line by line — the write the compiler should have blocked"
+    />
+
+    <div class="tip">
+      <strong>Reach for <code>readonly Animal[]</code> whenever a function only reads its array parameter.</strong>
+      The compiler then refuses even a <code>.push</code> on the alias, not just on the line where you happened to
+      notice — turning this exact unsoundness back into a compile error at the one place you can actually fix it.
+    </div>
+
+    <h3>Saying the variance out loud: in and out (TypeScript 4.7+).</h3>
+
+    <p>
+      Nobody writes <code>in</code>/<code>out</code> on a lesson-sized interface — structural inference already gets
+      <code>Box</code> and <code>Sink</code> right without them. They earn their keep in large generic libraries, where
+      a deeply nested relationship is either too slow for the compiler to work out from scratch or genuinely ambiguous —
+      and unlike a comment, the annotation below is <strong>checked</strong>, not just documentation.
+    </p>
+
+    <app-code-lab
+      file="variance.ts"
+      [code]="inOutSample"
+      [notes]="inOutNotes"
+      notesLabel="Line by line — a promise the compiler actually verifies"
+    />
+  </section>
+
+  <!-- ============ 9. INTERFACES, ALIASES, DEFAULTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Interfaces, aliases, defaults</p>
+    <h2>A generic type can default itself, the same way a parameter can.</h2>
+
+    <app-code-lab
+      file="api-result.ts"
+      [code]="interfaceDefaultsSample"
+      [notes]="interfaceDefaultsNotes"
+      notesLabel="Line by line — where the default comes from, and when it fires"
+    />
+
+    <p>
+      The default is <code>unknown</code>, not <code>any</code>, on purpose. Defaulting to <code>any</code> would
+      silently switch off checking for everyone who forgot the type argument; defaulting to <code>unknown</code> makes
+      forgetting <em>safe</em> — every reader still has to narrow before touching the value.
+    </p>
+  </section>
+
+  <!-- ============ 10. WHERE GENERICS SHOW UP ============ -->
+  <section>
+    <p class="bf-eyebrow">Where generics actually show up</p>
+    <h2>You mostly consume these generics. That's the point.</h2>
+
+    <p>
+      Most of the payoff in application code is not writing your own generics — it is reading the ones Angular already
+      wrote correctly, precisely.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="signal&lt;T&gt;()" kicker="reactive state" tone="accent">
+        Usually inferred — <code>signal(0)</code> is already <code>WritableSignal&lt;number&gt;</code>. Annotate only
+        when the initial value doesn't pin down what you want, e.g. <code>signal&lt;User | null&gt;(null)</code>.
+      </app-tape-card>
+      <app-tape-card heading="output&lt;T&gt;()" kicker="component events" tone="gold">
+        The payload type for a custom event: <code>saved = output&lt;User&gt;()</code> makes every
+        <code>(saved)="onSave($event)"</code> listener's <code>$event</code> a real <code>User</code>, not
+        <code>any</code>.
+      </app-tape-card>
+      <app-tape-card heading="FormControl&lt;T&gt;" kicker="typed forms" tone="olive">
+        <code>new FormControl&lt;string&gt;('')</code> makes <code>.value</code> a real <code>string</code> everywhere
+        it is read — no more <code>any</code> leaking out of a form.
+      </app-tape-card>
+      <app-tape-card heading="InjectionToken&lt;T&gt;" kicker="the DI fix" tone="accent">
+        A generic that survives the erasure problem two sections up, because <strong>you</strong> write the
+        <code>&lt;T&gt;</code> once, at the token's declaration, instead of hoping it infers through an erased class.
+      </app-tape-card>
+      <app-tape-card heading="HttpClient.get&lt;T&gt;()" kicker="the honest lie" tone="gold">
+        The return-only generic from the cast-trap section, doing exactly what it does there: compile-time typed,
+        runtime unverified.
+      </app-tape-card>
+      <app-tape-card heading="viewChild&lt;T&gt;()" kicker="queries" tone="olive">
+        The query's result type — until the view exists it is <code>undefined</code>, so the signal it returns is really
+        <code>Signal&lt;ElementRef | undefined&gt;</code>.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 11. ONE MORE THING ============ -->
+  <section>
+    <p class="bf-eyebrow">One more thing</p>
+    <h2>Not everything needs a &lt;T&gt;.</h2>
+
+    <div class="warn">
+      <strong>Don't over-genericize.</strong> If a type parameter appears only once, replace it with a plain type — or
+      recognise you have written a cast and say so. If a function never actually relies on what <code>T</code> is,
+      <code>unknown</code> often serves better. Generic gymnastics in application code is usually a smell — the standard
+      library and the framework already did the hard generics; your job is mostly good constraints on small helpers.
+    </div>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>T</code> is solved from your <strong>arguments</strong>, with a best-common-supertype fold across multiple
+        candidates; a literal widens unless pinned by <code>as const</code>, a <code>const</code> type param, or a
+        literal-leaning constraint — and <code>NoInfer&lt;T&gt;</code> can remove a parameter from the vote entirely.
+      </li>
+      <li>
+        Constraints buy member access, and <code>K extends keyof T</code> plus <code>T[K]</code> is the idiom under
+        typed property access, selectors and form helpers everywhere.
+      </li>
+      <li>
+        A generic <strong>preserves</strong> the caller's own type through your code. A parameter used only once —
+        especially return-only, like <code>http.get&lt;T&gt;</code> — is a compile-time assertion, not safety, and the
+        same erasure is why you cannot inject a generic service type directly.
+      </li>
+      <li>
+        Substitution has a <strong>direction</strong>. <code>Box&lt;Dog&gt;</code> → <code>Box&lt;Animal&gt;</code> is
+        safe because <code>T</code> only comes out; a function accepting <code>Animal</code> standing in for one
+        accepting <code>Dog</code> is safe because <code>T</code> only goes in. Arrays let the write-side version
+        through unsoundly — <code>readonly T[]</code> closes that hole.
+      </li>
+      <li>
+        Default type params to <code>unknown</code>, never <code>any</code>; a class fixes <code>T</code> once per
+        instance while its methods can each introduce a fresh one — the RxJS shape.
+      </li>
+      <li>
+        Angular's signals, outputs, typed forms, tokens and HTTP are all generic — consume them precisely before
+        reaching to invent your own.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-enums">Next: Enums &amp; Literal Unions →</a></p>
+  </section>
 </article>
