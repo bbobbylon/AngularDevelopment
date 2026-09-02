@@ -1,216 +1,537 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · HTTP</span>
-  <h1>HTTP Interceptors</h1>
-  <p class="lead">
-    An interceptor is a function in the pipeline between your code and the network. Every request flows through it on
-    the way out and every response on the way back — the one place to add auth headers, logging, error handling and
-    retries, written once instead of at every call site.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Intermediate · HTTP"
+    title="HTTP Interceptors"
+    hand="or, what happens when your request gets nested inside a Russian doll"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      An interceptor is a function that stands between your code and the network — every request passes through it going
+      out, every response passes back through it coming in. That's the pitch in every doc, and it undersells three
+      things that actually trip people up in code review and on exams:
+      <strong>what you're handed and what you must hand back</strong>,
+      <strong>what decides the order a chain of them runs in</strong> — forward, then in reverse — and
+      <strong>what it means for one to end the chain right there</strong>, without the request ever reaching the
+      network. This lesson proves all three with a chain you can actually run, then goes further: a real
+      refresh-and-replay flow, and a correction — read straight out of Angular's own source — of a claim about
+      <code>retry()</code> that keeps circulating.
+    </p>
+  </app-chapter>
 
-  <h2>A functional interceptor</h2>
-  <div class="code">
-    <pre>{{ basicSample }}</pre>
-  </div>
-  <div class="note">
-    Requests are <strong>immutable</strong> — you can't set a header on <code>req</code> directly;
-    <code>req.clone(&#123; setHeaders &#125;)</code> returns a modified copy. And you must
-    <strong>return <code>next(...)</code></strong
-    >: forget it and the request never reaches the backend (a silent hang).
-  </div>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Forty components, one header. Who writes it forty times?</h2>
 
-  <h2>The onion: order matters</h2>
-  <p>
-    Interceptors run in array order on the way <em>out</em> and in <strong>reverse</strong> on the way <em>back</em> —
-    like layers of an onion wrapping the request. Send a request and watch the chain
-    <code>[auth, logging, error]</code> unwind:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — illustrative pipeline (not a real request)</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="send(200)">Send → succeeds</button>
-      <button class="ghost" (click)="send(401)">Send → 401 (redirect)</button>
-      <button class="ghost" (click)="send(503)">Send → 503 (retry ×2)</button>
+    <p>
+      Every one of your app's <code>HttpClient</code> calls needs the same things done to it: an
+      <code>Authorization</code> header attached, a failed request logged, a 401 sent to the login page. Do that inside
+      each component and you've written the same four lines forty times — and the day the header name changes, you get
+      to find all forty again. An interceptor is Angular's answer:
+      <span class="key">write it once, and every request and response passes through it automatically</span>, whether
+      the component that made the call knows the interceptor exists or not.
+    </p>
+
+    <app-napkin lead="hang on —" label="Guess before you scroll">
+      Here's a preview of a real bug later in this lesson. <code>inject(AuthService)</code> at the very top of an
+      interceptor's function body works fine. Call <code>inject(Router)</code> again later, inside a
+      <code>.pipe(catchError(...))</code> callback — same interceptor, same kind of call — and it throws
+      <code>NG0203</code>. Same service-fetching function, so what changed between the two calls? Hold that thought; the
+      retry section resolves it with the actual line where it breaks.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular wraps every request in a nesting doll.</h2>
+
+    <p>
+      Picture your request as the smallest doll in a matryoshka set. To register it, you hand it to the outermost doll —
+      say, <code>auth</code> — which does its bit (clones in a header) and passes what it's holding to the doll nested
+      inside it, <code>logging</code>, which does its bit and passes it to the doll inside <em>that</em>, and so on
+      until the innermost doll hands the request to the backend. That's the trip <strong>out</strong>.
+    </p>
+
+    <p>
+      The response makes the exact same trip in reverse. To get it back to your code, you have to close every doll you
+      opened, and you can only close them in the order you opened them <em>backwards</em> — the doll closest to the
+      backend closes first, the outermost one closes last. That reversal isn't a design choice bolted on top; it falls
+      straight out of the shape. And — foreshadowing the short-circuiting section — some dolls don't just wrap and pass
+      along. A doll can quietly swap what's inside for something else entirely and hand <em>that</em> back out, without
+      ever opening the doll nested inside it. Nothing downstream ever finds out.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Out in order, back in reverse</strong> — whichever doll you open last is the first one you close.
+    </app-remember>
+
+    <app-layers
+      [core]="{ label: 'HttpBackend', sub: 'the actual network call' }"
+      [rings]="[
+        { label: 'auth', sub: 'attaches the token' },
+        { label: 'logging', sub: 'starts a timer' },
+        { label: 'error', sub: 'retries + redirects' },
+      ]"
+      arrow="next(req) called here"
+      caption="Registration order is **outermost first**: `withInterceptors([auth, logging, error])` puts `auth` on the very outside. The request travels inward through `auth → logging → error` to reach the backend, and the response travels back outward through the exact same three, in the exact reverse order."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One interceptor is one function with two jobs.</h2>
+
+    <p>
+      Its whole job is to look at (or change) the request on the way in, and look at (or change) the response on the way
+      out — and to hand off to whatever comes next in exactly one of two ways: call <code>next</code>, or don't. Here's
+      the smallest real one, an <span class="term">auth interceptor</span> that attaches a bearer token:
+    </p>
+
+    <app-code-lab
+      file="auth.interceptor.ts"
+      [code]="basicSample"
+      [notes]="basicNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="warn">
+      <strong>Two rules, non-negotiable.</strong> <code>req</code> is immutable — <code>.clone()</code> to change
+      anything about it, never assign into it. And whatever you do, the function must <strong>return</strong> an
+      <code>Observable</code> — either <code>next(...)</code>'s, or one of your own making, on every code path.
     </div>
-    @if (log().length) {
-      <div class="code">
-        <pre>{{ logText() }}</pre>
+
+    <app-predict
+      prompt="Here's an interceptor that looks like it forgot to continue the chain. Before you decide what it does at runtime — does it even compile?"
+      [code]="forgottenReturnSample"
+      answer="No. `error TS2322: Type '(req, next) => void' is not assignable to type 'HttpInterceptorFn'`. `next(req)` runs — the request really goes out — but the function's last statement doesn't return its result, so the arrow function's inferred return type is `void`, and `HttpInterceptorFn` requires `Observable<HttpEvent<unknown>>`. Angular didn't need special tooling for this: it's ordinary TypeScript control-flow checking, and it fires the moment you type this into a file, long before you ever run it. Worth knowing, because plenty of write-ups describe a forgotten `next()` as a silent runtime hang you have to catch by testing for it. In the ordinary, correctly-typed case, you don't — the compiler stops you first."
+      revealLabel="Does it compile?"
+    />
+
+    <p>
+      So when <em>does</em> it actually hang? When the function type-checks perfectly — it genuinely returns an
+      <code>Observable&lt;HttpEvent&gt;</code> — but that Observable is wired up wrong, and never emits:
+    </p>
+
+    <div class="code">
+      <pre>{{ trueHangSample }}</pre>
+    </div>
+
+    <p>
+      This compiles without a single warning. The request <span class="bf-break">genuinely leaves the browser</span> —
+      <code>next(req).subscribe()</code> really subscribes, so a real XHR fires and a real response arrives. But the
+      interceptor <em>returns</em> a completely different Observable, <code>events</code>, and nothing anywhere ever
+      calls <code>events.next(...)</code> on it. The caller's <code>subscribe</code>, <code>async</code> pipe or
+      <code>firstValueFrom</code> is waiting on <em>that</em> one — and it never fires, never errors, never completes.
+      No exception, no console warning, no test that merely checks "does it compile" catches this. That's the real
+      silent hang, and the fix is unglamorous: return what <code>next</code> gave you, in some form, always.
+    </p>
+  </section>
+
+  <!-- ============ 4. THE CHAIN, LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">The chain, live</p>
+    <h2>Out in array order. Back in reverse.</h2>
+
+    <p>
+      Registering the chain is one call. Here's the same three interceptors from the picture above, plus the rule for
+      mixing in the old class-based kind:
+    </p>
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="registerSample"
+      [notes]="registerNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — illustrative pipeline (not a real request)</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="send(200)">Send → succeeds</button>
+        <button class="ghost" (click)="send(401)">Send → 401 (redirect)</button>
+        <button class="ghost" (click)="send(503)">Send → 503 (retry ×2)</button>
       </div>
-    }
-  </div>
-  <div class="code">
-    <pre>{{ registerSample }}</pre>
-  </div>
-
-  <h2>Error handling &amp; retries</h2>
-  <div class="code">
-    <pre>{{ errorSample }}</pre>
-  </div>
-  <div class="tip">
-    Ordering has teeth: put <code>retry</code> <em>inside</em> the error interceptor and place auth <em>before</em> it,
-    so each retried request is re-cloned with a fresh token. Put retry before auth and you may replay a request with a
-    stale header.
-  </div>
-
-  <h2>Short-circuiting: skip <code>next()</code> entirely</h2>
-  <p>
-    An interceptor doesn't have to call <code>next(req)</code> at all — it just has to return an
-    <code>Observable</code> of the right shape, so a caching interceptor can serve a cached response directly. The
-    request never reaches the network, and no later interceptor in the chain runs either:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — cache miss vs. cache hit</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="fetchCached(false)">Fetch → cache miss</button>
-      <button class="ghost" (click)="fetchCached(true)">Fetch → cache hit (short-circuit)</button>
+      @if (log().length) {
+        <div class="code">
+          <pre>{{ logText() }}</pre>
+        </div>
+      }
+      <p class="demo__note">
+        Watch the chain <code>[auth, logging, error]</code> unwind: every send shows <code>auth</code> then
+        <code>logging</code> going out, and the response coming back through the same two — or three, on a 401 — in the
+        opposite order.
+      </p>
     </div>
-    @if (cacheLog().length) {
-      <div class="code">
-        <pre>{{ cacheLogText() }}</pre>
+
+    <app-quiz
+      question="Interceptors are registered as `withInterceptors([auth, logging, error])`. A response comes back from the backend. Which one sees it first?"
+      [options]="orderQuizOptions"
+      followUp="Press “Send → succeeds” above and read the log bottom-up from the ← RESPONSE line — `logging` reports done before `auth` passes it through."
+    />
+  </section>
+
+  <!-- ============ 5. SHORT-CIRCUITING ============ -->
+  <section>
+    <p class="bf-eyebrow">The escape hatch</p>
+    <h2>Some interceptors never call <code>next()</code> at all.</h2>
+
+    <p>
+      An interceptor doesn't have to continue the chain — it has to return an <code>Observable</code> of the right
+      shape, and <code>next(req)</code> is only the most common way to make one. A caching interceptor can serve a
+      stored response directly: the request never reaches the network, and — this is the part people miss — no
+      interceptor further along the array runs either, because there's nothing left to hand them.
+    </p>
+
+    <app-predict
+      prompt="A caching interceptor does `next(req).pipe(tap(event => cache.set(req.url, event)))` — no type check on `event` at all. `next()` doesn't emit once; it emits a **stream** of `HttpEvent`s on the way back (sent, maybe progress, eventually a response). What ends up sitting in the cache after a normal small GET, and what changes if the same request also reports download progress?"
+      answer="Whatever the **last** event in the stream happens to be. For a small response with no progress events, that's usually the real `HttpResponse` — so it looks correct by accident. Add progress reporting (a bigger payload, or an interceptor further out that turns it on) and the last event before the stream completes can be a `HttpDownloadProgressEvent` instead, which has no `body`. The next 'cache hit' hands the caller an object with no data — far harder to notice than a crash, because nothing throws. The fix is `event instanceof HttpResponse` before caching, not 'whatever `tap` saw last'."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-code-lab
+      file="cache.interceptor.ts"
+      [code]="shortCircuitSample"
+      [notes]="shortCircuitNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — cache miss vs. cache hit</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="fetchCached(false)">Fetch → cache miss</button>
+        <button class="ghost" (click)="fetchCached(true)">Fetch → cache hit (short-circuit)</button>
       </div>
-    }
-  </div>
-  <div class="code">
-    <pre>{{ shortCircuitSample }}</pre>
-  </div>
-
-  <h2>Per-request config with <code>HttpContext</code></h2>
-  <p>
-    A type-safe channel to pass metadata from the call site to an interceptor — without abusing headers. Opt a single
-    request out of auth, mark it cacheable, tag it for a loading spinner:
-  </p>
-  <div class="code">
-    <pre>{{ contextSample }}</pre>
-  </div>
-
-  <h2>Functional vs legacy class-based</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th><code>HttpInterceptorFn</code> (modern)</th>
-      <th>class + <code>HTTP_INTERCEPTORS</code> (legacy)</th>
-    </tr>
-    <tr>
-      <td>Shape</td>
-      <td>a function <code>(req, next) =&gt; …</code></td>
-      <td>a class implementing <code>intercept()</code></td>
-    </tr>
-    <tr>
-      <td>Register</td>
-      <td><code>withInterceptors([...])</code></td>
-      <td><code>&#123; provide: HTTP_INTERCEPTORS, useClass, multi: true &#125;</code></td>
-    </tr>
-    <tr>
-      <td>Inject services</td>
-      <td class="ok"><code>inject()</code> directly — it runs in an injection context</td>
-      <td>constructor injection</td>
-    </tr>
-    <tr>
-      <td>Boilerplate</td>
-      <td class="ok">minimal</td>
-      <td>a class + a multi-provider per interceptor</td>
-    </tr>
-  </table>
-
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>The chain is composed once, not iterated per request.</strong>
-      <code>withInterceptors([a, b, c])</code> nests them at bootstrap into
-      <code>a(req, r =&gt; b(r, r2 =&gt; c(r2, backendHandle)))</code> — each interceptor only ever holds a reference to
-      the closure it was handed as <code>next</code>, never the whole array. That closure nesting <em>is</em> the onion;
-      it's why array order fixes wrap order.
-    </li>
-    <li>
-      <strong>Requests are cold, end to end.</strong> Nothing in the chain runs until your code subscribes to the
-      <code>HttpClient</code> call (directly, via <code>async</code>, or <code>firstValueFrom</code>). Subscribe to the
-      same call twice and every interceptor re-enters from scratch — there's no built-in deduplication or caching of an
-      in-flight request.
-    </li>
-    <li>
-      <strong>The innermost <code>next</code> is <code>HttpBackend</code>, not another interceptor.</strong> After the
-      last interceptor in the array calls <code>next(req)</code>, that call lands on Angular's backend — XHR by default,
-      or <code>fetch</code> if <code>withFetch()</code> is configured. Interceptors never see the raw XHR/fetch call,
-      only the <code>HttpRequest</code>/<code>HttpEvent</code> abstraction.
-    </li>
-    <li>
-      <strong>Short-circuiting isn't a special API.</strong> An interceptor's signature is just
-      <code>(req) =&gt; Observable&lt;HttpEvent&gt;</code>, and so is <code>next</code> itself —
-      <code>next(req)</code> and <code>of(cachedResponse)</code> are both ordinary, type-correct return values. That's
-      exactly why TypeScript can't catch a forgotten <code>next()</code> call: nothing about the type signature requires
-      calling it.
-    </li>
-    <li>
-      <strong>Legacy and functional interceptors can coexist.</strong>
-      <code>provideHttpClient(withInterceptorsFromLegacy(), withInterceptors([...]))</code>
-      folds <code>HTTP_INTERCEPTORS</code>-based classes and functional interceptors into one composed chain — the same
-      out-in-order/back-in-reverse rule applies across the mixed set.
-    </li>
-  </ul>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Forgetting <code>return next(req)</code>.</strong> The request never continues — the call just hangs.
-    </li>
-    <li>
-      <strong>Mutating the request.</strong> It's immutable; use <code>req.clone(...)</code> to add headers/params.
-    </li>
-    <li>
-      <strong>Order bugs.</strong> Out in order, back in reverse. Retry-vs-auth and logging placement change behaviour.
-    </li>
-    <li>
-      <strong>Expecting non-HttpClient calls to be intercepted.</strong> A raw <code>fetch()</code>/<code
-        >XMLHttpRequest</code
-      >
-      bypasses the chain entirely.
-    </li>
-    <li>
-      <strong>One mega-interceptor.</strong> Keep each focused on a single concern and compose them — easier to reason
-      about and reorder.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>In what order do <code>[a, b, c]</code> process a response?</summary>
-    <div>
-      Reverse: <code>c → b → a</code>. Requests flow out <code>a → b → c</code>; responses come back through the same
-      layers in reverse (the onion).
+      @if (cacheLog().length) {
+        <div class="code">
+          <pre>{{ cacheLogText() }}</pre>
+        </div>
+      }
+      <p class="demo__note">
+        On a hit, there's no <code>→ REQUEST</code>/<code>← RESPONSE</code> round trip at all — the interceptor answers
+        on its own, instantly, and every interceptor after it in the array is skipped entirely.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Why doesn't my header appear on the request?</summary>
-    <div>
-      You mutated <code>req</code> instead of cloning. Return
-      <code>next(req.clone(&#123; setHeaders: &#123; … &#125; &#125;))</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you skip auth for one specific request?</summary>
-    <div>
-      Pass an <code>HttpContext</code> token from the call site (<code
-        >context: new HttpContext().set(SKIP_AUTH, true)</code
-      >) and check <code>req.context.get(SKIP_AUTH)</code> in the interceptor.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Can an interceptor <code>inject()</code> a service?</summary>
-    <div>
-      Yes — functional interceptors run in an injection context, so <code>inject(AuthService)</code> works directly
-      inside them.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      An <code>HttpInterceptorFn</code> wraps every request/response; register with
-      <code>withInterceptors([...])</code>.
-    </li>
-    <li>Requests are immutable — <code>req.clone()</code> to modify; always <code>return next(...)</code>.</li>
-    <li>Out in array order, back in reverse — order affects retry/auth/logging.</li>
-    <li><code>HttpContext</code> passes per-request metadata; only <code>HttpClient</code> calls are intercepted.</li>
-  </ul>
+  <!-- ============ 6. RETRY, REFRESH, AND THE STAMPEDE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Order has teeth</p>
+    <h2><code>retry()</code> resends the request. It does not refresh your token.</h2>
 
-  <p><a routerLink="/rxjs-observables">Next: RxJS — Observables →</a></p>
+    <p>The obvious way to handle a 401 is to redirect to login and retry transient failures along the way:</p>
+
+    <app-code-lab
+      file="error.interceptor.ts"
+      [code]="errorSample"
+      [notes]="errorNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="warn">
+      <strong>A tempting "fix" that doesn't work:</strong> wrap the 401 branch in <code>retry()</code> and hope a
+      differently-ordered <code>auth</code> interceptor supplies a fresh token on the next attempt. It won't, and
+      reordering <code>auth</code> and <code>error</code> in the array changes nothing about it.
+      <code>retry()</code> only resubscribes to the Observable that the single call to <code>next(req)</code> already
+      produced — and for a request that reaches the backend, that Observable is <code>HttpXhrBackend</code>'s own cold
+      XHR dispatch. Resubscribing it fires a <em>new</em> XHR with the <em>exact same</em> <code>req</code> object,
+      headers baked in. This is straight from Angular's own source (<code>chainedInterceptorFn</code> in
+      <code>@angular/common</code>): every interceptor's function body runs exactly <strong>once</strong>,
+      synchronously, to build the chain for one subscription. <code>retry</code> never re-runs any of that code — going
+      in either direction — no matter where you put <code>auth</code>.
+    </div>
+
+    <p>
+      What <em>does</em> get you a fresh token is calling <code>next</code> a second time, <strong>yourself</strong>,
+      after you've fetched a new one — a genuine, intentional second invocation, not a resubscription. That's a
+      refresh-and-replay interceptor. But before the code, here's the failure mode that makes it harder than it looks:
+      what happens when ten requests all 401 in the same tick, and each one, on its own, tries to be helpful.
+    </p>
+
+    <app-bubbles
+      [turns]="stampedeTalk"
+      caption="Nobody here is behaving unreasonably in isolation — each request's interceptor pipeline runs completely independently and genuinely has no idea the other two exist. That's the actual problem: the fix can't live inside any one request's logic."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — three requests, one moment, two versions of the interceptor</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="simulateStampede(false)">3 requests 401 → naive refresh</button>
+        <button class="ghost" (click)="simulateStampede(true)">3 requests 401 → guarded refresh</button>
+      </div>
+      @if (stampedeLog().length) {
+        <div class="code">
+          <pre>{{ stampedeLogText() }}</pre>
+        </div>
+      }
+      <p class="demo__note">
+        Naive: three separate <code>POST /refresh</code> calls, three different tokens, and whichever response lands
+        last silently invalidates the other two. Guarded: one call, three winners.
+      </p>
+    </div>
+
+    <p>The gate that produces the guarded log — a shared, replayed refresh call behind a simple flag:</p>
+
+    <app-code-lab
+      file="refresh.interceptor.ts"
+      [code]="refreshSample"
+      [notes]="refreshNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-quiz
+      question="Ten requests all 401 within the same tick. With the `refreshing ??=` gate from the code above in place, how many times does `auth.refresh()` actually get called?"
+      [options]="stampedeQuizOptions"
+      followUp="That's exactly what the “guarded refresh” button in the demo above is simulating — one call, all three requests replayed against it."
+    />
+
+    <app-remember variant="rule">
+      <code>markForCheck()</code>-style thinking doesn't apply here, but the shape rhymes:
+      <strong><code>retry()</code> repeats a call; it never re-runs the code that built it.</strong> A fresh value — a
+      token, a header, anything computed upstream — needs a genuinely new call to whatever computed it, not a
+      resubscription to something that already ran.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. PER-REQUEST OPT-OUTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Per-request opt-outs</p>
+    <h2>Not every request should get the same treatment.</h2>
+
+    <p>
+      A type-safe channel to pass metadata from the call site to an interceptor, without abusing headers or hard-coding
+      URL checks inside the interceptor itself:
+    </p>
+
+    <app-code-lab
+      file="skip-auth.ts"
+      [code]="contextSample"
+      [notes]="contextNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      The same channel solves an entirely different problem: a global "request in flight" spinner every
+      <code>HttpClient</code> call should drive — except the handful of calls, background polling, a keep-alive ping,
+      that shouldn't spin it.
+    </p>
+
+    <app-code-lab
+      file="loading.interceptor.ts"
+      [code]="loadingSample"
+      [notes]="loadingNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>A stream can end three different ways, and a spinner has to hear about every one of them:</p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Completes" kicker="the normal case">
+        The response arrives and the stream is done. <code>finalize</code> runs once, right after the last event.
+      </app-tape-card>
+      <app-tape-card heading="Errors" tone="accent" kicker="4xx / 5xx / network">
+        The stream errors instead of completing — a <code>catchError</code> further along still sees the error, and
+        <code>finalize</code> still runs.
+      </app-tape-card>
+      <app-tape-card heading="Unsubscribed" tone="olive" kicker="cancelled, not finished">
+        Nobody is listening any more — a destroyed component, a <code>switchMap</code> that moved to a newer request.
+        Neither <code>complete</code> nor <code>error</code> ever fires. <code>finalize</code> is the only one of the
+        three that still does.
+      </app-tape-card>
+    </div>
+
+    <app-compare
+      leftTitle="Looks equivalent — `tap`"
+      leftTone="bad"
+      rightTitle="Actually equivalent — `finalize`"
+      rightTone="good"
+      note="`tap`'s `next` callback fires on every emission — including any progress events before the real response — so `stop()` can run early and more than once on a request that's still in flight. And neither callback fires at all if the request is simply **unsubscribed**: `finalize` is the only one of the three termination paths guaranteed to run there."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ loadingTapSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ loadingFinalizeSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 8. FUNCTIONAL VS LEGACY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Two ways to register</p>
+    <h2>Functional interceptors, and the class-based kind they replaced.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        HttpInterceptorFn vs. HTTP_INTERCEPTORS
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th><code>HttpInterceptorFn</code> (modern)</th>
+          <th>class + <code>HTTP_INTERCEPTORS</code> (legacy)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Shape</td>
+          <td>a function <code>(req, next) =&gt; …</code></td>
+          <td>a class implementing <code>intercept()</code></td>
+        </tr>
+        <tr>
+          <td>Register</td>
+          <td><code>withInterceptors([...])</code></td>
+          <td><code>&#123; provide: HTTP_INTERCEPTORS, useClass, multi: true &#125;</code></td>
+        </tr>
+        <tr>
+          <td>Fold into one chain</td>
+          <td>native — every array entry runs where it sits</td>
+          <td><code>withInterceptorsFromDi()</code>, as one block</td>
+        </tr>
+        <tr>
+          <td>Position in the chain</td>
+          <td>wherever it sits in the <code>withInterceptors([...])</code> array</td>
+          <td>
+            as one group, wherever <code>withInterceptorsFromDi()</code> sits among <code>provideHttpClient</code>'s
+            other arguments
+          </td>
+        </tr>
+        <tr>
+          <td>Inject services</td>
+          <td><code>inject()</code> directly — runs in an injection context</td>
+          <td>constructor injection</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 9. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What <code>withInterceptors([...])</code> actually builds.</h2>
+
+    <p>
+      The array isn't iterated per request. At bootstrap, Angular folds it — once — into one function nesting each
+      interceptor inside the next, closing over whichever interceptor should run after it:
+    </p>
+
+    <div class="code">
+      <pre>{{ compositionSample }}</pre>
+    </div>
+
+    <p>
+      That nested arrow you see on the right is a <span class="term">closure</span>: the function Angular hands to
+      <code>a</code> as its <code>next</code> parameter <em>remembers</em> <code>b</code> and everything nested inside
+      it, even after <code>withInterceptors</code> has long since returned. Each interceptor only ever holds a reference
+      to the one closure it was handed — never the whole array — which is exactly why array order fixes wrap order and
+      nothing else does.
+    </p>
+
+    <ul>
+      <li>
+        <strong>Requests are cold, end to end.</strong> Nothing in the chain runs until your code subscribes to the
+        <code>HttpClient</code> call — directly, via <code>async</code>, or <code>firstValueFrom</code>. Subscribe to
+        the same call twice and every interceptor re-enters from scratch; there's no built-in deduplication of an
+        in-flight request (which is exactly the gap the refresh gate above fills by hand, for one specific case).
+      </li>
+      <li>
+        <strong>The innermost <code>next</code> is <code>HttpBackend</code>, not another interceptor.</strong> After the
+        last interceptor in the array calls <code>next(req)</code>, that call lands on Angular's backend — XHR by
+        default, or <code>fetch</code> with <code>withFetch()</code> configured. Interceptors never see the raw
+        XHR/<code>fetch</code> call, only the <code>HttpRequest</code>/<code>HttpEvent</code> abstraction.
+      </li>
+      <li>
+        <strong>Short-circuiting isn't a special API.</strong> An interceptor's signature is just
+        <code>(req) =&gt; Observable&lt;HttpEvent&gt;</code>, and that's also what <code>next</code> itself returns —
+        <code>next(req)</code> and <code>of(cachedResponse)</code> are both ordinary, correctly-typed return values.
+        That's why TypeScript happily compiles an interceptor that never touches <code>next</code> at all: nothing in
+        <code>HttpInterceptorFn</code>'s type requires the body to reference it. What TypeScript <em>does</em>
+        catch — see the mechanism section — is a function that falls off the end without returning anything, which is a
+        much narrower guarantee than "the chain continues."
+      </li>
+      <li>
+        <strong>Legacy and functional interceptors can coexist.</strong>
+        <code>provideHttpClient(withInterceptorsFromDi(), withInterceptors([...]))</code> folds
+        <code>HTTP_INTERCEPTORS</code>-based classes and functional interceptors into one composed chain — the same
+        out-in-order, back-in-reverse rule applies across the mixed set, with the legacy classes running together as
+        whichever single link <code>withInterceptorsFromDi()</code>'s position makes them.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 10. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls that show up in exams &amp; code review</p>
+    <h2>The five ways this goes wrong in practice.</h2>
+
+    <ul>
+      <li>
+        <strong>Returning the wrong Observable, not "forgetting <code>next()</code>".</strong> The compiler catches a
+        bare fall-through. What it can't catch is a function that type-checks perfectly but is wired to something that
+        <span class="bf-break">never emits</span> — see the mechanism section's true hang.
+      </li>
+      <li><strong>Mutating the request.</strong> It's immutable; use <code>req.clone(...)</code> for every change.</li>
+      <li>
+        <strong>Expecting <code>retry()</code> to refresh anything.</strong> It resends the same already-built request;
+        it does not re-run any interceptor's code, in either direction.
+      </li>
+      <li>
+        <strong>A refresh interceptor with no concurrency guard.</strong> Without a shared, replayed gate, N
+        simultaneous 401s produce N refresh calls that invalidate each other.
+      </li>
+      <li>
+        <strong>Caching whatever <code>tap</code> sees, unnarrowed.</strong> <code>next()</code> emits a stream, not one
+        value — check <code>instanceof HttpResponse</code> before you store anything.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        An interceptor is one function, two jobs: look at the request, decide whether to keep going.
+        <strong>Return <code>next(...)</code>'s Observable, or your own — always.</strong>
+      </li>
+      <li>
+        <strong>Out in array order, back in reverse.</strong> It's not a convention, it falls straight out of nested
+        closures — whichever interceptor is closest to the backend sees the response first.
+      </li>
+      <li>
+        <strong>Not calling <code>next()</code> at all is the real short-circuit</strong> — a valid, differently-typed
+        Observable, returned instead. Nothing downstream in the array ever runs.
+      </li>
+      <li>
+        <code>retry()</code> <strong>resends; it does not refresh.</strong> A fresh token needs an explicit second call
+        to <code>next()</code>, guarded so N concurrent 401s produce exactly one refresh call.
+      </li>
+      <li>
+        <code>HttpContext</code> is a typed, per-request channel <strong>for your own interceptors</strong> — auth
+        opt-outs, loading-spinner opt-outs, anything a call site needs to say without touching a header.
+      </li>
+      <li>
+        <code>finalize</code> is the one operator that runs on <strong>all three</strong> ways a stream ends — complete,
+        error, or unsubscribe — which is exactly what a loading indicator needs and <code>tap</code>
+        cannot promise.
+      </li>
+    </ul>
+
+    <p><a routerLink="/rxjs-observables">Next: RxJS — Observables →</a></p>
+  </section>
 </article>

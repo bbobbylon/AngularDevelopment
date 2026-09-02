@@ -397,7 +397,7 @@
 
     <app-predict
       prompt="Close the panel, reopen it, close it, reopen it — four clicks total. How many times will the @if child's ngOnInit have run by the end, and what about the [hidden] child's?"
-      answer="The @if child: twice — once per time the branch turned true, because each reopen builds a fresh instance from nothing. The [hidden] child: still once — it was only ever constructed the first time either box appeared; hiding it never destroys it, so nothing re-runs its ngOnInit no matter how many times it's toggled."
+      answer="Three, not two — the easy mistake is forgetting the one that already happened. Both boxes are visible on page load (`showBoxes` starts `true`), so the @if child's ngOnInit already fired once before you clicked anything; the two reopens in this sequence (clicks 2 and 4) each build another fresh instance and fire it again, for three total. The [hidden] child: just once, ever — built that same first time the page loaded, and never destroyed no matter how many times it's toggled, so none of these four clicks touches its ngOnInit at all."
     />
 
     <div class="tip">

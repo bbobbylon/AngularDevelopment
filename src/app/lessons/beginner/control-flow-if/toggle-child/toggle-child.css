@@ -4,6 +4,18 @@
   display: block;
 }
 
+/* The browser's own `[hidden]` rule is `display: none` with NO `!important`,
+   so this component's own `display: block` above — same specificity, author
+   origin — would otherwise beat it and the host would stay visible even with
+   the `hidden` attribute set. This is exactly the bug the lesson's own
+   [hidden] demo would otherwise fall into: the split panel calls this
+   component with `[hidden]="!showBoxes()"` specifically to prove the child
+   survives *invisibly*, and without this rule it would never actually go
+   invisible. */
+:host([hidden]) {
+  display: none;
+}
+
 /* A small dashed-border tag rather than a full .demo card — this sits INSIDE
    an existing demo panel, so it needs to read as a component, not as another
    nested panel competing with the one around it. */

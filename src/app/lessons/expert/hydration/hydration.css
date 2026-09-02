@@ -1,106 +1,78 @@
-.chips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 0 0 12px;
-}
-.chips button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 6px 14px;
-  font-size: 0.84rem;
-}
-.chips button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
+/* Table, callout and card styling now comes from the shared brain-friendly
+   layer (src/brain-friendly.css §8, §14, §15) — the `.t` / `.cmp` / `.qa`
+   blocks that used to live here were per-lesson copies of rules the theme
+   now owns. `.qa` in particular is gone for good: the exam corner is an
+   `<app-faq>` now.
 
-.steps {
+   What's left is genuinely specific to this lesson's two interactive
+   demos: the boot comparator's numbered step list, and the mismatch
+   clinic's error-code pill and cause/fix copy. */
+
+/* ---- Boot comparator: the numbered step list ---- */
+.lesson.bf .steps {
   list-style: none;
   margin: 0;
   padding: 0;
   counter-reset: step;
 }
-.steps li {
+
+.lesson.bf .steps li {
   counter-increment: step;
   display: flex;
   gap: 10px;
   align-items: baseline;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--border);
-  font-size: 0.9rem;
+  padding: 9px 0;
+  border-bottom: 1px dashed var(--bf-rule);
+  font-size: 0.94rem;
 }
-.steps li:last-child {
+
+.lesson.bf .steps li:last-child {
   border-bottom: none;
 }
-.steps li::before {
+
+.lesson.bf .steps li::before {
   content: counter(step);
-  flex: 0 0 22px;
-  height: 22px;
+  flex: 0 0 24px;
+  height: 24px;
   border-radius: 50%;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--bf-surface-2);
+  border: 1px solid var(--bf-rule);
+  font-family: var(--font-body);
   font-size: 0.72rem;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
-.steps li.bad {
-  color: #ef4444;
-}
-.steps li.bad::before {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: #ef4444;
-  color: #ef4444;
+
+/* Colour marks the failing steps, but never carries the meaning alone — the
+   "✗" glyph in the template and the step's own wording do that job too. */
+.lesson.bf .steps li.bad {
+  color: var(--bf-danger);
 }
 
-.err-pill {
+.lesson.bf .steps li.bad::before {
+  background: var(--bf-danger-wash);
+  border-color: var(--bf-danger);
+  color: var(--bf-danger);
+}
+
+/* ---- Mismatch clinic ---- */
+.lesson.bf .err-pill {
   display: inline-block;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   padding: 4px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  margin: 10px 0 6px;
+  background: var(--bf-danger-wash);
+  border: 1px solid color-mix(in srgb, var(--bf-danger) 35%, transparent);
+  color: var(--bf-danger);
+  margin: 10px 0 8px;
 }
 
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+.lesson.bf .mismatch-detail {
+  font-size: 0.94rem;
+  line-height: 1.65;
+  margin: 6px 0;
 }

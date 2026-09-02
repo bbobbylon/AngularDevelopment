@@ -1,206 +1,556 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Rendering &amp; Delivery</span>
-  <h1>Hydration</h1>
-  <p class="lead">
-    Hydration is how the client-side app <em>adopts</em> the server-rendered HTML instead of throwing it away: Angular
-    reuses the existing DOM nodes, attaches event listeners and wires up state. It's what makes SSR feel seamless — and
-    it imposes strict rules that produce the infamous NG0500 when broken. This page covers the machinery, the rules, the
-    error clinic, event replay, and incremental hydration.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Expert · Rendering"
+    title="Hydration"
+    hand="or, how the client learns not to rebuild a page that's already sitting right there"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Server-side rendering paints real HTML before a line of your JavaScript runs. What happens next is what this page
+      is about: does the client <strong>adopt</strong> that HTML, or quietly throw it away and build a second page on
+      top of the first? Hydration is Angular choosing the first option — and the price of that choice is a strict
+      contract about what the client is allowed to find when it goes looking. This page covers the adoption mechanism
+      itself, how to tell it actually worked, the ways the contract gets broken, and two escape hatches that sound like
+      the same idea and are close to opposites.
+    </p>
+  </app-chapter>
 
-  <h2>Destructive bootstrap vs hydration</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — compare the two client bootstraps</p>
-    <div class="chips">
-      @for (b of boots; track b) {
-        <button [class.on]="boot() === b" (click)="boot.set(b)">{{ bootSteps[b].title }}</button>
-      }
-    </div>
-    <ul class="steps">
-      @for (s of bootSteps[boot()].steps; track $index) {
-        <li [class.bad]="s.bad">{{ s.text }}</li>
-      }
-    </ul>
-  </div>
-  <div class="code">
-    <pre>{{ enableSample }}</pre>
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>The HTML is already right. Watch Angular throw it out.</h2>
 
-  <h2>Under the hood: DOM adoption</h2>
-  <p>
-    During server rendering, Angular annotates the HTML with hydration metadata —
-    <code>ngh</code> attributes and comment markers recording how many nodes each view claimed, where embedded views
-    (loops, conditionals) begin and end, and which containers hold what. On the client, instead of calling its usual
-    create-DOM instructions, the runtime <em>walks</em> the existing DOM using that map, claiming node after node for
-    each component:
-  </p>
-  <div class="code">
-    <pre>{{ annotatedSample }}</pre>
-  </div>
-  <p>
-    This is why the contract is strict: the walk succeeds only if the DOM the client finds is <em>exactly</em> the DOM
-    the server produced, in structure and order. Anything that perturbs it — a browser "fixing" invalid HTML, a script
-    injecting a node, a proxy stripping whitespace — derails the node matching, and Angular reports a mismatch.
-  </p>
+    <p>
+      Server-side rendering does real work. By the time a browser paints anything, there's a finished
+      <code>&lt;article&gt;</code>, a filled-in form, maybe a <code>&lt;video&gt;</code> already mid-frame. Bootstrap
+      the client app the naive way and <span class="key">none of that survives the next few hundred milliseconds</span>
+      — Angular builds its own component tree from nothing and swaps it in over the top, node for node, whether or not
+      anything actually needed to change.
+    </p>
 
-  <h2>The mismatch clinic — NG0500 and friends</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — pick a cause, get the diagnosis and the fix</p>
-    <div class="chips">
-      @for (m of mismatches; track m.label) {
-        <button [class.on]="activeMismatch() === m" (click)="activeMismatch.set(m)">{{ m.label }}</button>
-      }
-    </div>
-    @if (activeMismatch(); as m) {
-      <span class="err-pill">{{ m.error }}</span>
-      <p style="font-size: 0.9rem; margin: 6px 0"><strong>Cause:</strong> {{ m.cause }}</p>
-      <p style="font-size: 0.9rem; margin: 6px 0"><strong>Fix:</strong> {{ m.fix }}</p>
-    } @else {
-      <p style="color: var(--text-muted); font-size: 0.88rem">
-        Select a failure mode above — these five cover nearly every real-world hydration bug.
+    <p>
+      That isn't hypothetical. It's what every Angular app did before hydration existed, and it's still exactly what
+      happens today the instant <code>provideClientHydration()</code> is missing from your <code>app.config.ts</code>.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before you scroll">
+      Picture an SSR page with a <code>&lt;video&gt;</code> already playing when the JS bundle finishes downloading.
+      <strong>Without</strong> hydration, what happens to that video the instant Angular bootstraps? Flip between the
+      two paths below and check your guess against the line about media elements.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Interactive — compare the two client bootstraps</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        @for (b of boots; track b) {
+          <button
+            class="bf-btn"
+            [class.bf-btn--ghost]="boot() !== b"
+            [attr.aria-pressed]="boot() === b"
+            (click)="boot.set(b)"
+          >
+            {{ bootSteps[b].tab }}
+          </button>
+        }
+      </div>
+      <h3 style="margin-top: 0">{{ bootSteps[boot()].title }}</h3>
+      <ul class="steps">
+        @for (s of bootSteps[boot()].steps; track $index) {
+          <li [class.bad]="s.bad">
+            @if (s.bad) {
+              <span aria-hidden="true">✗&nbsp;</span>
+            }
+            <app-rich-text [text]="s.text" />
+          </li>
+        }
+      </ul>
+      <p class="demo__note">
+        Every step in the destructive column costs something real — a repaint, a lost cursor position, a video that
+        jumps back to frame zero. Hydration's whole pitch is that the right-hand column costs none of it.
       </p>
-    }
-  </div>
-  <div class="tip">
-    Escape hatch for DOM you don't own: put <code>ngSkipHydration</code> on a component's host element and that subtree
-    re-renders destructively instead of hydrating — the right call for a third-party widget that rewrites its own DOM.
-    It's a per-subtree opt-out, not a fix; each skipped region gives back its hydration benefits.
-  </div>
-
-  <h2>Event replay — the dead-click gap</h2>
-  <p>
-    Between first paint (HTML visible) and hydration (listeners attached) there's a window where the page
-    <em>looks</em> interactive but isn't. With <code>withEventReplay()</code>, a tiny inline script captures user events
-    at the document root during that gap and replays them once hydration completes — the eager user's first click lands
-    instead of vanishing:
-  </p>
-  <div class="code">
-    <pre>{{ replaySample }}</pre>
-  </div>
-
-  <h2>Incremental hydration — &#64;defer (hydrate …)</h2>
-  <p>
-    Full hydration still downloads and executes the JavaScript for the whole page eventually. Incremental hydration goes
-    further: the server renders everything, but marked sections stay <em>dormant</em> — real visible DOM, zero attached
-    JS — until their trigger fires. Unlike a plain <code>&#64;defer</code>, there is no placeholder swap: the content is
-    already on screen.
-  </p>
-  <div class="code">
-    <pre>{{ incrementalSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Trigger</th>
-      <th>Hydrates when…</th>
-      <th>Use for</th>
-    </tr>
-    <tr>
-      <td><code>hydrate on idle</code></td>
-      <td>the browser goes idle</td>
-      <td>default "eventually" sections</td>
-    </tr>
-    <tr>
-      <td><code>hydrate on viewport</code></td>
-      <td>scrolled into view</td>
-      <td>below-the-fold content (comments, footers)</td>
-    </tr>
-    <tr>
-      <td><code>hydrate on interaction</code></td>
-      <td>the user clicks/focuses it</td>
-      <td>widgets that are static until touched</td>
-    </tr>
-    <tr>
-      <td><code>hydrate on hover</code></td>
-      <td>pointer approaches</td>
-      <td>menus, cards with actions</td>
-    </tr>
-    <tr>
-      <td><code>hydrate when expr</code></td>
-      <td>a boolean turns true</td>
-      <td>app-driven activation</td>
-    </tr>
-    <tr>
-      <td><code>hydrate never</code></td>
-      <td>never — stays static HTML forever</td>
-      <td>purely presentational server output</td>
-    </tr>
-  </table>
-  <div class="note">
-    Triggers compose with event replay: click a not-yet-hydrated
-    <code>hydrate on interaction</code> section and that same click both starts hydration <em>and</em> replays into the
-    freshly attached listener. Nested <code>&#64;defer (hydrate ...)</code> blocks hydrate top-down — a child cannot be
-    live inside a dormant parent.
-  </div>
-
-  <h2>What hydration buys you (and what it doesn't)</h2>
-  <ul>
-    <li>
-      <strong>Buys:</strong> no flash of re-rendered content, no CLS spike at bootstrap, less client work (adopt beats
-      rebuild), preserved media/iframe state, and — with incremental hydration — dramatically less JavaScript executed
-      up front.
-    </li>
-    <li>
-      <strong>Doesn't buy:</strong> a faster FCP (that's SSR itself), and it does not relax the SSR-safety rules — the
-      server and client must still render identical output (see the <a routerLink="/ssr">SSR lesson</a>).
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>What exactly happens without <code>provideClientHydration()</code>?</summary>
-    <div>
-      The client app discards the server-rendered DOM and re-renders everything from scratch — a visible flicker, layout
-      shift, lost focus/selection, reloaded media. SSR still helped FCP and SEO, but the bootstrap is destructive.
     </div>
-  </details>
-  <details class="qa">
-    <summary>NG0500 appears only in production. Likeliest culprits?</summary>
-    <div>
-      Something between the server and the browser rewrites the HTML — a CDN/proxy minifying documents or stripping
-      comments (killing the ngh annotations) — or a prod-only third-party script injecting DOM before hydration
-      completes.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does a missing <code>&lt;tbody&gt;</code> break hydration?</summary>
-    <div>
-      The browser's parser inserts one automatically, so the client-side DOM has an extra element the server annotations
-      don't account for — node matching derails. Hydration requires writing valid HTML the parser won't "correct".
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      How is <code>&#64;defer (hydrate on viewport)</code> different from plain <code>&#64;defer (on viewport)</code>?
-    </summary>
-    <div>
-      Plain defer renders a placeholder and swaps in the content when triggered — the content isn't there yet.
-      Incremental hydration ships the real server-rendered content immediately (visible, SEO-crawlable) and defers only
-      the JavaScript that makes it interactive.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>A cookie-consent script breaks hydration. Options?</summary>
-    <div>
-      Load it after hydration (afterNextRender), keep its DOM outside the app root, or wrap the affected region in a
-      component marked <code>ngSkipHydration</code> so that subtree re-renders destructively while the rest of the page
-      hydrates.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Hydration adopts server DOM instead of rebuilding — no flicker, no CLS, less work.</li>
-    <li>It works by walking annotated HTML; the server and client DOM must match exactly.</li>
-    <li>
-      NG0500 causes: DOM manipulation, invalid HTML, non-deterministic output, HTML-rewriting proxies —
-      <code>ngSkipHydration</code> is the per-subtree escape hatch.
-    </li>
-    <li><code>withEventReplay()</code> bridges the dead-click gap before listeners attach.</li>
-    <li>
-      <code>&#64;defer (hydrate …)</code> = content now, JavaScript on demand — including <code>hydrate never</code> for
-      static sections.
-    </li>
-  </ul>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Hydration is moving into a furnished apartment.</h2>
 
-  <p><a routerLink="/pwa-service-worker">Next: PWA &amp; Service Worker →</a></p>
+    <p>
+      Here's a way to hold both boot paths in your head with no Angular vocabulary at all. Imagine two ways to move into
+      an apartment that already has furniture in it.
+    </p>
+
+    <p>
+      <strong>The destructive way:</strong> you carry every piece of the existing furniture out to the curb — sofa,
+      bookshelf, the lamp that was already plugged in and lit — and build your own from flat-pack, room by room, while
+      the previous tenant's furniture sits on the lawn. The apartment ends up looking identical. It just spent an
+      afternoon looking like a demolition site to get there, and the lamp that was on when you arrived is off now,
+      because it got unplugged along the way.
+    </p>
+
+    <p>
+      <strong>The hydration way:</strong> you walk in holding the floor plan the previous tenant left you — which piece
+      is in which room, in what order — and go room to room <em>confirming</em> the furniture matches the plan. Where it
+      does, you leave it exactly where it is and start doing tenant things: plugging your own lamp cord into the socket
+      that's already there, instead of installing a socket. Nothing goes outside. The lamp that was already lit stays
+      lit.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Map, walk, claim, verify.</strong> The server emits the <em>map</em> — <code>ngh</code> plus the
+      <code>ng-state</code> blob. The client <em>walks</em> the existing DOM in the order the map describes,
+      <em>claims</em> each node instead of creating it, and <em>verifies</em> it got what the map promised. A "no" at
+      verify is <code>NG0500</code>.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="walkTalk"
+      caption="The walk succeeding, then the same walk failing — same conversation, one different node."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One walk, not one rebuild.</h2>
+
+    <p>
+      Hydration has to be turned on — it isn't the default just because a route is server-rendered. This is the whole
+      provider:
+    </p>
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="enableSample"
+      [notes]="enableNotes"
+      notesLabel="What each provider actually does"
+    />
+
+    <p>
+      With that in place, the server stops being a plain HTML generator and starts annotating its output — a map of
+      exactly what it built, for the client to navigate by instead of ever calling its own create-DOM instructions:
+    </p>
+
+    <app-code-lab
+      file="server output — simplified"
+      [code]="annotatedSample"
+      [notes]="annotatedNotes"
+      notesLabel="Reading the map"
+    />
+
+    <p>
+      This is why the contract is strict. The walk only succeeds if the DOM the client finds is <em>exactly</em> the DOM
+      the map describes, in structure and order. Anything that perturbs it — a browser "fixing" invalid HTML, a script
+      injecting a node, a proxy stripping whitespace — derails the claim, and Angular reports a mismatch.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="ngh attribute" kicker="on each host" tone="gold">
+        An index into <code>__nghData__</code>, not the bookkeeping itself. Missing or wrong, and the client can't find
+        where a component's claim even starts.
+      </app-tape-card>
+      <app-tape-card heading="Container markers" kicker="HTML comments" tone="accent">
+        Bracket the node range an <code>&#64;if</code>/<code>&#64;for</code> block produced, since a structural block
+        has no single host element to carry its own <code>ngh</code>.
+      </app-tape-card>
+      <app-tape-card heading="ng-state blob" kicker="one script tag" tone="olive">
+        <code>TransferState</code>'s own channel, reused. Holds <code>__nghData__</code> alongside any cached HTTP
+        responses — strip this tag and both break together.
+      </app-tape-card>
+      <app-tape-card heading="Node claiming" kicker="the walk itself" tone="blue">
+        Adopting an existing DOM node instead of running the create instructions for it. Succeeds only if the node the
+        client finds is the node the map promised.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 4. DID IT ACTUALLY WORK? ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Verifying it</p>
+    <h2>How do you know it actually worked?</h2>
+
+    <p>
+      A page that looks fine tells you nothing — a destructive re-render looks fine too, a beat later. Three real ways
+      to check, none of which require reading a stack trace:
+    </p>
+
+    <ul>
+      <li>
+        The dev console prints a one-line summary after every hydrated navigation: how many components and nodes were
+        adopted, and how many were skipped.
+      </li>
+      <li>
+        Angular DevTools has a dedicated hydration overlay in the Components tab — it colours the tree by hydrated /
+        skipped / mismatched, so you can <em>see</em> where the walk gave up instead of parsing an error.
+      </li>
+      <li>
+        The proof is in <em>view-source</em> too: the <code>ngh</code> attributes and the
+        <code>&lt;script id="ng-state"&gt;</code> blob from the section above are just sitting in the response your
+        server sent. Missing entirely, and nothing upstream of Angular is even trying.
+      </li>
+    </ul>
+
+    <div class="code">
+      <pre>{{ hydrationLogSample }}</pre>
+    </div>
+
+    <app-predict
+      prompt="A production build hits a hydration mismatch inside one card component, nowhere else on the page. Does the visitor see a crashed app?"
+      answer="No. The loud, thrown `NG0500` you'd see in dev is a dev-mode verification step — it's off in production. Instead Angular recovers on its own: it destroys and re-renders **that component's subtree only**, the same as if `ngSkipHydration` had been on it all along. Everything else on the page keeps every benefit of hydration. The visible symptom is a small flicker and a layout nudge in one region — not a white screen, and not even a console error by default — which is exactly why the checks above exist: nothing in the UI will tell you it happened."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 5. THE MISMATCH CLINIC ============ -->
+  <section>
+    <p class="bf-eyebrow">The failure mode</p>
+    <h2>When it breaks: NG0500 and friends.</h2>
+
+    <p>The five causes below account for nearly every real hydration bug you'll actually meet:</p>
+
+    <div class="demo">
+      <p class="demo__title">Interactive — pick a cause, get the diagnosis and the fix</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        @for (m of mismatches; track m.label) {
+          <button
+            class="bf-btn bf-btn--ghost"
+            [attr.aria-pressed]="activeMismatch() === m"
+            (click)="activeMismatch.set(m)"
+          >
+            {{ m.label }}
+          </button>
+        }
+      </div>
+      @if (activeMismatch(); as m) {
+        <span class="err-pill">{{ m.error }}</span>
+        <p class="mismatch-detail"><strong>Cause:</strong> <app-rich-text [text]="m.cause" /></p>
+        <p class="mismatch-detail"><strong>Fix:</strong> <app-rich-text [text]="m.fix" /></p>
+      } @else {
+        <p class="demo__note">Select a failure mode above to see its diagnosis.</p>
+      }
+    </div>
+
+    <div class="warn">
+      <strong>Dev and prod disagree on what to do about it.</strong> In development, a mismatch throws loudly, on
+      purpose, so you can't ship it unnoticed. In production, Angular recovers quietly —
+      <span class="bf-break">silently</span> destroying and re-rendering just the affected subtree. Never assume "no
+      error in the console" means "hydration worked."
+    </div>
+  </section>
+
+  <!-- ============ 6. SKIP VS NEVER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam trap</p>
+    <h2>Skip and never are not the same escape hatch.</h2>
+
+    <p>
+      Both <code>ngSkipHydration</code> and <code>&#64;defer (hydrate never)</code> leave a region "not hydrated," and
+      that's the only thing they have in common — otherwise they're close to opposites:
+    </p>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        The same region, three different treatments
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Question</th>
+          <th scope="col">Hydrate normally</th>
+          <th scope="col"><code>ngSkipHydration</code></th>
+          <th scope="col"><code>&#64;defer (hydrate never)</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Server DOM reused?</td>
+          <td>Yes</td>
+          <td>No — destroyed &amp; rebuilt</td>
+          <td>Yes, forever</td>
+        </tr>
+        <tr>
+          <td>JS downloaded for it?</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>No — never shipped</td>
+        </tr>
+        <tr>
+          <td>JS executed for it?</td>
+          <td>Yes</td>
+          <td>Yes</td>
+          <td>No</td>
+        </tr>
+        <tr>
+          <td>Ever becomes interactive?</td>
+          <td>Yes</td>
+          <td>Yes, after the rebuild</td>
+          <td>No — stays inert</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="warn">
+      <strong><code>ngSkipHydration</code> is valid only on a component's host element.</strong> It's inherited by
+      everything beneath it, and it's all-or-nothing — there's no opting a deeper child back in once an ancestor has
+      skipped.
+    </div>
+
+    <app-remember variant="rule">
+      <strong>Skip re-renders it. Never freezes it.</strong> <code>ngSkipHydration</code> pays full JS cost and throws
+      away the DOM; <code>&#64;defer (hydrate never)</code> keeps the DOM and pays zero JS cost. If you remember which
+      one costs JavaScript, you remember both.
+    </app-remember>
+
+    <app-quiz
+      question="You mark a component with `ngSkipHydration`. What actually happens to it during bootstrap?"
+      [options]="quizOptions"
+      followUp="The table above has the full four-way contrast — worth a re-read if any option felt close."
+    />
+  </section>
+
+  <!-- ============ 7. EVENT REPLAY ============ -->
+  <section>
+    <p class="bf-eyebrow">Event replay</p>
+    <h2>The click that almost got lost.</h2>
+
+    <p>
+      Between first paint and hydration there's a window where the page <em>looks</em> interactive but isn't yet —
+      listeners simply haven't attached. Event replay is what stops the eager visitor's first click from vanishing into
+      that gap.
+    </p>
+
+    <app-compare
+      leftTitle="Without withEventReplay()"
+      leftTone="bad"
+      rightTitle="With withEventReplay()"
+      rightTone="good"
+      note="`withEventReplay()` is an explicit opt-in — `provideClientHydration()` on its own doesn't turn it on."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+HTML painted — page looks interactive
+        │
+   visitor clicks "Add to cart"
+        │
+hits a listener-less button: LOST
+        │
+   hydration finishes attaching
+listeners — too late, click is gone</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+HTML painted — page looks interactive
+        │
+   visitor clicks "Add to cart"
+        │
+click recorded at the document root
+        │
+hydration attaches the real listener
+        │
+recorded click replays into it — kept</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>Under the hood, replay isn't magic — it's one plain HTML attribute a single document-root listener reads:</p>
+
+    <app-code-lab
+      file="server output — a button, annotated"
+      [code]="jsactionSample"
+      [notes]="jsactionNotes"
+      notesLabel="The contract replay is built on"
+    />
+
+    <p>What replay does not save you from:</p>
+    <ul>
+      <li>
+        <strong><code>preventDefault()</code> and <code>stopPropagation()</code></strong> inside the replayed handler.
+        The real event already finished — its default action already ran, its propagation already happened — by the time
+        your handler executes, so calling either one now does nothing.
+      </li>
+      <li>
+        <strong>Listeners you attached yourself</strong> with raw <code>addEventListener</code> outside a template
+        binding. The <code>jsaction</code> attribute only gets stamped on Angular's own <code>(event)</code> bindings.
+      </li>
+      <li>
+        <strong>Work that genuinely needed to start before hydration</strong> — an API call gating what the button even
+        does. Replay can deliver the click to the listener; it can't make data exist that hasn't been fetched yet.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 8. INCREMENTAL HYDRATION ============ -->
+  <section>
+    <p class="bf-eyebrow">Incremental hydration</p>
+    <h2>Ship the pixels now, the JavaScript later.</h2>
+
+    <p>
+      Full hydration still eventually downloads and executes the JavaScript for the whole page. Incremental hydration
+      goes further: the server renders everything, but marked sections stay <em>dormant</em> — real, visible DOM, zero
+      attached JS — until their trigger fires.
+    </p>
+
+    <app-code-lab
+      file="dashboard.html"
+      [code]="incrementalSample"
+      [notes]="incrementalNotes"
+      notesLabel="Two triggers, two very different promises"
+    />
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        Every
+        <code>hydrate on</code>
+        trigger
+      </caption>
+      <thead>
+        <tr>
+          <th>Trigger</th>
+          <th>Hydrates when…</th>
+          <th>Use for</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>hydrate on idle</code></td>
+          <td>the browser goes idle</td>
+          <td>default "eventually" sections</td>
+        </tr>
+        <tr>
+          <td><code>hydrate on viewport</code></td>
+          <td>scrolled into view</td>
+          <td>below-the-fold content (comments, footers)</td>
+        </tr>
+        <tr>
+          <td><code>hydrate on interaction</code></td>
+          <td>the visitor clicks or focuses it</td>
+          <td>widgets that are static until touched</td>
+        </tr>
+        <tr>
+          <td><code>hydrate on hover</code></td>
+          <td>pointer approaches</td>
+          <td>menus, cards with actions</td>
+        </tr>
+        <tr>
+          <td><code>hydrate when expr</code></td>
+          <td>a boolean turns true</td>
+          <td>app-driven activation</td>
+        </tr>
+        <tr>
+          <td><code>hydrate never</code></td>
+          <td>never — stays static HTML forever</td>
+          <td>purely presentational server output</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The rules that come with the feature, none of which are optional:</p>
+    <ul>
+      <li>
+        <strong>Event replay is automatic inside a hydrate block too.</strong> A click on dormant content is buffered
+        exactly like a click anywhere else on the page.
+      </li>
+      <li>
+        <strong>The scope is the initial SSR document only.</strong> A client-side route navigation into the same
+        component has no server DOM to adopt, so the block just defers normally and shows
+        <code>&#64;placeholder</code> like a plain <code>&#64;defer</code> would.
+      </li>
+      <li>
+        <strong><code>ngSkipHydration</code> and hydrate triggers don't mix.</strong> Pick one dormant strategy per
+        region, not both at once on the same component.
+      </li>
+      <li>
+        <strong>Nested hydrate blocks resolve top-down.</strong> A child's trigger can't fire before its parent has
+        hydrated — a <code>hydrate on interaction</code> child inside a <code>hydrate on viewport</code> parent waits
+        for the viewport trigger regardless of what the child's own trigger is doing.
+      </li>
+    </ul>
+
+    <app-predict
+      prompt="Same `@defer (hydrate on viewport)` block. First: a visitor hits the URL directly — a fresh SSR document load. Second: they click a link elsewhere in the app and the router navigates here client-side. Same behavior both times?"
+      answer="No. On the hard load, the real content is already server-rendered and visible; hydration for it just waits for the viewport trigger — nothing to placeholder. On the client-side navigation there's no server HTML to adopt at all, so Angular renders `@placeholder` first, exactly like a plain `@defer`, and swaps in the real component once the trigger fires. Same markup, two different code paths, because incremental hydration only ever applies to the document Angular actually received from the server."
+      revealLabel="Reveal both answers"
+    />
+  </section>
+
+  <!-- ============ 9. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>What hydration buys you — and what it never promised.</h2>
+
+    <div class="bf-grid-2">
+      <div class="bf-card bf-card--solution">
+        <p class="bf-card__label">Buys</p>
+        <ul>
+          <li>No flash of re-rendered content, no CLS spike at bootstrap</li>
+          <li>Less client work — adopting beats rebuilding</li>
+          <li>Preserved media and iframe state</li>
+          <li>With incremental hydration, dramatically less JavaScript executed up front</li>
+        </ul>
+      </div>
+      <div class="bf-card bf-card--problem">
+        <p class="bf-card__label">Doesn't buy</p>
+        <ul>
+          <li>A faster first paint — that's SSR itself, not hydration</li>
+          <li>Relaxed SSR-safety rules — server and client still must render identical output</li>
+          <li>Immunity from a mismatch, or a way to skip verifying it worked</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tip">
+      Hydration doesn't make the page faster to first paint — <strong>SSR already did that.</strong> What hydration buys
+      is a client takeover the visitor never notices, instead of a second render stacked on top of the first.
+    </div>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Hydration's whole job is one promise: don't build a second page over the first one. It
+        <strong>walks</strong> the server's DOM instead of recreating it, matching each node against the
+        <code>ngh</code> map the server shipped alongside it.
+      </li>
+      <li>
+        That promise only holds if the DOM the client finds is byte-for-byte what the server produced.
+        <strong>Anything that perturbs it in between</strong> — a proxy's minifier, a browser "fixing" invalid HTML, an
+        injected script — breaks the walk.
+      </li>
+      <li>
+        A dev-time <code>NG0500</code> isn't the whole story: <strong>production recovers on its own</strong>, silently
+        rebuilding just the mismatched subtree. The only way to know it happened is to go looking.
+      </li>
+      <li>
+        <code>ngSkipHydration</code> and <code>&#64;defer (hydrate never)</code> are near-opposites, not siblings.
+        <strong>Skip re-renders it; never freezes it.</strong>
+      </li>
+      <li>
+        <code>withEventReplay()</code> buys back clicks lost in the pre-hydration gap — but <strong>not</strong> a
+        working <code>preventDefault()</code>, a handler wired up outside a template, or work that genuinely needed to
+        start earlier.
+      </li>
+      <li>
+        Incremental hydration only changes what happens on <strong>the document the server actually rendered</strong>.
+        Reach the same <code>&#64;defer (hydrate ...)</code> block by client-side navigation instead, and it behaves
+        like a plain <code>&#64;defer</code> — placeholder and all.
+      </li>
+    </ul>
+
+    <p><a routerLink="/pwa-service-worker">Next: PWA &amp; Service Worker →</a></p>
+  </section>
 </article>

@@ -1,37 +1,12 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+/* HTTP Interceptors — migrated to the brain-friendly layer.
+
+   Nothing lesson-specific is left. The old `.cmp` table block, `.ok` cell colour and
+   `.qa` details/summary block are gone — they were per-lesson copies of rules the theme
+   now owns (`src/brain-friendly.css` §14–15): tables, callouts, code panels, pills, demo
+   panels and the whole teaching set are all themed globally inside a `bf` lesson.
+
+   The one diagram this lesson needed — the onion of interceptors wrapped around the
+   backend — is exactly the case `app-layers` (`shared/brain/layers`) was built for; its
+   own doc names "HTTP interceptors: the backend call is the core, each interceptor a
+   ring" as a worked example. So there is no bespoke SVG or geometry to maintain here,
+   unlike a lesson (e.g. RxJS Subjects) whose visual has no shared-component equivalent. */

@@ -1,29 +1,11 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-}
-.t th,
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-}
+/* Promises & async/await — lesson-specific styling.
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+   There isn't any. Every shape this page draws — tables, callouts, code
+   panels, the two-card fulfilled/rejected pair (`.bf-card--solution` /
+   `.bf-card--problem`), demo buttons and pills, and the whole teaching and
+   brain-friendly component set — is themed globally by
+   `src/brain-friendly.css`. The old `.t` table-border and `.qa` accordion
+   rules that used to live here are gone: the exam questions are an
+   `<app-faq>` and a pair of `<app-quiz>`s now, both keyboard-operable and
+   consistent with every other migrated lesson, and the tables are styled by
+   the shared `.lesson.bf table` rule regardless of which class they carry. */

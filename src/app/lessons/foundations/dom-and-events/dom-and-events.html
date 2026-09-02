@@ -1,261 +1,660 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Web Basics</span>
-  <h1>The DOM &amp; Events</h1>
-  <p class="lead">
-    We've covered values, functions and collections. Now: how does code actually
-    <em>change what's on the screen</em>, and respond when you click? The answer is the <strong>DOM</strong> and
-    <strong>events</strong>. Learn these two properly and every framework feature you meet later — bindings, listeners,
-    change detection — stops being magic and becomes "oh, it's doing <em>that</em> for me".
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Foundations · Web Basics"
+    title="The DOM &amp; Events"
+    hand="or, what your browser is actually made of, and why nothing on the page happens by itself"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      We've covered values, functions and collections. Now: how does code actually
+      <strong>change what's on the screen</strong>, and respond when you click something? The answer is the
+      <strong>DOM</strong> and <strong>events</strong> — and once you've seen both properly, every framework feature you
+      meet later stops being magic and becomes "oh, it's doing <em>that</em> for me."
+    </p>
+  </app-chapter>
 
-  <h2>The DOM: your page as a tree</h2>
-  <p>
-    When the browser loads HTML, it parses the text into a live, in-memory model called the
-    <strong>DOM</strong> (Document Object Model): one object per element, nested exactly as the tags nest. Explore a
-    small page — click any node:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — the HTML and its tree are the same thing</p>
-    <div class="split">
-      <div class="code" style="margin: 0">
-        <pre>
-&lt;!-- Every tag below becomes one NODE in the tree on the right. --&gt;
-&lt;body&gt;                    &lt;!-- the root of what you can see --&gt;
-  &lt;header&gt;                &lt;!-- a CHILD of body --&gt;
-    &lt;h1&gt;My App&lt;/h1&gt;       &lt;!-- a child of header; "My App" is a TEXT node --&gt;
-  &lt;/header&gt;
-  &lt;main&gt;                  &lt;!-- header's SIBLING — same parent, same level --&gt;
-    &lt;p&gt;Welcome!&lt;/p&gt;
-    &lt;button&gt;Click&lt;/button&gt;  &lt;!-- p's sibling; both are children of main --&gt;
-  &lt;/main&gt;
-&lt;/body&gt;
-&lt;!-- INDENTATION IS NESTING. That is the whole rule: how deep a tag sits in
-     the source is how deep its node sits in the tree. --&gt;</pre>
-      </div>
-      <div class="tree">
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Your HTML file is not what's on the screen.</h2>
+
+    <p>
+      Right-click any page and choose "View Page Source", and you'll see the raw text the server sent — the file,
+      exactly as written. Now open DevTools and look at the <strong>Elements</strong> panel. On a modern Angular app
+      those two views can look nothing alike: source shows a handful of near-empty tags, and Elements shows a fully
+      built page with thousands of nodes neither you nor the server ever typed.
+    </p>
+
+    <p>
+      Both are real. They are just <span class="key">two different things</span>. The file is static text — call it the
+      recipe. What the browser builds <em>from</em> that text, the moment it starts reading, is a live, in-memory object
+      tree called the <span class="term">DOM</span> (Document Object Model) — the cake. Once the DOM exists, the file is
+      irrelevant. JavaScript never touches your HTML file again; every "the page changed" you will ever see is something
+      rewriting the DOM.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      If the file and the DOM are different things, which one does <code>document.querySelector('button')</code> search?
+      And which one does a screen reader, or the browser's own Find-in-page, actually read? Hold an answer in your head
+      — the FAQ at the bottom names it directly.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Indentation in the file becomes nesting in the tree.</h2>
+
+    <p>
+      Every tag becomes one <span class="term">node</span>. Nodes get family-tree vocabulary, used completely literally:
+      a tag written <em>inside</em> another becomes its <strong>child</strong>, the outer one becomes its
+      <strong>parent</strong>, and two tags at the same depth with the same parent are <strong>siblings</strong>. That's
+      the entire rule — how deep a tag sits in the source is how deep its node sits in the tree.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 760 300"
+        role="img"
+        aria-label="A tree diagram. Body is at the top. Header and main are its children, drawn side by side one level below, and labelled siblings. H1 is a child of header. P and button are children of main, and are themselves siblings of each other."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="dae-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <!-- body -->
+        <rect x="300" y="12" width="160" height="52" rx="14" class="dia-box dia-box--lit" />
+        <text x="380" y="44" text-anchor="middle" class="dia-mono">&lt;body&gt;</text>
+
+        <!-- lines: body -> header, body -> main -->
+        <path d="M 340 64 L 220 118" class="dia-rule" fill="none" />
+        <path d="M 420 64 L 540 118" class="dia-rule" fill="none" />
+
+        <!-- header + main -->
+        <rect x="140" y="118" width="160" height="52" rx="14" class="dia-box" />
+        <text x="220" y="150" text-anchor="middle" class="dia-mono">&lt;header&gt;</text>
+        <rect x="460" y="118" width="160" height="52" rx="14" class="dia-box" />
+        <text x="540" y="150" text-anchor="middle" class="dia-mono">&lt;main&gt;</text>
+
+        <!-- sibling bracket between header and main -->
+        <path d="M 300 100 L 300 92 L 460 92 L 460 100" class="dia-rule" fill="none" />
+        <text x="380" y="84" text-anchor="middle" class="dia-mono dia-mono--sm">siblings — same parent</text>
+
+        <!-- lines: header -> h1, main -> p, main -> button -->
+        <path d="M 220 170 L 220 220" class="dia-rule" fill="none" />
+        <path d="M 520 170 L 470 220" class="dia-rule" fill="none" />
+        <path d="M 560 170 L 650 220" class="dia-rule" fill="none" />
+
+        <!-- h1, p, button -->
+        <rect x="140" y="220" width="160" height="52" rx="14" class="dia-box" />
+        <text x="220" y="252" text-anchor="middle" class="dia-mono">&lt;h1&gt;</text>
+        <rect x="390" y="220" width="160" height="52" rx="14" class="dia-box" />
+        <text x="470" y="252" text-anchor="middle" class="dia-mono">&lt;p&gt;</text>
+        <rect x="570" y="220" width="160" height="52" rx="14" class="dia-box" />
+        <text x="650" y="252" text-anchor="middle" class="dia-mono">&lt;button&gt;</text>
+
+        <!-- handwritten callout -->
+        <text x="20" y="200" class="dia-hand">parent → child,</text>
+        <text x="20" y="226" class="dia-hand">every single line</text>
+        <path d="M 96 190 C 120 175, 150 160, 190 130" class="dia-rule" fill="none" marker-end="url(#dae-arrow)" />
+      </svg>
+      <figcaption>
+        The lit box is <code>document.body</code> — the root of everything visible. Every arrow is one parent-to-child
+        step; the bracket marks two nodes as siblings. This is the whole vocabulary you need for the rest of the page.
+      </figcaption>
+    </figure>
+
+    <app-code-lab
+      file="page.html"
+      [code]="treeSample"
+      [notes]="treeNotes"
+      notesLabel="What each line becomes in the tree"
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>On-screen means attached-to-the-tree. Nothing else counts.</strong> Not written in the file, not sitting
+      in a variable, not "rendered but hidden" — a node shows up the instant it is attached somewhere inside
+      <code>document</code>, and disappears the instant it is removed. Everything else in this lesson is a consequence
+      of that one sentence.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. TRY IT — LIVE EXPLORER ============ -->
+  <section>
+    <p class="bf-eyebrow">See it for yourself</p>
+    <h2>Click through the tree the diagram just drew.</h2>
+
+    <p>
+      Same six nodes as the diagram and the code above — this time as a live page. Click any node to see where it sits
+      and what it's related to.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the tree, made of buttons</p>
+      <div class="dae-tree">
         @for (n of nodes; track n.id) {
           <button
-            class="tnode"
-            [style.margin-left.px]="n.depth * 22"
-            [class.sel]="selected() === n.id"
+            class="dae-tnode"
+            [style.margin-left.px]="n.depth * 26"
+            [class.dae-tnode--sel]="selected() === n.id"
             (click)="selected.set(n.id)"
           >
             {{ n.tag }}
           </button>
         }
       </div>
+      <p class="demo__note">
+        <strong>{{ selectedNode().tag }}</strong> — {{ selectedNode().info }}
+      </p>
     </div>
-    <p style="font-size: 0.9rem; margin-top: 10px">
-      <strong>{{ selectedNode().tag }}:</strong> {{ selectedNode().info }}
+  </section>
+
+  <!-- ============ 4. THE MANUAL TOOLKIT ============ -->
+  <section>
+    <p class="bf-eyebrow">The toolkit</p>
+    <h2>Finding and changing nodes, by hand.</h2>
+
+    <p>
+      Every node object carries properties you can read and write from JavaScript — <code>textContent</code>,
+      <code>value</code>, <code>classList</code>, <code>style</code>, and the one this section spends the most time on:
+      <code>innerHTML</code>. First, find the node; then change it.
     </p>
-  </div>
-  <ul>
-    <li>
-      Every element becomes a <strong>node</strong> with a parent, siblings and children — family-tree vocabulary is
-      used literally (<code>parentElement</code>, <code>children</code>).
-    </li>
-    <li>
-      The tree is <strong>live</strong>: change a node from JavaScript and the pixels update immediately. The HTML file
-      is just the recipe; the DOM is the cake.
-    </li>
-    <li>
-      Each node object carries <strong>properties</strong> you can read and write: <code>textContent</code> (its text),
-      <code>value</code> (an input's current content), <code>classList</code> (its CSS classes), <code>style</code>…
-    </li>
-  </ul>
 
-  <h2>Finding and changing nodes — the manual toolkit</h2>
-  <div class="code">
-    <pre>
-// find: CSS selectors, same syntax you style with
-const btn   = document.querySelector('button');     // first match
-const items = document.querySelectorAll('li.item'); // all matches
+    <app-code-lab
+      file="toolkit.js"
+      [code]="toolkitSample"
+      [notes]="toolkitNotes"
+      notesLabel="Every symbol, and what it does to the tree"
+    />
 
-// read & change:
-btn.textContent = 'Save';          // swap the text inside
-btn.disabled = true;               // set a property
-btn.classList.add('primary');      // add a CSS class
-btn.remove();                      // delete the node from the tree
-
-// create & insert:
-const p = document.createElement('p');  // exists only in memory so far…
-p.textContent = 'Saved!';
-document.body.append(p);                // …now it's in the tree → on screen</pre>
-  </div>
-  <p>
-    Note the two-step in the last block: <code>createElement</code> makes a detached node; nothing appears until
-    <code>append</code> attaches it to the tree. On-screen = in-the-tree, always.
-  </p>
-
-  <h2>Events: reacting to the user</h2>
-  <p>
-    An <strong>event</strong> is something that happens: a click, a key press, the mouse moving, a form submitting. You
-    register a function — an <strong>event handler</strong> — and the browser calls it when that event fires. The
-    registration line, dissected:
-  </p>
-  <div class="code">
-    <pre>
-button.addEventListener('click', (event) => {{ '{' }} … {{ '}' }});
-└──┬──┘ └───────┬──────┘ └──┬──┘  └──┬──┘
-the node   "call me when"  which   your handler — receives an
-to watch                   event   EVENT OBJECT full of details</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>The event name is a string</strong>: <code>'click'</code>, <code>'input'</code> (every keystroke in a
-      field), <code>'submit'</code>, <code>'keydown'</code>, <code>'mouseover'</code>, <code>'scroll'</code>…
-    </li>
-    <li>
-      <strong>The handler is just a function</strong> — usually an arrow function. You are handing it over to be called
-      <em>later</em>, maybe never, maybe a thousand times.
-    </li>
-    <li>
-      <strong>The event object</strong> is the browser's incident report: <code>event.target</code> (the node it
-      happened on), <code>event.key</code> (which key), <code>event.clientX/Y</code> (where the mouse was). And
-      <code>event.preventDefault()</code> cancels the browser's built-in reaction — e.g. stops a form submit from
-      reloading the page. You will call that one for the rest of your career.
-    </li>
-  </ul>
-
-  <div class="demo">
-    <p class="demo__title">Try it — clicking fires an event, the handler updates the page</p>
-    <button (click)="onClick()">Click me</button>
-    <button class="ghost" (click)="count.set(0)">Reset</button>
-    <p style="margin-top: 12px">
-      This button has been clicked <strong style="font-size: 1.3rem">{{ count() }}</strong> time(s).
+    <p>
+      Notice the two-step on the last three lines: <code>createElement</code> makes a node that exists only in memory —
+      nothing appears until <code>append</code> attaches it somewhere inside the tree. On-screen = in-the-tree, exactly
+      as promised two sections ago.
     </p>
-    @if (count() >= 5) {
-      <p style="color: var(--green)">🎉 Nice clicking! Handler ran → data changed → screen synced.</p>
-    }
-  </div>
 
-  <h2>Bubbling — one click, many listeners</h2>
-  <p>
-    Here's the part that surprises people: an event doesn't fire on just one element. After firing on the target it
-    <strong>bubbles up</strong> through every ancestor — target, parent, grandparent, up to <code>body</code>. Click the
-    innermost box and watch all three layers hear about it, inside-out:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — click the innermost box</p>
-    <div class="bubble outer" (click)="hit('outer')">
-      outer
-      <div class="bubble middle" (click)="hit('middle')">
-        middle
-        <div class="bubble inner" (click)="hit('inner')">inner — click me</div>
+    <h3>textContent and innerHTML look similar. They are not.</h3>
+
+    <p>
+      Both replace what's inside a node. The difference between them is the single most important line in this section,
+      because it decides whether a string is <span class="key">just words</span> or
+      <span class="key">real, running markup</span>.
+    </p>
+
+    <app-compare
+      leftTitle="`.textContent` — always literal text"
+      leftTone="good"
+      rightTitle="`.innerHTML` — parses markup"
+      rightTone="bad"
+      note="Same input string, two completely different outcomes. The browser's HTML parser only runs on one side."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ textLiteralSample }}</pre>
+        </div>
+        <p>Whatever you assign is treated as plain characters. There is no way to make this side create an element.</p>
       </div>
+      <div right>
+        <div class="code">
+          <pre>{{ htmlParsedSample }}</pre>
+        </div>
+        <p>
+          The string is fed straight into the browser's HTML parser. Anything that looks like a tag
+          <em>becomes</em> one.
+        </p>
+      </div>
+    </app-compare>
+
+    <app-napkin lead="think about it —" label="Where this goes wrong">
+      Now imagine that string isn't yours. It's a comment someone typed into a box on your site. What happens if it
+      contains <code>&lt;img src=x onerror="…"&gt;</code> and you write it into <code>.innerHTML</code>? There's a live
+      version right below — with a payload chosen so it proves the point without popping an alarming dialog.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — the exact same string, fed into both properties</p>
+      <div class="code" style="margin-bottom: 12px">
+        <pre>{{ xssPayload }}</pre>
+      </div>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="runXssText()">Set via <code>.textContent</code></button>
+        <button (click)="runXssHtml()">Set via <code>.innerHTML</code></button>
+        <button class="ghost" (click)="resetXssDemo()">Reset</button>
+      </div>
+      <div class="bf-grid-2">
+        <div class="bf-card bf-card--sunk">
+          <p class="bf-card__label">.textContent result</p>
+          <div #xssTextSink class="dae-xss-sink"></div>
+        </div>
+        <div class="bf-card bf-card--sunk">
+          <p class="bf-card__label">.innerHTML result</p>
+          <div #xssHtmlSink class="dae-xss-sink"></div>
+        </div>
+      </div>
+      <p class="demo__note">
+        The left panel shows the literal characters — completely inert, no matter what the string contains. The right
+        panel parses it: a real <code>&lt;img&gt;</code> is created, its <code>src</code> fails to load on purpose, and
+        its <code>onerror</code>
+        @if (xssHtmlRan()) {
+          <strong
+            >just fired — that red sentence is not a screenshot, it's real JavaScript that ran because you set
+            <code>.innerHTML</code></strong
+          >.
+        } @else {
+          fires the moment you press the button.
+        }
+        This is the entire injection vector behind XSS, and it needs no <code>&lt;script&gt;</code> tag at all.
+      </p>
     </div>
-    <div class="row" style="margin-top: 10px">
-      <button class="ghost" (click)="hits.set([])">Clear log</button>
+
+    <div class="tip">
+      <strong>Angular's own <code>[innerHTML]</code> binding is not this dangerous.</strong> It runs every value through
+      a sanitizer first, stripping <code>onerror</code> and anything else that can execute. This demo used
+      <code>nativeElement.innerHTML</code> — raw DOM access, deliberately outside any Angular binding — specifically so
+      nothing was there to stop it. The <a routerLink="/security">Security lesson</a> takes that boundary apart in full.
     </div>
-    <div class="console">
-      @for (h of hits(); track h.order) {
-        <div>{{ h.order }}. "{{ h.layer }}" heard the click</div>
-      } @empty {
-        <div class="dim">// the order the layers hear it appears here…</div>
+  </section>
+
+  <!-- ============ 5. ATTRIBUTE VS PROPERTY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The subtlety</p>
+    <h2>An attribute is frozen text. A property is live.</h2>
+
+    <p>
+      Every element starts life with its properties matching its HTML attributes —
+      <code>&lt;input value="seed"&gt;</code> gives you both an attribute <em>and</em> a property reading
+      <code>'seed'</code>. The trap is assuming they stay matched. They don't: the
+      <span class="term">attribute</span> is whatever was written in — or last set with <code>setAttribute</code> — and
+      never changes on its own. The <span class="term">property</span> is the element's live, current state, and the
+      browser updates it constantly as the user interacts with the page.
+    </p>
+
+    <app-code-lab
+      file="probe.js"
+      [code]="valueVsAttrSample"
+      [notes]="valueVsAttrNotes"
+      notesLabel="Same 'value', two different pieces of state"
+      prompt="After all six of those calls run, what does line 7's `getAttribute('value')` actually return — does it match line 5?"
+      output="`'seed'` — completely unchanged. Typing into the box, and even setting `.value` from code, never touches the attribute. Only line 8's `setAttribute` would move it."
+      revealLabel="Reveal what getAttribute returns"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — type in the box, watch the two readings split apart</p>
+      <label class="dae-field__label" for="dae-attr-probe">try typing here</label>
+      <input id="dae-attr-probe" #probe value="seed" (input)="noop()" />
+      <div class="row" style="margin-top: 10px">
+        <span class="pill">probe.value → '{{ probe.value }}'</span>
+        <span class="pill">probe.getAttribute('value') → '{{ probe.getAttribute('value') }}'</span>
+      </div>
+      <p class="demo__note">
+        The property tracks every keystroke. The attribute never moves — it is stuck at whatever the markup said,
+        exactly like the code sample above predicted.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>Boolean attributes don't read their string.</strong> <code>disabled</code>, <code>checked</code>,
+      <code>required</code> and <code>readonly</code> care only whether the attribute is <em>present</em> — so
+      <code>disabled="false"</code> is still disabled. Try both buttons below.
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — same word, two very different buttons</p>
+      <div class="row" style="flex-wrap: wrap">
+        <button disabled="false" (click)="attrDisabledClicks.update((n) => n + 1)">
+          <code>disabled="false"</code> → clicked {{ attrDisabledClicks() }} times
+        </button>
+        <button [disabled]="false" (click)="propDisabledClicks.update((n) => n + 1)">
+          <code>[disabled]="false"</code> → clicked {{ propDisabledClicks() }} times
+        </button>
+      </div>
+      <p class="demo__note">
+        Click the left button as many times as you like — the counter is welded to 0, because a genuinely disabled
+        element never fires <code>click</code> at all. The right one is Angular's <strong>property</strong> binding,
+        which passes the real boolean <code>false</code> straight to the DOM property, so the button is honestly
+        enabled.
+      </p>
+    </div>
+
+    <app-quiz
+      question='`<button disabled="false">Save</button>` — with nothing else on the page. Is it clickable?'
+      [options]="disabledQuizOptions"
+      followUp="The demo above is this exact question with two real buttons attached."
+    />
+
+    <p>
+      One more gap in the same family: <span class="term">ARIA</span> attributes like <code>aria-expanded</code> have
+      <strong>no property equivalent at all</strong> — there is no <code>element.ariaExpanded</code> the way there is an
+      <code>element.disabled</code>. Bind them with <code>[attr.aria-expanded]="isOpen()"</code>, never
+      <code>[aria-expanded]="isOpen()"</code> — the plain property form raises Angular's <code>NG0303</code> for exactly
+      this reason. The <a routerLink="/a11y">Accessibility lesson</a> puts this to work on real widgets.
+    </p>
+  </section>
+
+  <!-- ============ 6. EVENTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Reacting to the user</p>
+    <h2>An event is something that happened. A listener is you finding out.</h2>
+
+    <p>
+      A click, a key press, the mouse moving, a form submitting — the browser notices all of it and is happy to tell
+      you, if you ask. <span class="term">addEventListener</span> is how you ask: you hand the browser a function, and
+      it calls that function <em>later</em>, whenever the named event actually fires.
+    </p>
+
+    <app-code-lab
+      file="listener.js"
+      [code]="listenerSample"
+      [notes]="listenerNotes"
+      notesLabel="Three arguments, three jobs"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The event object — the browser's incident report
+      </caption>
+      <thead>
+        <tr>
+          <th>Property / method</th>
+          <th>What it tells you</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>event.type</code></td>
+          <td>Which event fired — <code>'click'</code>, <code>'keydown'</code>…</td>
+        </tr>
+        <tr>
+          <td><code>event.target</code></td>
+          <td>The exact node it happened on — see the dialogue further down for why this surprises people</td>
+        </tr>
+        <tr>
+          <td><code>event.key</code></td>
+          <td>Which key, on a keyboard event — <code>'Enter'</code>, <code>'a'</code>, <code>'Escape'</code></td>
+        </tr>
+        <tr>
+          <td><code>event.clientX</code> / <code>clientY</code></td>
+          <td>Where the pointer was, in pixels from the viewport's top-left</td>
+        </tr>
+        <tr>
+          <td><code>event.preventDefault()</code></td>
+          <td>Cancels the browser's own reaction — you'll call this one for the rest of your career</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="demo">
+      <p class="demo__title">Try it — clicking fires an event, the handler updates the page</p>
+      <button (click)="onClick()">Click me</button>
+      <button class="ghost" (click)="count.set(0)">Reset</button>
+      <p style="margin-top: 12px">
+        This button has been clicked <strong style="font-size: 1.3rem">{{ count() }}</strong> time(s).
+      </p>
+      @if (count() >= 5) {
+        <p class="demo__note">Nice clicking. Handler ran → data changed → screen synced — all three, every time.</p>
       }
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px">
-      Inner fires first, then the click travels outward. <code>event.stopPropagation()</code> would halt the journey;
-      checking <code>event.target</code> tells an outer listener what was originally clicked.
+  </section>
+
+  <!-- ============ 7. BUBBLING AND CAPTURE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The full journey</p>
+    <h2>An event doesn't fire on one element. It fires on all of them.</h2>
+
+    <p>
+      Here's the part that surprises people, and the old version of this lesson only told half of it. A click on a
+      deeply nested element doesn't just fire there — it travels through the <strong>entire</strong> ancestor chain,
+      <em>twice</em>. First inward, from <code>document</code> down to the target: the
+      <span class="term">capture</span> phase. Then it fires <strong>at</strong> the target. Then outward again, target
+      back up to <code>document</code>: the <span class="term">bubble</span> phase — the leg almost everything you write
+      actually listens on.
     </p>
-  </div>
-  <p>
-    Bubbling isn't a quirk — it's a feature you exploit: put <em>one</em> listener on a list instead of one per row
-    ("event delegation"), and it hears clicks from every current <em>and future</em> row. Angular relies on the same
-    mechanics under the hood for its event bindings.
-  </p>
 
-  <h2>The hard way — and why it doesn't scale</h2>
-  <p>Wire the counter demo by hand and you must keep data and screen in sync yourself:</p>
-  <div class="code">
-    <pre>
-let count = 0;                                     // 1· the data
-const button = document.querySelector('button');   // 2· find the button
-const label  = document.querySelector('#count');   // 3· find the label
+    <app-layers
+      [core]="{ label: 'button', sub: 'the click actually happened here' }"
+      [rings]="[{ label: 'document', sub: 'capture starts here' }, { label: 'body' }, { label: 'main' }]"
+      arrow="click fires"
+      caption="Capture travels **inward** through every ring to reach the core, then bubble retraces the exact same path back **outward**. A listener on `document` can hear one click twice — once on the way in, once on the way back out — which is exactly what the toggle below is switching between."
+    />
 
-button.addEventListener('click', () => {{ '{' }}          // 4· react to the event
-  count = count + 1;                               // 5· update the DATA
-  label.textContent = 'Clicked ' + count + ' times'; // 6· update the SCREEN — by hand!
-{{ '}' }});</pre>
-  </div>
-  <p>
-    Line 6 is the trap. Every place the data can change must remember to update every place the data is shown. Add a
-    reset button? Another line 6. Show the count in the header too? Two more. A real app has <em>hundreds</em> of
-    data-to-screen connections — miss one and you've shipped the classic bug: the screen shows stale data. There's a
-    second, quieter problem: lines 2–3 are <strong>selector strings</strong> — rename an id in the HTML and the JS
-    breaks with no warning until runtime.
-  </p>
-
-  <div class="note">
-    <strong>This is the problem Angular exists to solve.</strong> You declare
-    <em>what the screen should look like for the current data</em> — <code>{{ '{{' }} count() {{ '}}' }}</code> — and
-    Angular runs line 6 for you, for every connection, whenever the data changes. The counter demo above IS Angular:
-    <code>(click)="onClick()"</code> is <code>addEventListener</code> wearing template syntax, the handler updates only
-    the data, and the DOM syncs itself. No <code>querySelector</code>, no stale-screen bugs, and the connections are
-    type-checked at build time.
-  </div>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>What's the difference between the HTML file and the DOM?</summary>
-    <div>
-      The HTML file is static text — the recipe. The DOM is the live object tree the browser built from it — and it
-      diverges the moment any script changes anything. "View source" shows the original HTML; the DevTools Elements
-      panel shows the current DOM. In an Angular app they differ wildly: the HTML file is a nearly-empty shell, and
-      virtually the whole DOM is built by the framework.
+    <div class="bf-grid-3">
+      <app-tape-card heading="Capture" kicker="phase 1 — downward" tone="blue">
+        Starts at <code>document</code>, travels down through every ancestor toward the target. Almost nothing listens
+        here by default — you have to opt in with <code>&#123; capture: true &#125;</code>.
+      </app-tape-card>
+      <app-tape-card heading="At target" kicker="phase 2" tone="accent">
+        The event reaches the element that was actually interacted with. Any capture- and bubble-phase listeners
+        registered on the target itself both fire here.
+      </app-tape-card>
+      <app-tape-card heading="Bubble" kicker="phase 3 — upward" tone="gold">
+        Retraces the same path back <strong>out</strong>, ancestor by ancestor, to <code>document</code>. This is the
+        default — every <code>(click)</code> you've written on this page has been a bubble-phase listener.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A click listener on a parent <code>&lt;ul&gt;</code> fires when you click an <code>&lt;li&gt;</code>. Why, and how
-      do you know which li?
-    </summary>
-    <div>
-      Bubbling: the click fires on the li, then travels up through the ul. Inside the handler,
-      <code>event.target</code> is the element actually clicked (the li), while <code>event.currentTarget</code> is the
-      element the listener is attached to (the ul). This one-listener-for-many-rows pattern is event delegation.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does a form reload the page when submitted, and how do you stop it?</summary>
-    <div>
-      The browser's default action for a form submit is a full-page request to the form's action URL — web-1.0
-      behaviour. Call <code>event.preventDefault()</code> in the submit handler to cancel it and handle the data with
-      JavaScript instead. Angular's <code>(ngSubmit)</code> does this for you — now you know what it's suppressing.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>document.querySelector('#total').textContent = sum;</code> is sprinkled through a codebase 14 times. What's
-      the risk?
-    </summary>
-    <div>
-      Manual DOM sync: every code path that changes <code>sum</code> must remember all 14 lines (miss one → stale
-      screen), and all 14 depend on an id that nothing verifies. This exact maintenance nightmare is the pitch for
-      declarative frameworks — one template expression, updated automatically.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      The <strong>DOM</strong> is the browser's live tree of element objects; on-screen = attached-to-the-tree.
-      JavaScript reads and rewrites it via properties like <code>textContent</code> and <code>classList</code>.
-    </li>
-    <li>
-      <code>addEventListener(name, handler)</code> registers a function the browser calls with an
-      <strong>event object</strong> (<code>target</code>, <code>key</code>, <code>preventDefault()</code>…).
-    </li>
-    <li>
-      Events <strong>bubble</strong> from the target up through its ancestors — the basis of event delegation and of
-      <code>target</code> vs <code>currentTarget</code>.
-    </li>
-    <li>Plain JS forces manual data→screen syncing (the "line 6 problem") — error-prone at scale.</li>
-    <li>
-      <strong>Angular's core job:</strong> you update the data, it keeps the DOM in sync. Its <code>(click)</code> and
-      <code>{{ '{{' }} … {{ '}}' }}</code> syntax are these exact primitives, automated.
-    </li>
-  </ul>
+    <app-napkin lead="before you flip it —" label="Predict the new order">
+      The demo below has always logged <strong>inner, middle, outer</strong> when you click the innermost box — the
+      bubble leg. It's about to grow a capture toggle. Guess the order it will log once capture is switched on, before
+      you try it.
+    </app-napkin>
 
-  <p><a routerLink="/async-basics">Next: Doing Things Later — Async →</a></p>
+    <div class="demo">
+      <p class="demo__title">Live — click the innermost box</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button
+          class="bf-btn bf-btn--ghost"
+          [attr.aria-pressed]="captureMode()"
+          (click)="captureMode.set(!captureMode())"
+        >
+          Capture phase: {{ captureMode() ? 'ON — outer → inner' : 'OFF — inner → outer (default)' }}
+        </button>
+      </div>
+      <div #outerBox class="dae-bubble dae-bubble--outer">
+        outer
+        <div #middleBox class="dae-bubble dae-bubble--middle">
+          middle
+          <div #innerBox class="dae-bubble dae-bubble--inner">inner — click me</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top: 10px">
+        <button class="ghost" (click)="clearHits()">Clear log</button>
+      </div>
+      <div class="dae-log">
+        @for (h of hits(); track h.order) {
+          <div>{{ h.order }}. "{{ h.layer }}" heard the click</div>
+        } @empty {
+          <div class="dae-log__dim">// the order the layers hear it appears here…</div>
+        }
+      </div>
+      <p class="demo__note">
+        Off: inner, middle, outer — target first, then outward. On: outer, middle, inner — the exact reverse, because
+        now you're watching the leg that runs <em>before</em> the target is even reached. Angular's
+        <code>(click)</code> syntax has no way to express <code>&#123; capture: true &#125;</code>, so this toggle is
+        wired with real <code>addEventListener</code> calls underneath — the one place on this page that reaches past
+        the framework.
+      </p>
+    </div>
+
+    <table>
+      <caption class="bf-table-caption">
+        Three methods on `event` that sound alike and do different jobs
+      </caption>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>What it actually stops</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>event.stopPropagation()</code></td>
+          <td>Halts the journey — no ancestor (or descendant, during capture) gets a turn after this one</td>
+        </tr>
+        <tr>
+          <td><code>event.stopImmediatePropagation()</code></td>
+          <td>
+            Does that, <strong>and</strong> cancels every other listener still waiting on this exact element — even ones
+            registered after this one
+          </td>
+        </tr>
+        <tr>
+          <td><code>event.preventDefault()</code></td>
+          <td>
+            Doesn't touch propagation at all — cancels the browser's own reaction: a form reloading, a link navigating
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-predict
+      prompt="Click the innermost box. `middle`'s listener calls `event.stopPropagation()`. Does `outer`'s listener still log anything?"
+      [code]="stopPropagationSample"
+      answer="No. `stopPropagation()` halts the journey the instant it runs — the event never continues past `middle` on its way out, so `outer`'s listener never runs at all. `inner` still logs, because it already ran **before** the event ever reached `middle` — the call only stops what hasn't happened yet."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-remember variant="rule">
+      <strong>Capture goes in, bubble comes out — and `(click)` only ever listens on the way out</strong> unless you
+      explicitly ask for capture. When someone says "an event bubbles up", they're naming one leg of a round trip, not
+      the whole journey.
+    </app-remember>
+
+    <h3>Who actually got clicked?</h3>
+
+    <p>
+      Bubbling isn't a quirk to work around — it's the mechanism behind <span class="term">event delegation</span>: put
+      <em>one</em> listener on a list instead of one per row, and it hears clicks from every current
+      <em>and future</em> row, because the click bubbles up to it regardless of which row fired it. Reading
+      <em>which</em> row takes two different properties, and mixing them up is the single most common delegation bug.
+    </p>
+
+    <app-bubbles
+      [turns]="targetTalk"
+      caption="Two answers to what sounds like one question. `target` never changes as the event travels; `currentTarget` changes on every listener that runs."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — focus doesn't bubble. focusin does.</p>
+      <div class="bf-grid-2">
+        <div class="bf-card bf-card--sunk" (focus)="focusHits.update((n) => n + 1)">
+          <p class="bf-card__label">wrapper listens for (focus)</p>
+          <input aria-label="focus test input — left" placeholder="tab to me, or click" />
+          <p class="pill" style="margin-top: 10px">wrapper heard it: {{ focusHits() }} times</p>
+        </div>
+        <div class="bf-card bf-card--sunk" (focusin)="focusinHits.update((n) => n + 1)">
+          <p class="bf-card__label">wrapper listens for (focusin)</p>
+          <input aria-label="focus test input — right" placeholder="tab to me, or click" />
+          <p class="pill" style="margin-top: 10px">wrapper heard it: {{ focusinHits() }} times</p>
+        </div>
+      </div>
+      <p class="demo__note">
+        Click or tab into each input. The left counter never moves — <code>focus</code> only ever fires on the exact
+        element that received it, and Angular attached your listener to the wrapping <code>&lt;div&gt;</code>, not the
+        input inside it. The right counter climbs every time, because <code>focusin</code> is the bubbling version built
+        for exactly this. <code>blur</code>, <code>load</code> and <code>error</code> follow the same rule —
+        <code>focusout</code> is <code>blur</code>'s bubbling twin.
+      </p>
+    </div>
+
+    <app-quiz
+      question="Capture mode is off (the default) and you click the innermost box. In what order do the three handlers log?"
+      [options]="orderQuizOptions"
+      followUp="Try it in the demo above — with the toggle off, then on."
+    />
+  </section>
+
+  <!-- ============ 8. THE HARD WAY ============ -->
+  <section>
+    <p class="bf-eyebrow">Why this matters</p>
+    <h2>The hard way — and why it doesn't scale.</h2>
+
+    <p>Wire the click counter from earlier by hand, and you must keep the data and the screen in sync yourself:</p>
+
+    <app-code-lab
+      file="hard-way.js"
+      [code]="hardWaySample"
+      [notes]="hardWayNotes"
+      notesLabel="Five lines. One of them doesn't scale."
+    />
+
+    <app-flow
+      [steps]="staleSyncFlow"
+      caption="The path a forgotten sync line takes to a stale screen. Every step is reasonable on its own — the bug only appears once you look at all five in a row."
+      direction="vertical"
+    />
+
+    <p>
+      A real app has <em>hundreds</em> of data-to-screen connections — a reset button, a second counter in the header, a
+      running total elsewhere on the page. Miss one line 7 and you've shipped the classic bug: the data is correct and
+      the screen is a lie. And the selector strings in lines 2–3 are a second, quieter problem — rename an id in the
+      HTML and the JavaScript breaks with no warning until it runs.
+    </p>
+
+    <div class="note">
+      <strong>This is the problem Angular exists to solve.</strong> You declare
+      <em>what the screen should look like for the current data</em> — <code>{{ '{{' }} count() {{ '}}' }}</code> — and
+      Angular runs the sync line for you, for every connection, whenever the data changes. The click counter demo
+      earlier on this page <strong>is</strong> Angular: <code>(click)="onClick()"</code> is
+      <code>addEventListener</code> wearing template syntax, the handler only ever touches the data, and the DOM syncs
+      itself. No selector strings, no stale-screen bugs, and the connections are checked when the app is built, not when
+      a user happens to hit the broken path.
+    </div>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        The <strong>DOM</strong> is the browser's live tree of node objects, built from — and then completely
+        independent of — your HTML file. On-screen literally means <em>attached to the tree</em>;
+        <code>textContent</code>, <code>innerHTML</code>, <code>remove()</code> and <code>append()</code> are how you
+        edit it by hand.
+      </li>
+      <li>
+        <code>.textContent</code> is always literal text. <code>.innerHTML</code> parses markup — which is exactly what
+        makes an untrusted string dangerous the moment it reaches it. Angular's <code>[innerHTML]</code> binding
+        sanitizes automatically; raw <code>nativeElement.innerHTML</code> does not.
+      </li>
+      <li>
+        An <strong>attribute</strong> is frozen text from the HTML; a <strong>property</strong> is the live current
+        state. They start in sync and drift apart the moment anything changes — <code>disabled="false"</code> is still
+        disabled, because presence, not the string, is what counts.
+      </li>
+      <li>
+        Every event travels <strong>capture → target → bubble</strong>. Nearly everything you write only ever listens on
+        the bubble leg; <code>stopPropagation()</code> halts the journey, <code>stopImmediatePropagation()</code> also
+        cancels sibling listeners on that element, and <code>preventDefault()</code> doesn't touch propagation at all.
+      </li>
+      <li>
+        Plain JavaScript forces you to sync data and screen by hand, one connection at a time, forever. Angular's whole
+        job is running that connection for you — <code>(click)</code> and <code>{{ '{{' }} {{ '}}' }}</code> are
+        <code>addEventListener</code> and <code>.textContent</code>, automated.
+      </li>
+    </ul>
+
+    <p><a routerLink="/async-basics">Next: Doing Things Later — Async →</a></p>
+  </section>
 </article>

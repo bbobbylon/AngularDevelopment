@@ -438,27 +438,27 @@ bootstrapApplication(App, {
   /** Line-by-line walkthrough of {@link provideXSample}. */
   protected readonly provideXNotes: CodeNote[] = [
     {
-      line: 5,
+      line: 4,
       text: '`ANALYTICS_CONFIG` — the same `InjectionToken` pattern as `APP_CONFIG` earlier on this page, just scoped to one feature instead of the whole app.',
     },
     {
-      line: 7,
+      line: 6,
       text: "`: EnvironmentProviders` is the return type, and it's deliberate. It is an **opaque wrapper**, not `Provider[]` — see the warning below for what that buys you.",
     },
     {
-      line: 8,
+      line: 7,
       text: '`makeEnvironmentProviders([...])` takes an ordinary array of providers — exactly what you would write inline in a `providers` array — and wraps it in that opaque type. Nothing runs yet; this only **packages** the array.',
     },
     {
-      line: 9,
+      line: 8,
       text: '`AnalyticsService` bare, same as line 2 of the `useExisting` sample above: shorthand for `{ provide: AnalyticsService, useClass: AnalyticsService }`.',
     },
     {
-      line: 10,
+      line: 9,
       text: '`ANALYTICS_CONFIG` now resolves to whichever `cfg` object was passed to `provideAnalytics(...)` at the call site below — each call can configure it differently.',
     },
     {
-      line: 16,
+      line: 15,
       text: "`provideAnalytics({ key: 'prod-9f2' })` — called once, at the app's own bootstrap, returning the packaged `EnvironmentProviders` that `providers` unwraps and installs into the **root environment injector**.",
     },
   ];

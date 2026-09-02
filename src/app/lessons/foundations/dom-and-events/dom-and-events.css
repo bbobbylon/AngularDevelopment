@@ -1,89 +1,186 @@
-.split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  align-items: start;
-}
-@media (max-width: 640px) {
-  .split {
-    grid-template-columns: 1fr;
-  }
+/* Tables, callouts, demo panels, pills, buttons and the code window are all
+   styled by the shared brain-friendly layer now (src/brain-friendly.css
+   §14–15), so the old `.qa` accordion and table rules are gone — the exam
+   questions on this page are an `<app-faq>`, and the two comparison tables
+   are plain `<table>`s the layer already dresses.
+
+   What's left is genuinely specific to this lesson: the tree diagram, the
+   live tree explorer, the nested bubbling/capture boxes, the event log, and
+   the XSS demo's output sinks. */
+
+/* ------------------------------------------------------------------
+   1. THE TREE DIAGRAM
+   Every colour comes from a --bf-* token, so the SVG follows the reader's
+   light/dark choice automatically, matching the pattern established in
+   foundations/arrays-objects-basics.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
 }
 
-.tree {
+.dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+/* document.body — the one node every other node in the diagram descends from. */
+.dia-box--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 21px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. THE LIVE TREE EXPLORER
+   ------------------------------------------------------------------ */
+.dae-tree {
   display: flex;
   flex-direction: column;
   gap: 6px;
   align-items: flex-start;
 }
-.tnode {
-  background: var(--bg-elevated);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 14px;
-  font-family: monospace;
-  font-size: 0.82rem;
-}
-.tnode.sel {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-}
 
-.bubble {
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  padding: 14px;
-  cursor: pointer;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-}
-.bubble.outer {
-  background: rgba(99, 102, 241, 0.06);
-}
-.bubble.middle {
-  background: rgba(16, 185, 129, 0.08);
-  margin-top: 6px;
-}
-.bubble.inner {
-  background: rgba(245, 158, 11, 0.12);
-  margin-top: 6px;
-  font-weight: 600;
-  color: var(--text);
-}
-.bubble:hover {
-  border-color: var(--accent);
-}
-
-/* Fixed dark console — colours must not come from theme vars (see styles.css --code-fg note). */
-.console {
-  background: var(--code-bg);
-  color: var(--code-fg);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-family: monospace;
-  font-size: 0.82rem;
-  min-height: 70px;
-  margin-top: 8px;
-}
-.console .dim {
-  color: #8b93a8;
-}
-
-.qa {
-  border: 1px solid var(--border);
+.dae-tnode {
+  background: var(--bf-surface);
+  color: var(--bf-ink);
+  border: 1px solid var(--bf-rule);
   border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+  padding: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  box-shadow: var(--bf-shadow);
+  transition:
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.15s ease;
 }
-.qa summary {
+
+.dae-tnode:hover {
+  transform: translateX(2px);
+  border-color: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+.dae-tnode--sel {
+  border-color: var(--bf-accent);
+  outline: 2px solid var(--bf-accent);
+  outline-offset: 1px;
+  background: var(--bf-accent-wash);
+}
+
+/* ------------------------------------------------------------------
+   3. BUBBLING / CAPTURE BOXES
+   Nested `<div>`s rather than nested buttons on purpose — a <button> cannot
+   contain another interactive element, so this is the one place on the page
+   that cannot reach for real button semantics without breaking the very
+   nesting the demo exists to show.
+   ------------------------------------------------------------------ */
+.dae-bubble {
+  border: 2px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  padding: 16px;
   cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+  font-size: 0.85rem;
+  color: var(--bf-ink-2);
+  background: var(--bf-surface);
+  transition: border-color 0.15s ease;
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+
+.dae-bubble--middle {
+  margin-top: 8px;
+  background: var(--bf-surface-2);
+}
+
+.dae-bubble--inner {
+  margin-top: 8px;
+  background: var(--bf-accent-wash);
+  border-color: color-mix(in srgb, var(--bf-accent) 35%, transparent);
+  font-weight: 600;
+  color: var(--bf-ink);
+}
+
+.dae-bubble:hover {
+  border-color: var(--bf-accent);
+}
+
+.dae-log {
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border-radius: var(--bf-r);
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  min-height: 76px;
+  margin-top: 10px;
+  box-shadow: var(--bf-shadow);
+}
+
+.dae-log__dim {
+  color: var(--bf-ink-2);
+}
+
+/* ------------------------------------------------------------------
+   4. THE XSS DEMO'S OUTPUT SINKS
+   Deliberately empty — .bf-card--sunk from the shared layer supplies the
+   surface, and whatever textContent/innerHTML write in has no styling
+   opinion of its own, so an injected <strong> or <img> looks exactly as raw
+   as it should.
+   ------------------------------------------------------------------ */
+.dae-xss-sink {
+  min-height: 1.6em;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------------------
+   5. ATTRIBUTE-PROBE FIELD LABEL
+   ------------------------------------------------------------------ */
+.dae-field__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
 }
