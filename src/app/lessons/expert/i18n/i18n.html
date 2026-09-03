@@ -1,243 +1,541 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Cross-Cutting</span>
-  <h1>Internationalization (i18n)</h1>
-  <p class="lead">
-    Angular's built-in i18n translates at <strong>build time</strong>: text is extracted, translated, and compiled into
-    one optimized bundle per locale — zero runtime lookup cost. This page covers the whole pipeline, ICU plural grammar,
-    stable message IDs (and the orphaning trap), locale data, and when to choose a runtime library instead.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Expert · Cross-Cutting"
+    title="Internationalization (i18n)"
+    hand="or, how one “Save” button becomes eleven different pieces of text"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      "Just add a translation library" is the beginner's plan, and it is wrong for Angular's own built-in system, which
+      does not look anything up at runtime at all. This page takes the whole discipline in order:
+      <strong>when translation actually happens</strong>, <strong>how the words themselves get marked</strong> so a
+      machine can find them, and <strong>what the framework still owes you</strong> once they are translated — grammar,
+      dates, money, and which way the page reads.
+    </p>
+  </app-chapter>
 
-  <h2>Two philosophies: compile-time vs runtime</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>&#64;angular/localize (built-in)</th>
-      <th>runtime libs (ngx-translate, Transloco)</th>
-    </tr>
-    <tr>
-      <td>When translated</td>
-      <td>at build — one bundle per locale</td>
-      <td>at runtime — JSON loaded &amp; looked up live</td>
-    </tr>
-    <tr>
-      <td>Runtime cost</td>
-      <td>none (text is baked in)</td>
-      <td>lookup per string + translation files over the wire</td>
-    </tr>
-    <tr>
-      <td>Switch language</td>
-      <td>load a different bundle (full reload / different URL)</td>
-      <td>instant, in place</td>
-    </tr>
-    <tr>
-      <td>Bundle count</td>
-      <td>one per locale (dist/fr, dist/es…)</td>
-      <td>one total</td>
-    </tr>
-    <tr>
-      <td>Type of app</td>
-      <td>content/SEO sites, SSR, most products</td>
-      <td>language switcher requirements, user-editable translations</td>
-    </tr>
-  </table>
-  <div class="note">
-    The interview-ready framing: built-in i18n trades deploy complexity (n bundles, server routing per locale) for
-    perfect runtime performance; runtime libraries trade a lookup layer for flexibility. Neither is "better" — the
-    requirement "switch language without reload" decides it for you.
-  </div>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You've used i18n before. Angular's is not that.</h2>
 
-  <h2>Marking text — the anatomy of a message</h2>
-  <div class="code">
-    <pre>{{ markSample }}</pre>
-  </div>
-  <p>
-    The full syntax is <code>i18n="meaning|description&#64;&#64;customId"</code>. The <em>description</em> tells the
-    translator what this text is; the <em>meaning</em> disambiguates identical source text (the English "Close" on a
-    button vs "Close" describing distance translate differently — different meaning, different message). The
-    <em>&#64;&#64;customId</em> pins the message identity.
-  </p>
+    <p>
+      Every runtime translation library works the same way: a dictionary, keyed by language, loaded as data, looked up
+      on every render. It is reasonable to assume <code>&#64;angular/localize</code> — Angular's own, built-in system —
+      does the same thing. It does not.
+    </p>
 
-  <h2>Why stable IDs matter — watch a translation get orphaned</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — edit the source text</p>
-    <input
-      aria-label="Source text"
-      style="width: 100%"
-      [value]="sourceText()"
-      (input)="sourceText.set($any($event.target).value)"
+    <p>
+      Angular's built-in i18n <span class="key">translates at build time</span>. The English text in your source is not
+      looked up when the app runs — it is <em>replaced</em>, permanently, before the app is ever bundled. By the time a
+      French user's browser downloads anything, there is no English left in it to find.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Before you read on: does <code>&#64;angular/localize</code> ship a JSON file per language that your app loads and
+      looks up, the way every other i18n tool you've used probably does? Or does something else happen the moment you
+      run <code>ng build --localize</code>? There's a demo further down that proves the answer either way.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Two ways to print a menu.</h2>
+
+    <p>
+      A restaurant serving four languages has two honest options. <strong>Print a separate menu per language</strong> —
+      expensive up front, one for each language on the shelf, but a diner reads it instantly and nothing can go wrong at
+      the table. Or <strong>print one menu with a QR code on every dish</strong> — cheap to print, but every single
+      order now costs a phone, a scan, and a network request, and if the wifi is down the diner is staring at a QR code
+      instead of a name.
+    </p>
+
+    <p>
+      That is the whole disagreement between compile-time and runtime i18n. Built-in
+      <code>&#64;angular/localize</code> is the printed menu: pay the cost once, at build time, per language, and
+      reading is free forever after. A runtime library (ngx-translate, Transloco) is the QR code: nothing to print in
+      advance, but every string now costs a lookup, and the lookup can fail.
+    </p>
+
+    <app-bubbles
+      [turns]="philosophyTalk"
+      caption="The same request, put to both systems. Notice which one has already done the work by the time it's asked."
     />
-    <div class="id-box volatile">
-      auto-generated id: {{ autoId() }}
-      @if (autoId() !== originalAutoId) {
-        — CHANGED: the old translation is now orphaned ✂
-      } @else {
-        — matches the translation file ✓
-      }
-    </div>
-    <div class="id-box stable">custom id: &#64;&#64;homeGreeting — stable no matter how the text changes ✓</div>
-    <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.85rem">
-      Without a custom id, the message id is a hash of the source text (and meaning). Fix a typo → new id → every
-      existing translation of it is orphaned and the text falls back to the source language. Real projects pin ids on
-      high-traffic strings.
+
+    <p>
+      And translation is only the most visible of i18n's jobs — not the only one. Four things have to be right before an
+      app is genuinely usable in another language, and mixing them up is the source of most of the pitfalls further down
+      this page:
     </p>
-  </div>
 
-  <h2>Plurals &amp; selects — ICU expressions</h2>
-  <p>
-    "1 item" vs "2 items" is the easy case. Polish has <em>three</em> plural categories, Arabic six — ICU expressions
-    delegate that grammar to the translation, where it belongs:
-  </p>
-  <div class="code">
-    <pre>{{ icuSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Interactive — step the count, watch the branch</p>
-    <div class="row">
-      <button class="ghost" (click)="dec()">−</button>
-      <strong style="min-width: 2ch; text-align: center">{{ count() }}</strong>
-      <button class="ghost" (click)="count.set(count() + 1)">+</button>
+    <div class="bf-grid-3">
+      <app-tape-card heading="Text" kicker="the words" tone="accent">
+        Marking source strings so a machine can find and replace them — <code>i18n</code>, <code>$localize</code>.
+      </app-tape-card>
+      <app-tape-card heading="Grammar" kicker="the counting" tone="gold">
+        Plural and gender rules, which are not the same shape in every language — ICU
+        <code>plural</code>/<code>select</code>.
+      </app-tape-card>
+      <app-tape-card heading="Formatting" kicker="the numbers" tone="olive">
+        Dates, numbers and currency, which render differently per locale even with zero words translated —
+        <code>Intl</code> and the locale pipes.
+      </app-tape-card>
+      <app-tape-card heading="Direction" kicker="the layout" tone="blue">
+        Right-to-left scripts, which is a CSS problem wearing a translation costume — <code>dir</code> and logical
+        properties.
+      </app-tape-card>
     </div>
-    <div class="icu-out">
-      {{ icuResult() }}
-      <div class="icu-branch">matched branch: {{ icuBranch() }}</div>
-    </div>
-    <div class="row" style="margin-top: 6px">
-      <span style="font-size: 0.85rem; color: var(--text-muted)">select works the same for non-numeric cases:</span>
-      @for (g of genders; track g) {
-        <button class="ghost" [style.borderColor]="gender() === g ? 'var(--accent)' : ''" (click)="gender.set(g)">
-          {{ g }}
-        </button>
-      }
-      <span class="pill">{{ genderResult() }}</span>
-    </div>
-  </div>
+  </section>
 
-  <h2>Text in TypeScript — $localize</h2>
-  <p>
-    Template <code>i18n</code> attributes can't reach strings built in code (toasts, error messages, titles). Tag them
-    with <code>$localize</code> — the same extraction pipeline picks them up, and placeholders get names translators can
-    see:
-  </p>
-  <div class="code">
-    <pre>{{ localizeSample }}</pre>
-  </div>
+  <!-- ============ 3. TWO PHILOSOPHIES ============ -->
+  <section>
+    <p class="bf-eyebrow">The choice</p>
+    <h2>Compile-time vs. runtime — the trade in numbers.</h2>
 
-  <h2>The pipeline: extract → translate → build</h2>
-  <div class="code">
-    <pre>{{ pipelineSample }}</pre>
-  </div>
-  <p>
-    Each locale is a <strong>separate application build</strong> under <code>dist/&lt;locale&gt;/</code>. Serving is a
-    deployment concern: subpaths (<code>/fr/</code>, <code>/es/</code>) with server routing, or
-    <code>Accept-Language</code> negotiation at the edge. SSR composes cleanly — each locale's server bundle renders its
-    own language.
-  </p>
+    <table>
+      <caption class="bf-table-caption">
+        Same nine rows the interview will ask about
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>&#64;angular/localize (built-in)</th>
+          <th>runtime libs (ngx-translate, Transloco)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>When translated</td>
+          <td>at build — one bundle per locale</td>
+          <td>at runtime — JSON loaded &amp; looked up live</td>
+        </tr>
+        <tr>
+          <td>Runtime cost</td>
+          <td>none (text is baked in)</td>
+          <td>a lookup per string, plus translation files over the wire</td>
+        </tr>
+        <tr>
+          <td>Switch language</td>
+          <td>load a different bundle (full reload / different URL)</td>
+          <td>instant, in place</td>
+        </tr>
+        <tr>
+          <td>Bundle count</td>
+          <td>one per locale (<code>dist/fr</code>, <code>dist/es</code>…)</td>
+          <td>one, total</td>
+        </tr>
+        <tr>
+          <td>Best fit</td>
+          <td>content/SEO sites, SSR, most public products</td>
+          <td>an in-app language switcher, user-editable translations</td>
+        </tr>
+      </tbody>
+    </table>
 
-  <h2>Locale data — what makes the pipes right</h2>
-  <p>
-    Translation is only half of i18n. Dates, numbers and currencies format differently per locale — Angular's
-    <code>date</code>/<code>number</code>/<code>currency</code> pipes read registered locale data and
-    <code>LOCALE_ID</code> (set automatically per localized build). See how much actually changes:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Interactive — the same values, six locales</p>
-    <div class="chips">
-      @for (l of locales; track l) {
-        <button [class.on]="locale() === l" (click)="locale.set(l)">{{ l }}</button>
-      }
+    <div class="note">
+      The interview-ready framing: built-in i18n trades <strong>deploy complexity</strong> (n bundles, per-locale
+      routing) for perfect runtime performance. Runtime libraries trade a lookup layer for flexibility. Neither is
+      "better" — the requirement <span class="key">"switch language without a reload"</span> decides it for you.
     </div>
-    <dl class="fmt-grid">
-      <dt>date</dt>
-      <dd>{{ fmtDate() }}</dd>
-      <dt>number</dt>
-      <dd>{{ fmtNumber() }}</dd>
-      <dt>currency</dt>
-      <dd>{{ fmtCurrency() }}</dd>
-      <dt>direction</dt>
-      <dd>{{ direction() }}</dd>
-    </dl>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Separators swap (1.234.567,89 in German), currency symbols move, calendars and scripts change, and Arabic flips
-      the reading direction — set
-      <code>dir="rtl"</code> on <code>&lt;html&gt;</code> and audit your CSS with logical properties (<code
-        >margin-inline-start</code
-      >
-      over <code>margin-left</code>).
+
+    <h3>There's a third way — <code>loadTranslations()</code></h3>
+
+    <p>
+      The table above makes it look like a straight either/or, and that is not quite true:
+      <code>&#64;angular/localize</code>
+      has its own runtime API, sitting between the two rows.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ localeDataSample }}</pre>
-  </div>
 
-  <h2>Pitfalls</h2>
-  <ul>
-    <li>
-      <strong>Orphaned translations</strong> — source-text edits change auto ids (the demo above). Pin
-      <code>&#64;&#64;ids</code> on strings you expect to tweak.
-    </li>
-    <li>
-      <strong>Missing translations</strong> — configure the build's <code>i18nMissingTranslation</code>:
-      <code>error</code> for CI honesty, not the silent source-language fallback discovered by users.
-    </li>
-    <li>
-      <strong>NG0701 / blank formats</strong> — using locale pipes without that locale's data registered. Localized
-      builds handle it; manual setups must call <code>registerLocaleData()</code>.
-    </li>
-    <li>
-      <strong>Concatenation breaks grammar</strong> — 'You have ' + n + ' items' is untranslatable in languages where
-      word order differs. Always one message with placeholders, never string assembly.
-    </li>
-    <li>
-      <strong>Hydration + i18n</strong> — translated blocks need <code>withI18nSupport()</code> in
-      <code>provideClientHydration()</code> or they fall back to destructive re-render.
-    </li>
-  </ul>
+    <div class="code">
+      <pre>{{ loadTranslationsSample }}</pre>
+    </div>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why does built-in i18n produce a bundle per locale?</summary>
-    <div>
-      Translation happens at compile time — the translated text replaces the source in the emitted code, so each locale
-      is its own optimized build. Zero runtime lookup, but switching language means loading a different bundle.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What do meaning and description do in <code>i18n="meaning|description"</code>?</summary>
-    <div>
-      Description is context shown to the translator. Meaning participates in the message identity — two "Close" strings
-      with different meanings are separate messages that can translate differently.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why ICU plural instead of <code>&#64;if (count === 1)</code> in the template?</summary>
-    <div>
-      Plural category boundaries differ per language (Polish: 3 forms, Arabic: 6). ICU keeps the branching inside the
-      translatable message so each language's translation declares its own branches — template logic would hardcode
-      English grammar.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>The product wants an in-app language switcher. Which approach?</summary>
-    <div>
-      A runtime library (ngx-translate/Transloco) — built-in i18n bakes one language per bundle, so "switching" means
-      navigating to another build. If SEO/SSR also matters, some teams run both: built-in for the public site, runtime
-      for the logged-in app.
-    </div>
-  </details>
+    <p>
+      One bundle, no per-locale build — but you now pay the lookup cost the compile-time path exists to avoid, and the
+      translations have to be loaded <strong>before the first render</strong> or the app briefly shows raw message ids.
+      It uses the exact same extracted <code>messages.xlf</code> ids as the compile-time path, which is precisely why
+      the next section matters even more here: an id that changes silently is a lookup that silently fails.
+    </p>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Built-in i18n = compile-time: extract (<code>ng extract-i18n</code>) → translate XLF →
-      <code>ng build --localize</code> → bundle per locale.
-    </li>
-    <li>
-      Message anatomy: <code>meaning|description&#64;&#64;id</code> — pin custom ids or edits orphan translations.
-    </li>
-    <li>ICU plural/select moves language grammar into the translation, where it belongs.</li>
-    <li><code>$localize</code> covers strings built in TypeScript.</li>
-    <li>i18n ≠ translation only: locale data drives pipes, and RTL locales need <code>dir</code> + logical CSS.</li>
-  </ul>
+  <!-- ============ 4. INSTALLATION ============ -->
+  <section>
+    <p class="bf-eyebrow">Step zero</p>
+    <h2>None of this works until one package is installed.</h2>
 
-  <p><a routerLink="/a11y">Next: Accessibility (a11y) →</a></p>
+    <p>
+      <code>&#64;angular/localize</code> is <strong>not</strong> part of a default <code>ng new</code> app. Every sample
+      on this page assumes it is already there — in a real project, it has to be added first.
+    </p>
+
+    <div class="code">
+      <pre>{{ installSample }}</pre>
+    </div>
+
+    <app-predict
+      prompt="A brand-new `ng new` app, `&#64;angular/localize` never installed. You add `i18n` to an `h1` in a template and run `ng build`. Separately, a teammate calls `$localize` on a tagged template inside a `.ts` file and just runs `ng serve` — no build step involved. Two very different symptoms, one missing package: what are they?"
+      answer="The template case fails **at compile time** — the build itself errors out, because the template compiler doesn't recognise `i18n` without the schematic having wired up the pipeline. The TypeScript case is worse: `$localize` is just an ordinary tagged-template call as far as the compiler is concerned, so it compiles cleanly and fails **at runtime** instead — `ReferenceError: $localize is not defined` — the first time that line of code actually executes, however deep in the app that is. `ng add &#64;angular/localize` fixes both: it wires the extraction pipeline **and** loads the `$localize` global via a polyfill that must run before any app code."
+      revealLabel="Reveal what actually happens"
+    />
+  </section>
+
+  <!-- ============ 5. MARKING TEXT ============ -->
+  <section>
+    <p class="bf-eyebrow">The words</p>
+    <h2>Marking text — the anatomy of a message.</h2>
+
+    <app-code-lab
+      file="welcome.component.html — marking text for extraction"
+      [code]="markSample"
+      [notes]="markNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-compare
+      leftTitle="Wrong — `i18n-title` on a bound value"
+      leftTone="bad"
+      rightTitle="Right — translate in TypeScript, bind normally"
+      rightTone="good"
+      note="`i18n-&lt;attr&gt;` only works on a literal string written in the template. The moment the value comes from a binding or interpolation, translate the **fixed part** in TypeScript with `$localize`, then bind the result like any other string."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ attrTrapWrongSample }}</pre>
+        </div>
+        <p class="demo__note">
+          There is no static string here for <code>i18n-title</code> to grab — it never even runs.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ attrTrapRightSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 6. STABLE IDS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam trap</p>
+    <h2>Why stable ids matter — watch a translation get orphaned.</h2>
+
+    <app-napkin lead="try it —" label="Predict before you scroll">
+      A message with <strong>no custom id</strong> already has a translation on file. You fix a small typo in its
+      English source text and rebuild. <strong>What happens to the existing translation?</strong> The box below lets you
+      make the edit yourself and watch the id in real time.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — edit the source text</p>
+      <input
+        aria-label="Source text"
+        style="width: 100%"
+        [value]="sourceText()"
+        (input)="sourceText.set($any($event.target).value)"
+      />
+      <div class="id-box volatile">
+        auto-generated id: {{ autoId() }}
+        @if (autoId() !== originalAutoId) {
+          — CHANGED: the old translation is now orphaned ✂
+        } @else {
+          — matches the translation file ✓
+        }
+      </div>
+      <div class="id-box stable">custom id: &#64;&#64;homeGreeting — stable no matter how the text changes ✓</div>
+      <p class="demo__note">
+        Without a custom id, the message id is a hash of the source text (and meaning). Fix a typo →
+        <span class="bf-break">new id</span> → every existing translation of it is orphaned, and the text falls back to
+        the source language. Real projects pin ids on high-traffic strings.
+      </p>
+    </div>
+
+    <app-remember variant="mnemonic">
+      <strong>No custom id → the id is a hash of the text.</strong> Edit the text, get a new hash, and every existing
+      translation for the old hash is instantly orphaned — whether or not you meant to touch its meaning.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. ICU ============ -->
+  <section>
+    <p class="bf-eyebrow">The counting</p>
+    <h2>Grammar isn't binary — ICU plurals &amp; selects.</h2>
+
+    <p>
+      "1 item" vs. "2 items" is the easy case, and it is also a trap: it makes English's two-branch grammar feel
+      universal. It is not. ICU expressions delegate that grammar to the translation itself, where it belongs, instead
+      of hardcoding it into your template:
+    </p>
+
+    <app-code-lab
+      file="cart.component.html — ICU plural &amp; select"
+      [code]="icuSample"
+      [notes]="icuNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — step the count, watch the branch</p>
+      <div class="row">
+        <button class="ghost" aria-label="Decrease count" (click)="dec()">−</button>
+        <strong style="min-width: 2ch; text-align: center">{{ count() }}</strong>
+        <button class="ghost" aria-label="Increase count" (click)="count.set(count() + 1)">+</button>
+      </div>
+      <div class="icu-out">
+        {{ icuResult() }}
+        <div class="icu-branch">matched branch: {{ icuBranch() }}</div>
+      </div>
+      <div class="row" style="margin-top: 10px; flex-wrap: wrap">
+        <span class="demo__note" style="margin: 0">select works the same for non-numeric cases:</span>
+        @for (g of genders; track g) {
+          <button
+            class="ghost"
+            [class.on]="gender() === g"
+            [attr.aria-pressed]="gender() === g"
+            (click)="gender.set(g)"
+          >
+            {{ g }}
+          </button>
+        }
+        <span class="pill">{{ genderResult() }}</span>
+      </div>
+    </div>
+
+    <table>
+      <caption class="bf-table-caption">
+        Plural categories aren't a translation detail — they're grammar
+      </caption>
+      <thead>
+        <tr>
+          <th>Language</th>
+          <th>Categories</th>
+          <th>What that means for the translator</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Japanese, Chinese</td>
+          <td>1 — <code>other</code> only</td>
+          <td>No plural marking at all; one branch covers every count.</td>
+        </tr>
+        <tr>
+          <td>English</td>
+          <td>2 — <code>one</code>, <code>other</code></td>
+          <td>The two-branch grammar it's easy to assume is universal.</td>
+        </tr>
+        <tr>
+          <td>Polish</td>
+          <td>4 — <code>one</code>, <code>few</code>, <code>many</code>, <code>other</code></td>
+          <td>The count's last digit and whole-vs-fractional value both matter.</td>
+        </tr>
+        <tr>
+          <td>Arabic</td>
+          <td>
+            6 — <code>zero</code>, <code>one</code>, <code>two</code>, <code>few</code>, <code>many</code>,
+            <code>other</code>
+          </td>
+          <td>A dedicated dual form for exactly two of something.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 8. $localize ============ -->
+  <section>
+    <p class="bf-eyebrow">The words, in code</p>
+    <h2>Text in TypeScript — <code>$localize</code>.</h2>
+
+    <p>
+      Template <code>i18n</code> attributes can't reach strings built in code — toasts, error messages, titles set from
+      a service. Tag them with <code>$localize</code> instead: the same extraction pipeline picks them up, and
+      placeholders get names a translator can actually see.
+    </p>
+
+    <app-code-lab
+      file="toast.service.ts — $localize"
+      [code]="localizeSample"
+      [notes]="localizeNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 9. THE PIPELINE ============ -->
+  <section>
+    <p class="bf-eyebrow">The pipeline</p>
+    <h2>Extract, translate, build — in that order, always.</h2>
+
+    <app-flow
+      caption="Four stages, and only the first two touch a human. Everything from **Build** onward is the CLI and your infrastructure."
+      [steps]="pipelineFlow"
+    />
+
+    <app-code-lab
+      file="the extract → translate → build pipeline"
+      [code]="pipelineSample"
+      [notes]="pipelineNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      Each locale is a <strong>separate application build</strong> under <code>dist/&lt;locale&gt;/</code>. Serving is a
+      deployment concern from there: subpaths (<code>/fr/</code>, <code>/es/</code>) with server routing, or
+      <code>Accept-Language</code> negotiation at the edge. SSR composes cleanly — each locale's server bundle renders
+      its own language, with nothing to look up at request time.
+    </p>
+  </section>
+
+  <!-- ============ 10. LOCALE DATA ============ -->
+  <section>
+    <p class="bf-eyebrow">The numbers</p>
+    <h2>Locale data — what makes the pipes right.</h2>
+
+    <p>
+      Translation is only one of i18n's four jobs. Dates, numbers and currency format differently per locale — the
+      <code>date</code>/<code>number</code>/<code>currency</code> pipes read registered locale data and
+      <code>LOCALE_ID</code> (set automatically per localized build). See how much actually changes with not one word
+      translated:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the same values, six locales</p>
+      <div class="chips" role="group" aria-label="Choose a locale">
+        @for (l of locales; track l) {
+          <button [class.on]="locale() === l" [attr.aria-pressed]="locale() === l" (click)="locale.set(l)">
+            {{ l }}
+          </button>
+        }
+      </div>
+      <dl class="fmt-grid">
+        <dt>date</dt>
+        <dd>{{ fmtDate() }}</dd>
+        <dt>number</dt>
+        <dd>{{ fmtNumber() }}</dd>
+        <dt>currency</dt>
+        <dd>{{ fmtCurrency() }}</dd>
+        <dt>direction</dt>
+        <dd>{{ direction() }}</dd>
+      </dl>
+      <p class="demo__note">
+        Separators swap (<code>1.234.567,89</code> in German), currency symbols move, calendars and scripts change, and
+        Arabic flips the reading direction — set <code>dir="rtl"</code> on <code>&lt;html&gt;</code> and audit your CSS
+        with logical properties (<code>margin-inline-start</code> over <code>margin-left</code>).
+      </p>
+    </div>
+
+    <app-predict
+      prompt="You provide `{ provide: LOCALE_ID, useValue: 'de-CH' }` (German, Switzerland) hoping the currency pipe now shows Swiss francs. It doesn't — it's still showing the default. What's missing, and why doesn't `LOCALE_ID` cover it?"
+      answer="`LOCALE_ID` controls **grammar** — digit grouping, decimal separators, where the currency symbol sits — but not **which** currency. That's a separate token, `DEFAULT_CURRENCY_CODE`, and Angular keeps them apart on purpose: a `de-CH` user might legitimately be billed in CHF, EUR or USD depending on the business, not on their locale. Set `DEFAULT_CURRENCY_CODE` explicitly, or pass the currency into the pipe yourself: `currency:'CHF'`."
+      revealLabel="Reveal the missing piece"
+    />
+
+    <app-code-lab
+      file="main.ts — registering locale data by hand"
+      [code]="localeDataSample"
+      [notes]="localeDataNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-remember variant="rule">
+      <code>LOCALE_ID</code> picks the <strong>grammar</strong> — separators, symbol position, plural rules.
+      <code>DEFAULT_CURRENCY_CODE</code> picks the <strong>currency</strong>. They are two different facts about a user,
+      and Angular refuses to guess one from the other.
+    </app-remember>
+  </section>
+
+  <!-- ============ 11. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Field notes</p>
+    <h2>The mistakes that show up in production, not in review.</h2>
+
+    <app-compare
+      leftTitle="Wrong — string concatenation"
+      leftTone="bad"
+      rightTitle="Right — one message, one placeholder"
+      rightTone="good"
+      note="'You have ' + n + ' items' is untranslatable the moment word order differs from English — and it always eventually does. Always one message with a placeholder, never assembled pieces."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ concatWrongSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ concatRightSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <ul>
+      <li>
+        <strong>NG0701 / blank formats</strong> — using a locale pipe without that locale's data registered. Localized
+        builds handle it automatically; a manual single-locale setup must call <code>registerLocaleData()</code> itself,
+        or every pipe silently returns nothing.
+      </li>
+      <li>
+        <strong>Hydration drops translated blocks</strong> — a translated section needs
+        <code>withI18nSupport()</code> passed to <code>provideClientHydration()</code>, or it falls back to a
+        <span class="bf-break">destructive re-render</span> the instant the client takes over, undoing the whole point
+        of hydrating in the first place.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 12. SELF-TEST ============ -->
+  <section>
+    <p class="bf-eyebrow">Self-test</p>
+    <h2>Before you move on.</h2>
+
+    <app-quiz
+      question="You fix a typo in the English source text of a message that has no custom `&#64;&#64;id`, then rerun the build. What happens to the French translation that already existed for that message?"
+      [options]="quizOptions"
+      followUp="Compare that against the demo further up: type into the source-text box and watch the id itself change in real time."
+    />
+  </section>
+
+  <!-- ============ 13. FAQ ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 14. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Built-in i18n is <strong>not</strong> a runtime lookup. Translation happens once, at build time, and the result
+        is baked into one optimized bundle per locale — <code>&#64;angular/localize</code>'s own
+        <code>loadTranslations()</code> is the one part of it that does look things up live.
+      </li>
+      <li>
+        Nothing works until <code>ng add &#64;angular/localize</code> has run. Skip it and you get two different
+        failures: a compile error from a template <code>i18n</code>, or a runtime <code>ReferenceError</code> from
+        <code>$localize</code>.
+      </li>
+      <li>
+        Message anatomy is <code>meaning|description&#64;&#64;id</code> — pin custom ids on high-traffic strings,
+        because an id with no pin is <strong>a hash of the text</strong>, and a typo fix silently orphans every
+        translation of it.
+      </li>
+      <li>
+        <code>i18n-&lt;attr&gt;</code> only translates a <strong>literal</strong> attribute string. A bound or
+        interpolated value has to be translated in TypeScript with <code>$localize</code> first.
+      </li>
+      <li>
+        ICU <code>plural</code>/<code>select</code> moves language grammar into the translation, where it belongs —
+        English's two branches are not a universal shape; Polish needs four, Arabic six.
+      </li>
+      <li>
+        <code>LOCALE_ID</code> and <code>DEFAULT_CURRENCY_CODE</code> are <strong>different facts</strong>: one picks
+        grammar, the other picks currency, and setting one does not set the other.
+      </li>
+    </ul>
+
+    <p><a routerLink="/a11y">Next: Accessibility (a11y) →</a></p>
+  </section>
 </article>

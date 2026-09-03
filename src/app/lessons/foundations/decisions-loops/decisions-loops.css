@@ -1,69 +1,138 @@
+/* Tables, callouts, demo panels, pills and the code window are all styled by
+   the shared brain-friendly layer now (src/brain-friendly.css §14–15). What's
+   left here is genuinely specific to this lesson: the two hand-drawn
+   diagrams (the railway switch and the loop cycle), the live readout panels,
+   the labelled demo fields, and the stepped console the loop stepper prints
+   into. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAMS
+   Every colour comes from a --bf-* token rather than a literal, so both
+   diagrams follow the reader's light/dark choice with no duplicate rules.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
+}
+
+.dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+/* A container drawn on the page: the same surface + hairline as a .bf-card,
+   so a box in a diagram reads as the same kind of object as a box in the
+   layout. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+/* The box the reader's attention should land on first — the fork itself, or
+   the loop's decision point. */
+.dia-box--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 13px;
+  fill: var(--bf-ink-2);
+}
+
+/* The author's handwriting, inside the picture — same face and hue as
+   `.bf-hand` in the running text, so the margin voice sounds the same
+   whether it's set in HTML or drawn in SVG. */
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 20px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. LIVE READOUTS
+   Deliberately NOT `.code pre`. `app.ts` re-highlights every `.code pre`
+   after navigation by overwriting its innerHTML; these interpolate on every
+   click and keystroke, so they wear the editor's clothes without ever
+   joining that sweep.
+   ------------------------------------------------------------------ */
+.readout {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  border-radius: var(--bf-r);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.75;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: var(--bf-shadow);
+}
+
+/* The loop stepper's console, printing one line per @for iteration rather
+   than one big string — kept as its own block so each printed line is a
+   real DOM row, matching the mental model of a console that grows. */
+.console {
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border-radius: var(--bf-r);
+  border: 1px solid var(--bf-rule);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  min-height: 70px;
+  box-shadow: var(--bf-shadow);
+}
+
+.dim {
+  color: var(--bf-ink-2);
+  font-size: 0.85rem;
+}
+
+/* ------------------------------------------------------------------
+   3. DEMO FIELDS
+   ------------------------------------------------------------------ */
 .field {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
 }
-.field label {
-  min-width: 90px;
-  color: var(--text-muted);
-}
-.dim {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
 
-.loop-state {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.ls-box {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 14px;
-  min-width: 90px;
-  text-align: center;
-}
-.ls-box span {
-  display: block;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-.ls-box strong {
-  font-family: monospace;
-}
-
-/* Fixed dark console — colours must not come from theme vars (see styles.css --code-fg note). */
-.console {
-  background: var(--code-bg);
-  color: var(--code-fg);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-family: monospace;
+.field__label {
+  min-width: 52px;
   font-size: 0.82rem;
-  min-height: 70px;
-}
-.console .dim {
-  color: #8b93a8;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
 }

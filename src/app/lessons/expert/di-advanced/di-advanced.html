@@ -1,211 +1,450 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Dependency Injection</span>
-  <h1>Advanced DI</h1>
-  <p class="lead">
-    Angular's injector is not one container — it's <strong>two cooperating trees</strong>, and every advanced DI feature
-    (modifiers, multi providers, viewProviders, route providers) is a way of steering resolution through them. This page
-    proves the resolution rules with live components, then covers the patterns built on top.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Expert · Dependency Injection"
+    title="Advanced DI"
+    hand="or, how one function call quietly searches two entire trees before it gives up"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      Angular's injector isn't one container — it's <strong>two cooperating trees</strong>, and every advanced DI
+      feature is a way of steering <code>inject()</code> through them. This page proves the resolution rules with live
+      components wired to real instances, then covers everything built on top: multi providers, view-scoped providers,
+      where <code>inject()</code> is legal, tree-shakable tokens, authoring your own <code>provideX()</code> functions —
+      and the one cycle <code>forwardRef</code> flatly cannot fix.
+    </p>
+  </app-chapter>
 
-  <h2>The two injector trees</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>Element injectors</th>
-      <th>Environment injectors</th>
-    </tr>
-    <tr>
-      <td>Created by</td>
-      <td>components &amp; directives (<code>providers</code>/<code>viewProviders</code>)</td>
-      <td><code>bootstrapApplication</code> (root), lazy routes with <code>providers</code></td>
-    </tr>
-    <tr>
-      <td>Shape</td>
-      <td>mirrors the DOM/component tree</td>
-      <td>mirrors the route/bundle structure</td>
-    </tr>
-    <tr>
-      <td>Lifetime</td>
-      <td>dies with the component</td>
-      <td>root lives forever; route env injectors live while routed</td>
-    </tr>
-  </table>
-  <p>
-    Resolution order for <code>inject(Token)</code> in a component: walk the <strong>element</strong> injector chain
-    from the component up through its DOM ancestors; if nothing matches, continue through the
-    <strong>environment</strong> chain (route → root → platform). <code>NullInjectorError</code> means both walks came
-    up empty.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You call inject(Beacon). Which one do you get?</h2>
 
-  <h2>Live proof — the same token, four resolutions</h2>
-  <p>
-    <code>Beacon</code> is a service whose every instance gets a sequential id. This lesson component provides one; the
-    two children below inject it four different ways and report which <em>actual instance</em> they received:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — real components, real injectors (lesson's own instance: #{{ lessonBeacon.id }})</p>
+    <p>
+      Ask a beginner lesson and the answer is easy: there's one <code>Beacon</code>, provided once, and
+      <code>inject(Beacon)</code> finds it. But a real app provides the <em>same</em> service at a dozen different
+      levels — a component here, a lazy route there, root as the fallback everywhere else. The moment that's true,
+      <span class="key">"which instance do I get?" stops having one answer</span> and starts depending on exactly where
+      you're standing when you ask, and exactly which words you put after the comma.
+    </p>
+
+    <p>
+      That's the whole of advanced DI. Not new concepts so much as new ways to answer one question more precisely:
+      <strong>where, exactly, should this search start and stop?</strong>
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Below, a lesson component provides one <code>Beacon</code>. Two children both call <code>inject(Beacon)</code> —
+      one of them <em>also</em> provides its own. <strong>Do the two children get the same instance?</strong> Does your
+      answer change for the one with its own provider? There's a live proof a few paragraphs down to check yourself
+      against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An injector is a building inside a city.</h2>
+
+    <p>
+      Picture the component tree as a <span class="term">building</span>: one apartment per component, stacked the way
+      your templates nest. Need a service? You don't build one — you go looking for a copy someone already has. First
+      you check your own apartment. Not there? You knock on the door <em>above</em> you, then the one above that, all
+      the way up the stairwell — that's the <span class="term">element injector</span> chain, and it mirrors the DOM
+      exactly.
+    </p>
+
+    <p>
+      Reach the roof with nothing to show for it, and you don't give up — you step <strong>outside</strong>, into the
+      <span class="term">environment injector</span> chain: the local borough office (your lazy route's own providers,
+      if you're inside one), then city hall (root — where almost everything ends up), then, in the rarest case, the
+      national government (platform, shared by every Angular app sharing the page). <code>NullInjectorError</code> means
+      you knocked on every door in the building <em>and</em> asked every office in the city, and nobody had it.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'Platform injector', sub: 'the last stop — shared by every app on the page' }"
+      [rings]="[
+        { label: 'DOM ancestor element injectors', sub: 'this component, then each ancestor up the template' },
+        { label: 'Route environment injector', sub: 'the nearest lazy feature — if you are inside one' },
+        { label: 'Root injector', sub: 'everything providedIn: root lives here' },
+      ]"
+      arrow="almost nothing reaches here"
+      caption="The walk, outside in: every **element injector** up the DOM first — this component, then each ancestor's `providers` / `viewProviders` — and only once that whole chain comes up empty does the **environment** chain take over: the nearest route, then root, then finally platform. `NullInjectorError` means the walk fell through every single ring."
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>Your own room, then the stairwell, then the street.</strong> <code>self</code> only checks your own room.
+      The default walk checks your room, then knocks up the stairwell — every DOM ancestor's element injector — and only
+      steps into the street (the environment chain) once the whole building has been asked. <code>skipSelf</code> starts
+      one door up. <code>host</code> refuses to leave the stairwell at all.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE LIVE PLAYGROUND — RESOLUTION MODIFIERS ============ -->
+  <section>
+    <p class="bf-eyebrow">The proof</p>
+    <h2>Four words that steer the exact same walk.</h2>
+
+    <p>
+      <code>optional</code>, <code>self</code>, <code>skipSelf</code> and <code>host</code> don't add new behaviour to
+      the injector — they all just answer "where does the walk from the last section start, and what happens if it comes
+      up empty?" differently. Four short cards, then three real components proving each answer against real instance
+      ids.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="optional" kicker="inject(T, { optional: true })" tone="gold">
+        Return <code>null</code> instead of throwing on a miss. Combine with any of the other three — it changes what a
+        <em>miss</em> does, never where the walk starts.
+      </app-tape-card>
+      <app-tape-card heading="self" kicker="{ self: true }" tone="accent">
+        Only this exact element's own injector. "Give me MY instance, and nothing else — not even my parent's."
+      </app-tape-card>
+      <app-tape-card heading="skipSelf" kicker="{ skipSelf: true }" tone="olive">
+        Start at the parent, on purpose — whether or not this element has its own provider. The classic tool for a
+        component that provides its own instance but still needs its ancestor's.
+      </app-tape-card>
+      <app-tape-card heading="host" kicker="{ host: true }" tone="blue">
+        See this component's own view, but refuse to cross into an ancestor component — even one hop away. How a
+        directive nested inside a template stays bound to <em>its</em> component, not whatever else is on the page.
+      </app-tape-card>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — real components, real injectors (lesson's own instance: #{{ lessonBeacon.id }})</p>
+      <table class="cmp">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Default resolution</th>
+            <th>With a modifier</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr appDiChildOwn></tr>
+          <tr appDiChildBare></tr>
+          <tr appDiHostChild></tr>
+        </tbody>
+      </table>
+      <p class="demo__note">
+        The child with its own provider gets its own instance by default and must <code>skipSelf</code> to reach the
+        lesson's. The bare child inherits the lesson's instance, and <code>self</code> proves it has none locally —
+        without <code>optional: true</code> that lookup would throw. The third child's probe lives <em>inside</em> its
+        own template rather than on its own tag: the default walk still climbs straight past it to the lesson's
+        instance, but <code>host</code> refuses to leave that child's own view, so it comes back
+        <span class="bf-break">null</span> even though the lesson's <code>Beacon</code> is right there, one hop away.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="beacon.component.ts"
+      [code]="modifiersSample"
+      [notes]="modifiersNotes"
+      notesLabel="What each modifier is actually doing"
+    />
+
+    <app-predict [prompt]="skipSelfPredictPrompt" [answer]="skipSelfPredictAnswer" revealLabel="Reveal the answer" />
+
+    <app-quiz
+      question="The child WITH its own `Beacon` provider calls `inject(Beacon, { skipSelf: true })`. Which instance does it get?"
+      [options]="modifierQuizOptions"
+      followUp="Check it against the live table above — the middle column of the first row is exactly this call."
+    />
+  </section>
+
+  <!-- ============ 4. MULTI PROVIDERS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Extension points</p>
+    <h2>One token, many contributors.</h2>
+
+    <p>
+      Every provider you've seen so far <span class="key">replaces</span> whatever was registered for its token before
+      it. <code>multi: true</code> is the one exception: it turns a token into a
+      <span class="term">collection</span> instead of a single value, and every provider that registers with it
+      <em>adds</em> to the array rather than overwriting it.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — three providers, one token, one array</p>
+      <p class="row">
+        @for (f of features; track f) {
+          <span class="pill" style="color: var(--green)">{{ f }}</span>
+        }
+      </p>
+    </div>
+
+    <app-code-lab
+      file="feature.tokens.ts"
+      [code]="multiSample"
+      [notes]="multiNotes"
+      notesLabel="How three providers become one array"
+    />
+
+    <p>
+      This is the extension-point pattern the framework itself is built on: <code>NG_VALIDATORS</code> (every validator
+      on a control), <code>NG_VALUE_ACCESSOR</code>, app initializers, and router interceptors all collect contributions
+      exactly this way. Forgetting <code>multi: true</code> on one registration doesn't error — it
+      <span class="bf-break">silently replaces</span> the whole collection with just that one entry, which is what makes
+      it a genuinely nasty production bug: nothing throws, something you registered just quietly stops existing.
+    </p>
+  </section>
+
+  <!-- ============ 5. PROVIDERS VS VIEWPROVIDERS ============ -->
+  <section>
+    <p class="bf-eyebrow">Encapsulation</p>
+    <h2>Not every provider should be public.</h2>
+
+    <p>
+      <code>providers</code> and <code>viewProviders</code> look almost identical and answer completely different
+      questions. Both sit on the same component. The only difference is <strong>who is allowed to see them</strong> —
+      and that difference only shows up for content someone else projects into your component.
+    </p>
+
+    <app-code-lab
+      file="card.component.ts"
+      [code]="viewProvidersSample"
+      [notes]="viewProvidersNotes"
+      notesLabel="Who can see which array"
+    />
+
+    <p>
+      Reach for <code>viewProviders</code> when a service is an internal implementation detail — state your component
+      manages for itself — that a <em>consumer's</em> projected content must not be able to accidentally inject and
+      start depending on. It's encapsulation, spelled in DI instead of in TypeScript's <code>private</code>.
+    </p>
+  </section>
+
+  <!-- ============ 6. INJECTION CONTEXT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The rule everyone hits eventually</p>
+    <h2>inject() only works for a moment, not forever.</h2>
+
+    <p>
+      <code>inject()</code> isn't gated by which FILE or FUNCTION you're in — it's gated by <strong>timing</strong>.
+      There's a brief window, while Angular is actively constructing something, called an
+      <span class="term">injection context</span>, and <code>inject()</code> only works inside it.
+    </p>
+
+    <app-bubbles
+      [turns]="contextTalk"
+      caption="The same question, asked at two different moments — and the injector gives two different answers."
+    />
+
+    <app-code-lab
+      file="widget.component.ts"
+      [code]="contextSample"
+      [notes]="contextNotes"
+      notesLabel="Where the window is open, and where it's already closed"
+      prompt="Line 10 runs inside a (click) handler, long after the constructor returned. What actually happens when it runs?"
+      output="It throws **NG0203 — inject() must be called from an injection context.** The window that was open during construction closed the moment the constructor returned; nothing on line 10 is inside it. Line 12 is fine — `runInInjectionContext` reopens a context for the duration of that one call, using the `Injector` captured back on line 3."
+      revealLabel="Reveal what onClick() does"
+    />
+
+    <p>
+      Field initializers, constructors, provider factories, and router guards/resolvers/interceptors all run inside a
+      context by design — that's the whole list. Anywhere else — a click handler, a <code>subscribe</code> callback, a
+      <code>setTimeout</code> — needs the bridge: capture <code>Injector</code> while a context is still open, then use
+      <code>runInInjectionContext</code> later.
+    </p>
+  </section>
+
+  <!-- ============ 7. TOKENS, FACTORIES & TREE-SHAKABILITY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Scope & lifetime</p>
+    <h2>Where a token lives decides how many copies exist.</h2>
+
+    <app-code-lab
+      file="tokens.ts"
+      [code]="tokenSample"
+      [notes]="tokenNotes"
+      notesLabel="Three different ways to register a provider"
+    />
+
     <table class="cmp">
-      <tr>
-        <th>Component</th>
-        <th>default resolution</th>
-        <th>with modifier</th>
-      </tr>
-      <tr appDiChildOwn></tr>
-      <tr appDiChildBare></tr>
+      <caption class="bf-table-caption">
+        Three scopes for providedIn — and how many instances each one actually makes
+      </caption>
+      <thead>
+        <tr>
+          <th><code>providedIn</code></th>
+          <th>Instances</th>
+          <th>Lives at</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>'root'</code></td>
+          <td>exactly one</td>
+          <td>the app's root environment injector — the default choice, and tree-shaken away if nothing injects it</td>
+        </tr>
+        <tr>
+          <td><code>'platform'</code></td>
+          <td>one per page</td>
+          <td>shared across every Angular app running on that page — genuinely rare</td>
+        </tr>
+        <tr>
+          <td><code>'any'</code></td>
+          <td>one per environment injector that asks</td>
+          <td>root gets its own; each lazy route's environment injector gets a <em>separate</em> one of its own</td>
+        </tr>
+      </tbody>
     </table>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px">
-      The child with its own provider gets its own instance by default and must
-      <code>skipSelf</code> to reach the lesson's. The bare child inherits the lesson's instance, and
-      <code>self</code> proves it has none locally — without <code>optional: true</code> that lookup would throw.
+
+    <div class="warn">
+      <strong>A service can silently duplicate itself.</strong> Give <code>Metrics</code>
+      <code>providedIn: 'root'</code> and <em>also</em> list it in a lazy route's own <code>providers</code> array, and
+      components under that route get a <span class="bf-break">second, disconnected instance</span> — not the root one.
+      Nothing errors. The tell is state that resets every time you navigate into the feature. The usual fix is simply
+      deleting the redundant <code>providers</code> entry; <code>providedIn: 'root'</code> already registered it
+      everywhere.
+    </div>
+  </section>
+
+  <!-- ============ 8. AUTHORING provideX() ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The modern payoff</p>
+    <h2>This is why forRoot() went away.</h2>
+
+    <p>
+      Every function you've called on this page — <code>provideRouter</code>, <code>provideHttpClient</code>,
+      <code>provideAnimations</code> — is the same shape underneath: a plain function that builds a provider array and
+      hands back something that can <strong>only</strong> be dropped into an environment injector's configuration.
+      That's <code>makeEnvironmentProviders</code>, and it's exactly how you'd author the equivalent for your own
+      library.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ modifiersSample }}</pre>
-  </div>
-  <ul>
-    <li><strong>optional</strong> — return <code>null</code> instead of throwing. Combine with any other modifier.</li>
-    <li><strong>self</strong> — only this element's injector. "Give me MY instance or nothing."</li>
-    <li>
-      <strong>skipSelf</strong> — start at the parent. The classic tool for recursive/tree components that need the
-      <em>ancestor's</em> instance while providing their own.
-    </li>
-    <li>
-      <strong>host</strong> — stop the walk at the host component boundary. How form directives find their surrounding
-      <code>ControlContainer</code> without accidentally grabbing one from a parent form far above.
-    </li>
-  </ul>
 
-  <h2>Multi providers — one token, many contributors</h2>
-  <div class="demo">
-    <p class="demo__title">Live — three providers, one token, one array</p>
-    <p class="row">
-      @for (f of features; track f) {
-        <span class="pill" style="color: var(--green)">{{ f }}</span>
-      }
+    <app-code-lab
+      file="provide-analytics.ts"
+      [code]="envProvidersSample"
+      [notes]="envProvidersNotes"
+      notesLabel="Authoring a provideX() function, and the two initializer functions"
+    />
+
+    <app-quiz
+      question="You write `providers: [provideAnalytics(config)]` inside a component's own `@Component` decorator. What happens?"
+      [options]="envProvidersQuizOptions"
+      followUp="The type is the enforcement mechanism — see the note on line 11 of the sample above."
+    />
+  </section>
+
+  <!-- ============ 9. FORWARDREF & THE CYCLE IT CAN'T FIX ============ -->
+  <section>
+    <p class="bf-eyebrow">The mix-up worth being precise about</p>
+    <h2>forwardRef fixes one cycle. Not every cycle.</h2>
+
+    <app-napkin lead="psst —" label="Predict before reading on — forwardRef and cycles">
+      <code>forwardRef</code> is famous for "fixing" circular references. Before the next bit: does it fix a
+      <strong>real</strong> circular dependency — two services each needing the other to be constructed? Or does it only
+      fix one very specific, much narrower kind of cycle?
+    </app-napkin>
+
+    <p>
+      Both of the cases below throw the exact same error — <code>NG0200: Circular dependency in DI detected</code> — and
+      that shared error message is precisely what causes the mix-up. They are not the same problem.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ multiSample }}</pre>
-  </div>
-  <p>
-    This is the extension-point pattern the framework itself is built on:
-    <code>NG_VALIDATORS</code> (all validators on a control), <code>NG_VALUE_ACCESSOR</code>, app initializers, and
-    router interceptors all collect contributions this way. Forgetting <code>multi: true</code> on one registration
-    silently <em>replaces</em> the whole collection instead of adding to it — a classic production bug.
-  </p>
 
-  <h2>providers vs viewProviders</h2>
-  <div class="code">
-    <pre>{{ viewProvidersSample }}</pre>
-  </div>
-  <p>
-    <code>providers</code> are visible to the component's view <em>and</em> to content projected into it;
-    <code>viewProviders</code> are visible to the view only. Use <code>viewProviders</code> when a service is an
-    internal implementation detail that projected content (written by your component's <em>consumers</em>) must not
-    accidentally inject — encapsulation for DI.
-  </p>
+    <app-code-lab
+      file="rating.component.ts"
+      [code]="forwardRefSample"
+      [notes]="forwardRefNotes"
+      notesLabel="Delaying a reference, not breaking a real cycle"
+    />
 
-  <h2>Injection context — where inject() is legal</h2>
-  <div class="code">
-    <pre>{{ contextSample }}</pre>
-  </div>
-  <p>
-    <code>inject()</code> works only while an injector is "current": field initializers, constructors, provider
-    factories, and router guards/resolvers/interceptors (they run in an injection context by design). Call it later — in
-    a click handler, a subscribe callback, a <code>setTimeout</code> — and you get <strong>NG0203</strong>. The escape
-    hatch is capturing the injector and using <code>runInInjectionContext</code>.
-  </p>
+    <app-compare
+      leftTitle="Declaration-order cycle — `forwardRef` fixes it"
+      rightTitle="Real construction cycle — `forwardRef` can't"
+      leftTone="good"
+      rightTone="bad"
+      note="A JavaScript timing problem on the left. A genuine, unsolvable-as-written dependency graph on the right."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ cycleFixableSample }}</pre>
+        </div>
+        <p>
+          One class, referencing itself before its own definition has finished running. Nothing structural is wrong —
+          the class just isn't <em>done</em> yet at the moment the decorator reads it. Delaying the read past that
+          moment is the entire fix, and it always works.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ cycleUnfixableSample }}</pre>
+        </div>
+        <p>
+          Two <em>different</em> classes, each one's constructor requiring the other to already exist. There is no order
+          to build them in — delaying WHEN the reference is read changes nothing, because the problem was never about
+          timing.
+        </p>
+      </div>
+    </app-compare>
 
-  <h2>Tokens, factories &amp; tree-shakability</h2>
-  <div class="code">
-    <pre>{{ tokenSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>providedIn: 'root'</code></strong> — one app-wide instance, tree-shaken away if never injected. The
-      default choice.
-    </li>
-    <li>
-      <strong>Token with a factory</strong> — computed defaults with zero registration; the factory itself runs in an
-      injection context, so it can <code>inject()</code> other services.
-    </li>
-    <li>
-      <strong>Component <code>providers</code> array</strong> — a fresh instance per component instance; also the
-      unit-testing seam (override per test).
-    </li>
-    <li>
-      <strong>Route <code>providers</code></strong> — an environment injector scoped to a lazy feature: "singleton
-      within the feature" without polluting root.
-    </li>
-  </ul>
+    <p>Three real fixes for the right-hand case, in the order to reach for them:</p>
+    <ol>
+      <li>
+        <strong>Extract the shared piece into a third service.</strong> If both sides need to talk, they usually both
+        need the same underlying thing — pull it out, and neither one needs the other anymore.
+      </li>
+      <li>
+        <strong>Invert one direction with an event or a token.</strong> Have the "callee" expose an
+        <code>Observable</code>, an <code>EventEmitter</code>, or a narrow interface token instead of the concrete class
+        — the other side depends on the abstraction, not on each other.
+      </li>
+      <li>
+        <strong>Defer the lookup with a captured Injector.</strong> One side injects <code>Injector</code> instead of
+        the service directly, and calls <code>injector.get(TheOtherService)</code> lazily, inside the method that
+        actually needs it — by the time that method runs, both instances already exist. Last resort, because it trades a
+        compile-time dependency for a runtime one.
+      </li>
+    </ol>
+  </section>
 
-  <h2>forwardRef — breaking declaration-order cycles</h2>
-  <div class="code">
-    <pre>{{ forwardRefSample }}</pre>
-  </div>
-  <p>
-    Class decorators evaluate when the class is defined; if a provider references a class declared
-    <em>later in the same file</em> (the CVA pattern's self-reference), <code>forwardRef(() =&gt; X)</code> defers the
-    dereference until injection time.
-  </p>
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Walk the resolution for <code>inject(Cfg)</code> inside a deeply nested component.</summary>
-    <div>
-      Element injectors first: the component's own, then each DOM ancestor's, up to the root component. Then environment
-      injectors: the lazy route's (if any), the root, the platform. First provider found wins; none →
-      <code>NullInjectorError</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>A tree component provides <code>TreeLevelService</code> and needs its parent level's too. How?</summary>
-    <div>
-      <code>providers: [TreeLevelService]</code> for its own, plus
-      <code>inject(TreeLevelService, &#123; skipSelf: true, optional: true &#125;)</code> for the ancestor's — optional
-      because the root node has no parent level.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>You registered a second validator and the first stopped working. Why?</summary>
-    <div>
-      Missing <code>multi: true</code>. Without it the second registration replaces the token's provider instead of
-      contributing to the array — every multi-token registration must say <code>multi: true</code>, every time.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>NG0203: inject() must be called from an injection context. What happened?</summary>
-    <div>
-      <code>inject()</code> ran after construction — in an event handler, timer or subscription. Move it to a field
-      initializer, or capture <code>Injector</code> at construction and wrap the late call in
-      <code>runInInjectionContext(injector, () =&gt; …)</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why prefer <code>providedIn: 'root'</code> over root-level <code>providers: []</code>?</summary>
-    <div>
-      Tree-shakability: the service is only bundled if something injects it. It also avoids the duplicate-instance trap
-      where two lazy bundles each register their own copy of a supposedly shared service.
-    </div>
-  </details>
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Two trees: element injectors (DOM-shaped) then environment injectors (route/root) — that walk IS the mental model.
-    </li>
-    <li><code>optional/self/skipSelf/host</code> steer the walk; the live table above is the proof.</li>
-    <li>
-      <code>multi: true</code> turns a token into an extension point — omit it once and you replace the collection.
-    </li>
-    <li>
-      <code>viewProviders</code> hides services from projected content; route providers scope singletons to features.
-    </li>
-    <li>
-      <code>inject()</code> needs an injection context (NG0203 otherwise); <code>runInInjectionContext</code> is the
-      bridge.
-    </li>
-  </ul>
+    <app-remember variant="rule">
+      Forgetting <code>multi: true</code> on a repeat registration doesn't error. It
+      <strong>replaces the entire collection</strong> with your one new entry — silently, and only at the moment
+      something actually reads the token.
+    </app-remember>
 
-  <p><a routerLink="/rxjs-advanced">Next: Advanced RxJS →</a></p>
+    <ul>
+      <li>
+        <strong>Two trees, walked in order.</strong> Element injectors (this component, then every DOM ancestor) first;
+        only once that whole chain is empty does the environment chain (route → root → platform) take over.
+      </li>
+      <li>
+        <code>optional</code>/<code>self</code>/<code>skipSelf</code>/<code>host</code> steer WHERE the walk starts and
+        what a miss does — the live table above is the proof, and none of the four add new behaviour beyond that.
+      </li>
+      <li>
+        <code>multi: true</code> turns a token into a collection that every matching provider adds to.
+        <code>viewProviders</code> hides a provider from projected content that <code>providers</code> would expose.
+      </li>
+      <li>
+        <code>inject()</code> needs an open injection context — a brief window during construction, not a property of
+        where the code lives. <code>runInInjectionContext</code> is the bridge back in once it has closed.
+      </li>
+      <li>
+        <code>makeEnvironmentProviders</code> is how a <code>provideX()</code> function guarantees it can only configure
+        an environment injector — never get dropped into one component by mistake.
+      </li>
+      <li>
+        <code>forwardRef</code> only fixes a <strong>declaration-order</strong> cycle. A real construction cycle between
+        two services needs redesigning, not wrapping.
+      </li>
+    </ul>
+
+    <p><a routerLink="/rxjs-advanced">Next: Advanced RxJS →</a></p>
+  </section>
 </article>
