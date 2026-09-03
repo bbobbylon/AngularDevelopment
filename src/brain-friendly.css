@@ -1,21 +1,29 @@
 /* ============================================================
    BRAIN-FRIENDLY LAYER
    ------------------------------------------------------------
-   The "Head First" presentation language for lessons, added
-   2026-08-31 from a visual the author supplied (docs/UI-DESIGN.md
-   §9). It is a SECOND skin over the app's original indigo/zinc
-   theme, not a replacement:
+   The "Head First" presentation language, added 2026-08-31 from a
+   visual the author supplied (docs/UI-DESIGN.md §9). It started as
+   a lesson-only skin over the app's original indigo/zinc theme and
+   was promoted to the app's ONE theme on 2026-09-03, once the
+   author asked for the whole app, not just migrated lessons, to
+   read as brain-friendly:
 
      - the tokens below (--bf-*, --font-*) are global and always
        defined, in both colour schemes;
-     - the look only applies to a lesson that opts in by putting
-       `bf` on its root <article class="lesson bf">.
-
-   That opt-in is deliberate. Migrating 100 lessons is a rollout,
-   not a commit, and a half-migrated app where every page is
-   *slightly* redesigned reads worse than one where each page is
-   either clearly old or clearly new. A lesson moves when it is
-   rewritten to use the devices, not before.
+     - §3 repoints the app's base tokens (--bg, --accent, …) at the
+       --bf-* values UNCONDITIONALLY, so the palette and fonts apply
+       everywhere — chrome, every page, every lesson, migrated or
+       not — the instant this file loads. `bf-page` on `<html>` is
+       no longer required for the palette; the `BfPage` directive is
+       kept as a lesson marker (see its own JSDoc) but is now a
+       no-op for theming purposes.
+     - `.lesson.bf` (§4 on) is still what turns on the FULL treatment
+       — the Head First component set (Chapter/CodeLab/Layers/…),
+       the retention devices, the annotated code. A lesson only gets
+       that when it is actually rewritten against the nine-point bar;
+       colour and type consistency is not a substitute for content
+       work, it just means the untouched 71% no longer looks like a
+       different, older product while that work continues.
 
    ------------------------------------------------------------
    WHY THIS LOOKS THE WAY IT DOES
@@ -169,27 +177,35 @@
 }
 
 /* ------------------------------------------------------------
-   3. THE PAGE
-   A `bf` lesson repaints the whole viewport, not just its own
-   column — a cream article floating on the app's zinc page would
-   look like an embedded iframe. `.bf-page` is set on <html> by
-   the lesson host while such a lesson is on screen.
+   3. THE PAGE — unconditional as of 2026-09-03
+   Every page repaints from the brain-friendly palette, not just a
+   migrated lesson's own column — a cream article floating on the
+   app's old zinc page looked like an embedded iframe, which is
+   exactly the "half-migrated app" complaint this section now fixes.
    ------------------------------------------------------------ */
-html.bf-page,
-html.bf-page body {
+html,
+html body {
   background: var(--bf-bg);
   color: var(--bf-ink);
 }
 
-/* The app shell — top bar, footer, progress bar, toasts — is styled from the
-   BASE theme's tokens, not from --bf-*. Rather than re-selecting every one of
-   those elements here, `.bf-page` simply re-points the base tokens at the
-   brain-friendly palette for as long as a migrated lesson is on screen.
-   One remap, and the whole chrome warms up with the page.
+/* The app shell — top bar, footer, progress bar, toasts — and every page,
+   migrated or not, are styled from the BASE theme's tokens, not from
+   --bf-* directly. Rather than re-selecting every one of those elements
+   here, this block re-points the base tokens at the brain-friendly palette
+   ALWAYS. One remap, and the whole app — chrome included — is one theme.
 
    This is why the layer never hard-codes a colour outside §1 and §2: the
-   remap below is only possible because both palettes speak in tokens. */
-html.bf-page {
+   remap below is only possible because both palettes speak in tokens.
+
+   Selector note: `:root`, not `html` — a custom-property declaration is
+   an ordinary cascade rule like any other, and `:root`'s specificity
+   (0,1,0) beats a bare `html` type selector (0,0,1). This file loads
+   after src/styles.css (see angular.json's `styles` array), whose own
+   `:root` block first defines these tokens; matching its selector here,
+   not just its source order, is what makes this block win regardless of
+   any future reordering. */
+:root {
   --bg: var(--bf-bg);
   --bg-elevated: var(--bf-surface-2);
   --bg-card: var(--bf-surface);

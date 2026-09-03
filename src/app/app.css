@@ -72,11 +72,18 @@
 
 .topbar__links a {
   color: var(--text-muted);
+  transition: color 0.15s ease;
 }
 
 .topbar__links a:hover {
   color: var(--text);
   text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar__links a {
+    transition: none;
+  }
 }
 
 /* Review link hosts the due-count badge */
@@ -91,7 +98,11 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: #6366f1;
+  /* Token, not a hard-coded indigo — matches the brand mark's own fix below:
+     a leftover literal colour is the one thing that does not repaint when
+     the brain-friendly palette takes over the shell. White text on
+     var(--accent) clears WCAG AA (6.15:1 light, 6.71:1 dark). */
+  background: var(--accent);
   color: #fff;
   font-size: 0.68rem;
   font-weight: 700;
