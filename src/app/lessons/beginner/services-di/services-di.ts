@@ -3,6 +3,14 @@ import { RouterLink } from '@angular/router';
 import { CartService } from './services-di.shared';
 import { CartIndicator } from './cart-indicator/cart-indicator';
 import { CounterWidget } from './counter-widget/counter-widget';
+import {
+  Faq,
+  type FaqItem,
+  Predict,
+  Quiz,
+  type QuizOption,
+  Remember,
+} from '../../../shared/teaching';
 
 /**
  * Lesson: Services & Dependency Injection — sharing logic and state between
@@ -26,11 +34,95 @@ import { CounterWidget } from './counter-widget/counter-widget';
  */
 @Component({
   selector: 'app-lesson-services-di',
-  imports: [RouterLink, CartIndicator, CounterWidget],
+  imports: [RouterLink, CartIndicator, CounterWidget, Faq, Predict, Quiz, Remember],
   styleUrl: './services-di.css',
   templateUrl: './services-di.html',
 })
 export class ServicesDi {
+  /**
+   * The shadowing puzzle used by the ask-before-telling block. This is the most
+   * common real DI bug there is: a `providedIn: 'root'` service listed a second
+   * time in a component's own `providers`, silently forking the singleton.
+   */
+  protected readonly shadowingSample = `// The service — one instance for the whole app. Or so you'd think.
+@Injectable({ providedIn: 'root' })
+export class CartService {
+  readonly items = signal<string[]>([]);
+  add(item: string) { this.items.update(i => [...i, item]); }
+}
+
+// The header, somewhere near the top of the app.
+@Component({
+  selector: 'app-header',
+  template: 'Cart: {{ cart.items().length }}',
+})
+export class Header {
+  protected readonly cart = inject(CartService);
+}
+
+// The product page. Note the providers line — a teammate added it while
+// fixing a test, because "the service wasn't being found".
+@Component({
+  selector: 'app-product-page',
+  providers: [CartService],          // ← this line
+  template: \`<button (click)="cart.add('Coffee')">Add coffee</button>\`,
+})
+export class ProductPage {
+  protected readonly cart = inject(CartService);
+}`;
+
+  /**
+   * The self-test. Every wrong answer corresponds to a real misreading of the
+   * injector tree: that `providedIn: 'root'` is absolute, that a local
+   * `providers` entry adds to the root instance, or that the walk goes down.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'Two. `providedIn: root` creates one, and the component `providers` entry creates a second, separate instance for that component and its descendants.',
+      correct: true,
+      why: 'Right. A `providers` entry is a *new registration*, not a reference to the existing one. The component and everything under it now resolve to the local instance and can never reach the root one.',
+    },
+    {
+      text: 'One. `providedIn: root` already registered it, so the component `providers` entry is redundant and Angular reuses the singleton.',
+      why: 'This is the intuitive reading and it is the bug. Angular does not check whether a service is already registered elsewhere — `providers: [CartService]` unconditionally constructs a fresh instance at that injector.',
+    },
+    {
+      text: 'One, but the component `providers` entry makes the root instance reset when the component is destroyed.',
+      why: 'Nothing resets a root-provided service. The root instance is built once on first injection and lives for the lifetime of the application, entirely unaffected by what any component does.',
+    },
+    {
+      text: 'Three — one for the root, one for the component, and one for each descendant that injects it.',
+      why: 'Descendants do not get their own. The walk starts at the descendant and goes *up*, finds the ancestor component provider first, and stops — so they all share that one instance.',
+    },
+  ];
+
+  /**
+   * The questions people have after the DI chapter that the docs answer in
+   * terms of injectors rather than in terms of what they were trying to do.
+   */
+  protected readonly questions: readonly FaqItem[] = [
+    {
+      q: 'When should I make something a service rather than just a component field?',
+      a: "The moment two components need the same data, or the moment logic has nothing to do with the screen — HTTP calls, business rules, auth state. If exactly one component cares and it's about that component's display, leave it where it is.",
+    },
+    {
+      q: 'Is `inject()` better than constructor injection, or just newer?',
+      a: 'Neither is more correct — they perform the identical injector-tree lookup at the identical moment. `inject()` reads better with generics and inheritance and works in functional guards and interceptors where there is no constructor, which is why it is the modern default. Exams often contrast them; the answer is "they are the same lookup".',
+    },
+    {
+      q: 'If a service is `providedIn: root` and nothing injects it, is it still in my bundle?',
+      a: 'No — that is the second, less-advertised job of `providedIn`. Because the registration lives on the class rather than in a `providers` array somewhere, the bundler can prove nothing references it and drop it entirely. A service listed in a `providers` array cannot be tree-shaken that way.',
+    },
+    {
+      q: 'What is an "injection context", really?',
+      a: 'The window while Angular is actively constructing something and knows which injector to ask. That means field initializers, constructors, and factory functions Angular calls itself (route guards, resolvers, interceptors). A click handler runs long after that window closed, so `inject()` there throws NG0203.',
+    },
+    {
+      q: 'How do I fake a service in a test?',
+      a: 'Override the provider: `TestBed.configureTestingModule({ providers: [{ provide: CartService, useValue: fakeCart }] })`. The component asks for `CartService` and the injector hands back your fake — it never knows the difference. That substitutability is the practical reason DI exists at all.',
+    },
+  ];
+
   /**
    * The shared cart, the same instance the indicator components see.
    */

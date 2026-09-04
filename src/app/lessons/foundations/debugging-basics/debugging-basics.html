@@ -31,6 +31,65 @@ TypeError: Cannot read properties of undefined (reading 'name')
       function. The trace is your list of suspects, in order.
     </li>
   </ul>
+  <p>
+    Picture a stack trace as a literal stack of sticky notes piling up on a desk, one per function call: each note says
+    "call the next thing, then wait for it to finish." The
+    <strong>top note is whatever was running the instant things broke</strong> — the most recent call, still waiting.
+    Peel it off and the note underneath is whoever made that call; peel again and you reach the note before that. Work
+    all the way down and you reach the very first note — the click that started the whole pile. That's why the trace
+    reads top-to-bottom as "most recent call first."
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 210" role="img" aria-labelledby="db-t db-d">
+    <title id="db-t">A stack trace drawn as a literal stack of call frames</title>
+    <desc id="db-d">
+      Four frames are stacked vertically like sticky notes. The top frame, drawn in red, reads showUser, line 42 — where
+      it exploded. Below it, in order going down, are onClick line 30, handleSubmit line 18, and at the very bottom, the
+      oldest frame, the browser's own click event, labelled where the story started. An arrow along the left edge points
+      downward, labelled reading down tells the story of how we got here, and a second arrow at the top points to the
+      red frame, labelled reading the top line tells you where it broke.
+    </desc>
+    <rect x="260" y="20" width="240" height="34" rx="7" fill="var(--red)" opacity="0.22" />
+    <text x="380" y="42" font-size="11.5" text-anchor="middle" font-weight="700" fill="var(--red)">
+      showUser (app.ts:42) — exploded here
+    </text>
+
+    <rect x="260" y="66" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="380" y="88" font-size="11.5" text-anchor="middle" fill="var(--text-muted)">onClick (app.ts:30)</text>
+
+    <rect x="260" y="112" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="380" y="134" font-size="11.5" text-anchor="middle" fill="var(--text-muted)">handleSubmit (app.ts:18)</text>
+
+    <rect x="260" y="158" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="380" y="180" font-size="11.5" text-anchor="middle" fill="var(--text-muted)">
+      browser click event — where the story started
+    </text>
+
+    <text x="20" y="42" font-size="10.5" fill="var(--red)">↑ read this line first</text>
+    <line x1="120" y1="30" x2="255" y2="35" stroke="var(--red)" stroke-width="1.5" />
+
+    <text x="20" y="130" font-size="10.5" fill="var(--text-muted)">reading down = the</text>
+    <text x="20" y="144" font-size="10.5" fill="var(--text-muted)">story of how we got here</text>
+    <line
+      x1="140"
+      y1="70"
+      x2="140"
+      y2="170"
+      stroke="var(--text-muted)"
+      stroke-width="1.5"
+      marker-end="url(#db-arrow)"
+    />
+    <defs>
+      <marker id="db-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+      </marker>
+    </defs>
+  </svg>
+
+  <app-remember variant="rule" label="If you remember one thing about reading a trace">
+    <strong>The top line tells you WHERE. Reading down tells you HOW.</strong> The top line is your destination; every
+    line below it is a suspect that fed the crash, oldest call at the bottom.
+  </app-remember>
 
   <h2>Field guide — trigger each one, read it, fix it</h2>
   <div class="demo">
@@ -87,6 +146,12 @@ TypeError: Cannot read properties of undefined (reading 'name')
       </td>
     </tr>
   </table>
+
+  <app-predict
+    prompt="tags is a real array, just empty — post.tags = []. What error (if any) does this line throw, and which name does it blame?"
+    [code]="outOfBoundsSample"
+    answer="TypeError: Cannot read properties of undefined (reading 'toUpperCase'). Reading post.tags[0] on an empty array does NOT throw — arrays don't have index bounds checking, so an out-of-range index just returns undefined, silently, same as a missing object property would. The crash happens one step later, when .toUpperCase() is called ON that undefined. That's why the message blames toUpperCase and not tags[0] — the error always names the property being read at the moment of the crash, and by then the array lookup is already history."
+  />
 
   <h2>Tool #1: the console — more than console.log</h2>
   <div class="code">
@@ -215,6 +280,13 @@ console.timeEnd('load');         // "load: 231ms" — how LONG did this take?</p
       — or let the editor's bracket-matching find it instantly.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="You console.log(user) right after starting a fetch, before the promise resolves. It prints an object that already has the real data — but you're SURE the fetch couldn't have finished that fast. What's going on?"
+    [options]="quizOptions"
+    followUp="The safe habit: if you need to see a value at the moment you logged it, not whatever it becomes later, log a copy — JSON.parse(JSON.stringify(value)) or structuredClone(value) — instead of the live reference."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

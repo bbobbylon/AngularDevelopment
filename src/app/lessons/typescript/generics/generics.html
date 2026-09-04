@@ -48,7 +48,21 @@ const c = identity&lt;boolean&gt;(true); // explicit — rarely needed</pre>
     </li>
   </ul>
 
+  <app-predict
+    prompt="firstOf<T>(items: T[]): T looks fully checked — T flows from the argument straight into the return, no assertion in sight. Calling it on an empty number[] still type-checks as oops: number. Does oops.toFixed(2) actually run safely?"
+    [code]="firstOfBugSample"
+    answer="No — items[0] on an empty array is undefined at runtime, but firstOf's signature only promised that the SHAPE of the return matches whatever went in; it never promised the array was non-empty. TypeScript is fully satisfied — an empty array is still a valid T[] — so oops is typed number with total confidence, and oops.toFixed(2) throws TypeError: Cannot read properties of undefined (reading 'toFixed'). Generics check that types stay CONSISTENT through your code; they don't check that a VALUE actually exists. That gap is exactly the same one behind the return-only-generic trap below — inference can be airtight and still be wrong about the real world."
+  />
+
   <h2>Generic classes</h2>
+  <p>
+    Picture a plain cardboard moving box. Without a label, movers have to open it to know what's safe to stack on top —
+    the box works for anything, but nobody knows what's inside until they look. Write "T = Books" on the label and two
+    things change: you can promise "this side up, don't crush" without opening it, and everyone downstream trusts the
+    label instead of guessing. That label is exactly what a type parameter is — <code>Box&lt;T&gt;</code> is the box
+    shape, working for any contents, and the <code>T</code> filled in per instance is what lets the compiler treat a box
+    of numbers differently from a box of strings without you writing two separate classes.
+  </p>
   <div class="code">
     <pre>
 class Box&lt;T&gt; {{ '{' }}
@@ -143,6 +157,82 @@ const user = await fetchJson&lt;User&gt;('/api/user');  // feels safe. Is exactl
     positions (two params, or a param and the return) to be pulling real weight; used once, it's either a cast or noise.
   </p>
 
+  <table class="t">
+    <tr>
+      <th></th>
+      <th><code>byId&lt;T extends Entity&gt;</code></th>
+      <th><code>fetchJson&lt;T&gt;</code></th>
+    </tr>
+    <tr>
+      <td>T appears in</td>
+      <td>a parameter <em>and</em> the return</td>
+      <td>the return only</td>
+    </tr>
+    <tr>
+      <td>Inferred from</td>
+      <td>the actual array you pass in</td>
+      <td>nowhere — you type it yourself: <code>&lt;User&gt;</code></td>
+    </tr>
+    <tr>
+      <td>What's checked</td>
+      <td>the compiler verifies items really are <code>T</code></td>
+      <td>nothing — no value ever gets compared to <code>T</code></td>
+    </tr>
+    <tr>
+      <td>Verdict</td>
+      <td>a real generic</td>
+      <td>a disguised <code>as T</code></td>
+    </tr>
+  </table>
+
+  <svg class="diagram" viewBox="0 0 760 210" role="img" aria-labelledby="gen-t gen-d">
+    <title id="gen-t">Two positions are checked; one position is just asserted</title>
+    <desc id="gen-d">
+      Two side-by-side diagrams. On the left, byId of T extends Entity: an arrow runs from the argument items of type T
+      array, labelled real value in, up into a T box, and a second arrow runs from that same T box out to the return
+      type T or undefined, labelled checked, both ends connect to something real. On the right, fetchJson of T: the
+      argument is only a url string, with no arrow into the T box at all — the T box is fed only by a dashed arrow
+      coming from the caller's angle-bracket annotation, labelled asserted, not inferred, and a solid arrow leaves T
+      into the return type Promise of T, so only the outgoing side is connected to anything.
+    </desc>
+    <text x="20" y="24" font-size="12" font-weight="700" fill="var(--green)">
+      byId&lt;T extends Entity&gt;(items: T[]): T | undefined
+    </text>
+    <rect x="20" y="40" width="140" height="34" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="90" y="61" font-size="12" text-anchor="middle" fill="var(--text-muted)">items: T[]</text>
+    <line x1="160" y1="57" x2="220" y2="57" stroke="var(--green)" stroke-width="1.5" />
+    <rect x="228" y="40" width="50" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+    <text x="253" y="61" font-size="13" text-anchor="middle" fill="var(--green)" font-weight="700">T</text>
+    <line x1="278" y1="57" x2="338" y2="57" stroke="var(--green)" stroke-width="1.5" />
+    <rect x="346" y="40" width="150" height="34" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="421" y="61" font-size="12" text-anchor="middle" fill="var(--text-muted)">T | undefined</text>
+    <text x="90" y="94" font-size="11" text-anchor="middle" fill="var(--green)">real value in</text>
+    <text x="421" y="94" font-size="11" text-anchor="middle" fill="var(--green)">checked out</text>
+
+    <line x1="20" y1="118" x2="740" y2="118" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
+
+    <text x="20" y="142" font-size="12" font-weight="700" fill="var(--red)">
+      fetchJson&lt;T&gt;(url: string): Promise&lt;T&gt;
+    </text>
+    <rect x="20" y="158" width="140" height="34" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="90" y="179" font-size="12" text-anchor="middle" fill="var(--text-muted)">url: string</text>
+    <text x="200" y="179" font-size="16" fill="var(--red)">✗</text>
+    <rect x="228" y="158" width="50" height="34" rx="6" fill="var(--red)" opacity="0.18" />
+    <text x="253" y="179" font-size="13" text-anchor="middle" fill="var(--red)" font-weight="700">T</text>
+    <line x1="253" y1="158" x2="253" y2="128" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="3 3" />
+    <text x="253" y="120" font-size="10" text-anchor="middle" fill="var(--red)">&lt;User&gt; typed by caller</text>
+    <line x1="278" y1="175" x2="338" y2="175" stroke="var(--red)" stroke-width="1.5" />
+    <rect x="346" y="158" width="150" height="34" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="421" y="179" font-size="12" text-anchor="middle" fill="var(--text-muted)">Promise&lt;T&gt;</text>
+    <text x="421" y="204" font-size="11" text-anchor="middle" fill="var(--red)">asserted, never verified</text>
+  </svg>
+
+  <app-remember variant="rule" label="The one-position tell">
+    <strong>T needs a job.</strong> If it shows up in an argument, the compiler can check it against something real. If
+    it only shows up in the return type, nobody ever checks it — you wrote <code>&lt;User&gt;</code>, so TypeScript
+    believes you, exactly the way <code>as User</code> would.
+  </app-remember>
+
   <h2>Generic interfaces, aliases, defaults</h2>
   <div class="code">
     <pre>
@@ -230,6 +320,13 @@ readonly box = viewChild&lt;ElementRef&gt;('box');  // query result type</pre>
       every typed state-update helper.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="new Box(2).map(n => n.toString()).map(s => s.length) — the first .map<U> lands on U = string, the second on U = number. Does the second map's U have to relate at all to the first map's U?"
+    [options]="quizOptions"
+    followUp="Box<T> fixes ONE T for the whole instance, but every .map<U> call is a fresh method invocation with its own independent U, solved only from that call's own callback. Nothing carries over between links — which is exactly what lets a chain wander from number to string to boolean and back, one honest inference at a time."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

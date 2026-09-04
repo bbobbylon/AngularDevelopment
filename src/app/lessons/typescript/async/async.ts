@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -12,11 +13,53 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
  */
 @Component({
   selector: 'app-lesson-ts-async',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './async.html',
   styleUrl: './async.css',
 })
 export class Async {
+  /**
+   * The microtask-starvation puzzle used by the ask-before-telling block.
+   *
+   * A microtask that re-schedules itself forever means the microtask queue
+   * never fully drains — and the engine only reaches a macrotask (the timer)
+   * once that queue is empty. The timer isn't slow here; it's starved.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly microtaskStarvationSample = `function loop() {
+  Promise.resolve().then(loop);   // schedules ANOTHER microtask, forever
+}
+loop();
+
+setTimeout(() => console.log('does this ever run?'), 0);`;
+
+  /**
+   * The self-test, on when a Promise's executor actually runs. Every wrong
+   * answer imagines Promises behave like the lazy Observables discussed later
+   * on the page, rather than the eager machine this lesson opens with.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: "Immediately — 'X' logs the instant new Promise(...) executes, before .then is ever attached, and even if .then is never called at all.",
+      correct: true,
+      why: "Promises are eager: the executor function is called synchronously as part of constructing the Promise. Attaching .then only schedules what happens with the RESULT later — it has no bearing on when the executor itself runs. That's the opposite of an Observable, whose producer function doesn't run until something subscribes.",
+    },
+    {
+      text: "Not until p.then(...) is called — the executor waits for a subscriber the same way an Observable's producer does.",
+      why: "This is exactly the Observable behavior, and Promises don't share it. A Promise's executor has already run to completion (or started running) by the time new Promise(...) returns — there's no 'waiting for someone to listen' step.",
+    },
+    {
+      text: "It depends on whether resolve(1) is called synchronously inside the executor — if it were async, 'X' would wait too.",
+      why: "The executor body always runs synchronously and immediately, regardless of when resolve is eventually called. 'X' logs right away either way; only the .then callback's timing depends on when/if resolve fires.",
+    },
+    {
+      text: 'Only on the next microtask tick, since all Promise-related code is queued as a microtask.',
+      why: 'Microtask scheduling applies to .then/.catch/.finally CALLBACKS reacting to a settled promise — not to the executor function itself, which runs synchronously during construction, not as a queued microtask.',
+    },
+  ];
+
   /**
    * Whether the await demo is running, for the button's disabled state.
    */

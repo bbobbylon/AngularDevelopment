@@ -2,10 +2,140 @@
   <span class="lesson__eyebrow">Expert · Cross-Cutting</span>
   <h1>Security &amp; Sanitization</h1>
   <p class="lead">
-    Angular is secure by default — but "by default" only gets you so far. A senior dev understands <em>why</em> it's
-    secure, where the gaps are, and how to defend the whole application stack: XSS, CSRF, auth token handling, secrets,
-    and HTTP headers.
+    Angular is secure by default — but
+    <span class="key">"by default" only covers what goes through a template binding.</span> A senior dev understands
+    <em>why</em> it's secure, exactly where the coverage stops, and how to defend the rest of the stack: XSS, CSRF, auth
+    token handling, secrets, and HTTP headers.
   </p>
+
+  <h2>Think of it as airport security</h2>
+  <p>
+    Every value you bind into the DOM is treated like a passenger with luggage: <span class="term">untrusted</span>
+    until screened. Three things about the airport carry straight over, and if you hold them you can reason about almost
+    any sanitizer question without memorising a table:
+  </p>
+  <ul>
+    <li>
+      <strong>The screening depends on the destination, not the bag.</strong> Liquids are fine in checked baggage and
+      confiscated at the gate. Identically, <code>&lt;b&gt;</code> is fine in an <code>[innerHTML]</code> and
+      meaningless in an <code>[href]</code> — Angular picks the check from
+      <span class="key">where the value is going</span>, which is why it's called a
+      <span class="term">security context</span>.
+    </li>
+    <li>
+      <strong>Screening removes items; it doesn't reject people.</strong> The passenger still boards without the
+      lighter. This is the detail that surprises everyone: Angular doesn't throw away your whole string when it finds
+      something dangerous — it strips the dangerous <em>part</em> and renders the rest.
+    </li>
+    <li>
+      <strong><code>bypassSecurityTrust*</code> is the diplomatic pouch.</strong> It goes through unopened, by
+      agreement, because someone signed for the contents.
+      <span class="wrong">If you let a stranger pack it, the agreement is worthless</span> — which is the entire reason
+      "never call it on user data" is the loudest rule in this lesson.
+    </li>
+  </ul>
+
+  <h2>The four lanes</h2>
+  <p>
+    Here is the same value arriving at four different bindings, and the four different screenings it gets. Note the
+    dashed red line dropping out of the bottom — that's the bypass, and it goes around all four.
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 330" role="img" aria-labelledby="sec-t sec-d">
+    <title id="sec-t">Angular's four sanitization contexts, and the bypass that skips them</title>
+    <desc id="sec-d">
+      An untrusted value enters and is routed by binding type into one of four security contexts. HTML, used by
+      innerHTML, strips script tags and event handler attributes. STYLE, used by style bindings, strips expressions and
+      URL-based CSS. URL, used by href and img src, neutralises javascript: schemes by prefixing them with unsafe:.
+      RESOURCE_URL, used by iframe and script src, cannot be sanitized at all and is rejected unless explicitly trusted.
+      A separate path on the right shows bypassSecurityTrust methods routing the value directly to the DOM with no
+      checks.
+    </desc>
+    <defs>
+      <marker id="sec-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+      </marker>
+      <marker id="sec-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)" />
+      </marker>
+    </defs>
+
+    <!-- the untrusted value -->
+    <rect x="8" y="128" width="126" height="56" rx="8" fill="var(--bg-elevated)" stroke="var(--red)" />
+    <text x="71" y="152" text-anchor="middle" font-size="12" font-weight="700" fill="var(--red)">untrusted</text>
+    <text x="71" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="var(--red)">value</text>
+
+    <!-- fan into four lanes -->
+    <g fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#sec-arrow)">
+      <path d="M 138 146 C 178 146 178 42 218 42" />
+      <path d="M 138 152 C 178 152 178 112 218 112" />
+      <path d="M 138 160 C 178 160 178 182 218 182" />
+      <path d="M 138 166 C 178 166 178 252 218 252" />
+    </g>
+
+    <!-- lane boxes -->
+    <g font-family="monospace" font-size="11.5">
+      <rect x="222" y="20" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--border)" />
+      <text x="286" y="40" text-anchor="middle" fill="var(--violet)" font-weight="700">HTML</text>
+      <text x="286" y="56" text-anchor="middle" fill="var(--text-muted)" font-size="10">[innerHTML]</text>
+
+      <rect x="222" y="90" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--border)" />
+      <text x="286" y="110" text-anchor="middle" fill="var(--violet)" font-weight="700">STYLE</text>
+      <text x="286" y="126" text-anchor="middle" fill="var(--text-muted)" font-size="10">[style.x]</text>
+
+      <rect x="222" y="160" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--border)" />
+      <text x="286" y="180" text-anchor="middle" fill="var(--violet)" font-weight="700">URL</text>
+      <text x="286" y="196" text-anchor="middle" fill="var(--text-muted)" font-size="10">[href] [img src]</text>
+
+      <rect x="222" y="230" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--amber)" />
+      <text x="286" y="250" text-anchor="middle" fill="var(--amber)" font-weight="700">RESOURCE_URL</text>
+      <text x="286" y="266" text-anchor="middle" fill="var(--text-muted)" font-size="10">[iframe src]</text>
+    </g>
+
+    <!-- what each lane does -->
+    <g stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#sec-arrow)">
+      <line x1="354" y1="42" x2="392" y2="42" />
+      <line x1="354" y1="112" x2="392" y2="112" />
+      <line x1="354" y1="182" x2="392" y2="182" />
+      <line x1="354" y1="252" x2="392" y2="252" />
+    </g>
+    <g font-size="11">
+      <text x="398" y="38" fill="var(--green)" font-weight="600">strips &lt;script&gt; + on* handlers</text>
+      <text x="398" y="54" fill="var(--text-muted)" font-size="10">the rest of your markup survives</text>
+
+      <text x="398" y="108" fill="var(--green)" font-weight="600">strips expressions and url()</text>
+      <text x="398" y="124" fill="var(--text-muted)" font-size="10">plain declarations pass</text>
+
+      <text x="398" y="178" fill="var(--green)" font-weight="600">javascript: → unsafe:javascript:</text>
+      <text x="398" y="194" fill="var(--text-muted)" font-size="10">the link renders; the browser refuses it</text>
+
+      <text x="398" y="248" fill="var(--red)" font-weight="600">cannot be sanitized — blocked outright</text>
+      <text x="398" y="264" fill="var(--text-muted)" font-size="10">a whole document runs; nothing to strip</text>
+    </g>
+
+    <!-- the bypass door -->
+    <line
+      x1="71"
+      y1="190"
+      x2="71"
+      y2="300"
+      stroke="var(--red)"
+      stroke-width="1.6"
+      stroke-dasharray="5 4"
+      marker-end="url(#sec-arrow-red)"
+    />
+    <text x="88" y="300" font-size="11.5" fill="var(--red)" font-weight="700">bypassSecurityTrust*</text>
+    <text x="88" y="316" font-size="10.5" fill="var(--text-muted)">
+      skips every lane above — nothing is checked, escaped, or validated
+    </text>
+  </svg>
+
+  <app-remember variant="rule" label="If you remember one thing">
+    <strong>Angular asks "where is this going?" before "what is it?"</strong> The screening is chosen by the
+    <em>binding</em>, not the content — which explains why the same string is safe in one place and blocked in another,
+    why <code>RESOURCE_URL</code> has no sanitizer at all (there is nothing to strip inside a whole document), and why
+    the bypass methods come in one flavour per context.
+  </app-remember>
 
   <div class="tab-row">
     @for (t of tabs; track t.id) {
@@ -447,8 +577,48 @@ Content-Security-Policy:
     </div>
   }
 
+  <h2>Predict what renders</h2>
+  <p>
+    A profile page renders a user's bio with <code>[innerHTML]</code> so people can bold things. Someone submits a bio
+    designed to steal cookies. Decide what ends up on screen — <span class="key">be specific about the img tag</span> —
+    before you open the answer:
+  </p>
+
+  <app-predict
+    prompt="What appears in the DOM, and does the fetch to evil.com fire?"
+    [code]="sanitizerSample"
+    answer="**The `<img>` element survives. The `onerror` attribute does not. Nothing is sent to evil.com.**
+
+The rendered DOM is `<img src='x'> <b>Hi!</b>` — you get a broken-image icon next to the word Hi. Almost everyone predicts one of two wrong answers here, and both are instructive:
+
+- *'The whole img tag is removed.'* No. `<img>` is on the allow-list — it is a legitimate formatting element and the sanitizer has no reason to delete it. Only the **attribute** is dangerous.
+- *'The whole string is rejected and the div is empty.'* No. The sanitizer is a filter, not a gate. It removes what is not allowed and renders everything that is left, which is why `<b>Hi!</b>` comes through untouched.
+
+That is the airport model exactly: they take the lighter, they do not cancel your ticket.
+
+**But notice what this does *not* protect.** Change one line — `bio = this.san.bypassSecurityTrustHtml(user.bio)` — and the identical payload executes, because you signed for the pouch. And if any part of that bio is written into the page by something other than an Angular binding (a server-rendered string, `nativeElement.innerHTML`, a third-party widget), the sanitizer never runs at all. Angular defends its own bindings. Everything else is yours to defend."
+    revealLabel="Reveal the rendered DOM"
+  />
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="You add `canActivate: [authGuard]` to the `/admin` route, and the guard correctly checks that the user is logged in with an admin role. Is `/admin` now secure?"
+    [options]="quizOptions"
+    followUp="Say it as a rule and it stops being a trick question: **guards decide what to render; servers decide what to allow.** Anything the browser enforces is advice, because the browser belongs to the attacker."
+  />
+
+  <app-faq [items]="questions" heading="There are no dumb questions" />
+
   <h2>Key takeaways</h2>
   <ul>
+    <li>
+      Sanitization is chosen by <strong>context</strong> (HTML / STYLE / URL / RESOURCE_URL) — by where the value is
+      bound, not by what it contains.
+    </li>
+    <li>
+      The sanitizer <strong>filters, it doesn't reject</strong>: dangerous attributes are stripped and the surrounding
+      markup still renders.
+    </li>
     <li>Angular escapes interpolation and sanitizes [innerHTML] — XSS-safe by default.</li>
     <li><code>bypassSecurityTrust*</code> is a deliberate, code-reviewed escape hatch — never on user data.</li>
     <li>Angular auto-sends XSRF tokens; your backend must verify them for cookie-based auth.</li>

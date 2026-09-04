@@ -40,6 +40,16 @@
 
   <h2>The injector hierarchy</h2>
   <p>
+    Think of <code>inject(Token)</code> as an employee asking a question up the org chart. They ask their own desk first
+    (the element injector), then their direct manager (the parent element), then that manager's manager (the
+    route/environment injectors), all the way up to the CEO (root) and, failing that, an outside consultant (platform).
+    <strong
+      >The first person up the chain who has an answer replies, and nobody further up ever hears the question.</strong
+    >
+    That's why a provider registered on a component always shadows the same token registered at root — the question
+    never travels past the desk that already knows the answer.
+  </p>
+  <p>
     Injectors form a tree. When you <code>inject(Token)</code>, Angular starts at the current
     <strong>element injector</strong> and walks <em>up</em> — through parent elements, then the route/environment
     injectors, then root, then platform — until it finds a provider. The first match wins, which is exactly why a
@@ -53,6 +63,61 @@
     Component/route <code>providers</code> create a <em>new</em> instance per component/route subtree. If no provider is
     found anywhere, you get a <strong>NullInjectorError: No provider for X</strong>.
   </div>
+
+  <svg class="diagram" viewBox="0 0 760 240" role="img" aria-labelledby="dp-t dp-d">
+    <title id="dp-t">Two lookups on the same tree, stopping at different levels</title>
+    <desc id="dp-d">
+      A four-level tree runs bottom to top: element injector, route injector, root injector, platform injector. Two
+      lookups are traced. The lookup for Notifier starts at the element injector and stops immediately there, because
+      this component's own providers array has a match, shown in green with a short arrow. The lookup for APP_CONFIG
+      starts at the same element injector, finds nothing, passes through the route injector, finds nothing, and stops at
+      the root injector where the token's own factory default lives, shown in amber with a longer arrow crossing two
+      empty levels drawn in grey.
+    </desc>
+    <rect x="300" y="10" width="160" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="380" y="32" font-size="11" text-anchor="middle" fill="var(--text-muted)">platform injector</text>
+
+    <rect x="280" y="70" width="200" height="34" rx="7" fill="var(--amber)" opacity="0.18" />
+    <text x="380" y="92" font-size="11" text-anchor="middle" font-weight="700" fill="var(--text-muted)">
+      root injector — APP_CONFIG factory ✓
+    </text>
+
+    <rect x="260" y="130" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="380" y="152" font-size="11" text-anchor="middle" fill="var(--text-muted)">route injector — no match</text>
+
+    <rect x="240" y="190" width="280" height="34" rx="7" fill="var(--green)" opacity="0.2" />
+    <text x="380" y="212" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">
+      element injector — this component's providers — Notifier ✓
+    </text>
+
+    <text x="30" y="212" font-size="10.5" fill="var(--green)">Notifier: 0 levels up →</text>
+    <line x1="150" y1="207" x2="235" y2="207" stroke="var(--green)" stroke-width="1.5" marker-end="url(#dp-arrow)" />
+
+    <text x="580" y="212" font-size="10.5" fill="var(--text-muted)">APP_CONFIG: passes 2 empty levels…</text>
+    <line x1="520" y1="200" x2="580" y2="150" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="3 3" />
+    <line
+      x1="580"
+      y1="150"
+      x2="580"
+      y2="95"
+      stroke="var(--text-muted)"
+      stroke-width="1.5"
+      stroke-dasharray="3 3"
+      marker-end="url(#dp-arrow)"
+    />
+    <text x="580" y="120" font-size="10.5" fill="var(--text-muted)">…lands here ↑</text>
+    <defs>
+      <marker id="dp-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+      </marker>
+    </defs>
+  </svg>
+
+  <app-remember variant="rule" label="If you remember one thing about the injector tree">
+    <strong>Providers don't push down — injectors pull up.</strong> Nothing is "sent" to a component from root;
+    <code>inject()</code> starts a search at the current injector and climbs until something answers. Register a
+    provider anywhere on that path and every search from below it stops there instead of continuing.
+  </app-remember>
 
   <h2>Resolution modifiers</h2>
   <p>You can steer the walk with options on <code>inject()</code> (and the old parameter decorators):</p>
@@ -140,6 +205,12 @@
     </li>
   </ul>
 
+  <app-predict
+    prompt="CartService is providedIn: 'root'. AdminPanel also lists CartService in its own component providers — copied from another component, without thinking hard about it. A user adds an item to the cart while AdminPanel is open. Does Header's item count update?"
+    [code]="accidentalForkSample"
+    answer="No. AdminPanel's providers entry creates a brand-new element injector for CartService, so inject(CartService) inside AdminPanel resolves to a SECOND, separate instance — its own empty items signal, unconnected to the one Header reads. Adding an item inside AdminPanel's subtree updates only that fork; Header, which resolved CartService from root before AdminPanel ever existed, never sees it. Nothing throws and nothing warns — the app just quietly behaves as though there are two shopping carts, and the bug report reads like a flaky reactivity issue instead of what it is: a duplicate provider."
+  />
+
   <h2>Pitfalls that show up in exams &amp; code review</h2>
   <ul>
     <li>
@@ -191,6 +262,13 @@
       <code>HTTP_INTERCEPTORS</code> works).
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="A component provides ThemeService in its own providers array, then calls inject(ThemeService, { skipSelf: true }) in its constructor. Which instance does that call return?"
+    [options]="quizOptions"
+    followUp="This is the pattern behind Angular's own nested-form-control machinery: a directive provides itself for its children while still reaching up with skipSelf to find its own parent's instance — 'provide one, but also see the ancestor's' in a single component."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

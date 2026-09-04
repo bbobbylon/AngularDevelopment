@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * One feature area in the lazy-loading demo: whether it ships in the main bundle
@@ -24,11 +25,62 @@ interface Feature {
  */
 @Component({
   selector: 'app-lesson-router-children-lazy',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './router-children-lazy.html',
   styleUrl: './router-children-lazy.css',
 })
 export class RouterChildrenLazy {
+  /**
+   * The double-instance puzzle used by the ask-before-telling block.
+   *
+   * `providedIn: 'root'` and a route-level `providers` entry are not the same
+   * registration — the second one creates a *second* instance in the route's
+   * child injector. Nothing errors, nothing warns; the two halves of the app
+   * simply keep separate carts. It is held in the class rather than the template
+   * because the snippet is full of `{`/`}`, which Angular's parser reads as
+   * control-flow syntax in an attribute.
+   */
+  protected readonly doubleInstanceSample = `// shop-api.ts
+@Injectable({ providedIn: 'root' })      // registration #1 — the ROOT injector
+export class ShopApi {
+  readonly cart = signal<string[]>([]);  // the shared shopping cart
+}
+
+// app.routes.ts
+{
+  path: 'shop',
+  providers: [ShopApi],                  // registration #2 — a CHILD injector for /shop/**
+  loadChildren: () => import('./shop/shop.routes').then(m => m.SHOP_ROUTES),
+}
+
+// ProductPage renders at /shop/42 and runs:  this.api.cart.update(c => [...c, id]);
+// HeaderBadge renders in the app shell, OUTSIDE /shop, and renders:  {{ api.cart().length }}`;
+
+  /**
+   * The self-test, on what a `canActivate`-guarded lazy route actually does on
+   * the wire. Every wrong answer is a belief a working developer holds until the
+   * first time they open the Network tab on a denied navigation.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'The chunk downloads with a 200, and only then does the guard reject and the router navigate away.',
+      correct: true,
+      why: 'Right, and this is the whole reason `canMatch` exists. `canActivate` is asked *after* the router has resolved the route, which for a lazy route means the import has already run. The admin code is now sitting in the browser of someone who is not an admin.',
+    },
+    {
+      text: 'No request is made — the guard fails first, so the router never reaches the loader.',
+      why: 'That is what `canMatch` does, not `canActivate`. `canMatch` runs during route *matching*, before the route is even chosen; `canActivate` runs during *activation*, which is after the component has been loaded and is ready to be created.',
+    },
+    {
+      text: 'The request is made but the server returns 403, so nothing sensitive reaches the browser.',
+      why: 'The chunk is a static JavaScript file served by your CDN or dev server, not a protected API route — it has no idea who is asking. It answers 200 to anyone. Guards are client-side routing logic, not server authorization.',
+    },
+    {
+      text: 'It depends on the preloading strategy — with no preloading configured, the chunk is not fetched.',
+      why: 'Preloading changes *when* chunks are fetched in the background, not whether an actual navigation fetches them. This navigation really happened, so the loader really ran.',
+    },
+  ];
+
   /**
    * The demo's feature areas — one eager, the rest lazy.
    */

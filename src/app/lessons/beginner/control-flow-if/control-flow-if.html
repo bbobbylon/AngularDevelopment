@@ -93,7 +93,19 @@
     </div>
   </div>
 
+  <app-predict
+    prompt="Stepper cycles 0 → 1 → 2 → 0 → 1 → … on every click, and @if (step(); as s) gates the display. Click Next four times in a row. What shows on screen after EACH click?"
+    [code]="cyclicStepperSample"
+    answer="'Step 1 of 3', 'Step 2 of 3', 'Get started', 'Step 1 of 3'. The third click sets step back to 0 — a completely valid, intentional value — but 0 is falsy, so @if (step(); as s) treats it exactly like there's no step at all and falls through to @else. The stepper hasn't broken; the condition just can't tell 'the first real step' apart from 'nothing to show,' because both happen to be 0. Fix: test explicitly, @if (step() !== null; as s) or track a separate started flag, so a falsy-but-valid step still renders."
+  />
+
   <h2>A false branch is destroyed — state included</h2>
+  <p>
+    Think of <code>&#64;if</code> as a demolition crew, not a light switch. A light switch ([hidden]) just cuts power to
+    a room that's still fully furnished — everything is exactly where you left it the moment the lights come back on. A
+    demolition crew (<code>&#64;if</code> going false) knocks the room down entirely; what gets built back when the
+    condition is true again is a brand-new room, built from the blueprint, with none of the old furniture.
+  </p>
   <p>
     <code>&#64;if</code> compiles to an embedded view that is <em>created</em> when the condition becomes truthy and
     <em>destroyed</em> when it becomes falsy. Destroyed means gone: the DOM nodes, any component instances inside, their
@@ -126,6 +138,63 @@
       state.
     </p>
   </div>
+
+  <svg class="diagram" viewBox="0 0 760 210" role="img" aria-labelledby="cfi-t cfi-d">
+    <title id="cfi-t">Toggling @if destroys and recreates; toggling [hidden] never touches the instance</title>
+    <desc id="cfi-d">
+      Two rows compare four clicks of the same toggle. The top row, labelled at-if, shows a box present, then an X where
+      it is destroyed, then a brand new box drawn with a dashed outline labelled fresh instance, no memory of before,
+      then destroyed again. The bottom row, labelled hidden attribute, shows the same box the entire time, just dimmed
+      to represent invisibility, with a caption reading same instance throughout, state intact.
+    </desc>
+    <text x="20" y="24" font-size="12" font-weight="700" fill="var(--red)">&#64;if — create / destroy each time</text>
+    <g font-size="10.5" text-anchor="middle">
+      <rect x="20" y="40" width="150" height="34" rx="7" fill="var(--green)" opacity="0.22" />
+      <text x="95" y="61" fill="var(--green)">shown — instance A</text>
+      <text x="200" y="61" font-size="16" fill="var(--red)">✗</text>
+      <rect x="230" y="40" width="150" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="305" y="61" fill="var(--text-muted)">hidden — destroyed</text>
+      <rect
+        x="410"
+        y="40"
+        width="170"
+        height="34"
+        rx="7"
+        fill="var(--green)"
+        opacity="0.22"
+        stroke-dasharray="3 3"
+        stroke="var(--green)"
+      />
+      <text x="495" y="61" fill="var(--green)">shown — instance B (fresh)</text>
+      <text x="610" y="61" font-size="16" fill="var(--red)">✗</text>
+    </g>
+    <text x="640" y="61" font-size="10.5" fill="var(--red)">destroyed again</text>
+
+    <line x1="20" y1="96" x2="740" y2="96" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
+
+    <text x="20" y="128" font-size="12" font-weight="700" fill="var(--green)">
+      [hidden] — one instance, the whole time
+    </text>
+    <g font-size="10.5" text-anchor="middle">
+      <rect x="20" y="144" width="150" height="34" rx="7" fill="var(--green)" opacity="0.22" />
+      <text x="95" y="165" fill="var(--green)">visible — instance A</text>
+      <rect x="230" y="144" width="150" height="34" rx="7" fill="var(--green)" opacity="0.1" />
+      <text x="305" y="165" fill="var(--text-muted)">dimmed — instance A</text>
+      <rect x="410" y="144" width="150" height="34" rx="7" fill="var(--green)" opacity="0.22" />
+      <text x="485" y="165" fill="var(--green)">visible — instance A</text>
+      <rect x="590" y="144" width="150" height="34" rx="7" fill="var(--green)" opacity="0.1" />
+      <text x="665" y="165" fill="var(--text-muted)">dimmed — instance A</text>
+    </g>
+    <text x="20" y="196" font-size="10.5" fill="var(--green)">
+      same instance throughout — state intact the whole time
+    </text>
+  </svg>
+
+  <app-remember variant="mnemonic" label="If you remember one thing about @if vs [hidden]">
+    <strong>&#64;if demolishes. [hidden] dims the lights.</strong> A demolished room is rebuilt from nothing next time;
+    a dimmed room still has all its furniture when the lights come back on. Reach for <code>&#64;if</code> when you want
+    the teardown; reach for <code>[hidden]</code> when you don't.
+  </app-remember>
 
   <h2>Coming from <code>*ngIf</code></h2>
   <p>
@@ -234,6 +303,13 @@
       <code>CommonModule</code>/<code>NgIf</code>.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="A tab panel gated by @if makes a fresh HTTP call in ngOnInit every single time you switch back to a tab you've already visited, even though the data never changes. Why?"
+    [options]="quizOptions"
+    followUp="This is the same 'destroy means gone' rule from earlier in this lesson, just showing up as wasted network calls instead of lost input text. If a branch needs to remember it already ran, that memory has to live somewhere @if can't destroy — a parent component, a service, or a cache — not in the gated component's own lifecycle hooks."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

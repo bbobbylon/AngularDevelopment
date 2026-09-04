@@ -7,6 +7,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * Lesson: the render hooks in depth — why afterNextRender/afterEveryRender
@@ -17,11 +18,57 @@ import { RouterLink } from '@angular/router';
  */
 @Component({
   selector: 'app-lesson-after-render',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   styleUrl: './after-render.css',
   templateUrl: './after-render.html',
 })
 export class AfterRender {
+  /**
+   * The signal-write-inside-a-render-hook puzzle used by the ask-before-telling
+   * block.
+   *
+   * Nothing about this snippet looks dangerous — it reads like ordinary Angular
+   * code, a signal update in response to something happening. The danger is
+   * entirely about *which* hook it's inside.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly renderLoopSample = `@Component({ /* ... */ })
+export class LiveClock {
+  readonly renders = signal(0);
+
+  constructor() {
+    afterEveryRender(() => {
+      this.renders.set(this.renders() + 1);   // the line in question
+    });
+  }
+}`;
+
+  /**
+   * The self-test, on the injection-context requirement. Every wrong answer
+   * assumes a lifecycle hook is automatically as safe a place to register as the
+   * constructor, which is the exact assumption NG0203 exists to correct.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'It throws NG0203 ("not in an injection context") — ngOnInit does not run inside the constructor\'s implicit injection context, and no injector was supplied.',
+      correct: true,
+      why: 'Right. Only the constructor (or code explicitly run via `runInInjectionContext`) has an implicit injection context. `ngOnInit` runs afterward, as a plain method call — calling an injection-context-only function there without passing `{ injector }` is exactly what NG0203 guards against.',
+    },
+    {
+      text: 'It runs fine — ngOnInit is a lifecycle hook, so an injection context is guaranteed everywhere in the class.',
+      why: 'Only the constructor gets an implicit injection context for free. Every other method — ngOnInit, a click handler, a setTimeout callback — needs an injector explicitly passed in, or it has none.',
+    },
+    {
+      text: 'It silently does nothing in the browser, and only works during server-side rendering.',
+      why: 'The opposite is true: render hooks are browser-only by contract and never run during SSR at all. This has nothing to do with the platform — it fails because of where in the class it was called, not where the app is running.',
+    },
+    {
+      text: 'It runs, just delayed by one extra render cycle because ngOnInit is considered "too early".',
+      why: 'There is no such delay mechanism. The function either has an injection context available when it is called, or it throws immediately — there is no queued retry.',
+    },
+  ];
   /**
    * The element the measuring demo measures.
    */

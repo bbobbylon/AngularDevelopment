@@ -47,6 +47,60 @@
     file.
   </div>
 
+  <p>
+    Picture your library as a guest staying in someone's house. A <code>peerDependency</code> says "I'll use the house's
+    own electricity" — plug into whatever the host app already has running, on the host's terms. A regular
+    <code>dependency</code> says "I brought my own generator." One generator is fine. Two generators wired into the same
+    house, both trying to power the same outlets? That's two competing power sources fighting for the same sockets —
+    which is exactly what two copies of <code>&#64;angular/core</code> loaded in one app looks like: two separate DI
+    systems, each unaware the other exists.
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 220" role="img" aria-labelledby="ls-t ls-d">
+    <title id="ls-t">peerDependency shares the host's Angular; dependency risks a second copy</title>
+    <desc id="ls-d">
+      Two scenarios side by side. On the left, labelled correct, peer dependency, a single Angular core box sits at the
+      base, with the host app and the library both drawn as arrows pointing down into that one shared box, labelled one
+      shared Angular instance. On the right, labelled wrong, regular dependency, there are two separate Angular core
+      boxes stacked with a jagged red divider between them, one used by the host app and one nested inside and used only
+      by the library, with a red label reading two DI systems, unaware of each other.
+    </desc>
+    <text x="20" y="24" font-size="12" font-weight="700" fill="var(--green)">correct — peerDependencies</text>
+    <rect x="20" y="40" width="90" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="65" y="61" font-size="11" text-anchor="middle" fill="var(--text-muted)">host app</text>
+    <rect x="120" y="40" width="90" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="165" y="61" font-size="11" text-anchor="middle" fill="var(--text-muted)">library</text>
+    <line x1="65" y1="74" x2="110" y2="112" stroke="var(--green)" stroke-width="1.5" />
+    <line x1="165" y1="74" x2="120" y2="112" stroke="var(--green)" stroke-width="1.5" />
+    <rect x="55" y="116" width="120" height="34" rx="7" fill="var(--green)" opacity="0.22" />
+    <text x="115" y="137" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">
+      &#64;angular/core
+    </text>
+    <text x="20" y="172" font-size="10.5" fill="var(--green)">one shared instance — one DI system</text>
+
+    <text x="410" y="24" font-size="12" font-weight="700" fill="var(--red)">wrong — dependencies</text>
+    <rect x="410" y="40" width="90" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="455" y="61" font-size="11" text-anchor="middle" fill="var(--text-muted)">host app</text>
+    <rect x="410" y="86" width="120" height="30" rx="6" fill="var(--green)" opacity="0.22" />
+    <text x="470" y="106" font-size="10.5" text-anchor="middle" font-weight="700" fill="var(--green)">
+      &#64;angular/core
+    </text>
+    <line x1="590" y1="96" x2="620" y2="96" stroke="var(--red)" stroke-width="2" stroke-dasharray="3 3" />
+    <rect x="560" y="130" width="150" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="635" y="151" font-size="11" text-anchor="middle" fill="var(--text-muted)">library ➜ node_modules</text>
+    <rect x="575" y="168" width="120" height="30" rx="6" fill="var(--red)" opacity="0.22" />
+    <text x="635" y="188" font-size="10.5" text-anchor="middle" font-weight="700" fill="var(--red)">
+      &#64;angular/core (2nd copy)
+    </text>
+    <text x="410" y="212" font-size="10.5" fill="var(--red)">two DI systems, unaware of each other</text>
+  </svg>
+
+  <app-remember variant="mnemonic" label="If you remember one thing about dependency placement">
+    <strong>Peer says "use yours." Dependency says "I brought my own."</strong> Anything the consumer's app already
+    provides one copy of — the framework, a UI library you build on — is a peer. Bring your own generator only for
+    things the host genuinely doesn't have.
+  </app-remember>
+
   <h2>The dependency quiz — where does each package go?</h2>
   <div class="demo">
     <p class="demo__title">Interactive — pick a package your library uses</p>
@@ -87,6 +141,12 @@
   <div class="code">
     <pre>{{ testSample }}</pre>
   </div>
+
+  <app-predict
+    prompt="ng generate ui-kit:widget runs with no --name. The Rule creates two files, then throws on the missing name check before creating a third. What ends up on disk?"
+    [code]="midChainFailureSample"
+    answer="Nothing — not the two files created before the throw, not any partial trace of the run. A Tree is a purely in-memory staging area; the schematics engine only commits it to the real filesystem after the ENTIRE rule chain returns successfully. Throwing partway through means the engine never reaches that commit step at all, so the two tree.create() calls that already ran are simply discarded along with everything else. This is what 'atomic' means here in a very literal sense — there is no partial-write state to clean up, because disk was never touched in the first place."
+  />
 
   <h2>ng add — the red-carpet install</h2>
   <div class="code">
@@ -166,6 +226,13 @@
       runs every migration between the installed and target version, in version order.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="A library lists &#64;angular/core: ^17.0.0 under dependencies instead of peerDependencies. The host app is on Angular 19. What actually happens?"
+    [options]="quizOptions"
+    followUp="Nothing in the tooling stops you from getting this wrong — no install error, no build warning by default. The peerDependencies convention exists precisely because npm has no other way to express 'share the host's copy' for a package like a framework."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

@@ -2,6 +2,14 @@ import { Component, Pipe, PipeTransform, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import {
+  Faq,
+  type FaqItem,
+  Predict,
+  Quiz,
+  type QuizOption,
+  Remember,
+} from '../../../shared/teaching';
 
 // ── 1. Pure pipe — truncate ─────────────────────────────────────────────────
 /**
@@ -164,6 +172,10 @@ interface Post {
     FilterByPipe,
     RelativeTimePipe,
     HighlightPipe,
+    Faq,
+    Predict,
+    Quiz,
+    Remember,
   ],
   // DatePipe is provided (not template-imported): RelativeTimePipe inject()s it.
   providers: [DatePipe],
@@ -171,6 +183,85 @@ interface Post {
   styleUrl: './custom-pipes.css',
 })
 export class CustomPipes {
+  /**
+   * The disappearing-item puzzle used by the ask-before-telling block: a pure
+   * pipe over an array that gets mutated in place.
+   *
+   * Held in the class rather than inline in the template because the snippet is
+   * full of `{`/`}`, which Angular's parser reads as control-flow syntax inside
+   * an attribute value.
+   */
+  protected readonly mutationTrapSample = `@Component({
+  imports: [FilterByPipe],
+  template: \`
+    <input [(ngModel)]="query" />
+    @for (f of fruits | filterBy:'name':query(); track f.name) {
+      <span>{{ f.name }}</span>
+    }
+    <button (click)="addKiwi()">Add Kiwi</button>
+  \`,
+})
+export class FruitList {
+  query = signal('');
+  fruits = [{ name: 'Apple' }, { name: 'Banana' }];   // a plain array
+
+  addKiwi() {
+    this.fruits.push({ name: 'Kiwi' });   // mutate in place
+  }
+}`;
+
+  /**
+   * The self-test. The wrong answers are the three plausible-but-wrong mental
+   * models of pure-pipe caching: that the cache is global, that it is keyed on
+   * the value rather than the binding, and that `track` can force a re-run.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'Twice — once for each binding. Each `|` in a template gets its own pipe instance with its own one-entry cache.',
+      correct: true,
+      why: 'Right. Angular instantiates a pipe per *binding site*, not per template or per app, and each instance remembers only its own last (args → result) pair. Two bindings, two instances, two calls.',
+    },
+    {
+      text: 'Once — the pipe caches on the value, so the second binding gets a cache hit.',
+      why: 'There is no shared value cache. Pipe instances are per-binding and independent, so the second binding has never seen this input and has nothing to hit.',
+    },
+    {
+      text: 'Twice on the first render, then never again as long as the value is unchanged.',
+      why: 'The first half is right and the second half is *almost* right — but change the input reference and both bindings re-run. "Never again" is only true while nothing changes.',
+    },
+    {
+      text: 'Once per change-detection tick, for each binding.',
+      why: 'That is impure-pipe behaviour (`pure: false`). A pure pipe is skipped entirely on ticks where its inputs are reference-identical to last time.',
+    },
+  ];
+
+  /**
+   * The questions people actually have after their first custom pipe — mostly
+   * about when a pipe is the wrong tool.
+   */
+  protected readonly questions: readonly FaqItem[] = [
+    {
+      q: 'Pipe or `computed()`? They both derive a value.',
+      a: 'Rule of thumb: if the transformation belongs to *this one component*, use `computed()`. If it is a formatting rule you would reuse in five templates, make it a pipe. Pipes buy you reuse across components; `computed()` buys you correctness with mutable data, because it tracks reads instead of comparing references.',
+    },
+    {
+      q: 'Is `standalone: true` still needed on a pipe?',
+      a: 'Not since Angular 19 — standalone is the default, so you can drop it. It\'s kept in these snippets because you will still meet it in existing code, and because an explicit `standalone: false` is now the flag that means "this one lives in an NgModule".',
+    },
+    {
+      q: 'Can a pipe be async?',
+      a: 'Not directly — `transform()` must return a value synchronously. What you can do is return an Observable or Promise and pipe it through `async`: `{{ id | fetchUser | async }}`. Do that carefully, though; a pure pipe returning a *new* Promise each call will loop forever.',
+    },
+    {
+      q: 'Why does my pipe throw "unknown pipe" when the code looks fine?',
+      a: "Almost always the `name` in `@Pipe({ name: '…' })` does not match what you typed after the `|`, or the pipe class is missing from the component's `imports` array. The name is a template-level string; it has nothing to do with the class name, so renaming the class does not rename the pipe.",
+    },
+    {
+      q: 'Is it really that bad to filter a list with a pipe?',
+      a: "It's discouraged, and for two reasons that both bite in real apps: pure pipes miss in-place mutations (the puzzle above), and impure ones re-filter on every tick. The Angular team's own guidance is to filter in the component — with `computed()` — and keep pipes for formatting.",
+    },
+  ];
+
   /**
    * Text for the truncate demo.
    */

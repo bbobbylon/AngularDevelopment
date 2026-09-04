@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * Lesson: functional HTTP interceptors.
@@ -12,11 +13,58 @@ import { RouterLink } from '@angular/router';
  */
 @Component({
   selector: 'app-lesson-http-interceptors',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './http-interceptors.html',
   styleUrl: './http-interceptors.css',
 })
 export class HttpInterceptors {
+  /**
+   * The forgotten-`return` puzzle used by the ask-before-telling block.
+   *
+   * TypeScript would normally flag this — `HttpInterceptorFn` requires an
+   * `Observable` return — but a loosely-typed helper or a refactor that leaves
+   * a stray statement behind can slip it past review. The point isn't the typo,
+   * it's what "the request just hangs" actually means underneath.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly missingReturnSample = `export const loggingInterceptor: HttpInterceptorFn = (req, next) => {
+  console.log('sending', req.url);
+  next(req);          // <- missing "return"
+};
+
+// elsewhere:
+http.get('/api/profile').subscribe({
+  next: (data) => console.log('got it', data),
+  error: (err) => console.error('failed', err),
+});`;
+
+  /**
+   * The self-test, on whether the interceptor chain is re-run per subscription.
+   * Every wrong answer invents a caching/deduplication mechanism that
+   * HttpClient's cold, subscribe-driven chain does not have.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'Twice — once per subscription. The entire interceptor chain is cold, so calling subscribe() again re-enters every interceptor from scratch and fires a completely separate network request.',
+      correct: true,
+      why: "This is the direct consequence of 'requests are cold end to end': nothing in the chain runs until subscribe(), and nothing remembers that a subscription already happened. Two subscribes mean two full trips through auth, logging, error and the network — genuinely two requests, not one shared one.",
+    },
+    {
+      text: 'Once — Angular caches the result of the first subscription and replays it for the second subscribe() automatically.',
+      why: 'HttpClient has no built-in caching or deduplication of in-flight or completed requests. Any caching (like the short-circuit example above) has to be written explicitly as an interceptor — it is never automatic.',
+    },
+    {
+      text: 'Only the interceptors that call next() run twice; an interceptor that short-circuits with of(...) runs once and shares its cached value across both subscriptions.',
+      why: 'Short-circuiting only means "skip the rest of the chain for THIS pass" — it has no memory across separate subscriptions. A short-circuiting interceptor still re-runs its own logic in full on every subscribe, same as any other interceptor.',
+    },
+    {
+      text: 'It depends on whether withFetch() is configured — a fetch()-based backend automatically deduplicates identical in-flight requests.',
+      why: "Neither backend (XHR nor fetch) deduplicates requests on Angular's behalf. withFetch() only changes which browser API sends the request, not whether repeat subscriptions share a network call.",
+    },
+  ];
+
   /**
    * The interceptor-chain demo's log.
    */

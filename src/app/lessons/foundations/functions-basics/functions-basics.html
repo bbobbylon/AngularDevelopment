@@ -43,6 +43,123 @@ double(8)    // → 16     same machine, different input</pre>
     </li>
   </ul>
 
+  <svg class="diagram" viewBox="0 0 760 300" role="img" aria-labelledby="fn-t fn-d">
+    <title id="fn-t">One call, drawn as a machine: arguments in, return value out</title>
+    <desc id="fn-d">
+      On the left, two arguments, fifty and twenty, feed into a box labelled function tip of bill and percent. Inside
+      the box the parameters are shown as freshly filled variables, bill equals 50 and percent equals 20, sitting above
+      the body, which computes bill times percent over one hundred. An arrow leaves the right of the box carrying the
+      return value, ten. Below, the same call is shown collapsing: the line const t equals tip of 50 and 20 becomes
+      const t equals 10, because a call is an expression that gets replaced by whatever it returns. A note points at the
+      parameters to say they exist only for the duration of this one call.
+    </desc>
+    <defs>
+      <marker id="fn-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+      </marker>
+    </defs>
+
+    <text x="20" y="40" font-size="11" font-weight="700" fill="var(--text-muted)">arguments (the real values)</text>
+    <rect x="30" y="86" width="50" height="26" rx="5" fill="var(--green)" opacity="0.3" />
+    <text x="55" y="104" font-size="12" text-anchor="middle" font-weight="700" fill="var(--green)">50</text>
+    <rect x="90" y="86" width="50" height="26" rx="5" fill="var(--green)" opacity="0.3" />
+    <text x="115" y="104" font-size="12" text-anchor="middle" font-weight="700" fill="var(--green)">20</text>
+    <line x1="146" y1="99" x2="192" y2="99" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#fn-arrow)" />
+
+    <rect x="200" y="50" width="300" height="140" rx="10" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <text x="216" y="72" font-size="11.5" font-weight="700" fill="var(--text-muted)">function tip(bill, percent)</text>
+
+    <rect x="216" y="84" width="120" height="28" rx="5" fill="var(--green)" opacity="0.2" />
+    <text x="276" y="103" font-size="11.5" text-anchor="middle" fill="var(--green)" font-weight="700">bill = 50</text>
+    <rect x="348" y="84" width="136" height="28" rx="5" fill="var(--green)" opacity="0.2" />
+    <text x="416" y="103" font-size="11.5" text-anchor="middle" fill="var(--green)" font-weight="700">
+      percent = 20
+    </text>
+
+    <line x1="216" y1="126" x2="484" y2="126" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
+    <text x="216" y="150" font-size="11.5" fill="var(--text-muted)">return bill * (percent / 100);</text>
+    <text x="216" y="172" font-size="10" fill="var(--text-muted)">the body — do the work, hand the answer out</text>
+
+    <line
+      x1="506"
+      y1="120"
+      x2="552"
+      y2="120"
+      stroke="var(--text-muted)"
+      stroke-width="1.5"
+      marker-end="url(#fn-arrow)"
+    />
+    <rect x="558" y="107" width="52" height="28" rx="5" fill="var(--green)" opacity="0.4" />
+    <text x="584" y="126" font-size="12.5" text-anchor="middle" font-weight="700" fill="var(--green)">10</text>
+    <text x="622" y="126" font-size="11" fill="var(--green)">the return value</text>
+
+    <text x="200" y="208" font-size="10" fill="var(--red)">
+      ↑ these two boxes are created fresh for this call, and destroyed when it ends
+    </text>
+
+    <line x1="20" y1="226" x2="740" y2="226" stroke="var(--border)" stroke-width="1" />
+
+    <text x="20" y="256" font-size="12.5" fill="var(--text-muted)">const t = tip(50, 20);</text>
+    <line
+      x1="196"
+      y1="251"
+      x2="242"
+      y2="251"
+      stroke="var(--text-muted)"
+      stroke-width="1.5"
+      marker-end="url(#fn-arrow)"
+    />
+    <text x="252" y="256" font-size="12.5" font-weight="700" fill="var(--green)">const t = 10;</text>
+    <text x="400" y="256" font-size="11" fill="var(--text-muted)">the call was replaced by what it returned</text>
+
+    <text x="20" y="284" font-size="11" fill="var(--text-muted)">
+      That one rule is why calls nest: double(double(3)) collapses to double(6), then to 12.
+    </text>
+  </svg>
+
+  <app-remember variant="mnemonic" label="The one that saves you most often">
+    <strong>The name is the machine. The parentheses press the button.</strong> <code>shout</code> hands someone the
+    machine; <code>shout()</code> presses it now and hands over whatever fell out. Nearly every callback bug in this
+    lesson — and in Angular, and in RxJS — is a pair of parentheses in the wrong place.
+  </app-remember>
+
+  <h2>Four pairs everyone mixes up</h2>
+  <table class="t">
+    <tr>
+      <th>These look alike…</th>
+      <th>…but they are not the same thing</th>
+    </tr>
+    <tr>
+      <td><code>n</code> in <code>function double(n)</code> vs <code>5</code> in <code>double(5)</code></td>
+      <td>
+        <strong>Parameter</strong> vs <strong>argument</strong>. The parameter is the empty box in the definition; the
+        argument is the value you drop into it at the call. Matched <em>by position</em>, not by name.
+      </td>
+    </tr>
+    <tr>
+      <td><code>function save() &#123;…&#125;</code> vs <code>save()</code></td>
+      <td>
+        <strong>Defining</strong> vs <strong>calling</strong>. Defining builds the machine and runs nothing. A function
+        defined and never called is code that never executes.
+      </td>
+    </tr>
+    <tr>
+      <td><code>setTimeout(ping, 100)</code> vs <code>setTimeout(ping(), 100)</code></td>
+      <td>
+        <strong>Passing</strong> vs <strong>calling-then-passing</strong>. The first hands over the machine for the
+        timer to run later. The second runs <code>ping</code> right now and hands the timer its return value — usually
+        <code>undefined</code>, so nothing happens in 100 ms.
+      </td>
+    </tr>
+    <tr>
+      <td><code>(a, b) =&gt; a + b</code> vs <code>(a, b) =&gt; &#123; a + b &#125;</code></td>
+      <td>
+        <strong>Implicit</strong> vs <strong>explicit</strong> return. No braces means "this expression is the answer".
+        Braces mean "this is a full body", and a full body returns only what <code>return</code> says — here, nothing.
+      </td>
+    </tr>
+  </table>
+
   <h2>Watch one call happen, moment by moment</h2>
   <div class="demo">
     <p class="demo__title">Live — step through tip(50, 20)</p>
@@ -116,6 +233,22 @@ priceWithTax(100);   // → 120
     <em>can</em> see outward to variables around it — visibility is one-way, inside-out. This is a feature: the
     function's internals can't leak out or collide with names elsewhere, which is what makes hundreds of functions
     coexist safely in one app.
+  </p>
+
+  <app-predict
+    prompt="applyDiscount reaches into order on one line and reassigns order on the next. cart is a plain object passed as the argument. What does the last line print?"
+    [code]="mutationSample"
+    answer="90 0 — not 90 90, and not 0 0. Line A reaches THROUGH the parameter into the same object cart already points at, so order.total = order.total * 0.9 mutates the caller's object directly: cart.total becomes 90. Line B then does something completely different — it points the LOCAL variable order at a brand-new object, {{
+      '{'
+    }} total: 0 {{
+      '}'
+    }}. That reassignment only changes what the parameter refers to inside this call; it has no effect on cart, which was never told to point anywhere else. The function returns the new object, so result.total is 0 while cart.total is 90. Reaching into an object mutates the caller; reassigning the parameter only swaps the function's own local label."
+  />
+  <p>
+    That's the split that trips people up for years: a parameter is a variable holding a
+    <strong>reference</strong> to the caller's object, not the object itself. Changing a <em>property</em> of that
+    reference reaches back to the original. Reassigning the <em>variable</em> just relabels the local box and leaves the
+    caller untouched.
   </p>
 
   <h2>The modern "arrow" style</h2>
@@ -227,6 +360,14 @@ setTimeout(ping(), 2000)   // ping ran immediately; setTimeout got undefined</pr
       without stepping on other calls.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="function sayHi() { console.log('hi'); } sayHi(); const sayBye = () => console.log('bye'); sayBye();
+    — but what if the CALLS come first, ABOVE both definitions in the file?"
+    [options]="quizOptions"
+    followUp="This is why style guides put function declarations first, arrow-function constants after: it makes the file's real execution order match its visual top-to-bottom order, instead of relying on hoisting to bail you out."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

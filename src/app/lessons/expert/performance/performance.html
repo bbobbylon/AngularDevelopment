@@ -2,10 +2,126 @@
   <span class="lesson__eyebrow">Expert · Runtime &amp; Performance</span>
   <h1>Performance Optimization</h1>
   <p class="lead">
-    Performance has two axes: <strong>load time</strong> (how fast the first paint happens) and
-    <strong>runtime</strong> (how fast the app responds to user interactions). Each needs a different toolkit. And the
-    first rule is always: <em>measure, then optimize</em>.
+    Performance has two axes: <span class="term">load time</span> (how fast the first paint happens) and
+    <span class="term">runtime</span> (how fast the app responds to user interactions). Each needs a different toolkit,
+    and mixing them up is why so much optimization work produces no measurable result. The first rule is always:
+    <span class="key">measure, then optimize.</span>
   </p>
+
+  <h2>Think of it like a restaurant</h2>
+  <p>
+    Two completely different complaints get written on the same review card as <em>"slow"</em>, and they have nothing to
+    do with each other:
+  </p>
+  <ul>
+    <li>
+      <strong>"We waited forty minutes to be seated."</strong> That's <span class="term">load time</span>. The fix is
+      about the door — fewer people in the queue, a bigger dining room, seating you before every table is ready. In an
+      app: ship less JavaScript, split it, render some HTML on the server so there's something to look at.
+    </li>
+    <li>
+      <strong>"Once we were seated, nobody refilled the water."</strong> That's <span class="term">runtime</span>. The
+      dining room is full and the kitchen is busy doing work nobody ordered. The fix is about
+      <em>reducing work per request</em> — check fewer components, recompute less, touch the DOM less.
+    </li>
+  </ul>
+  <p>
+    <span class="key">Hiring more door staff will never fix the water refills.</span> Every optimization in this lesson
+    belongs to one axis or the other, and applying the wrong one is wasted effort — which is the single most common
+    mistake in performance work.
+  </p>
+
+  <h2>Where the time actually goes</h2>
+  <p>
+    Here is one user's first ten seconds, drawn on a single timeline. The top half is load, the bottom half is runtime;
+    each metric is marked where it's measured, and the Angular fix sits under the phase it belongs to:
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 290" role="img" aria-labelledby="perf-t perf-d">
+    <title id="perf-t">The load-then-runtime timeline, with each Web Vital marked where it is measured</title>
+    <desc id="perf-d">
+      A left-to-right timeline. The load phase runs from the request through the server response (TTFB, target under 800
+      milliseconds), the JavaScript download and parse, and the largest paint (LCP, target under 2.5 seconds); its fixes
+      are SSR, code splitting and image priority. A vertical divider marks the point where the page becomes interactive.
+      The runtime phase that follows is measured by INP, target under 200 milliseconds per interaction, and its fixes
+      are OnPush, signals, track by id and virtual scrolling. CLS is measured across both phases.
+    </desc>
+    <defs>
+      <marker id="perf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+      </marker>
+    </defs>
+
+    <!-- phase labels -->
+    <text x="20" y="26" font-size="13" font-weight="700" fill="var(--violet)">LOAD — "how long until I see it?"</text>
+    <text x="470" y="26" font-size="13" font-weight="700" fill="var(--accent)">RUNTIME — "how does it feel?"</text>
+
+    <!-- the timeline bar -->
+    <rect x="20" y="42" width="120" height="34" rx="4" fill="var(--bg-elevated)" stroke="var(--border)" />
+    <rect x="140" y="42" width="180" height="34" rx="0" fill="var(--bg-elevated)" stroke="var(--border)" />
+    <rect x="320" y="42" width="130" height="34" rx="0" fill="var(--bg-elevated)" stroke="var(--border)" />
+    <rect x="458" y="42" width="282" height="34" rx="4" fill="var(--bg-card)" stroke="var(--accent)" />
+    <g font-size="11" fill="var(--text)" text-anchor="middle">
+      <text x="80" y="64">server responds</text>
+      <text x="230" y="64">JS downloads + parses</text>
+      <text x="385" y="64">first real paint</text>
+      <text x="599" y="64">user clicks, types, scrolls…</text>
+    </g>
+
+    <!-- the interactive divider -->
+    <line x1="454" y1="34" x2="454" y2="230" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4 4" />
+
+    <!-- vital markers -->
+    <g stroke="var(--text-muted)" stroke-width="1.2" marker-end="url(#perf-arrow)">
+      <line x1="140" y1="110" x2="140" y2="82" />
+      <line x1="450" y1="110" x2="450" y2="82" />
+      <line x1="600" y1="110" x2="600" y2="82" />
+    </g>
+    <g font-size="12" font-weight="700" text-anchor="middle">
+      <text x="140" y="126" fill="var(--amber)">TTFB</text>
+      <text x="450" y="126" fill="var(--amber)">LCP</text>
+      <text x="600" y="126" fill="var(--amber)">INP</text>
+    </g>
+    <g font-size="10.5" fill="var(--text-muted)" text-anchor="middle">
+      <text x="140" y="142">&lt; 800ms</text>
+      <text x="450" y="142">&lt; 2.5s</text>
+      <text x="600" y="142">&lt; 200ms each</text>
+    </g>
+
+    <!-- fixes -->
+    <g font-size="11" fill="var(--green)" text-anchor="middle" font-weight="600">
+      <text x="140" y="176">SSR + hydration</text>
+      <text x="300" y="176">lazy routes · &#64;defer · budgets</text>
+      <text x="450" y="196">NgOptimizedImage [priority]</text>
+      <text x="599" y="176">OnPush · signals · track id</text>
+      <text x="599" y="196">computed() · virtual scroll</text>
+    </g>
+
+    <!-- CLS spans both -->
+    <line
+      x1="20"
+      y1="228"
+      x2="740"
+      y2="228"
+      stroke="var(--red)"
+      stroke-width="1.2"
+      stroke-dasharray="3 3"
+      opacity="0.8"
+    />
+    <text x="380" y="248" font-size="11" fill="var(--red)" text-anchor="middle" font-weight="600">
+      CLS is measured across the whole thing (&lt; 0.1) — anything that moves after the user has read it
+    </text>
+    <text x="380" y="272" font-size="11" fill="var(--text-muted)" text-anchor="middle">
+      Fixing the left half never improves the right half. Find out which half you have first.
+    </text>
+  </svg>
+
+  <app-remember variant="mnemonic" label="The three questions, in order">
+    <strong>Measure · Ship less · Do less.</strong> <em>Measure</em> tells you which half of the timeline you're in.
+    <em>Ship less</em> is the entire load-time toolkit — lazy routes, <code>&#64;defer</code>, budgets, SSR.
+    <em>Do less</em> is the entire runtime toolkit — OnPush, signals, <code>track</code> by id, <code>computed()</code>.
+    If you can't say which of the three you're doing right now, you're guessing.
+  </app-remember>
 
   <div class="tab-row">
     @for (t of tabs; track t.id) {
@@ -474,8 +590,42 @@ onLCP(console.log);   // run in app.config or main.ts</pre>
     </table>
   }
 
+  <h2>The trap that bites everyone once</h2>
+  <p>
+    You've read the runtime tab and you're sold on <code>OnPush</code>. So you add it to a list component. Then you
+    click "Add" and <span class="wrong">nothing happens.</span> Before you read on — decide what's on screen and why:
+  </p>
+
+  <app-predict
+    prompt="The parent's `add()` runs and pushes a second row into the array. The child is `OnPush`. How many rows are on screen after the click — and what would you change?"
+    [code]="onPushTrapSample"
+    answer="**One row.** `push()` mutates the array in place, so `this.rows` is the *same object reference* it was before. `OnPush` means *check me only when an input reference changes, an event fires inside me, or a signal I read changes* — none of those happened, so the child is skipped on every tick from here on. It isn't late; it's never coming.
+
+Three fixes, best last:
+
+1. `this.rows = [...this.rows, newRow]` — a new array, a new reference, the input change is seen. Works, but relies on everyone remembering forever.
+2. `inject(ChangeDetectorRef).markForCheck()` in the child — correct but manual, and now the child needs to know something the parent did.
+3. **Make it a signal.** `rows = signal([{ id: 1, label: 'first' }])`, and `add()` calls `this.rows.update(r => [...r, newRow])`. The child reads the signal in its template, which registers a dependency, and the update marks it dirty automatically — no reference discipline to remember.
+
+This is the whole argument for signals in one bug: `OnPush` plus mutable objects is a correctness hazard you have to stay vigilant about, and `OnPush` plus signals simply isn't."
+    revealLabel="Reveal what's on screen"
+  />
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="Same setup as above: a parent mutates its array with `push()`, and the `OnPush` child renders it with `@for (r of rows; track r.id)`. What does the user see after clicking Add?"
+    [options]="quizOptions"
+    followUp="The reusable rule: `OnPush` compares by reference and never deep-compares. If you mutate, you must either replace the reference, call `markForCheck()`, or — much better — stop mutating and use a signal."
+  />
+
+  <app-faq [items]="questions" heading="There are no dumb questions" />
+
   <h2>Key takeaways</h2>
   <ul>
+    <li>
+      <strong>Two axes, never one:</strong> "slow to appear" and "slow to respond" are different problems with disjoint
+      fixes. Work out which one you have before you change any code.
+    </li>
     <li>
       <strong>Load time:</strong> lazy routes, &#64;defer for below-fold, bundle budgets, SSR+hydration,
       NgOptimizedImage.

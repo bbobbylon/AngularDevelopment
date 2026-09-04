@@ -1,5 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 const LOCALES = ['en-US', 'de-DE', 'fr-FR', 'pl-PL', 'ja-JP', 'ar-EG'] as const;
 /**
@@ -23,11 +24,60 @@ function hashId(text: string): string {
  */
 @Component({
   selector: 'app-lesson-i18n',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   styleUrl: './i18n.css',
   templateUrl: './i18n.html',
 })
 export class I18n {
+  /**
+   * The silent-missing-translation puzzle used by the ask-before-telling block.
+   *
+   * `i18nMissingTranslation` defaults to `"warning"` — a build-log line, not a
+   * build failure. Nothing about the deployed output signals that one heading
+   * quietly reverted to the source language.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly missingTranslationSample = `// angular.json
+"i18n": {
+  "sourceLocale": "en-US",
+  "locales": { "fr": "src/locale/messages.fr.xlf" }
+}
+// i18nMissingTranslation not set — defaults to "warning"
+
+<!-- app.html -->
+<h1 i18n="@@heroTitle">Welcome back</h1>
+
+<!-- messages.fr.xlf has NO <trans-unit> for id="heroTitle" -->
+
+ng build --localize   // succeeds`;
+
+  /**
+   * The self-test, on whether a translation's ICU branch count is capped by
+   * the source message's branch count. Every wrong answer invents a
+   * constraint that ties a translation's grammar to the source language's.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'Yes, all six — the Arabic translation is its own independent ICU expression, free to declare every category Arabic grammar actually needs, regardless of how many branches the English source defined.',
+      correct: true,
+      why: "This is the whole point of ICU expressions living in the translation file rather than in template logic: each locale's translation is a self-contained grammar rule, not a slot-filling exercise constrained by the source's branch count. English needing only two branches says nothing about how many Arabic is allowed to declare.",
+    },
+    {
+      text: 'No — a translation can only declare as many branches as the source message did, so a two-branch English source caps every translation at two branches too.',
+      why: "There's no such cap. The source message and each translation are separately-authored ICU expressions; a translator is free to add as many category branches as their language's plural rules require.",
+    },
+    {
+      text: 'Only if the extra branches are added back in the English source first, then re-extracted for translators to fill in.',
+      why: "Nothing requires the source to enumerate every possible target-language category up front. That would defeat the purpose of ICU — English speakers don't need to know Arabic has six plural categories to write correct English source text.",
+    },
+    {
+      text: 'It depends on whether ICU select or plural is used — plural expressions support more branches than select expressions.',
+      why: "Both plural and select are just switch-like ICU constructs; neither has a branch-count limit tied to the other, and the choice between them depends on whether you're branching on a number (plural) or an arbitrary category like gender (select).",
+    },
+  ];
+
   // --- id stability demo ---
   /**
    * The source text in the message-id demo. Editable, which is the point.

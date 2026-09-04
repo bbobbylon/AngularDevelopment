@@ -1,5 +1,6 @@
 import { Component, ElementRef, effect, signal, viewChild, viewChildren } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * Lesson: view queries — viewChild() / viewChildren() and the decorator forms.
@@ -13,11 +14,63 @@ import { RouterLink } from '@angular/router';
  */
 @Component({
   selector: 'app-lesson-view-queries',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './view-queries.html',
   styleUrl: './view-queries.css',
 })
 export class ViewQueries {
+  /**
+   * The three-hook resolve-timing puzzle used by the ask-before-telling block.
+   *
+   * Nothing throws and nothing looks wrong — the constructor and `ngOnInit` both
+   * log `undefined` for a query that plainly matches an element sitting right
+   * there in the template. The only hook named for what it actually waits for is
+   * `ngAfterViewInit`, and that naming is the whole lesson.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly resolveTimingSample = `export class Example {
+  box = viewChild<ElementRef>('box');
+
+  constructor() {
+    console.log('constructor:', this.box());
+  }
+
+  ngOnInit() {
+    console.log('ngOnInit:', this.box());
+  }
+
+  ngAfterViewInit() {
+    console.log('ngAfterViewInit:', this.box());
+  }
+}
+// template: <input #box>  — the element is there from the start, unconditionally`;
+
+  /**
+   * The self-test, on `static: true` combined with conditional content. Every
+   * wrong answer treats "static" as meaning something friendlier than what it
+   * actually does, which is exactly the trap the exam sets.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'el is undefined in ngOnInit, and stays undefined forever — even after the *ngIf becomes true — because static: true resolves once, during the first pass, and never re-checks.',
+      correct: true,
+      why: '`static: true` is a promise you make to Angular: "this target is never removed by a structural directive." Angular takes you at your word, resolves once during the very first change-detection pass, and never looks again. Break the promise — put it behind an `*ngIf` that starts false — and you get a permanently stale `undefined`, with no error to tell you why.',
+    },
+    {
+      text: 'Angular throws a compile-time error, because static queries can’t target conditional content.',
+      why: 'There is no such compile-time check. `static: true` compiles fine on any target; the failure is a silent, runtime one — a reference that never resolves — which is exactly what makes it dangerous.',
+    },
+    {
+      text: 'el is undefined in ngOnInit, but updates automatically once the *ngIf becomes true.',
+      why: 'That is the behavior of `static: false` (the decorator default) or a signal query — both re-resolve after every check. `static: true` opts out of that re-checking entirely; "static" means it will not update, by design.',
+    },
+    {
+      text: 'el resolves correctly to the ElementRef even though the *ngIf starts false, because "static" means "always resolve immediately."',
+      why: '"Static" describes the *target*, not a guarantee about *when* it exists. Resolving immediately only works if the node is actually there on the first pass — asking for it early does not make an absent node appear.',
+    },
+  ];
   /**
    * An input in the view, queried by template reference variable.
    */

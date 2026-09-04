@@ -28,6 +28,12 @@
 
   <h2>Under the hood: DOM adoption</h2>
   <p>
+    Picture moving into an apartment a stager has already furnished to your exact blueprint. A destructive bootstrap is
+    knocking every wall down and rebuilding from the studs, just to end up with the same layout. Hydration is walking
+    in, checking each room against the blueprint, and simply turning on the lights (attaching listeners) — nothing gets
+    torn out, because everything is already exactly where the plan says it should be.
+  </p>
+  <p>
     During server rendering, Angular annotates the HTML with hydration metadata —
     <code>ngh</code> attributes and comment markers recording how many nodes each view claimed, where embedded views
     (loops, conditionals) begin and end, and which containers hold what. On the client, instead of calling its usual
@@ -42,6 +48,48 @@
     the server produced, in structure and order. Anything that perturbs it — a browser "fixing" invalid HTML, a script
     injecting a node, a proxy stripping whitespace — derails the node matching, and Angular reports a mismatch.
   </p>
+
+  <svg class="diagram" viewBox="0 0 720 190" role="img" aria-labelledby="hy-t hy-d">
+    <title id="hy-t">The blueprint walk — matched nodes vs a derailed match</title>
+    <desc id="hy-d">
+      Two rows of four boxes each, representing the same four DOM nodes: header, article, article, article. The top row
+      is labelled server output, annotated with ngh markers, all four boxes drawn in green. The bottom row is labelled
+      client walk, matching node by node: the first three boxes line up and are drawn in green with a checkmark, but the
+      fourth box is drawn in red with an x, because an extra node appeared that the server never produced, labelled node
+      count mismatch here — the walk derails and Angular reports NG0500 from this point onward.
+    </desc>
+    <text x="20" y="24" font-size="12" font-weight="700" fill="var(--green)">server output (ngh-annotated)</text>
+    <g font-size="11" text-anchor="middle">
+      <rect x="20" y="36" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="65" y="57" fill="var(--green)">header</text>
+      <rect x="122" y="36" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="167" y="57" fill="var(--green)">article</text>
+      <rect x="224" y="36" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="269" y="57" fill="var(--green)">article</text>
+      <rect x="326" y="36" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="371" y="57" fill="var(--green)">article</text>
+    </g>
+    <line x1="20" y1="90" x2="700" y2="90" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
+    <text x="20" y="114" font-size="12" font-weight="700" fill="var(--text-muted)">
+      client walk (matching node by node)
+    </text>
+    <g font-size="11" text-anchor="middle">
+      <rect x="20" y="126" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="65" y="147" fill="var(--green)">header ✓</text>
+      <rect x="122" y="126" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="167" y="147" fill="var(--green)">article ✓</text>
+      <rect x="224" y="126" width="90" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="269" y="147" fill="var(--green)">article ✓</text>
+      <rect x="326" y="126" width="110" height="34" rx="6" fill="var(--red)" opacity="0.18" stroke="var(--red)" />
+      <text x="381" y="147" fill="var(--red)">extra node ✗</text>
+    </g>
+    <text x="450" y="147" font-size="11" fill="var(--red)">← node count mismatch here: NG0500 from this point on</text>
+  </svg>
+
+  <app-remember variant="rule" label="The strict contract">
+    <strong>Hydration matches, it doesn't guess.</strong> The client DOM has to be structurally identical to what the
+    server sent, node for node — one unexpected element, and the walk derails from that point onward.
+  </app-remember>
 
   <h2>The mismatch clinic — NG0500 and friends</h2>
   <div class="demo">
@@ -66,6 +114,14 @@
     re-renders destructively instead of hydrating — the right call for a third-party widget that rewrites its own DOM.
     It's a per-subtree opt-out, not a fix; each skipped region gives back its hydration benefits.
   </div>
+
+  <app-predict
+    prompt="ArticleHeader's template reads {{
+      '{{'
+    }} today {{ '}}' }}, a field set once from new Date().toLocaleDateString(). This code has no DOM manipulation, no invalid HTML, nothing a linter would flag. Does it hydrate cleanly?"
+    [code]="nonDeterministicSample"
+    answer="No — this is the 'different server vs client output' mismatch, and it's easy to miss because nothing about the CODE looks wrong. today = new Date().toLocaleDateString() runs once during SSR, producing a text node with one date string, and runs AGAIN when the client bootstraps, producing a second evaluation that can differ — a render a few milliseconds after midnight, a different server/client timezone, anything. Hydration expects the client's text node to match the server's exactly; when it doesn't, the walk reports a mismatch right there. The fix isn't different syntax, it's a different MOMENT: compute today once during SSR and transfer it (TransferState) rather than recomputing it client-side, or compute it after hydration via afterNextRender so it's never compared against server output at all."
+  />
 
   <h2>Event replay — the dead-click gap</h2>
   <p>
@@ -186,6 +242,13 @@
       hydrates.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="@defer (hydrate on interaction) wraps Component A. Nested inside A sits Component B, wrapped in @defer (hydrate on idle). The browser goes idle while A is still sitting untouched (nobody has clicked it). Does B hydrate?"
+    [options]="quizOptions"
+    followUp="Nested @defer (hydrate ...) blocks always hydrate top-down: a child cannot come alive inside a parent that's still dormant, no matter which trigger the child itself is waiting on. B's idle trigger is satisfied, but activation is still gated by A — B only hydrates once A does, whenever that ends up being."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

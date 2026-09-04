@@ -50,22 +50,88 @@ export class AppModule {{ '{' }}{{ '}' }}</pre>
     </tr>
   </table>
 
-  <h2>The mental model</h2>
-  <div class="code">
-    <pre>
-A module is a "visibility box". Inside it, its declarations can see
-each other. To use something from ANOTHER box you must:
+  <h2>The mental model: passports and visas</h2>
+  <p>
+    Here's the analogy that makes every module error read as obvious.
+    <span class="key">A module is a country, and its declarables are citizens.</span>
+    A component <span class="term">declared</span> in <code>SharedModule</code> is a citizen of SharedModule — it can be
+    used freely by any other citizen of SharedModule, and by nobody else.
+  </p>
+  <p>
+    Two things have to happen before it travels. SharedModule has to
+    <span class="term">export</span> it — that's the passport, the owning module's permission for it to leave. And the
+    destination has to <span class="term">import</span> SharedModule — that's the visa, the consuming module's
+    permission for it to arrive. <span class="right">Both stamps, and the component renders.</span>
+    <span class="wrong">Either one missing, and you get "not a known element" at compile time.</span>
+    The live demo below is exactly those two switches.
+  </p>
 
-   Box B exports Foo  ──imports──▶  Box A can now use Foo
+  <svg class="diagram" viewBox="0 0 760 340" role="img" aria-labelledby="mod-t mod-d">
+    <title id="mod-t">How exports and imports decide what a template can see</title>
+    <desc id="mod-d">
+      Two boxes. On the left, SharedModule declares three things: ButtonComponent, CardComponent and InternalSpinner.
+      ButtonComponent and CardComponent are listed in the module's exports, so green arrows carry them through the
+      exports gate to the right-hand box, FeatureModule, whose templates can now use app-button and app-card.
+      InternalSpinner is declared but never exported, so its arrow stops dead at the gate with a red cross, and a
+      template in FeatureModule that writes app-spinner fails to compile with "not a known element". FeatureModule can
+      only receive anything at all because it imports SharedModule; without that import, all three arrows would stop at
+      the gate.
+    </desc>
+    <defs>
+      <marker id="mod-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)" />
+      </marker>
+    </defs>
 
-   AppModule
-   ├─ declarations: AppComponent, NavComponent
-   ├─ imports: BrowserModule, SharedModule ──┐
-   │                                          ▼
-   └─ SharedModule exports: ButtonComponent, CardComponent
-                                              ▲
-              (declared once in SharedModule, used everywhere it's imported)</pre>
-  </div>
+    <text x="20" y="26" font-size="12.5" font-weight="700" fill="var(--text-muted)">
+      SharedModule — declarations: [ … ]
+    </text>
+    <text x="430" y="26" font-size="12.5" font-weight="700" fill="var(--text-muted)">
+      FeatureModule — imports: [SharedModule]
+    </text>
+
+    <rect x="20" y="50" width="300" height="215" rx="10" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <rect x="430" y="50" width="310" height="215" rx="10" fill="none" stroke="var(--border)" stroke-width="1.5" />
+
+    <!-- the exports gate -->
+    <line x1="345" y1="44" x2="345" y2="272" stroke="var(--text-muted)" stroke-width="2" stroke-dasharray="6 5" />
+    <text x="345" y="292" font-size="11" text-anchor="middle" fill="var(--text-muted)">the exports gate</text>
+
+    <!-- exported declarables -->
+    <rect x="40" y="80" width="160" height="32" rx="6" fill="var(--green)" opacity="0.22" />
+    <text x="120" y="101" font-size="11" text-anchor="middle" fill="var(--green)" font-weight="700">
+      ButtonComponent
+    </text>
+    <text x="208" y="101" font-size="9.5" fill="var(--green)">exported ✓</text>
+    <line x1="204" y1="120" x2="424" y2="120" stroke="var(--green)" stroke-width="1.5" marker-end="url(#mod-arrow)" />
+
+    <rect x="40" y="132" width="160" height="32" rx="6" fill="var(--green)" opacity="0.22" />
+    <text x="120" y="153" font-size="11" text-anchor="middle" fill="var(--green)" font-weight="700">CardComponent</text>
+    <text x="208" y="153" font-size="9.5" fill="var(--green)">exported ✓</text>
+    <line x1="204" y1="172" x2="424" y2="172" stroke="var(--green)" stroke-width="1.5" marker-end="url(#mod-arrow)" />
+
+    <!-- declared but not exported -->
+    <rect x="40" y="196" width="160" height="32" rx="6" fill="var(--red)" opacity="0.22" />
+    <text x="120" y="217" font-size="11" text-anchor="middle" fill="var(--red)" font-weight="700">InternalSpinner</text>
+    <text x="208" y="217" font-size="9.5" fill="var(--red)">not exported</text>
+    <line x1="204" y1="234" x2="336" y2="234" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="5 4" />
+    <text x="342" y="239" font-size="14" fill="var(--red)" font-weight="700">✗</text>
+
+    <!-- what the feature module can see -->
+    <text x="452" y="116" font-size="11.5" fill="var(--green)">✓ &lt;app-button&gt; renders</text>
+    <text x="452" y="168" font-size="11.5" fill="var(--green)">✓ &lt;app-card&gt; renders</text>
+    <text x="452" y="220" font-size="11.5" fill="var(--red)">✗ &lt;app-spinner&gt; — not a known element</text>
+    <text x="452" y="240" font-size="10" fill="var(--text-muted)">(a compile-time error, not a runtime one)</text>
+
+    <text x="20" y="322" font-size="11" fill="var(--text-muted)">
+      Drop the import on the right and every arrow stops at the gate — exporting alone is never enough.
+    </text>
+  </svg>
+
+  <app-remember variant="mnemonic" label="The three verbs, in order">
+    <strong>Declare owns. Export shares. Import uses.</strong> Every NgModule error you will ever see is one of those
+    three verbs missing. Read the error, ask which verb is absent, fix that one line.
+  </app-remember>
 
   <h2>NgModule vs Standalone — same app, two wirings</h2>
   <div class="row" style="margin-bottom: 10px">
@@ -137,6 +203,12 @@ export class AdminModule {{ '{' }}{{ '}' }}</pre>
       </td>
     </tr>
   </table>
+
+  <app-predict
+    prompt="The user logs in on the home page, then navigates to the lazy-loaded /admin route. AdminDashboard checks `auth.currentUser()` and finds it null — the user appears logged out, but only inside /admin, and only after a full page load. No error, no warning. Why?"
+    [code]="duplicateSingletonSample"
+    answer="There are two AuthService instances. Every lazy-loaded module gets its own injector, and `providers` on a module registers the service on whichever injector loads that module. AppModule's import put one AuthService on the root injector — that is the one the login page wrote to. AdminModule's import put a second one on the lazy injector, and that is the one AdminDashboard reads. Two objects, two sets of state, no complaint from anyone. The historical fix was a guard constructor using the Optional and SkipSelf decorators, which throws if CoreModule is imported twice. The modern fix is to delete the `providers` entry and write `providedIn: 'root'` on the service, which registers it exactly once no matter how many modules pull it in."
+  />
 
   <h2>How they bootstrap</h2>
   <div class="code">
@@ -223,6 +295,16 @@ bootstrapApplication(App, {{ '{' }}
       <code>CommonModule</code> instead.
     </li>
   </ul>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="AppModule imports SharedModule. SharedModule imports FormsModule so its own components can use ngModel, but SharedModule's exports array lists only ButtonComponent. Can a template declared in AppModule use ngModel?"
+    [options]="quizOptions"
+    followUp="The fix is one line: add FormsModule to SharedModule's exports. A SharedModule that re-exports CommonModule, FormsModule and its own components is the whole reason the pattern exists — it is a bundle of visas."
+  />
+
+  <h2>No dumb questions</h2>
+  <app-faq [items]="questions" />
 
   <h2>Key takeaways</h2>
   <ul>

@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * One deliberately broken snippet and the error it produces.
@@ -55,11 +56,53 @@ const BUG_CASES: BugCase[] = [
  */
 @Component({
   selector: 'app-lesson-debugging-basics',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './debugging-basics.html',
   styleUrl: './debugging-basics.css',
 })
 export class DebuggingBasics {
+  /**
+   * The out-of-bounds-index puzzle used by the ask-before-telling block.
+   *
+   * The two-stage nature of this bug is the point: the out-of-bounds read
+   * itself never throws — `tags[0]` on an empty array is just `undefined`,
+   * silently. The crash happens one line-of-logic later, on the method call,
+   * which is why the error names `toUpperCase` and not the array at all.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly outOfBoundsSample = `const post = { title: 'Hello', tags: [] };   // tags is a real array — just empty
+
+const firstTag = post.tags[0].toUpperCase();
+
+console.log(firstTag);`;
+
+  /**
+   * The self-test, on a real DevTools gotcha: `console.log` keeps a live
+   * reference, it doesn't snapshot. Every wrong answer invents a mechanism
+   * (a browser bug, auto-awaiting, zone.js interception) rather than accepting
+   * the plain fact that the printed object updates after the log call runs.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: "console.log doesn't take a snapshot — it keeps a live reference to the object. By the time you expand it in DevTools, the async fetch has already populated it, so you're seeing its CURRENT state, not what it looked like the instant you logged it.",
+      correct: true,
+      why: 'This trips up even experienced developers, because it looks exactly like a lie — the console printed the fetch result before the fetch could plausibly have finished. What actually happened is the object reference was captured immediately, but its CONTENTS kept changing after that, and expanding the log in DevTools reads the object as it is right now.',
+    },
+    {
+      text: 'This is a browser bug — Chrome should print a snapshot of the exact object state at the moment console.log ran.',
+      why: 'It is documented, intentional behavior, not a bug: logging a mutable object logs a reference to it, and expanding that reference later shows its live state. Treating this as a bug leads to "fixing" things that were never broken.',
+    },
+    {
+      text: 'console.log automatically awaits any pending promises before printing, so the data logged really was already resolved.',
+      why: "console.log has no idea what a promise is and does no waiting. If the log line ran before the fetch resolved, the value really was undefined at that instant — the printed object just doesn't reflect that instant anymore by the time you look at it.",
+    },
+    {
+      text: "Angular's zone.js intercepts console output and delays printing until the current change-detection cycle finishes.",
+      why: 'Zone.js patches async APIs to trigger change detection; it does not intercept or delay console output. This explanation reaches for an unrelated framework mechanism instead of the actual cause.',
+    },
+  ];
   /**
    * The demo console output.
    */

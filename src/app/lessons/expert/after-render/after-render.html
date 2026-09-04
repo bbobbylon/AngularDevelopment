@@ -97,13 +97,77 @@
 
   <h2>Phases — the layout-thrashing defense</h2>
   <p>
-    Interleaving DOM reads and writes forces the browser into repeated synchronous layout passes (write → read forces
-    layout → write invalidates it → read forces it again…). The hooks take a phase object and run all registered
-    callbacks phase by phase across the whole app — every read batched before every write:
+    Think of the browser's layout engine as a
+    <strong>stagehand who has to rebuild the set every time you ask a question about it mid-rebuild.</strong> Ask "how
+    wide is that box?" (a read), then move a prop (a write), then ask again — and the stagehand has to finish the
+    rebuild <em>before</em> answering each time. Interleave enough reads and writes and the stagehand redoes the whole
+    set over and over in one frame. That's layout thrashing: write → read forces layout → write invalidates it → read
+    forces layout again.
+  </p>
+  <p>
+    The hooks take a phase object and run all registered callbacks phase by phase
+    <strong>across the whole app</strong> — every component's <code>earlyRead</code> first, then every component's
+    <code>write</code>, and so on. One rebuild, not one per component:
   </p>
   <div class="code">
     <pre>{{ phasesSample }}</pre>
   </div>
+
+  <svg class="diagram" viewBox="0 0 760 220" role="img" aria-labelledby="ar-t ar-d">
+    <title id="ar-t">Interleaved reads/writes vs phased reads/writes</title>
+    <desc id="ar-d">
+      Two lanes compare the same four operations, two reads and two writes. In the top lane, labelled interleaved, the
+      operations run read, write, read, write in that order, and each transition between a write and a read is marked
+      with a red layout-recalculation flag, for three forced layouts total. In the bottom lane, labelled phased, all
+      reads are grouped first, both reads happen back to back, then both writes happen back to back, and only one green
+      layout-recalculation flag appears, between the read group and the write group.
+    </desc>
+    <text x="20" y="28" font-size="12" font-weight="700" fill="var(--red)">
+      Interleaved — one layout pass per switch
+    </text>
+    <g font-size="11.5" text-anchor="middle">
+      <rect x="20" y="42" width="70" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="55" y="61" fill="var(--text-muted)">read</text>
+      <text x="110" y="61" fill="var(--red)" font-weight="700">↯</text>
+      <rect x="130" y="42" width="70" height="30" rx="6" fill="var(--red)" opacity="0.18" />
+      <text x="165" y="61" fill="var(--red)">write</text>
+      <text x="220" y="61" fill="var(--red)" font-weight="700">↯</text>
+      <rect x="240" y="42" width="70" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="275" y="61" fill="var(--text-muted)">read</text>
+      <text x="330" y="61" fill="var(--red)" font-weight="700">↯</text>
+      <rect x="350" y="42" width="70" height="30" rx="6" fill="var(--red)" opacity="0.18" />
+      <text x="385" y="61" fill="var(--red)">write</text>
+    </g>
+    <text x="440" y="61" font-size="10.5" fill="var(--red)">3 forced layout recalculations</text>
+
+    <line x1="20" y1="96" x2="740" y2="96" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
+
+    <text x="20" y="128" font-size="12" font-weight="700" fill="var(--green)">
+      Phased — every read, then every write
+    </text>
+    <g font-size="11.5" text-anchor="middle">
+      <rect x="20" y="142" width="70" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="55" y="161" fill="var(--text-muted)">read</text>
+      <rect x="98" y="142" width="70" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="133" y="161" fill="var(--text-muted)">read</text>
+      <text x="196" y="161" fill="var(--green)" font-weight="700">↯</text>
+      <rect x="216" y="142" width="70" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="251" y="161" fill="var(--green)">write</text>
+      <rect x="294" y="142" width="70" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="329" y="161" fill="var(--green)">write</text>
+    </g>
+    <text x="420" y="161" font-size="10.5" fill="var(--green)">1 forced layout recalculation</text>
+
+    <text x="20" y="200" font-size="11" fill="var(--text-muted)">
+      Same four operations, same result — the phase system just refuses to let them interleave.
+    </text>
+  </svg>
+
+  <app-remember variant="rule" label="If you remember one thing about the phases">
+    <strong>All the reads, then all the writes — never alternate.</strong> That single ordering rule is the entire
+    layout-thrashing defense: <code>earlyRead</code> and <code>read</code> only look, <code>write</code> only touches,
+    and the phase system enforces the order across the whole app so no component has to coordinate with any other.
+  </app-remember>
   <table class="cmp">
     <tr>
       <th>Phase</th>
@@ -169,6 +233,12 @@
     </tr>
   </table>
 
+  <app-predict
+    prompt="LiveClock registers afterEveryRender and bumps a signal inside it, once per run. What happens when this component appears on the page?"
+    [code]="renderLoopSample"
+    answer="The app hangs (or the tab's CPU pins at 100%) in an infinite render loop. Writing to renders schedules another render — that's what a signal write does. When that render completes, afterEveryRender fires again, because 'every render' means every render, including the ones this hook itself causes. That run writes the signal again, which schedules the next render, forever. Nothing throws to tell you why; the fix is to write to the DOM directly (as the run-counter demo above does with textContent) rather than to reactive state."
+  />
+
   <h2>Pitfalls</h2>
   <ul>
     <li>
@@ -225,6 +295,13 @@
       <code>DestroyRef.onDestroy</code>. Creation, updates and teardown each use the right primitive.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="You move afterNextRender(() => el.focus()) out of the constructor and into ngOnInit, without passing an injector. What happens?"
+    [options]="quizOptions"
+    followUp="The constructor is special specifically because Angular sets up its injection context for you automatically before running your code — every other method is on its own unless you capture and pass an injector explicitly."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

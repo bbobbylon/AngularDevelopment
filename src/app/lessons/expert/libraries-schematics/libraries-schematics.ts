@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * One dependency-placement choice, with the failure mode picking wrong causes.
@@ -47,11 +48,62 @@ const DEP_CHOICES: DepChoice[] = [
  */
 @Component({
   selector: 'app-lesson-libraries-schematics',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   styleUrl: './libraries-schematics.css',
   templateUrl: './libraries-schematics.html',
 })
 export class LibrariesSchematics {
+  /**
+   * The mid-chain-failure puzzle used by the ask-before-telling block.
+   *
+   * The scenario tests whether "atomic" was actually absorbed or just read past:
+   * a Rule that fails partway through looks, on the page, exactly like one that
+   * partially succeeded — until you remember what a Tree actually is.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly midChainFailureSample = `export function widget(options: WidgetSchema): Rule {
+  return (tree: Tree) => {
+    tree.create('/widget/widget.ts', '// step 1');
+    tree.create('/widget/widget.spec.ts', '// step 2');
+
+    if (!options.name) {
+      throw new SchematicsException('name is required');   // step 3 — throws
+    }
+
+    tree.create('/widget/widget.html', '// step 4 — never reached');
+    return tree;
+  };
+}
+
+// ng generate ui-kit:widget   (no --name passed)`;
+
+  /**
+   * The self-test, on the practical symptom of a misplaced peer dependency.
+   * Every wrong answer imagines a safety net — an install failure, a build
+   * error, automatic deduping — that npm and the Angular compiler simply do
+   * not provide for this mistake.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'A second, incompatible copy of @angular/core gets installed nested under the library, and things fail in confusing ways — DI can\'t resolve services registered against the "other" Angular instance, instanceof checks on framework types quietly fail.',
+      correct: true,
+      why: "This is the actual failure mode, and it's confusing precisely because nothing announces it. npm happily installs a second @angular/core because a regular dependency is just a version requirement to satisfy, not a promise to share the host's instance — that promise is what peerDependencies means.",
+    },
+    {
+      text: 'npm refuses to install the package at all, failing with a version conflict error.',
+      why: 'Regular dependencies do not get that protection. npm resolves them like any other package — nesting a second copy if versions differ — with no error to warn you that "sharing" was actually intended.',
+    },
+    {
+      text: 'The app builds and runs identically — dependencies vs peerDependencies only changes how the dependency tree is displayed.',
+      why: 'It changes what actually gets installed and where. A regular dependency can end up duplicated in node_modules; a peer dependency is a request to reuse whatever the host app already provides.',
+    },
+    {
+      text: "Angular's compiler detects the duplicate @angular/core copies during the build and automatically merges them.",
+      why: 'There is no such merge step. The compiler assumes a single Angular runtime; two copies existing side by side is exactly the scenario nothing is designed to reconcile.',
+    },
+  ];
   /**
    * The dependency-placement choices.
    */

@@ -2,10 +2,164 @@
   <span class="lesson__eyebrow">Beginner · Control Flow</span>
   <h1>Control Flow: &#64;switch</h1>
   <p class="lead">
-    <code>&#64;switch</code> renders exactly one branch based on a single value — ideal for state machines like
-    <em>idle / loading / success / error</em>. It is the template equivalent of a <code>switch</code> statement, but
-    with no <code>break</code> and no fall-through: the matched <code>&#64;case</code> is the only one that renders.
+    <code>&#64;switch</code> renders exactly one branch based on a single value — ideal for
+    <span class="term">state machines</span> like <em>idle / loading / success / error</em>. It is the template
+    equivalent of a <code>switch</code> statement, but with
+    <span class="key">no <code>break</code> and no fall-through</span>: the matched <code>&#64;case</code> is the only
+    one that renders.
   </p>
+
+  <h2>Think of it as railway points</h2>
+  <p>
+    The word <em>switch</em> is not a metaphor here — it's the original meaning. A railway switch (the points) is the
+    mechanism that decides which of several tracks a train takes. One train arrives, the points are set one way, the
+    train goes down exactly one track. Everything about <code>&#64;switch</code> follows from that picture:
+  </p>
+  <ul>
+    <li>
+      <span class="right">One value, one track.</span> The expression is evaluated <strong>once</strong>, then compared
+      to each case. The train doesn't get re-weighed at every junction — that's what a chain of
+      <code>&#64;if</code> does.
+    </li>
+    <li>
+      <span class="right">No fall-through, because there's nowhere to fall.</span> A train can't continue onto the next
+      track after reaching the end of one. This is why there's no <code>break</code>: JavaScript's
+      <code>switch</code> needs it precisely <em>because</em> it does keep going, and Angular's doesn't.
+    </li>
+    <li>
+      <span class="wrong">The other tracks aren't just empty — they were never laid.</span> This is the part people miss
+      and it matters far more than it sounds. A non-matching branch is not hidden; it is
+      <strong>never constructed at all</strong>. No component instance, no DOM, nothing in change detection.
+    </li>
+  </ul>
+
+  <h2>What actually gets built</h2>
+  <p>
+    Here is the difference between <code>&#64;switch</code> and the CSS-based hiding people often reach for first. It's
+    the single most consequential thing on this page:
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 260" role="img" aria-labelledby="sw-t sw-d">
+    <title id="sw-t">
+      The switch block instantiates only the matching branch, unlike CSS hiding which builds all of them
+    </title>
+    <desc id="sw-d">
+      Two rows compare approaches for a four-state view. In the top row, using a switch block with the value 'loading',
+      only the loading branch is instantiated as a live component; idle, success and error are drawn as dashed outlines
+      labelled never built. In the bottom row, using hidden or display none, all four components are constructed and
+      live in the DOM, with three of them merely invisible — so all four run change detection and all four hold state.
+    </desc>
+
+    <!-- switch row -->
+    <text x="10" y="24" font-size="12.5" font-weight="700" fill="var(--green)">
+      &#64;switch (status()) — status is 'loading'
+    </text>
+    <g>
+      <rect
+        x="10"
+        y="38"
+        width="170"
+        height="52"
+        rx="8"
+        fill="none"
+        stroke="var(--text-muted)"
+        stroke-width="1.3"
+        stroke-dasharray="5 4"
+        opacity="0.55"
+      />
+      <text x="95" y="60" text-anchor="middle" font-size="11" fill="var(--text-muted)">idle</text>
+      <text x="95" y="77" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">never built</text>
+
+      <rect
+        x="196"
+        y="38"
+        width="170"
+        height="52"
+        rx="8"
+        fill="var(--bg-card)"
+        stroke="var(--green)"
+        stroke-width="2"
+      />
+      <text x="281" y="60" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--green)">loading</text>
+      <text x="281" y="77" text-anchor="middle" font-size="9.5" fill="var(--text)">live component · in the DOM</text>
+
+      <rect
+        x="382"
+        y="38"
+        width="170"
+        height="52"
+        rx="8"
+        fill="none"
+        stroke="var(--text-muted)"
+        stroke-width="1.3"
+        stroke-dasharray="5 4"
+        opacity="0.55"
+      />
+      <text x="467" y="60" text-anchor="middle" font-size="11" fill="var(--text-muted)">success</text>
+      <text x="467" y="77" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">never built</text>
+
+      <rect
+        x="568"
+        y="38"
+        width="170"
+        height="52"
+        rx="8"
+        fill="none"
+        stroke="var(--text-muted)"
+        stroke-width="1.3"
+        stroke-dasharray="5 4"
+        opacity="0.55"
+      />
+      <text x="653" y="60" text-anchor="middle" font-size="11" fill="var(--text-muted)">error</text>
+      <text x="653" y="77" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">never built</text>
+    </g>
+    <text x="10" y="110" font-size="11" fill="var(--green)" font-weight="600">
+      1 component checked · 1 in the DOM · switching away runs ngOnDestroy and the state is gone
+    </text>
+
+    <line x1="10" y1="130" x2="750" y2="130" stroke="var(--border)" stroke-width="1" />
+
+    <!-- hidden row -->
+    <text x="10" y="158" font-size="12.5" font-weight="700" fill="var(--red)">
+      [hidden] / display: none — the same four states
+    </text>
+    <g>
+      <rect x="10" y="172" width="170" height="52" rx="8" fill="var(--bg-card)" stroke="var(--red)" opacity="0.75" />
+      <text x="95" y="194" text-anchor="middle" font-size="11" fill="var(--text)">idle</text>
+      <text x="95" y="211" text-anchor="middle" font-size="9.5" fill="var(--red)">built · invisible</text>
+
+      <rect
+        x="196"
+        y="172"
+        width="170"
+        height="52"
+        rx="8"
+        fill="var(--bg-card)"
+        stroke="var(--green)"
+        stroke-width="2"
+      />
+      <text x="281" y="194" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--green)">loading</text>
+      <text x="281" y="211" text-anchor="middle" font-size="9.5" fill="var(--text)">built · visible</text>
+
+      <rect x="382" y="172" width="170" height="52" rx="8" fill="var(--bg-card)" stroke="var(--red)" opacity="0.75" />
+      <text x="467" y="194" text-anchor="middle" font-size="11" fill="var(--text)">success</text>
+      <text x="467" y="211" text-anchor="middle" font-size="9.5" fill="var(--red)">built · invisible</text>
+
+      <rect x="568" y="172" width="170" height="52" rx="8" fill="var(--bg-card)" stroke="var(--red)" opacity="0.75" />
+      <text x="653" y="194" text-anchor="middle" font-size="11" fill="var(--text)">error</text>
+      <text x="653" y="211" text-anchor="middle" font-size="9.5" fill="var(--red)">built · invisible</text>
+    </g>
+    <text x="10" y="244" font-size="11" fill="var(--red)" font-weight="600">
+      4 components checked every tick · 4 in the DOM · all four fired their HTTP calls on init
+    </text>
+  </svg>
+
+  <app-remember variant="rule" label="The two rules that cover every @switch question">
+    <strong>Strict, and destructive.</strong> <em>Strict:</em> <code>&#64;case</code> compares with <code>===</code>,
+    always — <code>1</code> will never match <code>'1'</code>, and no case matching just renders nothing at all,
+    silently. <em>Destructive:</em> the branch you leave is destroyed, not hidden, so its component state does not
+    survive a round trip.
+  </app-remember>
 
   <h2>&#64;switch / &#64;case / &#64;default</h2>
   <div class="demo">
@@ -154,6 +308,39 @@
       branch.
     </li>
   </ul>
+
+  <h2>Predict the blank page</h2>
+  <p>
+    A pricing page renders a plan name from the route. It works locally, it passes review, and in production the panel
+    is <span class="wrong">completely empty</span> — no error, no warning, no red in the console.
+    <span class="key">Find the bug before you open the answer.</span>
+  </p>
+
+  <app-predict
+    prompt="The user is on /plan/2. Nothing renders. Why — and what are the two ways to fix it?"
+    [code]="strictEqualitySample"
+    answer="**`tier()` is the string `'2'`. The cases are the numbers `1`, `2`, `3`. `'2' === 2` is false, so no case matches — and with no `@default`, `@switch` renders nothing at all.**
+
+Two things conspire here, and both are worth internalising:
+
+1. **Route params are always strings.** `paramMap.get('tier')` returns `string | null`, never a number. The URL is text; nothing in the router parses it for you. Same for query params, and same for `FormData`.
+2. **`@case` uses `===`, with no coercion whatsoever.** This is deliberate — the old `*ngSwitchCase` used loose equality through attribute binding, `'2'` matched `2`, and that produced a different class of bug that was even harder to find. Strict is the fix, not the problem.
+
+And the reason it survives review is the third fact: **an unmatched `@switch` with no `@default` renders silently.** Not an error, not a warning — just nothing. It looks like a CSS problem or a failed request.
+
+**Two fixes, and you want both:**
+
+- Coerce at the boundary, where the string becomes data: `map(p => Number(p.get('tier')))`. Parse once, at the edge, rather than sprinkling `+` through the template.
+- **Always write a `@default`**, even if it only renders “Unknown plan”. A silent blank is the worst possible failure mode; a visible fallback turns this bug into a five-second diagnosis instead of an afternoon."
+    revealLabel="Reveal why nothing renders"
+  />
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="A `@case ('editing')` branch contains a component with a text input. The user types “hello” into it, switches the state to `'preview'`, then switches straight back to `'editing'`. What is in the input?"
+    [options]="quizOptions"
+    followUp="If state has to survive the round trip, it cannot live inside the branch. Lift it into the parent component or a service — the branch renders it, but does not own it."
+  />
 
   <h2>Pitfalls that show up in exams &amp; code review</h2>
   <ul>

@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * A deliberately hole-y shape: both the address and its city are optional, so
@@ -43,11 +44,57 @@ const FALSY_CASES: FalsyCase[] = [
  */
 @Component({
   selector: 'app-lesson-ts-nullish',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './nullish.html',
   styleUrl: './nullish.css',
 })
 export class Nullish {
+  /**
+   * The skipped-argument puzzle used by the ask-before-telling block.
+   *
+   * The surprising part isn't that the call is skipped — it's that the
+   * *argument expression* is skipped too, along with whatever side effect it
+   * was going to have. People correctly predict `a?.notify(...)` doesn't run
+   * `notify`, then still get this one wrong.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly skippedArgumentSample = `let ranSideEffect = false;
+
+function computeArg() {
+  ranSideEffect = true;   // a side effect, hiding inside an argument
+  return 5;
+}
+
+const a = null;
+a?.notify(computeArg());   // the line in question
+
+console.log(ranSideEffect);`;
+
+  /**
+   * The self-test, on the zero-runtime-check property of `!`. Every wrong
+   * answer imagines some safety net that the assertion simply does not provide.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: "It throws a plain runtime TypeError — \"Cannot read properties of undefined (reading 'getFullYear')\" — the same crash you'd get with no assertion at all.",
+      correct: true,
+      why: '`!` is erased at compile time and adds no check of its own. Telling the compiler "trust me, not null" changes what TypeScript lets you write, not what happens when the code actually runs against a value that really is undefined.',
+    },
+    {
+      text: 'The compiler catches it during the build, because `!` still requires the compiler to verify the value is non-null before allowing the assertion.',
+      why: 'It is the opposite: `!` exists specifically to *skip* that verification. The compiler trusts the assertion unconditionally, which is exactly why it is dangerous when the promise is wrong.',
+    },
+    {
+      text: '`date!.getFullYear()` returns `undefined` instead of throwing, because the assertion converts a nullish access into a safe one at runtime.',
+      why: 'That describes `?.`, not `!`. The two look similar but do opposite things: `?.` adds a real runtime check and degrades gracefully; `!` adds no check and crashes exactly like an unguarded access would.',
+    },
+    {
+      text: 'Angular intercepts the error and reports it as a template error (like NG0100), since the assertion is used inside a component.',
+      why: "This has nothing to do with templates or Angular's error codes — it is a plain JavaScript property access on `undefined`, throwing the same native `TypeError` it would in any JavaScript file.",
+    },
+  ];
   /**
    * The profile in the optional-chaining demo. Starts `null` so the demo opens on
    * the case that would throw without `?.`.

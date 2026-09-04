@@ -41,7 +41,64 @@ a?.b?.c       // safe against both. Put ?. exactly where nullability exists —
               // scattering ?. everywhere hides which links can ACTUALLY be missing.</pre>
   </div>
 
+  <svg class="diagram" viewBox="0 0 760 200" role="img" aria-labelledby="oc-t oc-d">
+    <title id="oc-t">Where ?. actually protects the chain, link by link</title>
+    <desc id="oc-d">
+      Two rows show the same four-link chain, a dot b dot c dot d called as a function. In the top row, only the first
+      link has a question-mark-dot guard. The first link is safe, but the second link, dot b to dot c, is drawn with a
+      broken connector and a red crash icon, labelled crashes here if a dot b is nullish. In the bottom row, every link
+      has its own question-mark-dot guard, and all four links are drawn intact in green, labelled safe at every link,
+      because every link that can itself be nullish is checked before the next step.
+    </desc>
+    <text x="20" y="26" font-size="12" font-weight="700" fill="var(--red)">a?.b.c.d() — only one guard</text>
+    <g font-size="12" text-anchor="middle">
+      <rect x="20" y="40" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="50" y="60" fill="var(--green)">a?.</text>
+      <line x1="80" y1="55" x2="112" y2="55" stroke="var(--green)" stroke-width="1.5" />
+      <rect x="120" y="40" width="50" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="145" y="60" fill="var(--text-muted)">.b</text>
+      <line x1="170" y1="55" x2="196" y2="55" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="3 3" />
+      <text x="183" y="42" font-size="14" fill="var(--red)">✗</text>
+      <rect x="204" y="40" width="50" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="229" y="60" fill="var(--text-muted)">.c</text>
+      <line x1="254" y1="55" x2="280" y2="55" stroke="var(--border)" stroke-width="1.5" />
+      <rect x="288" y="40" width="66" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
+      <text x="321" y="60" fill="var(--text-muted)">.d()</text>
+    </g>
+    <text x="380" y="60" font-size="11" fill="var(--red)">
+      ↑ crashes here if a.b is nullish — this link was never guarded
+    </text>
+
+    <line x1="20" y1="96" x2="740" y2="96" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
+
+    <text x="20" y="126" font-size="12" font-weight="700" fill="var(--green)">
+      a?.b?.c?.d?.() — a guard at every link
+    </text>
+    <g font-size="12" text-anchor="middle">
+      <rect x="20" y="140" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="50" y="160" fill="var(--green)">a?.</text>
+      <line x1="80" y1="155" x2="106" y2="155" stroke="var(--green)" stroke-width="1.5" />
+      <rect x="114" y="140" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="144" y="160" fill="var(--green)">b?.</text>
+      <line x1="174" y1="155" x2="200" y2="155" stroke="var(--green)" stroke-width="1.5" />
+      <rect x="208" y="140" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="238" y="160" fill="var(--green)">c?.</text>
+      <line x1="268" y1="155" x2="294" y2="155" stroke="var(--green)" stroke-width="1.5" />
+      <rect x="302" y="140" width="80" height="30" rx="6" fill="var(--green)" opacity="0.2" />
+      <text x="342" y="160" fill="var(--green)">d?.()</text>
+    </g>
+    <text x="400" y="160" font-size="11" fill="var(--green)">safe at every link — nothing to crash on</text>
+  </svg>
+
   <h2>Nullish coalescing <code>??</code> — and the <code>||</code> trap</h2>
+  <p>
+    Picture two different questions being asked about the same value. <code>a ?? b</code>
+    asks "was anything filled in here at all?" — a reservation was made, even if what got written in was
+    <code>0</code>. <code>a || b</code> asks the pickier question "is what's here good enough to keep?" — and to
+    <code>||</code>, <code>0</code> looks exactly as empty as a genuinely blank field. A volume setting of
+    <code>0</code> passes the first question (something was set) and fails the second (zero isn't "impressive"), which
+    is the entire bug class these operators exist to separate.
+  </p>
   <p>
     <code>a ?? b</code> yields <code>b</code> only when <code>a</code> is <code>null</code> or <code>undefined</code>.
     <code>a || b</code> yields <code>b</code> whenever <code>a</code> is <em>falsy</em> — which wrongly swallows
@@ -49,6 +106,12 @@ a?.b?.c       // safe against both. Put ?. exactly where nullability exists —
     of 0 resetting to the default, an empty-string search box reverting to a placeholder query,
     <code>showBanner: false</code> being ignored.
   </p>
+
+  <app-remember variant="mnemonic" label="The two questions, side by side">
+    <strong><code>??</code> asks "is it there?" <code>||</code> asks "is it good?"</strong> Nullish coalescing cares
+    only about absence (<code>null</code>/<code>undefined</code>); logical OR cares about quality, and to
+    <code>||</code>, <code>0</code>/<code>''</code>/<code>false</code> all look exactly as bad as nothing at all.
+  </app-remember>
   <div class="demo">
     <p class="demo__title">Live — <code>value || 'fallback'</code> vs <code>value ?? 'fallback'</code></p>
     <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
@@ -118,6 +181,12 @@ const theme = profile?.prefs?.theme ?? 'dark';</pre>
       <code>undefined</code>, and <code>??</code> supplies the floor.
     </p>
   </div>
+
+  <app-predict
+    prompt="a is null, so a?.notify(computeArg()) obviously doesn't call notify. But does computeArg() itself still run — does its side effect happen?"
+    [code]="skippedArgumentSample"
+    answer="false — computeArg() never runs, and ranSideEffect stays false. The argument expression is part of the call a.notify(...), and optional chaining doesn't evaluate the call at all when a is nullish — not the method lookup, not the arguments, nothing. This trips people up because they correctly reason 'notify won't run' and then assume the arguments were computed anyway, the way they normally would be before any function call. Short-circuiting in a?. chain happens BEFORE argument evaluation, not after."
+  />
 
   <h2>The logical-assignment trio</h2>
   <div class="code">
@@ -209,6 +278,13 @@ class Comp {{ '{' }}
       throws a descriptive error. Rule: <code>?.</code> for "absence is normal", assertion/throw for "absence is a bug".
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="date is actually undefined at runtime, but you wrote date!.getFullYear() to silence the compiler. What happens when this line runs?"
+    [options]="quizOptions"
+    followUp="The assertion is a promise you make to the compiler, not a runtime instruction. When the promise is false, the crash still happens — just as it would with no assertion at all — which is why a real guard or ?. usually beats reaching for !."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

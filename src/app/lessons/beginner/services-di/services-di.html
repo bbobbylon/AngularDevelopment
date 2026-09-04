@@ -12,9 +12,135 @@
     You could construct <code>new CartService()</code> inside every component that needs a cart — but then each one gets
     its <em>own empty cart</em>, none of them can share state, and you can't swap in a fake version for tests.
     Dependency injection flips the direction: a component <em>declares</em> "I need a CartService" and a system called
-    the <strong>injector</strong> decides which instance to hand back (building it the first time, then reusing it) —
-    the component never touches a constructor itself.
+    the <span class="term">injector</span> decides which instance to hand back (building it the first time, then reusing
+    it) — the component never touches a constructor itself.
   </p>
+
+  <h2>Think of it as the office supply cupboard</h2>
+  <p>
+    You need a stapler. You don't manufacture one —
+    <span class="key">you ask, and whoever answers first wins.</span> And you ask in a very specific order:
+  </p>
+  <ol>
+    <li><strong>Your own desk drawer.</strong> Got one? Done. You never even walk to the cupboard.</li>
+    <li><strong>Your team's cupboard</strong> — shared by everyone on your team, nobody else.</li>
+    <li><strong>Your floor's supply room.</strong></li>
+    <li><strong>The building's central store.</strong> Everybody in the building shares this one.</li>
+  </ol>
+  <p>
+    That's the injector tree, exactly. <code>inject(CartService)</code> is "I need a stapler", and Angular walks
+    <em>up</em> from wherever you asked until something has one. Three consequences fall straight out of the picture,
+    and they're the three things this whole lesson is really about:
+  </p>
+  <ul>
+    <li>
+      <span class="term">providedIn: 'root'</span> is the building's central store. One stapler, everyone shares it, and
+      nobody has to have stocked it in advance — it's ordered the first time somebody actually asks.
+    </li>
+    <li>
+      A component's <code>providers: [X]</code> is <strong>your team buying its own</strong>. From then on your team
+      never reaches the building's — you stop at your own cupboard every time.
+      <span class="wrong">That is the shadowing bug</span>, and you'll meet it in the puzzle further down.
+    </li>
+    <li>
+      <span class="right">Nobody has one anywhere?</span> Angular doesn't quietly improvise a stapler — it throws
+      <code>NullInjectorError</code>. Failing loudly is the point.
+    </li>
+  </ul>
+
+  <h2>The walk, drawn</h2>
+  <p>Here is precisely what happened in the two live demos below, on one picture:</p>
+
+  <svg class="diagram" viewBox="0 0 760 322" role="img" aria-labelledby="di-t di-d">
+    <title id="di-t">How inject() walks up the injector tree in the two demos on this page</title>
+    <desc id="di-d">
+      Three nested injectors are shown: the root environment injector at the top, the lesson component below it, and two
+      sibling counter-widget components at the bottom. A green path traces inject(CartService) from a widget all the way
+      up to the root injector, where the single shared instance is found. Two short amber paths show
+      inject(CounterService) stopping immediately at each widget's own injector, because each widget lists
+      CounterService in its own providers array — so the two widgets get separate instances and never see each other's
+      state.
+    </desc>
+    <defs>
+      <marker id="di-arrow-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)" />
+      </marker>
+      <marker id="di-arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--amber)" />
+      </marker>
+    </defs>
+
+    <!-- root injector -->
+    <rect x="230" y="14" width="300" height="56" rx="9" fill="var(--bg-elevated)" stroke="var(--green)" />
+    <text x="380" y="36" text-anchor="middle" font-size="12.5" font-weight="700" fill="var(--green)">
+      root (environment) injector
+    </text>
+    <text x="380" y="55" text-anchor="middle" font-size="11" font-family="monospace" fill="var(--text)">
+      CartService ✓ &nbsp;(providedIn: 'root')
+    </text>
+
+    <!-- lesson component -->
+    <rect x="230" y="108" width="300" height="50" rx="9" fill="var(--bg-card)" stroke="var(--border)" />
+    <text x="380" y="128" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">
+      &lt;app-lesson-services-di&gt;
+    </text>
+    <text x="380" y="146" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">
+      no providers — nothing to find here
+    </text>
+
+    <!-- two widgets -->
+    <rect x="70" y="200" width="250" height="58" rx="9" fill="var(--bg-card)" stroke="var(--amber)" />
+    <text x="195" y="220" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">
+      &lt;app-counter-widget&gt; #1
+    </text>
+    <text x="195" y="240" text-anchor="middle" font-size="10.5" font-family="monospace" fill="var(--amber)">
+      providers: [CounterService] ✓
+    </text>
+
+    <rect x="440" y="200" width="250" height="58" rx="9" fill="var(--bg-card)" stroke="var(--amber)" />
+    <text x="565" y="220" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text)">
+      &lt;app-counter-widget&gt; #2
+    </text>
+    <text x="565" y="240" text-anchor="middle" font-size="10.5" font-family="monospace" fill="var(--amber)">
+      providers: [CounterService] ✓
+    </text>
+
+    <!-- tree edges -->
+    <g stroke="var(--border)" stroke-width="1.5" fill="none">
+      <path d="M 380 70 L 380 108" />
+      <path d="M 300 158 C 250 158 195 170 195 200" />
+      <path d="M 460 158 C 510 158 565 170 565 200" />
+    </g>
+
+    <!-- CartService walk: widget #1 all the way to root -->
+    <path
+      d="M 96 200 C 40 200 24 160 24 130 C 24 60 120 42 226 42"
+      fill="none"
+      stroke="var(--green)"
+      stroke-width="2"
+      stroke-dasharray="6 4"
+      marker-end="url(#di-arrow-g)"
+    />
+    <text x="12" y="292" font-size="11.5" font-weight="700" fill="var(--green)">
+      inject(CartService) — walks past every injector to the root. One instance, shared by the whole page.
+    </text>
+
+    <!-- CounterService: stops immediately -->
+    <g stroke="var(--amber)" stroke-width="2" marker-end="url(#di-arrow-a)">
+      <path d="M 195 278 L 195 264" fill="none" />
+      <path d="M 565 278 L 565 264" fill="none" />
+    </g>
+    <text x="12" y="312" font-size="11.5" font-weight="700" fill="var(--amber)">
+      inject(CounterService) — found on the first try. Walk over. Two widgets, two instances.
+    </text>
+  </svg>
+
+  <app-remember variant="rule" label="The one rule that answers most DI questions">
+    <strong>The nearest provider wins, and the search only ever goes up.</strong> Start at the component that called
+    <code>inject()</code>, check its own <code>providers</code>, then its parent's, on up to the root. First hit wins
+    and the walk stops there. Everything else — singletons, per-component state, shadowing,
+    <code>NullInjectorError</code> — is a consequence of that one sentence.
+  </app-remember>
 
   <h2>Defining a service</h2>
   <div class="code">
@@ -408,6 +534,37 @@
       </tr>
     </table>
   </div>
+
+  <h2>Predict the bug</h2>
+  <p>
+    This is the DI bug you are most likely to actually meet at work, and it is nasty because
+    <span class="key">nothing throws.</span> The header shows the cart count. The product page adds to the cart. Read
+    both components and decide what the header shows after the user clicks "Add coffee":
+  </p>
+
+  <app-predict
+    prompt="The user clicks Add coffee. What does the header display — and which line is the bug?"
+    [code]="shadowingSample"
+    answer="**The header still says `Cart: 0`.** Forever. No error, no warning, no clue in the console.
+
+The bug is `providers: [CartService]` on `ProductPage`. That line is not a note saying *this component uses CartService* — it is a registration, and it builds a **second, completely separate** `CartService` at that component's injector. The click adds coffee to that one. The header injected from higher up the tree, walked past `ProductPage` entirely, and reached the root instance, which nobody has touched.
+
+Back to the cupboard: your team bought its own stapler. You are stapling happily. The building's stapler, which everyone else reaches for, is still sitting untouched in the central store.
+
+**Why it happens.** Almost always someone hit `NullInjectorError` in a *test*, found that adding `providers: [Service]` made the red go away, and shipped it. The real fix in that test was to register the provider on `TestBed` instead — or to do nothing at all, since `providedIn: 'root'` already handles it.
+
+**How to spot it in review.** A class with `providedIn: 'root'` should almost never appear in a component's `providers` array. When it does, it is either a deliberate, commented decision to scope state to a subtree — or this bug. There is no third case."
+    revealLabel="Reveal what the header shows"
+  />
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="`CartService` is declared with `providedIn: 'root'`. One component *also* lists `providers: [CartService]`, and three of that component's descendants inject it. How many `CartService` instances exist?"
+    [options]="quizOptions"
+    followUp="Count instances by counting *registrations*, not injections. Every `providedIn` and every `providers` entry is one potential instance; every `inject()` call is just a lookup that finds one of them."
+  />
+
+  <app-faq [items]="questions" heading="There are no dumb questions" />
 
   <h2>Exam pitfalls</h2>
   <ul>

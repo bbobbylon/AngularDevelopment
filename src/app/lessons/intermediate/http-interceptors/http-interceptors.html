@@ -18,12 +18,60 @@
     >: forget it and the request never reaches the backend (a silent hang).
   </div>
 
+  <app-predict
+    prompt="loggingInterceptor calls next(req) but forgets the return keyword. The caller does http.get(...).subscribe({ next, error }). Neither callback is ever invoked, and no console error appears anywhere. What's actually happening under the hood?"
+    [code]="missingReturnSample"
+    answer="The interceptor function's return value is undefined, not the Observable that next(req) produced. Whatever's holding that Observable — Angular's internal chain composition, ultimately the subscribe() call the caller made — is now subscribed to nothing at all, because there's no Observable to subscribe to. No error is thrown because nothing IS wrong from the type system's point of view at runtime (this exact case is normally caught at compile time by HttpInterceptorFn's return type — Observable<HttpEvent<unknown>> — which undefined doesn't satisfy). The request headed into next(req) may well complete somewhere inside the engine, but its result is thrown away, unobserved, and neither the success nor error callback ever fires. This is exactly what 'a silent hang' means: not a frozen browser, just a promise/observable nobody is listening to anymore."
+  />
+
   <h2>The onion: order matters</h2>
   <p>
     Interceptors run in array order on the way <em>out</em> and in <strong>reverse</strong> on the way <em>back</em> —
     like layers of an onion wrapping the request. Send a request and watch the chain
     <code>[auth, logging, error]</code> unwind:
   </p>
+  <p>
+    Picture a package moving through customs checkpoints at an airport: checkpoint A stamps it, checkpoint B scans it,
+    checkpoint C logs it — in that exact order — before it's handed to the plane. The RETURN trip runs the same three
+    checkpoints in <strong>reverse</strong>: C inspects the incoming package first, then B, then A, before it reaches
+    you. Whichever checkpoint touches the outgoing package <em>last</em> is the one that touches the incoming package
+    <em>first</em> — and that reversal is the entire reason interceptor order changes behaviour.
+  </p>
+
+  <svg class="diagram" viewBox="0 0 500 260" role="img" aria-labelledby="hi-t hi-d">
+    <title id="hi-t">The onion — nested layers, out in order, back in reverse</title>
+    <desc id="hi-d">
+      Three concentric rounded rectangles nested inside each other like an onion's cross-section. The outermost layer is
+      labelled auth, the middle layer logging, the innermost layer error, and at the very center sits the backend. An
+      arrow labelled request going out spirals inward through auth, then logging, then error, then reaches the backend
+      at the center. A second arrow labelled response coming back spirals back outward in the exact reverse order,
+      leaving error first, then logging, then auth last, before reaching the caller.
+    </desc>
+    <rect x="10" y="10" width="480" height="240" rx="16" fill="none" stroke="var(--violet)" stroke-width="1.5" />
+    <text x="24" y="30" font-size="12" font-weight="700" fill="var(--violet)">auth</text>
+    <rect x="50" y="50" width="400" height="180" rx="14" fill="none" stroke="var(--green)" stroke-width="1.5" />
+    <text x="64" y="70" font-size="12" font-weight="700" fill="var(--green)">logging</text>
+    <rect x="90" y="90" width="320" height="120" rx="12" fill="none" stroke="var(--amber)" stroke-width="1.5" />
+    <text x="104" y="110" font-size="12" font-weight="700" fill="var(--amber)">error</text>
+    <rect x="180" y="130" width="140" height="50" rx="8" fill="var(--red)" opacity="0.15" />
+    <text x="250" y="160" font-size="12" text-anchor="middle" fill="var(--red)" font-weight="700">backend</text>
+    <text x="250" y="228" font-size="11" text-anchor="middle" fill="var(--text-muted)">
+      → request: auth → logging → error → backend
+    </text>
+    <text x="250" y="246" font-size="11" text-anchor="middle" fill="var(--text-muted)">
+      ← response: backend → error → logging → auth
+    </text>
+  </svg>
+
+  <app-remember variant="rule" label="Out in order, back in reverse">
+    <strong
+      >Whichever interceptor touches the request LAST on the way out is the FIRST to see the response on the way
+      back.</strong
+    >
+    The array you pass to <code>withInterceptors</code> is the outward order; the inward order is always its mirror
+    image.
+  </app-remember>
+
   <div class="demo">
     <p class="demo__title">Live — illustrative pipeline (not a real request)</p>
     <div class="row" style="margin-bottom: 12px">
@@ -200,6 +248,13 @@
       inside them.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="You call const obs$ = http.get('/api/profile'); and then subscribe to obs$ twice, separately. How many times does each interceptor in the chain run, and how many network requests actually go out?"
+    [options]="quizOptions"
+    followUp="This is 'requests are cold end to end' made concrete: an HttpClient call is a recipe, not a result, and every subscribe() cooks it fresh — auth, logging, error, all of it, plus a brand-new request over the wire. If you need one shared result across multiple consumers, that's exactly what RxJS sharing operators (like shareReplay) are for — HttpClient itself makes no such promise on its own."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

@@ -1000,7 +1000,7 @@ entries also carry the reason it matters.
 
 ### `intermediate/structural-directives`
 
-- _*ngTemplateGuard_* — type narrowing inside the stamped template_* — _sub-concept, high_  
+- _\*ngTemplateGuard_* — type narrowing inside the stamped template_* — _sub-concept, high_  
   Add a section contrasting the two static members on the same `*appUnless`/`*appHasRole` directive: `static ngTemplateGuard_appUnless: 'binding'` (narrow by the bound expression) versus the method form `static ngTemplateGuard_appIfDefined<T>(dir, expr: T | null): expr is T`. Show the before/after compile error — `user.name` red-squiggled without the guard, clean with it — and state that both guards are erased at build time.
   <sub>The lesson teaches `ngTemplateContextGuard` (what the `let` vars are) but never the sibling hook that makes `*ngIf="user"` narrow `User | null` to `User` inside the block. It is the reason `@if`/`*ngIf` templates type-check, it is the only remaining piece of the 'write your own @if' story, and it is a standard advanced-Angular interview question.</sub>
 - **Microsyntax `as` clause and secondary TemplateRef inputs (the `; else` pattern)** — _sub-concept, high_  

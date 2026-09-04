@@ -1,6 +1,7 @@
 import { JsonPipe } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * The shape the utility-type demos transform.
@@ -28,11 +29,55 @@ type UserKey = (typeof USER_KEYS)[number];
  */
 @Component({
   selector: 'app-lesson-ts-utility-types',
-  imports: [RouterLink, JsonPipe],
+  imports: [RouterLink, JsonPipe, Predict, Quiz, Remember],
   templateUrl: './utility-types.html',
   styleUrl: './utility-types.css',
 })
 export class UtilityTypes {
+  /**
+   * The shallow-`Readonly` puzzle used by the ask-before-telling block.
+   *
+   * `Readonly<T>` only stamps `readonly` on T's own top-level properties — it
+   * never recurses into the object each property points to. Reassigning the
+   * property is blocked; mutating THROUGH it is not.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly shallowReadonlySample = `interface State {
+  user: { name: string };
+}
+
+const s: Readonly<State> = { user: { name: 'Ada' } };
+
+s.user = { name: 'Bob' };      // ①
+s.user.name = 'Grace';         // ②`;
+
+  /**
+   * The self-test, on distributive conditionals over an empty union. Every
+   * wrong answer invents behavior for the "no members to distribute over"
+   * case instead of recognizing it produces an empty union too.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'never — Exclude<T, U> is a distributive conditional, and distributing over an empty union (never) yields never straight back, without ever actually evaluating the extends check.',
+      correct: true,
+      why: "This is exactly why the demo above prints 'never' as the K union when no keys are selected: an empty selection is never at the type level, and any distributive conditional applied to never simply stays never — there's nothing to distribute over, so neither branch of the conditional ever runs.",
+    },
+    {
+      text: "'x' — with no members to exclude, the conditional falls through to its false branch and returns the exclusion argument itself.",
+      why: "Distributive conditionals don't have a 'nothing to check, return the other side' fallback. An empty union has zero members to distribute over, so the result is an empty union (never) — not a fallback value pulled from U.",
+    },
+    {
+      text: "It's a compile error — Exclude requires at least one member in its first type argument.",
+      why: "There's no such arity requirement. never is a perfectly ordinary type argument, and TypeScript happily evaluates (or rather, trivially skips) the distribution over it.",
+    },
+    {
+      text: 'any — TypeScript widens an empty union to any when a conditional type has nothing concrete to distribute over.',
+      why: 'TypeScript never silently widens to any here. An empty union stays exactly what it is — never — all the way through a distributive conditional.',
+    },
+  ];
+
   /**
    * The starting record that patches are applied over.
    */

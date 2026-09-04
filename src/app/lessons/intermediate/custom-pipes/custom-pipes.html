@@ -2,10 +2,32 @@
   <span class="lesson__eyebrow">Intermediate · Pipes &amp; Directives</span>
   <h1>Custom Pipes</h1>
   <p class="lead">
-    A pipe transforms a value for display — formatting, filtering, mapping — without touching the component class.
-    Decorate a class with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's
+    A pipe transforms a value <em>for display</em> — formatting, filtering, mapping — without touching the component
+    class. Decorate a class with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's
     <code>imports</code>, and use the <code>|</code> operator in the template.
+    <span class="key">The value in your component never changes; only what the user sees does.</span>
   </p>
+
+  <h2>Think of it as a lens filter</h2>
+  <p>
+    Screw a polarising filter onto a camera and the sky goes deeper blue. Nothing happened to the sky — the filter sits
+    between the scene and the sensor and changes what gets recorded. Unscrew it and the sky is exactly as it was.
+  </p>
+  <p>
+    That's a pipe. <code>{{ '{{' }} price | currency {{ '}}' }}</code> puts a filter between <code>this.price</code> and
+    the pixels. <code>this.price</code> is still the number <code>4.5</code>; the screen says <code>$4.50</code>. Two
+    consequences follow from the analogy and they're both worth holding on to:
+  </p>
+  <ul>
+    <li>
+      <span class="right">Filters stack.</span> You can screw one onto another —
+      <code>{{ '{{' }} value | truncate:30 | sentenceCase {{ '}}' }}</code> — and they apply left to right.
+    </li>
+    <li>
+      <span class="wrong">Filters can't change the scene.</span> A pipe that mutates its input is a bug, not a clever
+      trick, because Angular assumes it hasn't and caches accordingly.
+    </li>
+  </ul>
 
   <h2>Anatomy</h2>
   <div class="code">
@@ -214,6 +236,117 @@ export class HighlightPipe implements PipeTransform &#123;
     }
   </div>
 
+  <h2>Pure vs impure — what actually runs, and when</h2>
+  <p>
+    This is the part that decides whether your pipe is free or ruinous, so here it is drawn rather than described. Both
+    rows are the same eight change-detection ticks. A filled mark means <code>transform()</code> ran:
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 250" role="img" aria-labelledby="pipe-t pipe-d">
+    <title id="pipe-t">A pure pipe versus an impure pipe across eight change-detection ticks</title>
+    <desc id="pipe-d">
+      Two rows over the same eight change-detection ticks. The pure pipe row runs transform only on tick 1 (first
+      render) and tick 5 (where the input reference changed); the other six ticks are cache hits. The impure pipe row
+      runs transform on all eight ticks. Below, a note: on tick 3 the array was mutated in place with push, and the pure
+      pipe did not notice because the reference did not change.
+    </desc>
+
+    <!-- tick ruler -->
+    <text x="14" y="26" font-size="11" fill="var(--text-muted)">change-detection ticks →</text>
+    <g font-size="11" fill="var(--text-muted)" text-anchor="middle">
+      <text x="220" y="26">1</text>
+      <text x="285" y="26">2</text>
+      <text x="350" y="26">3</text>
+      <text x="415" y="26">4</text>
+      <text x="480" y="26">5</text>
+      <text x="545" y="26">6</text>
+      <text x="610" y="26">7</text>
+      <text x="675" y="26">8</text>
+    </g>
+
+    <!-- what happened on each tick -->
+    <g font-size="10" fill="var(--text-muted)" text-anchor="middle">
+      <text x="220" y="44">render</text>
+      <text x="350" y="44">push()</text>
+      <text x="480" y="44">new ref</text>
+    </g>
+
+    <!-- pure row -->
+    <text x="14" y="82" font-size="12.5" font-weight="700" fill="var(--green)">pure (default)</text>
+    <text x="14" y="98" font-size="10.5" fill="var(--text-muted)">runs 2 / 8</text>
+    <line x1="200" y1="86" x2="700" y2="86" stroke="var(--border)" stroke-width="1.5" />
+    <g>
+      <circle cx="220" cy="86" r="9" fill="var(--green)" />
+      <circle cx="285" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
+      <circle cx="350" cy="86" r="5" fill="none" stroke="var(--red)" stroke-width="2" />
+      <circle cx="415" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
+      <circle cx="480" cy="86" r="9" fill="var(--green)" />
+      <circle cx="545" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
+      <circle cx="610" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
+      <circle cx="675" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
+    </g>
+
+    <!-- impure row -->
+    <text x="14" y="152" font-size="12.5" font-weight="700" fill="var(--amber)">pure: false</text>
+    <text x="14" y="168" font-size="10.5" fill="var(--text-muted)">runs 8 / 8</text>
+    <line x1="200" y1="156" x2="700" y2="156" stroke="var(--border)" stroke-width="1.5" />
+    <g fill="var(--amber)">
+      <circle cx="220" cy="156" r="9" />
+      <circle cx="285" cy="156" r="9" />
+      <circle cx="350" cy="156" r="9" />
+      <circle cx="415" cy="156" r="9" />
+      <circle cx="480" cy="156" r="9" />
+      <circle cx="545" cy="156" r="9" />
+      <circle cx="610" cy="156" r="9" />
+      <circle cx="675" cy="156" r="9" />
+    </g>
+
+    <!-- the tick-3 callout -->
+    <line x1="350" y1="98" x2="350" y2="196" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="3 3" />
+    <text x="350" y="212" font-size="11" fill="var(--red)" text-anchor="middle" font-weight="600">
+      tick 3: you pushed into the array — same reference, so the pure pipe skipped it
+    </text>
+    <text x="350" y="232" font-size="11" fill="var(--text-muted)" text-anchor="middle">
+      The screen is now stale. The impure pipe caught it — at the cost of running on all eight ticks.
+    </text>
+  </svg>
+
+  <app-remember variant="rule" label="The one-line rule">
+    <strong>A pure pipe watches the box, not the contents.</strong> It re-runs when the input is a
+    <em>different object</em> (<code>!==</code> what it saw last time), never when the same object's insides changed.
+    So: replace, don't mutate. And when you can't control that, don't reach for <code>pure: false</code> — reach for
+    <code>computed()</code>, which tracks reads instead of comparing references and costs you nothing on the ticks where
+    nothing changed.
+  </app-remember>
+
+  <h2>Predict the bug</h2>
+  <p>
+    Everything below compiles, and every piece of it looks like the examples above. Decide what the user sees after
+    clicking the button before you open the answer:
+  </p>
+
+  <app-predict
+    prompt="The list shows Apple and Banana. The search box is empty. You click Add Kiwi. What is on screen now — and what would you change?"
+    [code]="mutationTrapSample"
+    answer="**Still just Apple and Banana.** `push()` mutated the array in place, so `this.fruits` is the same object reference it was before. `filterBy` is pure, so Angular compares this render's arguments to the last render's, finds them all `===`, and returns the cached result without calling `transform()` at all. Kiwi exists in the data and will never appear on screen.
+
+Worse, it's *intermittently* wrong: type a character in the search box and the `query()` argument changes, the cache misses, the pipe re-runs — and Kiwi appears. So the bug looks like “the list only updates when I search”, which sends people hunting in completely the wrong place.
+
+The fixes, worst to best:
+
+1. `pure: false` — works, and now the filter runs on every change-detection pass forever. You have fixed a correctness bug by making the whole list slow.
+2. `this.fruits = [...this.fruits, kiwi]` — a new reference, cache miss, correct render. Fine, but it depends on every future contributor remembering never to mutate.
+3. **Delete the pipe.** `filtered = computed(() => this.fruits().filter(f => f.name.toLowerCase().includes(this.query().toLowerCase())))`, with `fruits` as a signal. `computed()` tracks the signal *read*, so `fruits.update(...)` invalidates it automatically — there is no reference discipline left to get wrong. This is why Angular's own guidance is to filter in the component and keep pipes for formatting."
+    revealLabel="Reveal what's on screen"
+  />
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="The same interpolation — `user.name | truncate:10` — appears twice in one template, once in the header and once in the footer. Same value, same argument, same pipe class. On the first render, how many times does `transform()` run?"
+    [options]="quizOptions"
+    followUp="The mental model to keep: one `|` in a template means one pipe instance with one cache slot. That is also why a pipe must never hold state between calls — the instance is long-lived and reused for every render of that binding."
+  />
+
   <h2>Pure vs impure — quick reference</h2>
   <table class="t">
     <thead>
@@ -264,11 +397,17 @@ export class HighlightPipe implements PipeTransform &#123;
     in order.
   </div>
 
+  <app-faq [items]="questions" heading="There are no dumb questions" />
+
   <h2>Key takeaways</h2>
   <ul>
     <li>
       <code>&#64;Pipe(&#123; name, standalone: true &#125;)</code> + <code>transform(value, ...args)</code> is all you
       need.
+    </li>
+    <li>
+      A pipe is a <strong>lens filter</strong>: it changes what's displayed, never the underlying value. Mutating the
+      input inside <code>transform()</code> is always a bug.
     </li>
     <li>Pure pipes are memoized — they only re-run when the input reference changes.</li>
     <li>Pipes can <code>inject()</code> services: <code>DatePipe</code>, <code>HttpClient</code>, I18n services…</li>

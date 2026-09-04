@@ -3,11 +3,69 @@
   <h1>Mapped &amp; Conditional Types</h1>
   <p class="lead">
     Here's the mental shift this lesson asks of you: TypeScript's type system is itself a
-    <strong>small programming language</strong> that runs inside the compiler. It has loops over keys (mapped types),
-    if/else (conditional types), pattern-matching variables (<code>infer</code>), and string interpolation (template
-    literal types). Every utility type you used in the previous lesson — <code>Partial</code>, <code>Pick</code>,
-    <code>ReturnType</code> — is a short program in this language, and by the end of this page you can write all of them
-    from scratch.
+    <span class="key">small programming language</span> that runs inside the compiler. It has loops over keys (<span
+      class="term"
+      >mapped types</span
+    >), if/else (<span class="term">conditional types</span>), pattern-matching variables (<code>infer</code>), and
+    string interpolation (<span class="term">template literal types</span>). Every utility type you used in the previous
+    lesson — <code>Partial</code>, <code>Pick</code>, <code>ReturnType</code> — is a short program in this language, and
+    by the end of this page you can write all of them from scratch.
+  </p>
+
+  <h2>Everything here has a runtime twin</h2>
+  <p>
+    Here's the mental model to carry through the whole lesson:
+    <span class="key">a type program is the ordinary program you'd write on values, moved up one floor.</span> Same
+    loops, same ternaries, same string templates — different operands. Type-level code looks alien only until you notice
+    it's the same six moves you already make every day. You aren't learning new ideas; you're learning where the
+    familiar ones moved to:
+  </p>
+  <table>
+    <caption>
+      Each row is one idea, written twice: once for values, once for types.
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">You already write this on values…</th>
+        <th scope="col">…and this is the same move on types</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>Object.fromEntries(entries.map(…))</code> — rebuild an object key by key</td>
+        <td><strong>Mapped type:</strong> <code>[K in keyof T]: …</code></td>
+      </tr>
+      <tr>
+        <td><code>cond ? a : b</code> — a ternary</td>
+        <td><strong>Conditional type:</strong> <code>T extends U ? X : Y</code></td>
+      </tr>
+      <tr>
+        <td>A regex <em>capture group</em> — match a shape and name a piece of it</td>
+        <td><code>infer U</code> — match a shape and name a piece of it</td>
+      </tr>
+      <tr>
+        <td>
+          <code>`get${{ '{' }}name{{ '}' }}`</code>
+          — a template string
+        </td>
+        <td>
+          <strong>Template literal type:</strong>
+          <code>`get${{ '{' }}Capitalize&lt;K&gt;{{ '}' }}`</code>
+        </td>
+      </tr>
+      <tr>
+        <td><code>delete obj[k]</code> — remove a property</td>
+        <td>Remap a key to <code>never</code> — the key vanishes</td>
+      </tr>
+      <tr>
+        <td><code>arr.filter(…)</code> — keep some, drop others</td>
+        <td>Mapped type + <code>never</code> remap, together</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    <span class="key">Whenever a type program confuses you, ask what the runtime version would look like.</span> The
+    answer is almost always in that table, and the shapes line up more closely than the syntax suggests.
   </p>
 
   <h2>Mapped types — a loop over keys</h2>
@@ -24,8 +82,9 @@ type Optional&lt;T&gt; = {{ '{' }} [K in keyof T]?: T[K] {{ '}' }};
   <p>
     Read it aloud:
     <em>"for every key K of T, produce an optional property K whose type is whatever T had at K."</em> That's
-    <code>Partial&lt;T&gt;</code>, the real one — the standard library's version is literally this line. The modifiers
-    can also be <em>removed</em> with a minus sign:
+    <code>Partial&lt;T&gt;</code>, the real one —
+    <span class="key">the standard library's version is literally this line.</span> The modifiers can also be
+    <em>removed</em> with a minus sign — which is the part people forget:
   </p>
   <div class="code">
     <pre>
@@ -69,9 +128,13 @@ type A = IsString<'hi'>;   // 'yes'
 type B = IsString<42>;     // 'no'</pre>
   </div>
   <p>
-    <code>extends</code> here means <strong>"is assignable to"</strong> — the same compatibility question the checker
-    asks at every assignment, now used as a branch condition. And <code>infer</code> adds pattern-matching: name a part
-    of the matched shape and reuse it in the true branch:
+    <code>extends</code> here means <span class="key">"is assignable to"</span> — the same compatibility question the
+    checker asks at every assignment, now used as a branch condition. And <code>infer</code> adds
+    <span class="term">pattern-matching</span>: name a part of the matched shape and reuse it in the true branch. Think
+    of <code>infer U</code> as a <strong>regex capture group</strong>. In <code>/^Promise&lt;(.+)&gt;$/</code> the
+    parentheses say <em>"match anything here, and remember what it was so I can use it"</em>;
+    <code>T extends Promise&lt;infer U&gt;</code> says exactly that about a type, and <code>U</code> is the captured
+    group:
   </p>
   <div class="code">
     <pre>
@@ -119,9 +182,78 @@ type MyReturn&lt;T&gt;   = T extends (...args: never[]) => infer R ? R : never;
   <h2>Distribution — the semantics that make Exclude work</h2>
   <p>
     The fourth case above hinges on a rule worth stating precisely: when the checked type is a
-    <strong>bare type parameter</strong> and you instantiate it with a union, the conditional maps over each member and
-    unions the results. That's why one-line filters over unions work at all. When you <em>don't</em>
-    want it, wrap both sides in a one-element tuple — matching a non-bare pattern disables distribution:
+    <span class="term">bare type parameter</span> and you instantiate it with a union, the conditional maps over each
+    member and unions the results. Here is that split-and-rejoin, drawn:
+  </p>
+
+  <svg class="diagram" viewBox="0 0 760 250" role="img" aria-labelledby="dist-t dist-d">
+    <title id="dist-t">How a distributive conditional evaluates a union</title>
+    <desc id="dist-d">
+      The union 'a' | 'b' | 'c' splits into three separate evaluations of "extends 'b' ? never : T". The 'a' and 'c'
+      branches survive; the 'b' branch becomes never. The three results are unioned back together, and because never
+      contributes nothing, the final type is 'a' | 'c'.
+    </desc>
+    <defs>
+      <marker id="dist-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
+      </marker>
+    </defs>
+
+    <!-- the input union -->
+    <rect x="8" y="98" width="150" height="54" rx="8" fill="var(--bg-elevated)" stroke="var(--border)" />
+    <text x="83" y="120" text-anchor="middle" font-size="13" font-family="monospace" fill="var(--text)">
+      'a' | 'b' | 'c'
+    </text>
+    <text x="83" y="139" text-anchor="middle" font-size="11" fill="var(--text-muted)">the union goes in</text>
+
+    <!-- split fan -->
+    <g fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#dist-arrow)">
+      <path d="M 162 118 C 200 118 200 45 236 45" />
+      <path d="M 162 125 L 236 125" />
+      <path d="M 162 132 C 200 132 200 205 236 205" />
+    </g>
+    <text x="199" y="94" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">split</text>
+
+    <!-- three parallel evaluations -->
+    <g font-size="12" font-family="monospace">
+      <rect x="240" y="22" width="230" height="46" rx="8" fill="var(--bg-card)" stroke="var(--border)" />
+      <text x="255" y="50" fill="var(--text)">'a' extends 'b' ? never : 'a'</text>
+
+      <rect x="240" y="102" width="230" height="46" rx="8" fill="var(--bg-card)" stroke="var(--border)" />
+      <text x="255" y="130" fill="var(--text)">'b' extends 'b' ? never : 'b'</text>
+
+      <rect x="240" y="182" width="230" height="46" rx="8" fill="var(--bg-card)" stroke="var(--border)" />
+      <text x="255" y="210" fill="var(--text)">'c' extends 'b' ? never : 'c'</text>
+    </g>
+
+    <!-- per-member results -->
+    <g stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#dist-arrow)">
+      <line x1="474" y1="45" x2="516" y2="45" />
+      <line x1="474" y1="125" x2="516" y2="125" />
+      <line x1="474" y1="205" x2="516" y2="205" />
+    </g>
+    <g font-size="14" font-family="monospace" font-weight="600">
+      <text x="524" y="50" fill="var(--green)">'a'</text>
+      <text x="524" y="130" fill="var(--red)">never</text>
+      <text x="524" y="210" fill="var(--green)">'c'</text>
+    </g>
+    <text x="570" y="130" font-size="11" fill="var(--text-muted)">← contributes nothing</text>
+
+    <!-- rejoin -->
+    <g fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#dist-arrow)">
+      <path d="M 556 45 C 620 45 620 108 664 108" />
+      <path d="M 596 205 C 640 205 640 152 664 152" />
+    </g>
+    <rect x="668" y="98" width="86" height="54" rx="8" fill="var(--bg-elevated)" stroke="var(--accent)" />
+    <text x="711" y="122" text-anchor="middle" font-size="13" font-family="monospace" fill="var(--text)">
+      'a' | 'c'
+    </text>
+    <text x="711" y="141" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">rejoin</text>
+  </svg>
+
+  <p>
+    That's why one-line filters over unions work at all. When you <em>don't</em> want the split, wrap both sides in a
+    one-element tuple — matching a non-bare pattern disables distribution:
   </p>
   <div class="code">
     <pre>
@@ -131,13 +263,38 @@ type ToArrayND&lt;T&gt; = [T] extends [unknown] ? T[] : never;   // ND = non-dis
 ToArray&lt;string | number&gt;    // string[] | number[]   (per member)
 ToArrayND&lt;string | number&gt;  // (string | number)[]   (union kept whole)</pre>
   </div>
+  <app-remember variant="rule" label="The distribution rule">
+    <strong>Bare distributes. Bracketed doesn't.</strong> If the thing on the left of <code>extends</code> is a
+    <em>naked</em> type parameter — just <code>T</code>, nothing around it — a union fed into it gets split, evaluated
+    member by member, and re-unioned. Put brackets round both sides (<code>[T] extends [U]</code>) and the union is
+    checked whole, in one pass.
+  </app-remember>
+
+  <p>
+    Now the edge case that catches everyone, including people who already know the rule above. Read this and commit to
+    an answer before you open it:
+  </p>
+
+  <app-predict
+    prompt="What is `B` — the type of `IsNever<never>`? It looks like it has to be `true`."
+    [code]="isNeverSample"
+    answer="`B` is **`never`**, not `true`. Distribution is defined as *iterating the members of the union*, and `never` is the **empty** union — the union with no members at all. So there is nothing to iterate: the conditional never runs, neither branch is taken, and the result is `never` by default. Your `true` and `false` branches are simply never reached. The fix is to stop the distribution so the type is checked whole: `type IsNever<T> = [T] extends [never] ? true : false`. Remember this shape — it is a classic interview question precisely because the intuitive answer is wrong."
+    revealLabel="Reveal what B actually is"
+  />
+
   <div class="warn">
-    Distribution's sharp edge: <code>never</code> is the empty union, so a distributive conditional over
-    <code>never</code> has nothing to iterate — the result is <code>never</code> itself, whatever your branches say.
-    <code>IsNever&lt;T&gt; = T extends never ? true : false</code> famously returns <code>never</code>, not
-    <code>true</code>; the fix is the tuple wrap: <code>[T] extends [never]</code>. If a conditional type ever behaves
-    "impossibly", suspect distribution first.
+    <span class="wrong">Distribution's sharp edge:</span> because <code>never</code> is the empty union,
+    <em>any</em> distributive conditional over <code>never</code> collapses to <code>never</code>, whatever your
+    branches say. The fix is always the same tuple wrap.
+    <span class="key">If a conditional type ever behaves "impossibly", suspect distribution first.</span>
   </div>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="Given `type ToArray<T> = T extends unknown ? T[] : never`, what is `ToArray<string | number>`?"
+    [options]="quizOptions"
+    followUp="The tell is the bare `T` on the left of `extends`. Cover the right-hand side of any conditional type and look only at what sits left of the keyword — that alone decides whether a union gets split."
+  />
 
   <h2>Template literal types — string building for types</h2>
   <div class="code">
@@ -181,6 +338,8 @@ type MyReturnType&lt;T&gt; = T extends (...a: never[]) => infer R ? R : never;</
     clients, event maps). A type that takes minutes to understand costs every reader those minutes forever — same
     code-review rules as clever runtime code.
   </div>
+
+  <app-faq [items]="questions" heading="There are no dumb questions" />
 
   <h2>Exam corner</h2>
   <details class="qa">

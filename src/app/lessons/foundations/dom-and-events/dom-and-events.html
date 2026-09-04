@@ -87,6 +87,52 @@ document.body.append(p);                // …now it's in the tree → on screen
     <code>append</code> attaches it to the tree. On-screen = in-the-tree, always.
   </p>
 
+  <p>
+    Extend the recipe/cake picture one step further. An HTML <strong>attribute</strong> is a line in the recipe —
+    written once, on the page, frozen forever after the browser reads it. A <strong>property</strong> is the actual
+    state of the cake sitting in front of you right now — it can change the moment someone takes a bite, with no effect
+    on what the recipe card still says. Most of the time they agree and the distinction is invisible; then a user
+    interacts with the page and they quietly diverge.
+  </p>
+  <table class="t">
+    <tr>
+      <th></th>
+      <th>Attribute</th>
+      <th>Property</th>
+    </tr>
+    <tr>
+      <td>Where it lives</td>
+      <td>the HTML source text</td>
+      <td>the live DOM object in memory</td>
+    </tr>
+    <tr>
+      <td>Type</td>
+      <td>always a string</td>
+      <td>a real JS type — boolean, number, whatever fits</td>
+    </tr>
+    <tr>
+      <td>After a user interacts</td>
+      <td>unchanged — the source text never edits itself</td>
+      <td>reflects what actually happened</td>
+    </tr>
+    <tr>
+      <td>Read via</td>
+      <td><code>el.getAttribute('checked')</code></td>
+      <td><code>el.checked</code></td>
+    </tr>
+  </table>
+
+  <app-remember variant="mnemonic" label="Extending the recipe/cake picture">
+    <strong>Attribute = what the recipe card says. Property = what's actually in the bowl right now.</strong> The recipe
+    never edits itself after you start cooking — read the bowl (the property) if you want to know what's really there.
+  </app-remember>
+
+  <app-predict
+    prompt="A checkbox starts checked (its checked attribute is present in the HTML). Code unchecks it via the checked PROPERTY. After that, what does getAttribute('checked') return, and what does the checked PROPERTY return?"
+    [code]="attributeVsPropertySample"
+    answer="① Before anything happens: an empty string '' — the attribute is present, and its value as written in the HTML is empty (the shorthand checked attribute has no ='...' text). ② After box.checked = false: getAttribute('checked') STILL returns '' — the attribute never changes, because nothing touched the HTML source, only the live property. ③ box.checked correctly returns false. The attribute and the property have now diverged: the attribute forever describes the page's initial state, the property describes reality. This is exactly why Angular's [checked]='...' binding writes to the PROPERTY, never the attribute — the attribute would just freeze at whatever it started as."
+  />
+
   <h2>Events: reacting to the user</h2>
   <p>
     An <strong>event</strong> is something that happens: a click, a key press, the mouse moving, a form submitting. You
@@ -131,6 +177,13 @@ to watch                   event   EVENT OBJECT full of details</pre>
 
   <h2>Bubbling — one click, many listeners</h2>
   <p>
+    Picture an office building where a complaint starts at the front desk. The receptionist (the target element) hears
+    it first, then relays it up to their floor manager (the parent), who relays it to the building manager (the
+    grandparent), all the way up to head office (<code>body</code>). Everyone in that chain who happens to be listening
+    hears the same complaint — just a little later the further up they are — unless someone in the middle picks up the
+    phone and simply refuses to pass it on (<code>event.stopPropagation()</code>).
+  </p>
+  <p>
     Here's the part that surprises people: an event doesn't fire on just one element. After firing on the target it
     <strong>bubbles up</strong> through every ancestor — target, parent, grandparent, up to <code>body</code>. Click the
     innermost box and watch all three layers hear about it, inside-out:
@@ -164,6 +217,13 @@ to watch                   event   EVENT OBJECT full of details</pre>
     ("event delegation"), and it hears clicks from every current <em>and future</em> row. Angular relies on the same
     mechanics under the hood for its event bindings.
   </p>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="One click listener sits on a <ul>, added once when the page first loads (event delegation). Six months later, code appends 40 brand-new <li> rows without touching that listener at all. Do clicks on the new rows get handled?"
+    [options]="quizOptions"
+    followUp="This is the entire reason delegation is worth learning over binding a listener to every row individually: the listener never needs to know a new row exists. It only ever needs to sit on an ancestor that isn't going anywhere."
+  />
 
   <h2>The hard way — and why it doesn't scale</h2>
   <p>Wire the counter demo by hand and you must keep data and screen in sync yourself:</p>

@@ -1,5 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * One frame of the loop walkthrough: the phase, the counter, and what happens.
@@ -101,11 +102,56 @@ const LOOP_FRAMES: LoopFrame[] = [
  */
 @Component({
   selector: 'app-lesson-decisions-loops',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './decisions-loops.html',
   styleUrl: './decisions-loops.css',
 })
 export class DecisionsLoops {
+  /**
+   * The zero-discount truthiness puzzle used by the ask-before-telling block.
+   *
+   * A user who enters a real (if unhelpful) 0%-off code is told the exact
+   * opposite of what happened — because `0` is falsy, `if (discountPercent)`
+   * can't tell "no code entered" apart from "a code worth nothing was entered".
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly zeroDiscountSample = `function describeDiscount(discountPercent) {
+  if (discountPercent) {
+    return \`\${discountPercent}% off applied!\`;
+  }
+  return 'No discount code entered';
+}
+
+// the user DID enter a real code — it just happens to be worth 0%
+console.log(describeDiscount(0));`;
+
+  /**
+   * The self-test, on whether map/filter chain order affects the result. Every
+   * wrong answer assumes the two operations commute, when doubling-then-filtering
+   * changes WHICH values even reach the filter.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'No — they give different results. map-then-filter doubles everything FIRST, and doubling any integer always produces an even number, so the filter afterward keeps all six: [2,4,6,8,10,12]. filter-then-map keeps only the originally-even numbers first, then doubles just those three: [4,8,12].',
+      correct: true,
+      why: "This is 'each stage feeds the next' made concrete: filter's job is to look at whatever array the PREVIOUS stage produced, not the original one. Doubling every number before filtering destroys the very distinction (even vs odd) the filter was trying to use, because every doubled number is even.",
+    },
+    {
+      text: 'Yes — map and filter are commutative, so applying them in either order over the same array always produces the same set of values.',
+      why: "They're not commutative in general. Swapping the order can change which values ever reach the later stage — exactly what happens here, since map's transformation (doubling) changes which numbers count as even.",
+    },
+    {
+      text: 'Yes, both produce [4, 8, 12] — filter always evaluates against the ORIGINAL array nums, regardless of where it sits in the chain.',
+      why: 'Each array method receives whatever the previous method in the chain returned, not the original array. A filter placed after a map is testing the MAPPED values, not the source data.',
+    },
+    {
+      text: 'No, but only because a reduce step is missing — adding .reduce((s, n) => s + n, 0) to the end of both chains would make them produce the same final result.',
+      why: "Reducing both arrays to a sum doesn't make the underlying difference disappear — [2,4,6,8,10,12] and [4,8,12] sum to different totals (42 vs 24), so the reduce step would still expose the order-dependence, not erase it.",
+    },
+  ];
+
   /**
    * The age in the `if`/`else` demo.
    */

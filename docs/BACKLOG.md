@@ -88,11 +88,52 @@ params (flagging repeated keys, which is what `getAll` exists for) and the fragm
 demo is doing the teaching the prose could not — the four mechanisms are genuinely different
 and people conflate them.
 
-**Remaining:** 81 lessons. Distribution: 14 at 3/9, 50 at 4/9, 12 at 5/9, 1 at 6/9, 1 at 7/9,
-3 at 8/9. Nothing is below 3/9. The 3/9 band still holds `json-and-apis`,
-`testing-services-http`, `structural-directives`, `attribute-directives`, `keyof-typeof`,
-`rxjs-subjects`, `mapped-conditional`, `testing-components`, `custom-pipes`, `narrowing`,
-`arrays-objects-basics`, `performance`, `security` and `services-di`.
+**Remaining:** 67 lessons. Distribution: **50 at 4/9**, 12 at 5/9, 1 at 6/9, 1 at 7/9,
+3 at 8/9 — 33 lessons are at 9/9.
+
+**The 3/9 band is now empty** (2026-09-01). The last fourteen went through in two sittings:
+`json-and-apis`, `testing-services-http`, `structural-directives`, `attribute-directives`,
+`keyof-typeof`, `testing-components`, `narrowing` and `arrays-objects-basics`, then
+`rxjs-subjects`, `mapped-conditional`, `custom-pipes`, `performance`, `security` and
+`services-di`. The floor is 4/9, so the next pass is the big one: 50 lessons that are
+mostly missing the same five signals — **Visual, Analogy, Memory hook, Ask before telling,
+Self-test**. That uniformity is the opportunity: the same six-block recipe below applies to
+nearly every one of them, so they can be worked in batches by section rather than
+individually researched.
+
+**What the last six needed, and what generalises.** Every one of them was already _deep_ —
+this band was never a content problem, it was a presentation problem, which is exactly the
+distinction between bar 1 and bar 2. The reusable moves:
+
+- **The analogy carries the most weight and is the hardest part.** The ones that worked all
+  explain a _mechanism_, not a vibe: DI as the office supply cupboard you search outward from
+  (which makes shadowing obvious for free), the sanitizer as airport security that screens by
+  destination and confiscates items rather than rejecting passengers, performance as a
+  restaurant where "slow to be seated" and "slow to get a refill" are unrelated complaints, a
+  pipe as a lens filter that changes the photo and not the scene, and a type program as the
+  ordinary program moved up one floor.
+- **The visual should show something the prose cannot say in one line.** The four that landed
+  were all _comparisons over time or structure_: the pure-vs-impure pipe timeline (2 runs out
+  of 8 against 8 out of 8, with the mutation tick marked), the injector-tree walk with one
+  lookup going all the way to root and another stopping immediately, the load/runtime timeline
+  with each Web Vital marked where it is measured, and the four sanitization lanes with the
+  bypass dropping out the bottom.
+- **The `<app-predict>` should be a bug, not a quiz question.** The strongest ones were all
+  _silent_ failures — `OnPush` plus `push()`, a pure pipe over a mutated array, a
+  `providedIn: 'root'` service shadowed by a component `providers` entry, `IsNever<never>`.
+  Each is something that compiles, throws nothing, and is wrong.
+- **Wrong-answer `why` copy is where the teaching is.** Written properly, each distractor
+  names a real belief someone holds (a guard is a security boundary; Angular deep-compares
+  inputs; `track` can trigger a re-render). See §2A.
+
+**Two authoring traps found in this pass**, both worth knowing before the 4/9 batch:
+
+- A **double quote inside an `answer=` / `question=` attribute terminates the attribute** and
+  Prettier fails with a misleading `Opening tag "app-predict" not terminated`. Use curly
+  quotes (`“…”`) in projected copy, or move the copy to the `.ts`.
+- **Braces in an attribute value** are the same hazard as braces in a `<pre>`. Prefer
+  rephrasing (`` `providedIn: 'root'` `` instead of `` `@Injectable({ providedIn: 'root' })` ``)
+  or bind from the `.ts`.
 
 **Escaping braces in `<pre>` blocks.** Prettier's `angular` parser rejects a bare `{` inside
 a template — Angular reads it as the start of an ICU expression, and you get

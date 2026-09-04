@@ -1,5 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * The four states in the basic `@switch` demo.
@@ -25,11 +26,54 @@ type Shape =
  */
 @Component({
   selector: 'app-lesson-control-flow-switch',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   templateUrl: './control-flow-switch.html',
   styleUrl: './control-flow-switch.css',
 })
 export class ControlFlowSwitch {
+  /**
+   * The string-vs-number puzzle used by the ask-before-telling block. Route
+   * params are always strings, `@case` compares with `===`, and the failure is
+   * a silently empty render rather than an error — which is what makes it worth
+   * a whole section.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly strictEqualitySample = `// The route is /plan/:tier — the user visits /plan/2.
+tier = toSignal(this.route.paramMap.pipe(map(p => p.get('tier'))));
+
+// The template:
+@switch (tier()) {
+  @case (1) { <p>Starter</p> }
+  @case (2) { <p>Pro</p> }
+  @case (3) { <p>Enterprise</p> }
+}`;
+
+  /**
+   * The self-test, on the destroy-vs-hide distinction. The wrong answers are the
+   * three intuitions people carry over from CSS-based show/hide.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'Empty. Switching away destroyed the component; switching back constructed a brand-new one, and a new instance has new state.',
+      correct: true,
+      why: 'Right. A non-matching branch is not hidden, it is *destroyed* — `ngOnDestroy` runs and the instance is gone. Coming back builds a fresh one from scratch, so anything it held is lost.',
+    },
+    {
+      text: 'The text is still there — the branch was hidden, not removed, so the component instance survived.',
+      why: 'That is `[hidden]` or `display: none`, where the element stays in the DOM. `@switch` never instantiates non-matching branches at all, so there is nothing left to survive.',
+    },
+    {
+      text: 'The text is still there — Angular caches destroyed embedded views and restores them when the same case matches again.',
+      why: 'There is no such cache. Each match instantiates the branch fresh; Angular does not retain destroyed views in the hope you come back.',
+    },
+    {
+      text: 'It depends: the state survives if the component is `OnPush`, because OnPush components are not torn down.',
+      why: 'Change-detection strategy has nothing to do with lifetime. `OnPush` controls *when a component is checked*, never *whether it exists*.',
+    },
+  ];
+
   /**
    * The state in the basic `@switch` demo.
    */

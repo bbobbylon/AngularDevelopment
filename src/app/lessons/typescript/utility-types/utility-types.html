@@ -43,12 +43,29 @@ type Record&lt;K extends keyof any, V&gt; = {{ '{' }} [P in K]: V {{ '}' }}; // 
       <em>silent</em> no-op; teams that care define a strict <code>OmitStrict&lt;T, K extends keyof T&gt;</code>.
     </li>
   </ul>
+  <p>
+    Picture two bouncers at a door, each holding the same guest list (<code>keyof T</code>). Pick's bouncer checks every
+    name you hand him against that list and turns away anyone who isn't on it — a misspelled name gets rejected on the
+    spot. Omit's bouncer just crosses names OFF the list; hand him a name that was never invited, and he shrugs and
+    crosses off nothing, letting the party go on exactly as if you'd said nothing at all.
+  </p>
+  <app-remember variant="rule" label="Pick checks; Omit shrugs">
+    <strong>Pick validates against the guest list. Omit doesn't — it just tries to cross a name off.</strong> A typo'd
+    key is a compile error in <code>Pick&lt;T, K&gt;</code>, but a silent, harmless-looking no-op in
+    <code>Omit&lt;T, K&gt;</code>.
+  </app-remember>
   <div class="warn">
     All of these are <strong>shallow</strong> — one level deep. <code>Readonly&lt;State&gt;</code> lets you mutate
     <code>state.user.name</code>
     freely. Deep variants are recursive mapped types you write yourself (or take from a library), covered in the
     mapped-types lesson.
   </div>
+
+  <app-predict
+    prompt="Readonly<State> is applied to a State with a nested user object. Line ① reassigns s.user entirely; line ② reaches through s.user and reassigns just its name. Which line(s) does the compiler reject?"
+    [code]="shallowReadonlySample"
+    answer="Only line ①. Readonly<T> = { readonly [K in keyof T]: T[K] } — it stamps 'readonly' on State's own property named user, so REASSIGNING s.user is blocked. But T[K] for that property is just the plain (non-readonly) type { name: string } — nothing wraps IT in Readonly too. Once you're standing inside s.user, you're holding an ordinary mutable object, and s.user.name = 'Grace' compiles without complaint. This is exactly the 'shallow' warning above made concrete: Readonly (like Partial, Pick, and the rest) only ever touches the outermost layer of properties it's mapping over."
+  />
 
   <h2>Live — Pick and Omit, key by key</h2>
   <div class="demo">
@@ -88,6 +105,35 @@ NonNullable&lt;string | null&gt;   // string  — Exclude&lt;T, null | undefined
     <code>never</code> members simply vanish. That per-member "distribution" is the engine behind every union filter,
     and it's why these helpers do nothing useful on non-union types.
   </p>
+
+  <svg class="diagram" viewBox="0 0 640 170" role="img" aria-labelledby="ut-t ut-d">
+    <title id="ut-t">Distribution — each union member checked on its own, then re-unioned</title>
+    <desc id="ut-d">
+      The union admin or member or guest splits into three separate lanes, one per member. Each lane independently
+      answers the question does this member extend the literal guest. Admin and member both answer no and keep their own
+      type. Guest answers yes and becomes never. The three lane results — admin, member, and never — merge back together
+      at the bottom, and because never contributes nothing to a union, the final result is just admin or member.
+    </desc>
+    <text x="20" y="22" font-size="12" fill="var(--text-muted)">
+      Exclude&lt;'admin' | 'member' | 'guest', 'guest'&gt;
+    </text>
+    <g font-size="12" text-anchor="middle">
+      <rect x="20" y="40" width="120" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="80" y="61" fill="var(--green)">'admin' → kept</text>
+      <rect x="160" y="40" width="130" height="34" rx="6" fill="var(--green)" opacity="0.18" />
+      <text x="225" y="61" fill="var(--green)">'member' → kept</text>
+      <rect x="310" y="40" width="120" height="34" rx="6" fill="var(--red)" opacity="0.18" />
+      <text x="370" y="61" fill="var(--red)">'guest' → never</text>
+    </g>
+    <line x1="80" y1="74" x2="120" y2="110" stroke="var(--border)" stroke-width="1.5" />
+    <line x1="225" y1="74" x2="150" y2="110" stroke="var(--border)" stroke-width="1.5" />
+    <line x1="370" y1="74" x2="200" y2="110" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="3 3" />
+    <rect x="70" y="112" width="160" height="34" rx="6" fill="var(--violet)" opacity="0.18" />
+    <text x="150" y="133" font-size="12" text-anchor="middle" fill="var(--violet)" font-weight="700">re-unioned</text>
+    <text x="150" y="160" font-size="11" text-anchor="middle" fill="var(--text-muted)">
+      'admin' | 'member' — never adds nothing to a union
+    </text>
+  </svg>
 
   <h2>Function &amp; promise extractors</h2>
   <div class="code">
@@ -266,6 +312,13 @@ type Draft = {{ '{' }} -readonly [K in keyof ApiUser]: ApiUser[K] {{ '}' }};</pr
       source (the function) instead of re-importing and re-declaring.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="What does Exclude<never, 'x'> evaluate to, and why?"
+    [options]="quizOptions"
+    followUp="An empty selection IS never at the type level — which is exactly why the live demo above prints the literal word 'never' as the K union when no keys are toggled on. Distribution has nothing to loop over in that case, so the conditional resolves to never without either branch ever running — the same reason Exclude/Extract/NonNullable are called distributive in the first place."
+  />
 
   <h2>Key takeaways</h2>
   <ul>

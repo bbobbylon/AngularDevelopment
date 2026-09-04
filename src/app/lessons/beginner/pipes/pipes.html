@@ -2,9 +2,111 @@
   <span class="lesson__eyebrow">Beginner · Pipes</span>
   <h1>Built-in Pipes</h1>
   <p class="lead">
-    A pipe transforms a value for display, right in the template, using the
-    <code>|</code> operator. Pipes are pure functions of their input — they format data without mutating it.
+    A pipe transforms a value <em>for display</em>, right in the template, using the <code>|</code> operator. Pipes are
+    <span class="term">pure functions</span> of their input —
+    <span class="key">they format data without ever mutating it.</span>
   </p>
+
+  <h2>You already know this symbol</h2>
+  <p>
+    Angular didn't invent <code>|</code>. It borrowed it from the Unix shell, and it means exactly the same thing there
+    as here:
+  </p>
+  <div class="code">
+    <pre>
+# In a terminal — the output of each command feeds the next, left to right:
+cat names.txt | sort | uniq
+#              └─────┘ └─────┘
+#              station  station
+
+&lt;!-- In an Angular template — same idea, same direction: --&gt;
+{{ '{{' }} now() | date:'fullDate' | uppercase {{ '}}' }}</pre>
+  </div>
+  <p>
+    So here's the mental model to carry through the rest of the page:
+    <span class="key">a chain of pipes is an assembly line.</span> A value goes in on the left and travels rightward
+    through a row of stations; each one reshapes it and hands the result to the next. Three things follow from the
+    picture, and they cover most of what people get wrong:
+  </p>
+  <ul>
+    <li>
+      <span class="right">Order matters.</span> Each station receives whatever the one before it produced — not the
+      original value.
+    </li>
+    <li>
+      <span class="right">The flow is one-way.</span> A pipe can't reach back and change <code>now()</code>. Your
+      component's data is untouched; only the rendered string differs.
+    </li>
+    <li>
+      <span class="wrong">Types matter more than you'd think.</span> <code>uppercase</code> expects a string. Put it
+      before <code>date</code> instead of after and you're feeding a <code>Date</code> object into a string pipe — the
+      station gets something it can't work with.
+    </li>
+  </ul>
+
+  <h2>Watch a value move down the line</h2>
+  <p>Here is that exact chain, with the intermediate value shown at every stage:</p>
+
+  <svg class="diagram" viewBox="0 0 760 200" role="img" aria-labelledby="pipe-chain-t pipe-chain-d">
+    <title id="pipe-chain-t">A value flowing through a two-pipe chain, showing the value at each stage</title>
+    <desc id="pipe-chain-d">
+      A Date object enters on the left. It passes through the date pipe with the fullDate format, becoming the string
+      "Friday, March 15, 2024". That string then passes through the uppercase pipe, becoming "FRIDAY, MARCH 15, 2024",
+      which is what renders. Below, a note shows the reversed order failing, because uppercase receives a Date object
+      rather than a string.
+    </desc>
+    <defs>
+      <marker id="pc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" />
+      </marker>
+    </defs>
+
+    <!-- input -->
+    <rect x="8" y="46" width="150" height="52" rx="8" fill="var(--bg-elevated)" stroke="var(--border)" />
+    <text x="83" y="68" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-muted)">
+      the value
+    </text>
+    <text x="83" y="86" text-anchor="middle" font-size="11" font-family="monospace" fill="var(--text)">
+      Date object
+    </text>
+
+    <!-- station 1 -->
+    <line x1="162" y1="72" x2="204" y2="72" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#pc-arrow)" />
+    <rect x="208" y="46" width="150" height="52" rx="8" fill="var(--bg-card)" stroke="var(--accent)" />
+    <text x="283" y="68" text-anchor="middle" font-size="11.5" font-family="monospace" fill="var(--accent)">
+      | date:'fullDate'
+    </text>
+    <text x="283" y="86" text-anchor="middle" font-size="10" fill="var(--text-muted)">Date → string</text>
+
+    <!-- station 2 -->
+    <line x1="362" y1="72" x2="404" y2="72" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#pc-arrow)" />
+    <text x="383" y="40" text-anchor="middle" font-size="10" font-family="monospace" fill="var(--green)">
+      'Friday, March 15, 2024'
+    </text>
+    <rect x="408" y="46" width="150" height="52" rx="8" fill="var(--bg-card)" stroke="var(--accent)" />
+    <text x="483" y="68" text-anchor="middle" font-size="11.5" font-family="monospace" fill="var(--accent)">
+      | uppercase
+    </text>
+    <text x="483" y="86" text-anchor="middle" font-size="10" fill="var(--text-muted)">string → string</text>
+
+    <!-- output -->
+    <line x1="562" y1="72" x2="604" y2="72" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#pc-arrow)" />
+    <rect x="608" y="46" width="144" height="52" rx="8" fill="var(--bg-elevated)" stroke="var(--green)" />
+    <text x="680" y="68" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--green)">rendered</text>
+    <text x="680" y="86" text-anchor="middle" font-size="9.5" font-family="monospace" fill="var(--text)">
+      'FRIDAY, MARCH 15, 2024'
+    </text>
+
+    <!-- the reversed order -->
+    <line x1="8" y1="130" x2="752" y2="130" stroke="var(--border)" stroke-width="1" />
+    <text x="8" y="154" font-size="11.5" font-weight="700" fill="var(--red)">Swap the two stations and it breaks:</text>
+    <text x="8" y="174" font-size="11" font-family="monospace" fill="var(--text-muted)">
+      now() | uppercase | date:'fullDate' — uppercase is handed a Date, not a string
+    </text>
+    <text x="8" y="192" font-size="11" fill="var(--text-muted)">
+      Each station only knows what the previous one gave it. That is the whole rule.
+    </text>
+  </svg>
 
   <h2>Text pipes</h2>
   <div class="demo">
@@ -67,6 +169,14 @@
       The <code>'1.2-2'</code> means: at least 1 integer digit, 2–2 fraction digits.
     </p>
   </div>
+
+  <app-remember variant="mnemonic" label="Decoding '1.2-2'">
+    <strong>Before the dot, a floor. After the dot, a range.</strong> Read <code>digitsInfo</code> as
+    <code>minInteger . minFraction - maxFraction</code>. So <code>'1.2-2'</code> is "at least one digit on the left,
+    exactly two on the right" — the <code>2-2</code> pins the fraction to precisely two places, which is why it's the
+    standard money format. The trap is reading the dot as a decimal point in an example number.
+    <span class="key">It's a separator between two settings, not a number.</span>
+  </app-remember>
 
   <h2>Date pipe</h2>
   <div class="demo">
@@ -155,6 +265,42 @@
     <code>LOCALE_ID</code>. For non-default locales you must register the locale data
     (<code>registerLocaleData()</code>) and provide the locale, or those pipes throw at runtime.
   </div>
+
+  <h2>Predict the "Angular bug" that isn't one</h2>
+  <p>
+    This gets filed as a date-pipe bug several times a week somewhere in the world, and it is never the date pipe.
+    <span class="key">Work out why one user sees the wrong day and the other doesn't</span> before you open it:
+  </p>
+
+  <app-predict
+    prompt="Why does the New York user see 14 March and the Berlin user see 15 March, from the same string?"
+    [code]="dateTrapSample"
+    answer="**The date pipe is innocent — the string was already the wrong moment before it arrived.**
+
+Per the ECMAScript spec, a *date-only* ISO string like `'2024-03-15'` is parsed as **midnight UTC**. (Add a time — `'2024-03-15T00:00'` — and the very same spec says parse it as midnight *local*. Two nearly identical strings, two different instants. This is genuinely one of the worst corners of the language.)
+
+So `new Date('2024-03-15')` is the instant `2024-03-15T00:00:00Z`. The date pipe then renders it in the *viewer's* timezone:
+
+- Berlin is UTC+1 → 01:00 on 15 March → **Friday, March 15**. Looks fine.
+- New York is UTC-4 → 20:00 on 14 March → **Thursday, March 14**. Off by one.
+
+Nobody in Europe ever reproduces it, which is why the bug survives code review.
+
+**The fixes**, and only one of them is right for each case:
+
+- If the value is a *calendar date* — a birthday, an invoice date, a holiday — it has no timezone and should never be converted to one. Render it with `date:'fullDate':'UTC'`, or don't build a `Date` at all and format the string's parts directly.
+- If the value is a real *instant* — created-at, logged-in-at — then the API should have sent a full timestamp with an offset (`'2024-03-15T09:30:00Z'`) and local rendering is exactly what you want.
+
+The rule underneath: **a date-only string is not a point in time, and turning it into one loses information you can't recover.**"
+    revealLabel="Reveal why they disagree"
+  />
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="`num` is `1234.5`. What does `num | number: '1.2-2'` render, in the default `en-US` locale?"
+    [options]="quizOptions"
+    followUp="Two settings, one string: the part before the dot is a minimum for the integer side; the part after is a min-max range for the fraction side. Say “floor, then range” and the format stops being cryptic."
+  />
 
   <h2>Pitfalls that show up in exams &amp; code review</h2>
   <ul>

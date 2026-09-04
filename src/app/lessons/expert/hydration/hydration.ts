@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Predict, Quiz, type QuizOption, Remember } from '../../../shared/teaching';
 
 /**
  * Which boot path the comparison is showing.
@@ -97,11 +98,56 @@ const MISMATCHES: Mismatch[] = [
  */
 @Component({
   selector: 'app-lesson-hydration',
-  imports: [RouterLink],
+  imports: [RouterLink, Predict, Quiz, Remember],
   styleUrl: './hydration.css',
   templateUrl: './hydration.html',
 })
 export class Hydration {
+  /**
+   * The non-deterministic-output puzzle used by the ask-before-telling block.
+   *
+   * `new Date().toLocaleDateString()` evaluated in the template runs TWICE —
+   * once during server rendering, once again during client bootstrap — and
+   * nothing guarantees those two evaluations produce the same string.
+   *
+   * Held in the class rather than the template because the snippet is full of
+   * `{`/`}`, which Angular's parser reads as control-flow syntax in an attribute.
+   */
+  protected readonly nonDeterministicSample = `@Component({
+  template: \`<p>Rendered: {{ today }}</p>\`,
+})
+export class ArticleHeader {
+  // Evaluated once on the SERVER during SSR, producing one string.
+  // Evaluated AGAIN on the CLIENT during hydration, producing another —
+  // even a few milliseconds' difference can roll over to a new day/locale.
+  today = new Date().toLocaleDateString();
+}`;
+
+  /**
+   * The self-test, on nested incremental-hydration triggers. Every wrong
+   * answer assumes a child's own trigger firing is sufficient on its own,
+   * ignoring the top-down rule stated in the "Incremental hydration" note.
+   */
+  protected readonly quizOptions: readonly QuizOption[] = [
+    {
+      text: 'No — B stays dormant even though its own idle trigger fired. Nested hydrate blocks hydrate top-down, so a child can never become live while its parent is still dormant; B has to wait until A hydrates first.',
+      correct: true,
+      why: "This is the ordering guarantee incremental hydration relies on: a parent's DOM structure and component instance have to exist and be wired up before a child inside it can safely attach its own listeners. Hydrating B first would mean attaching child behavior inside a subtree Angular hasn't adopted yet.",
+    },
+    {
+      text: "Yes — each @defer (hydrate ...) block is independent, so B's own idle trigger firing is all that matters regardless of what A is doing.",
+      why: "Triggers are evaluated independently, but ACTIVATION is not — a dormant parent blocks every descendant from hydrating no matter which of their own triggers fire. B's idle trigger is noted as satisfied, but hydration itself waits for A.",
+    },
+    {
+      text: 'Only if B is also wrapped in hydrate on interaction — idle-triggered children are exempt from the top-down rule.',
+      why: 'The top-down rule applies to every trigger type uniformly. There is no exemption based on which trigger a nested block uses.',
+    },
+    {
+      text: "It depends on withEventReplay() being enabled — without it, nested triggers hydrate independently of their parent's state.",
+      why: 'Event replay only concerns clicks that happen before listeners attach; it has no bearing on the parent-before-child ordering rule for incremental hydration triggers.',
+    },
+  ];
+
   /**
    * The two boot paths.
    */

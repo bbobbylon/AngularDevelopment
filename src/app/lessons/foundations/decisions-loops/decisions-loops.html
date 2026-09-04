@@ -92,6 +92,12 @@ if (discount !== undefined) {{ '{' }} … {{ '}' }}  // ✅ say what you actuall
     nullish operator) in the TypeScript tier.
   </p>
 
+  <app-predict
+    prompt="A user enters a promo code that is genuinely valid — it just happens to be worth 0% off. describeDiscount checks if (discountPercent) before building its message. What does the user see?"
+    [code]="zeroDiscountSample"
+    answer="'No discount code entered' — the exact opposite of what actually happened. discountPercent is 0, and 0 is falsy, so if (discountPercent) treats a REAL, successfully-applied 0%-off code identically to no code being entered at all. The function has no way to tell 'nothing happened' apart from 'something happened and it was worth nothing' — because both collapse to the same falsy check. The fix is the same one the callout above already points at: compare explicitly, if (discountPercent !== undefined), so a real 0 takes the true branch and only an actually-missing value takes the false one."
+  />
+
   <h2>The <code>for</code> loop — three parts, traced live</h2>
   <p>
     The classic counting loop packs three instructions into its header:
@@ -105,6 +111,42 @@ for (let i = 0;  i < 3;  i++) {{ '{' }}
   console.log('Hello ' + i);   // ← ③ the body
 {{ '}' }}</pre>
   </div>
+  <svg class="diagram" viewBox="0 0 460 220" role="img" aria-labelledby="dl-t dl-d">
+    <title id="dl-t">The for-loop cycle: init once, then test, body, step, repeat</title>
+    <desc id="dl-d">
+      A cycle of four boxes arranged in a loop. Init sits at the top, feeding into test. Test feeds into body only when
+      true, body feeds into step, and step feeds back into test again, forming a circle. An arrow leaving test when the
+      condition is false exits the circle entirely and continues after the loop. Init has a note that it runs exactly
+      once, before the circle begins.
+    </desc>
+    <text x="230" y="20" font-size="11" text-anchor="middle" fill="var(--text-muted)">
+      runs once, before the cycle begins
+    </text>
+    <rect x="170" y="30" width="120" height="34" rx="8" fill="var(--violet)" opacity="0.18" />
+    <text x="230" y="52" font-size="12" text-anchor="middle" fill="var(--violet)" font-weight="700">① init</text>
+    <line x1="230" y1="64" x2="230" y2="90" stroke="var(--border)" stroke-width="1.5" />
+
+    <rect x="170" y="92" width="120" height="34" rx="8" fill="var(--green)" opacity="0.18" />
+    <text x="230" y="114" font-size="12" text-anchor="middle" fill="var(--green)" font-weight="700">② test</text>
+
+    <line x1="290" y1="109" x2="330" y2="109" stroke="var(--border)" stroke-width="1.5" />
+    <rect x="70" y="154" width="120" height="34" rx="8" fill="var(--amber)" opacity="0.2" />
+    <text x="130" y="176" font-size="12" text-anchor="middle" fill="var(--amber)" font-weight="700">③ body</text>
+    <line x1="170" y1="126" x2="140" y2="152" stroke="var(--border)" stroke-width="1.5" />
+    <text x="145" y="145" font-size="10" fill="var(--green)">true</text>
+
+    <rect x="270" y="154" width="120" height="34" rx="8" fill="var(--violet)" opacity="0.18" />
+    <text x="330" y="176" font-size="12" text-anchor="middle" fill="var(--violet)" font-weight="700">④ step</text>
+    <line x1="130" y1="154" x2="150" y2="130" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="0" />
+    <line x1="190" y1="171" x2="266" y2="171" stroke="var(--border)" stroke-width="1.5" />
+    <line x1="330" y1="154" x2="270" y2="126" stroke="var(--border)" stroke-width="1.5" />
+
+    <text x="360" y="100" font-size="10" fill="var(--red)">false</text>
+    <text x="330" y="204" font-size="11" text-anchor="middle" fill="var(--text-muted)">
+      false → exits the circle, continues after the loop
+    </text>
+  </svg>
+
   <div class="demo">
     <p class="demo__title">Live — one micro-step at a time</p>
     <div class="row" style="margin-bottom: 10px">
@@ -206,6 +248,34 @@ nums.filter(n => n % 2 === 0)  // [2, 4, 6]
     </li>
   </ul>
 
+  <table class="t">
+    <tr>
+      <th>Method</th>
+      <th>Output length</th>
+      <th>Use for</th>
+    </tr>
+    <tr>
+      <td><code>map</code></td>
+      <td>same as input, always</td>
+      <td>transforming every item into something else</td>
+    </tr>
+    <tr>
+      <td><code>filter</code></td>
+      <td>0 to input length</td>
+      <td>keeping only items that pass a yes/no test</td>
+    </tr>
+    <tr>
+      <td><code>reduce</code></td>
+      <td>exactly 1 (not even an array)</td>
+      <td>collapsing everything into a single total/object</td>
+    </tr>
+  </table>
+
+  <app-remember variant="mnemonic" label="What each stage does to the count">
+    <strong>map keeps the count. filter cuts the count. reduce collapses to one.</strong> If you're reaching for map but
+    secretly want some items gone, you actually want <code>filter().map()</code>.
+  </app-remember>
+
   <div class="demo">
     <p class="demo__title">Live — build a pipeline over 1–8</p>
     <p>
@@ -269,6 +339,13 @@ nums.filter(n => n % 2 === 0)  // [2, 4, 6]
       first whenever a page hangs.
     </div>
   </details>
+
+  <h2>Check yourself</h2>
+  <app-quiz
+    question="For [1,2,3,4,5,6], is nums.map(n => n * 2).filter(n => n % 2 === 0) the same result as nums.filter(n => n % 2 === 0).map(n => n * 2)?"
+    [options]="quizOptions"
+    followUp="Chain order changes what data survives to reach the next stage — the pipeline demo above shows exactly this by letting you toggle each stage on and off and watch the intermediate array change. Whichever stage runs first controls what the next one even gets to see."
+  />
 
   <h2>Key takeaways</h2>
   <ul>
