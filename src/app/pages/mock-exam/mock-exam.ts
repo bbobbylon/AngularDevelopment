@@ -14,6 +14,8 @@ import { OptionsShuffler } from '../practice/practice-helpers';
 import { recordMisses } from '../practice/review-queue';
 import { downloadTextFile } from '../../shared/download-file';
 import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Napkin, TapeCard } from '../../shared/brain';
 
 /** Which screen the exam is on. See {@link MockExam} for what each phase does. */
 type Phase = 'config' | 'active' | 'review';
@@ -104,7 +106,7 @@ function saveHistory(entries: HistoryEntry[]): void {
  */
 @Component({
   selector: 'app-mock-exam',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, TapeCard, Napkin],
   styleUrl: './mock-exam.css',
   templateUrl: './mock-exam.html',
 })
@@ -220,6 +222,18 @@ export class MockExam implements OnDestroy {
 
   /** Whether the attempt cleared {@link PASS_MARK}. */
   readonly passed = computed(() => this.scorePercent() >= PASS_MARK);
+
+  /**
+   * Displayed score percentage on the review hero, counting up towards
+   * {@link scorePercent} once an attempt is scored — the same count-up
+   * treatment the home page's hero stats and the Certification study map use.
+   * Purely presentational: {@link scorePercent} stays the real figure
+   * pass/fail and history are computed from; see {@link startScoreCountUp}.
+   */
+  readonly animScorePercent = signal(0);
+
+  /** Handle for the score count-up interval, if one is currently running. */
+  private scoreAnimId: ReturnType<typeof setInterval> | null = null;
 
   /** Which review cards to show: everything, only misses, or only flagged. */
   readonly reviewFilter = signal<'all' | 'incorrect' | 'flagged'>('all');
@@ -539,6 +553,35 @@ export class MockExam implements OnDestroy {
       .map((ch) => ch.id);
     recordMisses(missed);
     this.missedQueued.set(missed.length);
+
+    this.startScoreCountUp();
+  }
+
+  /**
+   * Counts {@link animScorePercent} up to {@link scorePercent} for the review
+   * hero reveal. Skips straight to the final value under
+   * `prefers-reduced-motion: reduce`. Clears any run already in flight first,
+   * so a quick retake-and-refinish can never leave two intervals fighting
+   * over the same signal.
+   */
+  private startScoreCountUp(): void {
+    if (this.scoreAnimId !== null) clearInterval(this.scoreAnimId);
+    const target = this.scorePercent();
+    if (target <= 0 || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.animScorePercent.set(target);
+      return;
+    }
+    this.animScorePercent.set(0);
+    let n = 0;
+    const step = Math.max(1, Math.ceil(target / 24));
+    this.scoreAnimId = setInterval(() => {
+      n = Math.min(n + step, target);
+      this.animScorePercent.set(n);
+      if (n >= target && this.scoreAnimId !== null) {
+        clearInterval(this.scoreAnimId);
+        this.scoreAnimId = null;
+      }
+    }, 18);
   }
 
   // --- scoring ---
@@ -623,6 +666,7 @@ export class MockExam implements OnDestroy {
    */
   ngOnDestroy(): void {
     this.stopTimer();
+    if (this.scoreAnimId !== null) clearInterval(this.scoreAnimId);
   }
 
   /**

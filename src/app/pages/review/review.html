@@ -1,45 +1,41 @@
 @switch (phase()) {
   @case ('idle') {
-    <div class="rev-hero">
-      <span class="pill">Spaced Repetition</span>
-      <h1>Review Queue</h1>
-      <p>
+    <header class="rev-hero">
+      <span class="pill" appReveal>Spaced Repetition</span>
+      <h1 appReveal [appRevealDelay]="80">Review Queue</h1>
+      <p appReveal [appRevealDelay]="160">
         Every question you miss in Practice or a Mock Exam lands here. Answer it correctly on schedule and the gap grows
         —
         {{ intervalsLabel }} days — until it graduates as mastered. Miss it and it starts over.
       </p>
-    </div>
+    </header>
 
     <div class="stats-row">
-      <div class="stat-box due">
-        <strong>{{ due().length }}</strong
-        ><span>due now</span>
-      </div>
-      <div class="stat-box">
-        <strong>{{ queueSize() }}</strong
-        ><span>in queue</span>
-      </div>
-      <div class="stat-box">
-        <strong>{{ masteredCount() }}</strong
-        ><span>mastered</span>
-      </div>
+      <app-tape-card heading="Due now" tone="accent" appReveal [appRevealDelay]="220">
+        <span class="stat-num">{{ due().length }}</span>
+        <span class="stat-label">ready to review</span>
+      </app-tape-card>
+      <app-tape-card heading="In queue" tone="gold" appReveal [appRevealDelay]="260">
+        <span class="stat-num">{{ queueSize() }}</span>
+        <span class="stat-label">total tracked</span>
+      </app-tape-card>
+      <app-tape-card heading="Mastered" tone="olive" appReveal [appRevealDelay]="300">
+        <span class="stat-num">{{ masteredCount() }}</span>
+        <span class="stat-label">graduated for good</span>
+      </app-tape-card>
     </div>
 
-    <div class="panel">
+    <div class="panel" appReveal [appRevealDelay]="340">
       @if (queueSize() === 0) {
         <div class="empty">
-          @if (masteredCount() > 0) {
-            Queue clear — everything you missed has been mastered. 🎉
-          } @else {
-            Nothing to review yet. Miss a question and it will show up here.
-          }
+          <app-bubbles [turns]="emptyStateTurns()" />
         </div>
-        <div style="text-align: center">
-          <a routerLink="/practice" class="primary-btn small" style="text-decoration: none">Go practice →</a>
+        <div class="empty-actions">
+          <a routerLink="/practice" class="primary-btn small">Go practice →</a>
           <a routerLink="/mock-exam" class="link-back">or take a Mock Exam</a>
         </div>
       } @else {
-        <h3>How it works</h3>
+        <h3 class="bf-eyebrow">How it works</h3>
         <p class="how">
           A review session shows each due question once, with instant feedback. Correct answers move a question up a box
           (checked less often); wrong answers send it back to box 1 (due immediately).
@@ -47,10 +43,13 @@
         @if (due().length > 0) {
           <button class="primary-btn" (click)="startSession(false)">Review {{ due().length }} due →</button>
         } @else {
-          <p class="next-due">Nothing due right now — next review {{ nextDueLabel() }}.</p>
-          <button class="ghost-btn" style="margin-top: 12px" (click)="startSession(true)">
-            Review all {{ queueSize() }} early
-          </button>
+          <app-napkin label="You can review early" class="early-napkin">
+            Nothing's due right now — next review <strong>{{ nextDueLabel() }}</strong
+            >. Jump the line if you want the extra practice.
+            <button class="ghost-btn napkin-btn" (click)="startSession(true)">
+              Review all {{ queueSize() }} early
+            </button>
+          </app-napkin>
         }
         <a routerLink="/practice" class="link-back">Practice page</a>
       }
@@ -58,29 +57,25 @@
   }
 
   @case ('session') {
-    <div class="rev-hero" style="padding-bottom: 8px">
-      <span class="pill">Spaced Repetition</span>
-      <h1>Review Session</h1>
-    </div>
+    <header class="rev-hero rev-hero--tight">
+      <span class="pill" appReveal>Spaced Repetition</span>
+      <h1 appReveal [appRevealDelay]="80">Review Session</h1>
+    </header>
 
     <div class="session-bar">
       <span>Item {{ index() + 1 }} / {{ session().length }}</span>
       <span class="spacer"></span>
       @if (current(); as ch) {
-        <span class="box-tag">Box {{ boxOf(ch.id) + 1 }} / {{ boxCount }}</span>
+        <span class="bf-chip box-tag">Box {{ boxOf(ch.id) + 1 }} / {{ boxCount }}</span>
       }
     </div>
 
     @if (current(); as ch) {
-      <div class="panel">
+      <div class="panel" appReveal>
         <div class="q-badges">
           <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
-          <span class="badge-type">{{ ch.category }}</span>
-          <span
-            class="badge-type"
-            style="background: transparent; border-color: var(--border); color: var(--text-muted)"
-            >{{ typeLabel(ch.type) }}</span
-          >
+          <span class="badge-category">{{ ch.category }}</span>
+          <span class="badge-type">{{ typeLabel(ch.type) }}</span>
         </div>
 
         <p class="q-text">{{ ch.question }}</p>
@@ -114,7 +109,12 @@
             }
             {{ ch.explanation }}
             <br />
-            <span class="schedule-note">{{ scheduleNote() }}</span>
+            <span
+              class="schedule-note"
+              [class.schedule-note--up]="lastCorrect()"
+              [class.schedule-note--down]="!lastCorrect()"
+              >{{ scheduleNote() }}</span
+            >
             @if (ch.topicPath) {
               <a [routerLink]="'/' + ch.topicPath" class="topic-link">📚 Study this topic →</a>
             }
@@ -130,30 +130,30 @@
   }
 
   @case ('summary') {
-    <div class="rev-hero">
-      <span class="pill">Spaced Repetition</span>
-      <h1>Session Complete</h1>
-    </div>
+    <header class="rev-hero">
+      <span class="pill" appReveal>Spaced Repetition</span>
+      <h1 appReveal [appRevealDelay]="80">Session Complete</h1>
+    </header>
 
-    <div class="panel">
+    <div class="panel" appReveal [appRevealDelay]="140">
       <p class="sum-line">
         <strong>{{ sessionCorrect() }} / {{ session().length }}</strong> correct this session.
       </p>
       <div class="sum-grid">
-        <div>
-          <strong>{{ sessionAdvanced() }}</strong
-          ><span>moved up a box</span>
-        </div>
-        <div>
-          <strong>{{ sessionReset() }}</strong
-          ><span>back to box 1</span>
-        </div>
-        <div>
-          <strong>{{ sessionMastered() }}</strong
-          ><span>mastered 🎓</span>
-        </div>
+        <app-tape-card heading="Advanced" tone="olive">
+          <span class="stat-num">{{ sessionAdvanced() }}</span>
+          <span class="stat-label">moved up a box</span>
+        </app-tape-card>
+        <app-tape-card heading="Reset" tone="accent">
+          <span class="stat-num">{{ sessionReset() }}</span>
+          <span class="stat-label">back to box 1</span>
+        </app-tape-card>
+        <app-tape-card heading="Mastered" tone="gold">
+          <span class="stat-num">{{ sessionMastered() }}</span>
+          <span class="stat-label">graduated 🎓</span>
+        </app-tape-card>
       </div>
-      <div>
+      <div class="summary-actions">
         <button class="primary-btn" (click)="backToIdle()">
           {{ due().length > 0 ? due().length + ' more due — continue' : 'Done' }}
         </button>

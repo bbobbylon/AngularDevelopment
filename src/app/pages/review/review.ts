@@ -10,6 +10,8 @@ import {
   loadQueue,
   type ReviewQueue,
 } from '../practice/review-queue';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Bubbles, Napkin, TapeCard, type BubbleTurn } from '../../shared/brain';
 
 /** Which screen the review page is on. See {@link Review}. */
 type Phase = 'idle' | 'session' | 'summary';
@@ -48,7 +50,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 @Component({
   selector: 'app-review',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, Bubbles, Napkin, TapeCard],
   styleUrl: './review.css',
   templateUrl: './review.html',
 })
@@ -85,6 +87,28 @@ export class Review {
   readonly queueSize = computed(() => Object.keys(this.queue()).length);
   /** Due items whose challenge still exists in the bank. */
   readonly due = computed(() => dueItems(this.queue()).filter((i) => this.byId.has(i.id)));
+
+  /**
+   * The empty-queue state, staged as a two-line exchange instead of a flat
+   * sentence — the same device Practice uses for its own empty-filter state.
+   * Purely presentational: derived from the same {@link masteredCount} signal
+   * the old plain-text branches already read, and changes nothing about what
+   * counts as "empty".
+   */
+  readonly emptyStateTurns = computed<BubbleTurn[]>(() =>
+    this.masteredCount() > 0
+      ? [
+          { who: 'You', says: 'Anything left in the queue?' },
+          { who: 'Review', says: 'Queue clear — everything you missed has been **mastered**. 🎉' },
+        ]
+      : [
+          { who: 'You', says: 'Anything to review yet?' },
+          {
+            who: 'Review',
+            says: "Not yet — miss a question in `Practice` or a Mock Exam and it'll show up here.",
+          },
+        ],
+  );
 
   // --- session state ---
 

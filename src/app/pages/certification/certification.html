@@ -1,30 +1,30 @@
 @if (view() === 'map') {
   <!-- ─── STUDY MAP ─────────────────────────────────────────────── -->
   <header class="hero">
-    <span class="pill">Exam prep · certificates.dev</span>
-    <h1>Pass the Angular Certification</h1>
-    <p class="lead">
+    <span class="pill" appReveal>Exam prep · certificates.dev</span>
+    <h1 appReveal [appRevealDelay]="80">Pass the Angular Certification</h1>
+    <p class="lead" appReveal [appRevealDelay]="160">
       The official
       <a href="https://certificates.dev/angular" target="_blank" rel="noopener">certificates.dev</a>
       Angular certification has three levels. Every topic maps to a lesson here — work top to bottom and you have
       covered the full syllabus. Then test yourself with the built-in exam simulator.
     </p>
-    <p class="covered">
-      <strong>{{ totalCovered() }}</strong> lessons mapped across all three exams · every topic covered.
+    <p class="covered" appReveal [appRevealDelay]="240">
+      <strong>{{ animTotalCovered() }}</strong> lessons mapped across all three exams · every topic covered.
     </p>
   </header>
 
   @for (lvl of levels(); track lvl.key) {
     <section class="level">
-      <div class="level__head">
+      <div class="level__head" appReveal>
         <h2 [attr.data-key]="lvl.key">{{ lvl.name }}</h2>
         <span class="fmt">{{ lvl.format }}</span>
       </div>
-      <p class="blurb">{{ lvl.blurb }}</p>
+      <p class="blurb" appReveal [appRevealDelay]="40">{{ lvl.blurb }}</p>
       <p class="count">{{ lvl.count }} lessons</p>
       <div class="topics">
         @for (t of lvl.topics; track t.topic) {
-          <div class="topic">
+          <div class="topic" appReveal [appRevealDelay]="($index % 6) * 45">
             <div class="topic__name">{{ t.topic }}</div>
             <div class="chips">
               @for (lesson of t.lessons; track lesson.id) {
@@ -36,10 +36,18 @@
           </div>
         }
       </div>
-      <div class="sim-bar">
-        <p>Ready to test yourself? 20 questions · 40 min · ≥70% to pass</p>
-        <button class="sim-btn" (click)="startExam(lvl.key)">Simulate Exam →</button>
-      </div>
+
+      <!--
+        The "go take the exam" nudge — the one thing a reader should stop and do
+        after reading a tier's syllabus, so it gets the Napkin treatment (the
+        author interrupting) rather than another tinted rectangle.
+      -->
+      <app-napkin lead="ready?" label="Try the {{ lvl.name }} exam simulator" appReveal [appRevealDelay]="80">
+        <div class="exam-cta">
+          <p class="exam-cta__text">20 questions · 40 min · ≥70% to pass</p>
+          <button class="exam-cta__btn" (click)="startExam(lvl.key)">Simulate Exam →</button>
+        </div>
+      </app-napkin>
     </section>
   }
 
@@ -49,7 +57,7 @@
 @if (view() === 'exam') {
   <!-- ─── EXAM ───────────────────────────────────────────────────── -->
   <div class="exam-wrap">
-    <div class="exam-topbar">
+    <div class="exam-topbar" appReveal>
       <span class="exam-level-badge {{ examLevel() }}">{{ examLevel() }}</span>
       <div class="exam-progress-bar-outer">
         <div class="exam-progress-bar-inner" [style.width]="((examIndex() + 1) / examQs().length) * 100 + '%'"></div>
@@ -60,7 +68,7 @@
     </div>
 
     @if (currentQ(); as q) {
-      <div class="q-card">
+      <div class="q-card" appReveal [appRevealDelay]="60">
         <p class="q-text">{{ q.q }}</p>
         <div class="options">
           @for (opt of q.opts; track $index) {
@@ -109,6 +117,7 @@
       class="score-circle"
       [class.passed]="examScore() >= passThreshold()"
       [class.failed]="examScore() < passThreshold()"
+      appReveal
     >
       <span class="score-pct">{{ Math.round((examScore() / examQs().length) * 100) }}%</span>
       <span class="score-frac">{{ examScore() }} / {{ examQs().length }}</span>
@@ -117,10 +126,12 @@
       class="pass-badge"
       [class.passed]="examScore() >= passThreshold()"
       [class.failed]="examScore() < passThreshold()"
+      appReveal
+      [appRevealDelay]="60"
     >
       {{ examScore() >= passThreshold() ? '✓ PASS' : '✗ FAIL' }}
     </div>
-    <p class="result-msg">
+    <p class="result-msg" appReveal [appRevealDelay]="120">
       @if (examScore() >= passThreshold()) {
         Great work! You scored {{ examScore() }}/{{ examQs().length }} on the {{ examLevel() }} exam simulation. Keep
         reviewing the lessons for any topics you missed.
@@ -129,19 +140,19 @@
         to pass. Review the explanations for the questions below and try again once you have studied those topics.
       }
     </p>
-    <div class="result-actions">
+    <div class="result-actions" appReveal [appRevealDelay]="180">
       <button class="btn-primary" (click)="retryExam()">Try Again</button>
       <button class="btn-ghost" (click)="exitExam()">Back to Study Map</button>
     </div>
 
     @if (missedQs().length > 0) {
-      <div class="review-list">
+      <div class="review-list" appReveal [appRevealDelay]="240">
         <h3>Questions to review ({{ missedQs().length }})</h3>
         @for (item of missedQs(); track item.q.q) {
           <div class="review-item">
             <div>{{ item.q.q }}</div>
             <div class="review-exp">
-              <strong style="color: #6366f1">Correct: {{ item.q.opts[item.q.answer] }}</strong>
+              <strong class="review-exp__correct">Correct: {{ item.q.opts[item.q.answer] }}</strong>
               — {{ item.q.explanation }}
             </div>
           </div>

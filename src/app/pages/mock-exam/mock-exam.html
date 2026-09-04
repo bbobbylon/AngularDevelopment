@@ -1,16 +1,16 @@
 @switch (phase()) {
   @case ('config') {
     <div class="exam-hero">
-      <span class="pill">Timed Assessment</span>
-      <h1>Mock Exam</h1>
-      <p>
+      <span class="pill" appReveal>Timed Assessment</span>
+      <h1 appReveal [appRevealDelay]="60">Mock Exam</h1>
+      <p appReveal [appRevealDelay]="120">
         Simulate the real certification: a fixed set of questions, a countdown clock, and no answers revealed until you
         finish. Pass mark is {{ passMark }}%.
       </p>
     </div>
 
-    <div class="config-card">
-      <h3>Number of questions</h3>
+    <div class="config-card" appReveal [appRevealDelay]="180">
+      <h3 class="bf-eyebrow">Number of questions</h3>
       <div class="chip-row">
         @for (n of countChoices; track n) {
           <button class="chip" [class.active]="selectedCount() === n" (click)="selectedCount.set(n)">{{ n }}</button>
@@ -24,7 +24,7 @@
         </button>
       </div>
 
-      <h3>Focus area</h3>
+      <h3 class="bf-eyebrow bf-eyebrow--gold">Focus area</h3>
       <div class="chip-row">
         @for (cat of categoryFilters; track cat.id) {
           <button class="chip" [class.active]="selectedCategory() === cat.id" (click)="selectedCategory.set(cat.id)">
@@ -33,7 +33,7 @@
         }
       </div>
 
-      <h3>Level</h3>
+      <h3 class="bf-eyebrow bf-eyebrow--olive">Level</h3>
       <div class="chip-row">
         @for (d of diffFilters; track d.id) {
           <button class="chip" [class.active]="selectedDiff() === d.id" (click)="selectedDiff.set(d.id)">
@@ -43,17 +43,18 @@
       </div>
 
       <div class="config-summary">
-        <div>
-          <strong>{{ effectiveCount() }}</strong
-          ><span>questions</span>
-        </div>
-        <div>
-          <strong>{{ totalMinutes() }}</strong
-          ><span>minutes</span>
-        </div>
-        <div>
-          <strong>{{ passMark }}%</strong><span>to pass</span>
-        </div>
+        <app-tape-card heading="Questions" tone="accent">
+          <span class="stat-num">{{ effectiveCount() }}</span>
+          <span class="stat-label">this attempt</span>
+        </app-tape-card>
+        <app-tape-card heading="Time limit" tone="gold">
+          <span class="stat-num">{{ totalMinutes() }}</span>
+          <span class="stat-label">minutes</span>
+        </app-tape-card>
+        <app-tape-card heading="Pass mark" tone="olive">
+          <span class="stat-num">{{ passMark }}%</span>
+          <span class="stat-label">to pass</span>
+        </app-tape-card>
       </div>
 
       @if (availableForFilters().length === 0) {
@@ -63,26 +64,32 @@
       }
 
       @if (weakAreas().length > 0) {
-        <div class="weak-box">
-          <span class="weak-title">📉 Weak areas from your attempts — tap to focus:</span>
-          @for (w of weakAreas(); track w.id) {
-            <button class="chip weak" [class.active]="selectedCategory() === w.id" (click)="selectedCategory.set(w.id)">
-              {{ w.label }} · {{ w.pct }}%
-            </button>
-          }
-        </div>
+        <app-napkin lead="📉" label="Weak areas from your recent attempts" class="weak-napkin">
+          <p class="weak-intro">Weak areas from your attempts — tap one to focus your next exam there.</p>
+          <div class="chip-row">
+            @for (w of weakAreas(); track w.id) {
+              <button
+                class="chip weak"
+                [class.active]="selectedCategory() === w.id"
+                (click)="selectedCategory.set(w.id)"
+              >
+                {{ w.label }} · {{ w.pct }}%
+              </button>
+            }
+          </div>
+        </app-napkin>
       }
 
-      <div>
+      <div class="config-actions">
         <button class="primary-btn" [disabled]="effectiveCount() === 0" (click)="start()">Start Exam →</button>
         <a routerLink="/practice" class="link-back">or use self-paced Practice</a>
       </div>
     </div>
 
     @if (history().length > 0) {
-      <div class="history-section">
+      <div class="history-section" appReveal [appRevealDelay]="240">
         <div class="history-head">
-          <h3>Previous attempts</h3>
+          <h3 class="bf-eyebrow bf-eyebrow--blue">Previous attempts</h3>
           <button class="ghost-btn small" (click)="clearHistory()">Clear</button>
         </div>
         @for (h of history(); track h.when) {
@@ -124,10 +131,10 @@
     </div>
 
     @if (current(); as ch) {
-      <div class="q-card">
+      <div class="q-card" appReveal>
         <div class="q-badges">
           <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
-          <span class="badge-type">{{ ch.category }}</span>
+          <span class="badge-category">{{ ch.category }}</span>
           <button class="flag-btn" [class.on]="isFlagged(ch.id)" (click)="toggleFlag()">
             {{ isFlagged(ch.id) ? '🚩 Flagged' : '⚑ Flag' }}
           </button>
@@ -178,9 +185,9 @@
   }
 
   @case ('review') {
-    <div class="result-hero" [class.pass]="passed()" [class.fail]="!passed()">
+    <div class="result-hero" [class.pass]="passed()" [class.fail]="!passed()" appReveal>
       <span class="result-badge">{{ passed() ? 'PASS' : 'FAIL' }}</span>
-      <div class="result-score">{{ scorePercent() }}%</div>
+      <div class="result-score">{{ animScorePercent() }}%</div>
       <p>
         {{ correctCount() }} / {{ questions().length }} correct · {{ elapsedLabel() }} used · pass mark {{ passMark }}%
       </p>
@@ -198,8 +205,8 @@
     </div>
 
     @if (categoryBreakdown().length > 1) {
-      <div class="breakdown">
-        <h3>By category</h3>
+      <div class="breakdown" appReveal [appRevealDelay]="80">
+        <h3 class="bf-eyebrow">By category</h3>
         @for (row of categoryBreakdown(); track row.id) {
           <div class="bd-row">
             <span class="bd-label">{{ row.label }}</span>
@@ -236,12 +243,18 @@
       @for (item of reviewItems(); track item.ch.id) {
         @let ch = item.ch;
         @let i = item.i;
-        <div class="review-card" [class.ok]="isCorrect(ch)" [class.no]="!isCorrect(ch)">
+        <div
+          class="review-card"
+          [class.ok]="isCorrect(ch)"
+          [class.no]="!isCorrect(ch)"
+          appReveal
+          [appRevealDelay]="($index % 6) * 40"
+        >
           <div class="rev-head">
             <span class="rev-num">Q{{ i + 1 }}</span>
             <span class="rev-mark">{{ isCorrect(ch) ? '✓' : '✗' }}</span>
             <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
-            <span class="badge-type">{{ ch.category }}</span>
+            <span class="badge-category">{{ ch.category }}</span>
           </div>
 
           <p class="q-text">{{ ch.question }}</p>
