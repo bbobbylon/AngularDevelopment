@@ -28,31 +28,59 @@ typography and contrast get the attention that decoration does not.
 
 ## 1. Design system
 
-Everything lives in `src/styles.css` (366 lines). Both themes are defined as custom
+Everything lives in `src/styles.css`. Both themes are defined as custom
 properties on `:root`, with the dark theme overriding a subset.
 
 ### Colour
 
 | Token           | Light     | Dark      | Role                             |
 | --------------- | --------- | --------- | -------------------------------- |
-| `--bg`          | `#fafafa` | `#0b0b0f` | Page background                  |
-| `--bg-elevated` | `#f1f1f3` | `#17171c` | Inputs, subtle raised surfaces   |
-| `--bg-card`     | `#ffffff` | `#141419` | Cards                            |
-| `--surface`     | `#ffffff` | `#141419` | Panels, table headers            |
-| `--border`      | `#e4e4e7` | `#27272e` | All borders and dividers         |
+| `--bg`          | `#f1f1f4` | `#08080b` | Page background — tier 1         |
+| `--bg-elevated` | `#e7e7ec` | `#1c1c23` | Inputs, wells recessed in a card |
+| `--bg-card`     | `#ffffff` | `#17171f` | Cards — tier 2                   |
+| `--surface`     | `#ffffff` | `#17171f` | Panels, table headers            |
+| `--border`      | `#dedee4` | `#2c2c36` | All borders and dividers         |
 | `--text`        | `#18181b` | `#f4f4f5` | Body text                        |
-| `--text-muted`  | `#6b6b76` | `#9d9dab` | Secondary text                   |
-| `--accent`      | `#6366f1` | `#818cf8` | Primary — buttons, active states |
+| `--text-muted`  | `#63636e` | `#a1a1b0` | Secondary text                   |
+| `--accent`      | `#6366f1` | `#818cf8` | **Interactive only** — buttons   |
 | `--accent-2`    | `#8b5cf6` | `#a78bfa` | Secondary accent                 |
-| `--violet`      | `#7c3aed` | —         | Focus rings, emphasis            |
-| `--green`       | `#10b981` | —         | Success, "correct", "live"       |
-| `--amber`       | `#f59e0b` | —         | Warnings, "in progress"          |
-| `--blue`        | `#4f46e5` | `#a5b4fc` | Links                            |
+| `--violet`      | `#7c3aed` | `#c4b5fd` | New vocabulary (`.term`)         |
+| `--green`       | `#10b981` | `#34d399` | Correct, "live", `.right`        |
+| `--amber`       | `#d97706` | `#fbbf24` | Remember-this, warnings, `.key`  |
+| `--red`         | `#dc2626` | `#fb7185` | Wrong, the trap, `.wrong`        |
+| `--blue`        | `#4f46e5` | `#a5b4fc` | Links, and only links            |
+
+#### One hue, one job
+
+The legend above is enforced, and the enforcement is the point. Indigo previously served
+as the button colour, the link colour _and_ the inline-code tint simultaneously, which
+meant an indigo word in a paragraph carried no information at all — the reader could not
+tell "press this" from "this is a symbol". **A colour that means three things means
+nothing.** Before giving a new element a colour, decide which of the six roles it _is_;
+if it is none of them, it does not get a hue.
+
+Inline code is deliberately **neutral** (a 7% ink tint, no hue). The monospace face is
+already an unmistakable signal, and spending a hue there costs that hue everywhere else.
+
+#### Contrast tiers
+
+Three deliberate steps, so depth is readable without reading:
+
+| Tier | Token       | Light     | Dark      | Meaning                           |
+| ---- | ----------- | --------- | --------- | --------------------------------- |
+| 1    | `--bg`      | `#f1f1f4` | `#08080b` | The page. Never holds content.    |
+| 2    | `--bg-card` | `#ffffff` | `#17171f` | Cards and demos float _above_ it. |
+| 3    | `--code-bg` | `#0d1117` | `#0d1117` | Code sinks _below_, into a panel. |
+
+The light-mode page tone is pulled off pure white on purpose: against `#fafafa` a white
+card is invisible, and every demo box on the site then reads as one undifferentiated
+column. In dark mode the code panel is never darker than the page, or a code block would
+look like a hole punched through the card.
 
 **Two tokens are intentionally theme-independent:**
 
 ```css
---code-bg: #1e1e2e; /* code panels are always dark */
+--code-bg: #0d1117; /* code panels are always dark */
 --code-fg: #d4d4e4; /* fixed light text — never inherit --text here */
 ```
 
@@ -60,10 +88,55 @@ Code blocks stay dark in both themes so syntax highlighting keeps one palette. `
 is fixed rather than inheriting `--text` because in light mode that would be near-black
 text on a near-black panel — a bug worth naming, since it is the obvious "simplification".
 
-**Syntax highlighting** (`shared/highlighter.ts` emits these classes):
-`--hl-kw` `#c792ea` keyword · `--hl-str` `#c3e88d` string · `--hl-cmt` `#546e7a` comment
-(italic) · `--hl-num` `#f78c6c` number · `--hl-dec` / `--hl-fn` `#82aaff` decorator and
-function.
+### Prose emphasis — colour as a retention device
+
+A page of uniformly-coloured text gives the eye nothing to grab, so nothing survives the
+scroll. Four global utilities exist so a reader who only _skims_ still leaves with the
+vocabulary, the rule and the trap.
+
+| Class    | Hue    | Use it for                              | Budget                  |
+| -------- | ------ | --------------------------------------- | ----------------------- |
+| `.term`  | violet | The **first** use of a word _as_ a term | Once per term, per page |
+| `.key`   | amber  | The one phrase you'd want on the exam   | ~one per `<h2>`         |
+| `.right` | green  | The right way, in a right-vs-wrong pair | Always paired           |
+| `.wrong` | red    | The trap, in a right-vs-wrong pair      | Always paired           |
+
+`.key` paints an amber marker stroke across the bottom 48% of the line box rather than
+filling a chip, so the text stays on the page instead of being boxed off it — and it
+survives line wrapping, which a border-based treatment does not.
+
+`.right` / `.wrong` add a ✓ / ✗ through `::before`. That mark is a deliberate duplicate of
+the colour: colour alone never carries meaning here, or readers with a red/green deficiency
+lose the distinction entirely.
+
+Three highlighted phrases on a screen is emphasis; fifteen is wallpaper. If removing the
+class would not change what a skimmer takes away, it should not be there.
+
+> **Naming rule for new global utilities:** these are `.right`/`.wrong`, not `.good`/`.bad`,
+> because 97 places already use `.good`/`.bad` on table cells and demo panels with their own
+> component styles — a global rule of the same name out-specifies them (`.lesson .good` beats
+> `.good`) and would stamp ✓/✗ into all of them. Grep before you name.
+
+**Syntax highlighting** (`shared/highlighter.ts` emits these classes). Eleven token roles,
+not five: a snippet where only keywords and strings differ still reads as a grey wall,
+which is the failure this palette exists to fix. Weight and italics carry meaning the way
+a real IDE uses them, and the palette is fixed rather than themed — the code panel is a
+terminal in both modes.
+
+| Class         | Colour    | Role                                             |
+| ------------- | --------- | ------------------------------------------------ |
+| `.hl-kw`      | `#c792ea` | Keyword — _italic_, as Darcula does              |
+| `.hl-str`     | `#c3e88d` | String                                           |
+| `.hl-cmt`     | `#6b7a8f` | Comment — italic                                 |
+| `.hl-num`     | `#f78c6c` | Number                                           |
+| `.hl-dec`     | `#ffcb6b` | Decorator — semibold                             |
+| `.hl-fn`      | `#82aaff` | Free function call — **bold**, it's the _doing_  |
+| `.hl-method`  | `#82aaff` | Method call on a receiver — same hue, unbolded   |
+| `.hl-prop`    | `#b2ccd6` | Property read — quieter still                    |
+| `.hl-type`    | `#ffcb6b` | Class, interface, enum, type name                |
+| `.hl-builtin` | `#89ddff` | Resolved globals: `console`, `signal`, `inject`  |
+| `.hl-op`      | `#89ddff` | Operators                                        |
+| `.hl-punct`   | `#8792a8` | Braces, semicolons, commas — dimmed so names pop |
 
 ### Typography
 

@@ -311,14 +311,14 @@ samp {
   padding: 0 0.12em;
 }
 
-.lesson .good,
-.lesson .bad {
+.lesson .right,
+.lesson .wrong {
   font-weight: 600;
 }
-.lesson .good {
+.lesson .right {
   color: var(--green);
 }
-.lesson .bad {
+.lesson .wrong {
   color: var(--red);
 }
 
@@ -328,11 +328,26 @@ samp {
    entirely. `aria-hidden` equivalent — generated content is not
    announced by screen readers, and the surrounding prose already
    says which is which. */
-.lesson .good::before {
+.lesson .right::before {
   content: "✓ ";
 }
-.lesson .bad::before {
+.lesson .wrong::before {
   content: "✗ ";
+}
+
+/* ---- Hand-authored lesson diagrams (inline SVG) ----
+   For the shapes `<app-flow>` cannot draw: unicast vs multicast, a memory
+   layout, a state machine. Fluid by default so a wide schematic reflows on a
+   phone instead of forcing the whole page to scroll sideways — an SVG with a
+   viewBox scales for free, which is most of why these are SVG and not images.
+   Colours inside them must come from the theme tokens (`fill="var(--accent)"`),
+   never literals, or the diagram inverts badly in dark mode. */
+.lesson .diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 760px;
+  margin: 18px 0;
 }
 
 /* Live demo box */
