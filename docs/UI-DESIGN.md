@@ -307,7 +307,7 @@ All of it is suppressed under `prefers-reduced-motion: reduce`.
 Added 2026-08-31, from a visual the author supplied after a long series of asks recorded
 as **Bar 3** in `.claude/CLAUDE.md` and as §2.2 of the backlog. It started as a second skin
 over everything in §1–§8, applying only to a lesson that opted in — and on 2026-09-03,
-after the author asked to make sure the *entire* app was brain-friendly, its palette and
+after the author asked to make sure the _entire_ app was brain-friendly, its palette and
 typography (§9.1's remap) were promoted to the app's ONE permanent theme, unconditionally,
 everywhere. §9.1 and §9.6 below reflect that change; the rest of this section (voices,
 palette, the presentation component set, extension rules) is unchanged.

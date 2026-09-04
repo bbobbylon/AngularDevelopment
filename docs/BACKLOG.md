@@ -189,7 +189,7 @@ of that section."_ This supersedes §2.2 as the concrete plan for Bar 3.
   `audit-retention.mjs` (was 24 lessons at 9/9 before this batch, 28 after).
 
 **Shipped 2026-09-03 — the theme is app-wide, unconditionally.** The author asked to make
-sure the *entire* app was brain-friendly, not just migrated lessons. `src/brain-friendly.css`
+sure the _entire_ app was brain-friendly, not just migrated lessons. `src/brain-friendly.css`
 §3 now repoints the base theme's tokens (`--bg`, `--accent`, `--text`, …) at the warm
 palette in an unconditional `:root` block — every page, chrome included, paints from the
 same palette and typefaces the instant the stylesheet loads, whether or not that page has
@@ -244,13 +244,14 @@ Remaining 10: `progress`, `coding-tasks`, `api-playground`, `exam-day`, `flashca
 `interview`, `glossary`, `bookmarks`, `coming-soon`, `not-found`.
 
 **Traps worth knowing before the next batch** (each cost a build break to discover):
+
 - A getter or an `afterRender`-family-written plain field bound directly in a template
   throws NG0100 unless the write goes through a `signal()` (see
   `expert/change-detection`'s JSDoc).
-- In real template *body* text (not just attribute strings), even a single unescaped `{`
+- In real template _body_ text (not just attribute strings), even a single unescaped `{`
   or `}` — e.g. a JS template-literal placeholder like `` `HTTP ${res.status}` `` inside a
   `<code>` sample — fails `ng build` with NG5002 and must be escaped individually as
-  `` {{ '{' }} ``/`` {{ '}' }} ``, not just double-brace pairs.
+  `{{ '{' }}`/`{{ '}' }}`, not just double-brace pairs.
 - Full-page stylesheets (a restyled dashboard, not a lesson) are legitimately bigger than a
   single lesson's demo CSS. `angular.json`'s `anyComponentStyle` budget was raised from
   10kB/14kB to 16kB/20kB after `home.css`/`mock-exam.css` tripped the old warning threshold
