@@ -2,8 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Compare, Faq, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { Compare, Faq, Flow, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 // ── Demo data: the boot comparator ──────────────────────────────────────────
 
@@ -151,6 +151,7 @@ const MISMATCHES: readonly Mismatch[] = [
     TapeCard,
     Compare,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
@@ -212,6 +213,35 @@ export class Hydration {
     {
       who: 'Client runtime',
       says: "Then I can't safely adopt this. `NG0500` — this subtree gets destroyed and rebuilt from scratch, same as if hydration never ran here.",
+    },
+  ];
+
+  /**
+   * The mnemonic above ("Map, walk, claim, verify") as a picture, not just a
+   * sentence — the same four beats, in order, drawn from the vocabulary the
+   * mechanism section builds up (`ngh`, the walk, node claiming). `verify` is
+   * marked `warn` because it is the step the mismatch clinic below picks up
+   * from: a "no" there is what an `NG0500` actually is.
+   */
+  protected readonly mechanismFlow: FlowStep[] = [
+    {
+      label: 'Map',
+      detail: 'Server ships `ngh` indexes + the `__nghData__` blob — directions, not DOM.',
+    },
+    {
+      label: 'Walk',
+      detail: "Client traverses in the map's exact order. Zero `createElement` calls.",
+      tone: 'accent',
+    },
+    {
+      label: 'Claim',
+      detail: 'Matching nodes are adopted — listeners attach, nothing is destroyed.',
+      tone: 'good',
+    },
+    {
+      label: 'Verify',
+      detail: 'Live DOM must match the map exactly, or the walk gives up right there.',
+      tone: 'warn',
     },
   ];
 
