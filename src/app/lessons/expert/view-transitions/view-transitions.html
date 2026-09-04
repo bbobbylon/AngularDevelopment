@@ -1,286 +1,511 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Cross-Cutting</span>
-  <h1>View Transitions</h1>
-  <p class="lead">
-    The browser's native View Transitions API animates between two DOM
-    <strong>snapshots</strong>: freeze the old pixels, let you mutate the DOM, then animate old → new with plain CSS.
-    Angular's router integrates it via <code>withViewTransitions()</code> — one line of config —
-    <strong>and this very app uses it</strong> for every navigation. This page covers the primitive itself, the router
-    wiring, a live same-document morph, and the production pitfalls.
-  </p>
-
-  <h2>The primitive — document.startViewTransition()</h2>
-  <div class="code">
-    <pre>{{ primitiveSample }}</pre>
-  </div>
-  <p>
-    Three phases: (1) the browser <em>captures</em> the current state as an image, (2) it runs your callback — this is
-    where the DOM actually changes — and waits for the promise you return, (3) it captures the new state and animates
-    between the two. While the transition runs, the page is covered by a tree of pseudo-elements you can style like any
-    other element.
-  </p>
-
-  <h2>Live — same-document morph (no router involved)</h2>
-  <p>
-    Each card below has a unique <code>view-transition-name</code>, so the browser treats it as a tracked element: when
-    the DOM changes inside <code>startViewTransition()</code>, matching names morph from old position/size to new —
-    position, scale, everything — with zero animation code:
-  </p>
-  <div class="demo">
-    <p class="demo__title">
-      Live — per-item names + startViewTransition ({{
-        supported ? 'supported here ✓' : 'not supported in this browser — buttons still work, just without the morph'
-      }})
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="Angular Expert · Cross-Cutting"
+    title="View Transitions"
+    hand="or, how to animate away a page that's already gone"
+    [stops]="stops"
+    [current]="4"
+  >
+    <p class="lead">
+      The View Transitions API animates between two DOM <strong>snapshots</strong>: freeze the old pixels, let your code
+      do whatever it wants to the DOM, then animate old into new with plain CSS. Angular wires it into the router with
+      one function, <code>withViewTransitions()</code> — and this very app runs on it for every navigation, including
+      the one that got you here. This page takes apart what a transition actually is, where Angular has to step in by
+      hand, exactly how a shared-element morph breaks in production, and the handful of options a bare
+      <code>withViewTransitions()</code> call won't show you.
     </p>
-    <div class="vt-grid">
-      @for (card of cards(); track card.id) {
-        <div
-          class="vt-card"
-          [class.grown]="grownId() === card.id"
-          [style.background]="card.color"
-          [style.view-transition-name]="'vt-card-' + card.id"
-          (click)="toggleGrow(card.id)"
-        >
-          {{ card.id }}
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A route changes. The old page just vanishes.</h2>
+
+    <p>
+      Here's what a Single Page App normally hides from you:
+      <strong>a route change is not a transition, it's a demolition.</strong> Angular tears down one component tree and
+      builds another, and it does this between one paint and the next — there is no in-between frame where both exist
+      together. The old page doesn't fade or slide anywhere. It's simply <span class="key">not there any more</span>,
+      replaced by something else, instantly.
+    </p>
+
+    <p>
+      Which makes the whole idea of an "animated route change" stranger than it sounds. To animate something, you
+      normally need it to still exist while the animation plays. So here's the actual puzzle every polished app with
+      smooth page transitions has quietly solved:
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      You can't keep the old DOM around — Angular genuinely has to destroy it to build the new page. So what could the
+      browser possibly hold on to, if not the DOM itself, that would let it show you <em>where you came from</em>
+      while the new page settles in? Hold that guess — the whole mechanism is built around the answer.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>It isn't animating a page. It's cross-fading two photographs.</h2>
+
+    <p>
+      Picture the browser holding a camera. The instant before your code runs, it takes a photo of the screen exactly as
+      it is. Then it lets your code do whatever it wants to the DOM — however violent, however instant. Once you're
+      done, it takes a second photo. Now it has two flat, static images, and animating between two photographs is easy:
+      no live DOM to keep in sync, no timing races, no matter how catastrophic the actual DOM surgery was in between.
+    </p>
+
+    <p>
+      That's the whole trick, and it explains the two strangest things about the API. It explains why the browser
+      doesn't care <em>how</em> you changed the DOM — router navigation, a signal write, direct manipulation, it sees
+      none of that, only the before and the after. And it explains why nothing on screen is genuinely
+      <span class="bf-break">live</span> while a transition plays: hover a button mid-transition and nothing happens,
+      because you're hovering a photograph of a button.
+    </p>
+
+    <div class="tip">
+      Frozen means frozen — a background <code>&lt;video&gt;</code> or an animating <code>&lt;canvas&gt;</code> stops
+      moving too, and every click during the transition lands on a picture, not a control. That's the practical reason
+      to keep transitions short: 150–250ms reads as instant, but a multi-second "artistic" transition is a multi-second
+      stretch of dead clicks.
+    </div>
+
+    <app-remember variant="mnemonic">
+      <strong>Snapshot old. Run your code. Snapshot new. Animate the bitmaps.</strong> If you remember one shape,
+      remember that the <em>animation</em> never touches your real DOM — only two photographs of it, taken a moment
+      apart.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="Notice the browser never asks HOW the DOM changed. Router navigation, a click handler, a signal write — none of it. It only ever sees two photographs."
+    />
+
+    <app-flow
+      caption="What `startViewTransition(callback)` actually does, in order"
+      [steps]="[
+        { label: 'Snapshot old', detail: 'A screenshot of everything on screen, right now' },
+        { label: 'Your callback runs', detail: 'The DOM changes — however you want', tone: 'accent' },
+        { label: 'Snapshot new', detail: 'A screenshot of the result' },
+        { label: 'Animate', detail: 'Cross-fade — or morph, for a shared name', tone: 'good' },
+      ]"
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One call, four steps — and a tree of pseudo-elements to style.</h2>
+
+    <p>
+      Here's the primitive itself. Three phases, one function call: the browser captures the old state, runs your
+      callback and waits for the promise you return, then captures the new state and animates between the two.
+    </p>
+
+    <app-code-lab
+      file="transition.ts — the browser primitive"
+      [code]="primitiveSample"
+      [notes]="primitiveNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      While a transition runs, the page is covered by a tree of pseudo-elements you can style like any other element —
+      and because they're pseudo-elements, not real DOM, containment is the whole story: everything nests inside
+      <code>::view-transition</code>, grouped per name.
+    </p>
+
+    <app-layers
+      [core]="{ label: '::view-transition-old / -new(name)', sub: 'the two bitmaps' }"
+      [rings]="[
+        { label: '::view-transition', sub: 'full-viewport overlay' },
+        { label: '::view-transition-group(name)', sub: 'THIS is what you animate — position & size' },
+        { label: '::view-transition-image-pair(name)', sub: 'holds old + new together' },
+      ]"
+      arrow="name defaults to root"
+      caption="Everything without its own `view-transition-name` collapses into the built-in name **root** — which is why customising the whole-page cross-fade means writing `::view-transition-old(root)` / `::view-transition-new(root)`, exactly like the CSS further down does."
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The five pseudo-elements — and the only ones you'll ever style
+      </caption>
+      <thead>
+        <tr>
+          <th>Pseudo-element</th>
+          <th>What it is</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>::view-transition</code></td>
+          <td>root overlay covering the viewport for the duration of the transition</td>
+        </tr>
+        <tr>
+          <td><code>::view-transition-group(name)</code></td>
+          <td>per-name container; its <strong>default</strong> animation is the position/size morph itself</td>
+        </tr>
+        <tr>
+          <td><code>::view-transition-image-pair(name)</code></td>
+          <td>holds the two snapshots for that name together</td>
+        </tr>
+        <tr>
+          <td><code>::view-transition-old(name)</code></td>
+          <td>the outgoing snapshot (default: fades out)</td>
+        </tr>
+        <tr>
+          <td><code>::view-transition-new(name)</code></td>
+          <td>the incoming snapshot (default: fades in)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 4. TURNING IT ON ============ -->
+  <section>
+    <p class="bf-eyebrow">Turning it on</p>
+    <h2>Enabling it is one option flag. Getting it right takes two.</h2>
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="enableSample"
+      [notes]="enableNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-predict
+      prompt="Why does the very FIRST navigation need different treatment from every one after it?"
+      answer="There's no meaningful 'old' page to animate from — the app has either just booted or just hydrated. Without `skipInitialTransition`, that first activation animates against its own freshly-rendered DOM, and on a server-rendered app that shows up as a visible flash the instant the page loads. It's the option almost every real app ends up flipping on, and the one a bare `withViewTransitions()` call gives you no reason to discover."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 5. SEE IT WORK ============ -->
+  <section>
+    <p class="bf-eyebrow">See it work</p>
+    <h2>Six cards, one signal, zero animation code.</h2>
+
+    <p>
+      Each card below has a unique <code>view-transition-name</code>, so the browser treats it as a tracked element —
+      when the DOM changes inside <code>startViewTransition()</code>, matching names morph from old position and size to
+      new, with no <code>&#64;keyframes</code> written for any of it.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">
+        Live — per-item names + startViewTransition ({{
+          supported ? 'supported here ✓' : 'not supported in this browser — buttons still work, just without the morph'
+        }})
+      </p>
+      <div class="vt-grid">
+        @for (card of cards(); track card.id) {
+          <div
+            class="vt-card"
+            [class.grown]="grownId() === card.id"
+            [style.background]="card.color"
+            [style.view-transition-name]="'vt-card-' + card.id"
+            (click)="toggleGrow(card.id)"
+          >
+            {{ card.id }}
+          </div>
+        }
+      </div>
+      <div class="row" style="margin-top: 12px">
+        <button (click)="shuffle()">Shuffle (watch them fly)</button>
+        <button class="ghost" (click)="sort()">Sort back</button>
+      </div>
+      <p class="demo__note">
+        Click a card to grow or shrink it — same mechanism, the size change morphs. No animation library, no measuring:
+        the names pair the two snapshots and the browser interpolates the geometry itself.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="view-transitions.ts — this demo's own code"
+      [code]="demoSample"
+      [notes]="demoNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="note">
+      The subtle part in an Angular app: the browser waits for your callback, but a signal write only
+      <em>schedules</em> rendering. This demo calls <code>ApplicationRef.tick()</code> inside the callback so the DOM is
+      truly updated before the "new" snapshot is taken — exactly what the router's own integration does for you on a
+      navigation.
+    </div>
+
+    <app-quiz
+      question="You wrap a signal write in `document.startViewTransition()` but forget the `appRef.tick()` call. What actually happens?"
+      [options]="quizOptions"
+      followUp="Scroll back up and try it for real: comment out that one line in a copy of this demo and watch the cards teleport instead of morphing."
+    />
+  </section>
+
+  <!-- ============ 6. CROSS-ROUTE MORPHS ============ -->
+  <section>
+    <p class="bf-eyebrow">Cross-route morphs</p>
+    <h2>The same name on both pages is the entire trick.</h2>
+
+    <p>In practice you'll only ever type a <code>view-transition-name</code> in three shapes:</p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="root" kicker="the implicit default" tone="gold">
+        Anything without its own name falls in here automatically. Style the whole-page effect via
+        <code>::view-transition-old(root)</code> / <code>::view-transition-new(root)</code>.
+      </app-tape-card>
+      <app-tape-card heading="A shared name" kicker="cross-route morph" tone="accent">
+        The exact same string on the list page and the detail page. The browser pairs the two occurrences across the
+        navigation and morphs position, size, everything.
+      </app-tape-card>
+      <app-tape-card heading="A per-item name" kicker="dynamic lists" tone="olive">
+        Derived from an id at render time, e.g. <code>'card-' + id</code>. Must be unique across the whole page at the
+        moment of the snapshot — not just within your own list.
+      </app-tape-card>
+    </div>
+
+    <p>
+      Assign the <em>same</em> <code>view-transition-name</code> to a matching element in the old and new route, and the
+      browser pairs them — the classic "thumbnail expands into hero image" effect, no FLIP math, no animation library:
+    </p>
+
+    <app-code-lab file="styles.css" [code]="sharedSample" [notes]="sharedNotes" notesLabel="What each rule is doing" />
+
+    <p>
+      Name only one side — an element leaving on the old page, say, with nothing claiming that name on the new one — and
+      there's no partner to morph into. It still gets its own <code>::view-transition-group</code>, it just runs alone:
+      a plain fade instead of a position/size morph.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — the name is on the clipped child"
+      leftTone="bad"
+      rightTitle="Right — name the box that should escape"
+      rightTone="good"
+      note="During a transition, a named element is lifted out of every ancestor's clipping, radius and transform for the whole animation — style (or move) the name accordingly, or the escape shows up as a visible glitch."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+.card &#123;
+  overflow: hidden;
+  border-radius: 16px;
+&#125;
+.card__thumb &#123;
+  view-transition-name: 'item-' + id;
+&#125;</pre>
         </div>
-      }
+        <p>
+          The name is on <code>.card__thumb</code>, which lives <em>inside</em> a clipped, rounded parent. The moment
+          the transition starts, that thumbnail is lifted into the top-level overlay — a sibling of your entire app, not
+          a child of <code>.card</code> any more. <code>.card</code>'s <code>overflow: hidden</code> has nothing left to
+          clip, and the image visibly balloons past the card's rounded corners for the length of the animation.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+.card &#123;
+  view-transition-name: 'item-' + id;
+  overflow: hidden;
+  border-radius: 16px;
+&#125;</pre>
+        </div>
+        <p>
+          Now the element being paired across the transition <em>is</em> the clipped box, not something trapped inside
+          it. Its own radius and overflow travel with it when it's lifted out, instead of being left behind on a parent
+          that no longer applies.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      <strong>A name only works on a single box.</strong> <code>display: contents</code>, an inline element that wraps
+      across two lines, or content split by a multi-column layout don't generate one — the
+      <code>view-transition-name</code> is silently ignored and the element just cross-fades as part of its parent's
+      group instead of morphing on its own.
     </div>
-    <div class="row" style="margin-top: 12px">
-      <button (click)="shuffle()">Shuffle (watch them fly)</button>
-      <button class="ghost" (click)="sort()">Sort back</button>
+
+    <div class="tip">
+      A morphed image can look squashed mid-flight — the group animates the <strong>box</strong>, but the image inside
+      it needs its own fit rule:
+      <code
+        >::view-transition-old(hero), ::view-transition-new(hero) &#123; height: 100%; object-fit: cover; &#125;</code
+      >. Got a dozen independently-named elements that should share one timing? Tag them with
+      <code>view-transition-class</code> instead of repeating CSS per name —
+      <code>style="view-transition-class: card"</code> lets you write
+      <code>::view-transition-group(.card) &#123; animation-duration: .4s &#125;</code> once for all of them.
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Click a card to grow/shrink it — same mechanism, the size change morphs. No <code>&#64;keyframes</code>, no
-      animation library: the names pair the snapshots and the browser interpolates the geometry.
+
+    <app-remember variant="rule">
+      A named element must generate <strong>exactly one box</strong>, and for the length of the transition it is
+      <strong>lifted out</strong> of every ancestor's clipping, radius and transform. Style the clip on the element you
+      name, not on its parent.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. CSS CUSTOMISATION ============ -->
+  <section>
+    <p class="bf-eyebrow">Customise it</p>
+    <h2>You already know the CSS. Only the selectors are new.</h2>
+
+    <p>This is the exact animation this app itself uses on <code>(root)</code> for every navigation:</p>
+
+    <app-code-lab
+      file="styles.css — this app's own route animation"
+      [code]="cssSample"
+      [notes]="cssNotes"
+      notesLabel="What each rule is doing"
+    />
+  </section>
+
+  <!-- ============ 8. HOOK IN FROM TYPESCRIPT ============ -->
+  <section>
+    <p class="bf-eyebrow">The escape hatches</p>
+    <h2>Hook into TypeScript for the navigations that need special treatment.</h2>
+
+    <p>
+      <code>onViewTransitionCreated</code> fires with the <code>ViewTransition</code> object plus the from/to route
+      snapshots — the place to skip transitions per-route, add a direction class for slide-left/slide-right CSS, or
+      guard against the <code>ready</code> rejection covered above.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ demoSample }}</pre>
-  </div>
-  <div class="note">
-    The subtle part in an Angular app: the browser waits for your callback, but a signal write only
-    <em>schedules</em> rendering. The demo calls <code>ApplicationRef.tick()</code> inside the callback so the DOM is
-    truly updated before the "new" snapshot is taken — which is exactly what the router's integration does for
-    navigations.
-  </div>
 
-  <h2>Router integration — enable it</h2>
-  <div class="code">
-    <pre>{{ enableSample }}</pre>
-  </div>
-  <p>
-    That is the entire Angular-side setup. Every router navigation now wraps the activation in
-    <code>document.startViewTransition()</code>: the browser freezes the old route's pixels, Angular swaps the component
-    tree and runs change detection inside the callback, then the browser cross-fades (by default) between the snapshots.
-  </p>
+    <app-code-lab file="app.config.ts" [code]="hookSample" [notes]="hookNotes" notesLabel="What each line is doing" />
+  </section>
 
-  <h2>The pseudo-element tree — what you actually style</h2>
-  <div class="code">
-    <pre>{{ pseudoTreeSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Pseudo-element</th>
-      <th>What it is</th>
-    </tr>
-    <tr>
-      <td><code>::view-transition</code></td>
-      <td>root overlay covering the viewport during the transition</td>
-    </tr>
-    <tr>
-      <td><code>::view-transition-group(name)</code></td>
-      <td>per-name container; its default animation IS the position/size morph</td>
-    </tr>
-    <tr>
-      <td><code>::view-transition-image-pair(name)</code></td>
-      <td>holds the two snapshots for that name</td>
-    </tr>
-    <tr>
-      <td><code>::view-transition-old(name)</code></td>
-      <td>screenshot of the outgoing state (default: fade out)</td>
-    </tr>
-    <tr>
-      <td><code>::view-transition-new(name)</code></td>
-      <td>live representation of the incoming state (default: fade in)</td>
-    </tr>
-  </table>
-  <p>
-    Everything not explicitly named belongs to the built-in name
-    <code>root</code> — which is why customizing the whole-page animation targets
-    <code>::view-transition-old(root)</code> / <code>::view-transition-new(root)</code>.
-  </p>
+  <!-- ============ 9. TWO FAILURE MODES ============ -->
+  <section>
+    <p class="bf-eyebrow">Two ways this quietly breaks</p>
+    <h2>A slow lazy route doesn't look slow. It looks frozen.</h2>
 
-  <h2>Customise the route animation with CSS</h2>
-  <div class="code">
-    <pre>{{ cssSample }}</pre>
-  </div>
+    <app-predict
+      prompt="You navigate to a lazy-loaded route with view transitions enabled, and the chunk takes two seconds to download. What does the user see for those two seconds?"
+      answer="The OLD page — frozen, exactly as it looked the instant you clicked. The transition already took its 'old' screenshot and is waiting for your callback (route activation) to resolve, and that includes waiting for the lazy chunk to arrive. There's no spinner and no partial render, just a photograph that refuses to move. Pair view transitions with route preloading or a resolver so the download happens before the transition starts, not during it — a slow lazy route under withViewTransitions() feels like a hang, not a spinner, which is precisely why this is worth knowing before it happens to you in production."
+      revealLabel="Reveal the answer"
+    />
 
-  <h2>Shared-element morph across routes</h2>
-  <p>
-    Assign the <em>same</em> <code>view-transition-name</code> to a matching element in the old and new route. The
-    browser pairs them and morphs — the classic "thumbnail expands into hero image" effect, no FLIP math, no animation
-    library:
-  </p>
-  <div class="code">
-    <pre>{{ sharedSample }}</pre>
-  </div>
-  <div class="note">
-    <code>view-transition-name</code> must be <strong>unique per page at snapshot time</strong> — a duplicate name skips
-    the transition entirely (the console warns). For lists, derive it from the id:
-    <code>[style.view-transition-name]="'item-' + item.id"</code> — exactly what the live demo above does.
-  </div>
-
-  <h2>Hook in from TypeScript</h2>
-  <div class="code">
-    <pre>{{ hookSample }}</pre>
-  </div>
-  <p>
-    <code>onViewTransitionCreated</code> fires with the <code>ViewTransition</code> object plus the from/to router
-    states — the place to skip transitions for same-page navigations, add a direction class (back vs forward) for
-    slide-left/slide-right CSS, or await <code>transition.finished</code> for cleanup.
-  </p>
-
-  <h2>View Transitions vs Angular route animations</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>View Transitions API</th>
-      <th>&#64;angular/animations route animations</th>
-    </tr>
-    <tr>
-      <td>Setup</td>
-      <td>1 line + CSS</td>
-      <td>trigger + query/group/animate DSL on the outlet</td>
-    </tr>
-    <tr>
-      <td>Shared-element morph</td>
-      <td>built in (names)</td>
-      <td>manual FLIP-style measurement, hard</td>
-    </tr>
-    <tr>
-      <td>Runs on</td>
-      <td>compositor snapshots — old view stays visible while the new one loads</td>
-      <td>live DOM — both trees exist simultaneously in the outlet</td>
-    </tr>
-    <tr>
-      <td>Works outside Angular</td>
-      <td>yes — it's a web platform API</td>
-      <td>no</td>
-    </tr>
-    <tr>
-      <td>Support</td>
-      <td>needs a modern browser (graceful no-op elsewhere)</td>
-      <td>everywhere Angular runs</td>
-    </tr>
-  </table>
-  <p>
-    The animations package is also in maintenance mode — for route-level motion, view transitions are the modern
-    default; reach for the DSL only when you need orchestration the snapshot model can't express.
-  </p>
-
-  <h2>Pitfalls</h2>
-  <ul>
-    <li><strong>Duplicate names</strong> silently skip the transition — dynamic lists must derive names from ids.</li>
-    <li>
-      <strong>Fixed headers "swim":</strong> the default root cross-fade snapshots the <em>whole page</em>, including
-      your sticky nav. Give the header its own <code>view-transition-name: header;</code> so it's paired with itself and
-      stays rock-solid while content fades.
-    </li>
-    <li>
-      <strong>Snapshots aren't live:</strong> the old view is a bitmap — hover states, videos, and canvases freeze
-      during the transition. Keep durations short (150–250ms).
-    </li>
-    <li>
-      <strong>The page is non-interactive</strong> while a transition runs — a 2s artistic transition means 2s of dead
-      clicks.
-    </li>
-    <li>
-      <strong>Names must exist on both sides</strong> for a morph; a name present only on one side just fades in/out as
-      its own group.
-    </li>
-  </ul>
-
-  <h2>Always respect reduced motion</h2>
-  <div class="code">
-    <pre>{{ reducedMotionSample }}</pre>
-  </div>
-  <div class="warn">
-    Omitting the reduced-motion override means users with vestibular disorders experience forced animation on every
-    navigation. Always add it. Browsers that don't support the API navigate instantly as a no-op — no polyfill needed.
-  </div>
-
-  <h2>Try it — navigate between lessons</h2>
-  <div class="demo">
-    <p class="demo__title">Live — this app uses withViewTransitions()</p>
-    <p style="margin: 0 0 12px">
-      Click any link in the nav bar or the cards on the home page. Watch the subtle fade+slide as Angular hands off
-      between routes — that is the View Transitions API in action.
+    <p>
+      The second failure mode is the one the hook above already guards against: honour
+      <code>prefers-reduced-motion</code>, and do it the right way, not the obvious one.
     </p>
-    <div class="row">
-      <a routerLink="/" style="font-size: 0.9rem">← Go home and come back</a>
-      <span class="pill">withViewTransitions() ✓ active</span>
-    </div>
-  </div>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Walk through what the browser does during <code>startViewTransition(cb)</code>.</summary>
-    <div>
-      Capture a snapshot of every named element (plus <code>root</code>); run <code>cb</code> and await its promise —
-      the DOM mutates here while the old pixels stay on screen; capture the new state; build the
-      <code>::view-transition</code> pseudo-tree and run the default (or your CSS) animations old → new; resolve
-      <code>finished</code> and tear the overlay down.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does Angular need to run change detection <em>inside</em> the transition callback?</summary>
-    <div>
-      The "new" snapshot is taken when the callback's promise resolves. If the DOM update were merely scheduled (signal
-      write, markForCheck), the new snapshot would capture the <em>old</em> DOM and nothing would animate. The router
-      integration performs activation + CD within the callback for exactly this reason.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Your list morph stopped working after adding a second list with the same item ids. Why?</summary>
-    <div>
-      <code>view-transition-name</code> collisions: two elements sharing a name in one snapshot invalidate the
-      transition. Namespace them (<code>'inbox-' + id</code> vs <code>'archive-' + id</code>).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you get a different animation for back vs forward navigation?</summary>
-    <div>
-      In <code>onViewTransitionCreated</code>, compare from/to (e.g. route depth or a nav-direction service), set a
-      class like <code>vt-back</code> on <code>document.documentElement</code>, and scope your
-      <code>::view-transition-*</code> CSS under it. Remove the class when <code>transition.finished</code> settles.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What happens in Firefox ESR / older Safari with <code>withViewTransitions()</code> enabled?</summary>
-    <div>
-      Nothing bad: the integration feature-detects <code>document.startViewTransition</code> and simply navigates
-      without animation. No polyfill, no error, no extra code path for you to write.
-    </div>
-  </details>
+    <app-code-lab
+      file="styles.css"
+      [code]="reducedMotionSample"
+      [notes]="reducedMotionNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      The API is snapshot-based: capture old → mutate DOM in the callback → capture new → animate. The DOM must be truly
-      updated before the callback resolves.
-    </li>
-    <li>
-      <code>withViewTransitions()</code> is one line; customise with <code>::view-transition-old/new(root)</code> CSS.
-    </li>
-    <li>
-      Matching <code>view-transition-name</code>s morph elements across states — unique per page, derive from ids in
-      lists.
-    </li>
-    <li>
-      Name your sticky header so it doesn't cross-fade; keep transitions ≤250ms; always add the reduced-motion override.
-    </li>
-    <li>Unsupported browsers degrade to instant navigation automatically.</li>
-  </ul>
+  <!-- ============ 10. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>So when do you still reach for the old animations DSL?</h2>
 
-  <p><a routerLink="/ngmodules-migration">Next: NgModules &amp; Standalone Migration →</a></p>
+    <table>
+      <caption class="bf-table-caption">
+        View Transitions vs &#64;angular/animations
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>View Transitions API</th>
+          <th>&#64;angular/animations route animations</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Setup</td>
+          <td>1 line + CSS</td>
+          <td>trigger + query/group/animate DSL on the outlet</td>
+        </tr>
+        <tr>
+          <td>Shared-element morph</td>
+          <td>built in (names)</td>
+          <td>manual FLIP-style measurement, hard</td>
+        </tr>
+        <tr>
+          <td>Runs on</td>
+          <td>compositor snapshots — old view stays visible while the new one loads</td>
+          <td>live DOM — both trees exist simultaneously in the outlet</td>
+        </tr>
+        <tr>
+          <td>Works outside Angular</td>
+          <td>yes — it's a web platform API</td>
+          <td>no</td>
+        </tr>
+        <tr>
+          <td>Support</td>
+          <td>needs a modern browser (graceful no-op elsewhere)</td>
+          <td>everywhere Angular runs</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      <strong>The animations package is also in maintenance mode.</strong> For route-level motion, view transitions are
+      the modern default — reach for the DSL only when you need orchestration the snapshot model genuinely can't express
+      (per-element choreography with no route change involved, for instance).
+    </div>
+  </section>
+
+  <!-- ============ 11. TRY IT — THIS APP USES IT ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>You've been inside one this whole time.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — this app uses withViewTransitions()</p>
+      <p style="margin: 0 0 12px">
+        Click any link in the nav bar, or the link below. Watch the subtle fade as Angular hands off between routes —
+        that is the View Transitions API in action, on the exact page you're reading.
+      </p>
+      <div class="row">
+        <a routerLink="/" style="font-size: 0.9rem">← Go home and come back</a>
+        <span class="pill">withViewTransitions() ✓ active</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A route change is a demolition, not a transition — the API works only because it
+        <strong>never diffs live DOM</strong>, just two flat screenshots.
+      </li>
+      <li>
+        Four steps, always: snapshot old → your callback mutates the DOM → snapshot new → animate the two bitmaps. A
+        shared <code>view-transition-name</code> upgrades the last step from a cross-fade to a geometry morph.
+      </li>
+      <li>
+        Angular's part is one flag, <code>withViewTransitions()</code> — but
+        <strong>a scheduled render is not a render</strong>: call <code>appRef.tick()</code> (or let the router do it)
+        inside the callback, or the "after" screenshot captures the same picture as the "before" one.
+      </li>
+      <li>
+        A named element must render as <strong>a single box</strong>, and for the length of the transition it's lifted
+        out of every ancestor's clipping, radius and transform — style the clip on the element you name, not on its
+        parent.
+      </li>
+      <li>
+        <code>transition.ready</code> rejects when a transition is skipped; <code>transition.finished</code> always
+        resolves. Preload lazy routes so a slow chunk doesn't freeze the old screenshot on screen.
+      </li>
+      <li>
+        Always add the reduced-motion override — <strong><code>0.01ms</code>, never <code>none</code></strong> — so the
+        transition still finishes and cleans up after itself.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ngmodules-migration">Next: NgModules &amp; Standalone Migration →</a></p>
+  </section>
 </article>

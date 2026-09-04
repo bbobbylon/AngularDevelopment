@@ -1,78 +1,210 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.cmp td code {
-  white-space: nowrap;
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.bad {
-  color: #ef4444;
-  font-weight: 700;
-}
+/* Two-Way Binding — lesson-specific styling.
 
+   Tables, callouts, code panels, chips, pills and the whole teaching set are
+   themed by the shared brain-friendly layer (src/brain-friendly.css §14–15),
+   so the old `table.cmp`, `.ok`/`.bad` and `.qa` blocks that used to live here
+   are gone — they were per-lesson copies of rules the theme now owns (the
+   assignability table uses the app-wide `.good`/`.bad` classes from
+   src/styles.css instead), and the exam questions are an `<app-faq>` now.
+
+   What is left is genuinely specific to this lesson: the emission-log strip
+   and the banana-in-a-box diagram. The `[(ngModel)]` field grid now reuses
+   the shared `.bf-grid-2` helper instead of a bespoke `.field-grid`. */
+
+/* ── The emission log ────────────────────────────────────────────────────────
+   Dressed as console output, same convention as the effect log in the
+   Signals lesson: the point of both demos is that some of these lines were
+   written by a click and some by a line of "parent" code, so the log itself
+   is the evidence. */
 .event-log {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
   padding: 10px 14px;
   margin-top: 10px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   max-height: 150px;
   overflow-y: auto;
 }
 .event-log p {
-  margin: 2px 0;
+  margin: 3px 0;
 }
 .event-log .from-child {
-  color: var(--accent);
+  color: var(--bf-accent-bright);
 }
 .event-log .from-parent {
-  color: var(--text-muted);
+  color: var(--bf-ink-2);
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
-
-.field-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-}
-.field-grid label {
+/* Small caption above each field in the ngModel demo grid — a visual "which
+   demo variant is this" label, not a `<label>` styled by the browser default.
+   It is not wired to the input via `for`/`aria-labelledby`: each input's real
+   accessible name is its own `aria-label`, matching the convention used by
+   every other lesson in this app. */
+.field-label {
   display: block;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--bf-ink-2);
   margin-bottom: 4px;
+}
+
+/* ── The banana-in-a-box diagram ─────────────────────────────────────────────
+   Hand-authored SVG rather than `<app-layers>` or `<app-flow>`: the shape
+   being taught is two independent, oppositely-directed channels glued into
+   one piece of syntax — not containment (Layers) and not a sequence (Flow).
+   Neither shared component says "these two things run at the same time, in
+   opposite directions, and one compiler rule ties them together".
+
+   Colour is not decorative here: the box (property binding, always down) is
+   accent, the banana (event binding, always up) is gold — chosen because a
+   banana is already gold, which gives the mapping a second, non-verbal
+   anchor. Every colour is a --bf-* token, and the whole figure is
+   aria-hidden with the same information repeated in the <figcaption>. */
+.banana-fig {
+  margin: 1.8rem 0;
+}
+
+.banana {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.banana-fig figcaption {
+  max-width: 62ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
+}
+
+.banana__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+.banana__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.banana__role {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+
+.banana__edge {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.banana__edge--down,
+.banana__head--down {
+  stroke: var(--bf-accent);
+}
+.banana__head--down {
+  fill: var(--bf-accent);
+}
+
+.banana__edge--up,
+.banana__head--up {
+  stroke: var(--bf-gold);
+}
+.banana__head--up {
+  fill: var(--bf-gold);
+}
+
+.banana__tag {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+}
+
+/* The literal syntax fragments — `[value]` and `(valueChange)` — set in the
+   same hue as the channel they belong to, so the mapping from code to arrow
+   is made twice: once by position, once by colour. */
+.banana__code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.banana__code--down {
+  fill: var(--bf-accent);
+}
+.banana__code--up {
+  fill: var(--bf-gold);
+}
+
+.banana__glued {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+/* The author's own annotation, in the margin voice — a comment on the
+   mechanism, not part of it. */
+.banana__hand {
+  fill: var(--bf-gold);
+  font-family: var(--font-hand);
+  font-size: 20px;
+}
+.banana__hand-arrow {
+  fill: none;
+  stroke: var(--bf-gold);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.banana__hand-head {
+  fill: var(--bf-gold);
+}
+
+/* The two channels draw themselves in on first paint — watching the box and
+   the banana arrive separately, in their own colours, is most of the point
+   of drawing this instead of just describing it. Purely decorative, so
+   dropping it under reduced motion costs nothing. */
+@media (prefers-reduced-motion: no-preference) {
+  .banana__edge {
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: banana-draw 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+  }
+
+  .banana__edge--up {
+    animation-delay: 0.45s;
+  }
+
+  .banana__head,
+  .banana__glued,
+  .banana__hand,
+  .banana__hand-arrow,
+  .banana__hand-head {
+    opacity: 0;
+    animation: banana-fade 0.4s ease 0.95s forwards;
+  }
+
+  @keyframes banana-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes banana-fade {
+    to {
+      opacity: 1;
+    }
+  }
 }

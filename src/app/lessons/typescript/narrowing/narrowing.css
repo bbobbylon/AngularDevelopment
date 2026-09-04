@@ -192,7 +192,8 @@
    carries it visually, with a weight change as well as a tint so it is not
    distinguished by colour alone. */
 .lesson.bf .demo .nb-scenarios button.nb-chosen {
-  background: var(--bf-accent);
+  /* --accent-solid, not plain --bf-accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
   border-color: transparent;
   color: var(--bf-bg);
   font-weight: 800;
@@ -246,7 +247,8 @@
    at the already-selected scenario still gives feedback instead of looking
    inert. Colour only — nothing here can move the row. */
 .lesson.bf .demo .nb-scenarios button.nb-chosen:hover {
-  background: var(--bf-accent-bright);
+  /* --accent-bright-solid, not plain --bf-accent-bright — see its comment (brain-friendly.css §3). */
+  background: var(--accent-bright-solid);
   color: var(--bf-bg);
 }
 

@@ -224,6 +224,28 @@ html body {
   --code-fg: var(--bf-code-ink);
   --radius: var(--bf-r);
   --shadow: var(--bf-shadow);
+
+  /* --accent as a SOLID, text-bearing fill (a primary button, an active chip)
+     paired with --bg text does not clear WCAG AA in both schemes: verified
+     with the standard relative-luminance formula at 4.12:1 in light mode
+     (dark is fine at 5.83:1), against the 4.5:1 AA-normal-text line. Nudging
+     the fill 80/20 toward --text fixes both at once, because --text is
+     theme-aware too — it darkens the fill in light mode (pairing with light
+     --bg text, 5.32:1) and lightens it in dark mode (pairing with dark --bg
+     text, 7.02:1), rather than needing a per-scheme override. Use this
+     wherever --accent is a SOLID FILL with text on top of it; --accent
+     itself is still correct for text/borders/icons, where WCAG's lower
+     3:1 non-text threshold applies or the accent sits on --bg rather than
+     under text. */
+  --accent-solid: color-mix(in srgb, var(--accent) 80%, var(--text));
+
+  /* Same problem, one step further: --bf-accent-bright — the conventional
+     hover state for an --accent-solid button, used across a dozen files —
+     fails WORSE than plain --accent when paired with --bg text: only
+     3.22:1 in light mode (dark is fine at 7.16:1). An 80/20 mix toward
+     --text (the --accent-solid ratio) still falls short at 4.27:1, so this
+     one needs a heavier 70/30 nudge — 5.00:1 light, 8.93:1 dark. */
+  --accent-bright-solid: color-mix(in srgb, var(--bf-accent-bright) 70%, var(--text));
 }
 
 /* ------------------------------------------------------------

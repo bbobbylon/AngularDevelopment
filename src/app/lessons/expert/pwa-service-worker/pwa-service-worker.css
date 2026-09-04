@@ -1,98 +1,51 @@
-.chips {
+/* Cards, tables, buttons, `.pill` and the `.demo` shell all come from the
+   shared brain-friendly layer (src/brain-friendly.css) now — the `.chips`,
+   `.strat-pill`, `table.cmp` and `.qa` blocks that used to live here were
+   per-lesson copies of rules the theme now owns outright (the resource-picker
+   chips reuse the base theme's `.row` + the demo's own button/`.ghost`
+   styling instead of a bespoke toggle class).
+
+   What's left is genuinely specific to this lesson: the stage-progress row
+   and terminal-style log shared by both live simulators (the update
+   lifecycle and the install-prompt flow). */
+
+.sim-stages {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 0 0 12px;
-}
-.chips button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 6px 14px;
-  font-size: 0.84rem;
-}
-.chips button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
-.strat-pill {
-  display: inline-block;
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 0.84rem;
-  padding: 4px 12px;
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--accent);
-  margin: 8px 0 6px;
-}
-
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-
-.sim {
-  display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 12px;
-}
-.sim .stage {
-  font-size: 0.78rem;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-}
-.sim .stage.hit {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.sim-log {
-  background: var(--code-bg);
-  color: var(--code-fg);
-  border-radius: 10px;
-  padding: 12px 16px;
-  font-family: monospace;
-  font-size: 0.8rem;
-  min-height: 130px;
-}
-.sim-log p {
-  margin: 3px 0;
+  margin-bottom: 0.9rem;
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
+.sim-stage {
+  font-family: var(--font-body);
+  font-size: 0.76rem;
   font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+  padding: 0.32em 0.85em;
+  border-radius: var(--bf-r-pill);
+  border: 1px solid var(--bf-rule);
+  color: var(--bf-ink-2);
+  background: var(--bf-surface);
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+
+/* --accent-solid, not plain --bf-accent — see its comment (brain-friendly.css §3). */
+.sim-stage--hit {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+  color: var(--bf-bg);
+}
+
+.sim-log {
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border-radius: var(--bf-r);
+  padding: 0.9rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  min-height: 132px;
+}
+
+.sim-log p {
+  margin: 0.2em 0;
 }

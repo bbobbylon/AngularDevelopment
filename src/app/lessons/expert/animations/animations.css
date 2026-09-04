@@ -1,10 +1,12 @@
-/* --- enter/leave demo --- */
+/* --- enter/leave demo (declarative — animate.enter / animate.leave classes) --- */
 .toast {
   padding: 10px 16px;
-  border: 1px solid var(--green);
-  border-radius: 10px;
-  margin-top: 10px;
-  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid color-mix(in srgb, var(--bf-olive) 40%, transparent);
+  border-radius: var(--bf-r);
+  margin-top: 12px;
+  background: var(--bf-olive-wash);
+  color: var(--bf-ink);
+  font-weight: 600;
 }
 .fade-slide-in {
   animation: fade-slide-in 0.3s ease;
@@ -25,15 +27,31 @@
   }
 }
 
+/* --- enter/leave demo (imperative — the callback form + Web Animations API) ---
+   No CSS animation is defined for the LEAVE side here on purpose: onJsLeave() in
+   animations.ts drives it entirely via event.target.animate(), which is the whole
+   point of this demo. The entrance still uses the plain CSS class above — nothing
+   about the callback form requires the entrance to be imperative too. */
+.js-card {
+  margin-top: 12px;
+  padding: 14px 18px;
+  border-radius: var(--bf-r);
+  background: var(--bf-accent-wash);
+  border: 1px solid color-mix(in srgb, var(--bf-accent) 30%, transparent);
+  color: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
 /* --- state-toggle demo --- */
 .panel {
-  overflow: hidden;
-  transition:
-    grid-template-rows 0.3s ease,
-    opacity 0.3s ease;
   display: grid;
   grid-template-rows: 1fr;
   opacity: 1;
+  transition:
+    grid-template-rows 0.3s ease,
+    opacity 0.3s ease;
+  margin-top: 12px;
 }
 .panel.closed {
   grid-template-rows: 0fr;
@@ -41,59 +59,23 @@
 }
 .panel > div {
   min-height: 0;
+  overflow: hidden;
+}
+.panel__inner {
+  padding: 12px;
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  background: var(--bf-surface-2);
 }
 
 /* --- stagger demo --- */
 .stagger-item {
   animation: fade-slide-in 0.35s ease backwards;
   padding: 8px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
   margin: 6px 0;
-  background: var(--bg-card);
-}
-
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.bad {
-  color: #ef4444;
-  font-weight: 700;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  background: var(--bf-surface);
 }
 
 @media (prefers-reduced-motion: reduce) {

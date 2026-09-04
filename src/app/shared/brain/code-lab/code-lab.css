@@ -297,7 +297,10 @@
   height: 20px;
   margin-top: 0.15rem;
   border-radius: 50%;
-  background: var(--bf-accent);
+  /* --accent-solid, not plain --bf-accent: paired with --bf-bg text this
+     measures only 4.12:1 in light mode, under WCAG AA's 4.5:1 line — see
+     --accent-solid's own comment (brain-friendly.css §3) for the fix. */
+  background: var(--accent-solid);
   color: var(--bf-bg);
   font-size: 0.68rem;
   font-weight: 700;

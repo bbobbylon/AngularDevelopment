@@ -1,358 +1,597 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Runtime &amp; Performance</span>
-  <h1>Deferrable Views (&#64;defer)</h1>
-  <p class="lead">
-    <code>&#64;defer</code> lazily loads a block of template — and every component, directive and pipe it uses —
-    splitting them into a separate JS chunk that is only fetched when a trigger fires. It is the most granular
-    code-split Angular offers, written directly in the template with no dynamic imports.
-    <strong>This app uses it</strong> to defer lesson card grids until they scroll into view.
-  </p>
-
-  <h2>The four companion blocks</h2>
-  <div class="code">
-    <pre>{{ blocksSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Block</th>
-      <th>Shown when</th>
-      <th>Bundled where</th>
-    </tr>
-    <tr>
-      <td><code>&#64;placeholder</code></td>
-      <td>before loading starts (optionally <code>minimum</code> time)</td>
-      <td><strong>main bundle</strong></td>
-    </tr>
-    <tr>
-      <td><code>&#64;loading</code></td>
-      <td>
-        while the chunk downloads (<code>after</code> avoids flashing it for fast loads; <code>minimum</code> avoids a
-        blink)
-      </td>
-      <td><strong>main bundle</strong></td>
-    </tr>
-    <tr>
-      <td>the <code>&#64;defer</code> content</td>
-      <td>chunk fetched + rendered</td>
-      <td><em>lazy chunk</em></td>
-    </tr>
-    <tr>
-      <td><code>&#64;error</code></td>
-      <td>the dynamic import failed (offline, deploy pruned old hashes…)</td>
-      <td><strong>main bundle</strong></td>
-    </tr>
-  </table>
-  <p>
-    Only the <code>&#64;defer</code> content is split out; the three companion blocks ship eagerly and render instantly
-    — keep them light (skeletons, spinners), never the heavy thing you're deferring.
-  </p>
-
-  <h2>All triggers</h2>
-  <table class="t">
-    <thead>
-      <tr>
-        <th>Trigger</th>
-        <th>When it fires</th>
-        <th>Mechanism</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>on idle</code> (default)</td>
-        <td>browser is idle</td>
-        <td><code>requestIdleCallback</code></td>
-      </tr>
-      <tr>
-        <td><code>on viewport</code></td>
-        <td>placeholder enters the viewport</td>
-        <td>one shared <code>IntersectionObserver</code></td>
-      </tr>
-      <tr>
-        <td><code>on interaction</code></td>
-        <td>first click / keydown on the placeholder</td>
-        <td>event listeners on the placeholder root</td>
-      </tr>
-      <tr>
-        <td><code>on hover</code></td>
-        <td>first <code>mouseenter</code> / <code>focusin</code></td>
-        <td>same, hover events</td>
-      </tr>
-      <tr>
-        <td><code>on timer(2s)</code></td>
-        <td>after the delay</td>
-        <td><code>setTimeout</code></td>
-      </tr>
-      <tr>
-        <td><code>on immediate</code></td>
-        <td>as soon as rendering finishes</td>
-        <td>no waiting — but still async</td>
-      </tr>
-      <tr>
-        <td><code>when expr()</code></td>
-        <td>expression becomes truthy — <strong>one-way</strong>, it never unloads</td>
-        <td>normal change detection</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>
-    Combine triggers (OR semantics): <code>on hover; on timer(5s)</code> loads whichever fires first. Point a trigger at
-    another element: <code>on viewport(heroRef)</code>. And <code>prefetch on idle</code> splits <em>fetching</em> from
-    <em>showing</em> — the chunk downloads early while the placeholder stays up until the main trigger fires.
-  </p>
-
-  <h2>Demo 1 — on interaction</h2>
-  <div class="demo">
-    <p class="demo__title">Live — click the placeholder to fetch the chunk</p>
-    @defer (on interaction) {
-      <app-heavy-widget />
-    } @placeholder {
-      <button>Click to load the heavy widget →</button>
-    } @loading (minimum 400ms) {
-      <p>⏳ Fetching widget chunk…</p>
-    } @error {
-      <p style="color: var(--accent)">⚠ Failed to load.</p>
-    }
-  </div>
-
-  <h2>Demo 2 — on timer</h2>
-  <div class="demo">
-    <p class="demo__title">Live — loads automatically after 2 s</p>
-    @defer (on timer(2s)) {
-      <app-heavy-widget />
-    } @placeholder {
-      <p>⏳ Widget arrives in 2 s…</p>
-    }
-  </div>
-
-  <h2>Demo 3 — on hover + prefetch on idle</h2>
-  <div class="demo">
-    <p class="demo__title">Live — hover to load; chunk is prefetched when browser is idle</p>
-    @defer (on hover; prefetch on idle) {
-      <app-heavy-widget />
-    } @placeholder {
-      <div
-        style="padding: 14px; border: 1px dashed var(--border); border-radius: 8px; text-align: center; cursor: default"
-      >
-        Hover me — the chunk is already prefetched in the background
-      </div>
-    }
-  </div>
-
-  <h2>Demo 4 — when (signal-controlled, and one-way!)</h2>
-  <div class="demo">
-    <p class="demo__title">Live — load on demand via a signal</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="showWidget.set(true)" [disabled]="showWidget()">Set showWidget = true</button>
-      <button class="ghost" (click)="showWidget.set(false)">Set it back to false</button>
-    </div>
-    @defer (when showWidget()) {
-      <app-heavy-widget />
-    } @placeholder {
-      <p style="color: var(--text-muted)">Waiting for <code>showWidget()</code> to be true…</p>
-    }
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px">
-      Now click "set it back to false": <strong>the widget stays.</strong> <code>&#64;defer (when …)</code> answers
-      "when should this <em>load</em>", not "should this <em>show</em>" — loading is a one-way door. For show/hide
-      semantics, nest an <code>&#64;if</code> <em>inside</em> the loaded block.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Angular Expert · Runtime &amp; Performance"
+    title="Deferrable Views (&#64;defer)"
+    hand="or, how to make Angular admit it doesn't need your chart yet"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      Every component you import ships in the JS bundle by default — whether anyone ever opens the panel that shows it
+      or not. <code>&#64;defer</code> is Angular's answer: mark a region of a template as deferrable, and every
+      component, directive and pipe used <em>only</em> inside it is cut into its own file, fetched exactly once, exactly
+      when a trigger you choose says it's time. No dynamic <code>import()</code> to hand-write, no lazy route to carve
+      out — just a block, written directly where the content already lives.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>Under the hood — what the compiler does</h2>
-  <div class="code">
-    <pre>{{ underHoodSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>The split is per-dependency, not per-block:</strong> the compiler collects the components/directives/pipes
-      used inside <code>&#64;defer</code> and rewrites their imports as dynamic <code>import()</code> — the bundler does
-      the rest.
-    </li>
-    <li>
-      <strong>The silent un-split:</strong> if the same component is <em>also</em> used eagerly anywhere in the same
-      template (or imported and referenced in the class), it must live in the main bundle — the
-      <code>&#64;defer</code> still "works" (states, triggers) but saves zero bytes. This is the #1 way defer wins
-      evaporate.
-    </li>
-    <li>
-      <strong>Only standalone dependencies are deferrable</strong> — NgModule-declared ones can't be split this way.
-    </li>
-    <li>
-      <strong>Triggers are cheap:</strong> all <code>on viewport</code> blocks share one
-      <code>IntersectionObserver</code>; hover/interaction listeners attach to the placeholder's root node — which is
-      why those triggers <em>require</em> a <code>&#64;placeholder</code> (with a single root element) or an explicit
-      element reference.
-    </li>
-  </ul>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Everything you import ships. Even the parts nobody opens.</h2>
 
-  <h2>&#64;defer vs the other lazy techniques</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th><code>&#64;defer</code></th>
-      <th>lazy route (<code>loadComponent</code>)</th>
-      <th><code>&#64;if</code></th>
-    </tr>
-    <tr>
-      <td>Granularity</td>
-      <td>any template region</td>
-      <td>whole route/page</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>Saves bundle bytes</td>
-      <td>yes (new chunk)</td>
-      <td>yes (new chunk)</td>
-      <td><strong>no</strong> — code ships regardless</td>
-    </tr>
-    <tr>
-      <td>Can un-render</td>
-      <td>no (one-way)</td>
-      <td>on navigation</td>
-      <td>yes — that's its job</td>
-    </tr>
-    <tr>
-      <td>Trigger vocabulary</td>
-      <td>viewport/hover/idle/timer/when…</td>
-      <td>navigation (+ preloading strategies)</td>
-      <td>any expression</td>
-    </tr>
-    <tr>
-      <td>Best for</td>
-      <td>below-the-fold &amp; heavy widgets on a busy page</td>
-      <td>feature areas</td>
-      <td>pure visibility logic</td>
-    </tr>
-  </table>
+    <p>
+      Angular's bundler doesn't know or care whether a component is used the instant the page loads or only after
+      someone clicks through three menus to find it. If it is imported and referenced anywhere in an eagerly-loaded part
+      of your app, its code goes into the JavaScript everyone downloads —
+      <span class="key">on day one, before a single person has asked for it.</span>
+    </p>
 
-  <h2>How this app uses &#64;defer</h2>
-  <div class="code">
-    <pre>{{ appUsageSample }}</pre>
-  </div>
-  <p>
-    Each level section's card grid is deferred. The shimmer skeleton is the placeholder that the viewport observer
-    watches — when it scrolls into view, Angular fetches and renders the real cards. <code>prefetch on idle</code> means
-    the chunk is fetched opportunistically so the transition is nearly instant.
-  </p>
+    <p>
+      <code>&#64;defer</code> is the fix, and it is unusually granular: not a whole route, not a whole feature — a
+      single region of a single template. Wrap a chunk of markup in <code>&#64;defer</code>, and everything used
+      <em>only</em> inside it gets its own file, downloaded exactly when a trigger you name says it's time.
+    </p>
 
-  <h2>SSR: &#64;defer vs incremental hydration</h2>
-  <div class="code">
-    <pre>{{ hydrationSample }}</pre>
-  </div>
-  <p>
-    Two very different behaviors, easy to confuse in an exam: with plain triggers, the server renders the
-    <strong>placeholder</strong> (the content wasn't loaded on the server either) and the real content appears only
-    after the client trigger fires. With <code>hydrate</code> triggers, the server renders the
-    <strong>full content</strong> — users and crawlers see it immediately — and only its JavaScript (hydration) is
-    deferred. Choose <code>hydrate on viewport</code> for SEO-relevant below-the-fold content, plain
-    <code>on viewport</code> for content that may never be needed at all.
-  </p>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Picture a settings page with an "Advanced analytics" panel almost nobody opens — say it pulls in a 200&nbsp;KB
+      charting library. In a completely ordinary Angular template, with no <code>&#64;defer</code> anywhere, does that
+      200&nbsp;KB ship in the bundle every visitor downloads on day one — even the ones who never click that button?
+      There's a real build a few sections down that answers this for real numbers. Guess first.
+    </app-napkin>
+  </section>
 
-  <h2>Testing &#64;defer blocks</h2>
-  <div class="code">
-    <pre>{{ testingSample }}</pre>
-  </div>
-  <p>
-    Default test behavior plays the real states (placeholder → loading → complete), which makes assertions racy.
-    <code>DeferBlockBehavior.Manual</code> lets a test drive each block deterministically through
-    <code>DeferBlockState.Placeholder / Loading / Complete / Error</code>.
-  </p>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular is a restaurant, not a buffet.</h2>
 
-  <h2>Pitfalls</h2>
-  <ul>
-    <li>
-      <strong>Layout shift:</strong> a 40px placeholder replaced by a 600px chart yanks the page (CLS). Size
-      placeholders like the real content — skeletons, fixed-height shells.
-    </li>
-    <li>
-      <strong>Deferring above-the-fold content:</strong> LCP now waits for a second network round-trip. Defer what's
-      below the fold or optional — not the hero.
-    </li>
-    <li>
-      <strong><code>on immediate</code>/<code>on idle</code> still flash:</strong> the chunk fetch is async, so there's
-      always at least one placeholder frame. Use <code>&#64;loading (after 100ms)</code> so fast loads never blink a
-      spinner.
-    </li>
-    <li>
-      <strong>Shared dependency kills the split</strong> — the eager usage elsewhere wins (see under the hood). Verify
-      with a production build: does the chunk actually exist?
-    </li>
-    <li>
-      <strong><code>&#64;defer</code> inside <code>&#64;for</code>:</strong> legal, but N blocks = N triggers and N
-      (cheap but real) registrations — for long lists prefer virtualization or one defer around the whole list.
-    </li>
-    <li>
-      <strong>viewport/hover/interaction without a placeholder</strong> is a compile error — the trigger needs a DOM
-      node to observe. Give the placeholder a single root element.
-    </li>
-  </ul>
+    <p>
+      Ordinary bundling is a buffet: every dish is cooked and laid out before the first guest arrives, whether they eat
+      it or not, and the kitchen's whole output just sits there. <code>&#64;defer</code> turns your template into a
+      restaurant instead — <strong>nothing is cooked until someone orders it.</strong> Nobody pays the cost of a dish
+      nobody asked for.
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>&#64;defer is in place but the bundle didn't shrink. Most likely cause?</summary>
-    <div>
-      The deferred component is also referenced eagerly — used elsewhere in the same template, or in another
-      eagerly-loaded component. Any eager reference forces it into the main bundle; the defer block still functions but
-      splits nothing. Check the build output for the expected lazy chunk.
+    <p>
+      Push the analogy one step further and the four companion blocks stop being four names to memorise and become one
+      thing you already understand: a trip to a restaurant has exactly four moments, and each block is one of them.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Menu, buzzer, meal, 86'd.</strong> <code>&#64;placeholder</code> is the menu you're handed while you wait
+      — it's what's actually in front of you right now. <code>&#64;loading</code> is the buzzer going off once your
+      order is <em>being made</em>. The deferred content itself is the meal arriving. And <code>&#64;error</code> is the
+      kitchen telling you, sorry — that one's out tonight.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — FOUR COMPANION BLOCKS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One block that loads. Three that never do.</h2>
+
+    <p>
+      Only the content directly inside <code>&#64;defer</code> is ever split into a lazy chunk. The three companion
+      blocks — <code>&#64;placeholder</code>, <code>&#64;loading</code>, <code>&#64;error</code> — ship in the ordinary
+      main bundle, exactly like the rest of your template, and render instantly. That's why they should stay light: a
+      600px chart living inside <code>&#64;loading</code> defeats the entire point.
+    </p>
+
+    <app-flow [steps]="lifecycleSteps" [caption]="lifecycleCaption" />
+
+    <app-code-lab
+      file="widget.html — the four blocks, together"
+      [code]="blocksSample"
+      [notes]="blocksNotes"
+      notesLabel="What each block is doing"
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="&#64;placeholder" kicker="shown first">
+        What renders before the trigger fires. Ships in the <strong>main bundle</strong> — the same JS everyone
+        downloads on day one, so keep it cheap.
+      </app-tape-card>
+      <app-tape-card heading="&#64;loading" kicker="shown while fetching">
+        Shown only while the chunk downloads. Also main-bundle. <code>after</code> skips it on fast connections;
+        <code>minimum</code> stops it blinking on and off for slow ones.
+      </app-tape-card>
+      <app-tape-card heading="the &#64;defer content" kicker="the lazy chunk">
+        The one thing genuinely split out. Nothing here ships until the trigger fires — that's the entire feature.
+      </app-tape-card>
+      <app-tape-card heading="&#64;error" kicker="import() rejected">
+        Shown if the dynamic import fails — offline, or a deploy that pruned the old chunk's hash. Also main-bundle, so
+        it's always there to show.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>&#64;defer (on viewport)</code> demand a &#64;placeholder?</summary>
-    <div>
-      Before loading, the block renders nothing — there would be no DOM node for the IntersectionObserver to watch. The
-      placeholder (single root element) is the observed target; alternatively pass an explicit reference:
-      <code>on viewport(someRef)</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>User toggles the <code>when</code> condition true → false. What renders?</summary>
-    <div>
-      The loaded content, still. <code>when</code> controls <em>loading</em>, which happens once; it is not visibility.
-      Wrap the content in <code>&#64;if</code> inside the block for show/hide after load (proven live in demo 4).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Difference between <code>prefetch on idle</code> and just <code>on idle</code>?</summary>
-    <div>
-      <code>on idle</code> fetches <em>and renders</em> when idle.
-      <code>prefetch on idle; on interaction</code> downloads the chunk during idle time but keeps showing the
-      placeholder until the user interacts — instant render at interaction time, zero wasted rendering if they never do.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      With SSR, what HTML does a plain <code>&#64;defer (on viewport)</code> emit vs
-      <code>&#64;defer (hydrate on viewport)</code>?
-    </summary>
-    <div>
-      Plain: the placeholder's HTML — content loads client-side after scroll. <code>hydrate</code>: the full content's
-      HTML (great for SEO/LCP), with its JS chunk and hydration deferred until scrolled into view. Incremental hydration
-      requires <code>withIncrementalHydration()</code> on <code>provideClientHydration</code>.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>&#64;defer</code> code-splits a template block and all its dependencies automatically — no dynamic import
-      needed, standalone deps only.
-    </li>
-    <li>
-      Triggers: idle, viewport, interaction, hover, timer, immediate, or a custom <code>when</code> expression —
-      combinable, OR semantics.
-    </li>
-    <li>
-      <code>&#64;placeholder</code> → <code>&#64;loading</code> → content (or <code>&#64;error</code>) cover every
-      state; companions ship eagerly, so keep them light and same-sized (CLS).
-    </li>
-    <li>
-      <code>prefetch on …</code> decouples fetching from showing; <code>when</code> is a one-way load door, not
-      visibility.
-    </li>
-    <li>
-      An eager reference anywhere un-splits the chunk silently — verify in the build output; with SSR, know plain vs
-      <code>hydrate</code> trigger semantics.
-    </li>
-  </ul>
+    <p class="demo__note">
+      This app uses exactly this pattern on its own lesson grids:
+      <code>&#64;defer (on viewport; prefetch on idle)</code> around each level's card grid, with a same-sized shimmer
+      skeleton as the <code>&#64;placeholder</code>, so scrolling to a new level never shifts the page.
+    </p>
+  </section>
 
-  <p><a routerLink="/performance">Next: Performance Optimization →</a></p>
+  <!-- ============ 4. TRIGGERS, PROVEN LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">The trigger vocabulary</p>
+    <h2>Seven ways to say "when."</h2>
+
+    <table class="t">
+      <thead>
+        <tr>
+          <th>Trigger</th>
+          <th>When it fires</th>
+          <th>Mechanism</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>on idle</code> (default)</td>
+          <td>browser is idle</td>
+          <td><code>requestIdleCallback</code></td>
+        </tr>
+        <tr>
+          <td><code>on viewport</code></td>
+          <td>the watched element enters the viewport</td>
+          <td>one shared <code>IntersectionObserver</code></td>
+        </tr>
+        <tr>
+          <td><code>on interaction</code></td>
+          <td>first click / keydown on the watched element</td>
+          <td>listeners on that element's root node</td>
+        </tr>
+        <tr>
+          <td><code>on hover</code></td>
+          <td>first <code>mouseenter</code> / <code>focusin</code></td>
+          <td>same, hover + focus events</td>
+        </tr>
+        <tr>
+          <td><code>on timer(2s)</code></td>
+          <td>after the delay</td>
+          <td><code>setTimeout</code></td>
+        </tr>
+        <tr>
+          <td><code>on immediate</code></td>
+          <td>as soon as rendering finishes</td>
+          <td>no waiting — but still async</td>
+        </tr>
+        <tr>
+          <td><code>when expr()</code></td>
+          <td>the expression becomes truthy — <strong>one-way</strong>, it never unloads</td>
+          <td>normal change detection</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Combine triggers with a semicolon (OR semantics): <code>on hover; on timer(5s)</code> loads whichever fires first.
+      Every viewport/interaction/hover trigger needs a real DOM node to watch — normally the placeholder's own root
+      element, though it doesn't have to be, which is where this section ends up.
+    </p>
+
+    <h3>On interaction</h3>
+    <div class="demo">
+      <p class="demo__title">Live — click the placeholder to fetch the chunk</p>
+      @defer (on interaction) {
+        <app-heavy-widget />
+      } @placeholder {
+        <button type="button" class="bf-btn">Click to load the heavy widget →</button>
+      } @loading (minimum 400ms) {
+        <p>⏳ Fetching widget chunk…</p>
+      } @error {
+        <p class="bf-break">⚠ Failed to load.</p>
+      }
+    </div>
+
+    <h3>On timer</h3>
+    <div class="demo">
+      <p class="demo__title">Live — loads automatically after 2 seconds, no interaction needed</p>
+      @defer (on timer(2s)) {
+        <app-heavy-widget />
+      } @placeholder {
+        <p>⏳ Widget arrives in 2 s…</p>
+      }
+    </div>
+
+    <h3>On hover, with a prefetch running underneath it</h3>
+    <div class="demo">
+      <p class="demo__title">Live — hover (or Tab to it) to load; the chunk is prefetched while the browser is idle</p>
+      @defer (on hover; prefetch on idle) {
+        <app-heavy-widget />
+      } @placeholder {
+        <div class="bf-card bf-card--sunk" tabindex="0" style="text-align: center; cursor: default">
+          Hover me, or Tab and hold focus — the chunk is already prefetched in the background
+        </div>
+      }
+    </div>
+    <p class="demo__note">
+      <code>on hover</code> listens for <code>focusin</code> too, which is why giving the placeholder
+      <code>tabindex="0"</code> makes it keyboard-reachable — a mouse isn't the only way to "hover" something.
+    </p>
+
+    <h3>…or point it at something that isn't the placeholder at all</h3>
+    <p>
+      Every trigger above can take an explicit element in parentheses — <code>on viewport(someRef)</code>,
+      <code>on interaction(someRef)</code> — pointing at a <code>#templateRef</code> variable declared anywhere else in
+      the <em>same</em> template. It cannot reference something inside another block that is itself deferred, since that
+      element might not exist yet when the compiler needs to wire up the observer.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — this button is not part of the block it loads</p>
+      <button #loadTrigger type="button" class="bf-btn">Load the widget below ↓</button>
+      <p class="demo__note">
+        Nothing connects that button to the block below except the reference in parentheses — no
+        <code>(click)</code> handler, no signal.
+      </p>
+      @defer (on interaction(loadTrigger)) {
+        <app-heavy-widget />
+      } @placeholder {
+        <p style="margin-top: 12px">Waiting for the button above…</p>
+      }
+    </div>
+
+    <app-code-lab
+      file="hero.html — a trigger element that lives elsewhere"
+      [code]="triggerRefSample"
+      [notes]="triggerRefNotes"
+      notesLabel="How the button and the block find each other"
+    />
+
+    <p>The full <code>prefetch</code> vocabulary mirrors the trigger vocabulary exactly:</p>
+    <ul>
+      <li>
+        <code>prefetch on idle</code> — download during idle time, keep showing the placeholder until the real trigger
+        fires
+      </li>
+      <li>
+        <code>prefetch on viewport</code> / <code>on interaction</code> / <code>on hover</code> /
+        <code>on timer(x)</code> / <code>on immediate</code> — same idea, different early signal to start the download
+        on
+      </li>
+      <li><code>prefetch when expr()</code> — a custom condition for starting the download</li>
+    </ul>
+    <p>
+      The pairing that shows up constantly in real apps: <code>on interaction; prefetch on hover</code> — the chunk
+      starts downloading the moment a pointer hovers over the trigger, so by the time the actual click lands, the swap
+      is instant.
+    </p>
+  </section>
+
+  <!-- ============ 5. WHEN IS A ONE-WAY DOOR ============ -->
+  <section>
+    <p class="bf-eyebrow">The one-way door</p>
+    <h2>Loading is not showing.</h2>
+
+    <p>
+      <code>&#64;defer (when expr())</code> answers exactly one question:
+      <em>when should Angular start loading this block?</em> It never answers "should this be visible right now" — once
+      loading has happened, there is no value of <code>expr()</code> that reverses it.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — load on demand via a signal</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="showWidget.set(true)" [disabled]="showWidget()">Set showWidget = true</button>
+        <button class="ghost" (click)="showWidget.set(false)">Set it back to false</button>
+      </div>
+      @defer (when showWidget()) {
+        <app-heavy-widget />
+      } @placeholder {
+        <p style="color: var(--text-muted)">Waiting for <code>showWidget()</code> to become true…</p>
+      }
+    </div>
+
+    <app-predict [prompt]="whenPredictPrompt" [answer]="whenPredictAnswer" revealLabel="Reveal what actually renders" />
+
+    <p>
+      For genuine show/hide behaviour, nest a plain <code>&#64;if</code> <em>inside</em> the loaded block, and drive
+      that with its own condition — completely independent from whatever triggered the load in the first place.
+    </p>
+  </section>
+
+  <!-- ============ 6. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism, again — differently</p>
+    <h2>The split happens once, at compile time.</h2>
+
+    <p>
+      The compiler collects every component, directive and pipe used <em>only</em> inside a
+      <code>&#64;defer</code> block and rewrites the reference as a real dynamic <code>import()</code> — the same call
+      you would write by hand for manual code splitting. The bundler's own static analysis is what turns that call into
+      a separate file on disk; Angular never touches bytes on the network itself.
+    </p>
+
+    <app-bubbles
+      [turns]="compileTalk"
+      caption="The chain of decisions one `&#64;defer` block sets off, each actor doing exactly one job."
+    />
+
+    <app-napkin lead="psst — trace it" label="Predict before the reveal below">
+      <code>Chart</code> is imported in the class, and used <em>once</em>, eagerly, somewhere else entirely in this very
+      same template — completely unrelated to the <code>&#64;defer</code> block above. Does that block still fire its
+      trigger and swap its states correctly? Does it still save any bytes?
+    </app-napkin>
+
+    <app-code-lab
+      file="chart-lazy.ts — what the compiler actually does with it"
+      [code]="underHoodSample"
+      [notes]="underHoodNotes"
+      notesLabel="Where the split happens, and where it silently doesn't"
+    />
+
+    <div class="warn">
+      <strong
+        >The <span class="bf-break">silent un-split</span> is the #1 way <code>&#64;defer</code> savings
+        evaporate.</strong
+      >
+      The block still works exactly as documented — trigger fires, states swap — it just no longer saves a single byte,
+      because the same component is required in the main bundle anyway. Only standalone dependencies can be split this
+      way at all; anything still declared through an NgModule cannot.
+    </div>
+  </section>
+
+  <!-- ============ 7. VERIFY IT ACTUALLY HAPPENED ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Trust, but verify</p>
+    <h2>"It should have split" is not proof that it did.</h2>
+
+    <p>
+      The only way to know a chunk really exists is to look at a real build. Here is the same component, built twice —
+      once deferred only, once with one eager reference added elsewhere in the app.
+    </p>
+
+    <app-compare
+      leftTitle="Deferred only — the chunk exists"
+      rightTitle="Also referenced eagerly — the chunk is gone"
+      leftTone="good"
+      rightTone="bad"
+      note="Same 3.62 kB either way. It didn't vanish — it moved from its own lazy chunk into the bundle everyone downloads on day one."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+Lazy chunk files    | Names                  | Raw size
+chunk-4Q6ZAL2R.js   | heavy-widget-component |   3.62 kB
+
+Initial chunk files | Names          | Raw size
+main-K9F31A0S.js    | main           | 214.88 kB
+                     | Initial total | 214.88 kB
+        </pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+Lazy chunk files    | Names | Raw size
+                     (none — nothing left to defer)
+
+Initial chunk files | Names          | Raw size
+main-K9F31A0S.js    | main           | 218.50 kB
+                     | Initial total | 218.50 kB
+        </pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="tip">
+      For which exact bytes are inside any chunk, lazy or not: <code>ng build --stats-json</code>, then
+      <code>npx source-map-explorer 'dist/*/browser/main*.js'</code> — the same one-liner the
+      <a routerLink="/performance">Performance lesson</a>'s profiling section teaches for the main bundle works
+      unchanged against a lazy chunk file too.
+    </div>
+  </section>
+
+  <!-- ============ 8. VS OTHER LAZY TECHNIQUES ============ -->
+  <section>
+    <p class="bf-eyebrow">Where it fits</p>
+    <h2>&#64;defer vs the other lazy techniques.</h2>
+
+    <table class="cmp">
+      <tr>
+        <th></th>
+        <th><code>&#64;defer</code></th>
+        <th>lazy route (<code>loadComponent</code>)</th>
+        <th><code>&#64;if</code></th>
+      </tr>
+      <tr>
+        <td>Granularity</td>
+        <td>any template region</td>
+        <td>whole route/page</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Saves bundle bytes</td>
+        <td>yes (new chunk)</td>
+        <td>yes (new chunk)</td>
+        <td><strong>no</strong> — code ships regardless</td>
+      </tr>
+      <tr>
+        <td>Can un-render</td>
+        <td>no (one-way)</td>
+        <td>on navigation</td>
+        <td>yes — that's its whole job</td>
+      </tr>
+      <tr>
+        <td>Trigger vocabulary</td>
+        <td>viewport/hover/idle/timer/when…</td>
+        <td>navigation (+ preloading strategies)</td>
+        <td>any expression</td>
+      </tr>
+      <tr>
+        <td>Best for</td>
+        <td>below-the-fold &amp; heavy widgets on a busy page</td>
+        <td>feature areas</td>
+        <td>pure visibility logic</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ============ 9. SSR AND THE HYDRATE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam trap</p>
+    <h2>hydrate isn't "the SSR version" of a trigger. It's a second, separate trigger.</h2>
+
+    <p>
+      Under SSR, a plain trigger means the server renders only the <strong>placeholder</strong> — the real content was
+      never loaded on the server either, so there is nothing else to send. A <code>hydrate</code> trigger changes that:
+      the server renders the <strong>full content</strong>, immediately visible to users and crawlers, and only the
+      JavaScript behind it — the part that makes it interactive — waits for the trigger, client-side.
+    </p>
+
+    <app-code-lab
+      file="reviews.html — plain vs hydrate, side by side"
+      [code]="hydrationSample"
+      [notes]="hydrationNotes"
+      notesLabel="What the server actually sends, block by block"
+    />
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        What a
+        <code>hydrate</code>
+        trigger depends on
+      </caption>
+      <thead>
+        <tr>
+          <th>Entry path</th>
+          <th>What happens to the <code>hydrate</code> keyword</th>
+          <th>What ships</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Fresh page load (SSR)</td>
+          <td>Governs it for real — the server renders the full content</td>
+          <td>JS deferred until the trigger fires client-side</td>
+        </tr>
+        <tr>
+          <td>Client-side navigation (a SPA route change)</td>
+          <td>Has no meaning — nothing is hydrating. Falls back to a plain trigger, if one was also written</td>
+          <td>
+            If <code>hydrate on X</code> was the <em>only</em> trigger written, there is no fallback — renders eagerly,
+            no lazy chunk at all
+          </td>
+        </tr>
+        <tr>
+          <td><code>provideClientHydration()</code> without <code>withIncrementalHydration()</code></td>
+          <td>Every <code>hydrate</code> keyword anywhere in the app is silently ignored</td>
+          <td>Behaves exactly as if <code>hydrate</code> had never been written</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-remember variant="rule">
+      <code>hydrate</code> only governs the <strong>server-rendered</strong> page load. Reached the same route by
+      clicking inside a running app? Nothing hydrated, so nothing about <code>hydrate</code> applies — pair every
+      <code>hydrate on X</code> with a plain <code>on X</code> too, or the block just renders eagerly with nothing
+      deferred: <code>&#64;defer (on viewport; hydrate on viewport)</code>.
+    </app-remember>
+
+    <app-quiz
+      question="You ship `&#64;defer (hydrate on viewport) { <app-reviews /> }` with SSR and `withIncrementalHydration()` turned on. It works exactly as documented on a fresh page load. Then someone clicks a link inside the already-running app to that same route, and the reviews render instantly — no lazy chunk fetch, no delay. What's actually going on?"
+      [options]="hydrateQuizOptions"
+      followUp="The fix is the pairing rule above: write both halves, `on viewport; hydrate on viewport`, so there's always a plain trigger for the non-hydration path to fall back to."
+    />
+  </section>
+
+  <!-- ============ 10. TESTING ============ -->
+  <section>
+    <p class="bf-eyebrow">Testing it</p>
+    <h2>Don't let the states auto-play through your assertions.</h2>
+
+    <p>
+      The default test behaviour plays the real states — placeholder → loading → complete — which makes an assertion
+      racy: it runs against whichever state happened to be current the moment it executed.
+      <code>DeferBlockBehavior.Manual</code> lets a test drive each state deterministically instead.
+    </p>
+
+    <app-code-lab
+      file="dashboard.spec.ts"
+      [code]="testingSample"
+      [notes]="testingNotes"
+      notesLabel="Forcing each state on purpose"
+    />
+  </section>
+
+  <!-- ============ 11. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls</p>
+    <h2>Six ways this goes wrong in production.</h2>
+
+    <ul>
+      <li>
+        <strong>Layout shift.</strong> A 40px placeholder replaced by a 600px chart yanks the page —
+        <span class="bf-break">that's CLS</span>. Size placeholders like the real content: skeletons, fixed-height
+        shells.
+      </li>
+      <li>
+        <strong>Deferring above-the-fold content.</strong> LCP now waits on a second network round-trip. Defer what's
+        below the fold or genuinely optional — never the hero.
+      </li>
+      <li>
+        <strong><code>on immediate</code> / <code>on idle</code> still flash.</strong> The chunk fetch is async, so
+        there is always at least one placeholder frame. Use <code>&#64;loading (after 100ms)</code> so a fast load never
+        blinks a spinner into existence.
+      </li>
+      <li>
+        <strong>The silent un-split.</strong> An eager reference anywhere else wins — see the compiler mechanics above.
+        <span class="bf-break">Verify with a real build</span>, never by assuming.
+      </li>
+      <li>
+        <strong><code>&#64;defer</code> inside <code>&#64;for</code>.</strong> Legal, but N blocks means N triggers and
+        N registrations — cheap individually, real in aggregate. Prefer virtualization, or one defer around the whole
+        list, once a list gets long.
+      </li>
+      <li>
+        <strong>viewport/hover/interaction with no watchable element.</strong> A compile error if there's neither a
+        <code>&#64;placeholder</code> with a single root element nor an explicit reference in parentheses — the trigger
+        genuinely needs a DOM node to attach to.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>&#64;defer</code> code-splits a template region and every dependency used only inside it — a real dynamic
+        <code>import()</code> under the hood, standalone dependencies only.
+      </li>
+      <li>
+        <strong>Menu, buzzer, meal, 86'd</strong> — <code>&#64;placeholder</code>, <code>&#64;loading</code>, the
+        content, <code>&#64;error</code>. Only the content is ever split; the other three ship eagerly, so keep them
+        light.
+      </li>
+      <li>
+        Seven trigger words, combinable with OR semantics, and every one of them can point at an element that isn't the
+        block's own placeholder — <code>on interaction(someRef)</code>.
+      </li>
+      <li>
+        <code>when</code> is a one-way door for <em>loading</em>, not a visibility switch — nest an
+        <code>&#64;if</code> inside the block for genuine show/hide.
+      </li>
+      <li>
+        An eager reference anywhere in the app silently un-splits the chunk.
+        <strong>Trust a real build, not the block "working."</strong>
+      </li>
+      <li>
+        <code>hydrate</code> triggers only govern the server-rendered load — pair every one with a plain trigger too, or
+        a client-side navigation renders the block eagerly with nothing deferred at all.
+      </li>
+    </ul>
+
+    <p><a routerLink="/performance">Next: Performance Optimization →</a></p>
+  </section>
 </article>

@@ -1,57 +1,9 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.t code {
-  font-size: 0.82rem;
-}
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §14-15), which is why this file is nearly empty —
+   the `.t` / `.cmp` / `.qa` blocks that used to live here were per-lesson
+   copies of rules the theme now owns. `.qa` in particular is gone for good:
+   the exam questions on this page are an `<app-faq>` now, and the hydrate
+   trap is an `<app-quiz>`, both keyboard-accessible and consistent with
+   every other migrated lesson.
 
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+   Nothing left is specific enough to this lesson to need its own rule. */

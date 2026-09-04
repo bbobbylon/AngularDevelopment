@@ -1,330 +1,671 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Data Binding</span>
-  <h1>Two-Way Binding</h1>
-  <p class="lead">
-    Two-way binding keeps a value in sync in <em>both</em> directions: the view updates the data and the data updates
-    the view. The syntax is the "banana in a box": <code>[(x)]</code> — brackets (property binding) inside parentheses
-    (event binding). This page goes from the sugar down to the emission rules, interception patterns, and the traps.
-  </p>
-
-  <h2>It is just sugar — the exact expansion</h2>
-  <p>
-    The compiler rewrites <code>[(x)]="expr"</code> into a property binding plus an event binding whose name follows a
-    strict contract: <strong>the output must be named <code>xChange</code></strong> — the input's name with the literal
-    suffix <code>Change</code>. There is no configuration for this; it is a naming convention baked into the compiler.
-  </p>
-  <div class="code">
-    <pre>{{ desugarSample }}</pre>
-  </div>
-  <p>
-    The write-back is signal-aware: when the bound expression is a
-    <code>WritableSignal</code>, Angular calls <code>count.set($event)</code>
-    instead of a plain assignment. That is why you bind
-    <code>[(value)]="count"</code> — the signal itself, <em>never</em> <code>count()</code> (a call expression cannot be
-    assigned to).
-  </p>
-
-  <h2>Two-way binding to a custom component</h2>
-  <div class="demo">
-    <p class="demo__title">Live — both stay in sync</p>
-    <div class="row">
-      <app-stepper [(value)]="count" />
-      <span class="pill">parent's count = {{ count() }}</span>
-      <button class="ghost" (click)="count.set(0)">Reset from parent</button>
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      The stepper updates the parent, and the parent's reset updates the stepper.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Beginner · Data Binding"
+    title="Two-Way Binding"
+    hand="or, the value that writes home"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      Property binding sends data down. Event binding sends events up. Two-way binding is what happens when one value
+      has to travel <strong>both</strong> ways at once — and it turns out to be nothing more than those two bindings,
+      glued together by one naming rule the compiler enforces for you. This page goes from the exact expansion, through
+      <code>model()</code>'s emission rules and the failure mode that catches almost everyone who splits the banana
+      without reading this far, down to <code>[(ngModel)]</code> and the decorator-era pattern it replaced.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>What model() actually creates — and when it emits</h2>
-  <p>
-    <code>model()</code> declares an input/output <em>pair</em> in one line: an input named <code>value</code> and an
-    output named <code>valueChange</code>. The returned <code>ModelSignal</code> is writable from inside the child
-    (<code>.set()</code> / <code>.update()</code>), and every child-side write emits on the output. The subtle rule most
-    people get wrong: <strong>parent-side writes do NOT emit <code>valueChange</code></strong> — the event only fires
-    for changes that originate in the child. Watch the log:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — who triggers valueChange?</p>
-    <div class="row">
-      <app-stepper [value]="logged()" (valueChange)="onLoggedChange($event)" />
-      <span class="pill">parent's value = {{ logged() }}</span>
-      <button class="ghost" (click)="setFromParent()">Set to 42 from parent</button>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A binding that only points one way has a gap.</h2>
+
+    <p>
+      You already know both halves. <code>[value]="count"</code> sends a value down into a child.
+      <code>(click)</code> or a custom <code>(somethingHappened)</code> sends an event back up. Between them they cover
+      almost everything — except the one case where a child owns a piece of UI whose whole job is to
+      <span class="term">propose a new value</span>
+      for something the parent holds: a stepper, a text field, a toggle. Wire that by hand and you write the same pair
+      of bindings, with the same pair of names, on every single one.
+    </p>
+
+    <p>
+      Angular's answer is <strong>two-way binding</strong>: one piece of syntax that is secretly the exact two bindings
+      you already know, written once. Before the next section shows you the mechanism, try to build it yourself.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      You've written <code>[value]="count"</code> and <code>(valueChange)="count = $event"</code> separately before. If
+      Angular offered you one piece of syntax that meant <em>both, at once</em>, what do you think it would look like —
+      and why would the event's name have to be <code>valueChange</code> specifically, rather than anything the
+      component author felt like calling it? There's a live comparison two sections down to check yourself against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Two-way binding is a banana in a box.</h2>
+
+    <p>
+      That's Angular's own name for <code>[(x)]</code>, and it's a joke about the punctuation that happens to be exactly
+      right about the mechanism. <code>( )</code> — a banana — sits inside <code>[ ]</code> — a box. There is no third
+      kind of binding hiding in here: it's the two you already know, glued together.
+    </p>
+
+    <p>
+      The gluing rule is strict, and it's worth saying before you see the code: whatever you name the input, the output
+      <span class="key">must be named the same thing plus the literal word <code>Change</code></span
+      >. Not close — exact. That isn't a style guideline. It's how the compiler finds the other half of the pair.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Banana in a box.</strong> <code>[(x)]</code> is <code>[x]</code> (the box, always down) plus
+      <code>(xChange)</code> (the banana, always up) — one rule, enforced by the compiler, never something you have to
+      remember to follow by hand.
+    </app-remember>
+
+    <figure class="banana-fig">
+      <svg class="banana" viewBox="0 0 460 340" aria-hidden="true" focusable="false">
+        <rect class="banana__box" x="130" y="16" width="200" height="56" rx="14" />
+        <text class="banana__name" x="230" y="42" text-anchor="middle">Parent</text>
+        <text class="banana__role" x="230" y="60" text-anchor="middle">OWNS THE STATE</text>
+
+        <rect class="banana__box" x="130" y="258" width="200" height="56" rx="14" />
+        <text class="banana__name" x="230" y="284" text-anchor="middle">Stepper</text>
+        <text class="banana__role" x="230" y="302" text-anchor="middle">CHILD · LOCAL MODEL</text>
+
+        <path class="banana__edge banana__edge--down" d="M165 78 L165 236" />
+        <path class="banana__head banana__head--down" d="M165 252 L159 238 L171 238 Z" />
+
+        <path class="banana__edge banana__edge--up" d="M295 238 L295 92" />
+        <path class="banana__head banana__head--up" d="M295 78 L289 92 L301 92 Z" />
+
+        <text class="banana__tag" x="150" y="162" text-anchor="end">
+          <tspan class="banana__code banana__code--down">[value]</tspan>
+          <tspan>— always down</tspan>
+        </text>
+        <text class="banana__tag" x="310" y="162" text-anchor="start">
+          <tspan class="banana__code banana__code--up">(valueChange)</tspan>
+          <tspan>— always up</tspan>
+        </text>
+
+        <text class="banana__glued" x="230" y="122" text-anchor="middle">[(value)]</text>
+
+        <text class="banana__hand" x="444" y="300" text-anchor="end">one call, two arrows</text>
+        <path class="banana__hand-arrow" d="M424 288 C 362 268, 300 202, 252 140" />
+        <path class="banana__hand-head" d="M248 128 L242 144 L259 141 Z" />
+      </svg>
+      <figcaption>
+        Two channels between parent and child, always in the same direction. The left one is the box —
+        <code>[value]</code>, an ordinary property binding, always flowing down. The right one is the banana —
+        <code>(valueChange)</code>, an ordinary event binding, always flowing up. <code>[(value)]</code> is nothing more
+        than those two, glued into one piece of syntax by a compiler that insists on the <code>xChange</code>
+        name.
+      </figcaption>
+    </figure>
+
+    <app-bubbles
+      [turns]="bananaTalk"
+      caption="What the box and the banana actually promise each other — and the asymmetry in the last line is the whole subject of the next two sections."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>It's just sugar — here's the exact expansion.</h2>
+
+    <p>
+      The compiler rewrites <code>[(x)]="expr"</code> into a property binding plus an event binding, and the write-back
+      is <span class="term">signal-aware</span>: when the bound expression is a <code>WritableSignal</code>, Angular
+      calls <code>.set($event)</code> on it instead of attempting a plain assignment — which is also exactly why you
+      bind <code>[(value)]="count"</code>, the signal itself, and never <code>count()</code>, a call expression with
+      nothing to assign back into.
+    </p>
+
+    <app-code-lab
+      file="stepper.host.html — the exact expansion"
+      [code]="desugarSample"
+      [notes]="desugarNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — both stay in sync</p>
+      <div class="row" style="flex-wrap: wrap">
+        <app-stepper [(value)]="count" />
+        <span class="pill">parent's count = {{ count() }}</span>
+        <button class="ghost" (click)="count.set(0)">Reset from parent</button>
+      </div>
+      <p class="demo__note">
+        Step the child and watch the parent's pill follow. Reset from the parent and watch the child follow back. One
+        value, two owners, one binding doing both jobs.
+      </p>
     </div>
-    <div class="event-log">
-      @if (log().length === 0) {
-        <p class="from-parent">— interact above; child clicks emit, parent sets don't —</p>
-      }
-      @for (entry of log(); track $index) {
-        <p [class.from-child]="entry.startsWith('valueChange')" [class.from-parent]="!entry.startsWith('valueChange')">
-          {{ entry }}
+  </section>
+
+  <!-- ============ 4. MODEL() IN DEPTH ============ -->
+  <section>
+    <p class="bf-eyebrow">The API</p>
+    <h2><code>model()</code> builds you the pair.</h2>
+
+    <p>
+      <code>model()</code> declares an input/output pair in one line: an input named <code>value</code> and an output
+      named <code>valueChange</code>, wired together and compiler-checked. The returned <code>ModelSignal</code> is
+      writable from inside the child — <code>.set()</code> / <code>.update()</code> — and every child-side write emits
+      on the output automatically. The rule most people get wrong on the first try, and the one the bubbles above just
+      rehearsed: <strong>parent-side writes do <span class="bf-break">not</span> emit <code>valueChange</code></strong
+      >. Only writes that originate inside the child do.
+    </p>
+
+    <app-code-lab
+      file="stepper.ts — the model() API"
+      [code]="modelApiSample"
+      [notes]="modelApiNotes"
+      notesLabel="One call, several jobs"
+    />
+
+    <div class="tip">
+      Because <code>model()</code> is just an input + output pair, you are never forced into the full sugar. All three
+      usages below are legal on the exact same child: full two-way <code>[(value)]="x"</code>, one-way
+      <code>[value]="x"</code> (the child's own writes stay local, nothing flows back out), or listen-only
+      <code>(valueChange)="onChange($event)"</code> with no input bound at all.
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — who triggers valueChange?</p>
+      <div class="row" style="flex-wrap: wrap">
+        <app-stepper [value]="logged()" (valueChange)="onLoggedChange($event)" />
+        <span class="pill">parent's value = {{ logged() }}</span>
+        <button class="ghost" (click)="setFromParent()">Set to 42 from parent</button>
+      </div>
+      <div class="event-log">
+        @if (log().length === 0) {
+          <p class="from-parent">— interact above; child clicks emit, parent sets don't —</p>
+        }
+        @for (entry of log(); track $index) {
+          <p
+            [class.from-child]="entry.startsWith('valueChange')"
+            [class.from-parent]="!entry.startsWith('valueChange')"
+          >
+            {{ entry }}
+          </p>
+        }
+      </div>
+      <p class="demo__note">
+        Clicking + / − inside the stepper logs a <code>valueChange</code> emission. "Set to 42 from parent" updates the
+        input silently — no event. If it emitted too, every two-way binding would be an infinite loop waiting to happen.
+      </p>
+    </div>
+
+    <app-quiz
+      question="The stepper's model() value is 5. From the parent — no click, just a line of code — you call `logged.set(42)`. What does valueChange do?"
+      [options]="quizOptions"
+      followUp="Try it above: click 'Set to 42 from parent' and watch the log stay exactly as it was."
+    />
+  </section>
+
+  <!-- ============ 5. SPLITTING THE BANANA, AND WHAT A "NO" ACTUALLY DOES ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap</p>
+    <h2>Splitting the banana — and what happens when you say no.</h2>
+
+    <p>
+      Because <code>[(x)]</code> is only sugar, you can always drop back to the explicit pair and put logic between the
+      child's proposal and your own state — clamping, validating, or dispatching to a store instead of assigning
+      directly. This is <em>the</em> pattern for rejecting a value the child suggested.
+    </p>
+
+    <app-code-lab
+      file="stepper.host.html — intercepting the write"
+      [code]="splitBananaSample"
+      [notes]="splitBananaNotes"
+      notesLabel="Where the seam actually is"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — parent clamps every write to 0…10</p>
+      <div class="row" style="flex-wrap: wrap">
+        <app-stepper #ref [value]="clamped()" (valueChange)="setClamped($event)" />
+        <span class="pill">parent's clamped = {{ clamped() }}</span>
+        <span class="pill">child shows {{ ref.value() }}</span>
+      </div>
+      <p class="demo__note">
+        The second pill reads straight off the child itself, through <code>#ref</code> — it is not the parent's number,
+        it's a second, independent witness.
+      </p>
+    </div>
+
+    <app-napkin lead="psst —" label="Look before reading on">
+      Keep stepping past 10. The parent's pill stops dead at 10 — it's clamped, as promised. Now check the
+      <em>other</em> pill, the one reading straight off the child. Does it agree?
+    </app-napkin>
+
+    <p>
+      It doesn't, and it won't again until you step back down through 10. Here's why. The parent's <code>[value]</code>
+      binding is an ordinary binding slot — exactly the kind the
+      <a routerLink="/change-detection">Change Detection</a> lesson dissects — and Angular pushes a new value through it
+      only when a fresh read genuinely <em>differs</em> from what's parked in that slot. Once
+      <code>clamped()</code> settles at 10, every further proposal clamps back down to… 10. The slot never sees a
+      difference, so the write into the child is skipped entirely — not because <code>model()</code> is buggy, but
+      because a binding that looks unchanged is never pushed. Meanwhile the child's own <code>value</code> is a writable
+      signal with a mind of its own: <code>inc()</code> updates it <strong>directly</strong>, with no dependency on what
+      the parent's slot thinks. The two numbers are free to disagree for as long as you keep clicking.
+    </p>
+
+    <div class="warn">
+      <strong>Naming the failure:</strong> a split-banana "no" from the parent does not undo the child's own write — it
+      only stops the parent's copy from moving. Any child built on <code>model()</code> keeps a local copy that a
+      rejected proposal cannot roll back, which is exactly why "the child asks, the parent decides" is only half the
+      story.
+    </div>
+
+    <p>Fixes, best first:</p>
+    <ol>
+      <li>
+        <strong>Give the child nothing to disagree with you about.</strong> Swap <code>model()</code> for
+        <code>input()</code> + <code>output()</code> inside the child (see the decision below) — a component with no
+        writable field of its own has no state that could ever drift from the parent's.
+      </li>
+      <li>
+        <strong>Force an actual rewrite.</strong> Route the rejection through a genuinely different value first, then
+        the real one, on two separate passes, so the binding's own equality check sees two real changes instead of one
+        silent no-op. Fragile, and rarely worth it next to option 1.
+      </li>
+      <li>
+        <strong>Make the disagreement visible instead of silent.</strong> A quietly-reverted number is the wrong UI
+        anyway — emit a validation state the child can render (a shake, a red border, a disabled button) rather than a
+        write that appears to simply not have happened.
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ 6. WHEN NOT TO TWO-WAY BIND ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Choosing the right tool</p>
+    <h2><code>model()</code> isn't always the right call.</h2>
+
+    <p>
+      Fix number one above is a decision that applies far more often than just "the parent might say no". Angular gives
+      you four shapes for a value that crosses a component boundary, and picking the wrong one is what produces bugs
+      like the one you just watched.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        Picking the right tool for a value the child needs
+      </caption>
+      <thead>
+        <tr>
+          <th>What you need</th>
+          <th>Reach for</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>The child only ever <em>displays</em> the value</td>
+          <td><code>input()</code> — no output at all, nothing to propose</td>
+        </tr>
+        <tr>
+          <td>The parent owns the state; the child proposes changes it might reject</td>
+          <td>
+            <code>input()</code> + <code>output()</code> — the exact shape the clamp demo needed, with no local copy to
+            desync
+          </td>
+        </tr>
+        <tr>
+          <td>The child needs its own editable draft that resets whenever the input changes</td>
+          <td>
+            <code>input()</code> + <code>linkedSignal()</code> — see
+            <a routerLink="/signals-advanced">Advanced Signals</a>
+          </td>
+        </tr>
+        <tr>
+          <td>The value is genuinely shared and live on both sides, with no rejection to worry about</td>
+          <td><code>model()</code> — what every demo on this page has used so far</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="demo__note">
+      One API note while you're choosing: a <code>model()</code> input supports <code>&#123; alias &#125;</code>, the
+      same as <code>input()</code>, but not a <code>transform</code>. If you need to coerce what comes in —
+      <code>numberAttribute</code>, a custom mapper — that's one more argument for the <code>input()</code> +
+      <code>output()</code> shape instead.
+    </p>
+  </section>
+
+  <!-- ============ 7. MODEL() VS CONTROLVALUEACCESSOR ============ -->
+  <section>
+    <p class="bf-eyebrow">A common confusion</p>
+    <h2><code>model()</code> is not forms integration.</h2>
+
+    <p>
+      The two get mixed up because they solve adjacent problems with similar-looking syntax. They are not the same tool,
+      and only one of them ever plugs into a <code>&lt;form&gt;</code>.
+    </p>
+
+    <app-compare
+      leftTitle="model() — component to component"
+      rightTitle="ControlValueAccessor — forms integration"
+      note="A component can implement both at once: model() for plain component-to-component use, and a ControlValueAccessor so the same control also works inside a form. Writing one is the entire subject of Custom Form Controls (CVA)."
+    >
+      <div left>
+        <p>
+          <code>model()</code> gives you exactly one thing: an input/output pair with a compiler-checked naming
+          contract. It works on <em>any</em> standalone component and needs nothing imported to use.
         </p>
-      }
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Clicking + / − inside the stepper logs a <code>valueChange</code> emission. "Set to 42 from parent" updates the
-      input silently — no event. If it did emit, every two-way binding would be an infinite loop.
+        <p>
+          It also knows nothing about forms. It cannot be driven by <code>[(ngModel)]</code>,
+          <code>formControlName</code>, a <code>Validator</code>, or read back <code>dirty</code> /
+          <code>touched</code> / <code>disabled</code> state — none of that machinery exists for it.
+        </p>
+      </div>
+      <div right>
+        <p>
+          <code>ControlValueAccessor</code> is the interface <code>NgModel</code> and <code>FormControl</code> actually
+          talk to. Implementing it — <code>writeValue</code>, <code>registerOnChange</code>,
+          <code>registerOnTouched</code>, optionally <code>setDisabledState</code> — is what makes
+          <em>your</em> component usable as <code>&lt;my-input [(ngModel)]="x"&gt;</code> or
+          <code>[formControlName]="x"</code>.
+        </p>
+        <p>
+          In exchange, it inherits the whole forms machinery for free: validators, dirty/touched tracking, disablement.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 8. NGMODEL ============ -->
+  <section>
+    <p class="bf-eyebrow">Two-way binding for native controls</p>
+    <h2>Native inputs don't have a valueChange — that's what ngModel is for.</h2>
+
+    <p>
+      A raw <code>&lt;input&gt;</code> has no <code>valueChange</code> output, so <code>[(value)]</code> on one does
+      nothing useful. <code>FormsModule</code> supplies <code>NgModel</code> — exactly the
+      <code>ControlValueAccessor</code> the last section named, already written for you and pre-wired to every native
+      control type. <code>[(ngModel)]</code> desugars to <code>[ngModel]</code> + <code>(ngModelChange)</code>, the
+      identical rule as any other banana.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ modelApiSample }}</pre>
-  </div>
-  <div class="note">
-    Because <code>model()</code> is just an input + output pair, all three usages are legal: full two-way
-    <code>[(value)]="x"</code>, one-way in <code>[value]="x"</code> (child changes stay local), or listen-only
-    <code>(valueChange)="onChange($event)"</code>.
-  </div>
 
-  <h2>Splitting the banana: intercept, validate, clamp</h2>
-  <p>
-    Because <code>[(x)]</code> is sugar, you can always drop to the explicit pair and put logic between the child's
-    emission and your state. This is <em>the</em>
-    pattern for validation, clamping, confirmation dialogs, or dispatching to a store instead of assigning:
-  </p>
-  <div class="code">
-    <pre>{{ splitBananaSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — parent clamps every write to 0…10</p>
-    <div class="row">
-      <app-stepper [value]="clamped()" (valueChange)="setClamped($event)" />
-      <span class="pill">clamped = {{ clamped() }}</span>
+    <app-code-lab
+      file="profile-form.html — ngModel on every control type"
+      [code]="ngModelSample"
+      [notes]="ngModelNotes"
+      notesLabel="One directive, several accessors"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — one directive, every control type</p>
+      <div class="bf-grid-2">
+        <div>
+          <p class="field-label">text — updates every keystroke</p>
+          <div class="row" style="flex-wrap: wrap; gap: 8px">
+            <input
+              aria-label="type here"
+              [(ngModel)]="text"
+              placeholder="type here"
+              style="flex: 1; min-width: 140px"
+            />
+            <button class="ghost" (click)="text.set('')">Clear (from code)</button>
+          </div>
+        </div>
+        <div>
+          <p class="field-label">text — updateOn: 'blur' (leave the field to commit)</p>
+          <input
+            aria-label="type, then click away"
+            [ngModel]="blurText()"
+            (ngModelChange)="blurText.set($event)"
+            [ngModelOptions]="{ updateOn: 'blur' }"
+            placeholder="type, then click away"
+            style="width: 100%"
+          />
+        </div>
+        <div>
+          <p class="field-label">select</p>
+          <select aria-label="Framework" [(ngModel)]="framework" style="width: 100%">
+            <option value="signals">Signals</option>
+            <option value="rxjs">RxJS</option>
+            <option value="both">Both, appropriately</option>
+          </select>
+        </div>
+        <div>
+          <p class="field-label">checkbox</p>
+          <label class="row" style="color: var(--bf-ink)">
+            <input type="checkbox" [(ngModel)]="agree" /> I agree
+          </label>
+        </div>
+      </div>
+      <div class="event-log" style="margin-top: 14px">
+        <p>text = "{{ text() }}" ({{ text().length }} chars)</p>
+        <p>blurText = "{{ blurText() }}" — only updates on blur</p>
+        <p>framework = "{{ framework() }}"</p>
+        <p>agree = {{ agree() }}</p>
+      </div>
+      <p class="demo__note">
+        "Clear (from code)" calls <code>text.set('')</code> directly — no typing involved. In this browser tab it lands
+        in the field before the next paint, so it looks instant.
+      </p>
     </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Try stepping past 10 or below 0 — the child asks, the parent decides. The child still works unmodified; the policy
-      lives where the state lives.
+
+    <div class="note">
+      <strong>The write-back is scheduled, not instant.</strong> A programmatic write like
+      <code>text.set('')</code> changes the signal immediately, but the <code>&lt;input&gt;</code> element's own DOM
+      value doesn't update until the next change-detection pass reaches this binding — the same scheduling story as the
+      <a routerLink="/change-detection">Change Detection</a> lesson, just applied to a form control instead of a
+      <code>&lt;p&gt;</code>. A running app gets that pass for free before the next frame paints. A component
+      <em>test</em> does not: call <code>fixture.detectChanges()</code> (or await stability) before asserting on the
+      input's DOM value, or the assertion reads the stale text and the test lies about passing.
+    </div>
+
+    <div class="tip">
+      Because these are signals, <code>[(ngModel)]="text"</code> binds directly to the <code>text</code> signal —
+      Angular writes via <code>.set()</code>, no getter/setter boilerplate. <code>ngModelOptions.updateOn</code> accepts
+      <code>'change'</code> (default), <code>'blur'</code>, or <code>'submit'</code> — the same knob reactive forms
+      expose, useful when per-keystroke updates trigger expensive work.
+    </div>
+
+    <div class="warn">
+      Two errors everyone hits once. <strong>Forgetting to import <code>FormsModule</code></strong> produces
+      <em>NG8002: Can't bind to 'ngModel' since it isn't a known property of 'input'</em> — the directive simply isn't
+      in the template's scope. <strong>An <code>ngModel</code> inside a <code>&lt;form&gt;</code></strong> must carry a
+      <code>name</code> attribute (it registers with the parent <code>NgForm</code> under that name), or use
+      <code>[ngModelOptions]="&#123; standalone: true &#125;"</code> to opt out of registration entirely.
+    </div>
+  </section>
+
+  <!-- ============ 9. THE ASSIGNABILITY RULE ============ -->
+  <section>
+    <p class="bf-eyebrow">The compiler's rule</p>
+    <h2>What can sit on the left of <code>[(x)]</code>?</h2>
+
+    <p>
+      Angular writes <em>back</em> into your expression, so the target of <code>[(x)]="expr"</code> must be something
+      you could legally put on the left of <code>=</code> — or a writable signal. The compiler checks it at build time,
+      not at runtime:
     </p>
-  </div>
 
-  <h2>ngModel — two-way binding for form controls</h2>
-  <p>
-    Native form elements have no <code>valueChange</code> output, so <code>[(value)]</code> on a raw
-    <code>&lt;input&gt;</code> does nothing useful. <code>FormsModule</code> provides the
-    <code>NgModel</code> directive, which adapts each control type (text, checkbox, select, radio) to the two-way
-    contract via a <em>ControlValueAccessor</em>. <code>[(ngModel)]</code> desugars to <code>[ngModel]</code> +
-    <code>(ngModelChange)</code> exactly like any other banana.
-  </p>
-  <div class="code">
-    <pre>{{ ngModelSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — one directive, every control type</p>
-    <div class="field-grid">
-      <div>
-        <label>text — updates every keystroke</label>
-        <input aria-label="type here" [(ngModel)]="text" placeholder="type here" style="width: 100%" />
-      </div>
-      <div>
-        <label>text — updateOn: 'blur' (leave the field to commit)</label>
-        <input
-          aria-label="type, then click away"
-          [ngModel]="blurText()"
-          (ngModelChange)="blurText.set($event)"
-          [ngModelOptions]="{ updateOn: 'blur' }"
-          placeholder="type, then click away"
-          style="width: 100%"
-        />
-      </div>
-      <div>
-        <label>select</label>
-        <select aria-label="Framework" [(ngModel)]="framework" style="width: 100%">
-          <option value="signals">Signals</option>
-          <option value="rxjs">RxJS</option>
-          <option value="both">Both, appropriately</option>
-        </select>
-      </div>
-      <div>
-        <label>checkbox</label>
-        <label class="row" style="color: var(--text)"> <input type="checkbox" [(ngModel)]="agree" /> I agree </label>
-      </div>
-    </div>
-    <div class="event-log" style="margin-top: 14px">
-      <p>text = "{{ text() }}" ({{ text().length }} chars)</p>
-      <p>blurText = "{{ blurText() }}" — only updates on blur</p>
-      <p>framework = "{{ framework() }}"</p>
-      <p>agree = {{ agree() }}</p>
-    </div>
-  </div>
-  <div class="tip">
-    Since these are signals, <code>[(ngModel)]="text"</code> binds directly to the <code>text</code> signal — Angular
-    writes via <code>.set()</code>, no getter/setter boilerplate. The blur demo shows <code>ngModelOptions</code>:
-    <code>updateOn</code> accepts <code>'change'</code> (default), <code>'blur'</code>, or <code>'submit'</code> — the
-    same knob reactive forms expose, useful when per-keystroke updates trigger expensive work.
-  </div>
-  <div class="warn">
-    Two errors everyone hits once: (1) forgetting to import
-    <code>FormsModule</code> produces
-    <em>NG8002: Can't bind to 'ngModel' since it isn't a known property of 'input'</em> — the directive simply doesn't
-    exist in the template's scope. (2) An <code>ngModel</code> inside a <code>&lt;form&gt;</code> tag must have a
-    <code>name</code> attribute (it registers with the parent NgForm under that name), or use
-    <code>[ngModelOptions]="&#123; standalone: true &#125;"</code> to opt out of registration.
-  </div>
+    <table>
+      <caption class="bf-table-caption">
+        What compiles, and why
+      </caption>
+      <thead>
+        <tr>
+          <th>Binding</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>[(value)]="count"</code> (WritableSignal)</td>
+          <td class="good">Signal-aware — compiles to <code>count.set($event)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>[(value)]="user.name"</code> (plain property)</td>
+          <td class="good">Plain assignment — compiles to <code>user.name = $event</code>.</td>
+        </tr>
+        <tr>
+          <td><code>[(value)]="count()"</code></td>
+          <td class="bad">A call expression — nothing to assign to. Bind the signal, not its value.</td>
+        </tr>
+        <tr>
+          <td><code>[(value)]="user().name"</code></td>
+          <td class="bad">
+            Reading through a signal call — the write target isn't assignable. Copy to a local writable signal, or split
+            the banana.
+          </td>
+        </tr>
+        <tr>
+          <td><code>[(value)]="total"</code> (computed)</td>
+          <td class="bad"><code>computed()</code> is read-only — there's no <code>.set()</code> to call.</td>
+        </tr>
+        <tr>
+          <td><code>[(value)]="a || b"</code></td>
+          <td class="bad">Arbitrary expressions aren't assignment targets.</td>
+        </tr>
+      </tbody>
+    </table>
 
-  <h2>The assignability rule — what compiles, what doesn't</h2>
-  <p>
-    Angular writes <em>back</em> into your expression, so the target of <code>[(x)]="expr"</code> must be something you
-    could put on the left of <code>=</code> (or a writable signal). The compiler enforces it:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Binding</th>
-      <th></th>
-      <th>Why</th>
-    </tr>
-    <tr>
-      <td><code>[(value)]="count"</code> (WritableSignal)</td>
-      <td class="ok">✓</td>
-      <td>Signal-aware: compiles to <code>count.set($event)</code>.</td>
-    </tr>
-    <tr>
-      <td><code>[(value)]="user.name"</code> (plain property)</td>
-      <td class="ok">✓</td>
-      <td>Plain assignment: <code>user.name = $event</code>.</td>
-    </tr>
-    <tr>
-      <td><code>[(value)]="count()"</code></td>
-      <td class="bad">✗</td>
-      <td>A call expression — nothing to assign to. Bind the signal, not its value.</td>
-    </tr>
-    <tr>
-      <td><code>[(value)]="user().name"</code></td>
-      <td class="bad">✗</td>
-      <td>
-        Reading through a signal call: the write target isn't assignable. Copy to a local writable signal or split the
-        banana.
-      </td>
-    </tr>
-    <tr>
-      <td><code>[(value)]="total"</code> (computed)</td>
-      <td class="bad">✗</td>
-      <td><code>computed()</code> is read-only — no <code>.set()</code> to call.</td>
-    </tr>
-    <tr>
-      <td><code>[(value)]="a || b"</code></td>
-      <td class="bad">✗</td>
-      <td>Arbitrary expressions aren't assignment targets.</td>
-    </tr>
-  </table>
+    <app-predict
+      prompt="Inside `@for (item of items(); track item.id)`, would `[(ngModel)]` bound straight to `item` compile? What about bound to `item.name`?"
+      [code]="forLoopPredictCode"
+      answer="`item.name` compiles fine — it's a property of a real object, assignable like any other. `item` alone does not: the @for loop variable is a fresh binding re-read from the array on every iteration, not a variable Angular can write back into, so there's nothing on the left of the implicit `=` to assign to. Bind through to a property on the item; never to the loop variable itself."
+      revealLabel="Reveal both answers"
+    />
+  </section>
 
-  <h2>Before model(): the decorator-era pattern</h2>
-  <p>
-    You will read this in every pre-v17 codebase, and it clarifies why the naming contract exists — you used to build
-    both halves by hand:
-  </p>
-  <div class="code">
-    <pre>{{ legacySample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th><code>model()</code> (modern)</th>
-      <th><code>&#64;Input</code> + <code>&#64;Output</code> (legacy)</th>
-    </tr>
-    <tr>
-      <td>Declaration</td>
-      <td>one line, pair generated</td>
-      <td>two members, names must align manually</td>
-    </tr>
-    <tr>
-      <td>Child updates it</td>
-      <td><code>value.set(v)</code> — emits automatically</td>
-      <td>set the field <em>and</em> remember to <code>emit(v)</code></td>
-    </tr>
-    <tr>
-      <td>Read in child</td>
-      <td><code>value()</code> — reactive, works in <code>computed()</code></td>
-      <td>plain field — needs <code>ngOnChanges</code> to react</td>
-    </tr>
-    <tr>
-      <td>Required + alias</td>
-      <td><code>model.required()</code>, <code>&#123; alias &#125;</code></td>
-      <td><code>&#64;Input(&#123; required: true &#125;)</code>, alias on both, kept in sync by hand</td>
-    </tr>
-  </table>
+  <!-- ============ 10. BEFORE MODEL(): THE LEGACY PATTERN ============ -->
+  <section>
+    <p class="bf-eyebrow">Before model()</p>
+    <h2>The decorator-era pattern — @Input + @Output.</h2>
 
-  <h2>Pitfalls that show up in exams and code review</h2>
-  <ul>
-    <li>
-      <strong>Mutation doesn't propagate.</strong> Two-way binding syncs <em>assignments</em>. If you bind an object and
-      mutate its properties, no input fires and no event emits — same rule as every other binding. Prefer immutable
-      updates or bind primitives.
-    </li>
-    <li>
-      <strong><code>&#64;for</code> loop variables aren't assignable.</strong> <code>[(ngModel)]="item"</code> inside a
-      loop fails — the loop variable is a snapshot, not a storage location. Bind to a property of the item
-      (<code>[(ngModel)]="item.name"</code>) instead.
-    </li>
-    <li>
-      <strong>The suffix is exactly <code>Change</code>.</strong> An output named <code>valueChanged</code> or
-      <code>onValueChange</code> silently breaks the banana — the compiler reports no matching output for the desugared
-      binding.
-    </li>
-    <li>
-      <strong><code>(ngModelChange)</code> ≠ <code>(change)</code>.</strong> <code>ngModelChange</code> emits the parsed
-      <em>value</em> on every model update; the native <code>change</code> event fires per DOM rules (text inputs: on
-      blur) and hands you a raw <code>Event</code>.
-    </li>
-    <li>
-      <strong>Template-driven vs reactive:</strong> <code>[(ngModel)]</code> is the entry point to template-driven
-      forms. Mixing it onto a control that already has a <code>formControlName</code> is an error — pick one system per
-      control.
-    </li>
-  </ul>
+    <p>
+      You will read this in every pre-v17 codebase, and it clarifies why the naming contract exists — before
+      <code>model()</code>, you built both halves by hand and kept them in sync yourself:
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>What does <code>[(visible)]="show"</code> expand to, exactly?</summary>
-    <div>
-      <code>[visible]="show" (visibleChange)="show = $event"</code> — and if <code>show</code> is a writable signal, the
-      write is <code>show.set($event)</code>. The output name is always input-name + <code>Change</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Does <code>valueChange</code> fire when the parent changes the value?</summary>
-    <div>
-      No. <code>model()</code> emits only for child-originated writes (<code>.set()</code>/<code>.update()</code> inside
-      the component). Parent writes flow in through the input half silently — otherwise two-way binding would loop
-      forever.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>[(value)]="count()"</code> fail to compile?</summary>
-    <div>
-      <code>count()</code> is a call expression — there is nothing to assign back into. Bind the signal itself:
-      <code>[(value)]="count"</code>; Angular detects the WritableSignal and writes via <code>.set()</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>You see <em>NG8002: Can't bind to 'ngModel'</em>. First thing to check?</summary>
-    <div>
-      Whether <code>FormsModule</code> is in the component's <code>imports</code>
-      array. Without it, the NgModel directive isn't in template scope, so
-      <code>ngModel</code> looks like an unknown property of <code>&lt;input&gt;</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you validate a child's value before accepting it?</summary>
-    <div>
-      Split the banana: <code>[value]="v()" (valueChange)="accept($event)"</code> and put the policy (clamp, validate,
-      confirm, dispatch) in <code>accept()</code>. Two-way binding is sugar, so the explicit pair is always available.
-    </div>
-  </details>
+    <app-code-lab
+      file="stepper.legacy.ts"
+      [code]="legacySample"
+      [notes]="legacyNotes"
+      notesLabel="Everything model() now does for you"
+    />
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>[(x)]</code> = <code>[x]</code> + <code>(xChange)</code> — the suffix is a hard compiler contract.</li>
-    <li><code>model()</code> generates the pair; it emits on child writes only, never on parent writes.</li>
-    <li>Bind the signal itself, never its call — the target must be assignable.</li>
-    <li>Split the banana whenever a write needs interception (clamp, validate, dispatch).</li>
-    <li>
-      <code>[(ngModel)]</code> adapts native controls via ControlValueAccessor; remember FormsModule,
-      <code>name</code>-in-forms, and <code>ngModelOptions.updateOn</code>.
-    </li>
-  </ul>
+    <table>
+      <caption class="bf-table-caption">
+        model() against the pattern it replaced
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th><code>model()</code> (modern)</th>
+          <th><code>&#64;Input</code> + <code>&#64;Output</code> (legacy)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Declaration</td>
+          <td>one line, pair generated</td>
+          <td>two members, names must align by hand</td>
+        </tr>
+        <tr>
+          <td>Child updates it</td>
+          <td><code>value.set(v)</code> — emits automatically</td>
+          <td>set the field <em>and</em> remember to <code>.emit(v)</code></td>
+        </tr>
+        <tr>
+          <td>Read in child</td>
+          <td><code>value()</code> — reactive, works inside <code>computed()</code></td>
+          <td>plain field — needs <code>ngOnChanges</code> to react to parent writes</td>
+        </tr>
+        <tr>
+          <td>Required + alias</td>
+          <td><code>model.required()</code>, <code>&#123; alias &#125;</code></td>
+          <td><code>&#64;Input(&#123; required: true &#125;)</code>, alias kept in sync by hand on both sides</td>
+        </tr>
+      </tbody>
+    </table>
 
-  <p>
-    Drill this with the <a routerLink="/practice">Components &amp; Templates challenges</a>, then continue to
-    <a routerLink="/class-style-binding">Class &amp; Style Binding →</a>
-  </p>
+    <app-remember variant="rule">
+      <strong>The suffix is exactly <code>Change</code>.</strong> <code>model()</code> enforces that at compile time.
+      The legacy pattern only enforces it by convention — get the name wrong (<code>valueChanged</code>,
+      <code>onValueChange</code>) and the banana just quietly stops working, with no error pointing at why.
+    </app-remember>
+  </section>
+
+  <!-- ============ 11. TRAPS ============ -->
+  <section>
+    <p class="bf-eyebrow">Traps that show up in exams</p>
+    <h2>Four more ways this bites in practice.</h2>
+
+    <ul>
+      <li>
+        <strong>Mutation doesn't propagate.</strong> Two-way binding syncs <em>assignments</em>. Bind an object and
+        mutate one of its properties, and no input fires and no event emits — the identical rule as every other binding
+        in the app. Prefer immutable updates, or bind primitives.
+      </li>
+      <li>
+        <strong><code>(ngModelChange)</code> is not <code>(change)</code>.</strong> <code>ngModelChange</code> emits the
+        parsed <em>value</em> on every model update; the native <code>change</code> event fires on the DOM's own
+        schedule (text inputs: on blur) and hands you a raw <code>Event</code>, not a value.
+      </li>
+      <li>
+        <strong>Template-driven and reactive forms don't mix on one control.</strong> Putting
+        <code>[(ngModel)]</code> on a control that already has a <code>formControlName</code> is an error — pick one
+        system per control, even inside an otherwise-reactive form.
+      </li>
+      <li>
+        <strong>A missing name doesn't always fail the same way.</strong> An <code>ngModel</code> with no
+        <code>name</code> attribute fails loudly inside a <code>&lt;form&gt;</code> (NgForm can't register it), but
+        works fine standalone outside one — so the same typo can pass in a quick test and break the moment the field
+        moves into a real form.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 12. FAQ ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>[(x)]</code> is sugar for <code>[x]</code> + <code>(xChange)</code> —
+        <strong>the suffix is a hard compiler contract</strong>, not a naming convention you have to police yourself.
+      </li>
+      <li>
+        <code>model()</code> builds the pair for you and emits <strong>only on child-side writes</strong> — a parent's
+        write updates the input silently, or every two-way binding would loop.
+      </li>
+      <li>
+        Bind the signal itself, never its call — <code>count</code>, not <code>count()</code>. The compiler enforces
+        assignability at build time, before the app ever runs.
+      </li>
+      <li>
+        Splitting the banana lets a parent reject a value, but
+        <strong>a rejected write can still desync a <code>model()</code>-based child</strong> — you watched it happen.
+        Reach for <code>input()</code> + <code>output()</code> whenever the parent might say no.
+      </li>
+      <li>
+        <code>model()</code> is component-to-component only; it is <strong>not</strong> forms integration. Only a real
+        <code>ControlValueAccessor</code> plugs into <code>[(ngModel)]</code> or <code>formControlName</code>.
+      </li>
+      <li>
+        <code>[(ngModel)]</code> adapts native controls through that same accessor. Remember <code>FormsModule</code>, a
+        <code>name</code> inside a <code>&lt;form&gt;</code>, and that its DOM write is scheduled, not synchronous — the
+        thing a test has to wait for.
+      </li>
+    </ul>
+
+    <p><a routerLink="/class-style-binding">Next: Class &amp; Style Binding →</a></p>
+  </section>
 </article>

@@ -6,9 +6,13 @@
    the mock chunk-loading network panel, and the "which button is selected"
    state that a plain `.demo button` cannot express on its own. */
 
-/* Highlights whichever feature/tab button is the one currently showing. */
+/* Highlights whichever feature/tab button is the one currently showing.
+   --accent-bright-solid, not plain --bf-accent-bright: paired with the
+   button's inherited --bg text (styles.css's base `button` rule), plain
+   --bf-accent-bright fails WCAG AA in light mode (3.22:1) — see
+   --accent-bright-solid's own comment (brain-friendly.css §3). */
 .lesson.bf button.active {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid);
   box-shadow: var(--bf-shadow-lift);
 }
 

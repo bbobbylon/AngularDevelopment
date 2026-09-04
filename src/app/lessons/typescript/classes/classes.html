@@ -1,310 +1,618 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Type System</span>
-  <h1>Classes & Access Modifiers</h1>
-  <p class="lead">
-    Angular is class-based — components, services, directives and pipes are all classes. Under the hood a class is still
-    JavaScript's prototype system in formal dress: the class is a constructor function, methods live once on the
-    prototype, and fields are per-instance. TypeScript layers access modifiers, parameter properties and abstract
-    members on top — all erased at runtime except the JS-native <code>#private</code> form. Knowing which parts are real
-    and which are compiler fiction is the theme of this page.
-  </p>
-
-  <h2>Fields, constructor &amp; methods — and initialization order</h2>
-  <div class="code">
-    <pre>
-class Counter {{ '{' }}
-  private value = 0;          // field initializer
-  static instances = 0;       // ONE slot shared by the class (Counter.instances)
-  readonly id = crypto.randomUUID();
-
-  constructor(public label: string) {{ '{' }} Counter.instances++; {{ '}' }}
-
-  get current() {{ '{' }} return this.value; {{ '}' }}              // getter — computed on read
-  set current(v: number) {{ '{' }} this.value = Math.max(0, v); {{ '}' }} // setter — validate on write
-  increment(by = 1) {{ '{' }} this.value += by; return this; {{ '}' }}   // returns this → chainable
-{{ '}' }}</pre>
-  </div>
-  <p>Order matters and is exam bait:</p>
-  <ul>
-    <li>
-      <strong>Field initializers run as if pasted at the top of the constructor</strong>, in declaration order,
-      <em>before</em> your constructor body. So <code>readonly id = …</code> is set before
-      <code>Counter.instances++</code> executes.
-    </li>
-    <li>
-      In a subclass, the base constructor (and base field initializers) complete before the subclass's field
-      initializers run — which is why reading an overridden field from a base constructor sees the <em>base</em> value.
-      Avoid calling overridable methods from constructors.
-    </li>
-    <li>
-      Methods live on the prototype (one copy total); arrow-function fields live on <em>each instance</em> (one copy per
-      object) — the trade-off behind the <code>this</code> section below.
-    </li>
-  </ul>
-
-  <h2>Access modifiers — soft privacy vs hard privacy</h2>
-  <table class="t">
-    <tr>
-      <td><code>public</code></td>
-      <td>Default. Accessible everywhere.</td>
-    </tr>
-    <tr>
-      <td><code>private</code></td>
-      <td>
-        Only inside the declaring class — <strong>compile-time only</strong>; the property is plainly visible in the
-        emitted JS, in DevTools, and via <code>obj['value']</code>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>protected</code></td>
-      <td>The class and its subclasses.</td>
-    </tr>
-    <tr>
-      <td><code>readonly</code></td>
-      <td>Set once (declaration or constructor), then immutable — compile-time, shallow.</td>
-    </tr>
-    <tr>
-      <td><code>#name</code></td>
-      <td>
-        JS-native <strong>hard</strong> private — enforced by the engine. Truly inaccessible outside the class; survives
-        compilation because it IS JavaScript.
-      </td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>
-class Vault {{ '{' }}
-  private soft = 'ts-only';
-  #hard = 'engine-enforced';
-
-  static isVault(x: unknown): x is Vault {{ '{' }} return #hard in x; {{ '}' }}  // brand check!
-{{ '}' }}
-const v = new Vault();
-(v as any).soft;    // works at runtime — private was erased
-(v as any).#hard;   // ❌ SyntaxError — the engine itself refuses</pre>
-  </div>
-  <p>
-    A subtle type-system consequence: <code>private</code>/<code>#</code> members make a class <strong>nominal</strong>.
-    Two classes with identical shapes are normally interchangeable (structural typing), but a private member is only
-    compatible with <em>the same declaration</em> — so <code>class A {{ '{' }} private x = 1 {{ '}' }}</code> and an
-    identical <code>class B</code> are <em>not</em> assignable to each other. Teams exploit this for "branded" types
-    that must not be mixed up.
-  </p>
-  <div class="note">
-    Angular templates can only read <code>public</code> and <code>protected</code>
-    members — hence the convention in this codebase: template-facing state is
-    <code>protected</code>, true internals are <code>private</code>. The template type-checker enforces it at build
-    time.
-  </div>
-
-  <h2>Parameter properties — and the <code>inject()</code> shift</h2>
-  <div class="code">
-    <pre>
-constructor(private http: HttpClient) {{ '{' }}{{ '}' }}
-// sugar for:  private http; constructor(http) {{ '{' }} this.http = http; {{ '}' }}
-
-// modern Angular avoids the constructor entirely:
-private http = inject(HttpClient);</pre>
-  </div>
-  <p>
-    Parameter properties are why classic Angular constructors looked like dependency lists. The field-initializer form
-    with <code>inject()</code> wins on three fronts: it works in field initializers themselves (so a field can depend on
-    a service), it survives class inheritance without re-declaring constructor params, and it doesn't rely on parameter
-    <em>decorator metadata</em>. One rule transfers: both forms only work in an <em>injection context</em> —
-    construction time. Calling <code>inject()</code>
-    later (in a click handler) throws.
-  </p>
-
-  <h2>Inheritance, <code>super</code> &amp; <code>override</code></h2>
-  <div class="code">
-    <pre>
-class Base {{ '{' }} greet() {{ '{' }} return 'hi'; {{ '}' }} {{ '}' }}
-class Loud extends Base {{ '{' }}
-  override greet() {{ '{' }} return super.greet().toUpperCase(); {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      A subclass constructor <strong>must call <code>super()</code> before touching <code>this</code></strong> — the
-      base class builds the object first; that's engine law, not a TS rule.
-    </li>
-    <li>
-      This project enables <code>noImplicitOverride</code>: overriding without the <code>override</code> keyword is an
-      error. The payoff is the reverse direction — if the <em>base</em> method is renamed or removed, every stale
-      <code>override</code> becomes a compile error instead of silently forking behavior.
-    </li>
-    <li>
-      Prefer composition to deep hierarchies: Angular itself moved from base-class patterns to composition (host
-      directives, <code>inject()</code>-based helpers) for exactly the fragile-base-class reasons.
-    </li>
-  </ul>
-
-  <h2><code>this</code> — the classic loss, live</h2>
-  <div class="code">
-    <pre>
-class Greeter {{ '{' }}
-  constructor(private name: string) {{ '{' }}{{ '}' }}
-  greetMethod() {{ '{' }} return `hi from ${{ '{' }}this.name{{ '}' }}`; {{ '}' }}   // this = whoever CALLS it
-  greetArrow = () =&gt; `hi from ${{ '{' }}this.name{{ '}' }}`;       // this = captured at construction
-{{ '}' }}
-const g = new Greeter('Ada');
-const fn = g.greetMethod;
-fn();               // 💥 this is undefined — the method was detached from g
-[1].map(g.greetArrow); // ✅ arrow field survives detachment</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — detach both and call them</p>
-    <div class="row" style="margin-bottom: 8px">
-      <button (click)="callDetached()">detach &amp; call both</button>
-    </div>
-    @if (detachedResult(); as r) {
-      <p>
-        method: <strong>{{ r.method }}</strong>
-      </p>
-      <p>
-        arrow field: <strong>{{ r.arrow }}</strong>
-      </p>
-    }
-    <p style="font-size: 0.88rem; color: var(--text-muted)">
-      Methods get <code>this</code> from the call site (<code>obj.m()</code> binds obj; bare <code>m()</code> binds
-      undefined in strict mode). Arrow fields close over the instance. This is why event-handler callbacks passed by
-      reference historically needed <code>.bind(this)</code> — arrow fields are the modern fix, at the cost of one
-      function per instance.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="TypeScript · Type System"
+    title="Classes & Access Modifiers"
+    hand="or, how much of `this` is real and how much is a compiler's polite fiction"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      Angular is class-based — components, services, directives and pipes are all classes underneath. Strip away
+      TypeScript and what's left is JavaScript's prototype system in a suit: a constructor function, one shared set of
+      methods, and per-instance fields. TypeScript layers <code>private</code>, <code>abstract</code>, parameter
+      properties and <code>this</code>-typed returns on top of that — and every one of them is a
+      <strong>promise checked at build time</strong>, except a single two-character prefix the engine itself enforces.
+      Telling those two categories apart is this whole page.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>Abstract classes vs <code>implements</code></h2>
-  <div class="code">
-    <pre>
-abstract class Shape {{ '{' }}
-  abstract area(): number;          // subclasses MUST implement — no body here
-  describe() {{ '{' }} return `area=${{ '{' }}this.area(){{ '}' }}`; {{ '}' }}  // shared concrete logic
-{{ '}' }}
-// new Shape();  ❌ cannot instantiate an abstract class
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You wrote private. The compiler forgot it existed.</h2>
 
-class Circle extends Shape implements Comparable {{ '{' }}
-  constructor(private r: number) {{ '{' }} super(); {{ '}' }}
-  area() {{ '{' }} return Math.PI * this.r ** 2; {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>extends</code> inherits <em>implementation</em> (one base max); <code>implements</code> only
-      <em>checks shape</em> (many allowed, zero runtime effect). Lifecycle hooks are the everyday example:
-      <code>implements OnInit</code> makes the compiler verify <code>ngOnInit()</code> exists — but Angular calls the
-      hook by name either way.
-    </li>
-    <li>
-      Abstract classes survive to runtime (they're real constructors), which is why Angular DI can use one as a token:
-      <code>{{ '{' }} provide: Logger, useClass: ConsoleLogger {{ '}' }}</code> with <code>abstract class Logger</code>.
-      An interface could never be the token — it's erased.
-    </li>
-  </ul>
-
-  <h2>A class is a type <em>and</em> a value</h2>
-  <div class="code">
-    <pre>
-class User {{ '{' }} name = ''; {{ '}' }}
-
-const u: User = new User();      // type position: the INSTANCE shape
-const ctor: typeof User = User;  // value position: the constructor itself
-function make(C: new () =&gt; User) {{ '{' }} return new C(); {{ '}' }}  // constructor type</pre>
-  </div>
-  <p>
-    <code>User</code> the type means "an instance"; <code>typeof User</code> means "the constructor". The
-    <code>new () =&gt; T</code> form is how factories and DI providers are typed — Angular's
-    <code>useClass</code> accepts exactly a constructor type.
-  </p>
-
-  <h2>Try it</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a Counter instance (note method chaining)</p>
-    <div class="row">
-      <button (click)="bump(1)">{{ label }} +1</button>
-      <button class="ghost" (click)="bump(5)">+5</button>
-      <span class="pill">current = {{ display() }}</span>
-    </div>
-    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 8px">
-      The component holds one Counter built with parameter properties;
-      <code>increment()</code> returns <code>this</code>, so <code>c.increment().increment(5)</code> chains. The signal
-      mirrors <code>counter.current</code> because a plain class field isn't reactive — exactly why Angular state lives
-      in signals, not raw class instances.
+    <p>
+      Open the compiled JavaScript for any TypeScript class and go looking for <code>private</code>,
+      <code>protected</code>, <code>readonly</code>, <code>abstract</code>, even an <code>implements</code> clause. You
+      won't find them. Every access modifier, every abstract keyword, every interface name — gone, as if you never typed
+      it. TypeScript's type system is a <span class="term">build-time-only</span> layer bolted onto ordinary JavaScript,
+      and a class is where that fact matters most, because a class is the one place TypeScript spends the most ink
+      pretending otherwise.
     </p>
-  </div>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary><code>private</code> vs <code>#private</code> — name every difference that matters.</summary>
-    <div>
-      (1) Enforcement: <code>private</code> is erased — runtime access via <code>(obj as any).x</code> or DevTools
-      works; <code>#x</code> is engine-enforced, inaccessible, full stop. (2) Typing: both make the class nominal for
-      assignability. (3) Mechanics: <code>#x</code> can't be accessed dynamically (<code>obj['#x']</code> misses),
-      supports the <code>#x in obj</code> brand check, and isn't visible in <code>JSON.stringify</code>/spread. (4)
-      Tooling: <code>private</code> is friendlier to tests that poke internals — which is either a feature or the
-      problem, depending on your test philosophy.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A base constructor calls <code>this.setup()</code>, which a subclass overrides using a subclass field. The field
-      is undefined. Why?
-    </summary>
-    <div>
-      Construction order: base constructor (including base field initializers) runs first, and it dispatches
-      <code>setup()</code> <em>virtually</em> — the subclass override executes — but subclass field initializers haven't
-      run yet. The override reads its own field too early. Fixes: don't call overridable methods from constructors, pass
-      data via super() args, or use a lazy/init method invoked after construction. Angular sidesteps this by giving you
-      <code>ngOnInit</code> as the "everything is wired now" hook.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why can an abstract class be an Angular DI token when an interface can't?</summary>
-    <div>
-      DI tokens must exist <em>at runtime</em> to be map keys in the injector. An abstract class compiles to a real
-      constructor function — a live object — so <code>provide: Logger</code> works and even gives you free typing plus
-      the inability to instantiate the base. Interfaces are erased to nothing, so interface-shaped dependencies need an
-      <code>InjectionToken</code> instead. The abstract-class-as-token pattern is the standard way to define swappable
-      service contracts in Angular.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>&lt;button (click)="this.save"&gt;</code>-style bugs: a callback passed as <code>obj.method</code> logs
-      <code>this</code> as undefined. Three fixes, and their costs?
-    </summary>
-    <div>
-      (1) Wrap at the call site: <code>() =&gt; obj.method()</code> — zero class changes, creates a closure per use. (2)
-      Bind once: <code>this.method = this.method.bind(this)</code> in the constructor — keeps the method on the
-      prototype but adds ceremony. (3) Arrow field: <code>method = () =&gt; …</code> — immune to detachment, but one
-      function per instance and awkward to spy on prototypes in tests. In Angular templates you rarely hit this because
-      <code>(click)="save()"</code> is already a call expression, not a reference.
-    </div>
-  </details>
+    <p>
+      So before anything else, the real question this page is about:
+      <strong
+        >which parts of a class are TypeScript being helpful, and which parts are the JavaScript engine actually
+        enforcing something?</strong
+      >
+      Get that distinction wrong and you'll trust a <code>private</code> field to keep a secret, or panic about a
+      <code>readonly</code> array TypeScript happily still lets you <code>.push()</code> into.
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Classes are constructor functions + prototypes; field initializers run before the constructor body, base before
-      derived — never call overridables from constructors.
-    </li>
-    <li>
-      <code>private/protected/readonly</code> are compile-time (soft); <code>#name</code> is engine-enforced (hard). Any
-      private member makes the class nominally typed.
-    </li>
-    <li>
-      Parameter properties power classic constructor DI; <code>inject()</code> in field initializers is the modern form
-      — both need an injection context.
-    </li>
-    <li>
-      <code>override</code> + <code>noImplicitOverride</code> guards both directions of rename drift; methods lose
-      <code>this</code> when detached, arrow fields don't.
-    </li>
-    <li>
-      <code>abstract</code> = contract + shared code + runtime constructor (hence usable as a DI token);
-      <code>implements</code> = erased shape check. A class name is an instance type; <code>typeof C</code> is the
-      constructor.
-    </li>
-  </ul>
+    <ul>
+      <li>What does <code>private</code> actually stop, and what does it not?</li>
+      <li>Which keyword survives all the way to the running app?</li>
+      <li>And when does a class field quietly stop being a field at all?</li>
+    </ul>
 
-  <p><a routerLink="/ts-enums">Next: Enums &amp; Literal Unions →</a></p>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      You write <code>class Vault {{ '{' }} private secret = 'shh'; {{ '}' }}</code
+      >, compile it, and open your browser's console on a running instance.
+      <strong>Can you read <code>v.secret</code>?</strong> Say your answer out loud — a few sections down there's a
+      compiled, running example of exactly this that will tell you if you were right.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Every instance gets its own furniture. The building has one gym.</h2>
+
+    <p>
+      Picture an apartment building built from one blueprint. <code>new Counter('clicks')</code> doesn't hand you a copy
+      of the blueprint — it hands you a fully furnished unit built <em>from</em> it. Your furniture (the fields —
+      <code>label</code>, <code>value</code>) is yours alone; move it, and nobody else's apartment changes. But the
+      building has exactly one gym in the basement (the methods, living on <code>Counter.prototype</code>), and every
+      tenant walks down to use the <strong>same one</strong>. Nobody gets a private copy poured into their unit.
+    </p>
+
+    <p>
+      That single split explains almost everything confusing about classes: why two instances' methods are
+      <code>===</code> to each other but their fields never are, why a method can be "stolen" by copying its reference —
+      you're not copying a gym, you're copying a <span class="key">key</span> to the one gym, and the key doesn't care
+      whose door it's near — and why an arrow-function field is the deliberate exception: a private home gym installed
+      inside your own unit, at your own expense, because you didn't trust the shared one to still recognize you once
+      you'd left the building.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>One prototype, many apartments.</strong> If a piece of state is different for every instance, it's a
+      field. If it's the exact same code shared by every instance, it's on the prototype. An arrow field is the one
+      thing that lives per-instance and is <em>still</em> a method — that combination is exactly what makes it survive
+      detachment, at the cost of one extra function object per apartment.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="instanceTalk"
+      caption="What an instance and its prototype actually negotiate — note which one carries state, and which one carries code."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A class is a constructor function wearing a costume.</h2>
+
+    <p>
+      <code>class</code> is syntax sugar — real, useful sugar, but sugar. Underneath, a class compiles to a plain
+      function you call with <code>new</code>, plus one shared object holding every method. Here is
+      <code>Counter</code> from the demo below, written the way it actually runs.
+    </p>
+
+    <app-code-lab
+      file="counter.compiled.js — roughly what the compiler emits"
+      [code]="desugarSample"
+      [notes]="desugarNotes"
+      notesLabel="What each line is actually doing"
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Field initializer" kicker="per instance">
+        Runs first, in declaration order, as if pasted at the top of the constructor — before a single line of your
+        constructor body executes.
+      </app-tape-card>
+      <app-tape-card heading="Constructor body" kicker="per instance, once">
+        Runs once per <code>new</code>, after every field initializer above it has already written its slot.
+      </app-tape-card>
+      <app-tape-card heading="Prototype method" kicker="shared, once total">
+        Written once, on <code>Class.prototype</code>. Every instance looks it up through the chain instead of carrying
+        a copy — that's the whole gym analogy, in one row.
+      </app-tape-card>
+      <app-tape-card heading="Static field or method" kicker="on the class itself">
+        Lives on the constructor function, not on <code>.prototype</code> and not on any instance —
+        <code>Counter.instances</code>, never <code>counter.instances</code>. One slot, shared by the whole class.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 4. FIELD ORDER ============ -->
+  <section>
+    <p class="bf-eyebrow">Exam bait</p>
+    <h2>Field initializers run before your constructor even starts.</h2>
+
+    <p>
+      That ordering rule turns genuinely dangerous the moment inheritance gets involved, because a base class's
+      constructor runs to completion — <em>including any method it calls</em> — before the subclass has initialized a
+      single one of its own fields.
+    </p>
+
+    <app-flow
+      direction="vertical"
+      caption="Base-first, always. The warn step is the one that bites: a method call from Base's constructor still dispatches to Derived's override, mid-construction."
+      [steps]="fieldOrderSteps"
+    />
+
+    <app-predict
+      prompt="A Base constructor calls this.setup(). Derived overrides setup() and reads one of its OWN class fields inside it. What does that field read as, the very first time this runs?"
+      [code]="fieldOrderSample"
+      [answer]="fieldOrderAnswer"
+      revealLabel="Reveal what actually logs"
+    />
+
+    <p>
+      The fixes, best first: don't call an overridable method from a constructor at all; pass what the base needs
+      through <code>super(...)</code> instead; or give the class a genuinely lazy init method the subclass calls once
+      construction is fully finished. Angular hands you exactly that as <code>ngOnInit</code> —
+      <span class="key">"everything is wired now, including every subclass field."</span>
+    </p>
+  </section>
+
+  <!-- ============ 5. ACCESS MODIFIERS ============ -->
+  <section>
+    <p class="bf-eyebrow">Soft law vs hard law</p>
+    <h2>Three privacies are the compiler's opinion. One is the engine's law.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Every access modifier, and what actually enforces it
+      </caption>
+      <thead>
+        <tr>
+          <th>Modifier</th>
+          <th>What it means</th>
+          <th>Enforced by</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>public</code></td>
+          <td>The default. Accessible everywhere.</td>
+          <td>Nothing — there's nothing to stop.</td>
+        </tr>
+        <tr>
+          <td><code>private</code></td>
+          <td>Only inside the declaring class.</td>
+          <td>
+            <span class="bf-break">The compiler, at build time only.</span> Plainly visible in DevTools and via
+            <code>obj['value']</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>protected</code></td>
+          <td>The class and its subclasses.</td>
+          <td>The compiler, same as <code>private</code>.</td>
+        </tr>
+        <tr>
+          <td><code>readonly</code></td>
+          <td>Set once, then immutable — shallow.</td>
+          <td>The compiler. A <code>readonly</code> array still lets you <code>.push()</code>.</td>
+        </tr>
+        <tr>
+          <td><code>#name</code></td>
+          <td>Hard, JS-native privacy.</td>
+          <td><strong>The engine itself.</strong> Truly inaccessible from outside the class, full stop.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-code-lab
+      file="vault.ts"
+      [code]="vaultSample"
+      [notes]="vaultNotes"
+      notesLabel="Line by line — the promise, and the lock"
+    />
+
+    <p>
+      There's a type-system consequence people miss: a <code>private</code> or <code>#</code> member makes its class
+      <span class="term">nominal</span>. Two classes with identical shapes are normally interchangeable — TypeScript is
+      structurally typed — but a private member is only compatible with <em>the exact same declaration</em>, so
+      <code>class A {{ '{' }} private x = 1 {{ '}' }}</code> and an identical <code>class B</code> are
+      <strong>not</strong> assignable to each other. Teams exploit this deliberately for "branded" types that must never
+      be mixed up.
+    </p>
+
+    <div class="note">
+      Angular templates can only read <code>public</code> and <code>protected</code> members — hence this codebase's
+      convention: template-facing state is <code>protected</code>, true internals are <code>private</code>. The template
+      type-checker enforces it at build time, same as everything else on this row of the table.
+    </div>
+  </section>
+
+  <!-- ============ 6. STRICT PROPERTY INITIALIZATION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The error everyone meets</p>
+    <h2>"Property has no initializer" is Angular developer rite of passage number one.</h2>
+
+    <p>
+      <code>strictPropertyInitialization</code> — on by default under <code>strict</code>, which this project uses —
+      requires every field to hold a value by the time the constructor returns. Declare a typed field and never assign
+      it, and TS2564 stops the build rather than let it silently be <code>undefined</code>. Here are the four honest
+      responses, in the order worth reaching for them.
+    </p>
+
+    <app-code-lab
+      file="profile-form.component.ts"
+      [code]="strictInitSample"
+      [notes]="strictInitNotes"
+      notesLabel="Four responses to TS2564, ranked"
+    />
+
+    <app-napkin lead="one to keep —" label="The rule for definite assignment">
+      Reach for <code>x!: T</code> only when you can point at the <strong>exact line</strong> that assigns it before
+      first read — a <code>ngOnInit</code>, a resolved <code>@ViewChild</code>. If you can't point at that line, you
+      don't have a definite assignment, you have a guess wearing the syntax of one. Use <code>| null</code> instead and
+      let the compiler make you handle it.
+    </app-napkin>
+
+    <p>
+      There's a fifth situation this list doesn't quite cover: a field a <em>decorator or a base class</em> assigns for
+      you — <code>@ViewChild('panel') panel!: ElementRef;</code>, or a re-declared <code>@Input()</code> in a subclass.
+      There, none of the four fixes above is quite right, because you're not initializing the field at all — something
+      else is. That's what <code>declare</code> is for, and it's the fix for the next trap too.
+    </p>
+  </section>
+
+  <!-- ============ 7. useDefineForClassFields ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The quiet one</p>
+    <h2>Your subclass field can silently ignore the setter it's shadowing.</h2>
+
+    <p>
+      This one produces no error, no warning, nothing — the build is clean and the app runs, just not the way you
+      expect. A subclass writes a plain field with the same name as an inherited <code>get</code>/<code>set</code>
+      accessor pair, meaning to invoke the setter. On this repo's target, ES2022, it doesn't.
+    </p>
+
+    <app-compare
+      leftTitle="What you'd expect — the setter runs"
+      leftTone="bad"
+      rightTitle="What actually happens here — useDefineForClassFields"
+      rightTone="neutral"
+      note="Identical subclass line, `value = 5;`, two different runtime outcomes — and neither one raises a TypeScript error."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ defineLegacySample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ defineModernSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      The mechanism: a class field declaration under <code>useDefineForClassFields</code> uses
+      <code>[[Define]]</code> semantics — closer to <code>Object.defineProperty</code> than to a plain
+      <code>this.value = 5</code> assignment — and <code>[[Define]]</code> never walks the prototype chain looking for
+      an accessor to call. The fix is the field this repo's own <code>@Input()</code> re-declarations use for exactly
+      this reason:
+    </p>
+
+    <div class="code">
+      <pre>{{ defineFixSample }}</pre>
+    </div>
+
+    <app-quiz
+      [question]="defineFieldsQuestion"
+      [options]="defineFieldsQuiz"
+      followUp="This is the same `declare` keyword from the strictPropertyInitialization section, doing a related but different job — there it silences a missing-initializer error, here it stops a field from being created at all."
+    />
+  </section>
+
+  <!-- ============ 8. PARAMETER PROPERTIES ============ -->
+  <section>
+    <p class="bf-eyebrow">Constructor sugar</p>
+    <h2>A constructor parameter can declare a field just by being public.</h2>
+
+    <p>
+      Parameter properties are why classic Angular constructors read like dependency lists — every service the class
+      needed showed up as <code>private http: HttpClient</code>, right there in the signature.
+    </p>
+
+    <app-code-lab
+      file="user.service.ts"
+      [code]="paramPropsSample"
+      [notes]="paramPropsNotes"
+      notesLabel="Sugar, and the modern alternative"
+    />
+
+    <p>
+      The field-initializer form with <code>inject()</code> wins on three fronts: it works inside field initializers
+      themselves, so a field can depend on a service before the constructor even runs; it survives class inheritance
+      without re-declaring constructor parameters; and it doesn't rely on parameter <em>decorator metadata</em>. One
+      rule transfers to both forms though — each only works inside an <span class="term">injection context</span>,
+      meaning construction time. Call <code>inject()</code> later, from a click handler, and it throws.
+    </p>
+  </section>
+
+  <!-- ============ 9. INHERITANCE, SUPER, OVERRIDE ============ -->
+  <section>
+    <p class="bf-eyebrow">Sharing behavior</p>
+    <h2>super() must run before you touch this. That's physics, not opinion.</h2>
+
+    <app-code-lab
+      file="loud.ts"
+      [code]="inheritanceSample"
+      [notes]="inheritanceNotes"
+      notesLabel="override, and calling the base on purpose"
+    />
+
+    <ul>
+      <li>
+        A subclass constructor <strong>must call <code>super()</code> before touching <code>this</code></strong> — the
+        base class builds the object first; that's engine law, not a TypeScript rule.
+      </li>
+      <li>
+        This project enables <code>noImplicitOverride</code>: overriding without the <code>override</code> keyword is an
+        error, and — the direction people don't expect — writing <code>override</code> on a method that
+        <em>isn't</em> overriding anything is equally an error. Rename or delete the base method and every stale
+        <code>override</code> becomes a compile error instead of a silently forked implementation.
+      </li>
+      <li>
+        Prefer composition to deep hierarchies where you can: Angular itself moved from base-class patterns to
+        composition — host directives, <code>inject()</code>-based helpers — for exactly the fragile-base-class reasons
+        this section just walked through.
+      </li>
+    </ul>
+
+    <app-layers
+      [core]="{ label: 'Object.prototype', sub: 'toString, valueOf — the final fallback' }"
+      [rings]="[
+        { label: 'Loud.prototype', sub: 'greet() — the override' },
+        { label: 'Base.prototype', sub: 'greet() — never reached here' },
+      ]"
+      arrow="g.greet() looked up here"
+      caption="A lookup enters at the outermost ring your instance actually **is** — `Loud.prototype` — and works inward only as far as it has to. `Loud.prototype` answers `greet` immediately, so the search never reaches `Base.prototype`'s version at all. That's what `override` is really overriding: which ring the search stops at — `Base.prototype.greet` still exists, untouched, one ring further in."
+    />
+  </section>
+
+  <!-- ============ 10. THIS — RUNTIME LOSS ============ -->
+  <section>
+    <p class="bf-eyebrow">The classic bug, live</p>
+    <h2>Detach a method from its object, and this walks away with it.</h2>
+
+    <app-code-lab
+      file="greeter.ts"
+      [code]="thisLossSample"
+      [notes]="thisLossNotes"
+      notesLabel="Line by line — the loss, and the fix that survives it"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — detach both and call them</p>
+      <div class="row" style="margin-bottom: 8px">
+        <button type="button" (click)="callDetached()">detach &amp; call both</button>
+      </div>
+      @if (detachedResult(); as r) {
+        <p>
+          method: <strong>{{ r.method }}</strong>
+        </p>
+        <p>
+          arrow field: <strong>{{ r.arrow }}</strong>
+        </p>
+      }
+      <p class="demo__note">
+        Methods get <code>this</code> from the call site — <code>obj.m()</code> binds <code>obj</code>; a bare
+        <code>m()</code> binds nothing, in strict mode, which every file in this project compiles as. Arrow fields close
+        over the instance once, at construction, and keep it forever. This is exactly why event-handler callbacks passed
+        by reference historically needed <code>.bind(this)</code> — arrow fields are the modern fix, at the cost of one
+        function per instance instead of one shared on the prototype.
+      </p>
+    </div>
+
+    <p>
+      Two more places <code>this</code> shows up as a <em>type</em>, both worth recognizing on sight. A
+      <span class="term">this-typed parameter</span> — <code>function bindCheck(this: HTMLElement, e: Event)</code> —
+      types what <code>this</code> is supposed to be inside a plain function, so calling it detached, or with
+      <code>.call(wrongThing)</code>, is a compile error instead of a runtime surprise; it costs nothing at runtime,
+      TypeScript strips it from the emitted signature entirely. And <code>asserts this is Loaded</code> puts an
+      assertion function <em>on the class itself</em>, narrowing what <code>this</code> is for every line after the call
+      — the class-level cousin of the <code>asserts x is T</code> functions the
+      <a routerLink="/ts-narrowing">narrowing lesson</a> covers for plain values.
+    </p>
+
+    <app-quiz
+      question="You pull g.greetMethod off the instance into a bare variable and call it. What does this?.name inside it resolve to?"
+      [options]="thisQuiz"
+      followUp="Run the live demo above — detach both and call them — before you check yourself against this."
+    />
+  </section>
+
+  <!-- ============ 11. THIS AS A RETURN TYPE ============ -->
+  <section>
+    <p class="bf-eyebrow">A different this entirely</p>
+    <h2>this in a return type isn't a value — it's a promise about the caller's own type.</h2>
+
+    <p>
+      This is a completely different <code>this</code> from the one above — not the runtime receiver, but a
+      <span class="term">polymorphic return type</span> meaning "whatever concrete type the caller actually was." It's
+      what makes chainable APIs survive being subclassed.
+    </p>
+
+    <app-predict
+      prompt="increment below is annotated to return Counter — not this. SteppedCounter adds a bump() method and calls s.increment(1).bump(). Does it compile?"
+      [code]="chainWrongSample"
+      [answer]="chainAnswer"
+      revealLabel="Reveal what the compiler says"
+    />
+
+    <p>Annotate it with <code>this</code> instead of the base class name, and the chain comes back:</p>
+
+    <div class="code">
+      <pre>{{ chainFixSample }}</pre>
+    </div>
+
+    <p>
+      The real <code>Counter</code> behind the demo further down this page already uses exactly this pattern —
+      <code>increment(by = 1): this</code> — which is precisely what lets <code>c.increment().increment(5)</code>
+      chain, and would keep chaining correctly even from a subclass.
+    </p>
+  </section>
+
+  <!-- ============ 12. ABSTRACT VS IMPLEMENTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Two ways to share a shape</p>
+    <h2>abstract builds something. implements only checks the shape.</h2>
+
+    <app-code-lab
+      file="shape.ts"
+      [code]="implementsSample"
+      [notes]="implementsNotes"
+      notesLabel="Contract, concrete logic, and the boundary between them"
+    />
+
+    <ul>
+      <li>
+        <code>extends</code> inherits <em>implementation</em> — one base maximum. <code>implements</code> only
+        <em>checks shape</em> — many allowed, zero runtime trace. Lifecycle hooks are the everyday example:
+        <code>implements OnInit</code> makes the compiler verify <code>ngOnInit()</code> exists, but Angular calls the
+        hook by name either way, with or without the <code>implements</code> clause.
+      </li>
+      <li>
+        Abstract classes survive to runtime as real constructors, which is why Angular DI can use one as a token:
+        <code>{{ '{' }} provide: Logger, useClass: ConsoleLogger {{ '}' }}</code> with
+        <code>abstract class Logger</code>. An interface could never be the token — it's erased.
+      </li>
+    </ul>
+
+    <div class="warn">
+      <strong>implements gives a member no contextual typing.</strong> The compiler checks that your class HAS a
+      matching method; it never flows the interface's parameter types INTO that method's body for you.
+    </div>
+
+    <app-compare
+      leftTitle="implements — no contextual typing"
+      leftTone="bad"
+      rightTitle="Object literal assigned to the interface — contextual typing flows"
+      rightTone="good"
+      note="Same interface, same method name — the class member gets nothing, the object literal gets everything, because the two are checked by entirely different mechanisms."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ contextualWrongSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ contextualRightSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      The fix for the class isn't cosmetic — <code>save(item: User)</code> is required, not optional, the moment you
+      write <code>implements</code>. An object literal gets its parameter types for free because the compiler can see,
+      at the point the literal is written, exactly which interface it's being checked against; a class member is checked
+      in isolation, against its own declaration only.
+    </p>
+  </section>
+
+  <!-- ============ 13. TYPE AND VALUE ============ -->
+  <section>
+    <p class="bf-eyebrow">The duality</p>
+    <h2>The word User means two different things depending on where you write it.</h2>
+
+    <app-code-lab
+      file="user.ts"
+      [code]="typeValueSample"
+      [notes]="typeValueNotes"
+      notesLabel="Type position vs value position"
+    />
+
+    <p>
+      <code>User</code> the type means "an instance"; <code>typeof User</code> means "the constructor." The
+      <code>new () =&gt; T</code> shape is how factories and DI providers get typed — Angular's own
+      <code>useClass</code> accepts exactly a constructor type, nothing narrower and nothing looser.
+    </p>
+  </section>
+
+  <!-- ============ 14. TRY IT ============ -->
+  <section>
+    <p class="bf-eyebrow">See it work</p>
+    <h2>Watch the chain — and the shared method — for yourself.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — a Counter instance, chained</p>
+      <div class="row">
+        <button type="button" (click)="bump(1)">{{ label }} +1</button>
+        <button type="button" class="ghost" (click)="bump(5)">+5</button>
+        <span class="pill">current = {{ display() }}</span>
+      </div>
+      <p class="demo__note">
+        The component holds one <code>Counter</code> built with parameter properties. <code>increment()</code> is typed
+        <code>: this</code>, which is what lets <code>c.increment().increment(5)</code> chain — and what would keep it
+        chaining correctly even from a subclass, per the section above. The signal mirrors
+        <code>counter.current</code> because a plain class field isn't reactive on its own — exactly why Angular's state
+        lives in signals, not raw class instances.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 15. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 16. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A class is two runtime things, not one:
+        <strong>fields land per-instance, methods land once on the prototype</strong> — every quirk about
+        <code>this</code>, sharing, and detachment follows from that split.
+      </li>
+      <li>
+        Access modifiers are a <strong>compiler opinion, not an engine rule</strong> —
+        <code>private</code>/<code>protected</code>/<code>readonly</code> vanish at compile time; only
+        <code>#private</code> is enforced by the JavaScript engine itself.
+      </li>
+      <li>
+        Field initializers run <strong>base-first, top to bottom, before any constructor body</strong> — including the
+        base's own. Calling an overridable method from a constructor reads the subclass's fields one beat too early.
+      </li>
+      <li>
+        <code>strictPropertyInitialization</code> and <code>useDefineForClassFields</code> are two separate traps around
+        the same keyword — <code>declare</code> fixes both: it tells the compiler "something else owns this slot," and
+        emits nothing.
+      </li>
+      <li>
+        <code>override</code> guards both directions once <code>noImplicitOverride</code> is on: forget it on a real
+        override, or add it to a method that isn't one, and the build catches it either way.
+      </li>
+      <li>
+        <code>this</code> shows up as three different things — the runtime value a method receives (lost on detachment,
+        kept by arrow fields), a return type meaning "whatever the caller's own type was" (<code>: this</code>, for
+        chainable APIs), and an assertion target (<code>asserts this is T</code>). Keep them straight, and remember a
+        class is a type <em>and</em> a value at once — <code>User</code> describes an instance, <code>typeof User</code>
+        <strong>is</strong> the constructor.
+      </li>
+    </ul>
+
+    <app-remember variant="hook">
+      Everything with a keyword in front of it disappears at compile time — <code>private</code>,
+      <code>protected</code>, <code>readonly</code>, <code>abstract</code>, <code>implements</code>,
+      <code>interface</code>, even <code>this</code> as a return type — except one two-character prefix: <code>#</code>.
+      That's the entire difference between a promise and a lock.
+    </app-remember>
+
+    <p><a routerLink="/ts-generics">Next: Generics →</a></p>
+  </section>
 </article>

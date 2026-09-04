@@ -23,8 +23,9 @@
 }
 .chips button.on,
 .chips button[aria-pressed="true"] {
-  background: var(--bf-accent);
-  border-color: var(--bf-accent);
+  /* --accent-solid, not plain --bf-accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
   color: var(--bf-bg);
 }
 
@@ -32,8 +33,9 @@
    needs an "on" state added — the base look already comes from brain-friendly.css. */
 .demo button.ghost.on,
 .demo button.ghost[aria-pressed="true"] {
-  background: var(--bf-accent);
-  border-color: var(--bf-accent);
+  /* --accent-solid, not plain --bf-accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
   color: var(--bf-bg);
 }
 

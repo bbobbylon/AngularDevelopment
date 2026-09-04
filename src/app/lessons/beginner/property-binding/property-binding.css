@@ -1,37 +1,115 @@
-table.cmp {
+/* Tables, callouts, demo panels, pills and buttons are all styled by the
+   shared brain-friendly layer now (src/brain-friendly.css §8–15), so the
+   `table.cmp` / `.qa` block that used to live here is gone — it was a
+   per-lesson copy of a rule the theme owns. The only thing genuinely
+   specific to this lesson is the mirror-and-diverge diagram in "The mental
+   model". */
+
+/* ── The mirror-and-diverge diagram ──────────────────────────────────────────
+   Hand-authored SVG rather than an <app-layers> or <app-flow>, because
+   neither shape fits: this isn't containment and it isn't a sequence, it's
+   two sources feeding one live target with the third arrow — back to the
+   markup — deliberately absent. That absence is the entire lesson, so it
+   has to be something the reader can *see missing*, not just read about.
+
+   Every colour is a --bf-* token so the figure follows the page into dark
+   mode, and the whole <svg> is aria-hidden with the mechanism repeated in
+   the <figcaption> — a diagram that has to be re-read as a sentence is
+   better done as a sentence for anyone who cannot see it. */
+.mirror-fig {
+  margin: 1.8rem 0;
+}
+
+.mirror {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 12px 0;
+  max-width: 480px;
+  height: auto;
+  margin: 0 auto;
 }
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.cmp td:first-child {
-  white-space: nowrap;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
+
+.mirror-fig figcaption {
+  max-width: 60ch;
+  margin: 0.9rem auto 0;
   font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
+}
+
+.mirror__box {
+  stroke-width: 1.5;
+}
+
+/* Accent — "look here": the markup is where the reader's eye starts. */
+.mirror__box--attr {
+  fill: var(--bf-accent-wash);
+  stroke: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+/* Olive — "the way that works": the property is the live source of truth. */
+.mirror__box--prop {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+}
+
+/* Clay — the layer's own colour for "a solid, physical object in a
+   diagram", used here because "your code, later" carries no semantic
+   colour of its own the way the other two boxes do. */
+.mirror__box--code {
+  fill: color-mix(in srgb, var(--bf-clay) 22%, var(--bf-surface));
+  stroke: color-mix(in srgb, var(--bf-clay) 55%, transparent);
+}
+
+.mirror__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mirror__role {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.mirror__edge {
+  fill: none;
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* The arrow that doesn't exist in real life: dashed, danger-toned — "the
+   trap" — and cut off by an X rather than an arrowhead, because a normal
+   arrowhead would say this path completes. It doesn't. */
+.mirror__edge--blocked {
+  stroke: var(--bf-danger);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+.mirror__head {
+  fill: var(--bf-accent);
+}
+
+.mirror__tag {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+}
+
+.mirror__x {
+  stroke: var(--bf-danger);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.mirror__hand {
+  fill: var(--bf-danger);
+  font-family: var(--font-hand);
+  font-size: 18px;
 }

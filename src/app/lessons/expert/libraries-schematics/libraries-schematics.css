@@ -21,13 +21,15 @@
   font-size: 0.82rem;
 }
 
+/* --accent-solid/--accent-bright-solid, not plain --bf-accent(-bright) —
+   see their comments (brain-friendly.css §3). */
 .lesson.bf .bf-card .dep-picker button.dep-chip--on {
-  background: var(--bf-accent);
-  border-color: var(--bf-accent);
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
   color: var(--bf-bg);
 }
 
 .lesson.bf .bf-card .dep-picker button.dep-chip--on:hover {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid);
   color: var(--bf-bg);
 }
