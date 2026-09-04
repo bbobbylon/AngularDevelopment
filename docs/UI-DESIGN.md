@@ -305,11 +305,14 @@ All of it is suppressed under `prefers-reduced-motion: reduce`.
 ## 9. The brain-friendly layer
 
 Added 2026-08-31, from a visual the author supplied after a long series of asks recorded
-as **Bar 3** in `.claude/CLAUDE.md` and as §2.2 of the backlog. It is a second skin over
-everything in §1–§8, not a replacement for it, and it is where the app's presentation is
-heading.
+as **Bar 3** in `.claude/CLAUDE.md` and as §2.2 of the backlog. It started as a second skin
+over everything in §1–§8, applying only to a lesson that opted in — and on 2026-09-03,
+after the author asked to make sure the *entire* app was brain-friendly, its palette and
+typography (§9.1's remap) were promoted to the app's ONE permanent theme, unconditionally,
+everywhere. §9.1 and §9.6 below reflect that change; the rest of this section (voices,
+palette, the presentation component set, extension rules) is unchanged.
 
-### 9.1 Why a second skin rather than an edit
+### 9.1 One theme, not a second skin
 
 The original theme optimises for calm: one neutral column, restrained colour, everything
 the same weight. That is a good reference manual and a bad teacher — a learner scrolling a
@@ -317,22 +320,36 @@ correct grey wall retains very little of it, and retention is the app's entire p
 The brief was "bubbly, welcoming… notice how the brain naturally focuses on certain
 things — those things should be the important stuff."
 
-So the layer exists to make the eye land somewhere **on purpose**, and it is opt-in per
-lesson because migrating 100 lessons is a rollout rather than a commit. A half-migrated
-app where every page is _slightly_ redesigned reads worse than one where each page is
-clearly old or clearly new.
+So the layer exists to make the eye land somewhere **on purpose**. It shipped opt-in per
+lesson at first — migrating 100 lessons is a rollout, not a commit, and a half-migrated app
+where every page is _slightly_ redesigned reads worse than one where each page is clearly
+old or clearly new — but that half-migrated state is exactly what accumulated as the
+rollout ran, and non-lesson pages (Home, Practice, the dashboards) were never going to get
+their own opt-in the way a lesson does. So as of 2026-09-03 the remap is unconditional:
+`src/brain-friendly.css` §3 repoints the base theme's tokens (`--bg`, `--accent`, `--text`,
+…) at the warm palette in `:root` itself, not behind a `.bf-page` class gate. Every page —
+chrome, all 13 non-lesson routes, and any lesson not yet rewritten to the full component
+set — now paints from the same palette and the same four typefaces the instant this file
+loads. No class or directive is required to get that.
 
-A lesson opts in with two things on its root element:
+What per-lesson opt-in still gates is the FULL treatment: the Head First component set
+(`Chapter`, `CodeLab`, `Layers`, …), the retention devices, and the line-annotated code. A
+lesson only gets that when it is actually rewritten against the nine-point bar — colour and
+type consistency were never a substitute for that work, they just mean the untouched
+majority no longer reads as a different, older product while that work continues. A
+migrated lesson still carries `class="lesson bf" bfPage` on its root article:
 
 ```html
 <article class="lesson bf" bfPage></article>
 ```
 
-`class="bf"` scopes the typography and palette. The `bfPage` directive (
-`shared/brain/bf-page.directive.ts`) adds `bf-page` to `<html>` for as long as the lesson
-is mounted, which re-points the base theme's tokens at the warm palette so the top bar,
-footer and progress bar warm up with the page. Without it the article looks like an
-embedded iframe.
+`class="bf"` scopes the lesson-specific typographic rules (§4 onward in
+`brain-friendly.css` — larger display headings, the 66ch measure, etc.), which still only
+apply inside an actual migrated lesson. The `bfPage` directive
+(`shared/brain/bf-page.directive.ts`) still adds `bf-page` to `<html>` for as long as the
+lesson is mounted, but that class is now a no-op for theming — kept only as a lesson
+marker, in case a future rule needs to key off "an actual migrated lesson is on screen"
+specifically, as opposed to "any page," which is now everything.
 
 ### 9.2 The four voices
 
@@ -410,16 +427,29 @@ restate the line in English.**
 
 ### 9.6 Rollout state
 
-Migrated as of 2026-08-31, all through the full write-then-adversarially-review cycle
-and scoring 9/9 on the retention audit: `expert/change-detection` (the reference
+**Theme: unconditional app-wide, since 2026-09-03** (§9.1). Every page inherits the
+palette and typography with zero opt-in.
+
+**Lessons: 37 of 100 through the full component-set migration as of 2026-09-04**, all
+through the write-then-adversarially-review cycle and scoring 8-9/9 on the retention audit.
+Started 2026-08-31 with five pilots — `expert/change-detection` (the reference
 implementation — copy its shape), `beginner/signals`, `intermediate/rxjs-subjects`,
-`typescript/narrowing`, `foundations/arrays-objects-basics`. One per track, deliberately,
-so the layer is proven against an absolute-beginner audience and an expert one before it
-goes wider — and the review pass earned its place: it caught a compile-breaking template
-literal in `narrowing.ts`, a fictional signal named in a diagram in `signals.html`, a
-demo in `arrays-objects-basics` that contradicted its own teaching point, and stray
-single-asterisk emphasis left over from before `**bold**` parsing existed. The remaining
-95 are tracked in `BACKLOG.md` §1.2.
+`typescript/narrowing`, `foundations/arrays-objects-basics` — one per track, so the layer
+was proven against an absolute-beginner audience and an expert one before it went wider.
+The review pass has earned its place every batch since: a compile-breaking template literal
+in `narrowing.ts`, a fictional signal named in a diagram in `signals.html`, a demo in
+`arrays-objects-basics` that contradicted its own teaching point, an `ng build`-only NG5002
+from a single unescaped brace in a JS template-literal sample, and (batch 4) a real doc/code
+mismatch in the shared `Layers` component itself (`src/app/shared/brain/layers/layers.ts`)
+that a lesson reviewer caught while reading the component it used. Remaining 63 tracked in
+`BACKLOG.md` §1.2, worst-first by `node scripts/audit-retention.mjs`.
+
+**Non-lesson pages: 5 of 15 restyled as of 2026-09-04** — home, certification, practice,
+mock-exam, review. These do NOT get the lesson component set (no Chapter/CodeLab/Quiz); a
+restyle pass audits hard-coded colour, applies the design-system tokens, and adds motion,
+while preserving every existing feature exactly. Remaining 10 (progress, coding-tasks,
+api-playground, exam-day, flashcards, interview, glossary, bookmarks, coming-soon,
+not-found) tracked in `BACKLOG.md` §1.2.
 
 ---
 

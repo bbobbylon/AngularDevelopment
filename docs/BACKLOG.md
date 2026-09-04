@@ -120,7 +120,7 @@ on the idea learners get wrong, an `<app-flow>` if anything is a sequence, and a
 `<app-faq>` of 3–5 real doubts. Budget an hour a lesson to do it properly; the copy is the
 work, not the wiring.
 
-### 1.2 Brain-friendly redesign — roll out to the remaining 95 lessons
+### 1.2 Brain-friendly redesign — roll out to the whole app
 
 **Requested 2026-08-31**, with a visual: the author supplied screenshots of a Head First
 style Decorator chapter and asked for that treatment — _"Notice how bubbly, welcoming it
@@ -147,43 +147,79 @@ of that section."_ This supersedes §2.2 as the concrete plan for Bar 3.
   full write pass and a separate adversarial review pass, and all five now score 9/9 on
   `audit-retention.mjs` (was 24 lessons at 9/9 before this batch, 28 after).
 
-**Rollout: 29 of 100 lessons done (as of 2026-09-02).** Three worst-first batches of 8
+**Shipped 2026-09-03 — the theme is app-wide, unconditionally.** The author asked to make
+sure the *entire* app was brain-friendly, not just migrated lessons. `src/brain-friendly.css`
+§3 now repoints the base theme's tokens (`--bg`, `--accent`, `--text`, …) at the warm
+palette in an unconditional `:root` block — every page, chrome included, paints from the
+same palette and typefaces the instant the stylesheet loads, whether or not that page has
+been rewritten. This closed the "non-lesson pages read like a different app" gap flagged
+below as an open question. Selector had to move from `html.bf-page` to `:root` (not just
+drop the class): `:root`'s specificity beats a bare `html` type selector, so the remap
+needed to match `styles.css`'s own `:root` selector (equal specificity, later file in
+`angular.json`'s `styles` array wins) rather than a losing one. Verified with a headless
+check of computed `--bg`/`--accent`/font-family on both a migrated and a completely
+untouched page, in both colour schemes, plus the full test suite.
+
+**Lessons — rollout: 37 of 100 done (as of 2026-09-04).** Four worst-first batches of 8
 landed on top of the five pilots: `mapped-conditional`, `custom-pipes`, `performance`,
 `security`, `services-di`, `pipes`, `control-flow-switch`, `resource-api` (batch 1);
 `router-children-lazy`, `ngmodules`, `why-typescript-angular`, `functions-basics`,
 `view-queries`, `after-render`, `ts-nullish`, `libraries-schematics` (batch 2);
 `di-providers`, `control-flow-if`, `dom-and-events`, `ts-generics`, `ts-async`,
-`http-interceptors`, `hydration`, `debugging-basics` (batch 3). Every batch went through a
-write pass, an independent adversarial review pass, and a manual verification sweep (trap
-greps, `tsc --noEmit`, `prettier --check`, `ng build`, a headless route check, and
-`audit-retention.mjs`) before committing — agent self-reports were wrong often enough
-(placeholder summaries, silent NG0100/build-break regressions) that trusting them without
-re-checking would have shipped bugs.
+`http-interceptors`, `hydration`, `debugging-basics` (batch 3); `ts-utility-types`, `i18n`,
+`decisions-loops`, `di-advanced`, `rxjs-observables`, `ts-enums`, `ts-types`,
+`host-directives` (batch 4). Every batch went through a write pass, an independent
+adversarial review pass, and a manual verification sweep (trap greps, `tsc --noEmit`,
+`prettier --check`, `ng build`, a headless route check, `audit-retention.mjs`, and the full
+test suite) before committing — agent self-reports were wrong often enough (placeholder
+summaries, silent NG0100/build-break regressions, a real doc/code mismatch in the shared
+`Layers` component a batch-4 reviewer caught) that trusting them without re-checking would
+have shipped bugs.
 
-**Remaining: 71 lessons.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Lessons — remaining: 63.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
-means rewriting it against the nine-point bar anyway. Roughly an hour each; the copy is
-the work, not the wiring. Read
-`src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
-records the teaching order the layer is designed around (pose the problem → analogy →
-mechanism → same idea in four modes), and copying that shape is most of the job.
+means rewriting it against the nine-point bar anyway. Six lessons already have a solid
+retention pass from an earlier (pre-brain-friendly) session and just need the presentation
+layer built on top rather than from scratch: `route-params`, `rxjs-operators`, `modules`,
+`json-and-apis`, `attribute-directives`, `keyof-typeof`. Roughly an hour each; the copy is
+the work, not the wiring. Read `src/app/lessons/expert/change-detection/change-detection.ts`
+first: its class JSDoc records the teaching order the layer is designed around (pose the
+problem → analogy → mechanism → same idea in four modes), and copying that shape is most of
+the job.
 
-**Two traps worth knowing before the next batch** (both cost a build break to discover):
-a getter or an `afterRender`-family-written plain field bound directly in a template throws
-NG0100 unless the write goes through a `signal()` (see `expert/change-detection`'s JSDoc);
-and in real template *body* text (not just attribute strings), even a single unescaped `{`
-or `}` — e.g. a JS template-literal placeholder like `` `HTTP ${res.status}` `` inside a
-`<code>` sample — fails `ng build` with NG5002 and must be escaped individually as
-`` {{ '{' }} ``/`` {{ '}' }} ``, not just double-brace pairs.
+**Non-lesson pages — new as of 2026-09-03, 5 of 15 done.** The theme flip above fixed
+colour/type consistency for free; it does not fix a page's own hard-coded colours or give
+it the warmth/motion a migrated lesson has. `home`, `certification`, `practice`,
+`mock-exam`, `review` are restyled — a colour audit onto tokens, motion, and (where it
+genuinely fits, e.g. Home's hero stats) reuse of a presentation component, while preserving
+every existing feature exactly. These are NOT lessons: no Chapter/CodeLab/Quiz/Predict/Faq,
+no `.lesson.bf` wrapper — forcing lesson-shaped teaching devices onto a dashboard or a
+practice engine would be decoration without information. Three independent restyle passes
+converged on the same real gap: `.bf-btn`/`.key`/`.term`/`.bf-break` in
+`src/brain-friendly.css` are still scoped under `.lesson.bf` (and `.key`/`.term` have a
+second, `.lesson`-scoped rule in `styles.css`) despite being usable-sounding — they render
+unstyled on a non-lesson page. Hand-roll from the raw tokens instead, as all three did.
+Remaining 10: `progress`, `coding-tasks`, `api-playground`, `exam-day`, `flashcards`,
+`interview`, `glossary`, `bookmarks`, `coming-soon`, `not-found`.
 
-**Open questions the author should settle before the bulk pass:**
+**Traps worth knowing before the next batch** (each cost a build break to discover):
+- A getter or an `afterRender`-family-written plain field bound directly in a template
+  throws NG0100 unless the write goes through a `signal()` (see
+  `expert/change-detection`'s JSDoc).
+- In real template *body* text (not just attribute strings), even a single unescaped `{`
+  or `}` — e.g. a JS template-literal placeholder like `` `HTTP ${res.status}` `` inside a
+  `<code>` sample — fails `ng build` with NG5002 and must be escaped individually as
+  `` {{ '{' }} ``/`` {{ '}' }} ``, not just double-brace pairs.
+- Full-page stylesheets (a restyled dashboard, not a lesson) are legitimately bigger than a
+  single lesson's demo CSS. `angular.json`'s `anyComponentStyle` budget was raised from
+  10kB/14kB to 16kB/20kB after `home.css`/`mock-exam.css` tripped the old warning threshold
+  — no lesson currently exceeds 8.4kB, so this only gives headroom to full-page CSS.
+
+**Open questions the author should settle:**
 
 - **Fonts.** Caveat is a print-hand; the supplied screenshots use a more connected script.
   Swapping is a one-line change to `--font-hand`. Same for `--font-display` if Playfair
   Display is not the intended serif.
-- **The non-lesson pages.** Home, Certification, Practice, Interview, Glossary and the
-  dashboards are untouched and still read as the old app. They need the same treatment or
-  the migrated lessons will feel like a different product.
 - **Light mode.** Both palettes are implemented and both pass contrast, but only the dark
   one has been reviewed against the reference, which was itself dark.
 
