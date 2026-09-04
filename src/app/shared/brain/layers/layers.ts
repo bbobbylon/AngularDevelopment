@@ -84,6 +84,17 @@ export class Layers {
   /** Ring count clamped to what the CSS has insets for. */
   protected readonly depth = computed(() => Math.min(this.rings().length, 4));
 
-  /** Innermost-first, for the nested list the accessible tree reads. */
-  protected readonly inward = computed(() => [...this.rings()]);
+  /**
+   * A defensive copy of {@link rings}, outermost-first — same order as
+   * `rings` itself. Renamed from a previous `inward`/"innermost-first" that
+   * had it backwards: each `<li>` in the template reads "X, which wraps:"
+   * before the next one, so the list must OPEN with the outermost ring and
+   * end at the core for that phrasing to describe a coherent containment
+   * chain ("Outer, which wraps: Middle, which wraps: Leaf") — reversing it
+   * would make the sentence read inside-out. `brain.spec.ts`'s Layers
+   * describe block ("describes the nesting for assistive tech, innermost
+   * last") asserts exactly this order; only the CORE, appended after this
+   * list in the template, is innermost-last.
+   */
+  protected readonly containment = computed(() => [...this.rings()]);
 }

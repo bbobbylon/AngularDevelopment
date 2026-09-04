@@ -202,7 +202,7 @@ const features = inject(FEATURE);
     },
     {
       line: 6,
-      text: 'The type signature does not save you here: `inject(FEATURE)` is typed as the array either way, so a forgotten `multi: true` is a silent runtime surprise, not a compile error.',
+      text: "The type signature does not save you here, in either direction: `InjectionToken<string>` types `inject(FEATURE)` as one `string`, not `string[]` — which is why this lesson's own class field above has to force it with `as unknown as string[]` instead of getting the array for free. And nothing checks that every registration below actually kept `multi: true` either, so a forgotten one is a silent runtime surprise, not a compile error.",
     },
     {
       line: 10,

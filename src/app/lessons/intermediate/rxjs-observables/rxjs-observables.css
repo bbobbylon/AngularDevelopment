@@ -1,16 +1,9 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-}
-.t th,
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 140px;
-  color: var(--text-muted);
-}
+/* Tables, callouts, code panels, chips, buttons, demo panels and the whole
+   teaching set are themed by the shared brain-friendly layer
+   (src/brain-friendly.css), which is why this file is nearly empty — the `.t`
+   table block it used to carry was a per-lesson copy of rules the theme now
+   owns outright for plain `<table>` elements.
+
+   Nothing on this page needs anything more bespoke than the shared
+   `.bf-card`, `.bf-grid-2` and `.pill` classes already provide, so there is
+   nothing lesson-specific left to add. */

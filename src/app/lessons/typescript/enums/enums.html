@@ -1,327 +1,509 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Type System</span>
-  <h1>Enums & Literal Unions</h1>
-  <p class="lead">
-    Enums name a set of related constants. They're worth understanding precisely because they're the
-    <em>exception</em> to TypeScript's core promise: nearly every TS feature is erased at compile time, but a regular
-    <code>enum</code> emits real runtime JavaScript. That one fact drives every trade-off on this page — and explains
-    why modern codebases increasingly reach for <strong>string-literal unions</strong> or <code>as const</code>
-    objects instead.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="TypeScript · Type System"
+    title="Enums & Literal Unions"
+    hand="or, the one keyword TypeScript forgot to erase"
+    [stops]="stops"
+    [current]="4"
+  >
+    <p class="lead">
+      TypeScript erases almost everything you write for it — interfaces, generics, type aliases, all gone by the time
+      your code ships. A regular <code>enum</code> is the one exception, and that single fact is the spine of this whole
+      lesson: what a numeric enum actually costs you at runtime, why a string enum refuses a value that <em>is</em> its
+      own runtime type, why <code>const enum</code> needs a warning label, and why most modern code reaches for a
+      <strong>literal union</strong> instead. Every claim below comes with the compiled output to prove it — not just
+      assert it.
+    </p>
+  </app-chapter>
 
-  <h2>Numeric enums — and what they compile to</h2>
-  <div class="code">
-    <pre>
-enum Status {{ '{' }} Idle, Loading, Done {{ '}' }}   // 0, 1, 2 by default
-enum Http {{ '{' }} OK = 200, NotFound = 404 {{ '}' }} // explicit values
-let s: Status = Status.Loading;       // 1
-Status[1];                            // 'Loading' — numeric enums get a reverse map</pre>
-  </div>
-  <p>
-    Under the hood, that first enum becomes an IIFE that builds a
-    <em>double-keyed</em> object — this is the runtime code the "TS is erased" rule warned you about:
-  </p>
-  <div class="code">
-    <pre>
-// emitted JavaScript:
-var Status;
-(function (Status) {{ '{' }}
-  Status[Status["Idle"] = 0] = "Idle";       // Status.Idle = 0  AND  Status[0] = 'Idle'
-  Status[Status["Loading"] = 1] = "Loading";
-  Status[Status["Done"] = 2] = "Done";
-{{ '}' }})(Status || (Status = {{ '{' }}{{ '}' }}));</pre>
-  </div>
-  <ul>
-    <li>
-      The assignment-inside-an-index trick (<code>obj[obj.k = v] = 'k'</code>) is what creates the
-      <strong>reverse map</strong>: name → number <em>and</em> number → name in one object.
-    </li>
-    <li>
-      The <code>Status || (Status = {{ '{' }}{{ '}' }})</code> guard exists for <strong>declaration merging</strong> —
-      enums, like namespaces, can be declared in multiple blocks that merge.
-    </li>
-    <li>
-      Cost: the object survives in your bundle and is <em>not tree-shakable</em> (the IIFE has side effects, so bundlers
-      keep it even if unused).
-    </li>
-  </ul>
-  <div class="warn">
-    A soundness wart worth knowing for exams: before TS 5.0, <em>any</em> number was assignable to a numeric enum type
-    (<code>let s: Status = 99</code> compiled!). Modern TS only allows this for enums with computed members, but numbers
-    still flow <em>out</em> freely — <code>Status.Done + 1</code> is a plain <code>number</code>, no error. Numeric
-    enums are not a closed set at runtime.
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You need a fixed set of named values. JavaScript has no keyword for that.</h2>
 
-  <h2>String enums — stricter, and quasi-nominal</h2>
-  <div class="code">
-    <pre>
-enum Role {{ '{' }}
-  Admin  = 'ADMIN',
-  Member = 'MEMBER',
-{{ '}' }}
-let r = Role.Admin;   // 'ADMIN' — readable in logs &amp; network payloads
-
-let bad: Role = 'ADMIN';       // ❌ error! a plain string is NOT assignable
-let ok:  Role = Role.Admin;    // ✅ only the enum member itself qualifies</pre>
-  </div>
-  <p>
-    Two differences from numeric enums. First, <strong>no reverse map</strong> — the emitted object only maps name →
-    value (a reverse entry would collide with member names). Second, string enums are TypeScript's only
-    <em>quasi-nominal</em> type: even though <code>Role.Admin</code> <em>is</em> the string <code>'ADMIN'</code> at
-    runtime, the type system refuses the raw literal. That's a feature (it forces all call sites through the named
-    constant) and an annoyance (deserializing JSON into an enum-typed field needs a cast or a validation step — the wire
-    gives you strings, not enum members).
-  </p>
-
-  <h2>Member rules: constant vs computed, heterogeneous</h2>
-  <div class="code">
-    <pre>
-enum Perm {{ '{' }}
-  Read  = 1 &lt;&lt; 0,          // constant expression — fine
-  Write = 1 &lt;&lt; 1,
-  Admin = Read | Write,     // references to other constant members — fine
-  Rand  = Math.random(),    // COMPUTED — allowed, but members after it need '='
-{{ '}' }}
-enum Mixed {{ '{' }} No = 0, Yes = 'YES' {{ '}' }}   // heterogeneous — legal, but a code smell</pre>
-  </div>
-  <ul>
-    <li>
-      Auto-increment continues from the last constant value: <code>enum E {{ '{' }} A = 5, B {{ '}' }}</code> → B is 6.
-    </li>
-    <li>
-      Computed members are why the compiler sometimes can't treat an enum as a closed literal set — prefer constant
-      expressions.
-    </li>
-    <li>
-      <code>keyof typeof Perm</code> gives you the union of member <em>names</em> (<code>'Read' | 'Write' | …</code>) —
-      the standard trick for iterating or validating enum keys.
-    </li>
-  </ul>
-
-  <h2>Bit flags — the one place numeric enums shine</h2>
-  <p>
-    Powers of two combine with <code>|</code> and test with <code>&amp;</code> — one number carries a whole permission
-    set. Toggle the flags and watch the composite value:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — permissions as bit flags</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      <button [class.ghost]="!hasFlag(READ)" (click)="toggle(READ)">Read (1)</button>
-      <button [class.ghost]="!hasFlag(WRITE)" (click)="toggle(WRITE)">Write (2)</button>
-      <button [class.ghost]="!hasFlag(DELETE)" (click)="toggle(DELETE)">Delete (4)</button>
-    </div>
     <p>
-      combined value: <strong>{{ perms() }}</strong>
-      <span style="color: var(--text-muted)">(binary {{ permsBinary() }})</span>
+      No <code>enum</code>, no closed set of options, nothing built in. So people reach for what's available — a handful
+      of magic strings (<code>'LOADING'</code>, typo-prone and untyped), or a plain object nobody stops you from
+      mutating. TypeScript gives you real answers: <span class="term">enums</span>, in two flavours, plus a
+      <span class="term">literal union</span> that mostly makes the enum question moot. They are not interchangeable,
+      and the surprise that explains every difference between them is this one fact:
     </p>
-    <p style="font-size: 0.9rem">
-      <code>perms &amp; WRITE</code> → {{ hasFlag(WRITE) ? 'truthy — can write ✅' : '0 — cannot write ❌' }}
+
+    <p>
+      Nearly every piece of syntax TypeScript adds to JavaScript — types, interfaces, generics, the
+      <code>as</code> keyword — is <span class="key">erased completely</span> before your code ever reaches a browser.
+      It exists only to be checked, then thrown away. A regular <code>enum</code> is the one construct that breaks that
+      promise.
     </p>
-  </div>
-  <div class="code">
-    <pre>
-enum Perm {{ '{' }} Read = 1 &lt;&lt; 0, Write = 1 &lt;&lt; 1, Delete = 1 &lt;&lt; 2 {{ '}' }}
-let p = Perm.Read | Perm.Write;   // 3
-if (p &amp; Perm.Write) {{ '{' }} /* has write */ {{ '}' }}
-p &amp;= ~Perm.Read;                  // remove a flag</pre>
-  </div>
 
-  <h2>const enums — inlined, with strings attached</h2>
-  <div class="code">
-    <pre>
-const enum Size {{ '{' }} S, M, L {{ '}' }}
-const x = Size.M;   // compiles to: const x = 1 /* Size.M */;  (no object emitted)</pre>
-  </div>
-  <p>
-    <code>const enum</code> erases completely — every reference is replaced by its literal value. Zero bundle cost, but
-    three real restrictions:
-  </p>
-  <ul>
-    <li>
-      <strong>No runtime value exists</strong> — you can't iterate members, index dynamically, or pass "the enum"
-      anywhere.
-    </li>
-    <li>
-      <strong><code>isolatedModules</code> conflicts:</strong> tools that transpile one file at a time (esbuild, swc,
-      Babel — i.e. most modern build chains, including Angular's) can't see the enum's values from another file, so
-      cross-file const enums are rejected or silently demoted to regular enums.
-    </li>
-    <li>
-      <strong>Never export one from a library:</strong> consumers inline your <em>current</em> values into their
-      bundles; if v2 renumbers members, already-compiled consumers keep the stale numbers. This is why the TS team
-      itself now discourages const enums in published code.
-    </li>
-  </ul>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's <code>enum Status {{ '{' }} Idle, Loading, Done {{ '}' }}</code
+      >. If TypeScript really erases its own syntax, this line should vanish and change nothing about your compiled
+      JavaScript. Does it? The actual compiled output is two sections down — decide now, so you have something to be
+      right or wrong about when you get there.
+    </app-napkin>
+  </section>
 
-  <h2>…or just skip the enum: literal unions &amp; <code>as const</code></h2>
-  <p>
-    Often you don't need a runtime construct at all. A literal union is fully type-safe, costs nothing, serializes
-    naturally, and needs no import at use sites. And when you <em>do</em> need a runtime list, one <code>as const</code>
-    object yields both the type and the value:
-  </p>
-  <div class="code">
-    <pre>
-type Direction = 'north' | 'east' | 'south' | 'west';
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>TypeScript erases itself — except this once.</h2>
 
-// Want the union AND a runtime list/object? Derive both from one as-const object:
-const LogLevel = {{ '{' }} Debug: 'debug', Info: 'info', Error: 'error' {{ '}' }} as const;
-type LogLevel = (typeof LogLevel)[keyof typeof LogLevel];  // 'debug' | 'info' | 'error'
-Object.values(LogLevel);   // ['debug', 'info', 'error'] — iterable at runtime
+    <p>
+      Think of everything you annotate — <code>: string</code>, <code>interface User</code>, <code>&lt;T&gt;</code>
+      — as a sticky note on a manuscript. Useful while you're editing, checked carefully, and then
+      <strong>peeled off before the page goes to print</strong>. The reader of the printed page never sees a single one.
+      That's the whole deal TypeScript makes with you: annotate freely, pay nothing at runtime.
+    </p>
 
-// (value and type may share a name — they live in separate declaration spaces)</pre>
-  </div>
-  <p>
-    Read that derivation inside-out: <code>typeof LogLevel</code> is the object's type, <code>keyof</code> lists its
-    keys, and indexing by all keys yields the union of its <em>values</em> — the full mechanics are in the
-    <a routerLink="/ts-keyof-typeof">keyof/typeof lesson</a>. Unlike a string enum, the raw literal <code>'debug'</code>
-    <em>is</em> assignable — usually what you want at API boundaries.
-  </p>
+    <p>
+      A regular <code>enum</code> is the one sticky note that gets
+      <span class="bf-break">laminated into the page</span>. It doesn't just get checked and discarded — it leaves
+      behind an actual object, built by actual JavaScript, that ships in your bundle whether you asked for it or not.
+    </p>
 
-  <div class="demo">
-    <p class="demo__title">Live — a literal union</p>
-    <div class="row" style="margin-bottom: 10px">
-      @for (d of directions; track d) {
-        <button [class.ghost]="dir() !== d" (click)="dir.set(d)">{{ d }}</button>
+    <app-remember variant="mnemonic">
+      <strong><code>enum</code> is the exception, not the rule.</strong> Interfaces, generics, type aliases — gone by
+      the time your code ships. A regular enum leaves a real object behind, and that one fact explains its reverse map,
+      its bundle cost, and why <code>const enum</code> needs its own warning label later in this lesson.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="erasureTalk"
+      caption="What actually happens to `enum` that doesn't happen to anything else you write for the compiler."
+    />
+  </section>
+
+  <!-- ============ 3. NUMERIC ENUMS — THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A numeric enum leaves behind a two-way lookup table.</h2>
+
+    <p>
+      Here's the proof the napkin above asked you to predict against — the actual compiled output of a three-member
+      numeric enum.
+    </p>
+
+    <app-code-lab
+      file="status.ts → compiled output"
+      [code]="numericEnumSample"
+      [notes]="numericEnumNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      Notice what that buys you, and what it costs. <code>Status.Loading</code> gives you <code>1</code>, and
+      <code>Status[1]</code> gives you back <code>'Loading'</code> — a genuine two-way lookup, for free. And it costs
+      real bytes: the object <span class="bf-break">is not tree-shakable</span>, because the assignment expressions
+      inside the IIFE are side effects a bundler can't prove are safe to remove.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Constant member" kicker="e.g. Admin = Read | Write">
+        Fully known at compile time — a literal, or built only from other constant members. This is what keeps an enum a
+        closed, checkable set.
+      </app-tape-card>
+      <app-tape-card heading="Computed member" kicker="e.g. Rand = Math.random()">
+        Legal, but every member declared after a computed one needs its own <code>=</code> — TypeScript can no longer
+        auto-increment from a value it can't know ahead of time.
+      </app-tape-card>
+      <app-tape-card heading="Auto-increment" kicker="no = at all">
+        Continues counting from the last constant value: start one member at <code>5</code> with nothing else set, and
+        the next one lands on <code>6</code>, not <code>1</code>.
+      </app-tape-card>
+      <app-tape-card heading="Heterogeneous" kicker="mixed number + string">
+        Pairing a numeric member with a string one compiles fine. Legal doesn't mean wise — nothing forces the two
+        halves to relate, and <code>keyof typeof</code> is the one honest way to iterate either kind of member's names.
+      </app-tape-card>
+    </div>
+
+    <app-predict
+      prompt="Numeric enums are supposed to be a closed set of three values. Does `let s: Status = 99;` compile?"
+      answer="Yes. TypeScript only blocks a raw number like this for an enum that has a computed member — a plain
+        constant numeric enum accepts any `number` coming in, and leaks a plain `number` back out just as freely
+        (`Status.Done + 1` compiles too, typed as `number`, not `Status`). A numeric enum is a much leakier closed set
+        than it looks."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-quiz
+      question="A 3-member numeric enum `Status`. What does `Object.keys(Status).length` return?"
+      [options]="quizOptions1"
+    />
+  </section>
+
+  <!-- ============ 4. STRING ENUMS — QUASI-NOMINAL ============ -->
+  <section>
+    <p class="bf-eyebrow">Quasi-nominal typing</p>
+    <h2>A string enum trades flexibility for a promise: only the name gets in.</h2>
+
+    <app-code-lab
+      file="role.ts → compiled output"
+      [code]="stringEnumSample"
+      [notes]="stringEnumNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      That asymmetry — the enum member is fine, the identical raw string is rejected — is the one place enums and
+      literal unions genuinely disagree, not just in cost but in <span class="term">what they check</span>.
+    </p>
+
+    <app-compare
+      leftTitle="`Direction` — a literal union"
+      rightTitle="`Role` — a string enum"
+      leftTone="good"
+      note="Same runtime value — `'north'` and `'ADMIN'` are both just strings once compiled. Only one of the two
+        types will let you hand it the raw string and walk away."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ compareUnionSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ compareEnumSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <h3>Validating what actually arrives on the wire.</h3>
+
+    <p>
+      Quasi-nominal typing is a gift inside your own code — a typo like <code>Role.Admni</code> fails to compile. It is
+      useless at a boundary, because JSON never hands you a <code>Role</code>, only the string <code>'ADMIN'</code>. The
+      fix is one small, reusable guard, checked once at the door:
+    </p>
+
+    <app-code-lab
+      file="parse-role.ts"
+      [code]="guardSample"
+      [notes]="guardNotes"
+      notesLabel="A type predicate, one line at a time"
+    />
+
+    <p>
+      A literal union needs exactly the same discipline at exactly the same boundary — nothing about a union is immune
+      to a typo either, it's simply built from one array instead of an enum object:
+    </p>
+
+    <div class="code">
+      <pre>{{ isSizeSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ 5. BIT FLAGS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The one place numeric enums shine</p>
+    <h2>Bit flags: one number, an entire permission set.</h2>
+
+    <p>
+      Powers of two never share a bit, which means they combine with <code>|</code> and test with <code>&amp;</code>
+      without ever colliding. Where a boolean-per-permission design needs three separate fields, this needs one.
+    </p>
+
+    <app-flow
+      [steps]="bitFlagsFlow"
+      caption="One number carries an entire permission set — that's the whole pitch for bit flags."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — permissions as bit flags</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        <button [class.ghost]="!hasFlag(READ)" (click)="toggle(READ)">Read (1)</button>
+        <button [class.ghost]="!hasFlag(WRITE)" (click)="toggle(WRITE)">Write (2)</button>
+        <button [class.ghost]="!hasFlag(DELETE)" (click)="toggle(DELETE)">Delete (4)</button>
+      </div>
+      <div class="row">
+        <span class="pill">combined value: {{ perms() }}</span>
+        <span class="pill">binary {{ permsBinary() }}</span>
+      </div>
+      <p class="demo__note">
+        <code>perms &amp; WRITE</code> reads {{ hasFlag(WRITE) ? 'truthy — can write' : '0 — cannot write' }}. Toggling
+        flips one bit with XOR, whichever way it currently sits; the code below shows the two other operators, which
+        only ever go one way.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="permissions.ts"
+      [code]="bitFlagsSample"
+      [notes]="bitFlagsNotes"
+      notesLabel="Combine, test, and clear — one operator each"
+    />
+  </section>
+
+  <!-- ============ 6. CONST ENUMS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Erasure, kept</p>
+    <h2><code>const enum</code> erases completely. Everything else about it is a trade-off.</h2>
+
+    <app-napkin lead="psst —" label="Guess before you scroll">
+      A <code>const enum</code> is declared exactly like a regular one — same keyword, one word added. Does it produce
+      more runtime code than a regular enum, less, or exactly the same? The restrictions below are the price of getting
+      that guess right.
+    </app-napkin>
+
+    <app-code-lab
+      file="size.ts → compiled output"
+      [code]="constEnumSample"
+      [notes]="constEnumNotes"
+      notesLabel="What each line is doing"
+      prompt="Is `Size` importable as a **value** from another file, after this compiles?"
+      output="No. Every `Size.M` was already replaced by the literal `1` before your code ran, so there is no object
+        left anywhere to import — which is exactly why single-file build tools choke on a `const enum` imported
+        across files. That's the next problem."
+      revealLabel="Reveal the answer"
+    />
+
+    <p>Three real restrictions come with that zero cost:</p>
+    <ul>
+      <li>
+        <strong>No runtime value exists</strong> — you can't iterate its members, index into it dynamically, or pass
+        "the enum" itself anywhere.
+      </li>
+      <li>
+        <strong><code>isolatedModules</code> conflicts:</strong> tools that transpile one file at a time (esbuild, swc,
+        Babel — most modern build chains, Angular's included) can't see another file's enum values to inline, so a
+        cross-file <code>const enum</code> is rejected or silently demoted to a regular one.
+      </li>
+      <li>
+        <strong>Type-stripping runtimes reject it outright</strong> — and now reject a plain <code>enum</code> too,
+        under the same <code>erasableSyntaxOnly</code> flag that also bans constructor parameter properties (see the
+        <a routerLink="/ts-classes">classes lesson</a> for that half of it). See "no dumb questions" below for the exact
+        list of what it bans.
+      </li>
+      <li>
+        <strong>Never export one from a library:</strong> consumers inline your <em>current</em> values into their own
+        bundles; if v2 renumbers a member, already-compiled consumers keep the stale number. The TypeScript team itself
+        now discourages <code>const enum</code> in published code for exactly this reason.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 7. ENUMS IN ANGULAR TEMPLATES ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam's favourite trap</p>
+    <h2>Enums don't exist inside your own templates. Not without help.</h2>
+
+    <p>
+      Every enum on this page so far has lived entirely inside a <code>.ts</code> file. Try to reach one from a template
+      and something surprising happens: the exact same expression compiles on one side of a single class field, and
+      fails to compile on the other.
+    </p>
+
+    <app-compare
+      leftTitle="Without the re-export"
+      rightTitle="With `protected readonly Role = Role;`"
+      leftTone="bad"
+      rightTone="good"
+      note="The expression is byte-for-byte identical on both sides. The only thing that changes is whether `Role`
+        exists as a member of the class."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ roleTemplateExpr }}</pre>
+        </div>
+        <p><span class="bf-break">✗ Property 'Role' does not exist on type 'RoleBadge'.</span></p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ roleTemplateExpr }}</pre>
+        </div>
+        <p>✓ compiles — <code>Role</code> is now an instance member, exactly like <code>role()</code>.</p>
+      </div>
+    </app-compare>
+
+    <p>
+      Angular's template type-checker resolves every name in a template against the component
+      <strong>instance</strong> — never against a module-level <code>import</code>, even one sitting right at the top of
+      the same file. The fix is one line on the class:
+    </p>
+
+    <app-code-lab
+      file="role-badge.ts"
+      [code]="roleFixSample"
+      [notes]="roleFixNotes"
+      notesLabel="The one line that changes everything"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the fix, proven</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        @for (r of roles; track r) {
+          <button [class.ghost]="role() !== r" (click)="role.set(r)">{{ r }}</button>
+        }
+      </div>
+      @if (role() === Role.Admin) {
+        <p class="pill">admin controls visible</p>
+      } @else {
+        <p class="pill">signed in as a member</p>
       }
+      <p class="demo__note">
+        That control-flow block is only possible because this component has
+        <code>protected readonly Role = Role;</code> — delete it and this whole demo section stops compiling, not just
+        the one expression inside it.
+      </p>
     </div>
+
+    <app-quiz
+      question="Inside a component's template you write `&#64;if (status() === Status.Done)`, where `Status` is an
+        enum imported at the top of the `.ts` file. What happens?"
+      [options]="quizOptions2"
+    />
+  </section>
+
+  <!-- ============ 8. SKIP THE ENUM ============ -->
+  <section>
+    <p class="bf-eyebrow">The modern default</p>
+    <h2>Or skip the enum entirely. A literal union costs nothing and needs no import.</h2>
+
     <p>
-      heading: <strong>{{ dir() }}</strong> ({{ degrees() }}°)
+      Most of the time you don't need a runtime construct at all. A literal union is fully type-safe, costs nothing at
+      runtime, serialises naturally, and — as the last section just proved — needs no re-export to reach a template. And
+      when you <em>do</em> want a runtime list or lookup alongside the type, one <code>as const</code>
+      object derives both from a single declaration.
     </p>
-    <p style="font-size: 0.88rem; color: var(--text-muted)">
-      The degrees lookup is <code>Record&lt;Direction, number&gt;</code> — the compiler proves every direction has an
-      entry, so no fallback is needed.
+
+    <app-code-lab
+      file="log-level.ts"
+      [code]="asConstSample"
+      [notes]="asConstNotes"
+      notesLabel="One declaration, two derived things"
+    />
+
+    <p>
+      That derivation — <code>(typeof X)[keyof typeof X]</code> — comes up constantly once you start looking for it; the
+      full mechanics live in the <a routerLink="/ts-keyof-typeof">keyof / typeof lesson</a>. Unlike a string enum, the
+      raw literal <code>'debug'</code> <em>is</em> assignable to the derived <code>LogLevel</code> type — usually
+      exactly what you want at an API boundary.
     </p>
-  </div>
 
-  <h2>Exhaustiveness — unions win here too</h2>
-  <div class="code">
-    <pre>
-// Direction is a literal union: 'north' | 'east' | 'south' | 'west'.
-function label(d: Direction): string {{ '{' }}
-  switch (d) {{ '{' }}
-    // Each case NARROWS the union. After this line, TypeScript knows d can
-    // no longer be 'north' in the branches below.
-    case 'north': return 'N';
-    case 'east':  return 'E';
-    case 'south': return 'S';
-    // After the fourth case, every member is accounted for, so in `default`
-    // the type of d has narrowed all the way down to `never`.
-    case 'west':  return 'W';
-    // assertNever takes a `never` parameter. That is the trick: while the
-    // switch is exhaustive, d IS never and this compiles fine.
-    default:      return assertNever(d);   // add 'up' to the union → compile error HERE
-    // Add 'up' to Direction and d is now 'up' here, not never — so the call
-    // fails to compile, pointing you at the exact switch you forgot to
-    // update. An unhandled case becomes a BUILD error instead of a bug
-    // someone finds in production six weeks later.
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <p>
-    <code>assertNever</code> (see <a routerLink="/ts-narrowing">Narrowing</a>) works for enums too, but literal unions
-    give crisper errors and the compiler can even flag <em>impossible</em> comparisons like <code>d === 'norht'</code> —
-    a typo in an enum member name would simply fail to exist, while a typo in a raw string against a union is caught at
-    the comparison.
-  </p>
-
-  <h2>Decision table</h2>
-  <table class="t">
-    <tr>
-      <th>Want…</th>
-      <th>Use</th>
-    </tr>
-    <tr>
-      <td>A simple set of options (component state, mode)</td>
-      <td>String-literal union</td>
-    </tr>
-    <tr>
-      <td>Union + a runtime list/lookup</td>
-      <td><code>as const</code> object + derived type</td>
-    </tr>
-    <tr>
-      <td>Members must be used via the named constant only</td>
-      <td>String enum (quasi-nominal)</td>
-    </tr>
-    <tr>
-      <td>Numeric/bit flags combined with <code>|</code>/<code>&amp;</code></td>
-      <td>Numeric <code>enum</code></td>
-    </tr>
-    <tr>
-      <td>Zero runtime footprint, values in one file, no isolatedModules</td>
-      <td><code>const enum</code> (rarely worth it)</td>
-    </tr>
-  </table>
-
-  <div class="tip">
-    Default to <strong>string-literal unions</strong>. They cost nothing at runtime, diff cleanly, and narrow
-    beautifully (see <a routerLink="/ts-narrowing">Narrowing</a>). Reach for an enum only when you specifically want a
-    named namespace, quasi-nominal checking, or bit flags — and never export a <code>const enum</code> from a library.
-  </div>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why does <code>Object.keys(Status).length</code> return 6 for a 3-member numeric enum?</summary>
-    <div>
-      The reverse map. A numeric enum's emitted object holds both directions —
-      <code>{{ '{' }} Idle: 0, Loading: 1, Done: 2, 0: 'Idle', 1: 'Loading', 2: 'Done' {{ '}' }}</code> — so keys double
-      up (numeric keys come back as strings). To iterate members of a numeric enum you must filter:
-      <code>Object.keys(Status).filter(k =&gt; isNaN(Number(k)))</code>. String enums don't have this problem — no
-      reverse map.
+    <div class="demo">
+      <p class="demo__title">Live — a literal union</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        @for (d of directions; track d) {
+          <button [class.ghost]="dir() !== d" (click)="dir.set(d)">{{ d }}</button>
+        }
+      </div>
+      <p>
+        heading: <strong>{{ dir() }}</strong> ({{ degrees() }}°)
+      </p>
+      <p class="demo__note">
+        The lookup above is typed <code>Record&lt;Direction, number&gt;</code> — the compiler proves every direction has
+        an entry, so no fallback branch is needed, and adding a fifth direction to the union is a compile error right
+        here until you give it degrees too.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>let r: Role = 'ADMIN'</code> fails but <code>let d: Direction = 'north'</code> works. Why the asymmetry?
-    </summary>
-    <div>
-      String enums are deliberately quasi-nominal: only <code>Role.Admin</code> satisfies <code>Role</code>, even though
-      its runtime value is exactly <code>'ADMIN'</code>. Literal unions are purely structural — the literal itself is
-      the type. This is the single biggest behavioral difference when choosing between them, and it bites hardest when
-      parsing JSON, where the wire hands you plain strings.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Your build tool errors on a <code>const enum</code> imported from another file. What's going on?</summary>
-    <div>
-      Single-file transpilers (esbuild/swc/Babel under <code>isolatedModules</code>) compile each module in isolation,
-      so when file B references <code>Size.M</code> from file A, the transpiler has no type information to inline the
-      value — there's no emitted object to fall back on either. Fixes: make it a regular enum, move it into the
-      consuming file, or switch to an <code>as const</code> object (which has a real runtime value and no inlining
-      requirement).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Derive the union type from <code>const SIZES = ['s', 'm', 'l'] as const</code>.</summary>
-    <div>
-      <code>type Size = (typeof SIZES)[number]</code> → <code>'s' | 'm' | 'l'</code>. Indexing an as-const tuple type by
-      <code>number</code> unions all its element types. Without <code>as const</code> the array is
-      <code>string[]</code> and you'd just get <code>string</code> — the const assertion is what preserves the literals.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A regular <code>enum</code> emits an IIFE-built object — numeric ones with a reverse map (name↔number), string
-      ones without. It's runtime code and not tree-shakable.
-    </li>
-    <li>
-      String enums are quasi-nominal: raw literals aren't assignable, only the member is. Numeric enums leak plain
-      <code>number</code>s freely.
-    </li>
-    <li>
-      <code>const enum</code> inlines to literals — zero cost, but hostile to <code>isolatedModules</code> builds and
-      dangerous to export from libraries.
-    </li>
-    <li>
-      Bit flags (<code>1 &lt;&lt; n</code>, combine with <code>|</code>, test with <code>&amp;</code>) are the strongest
-      remaining numeric-enum use case.
-    </li>
-    <li>
-      Literal unions and <code>as const</code> objects cover most needs with zero runtime footprint — and
-      <code>(typeof OBJ)[keyof typeof OBJ]</code> derives the union from the value.
-    </li>
-  </ul>
+    <table class="t">
+      <caption class="bf-table-caption">
+        Which one do you actually want?
+      </caption>
+      <thead>
+        <tr>
+          <th>Want…</th>
+          <th>Use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A simple set of options (component state, a mode)</td>
+          <td>String-literal union</td>
+        </tr>
+        <tr>
+          <td>Union + a runtime list or lookup</td>
+          <td><code>as const</code> object + derived type</td>
+        </tr>
+        <tr>
+          <td>Members must be used via the named constant only</td>
+          <td>String enum (quasi-nominal)</td>
+        </tr>
+        <tr>
+          <td>Numeric / bit flags combined with <code>|</code> / <code>&amp;</code></td>
+          <td>Numeric <code>enum</code></td>
+        </tr>
+        <tr>
+          <td>Zero runtime footprint, safe under type-stripping runtimes</td>
+          <td><code>as const</code> object — both <code>enum</code> and <code>const enum</code> are banned there</td>
+        </tr>
+      </tbody>
+    </table>
 
-  <p><a routerLink="/ts-narrowing">Next: Type Narrowing &amp; Guards →</a></p>
+    <app-remember variant="rule">
+      Default to a <strong>string-literal union</strong>. It costs nothing at runtime, needs no re-export to reach a
+      template, and narrows perfectly. Reach for an enum only when you specifically want bit flags, or quasi-nominal
+      typing that forces every call site through one named constant.
+    </app-remember>
+  </section>
+
+  <!-- ============ 9. EXHAUSTIVENESS ============ -->
+  <section>
+    <p class="bf-eyebrow">One more place unions win</p>
+    <h2>Exhaustiveness checking: the compiler notices what you forgot.</h2>
+
+    <p>
+      A literal union has one more advantage worth knowing for exams: the compiler can prove a
+      <code>switch</code> covers every case, and name the exact line that needs updating when a new case is added later.
+    </p>
+
+    <app-code-lab
+      file="label.ts"
+      [code]="exhaustivenessSample"
+      [notes]="exhaustivenessNotes"
+      notesLabel="How the narrowing gets to `never`"
+    />
+
+    <p>
+      <code>assertNever</code> — see the <a routerLink="/ts-narrowing">narrowing lesson</a> for the full trick — works
+      for enums too, but literal unions give crisper errors here, and the compiler can even flag
+      <em>impossible</em> comparisons like <code>d === 'norht'</code>: a typo in an enum member name would simply fail
+      to exist, while a typo in a raw string compared against a union is caught right at the comparison.
+    </p>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        TypeScript erases nearly everything it adds — except a regular <code>enum</code>, which compiles to a real,
+        <strong>non-tree-shakable object</strong>. Numeric enums get a two-way reverse map; string enums don't.
+      </li>
+      <li>
+        String enums are <strong>quasi-nominal</strong>: only the member itself satisfies the type, even though its
+        runtime value is the exact string you'd otherwise write by hand. Numeric enums leak plain numbers freely both
+        ways.
+      </li>
+      <li>
+        <code>const enum</code> inlines to literals — zero runtime cost, but hostile to <code>isolatedModules</code>
+        builds, rejected outright by type-stripping runtimes, and dangerous to export from a library.
+      </li>
+      <li>
+        Bit flags (<code>1 &lt;&lt; n</code>, combine with <code>|</code>, test with <code>&amp;</code>) are the
+        strongest remaining reason to reach for a numeric enum on purpose.
+      </li>
+      <li>
+        <strong>An enum needs a class-side re-export to be readable from a template</strong> —
+        <code>protected readonly Status = Status;</code> — because the template type-checker only resolves names against
+        the component instance. A literal union never needs this.
+      </li>
+      <li>
+        Literal unions and <code>as const</code> objects cover most needs with zero runtime footprint, and
+        <code>(typeof OBJ)[keyof typeof OBJ]</code> derives the union straight from the value.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-narrowing">Next: Type Narrowing &amp; Guards →</a></p>
+  </section>
 </article>

@@ -169,9 +169,10 @@
 
     <p>
       Everything so far has been about one object type. Real Angular state is rarely that — it's a
-      <span class="term">discriminated union</span>, the shape the narrowing lesson spends a whole page on: one shared
-      literal-tagged field, several arms, each carrying different extra data. Reach for <code>Pick</code> or
-      <code>Omit</code> on a shape like that and something breaks that nothing in the last section warned you about.
+      <span class="term">discriminated union</span>, the shape the
+      <a routerLink="/ts-narrowing">narrowing lesson</a> spends a whole page on: one shared literal-tagged field,
+      several arms, each carrying different extra data. Reach for <code>Pick</code> or <code>Omit</code> on a shape like
+      that and something breaks that nothing in the last section warned you about.
     </p>
 
     <app-code-lab
@@ -219,6 +220,17 @@
         >T extends unknown ? Omit&lt;T,K&gt; : never</code
       >) whenever <code>T</code> might be a union.
     </app-remember>
+
+    <p>
+      This isn't a Pick/Omit quirk, either — it's anything built as <code>{{ '{' }} [K in keyof T]: … {{ '}' }}</code
+      >, which also means <code>Partial</code>, <code>Required</code> and <code>Readonly</code>.
+      <code>Partial&lt;ApiState&gt;</code> collapses to
+      <code>{{ '{' }} status?: 'loading' | 'loaded' | 'error'; id?: string {{ '}' }}</code> — <code>data</code> and
+      <code>message</code> gone, exactly the way <code>Omit</code> just lost them. Same trap, same fix: distribute first
+      whenever <code>Partial</code>, <code>Required</code>, <code>Readonly</code>, <code>Pick</code> or
+      <code>Omit</code> might land on a union — <code>Record</code> is the one exception, since it maps over a key union
+      directly rather than over <code>keyof T</code>, which is exactly why it's the one that gets exhaustiveness right.
+    </p>
   </section>
 
   <!-- ============ 5. THE OTHER FAMILY ============ -->
@@ -531,8 +543,11 @@
         and "present but undefined" to mean different things.
       </li>
       <li>
-        <strong><code>Pick</code>/<code>Omit</code> read <code>keyof T</code> as one flat, intersected set.</strong>
-        Apply either directly to a union and you get one flattened object, not per-arm results — distribute first.
+        <strong
+          ><code>Pick</code>/<code>Omit</code> — and <code>Partial</code>/<code>Required</code>/<code>Readonly</code> —
+          read <code>keyof T</code> as one flat, intersected set.</strong
+        >
+        Apply any of them directly to a union and you get one flattened object, not per-arm results — distribute first.
       </li>
       <li>
         <code>Exclude</code>/<code>Extract</code>/<code>NonNullable</code> distribute automatically, because they're

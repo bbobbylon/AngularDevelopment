@@ -1,290 +1,518 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Type System</span>
-  <h1>Types, Annotations &amp; Inference</h1>
-  <p class="lead">
-    TypeScript adds a static type layer on top of JavaScript. Angular is written in TypeScript and its tooling
-    (templates included) is fully type-checked, so a solid grasp of types is non-negotiable. Two facts frame everything
-    on this page: types are <strong>erased at build time</strong> (they guide the compiler and editor, but ship no
-    code), and TypeScript checks <strong>shape, not names</strong> — a fact with surprising consequences we'll get to.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="TypeScript · Type System"
+    title="Types, Annotations &amp; Inference"
+    hand="or, the inspector who signs off, then leaves before anyone moves in"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      TypeScript adds a compile-time layer on top of JavaScript, and Angular's own tooling — including your templates —
+      is fully type-checked against it. Two facts explain almost everything confusing about the type system on this
+      page: types are <strong>erased before a single line runs</strong>, and TypeScript checks
+      <strong>shape, not names</strong> — a rule with consequences we'll get to. Read on for how you make a claim about
+      a value, how the compiler makes one for you when you don't, and what's left of either claim the moment your code
+      actually runs.
+    </p>
+  </app-chapter>
 
-  <h2>Primitives &amp; annotations</h2>
-  <p>An annotation is <code>: Type</code> after a name — a claim the compiler will hold you to:</p>
-  <div class="code">
-    <pre>
-let name: string = 'Ada';
-let age: number = 36;              // all numbers are floats; no int/float split
-let active: boolean = true;
-let big: bigint = 9007199254740993n;   // beyond number's safe range (2^53)
-let sym: symbol = Symbol('id');
-let nothing: null = null;
-let missing: undefined = undefined;
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>JavaScript already runs. So what is a type actually for?</h2>
 
-let ids: number[] = [1, 2, 3];     // same as Array&lt;number&gt;
-let pair: [string, number] = ['a', 1];         // tuple: fixed length AND per-slot type
-let rest: [string, ...number[]] = ['x', 1, 2]; // tuple with a rest element
-function log(msg: string): void {{ '{' }} console.log(msg); {{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>number[]</code> and <code>Array&lt;number&gt;</code> are identical — pick one style and stay consistent.
-    </li>
-    <li>
-      Tuples fix both <strong>length</strong> and <strong>per-position type</strong> — <code>pair[2]</code> is a compile
-      error. Labels (<code>[x: number, y: number]</code>) are pure documentation but make signatures readable.
-    </li>
-    <li>
-      <code>readonly number[]</code> / <code>readonly [string, number]</code> forbid mutation — <code>push</code> simply
-      doesn't exist on the readonly type. Prefer readonly for anything you hand out of a service.
-    </li>
-  </ul>
+    <p>
+      Delete every <code>: Type</code> from a TypeScript file and it still runs — perfectly, in a plain JavaScript
+      engine that has never heard of TypeScript. Sit with that for a second, because it means an annotation isn't doing
+      anything the <em>language</em> needs. So what is it doing?
+    </p>
 
-  <h2>Inference &amp; widening — how TS decides when you don't say</h2>
-  <p>
-    You rarely annotate initialized variables; TypeScript <em>infers</em> from the initializer. But the rules have a
-    twist — <code>let</code> and <code>const</code> infer <strong>differently</strong>, and knowing why saves you from a
-    whole family of confusing errors. Step through real cases:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — what does TS infer here?</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (c of inferCases; track c.code; let i = $index) {
-        <button [class.ghost]="inferIdx() !== i" (click)="inferIdx.set(i)">case {{ i + 1 }}</button>
-      }
-    </div>
     <div class="code">
-      <pre
-        >{{ inferCases[inferIdx()].code }}
-// hover-type: {{ inferCases[inferIdx()].inferred }}</pre>
-    </div>
-    <p style="font-size: 0.92rem">{{ inferCases[inferIdx()].why }}</p>
-  </div>
-  <div class="tip">
-    The professional dosage: annotate <strong>function parameters</strong> (inference has nothing to infer from),
-    <strong>return types of public APIs</strong> (locks the contract — an accidental change becomes an error
-    <em>inside</em> the function instead of rippling to every caller), and anything inference gets wrong (null
-    initializers). Let inference handle local variables — over-annotating is noise that can even mask better inferred
-    types.
-  </div>
-
-  <h2>any vs unknown vs never vs void</h2>
-  <table class="t">
-    <tr>
-      <td><code>any</code></td>
-      <td>
-        Opt out of checking entirely. Assignable to and from everything — and <strong>contagious</strong>: every value
-        that touches an <code>any</code> computation becomes <code>any</code> too. One <code>any</code> API can silently
-        de-type a whole call chain.
-      </td>
-    </tr>
-    <tr>
-      <td><code>unknown</code></td>
-      <td>
-        The top type: holds anything, but you must <strong>narrow</strong> (typeof / instanceof / guards) before using
-        it. Same flexibility as <code>any</code> at the boundary, none of the contagion.
-      </td>
-    </tr>
-    <tr>
-      <td><code>never</code></td>
-      <td>
-        The bottom type: no value can be assigned to it. Returned by functions that never finish (throw / infinite
-        loop); used to make the compiler <em>prove</em> exhaustiveness (below).
-      </td>
-    </tr>
-    <tr>
-      <td><code>void</code></td>
-      <td>
-        "No useful return value." Subtlety: a <code>() =&gt; void</code> callback is <em>allowed</em> to return
-        something — the type just promises nobody will read it. That's why
-        <code>arr.forEach(x =&gt; list.push(x))</code> compiles even though push returns a number.
-      </td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>
-// the boundary pattern — how untyped data should enter a typed program:
-function parse(json: string): unknown {{ '{' }}   // ← unknown, NOT any
-  return JSON.parse(json);
+      <pre>
+function greet(user) {{ '{' }}
+  return 'Hi ' + user.name + '!';
 {{ '}' }}
 
-const data = parse('…');
-// data.name;                    ❌ Object is of type 'unknown' — good! it made you check
-if (typeof data === 'object' && data !== null && 'name' in data) {{ '{' }}
-  // narrowed step by step — safe to use here
-{{ '}' }}</pre>
-  </div>
-  <p>
-    Line-by-line: <code>JSON.parse</code> officially returns <code>any</code> — re-declaring the return as
-    <code>unknown</code> stops the contagion at the door. The <code>if</code> narrows in three moves: it's an object,
-    it's not null (typeof null === 'object' — the language's oldest wart), and it has the key. Each check teaches the
-    compiler something; after all three, property access is proven safe.
-  </p>
-
-  <h2>Union &amp; literal types — modelling finite states</h2>
-  <div class="code">
-    <pre>
-type Level = 'beginner' | 'intermediate' | 'expert';
-let lvl: Level = 'beginner';   // ✅
-// lvl = 'wizard';             // ❌ compile error — a typo caught at build time
-
-type Status = 200 | 404 | 500;            // numeric literals work too
-type Nullable&lt;T&gt; = T | null | undefined;  // unions compose with anything</pre>
-  </div>
-  <p>
-    A union (<code>|</code>) says "one of these"; a literal type shrinks a value to exact constants. Together they turn
-    stringly-typed chaos (<code>status: string</code>) into checked vocabularies — misspell one state anywhere in the
-    codebase and the build fails. This one habit eliminates a startling fraction of production bugs.
-  </p>
-
-  <h2>Discriminated unions — the pattern Angular state lives on</h2>
-  <p>
-    Give every union member a shared literal field (the <em>discriminant</em>, here <code>kind</code>) and TypeScript
-    can tell them apart at runtime checks:
-  </p>
-  <div class="code">
-    <pre>
-type Shape =
-  | {{ '{' }} kind: 'circle'; radius: number {{ '}' }}            // ← 'circle' is a literal type,
-  | {{ '{' }} kind: 'rect'; width: number; height: number {{ '}' }}; //   not string — that's the key
-
-function area(s: Shape): number {{ '{' }}
-  switch (s.kind) {{ '{' }}
-    case 'circle': return Math.PI * s.radius ** 2;  // s is the circle branch here:
-                                                    //   radius exists, width doesn't
-    case 'rect':   return s.width * s.height;       // and here it's the rect branch
-    default:
-      const _exhaustive: never = s;   // s should be nothing by now. If a
-      return _exhaustive;             // 'triangle' is added to Shape later, s is
-  {{ '}' }}                                   // no longer never → COMPILE ERROR here.
-{{ '}' }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — the union narrowing, running</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="shape.set({ kind: 'circle', radius: 5 })">circle</button>
-      <button (click)="shape.set({ kind: 'rect', width: 4, height: 6 })">rectangle</button>
+greet('Ada');   // 'Hi undefined!' — runs fine. No crash, no warning, wrong forever.</pre>
     </div>
+
     <p>
-      shape = <code>{{ describe() }}</code>
+      Nothing here throws. <code>'Ada'.name</code> is simply <code>undefined</code>, and the greeting silently degrades
+      into nonsense that ships to production and stays there until a human notices. Add one annotation and the exact
+      same mistake stops compiling, weeks before anyone runs it against real data:
     </p>
+
+    <div class="code">
+      <pre>
+function greet(user: {{ '{' }} name: string {{ '}' }}): string {{ '{' }}
+  return 'Hi ' + user.name + '!';
+{{ '}' }}
+
+greet('Ada');
+// ❌ Argument of type 'string' is not assignable to parameter of type '{{ '{' }} name: string; {{ '}' }}'.</pre>
+    </div>
+
     <p>
-      area = <strong>{{ area() | number: '1.0-2' }}</strong>
+      So a type is a <strong>claim</strong> — about a parameter, a return value, an object's shape — that the compiler
+      is willing to check <em>before</em> your code ever runs. Three questions fall out of that framing, and this whole
+      page is really just answering them one at a time:
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The component's <code>area()</code> is that exact switch. Inside each case, the editor's autocomplete offers only
-      that branch's properties — narrowing is an editor feature, not just a checker feature.
+
+    <ul>
+      <li>Who writes the claim — you, or the compiler? (<strong>annotation vs inference</strong>)</li>
+      <li>What happens to the claim once your code compiles? (this one has a genuinely surprising answer)</li>
+      <li>
+        What do you say when you don't know the shape yet — or want to say "this fits anything"? (<strong
+          ><code>any</code>, <code>unknown</code>, <code>never</code>, <code>void</code></strong
+        >)
+      </li>
+    </ul>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's the erasure question up front, because almost everyone gets it wrong the first time. Once
+      <code>greet(user: {{ '{' }} name: string {{ '}' }})</code> above passes the compiler and gets built into plain
+      JavaScript, does <strong>anything</strong> in the running app still check that a caller passed an object with a
+      <code>name</code> property? Say yes or no before you keep reading — the mechanism section proves it either way.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>TypeScript is a building inspector who leaves before anyone moves in.</h2>
+
+    <p>
+      Picture an inspector who visits <strong>exactly once</strong>, before a tenant ever gets a key. They walk the
+      blueprints against the actual construction: does this room match what the permit claims? Every mismatch gets
+      flagged right there, before anyone signs a lease. Once the inspection passes, though, the inspector leaves — for
+      good. Nobody official is present when the tenants move in, and nobody comes back next year to check that a room
+      still matches its permit.
     </p>
-  </div>
-  <p>
-    The <code>never</code> trick deserves its own sentence: it converts "I forgot to handle a case" from a runtime
-    mystery into a build failure <em>at the exact line that needs the new case</em>. Model loading/error/success states
-    this way (<code>{{ '{' }}status: 'loading'{{ '}' }} | {{ '{' }}status: 'error'; msg{{ '}' }} | …</code>) and
-    impossible states — error message during success — become unrepresentable.
-  </p>
 
-  <h2>Structural typing — compatibility by shape</h2>
-  <div class="code">
-    <pre>
-interface Point {{ '{' }} x: number; y: number; {{ '}' }}
-interface Coord {{ '{' }} x: number; y: number; {{ '}' }}
+    <p>
+      That is exactly what happens between compiling and running. <code>tsc</code> is the inspection: it walks every
+      annotation — the ones you wrote and the ones it filled in for you — against how each value is actually built and
+      used, and it does that <strong>once</strong>. The moment the check passes, the type information is
+      <span class="key">stripped out entirely</span>, and what's left is ordinary JavaScript running with nobody
+      watching.
+    </p>
 
-const p: Point = {{ '{' }} x: 1, y: 2 {{ '}' }};
-const c: Coord = p;              // ✅ never heard of each other — same shape, compatible
+    <app-remember variant="mnemonic">
+      <strong>Claim, check, vanish.</strong> An annotation — yours or inferred — is a claim. <code>tsc</code> checks it
+      exactly once, at compile time. Then every trace of it vanishes from what actually runs.
+    </app-remember>
+  </section>
 
-const labeled = {{ '{' }} x: 1, y: 2, label: 'home' {{ '}' }};
-const p2: Point = labeled;       // ✅ EXTRA properties are fine via a variable…
-// const p3: Point = {{ '{' }} x: 1, y: 2, label: 'home' {{ '}' }};
-//                              ❌ …but not as a fresh literal ("excess property check")</pre>
-  </div>
-  <p>
-    TypeScript is <strong>structural</strong> ("duck typing"): names are irrelevant, members are everything. The two
-    behaviours to internalize: a value with <em>more</em> than required is normally acceptable (that's how interfaces
-    stay flexible), yet object <em>literals</em> get a stricter excess-property check — because a literal with an extra
-    key is almost always a typo'd optional property, and TS chooses to catch it right there.
-  </p>
+  <!-- ============ 3. THE MECHANISM — ERASURE, PROVEN ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Watch the inspector's paperwork disappear.</h2>
 
-  <h2>Assertions — overriding the compiler (rarely, consciously)</h2>
-  <div class="code">
-    <pre>
-const el = document.querySelector('input') as HTMLInputElement;
-//   querySelector returns Element | null — "as" says: trust me, it's an input.
-//   If you're wrong, there is NO runtime check. It crashes later, elsewhere.
+    <p>
+      This isn't a claim about erasure, it's a diff you could run yourself. Here's a fully annotated function, one claim
+      per line:
+    </p>
 
-const value = el!.value;
-//              ^ non-null assertion: "not null here, promise." Same deal: unchecked.
+    <app-flow
+      caption="Every type's whole lifecycle: written or inferred, checked once, then gone before a single line runs."
+      [steps]="mechanismFlow"
+    />
 
-const config = {{ '{' }} retries: 3 {{ '}' }} satisfies Record&lt;string, number&gt;;
-//   satisfies = the safe cousin: VALIDATES the value against the type
-//   but keeps the narrow inferred type ({{ '{' }} retries: number {{ '}' }}) for later use.</pre>
-  </div>
-  <div class="warn">
-    Discipline order: <strong>narrow first</strong> (if/typeof/guards — checked at runtime),
-    <strong>satisfies</strong> when you only need validation, <strong>as / !</strong> last — and each one should carry a
-    comment saying <em>why</em> it's safe. An <code>as</code> is a promissory note the runtime never audits; codebases
-    where they're routine have traded TypeScript back for JavaScript with extra steps.
-  </div>
+    <app-code-lab
+      file="greet.ts"
+      [code]="greetSample"
+      [notes]="greetNotes"
+      notesLabel="Three claims and one runtime value, on one signature"
+    />
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Why does <code>let method = 'GET'; fetch(url, {{ '{' }} method {{ '}' }})</code> sometimes error while inlining
-      <code>'GET'</code> works?
-    </summary>
-    <div>
-      Widening: <code>let</code> turned <code>'GET'</code> into <code>string</code>, but the option expects a union of
-      methods. Fixes: <code>const method = 'GET'</code> (keeps the literal), <code>let method: 'GET' | 'POST'</code>, or
-      <code>'GET' as const</code>. Same story for any "string is not assignable to '…' | '…'" error.
+    <app-predict
+      prompt="Before you scroll: in the compiled JavaScript for `greet` above, how many characters came from a type annotation — every `: string`, all of it?"
+      answer="Zero. Every `: string`, gone — completely, not commented out, simply absent. The one piece of this signature that DID survive is `times = 1`, because a default parameter value is a runtime feature, not a type — the compiler treats it completely differently from the claim sitting right next to it. This is **erasure**, and it's why a type can never protect you from anything after your code has shipped: by then there is nothing left of it to check with."
+      revealLabel="Reveal the receipt"
+    />
+
+    <p>What <code>tsc</code> actually emits for that function:</p>
+    <div class="code">
+      <pre>{{ greetCompiledSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>An API function returns <code>any</code>. What's the cheapest containment?</summary>
-    <div>
-      Wrap it: assign the result to <code>unknown</code> (or declare your wrapper's return type explicitly), then narrow
-      once, centrally. The point is to stop the contagion at one boundary instead of letting <code>any</code> seep
-      through every caller. Enable <code>noImplicitAny</code> so new leaks at least announce themselves.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      What breaks when a teammate adds <code>'triangle'</code> to the <code>Shape</code> union — and where?
-    </summary>
-    <div>
-      Every switch with the <code>never</code>-exhaustiveness default fails to compile at the
-      <code>_exhaustive</code> line — a precise to-do list of every place that must now handle triangles. Without the
-      trick: silent fall-through to default behaviour at runtime, discovered by users.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>True or false: <code>as HTMLInputElement</code> converts the element for you.</summary>
-    <div>
-      False — assertions perform <em>zero</em> runtime work; they only change what the compiler believes. If the element
-      is actually a div (or null), the code compiles and then explodes on <code>.value</code> at runtime. Contrast with
-      narrowing (<code>if (el instanceof HTMLInputElement)</code>), which really checks.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Types are erased at build time. Annotate parameters and public returns; let inference cover locals.</li>
-    <li>
-      <code>let</code> widens (<code>'admin'</code> → <code>string</code>), <code>const</code> keeps literals,
-      <code>as const</code> freezes deeply — the cause of (and fix for) most "string is not assignable to …" errors.
-    </li>
-    <li>
-      Boundary pattern: <code>unknown</code> in, narrow once, typed everywhere after. Never let <code>any</code> in the
-      front door — it spreads.
-    </li>
-    <li>
-      Discriminated unions + switch narrowing + a <code>never</code> default = states that can't be misspelled, mixed,
-      or forgotten.
-    </li>
-    <li>
-      Typing is structural (shape over names, with the excess-property check on fresh literals); <code>as</code>/<code
-        >!</code
-      >
-      are unchecked promises — narrow first, <code>satisfies</code> second, assert last.
-    </li>
-  </ul>
+    <p>
+      Which answers question two from the top of the page: the claim vanishes completely. It never runs a check, it
+      never throws, it isn't even present in the file — which is also the answer to why a type can never be your runtime
+      validation for data that arrives from outside your program (a network response, <code>localStorage</code>, a
+      form). More on exactly where that boundary is a couple of sections down.
+    </p>
+  </section>
 
-  <p><a routerLink="/ts-generics">Next: Generics →</a></p>
+  <!-- ============ 4. PRIMITIVES & ANNOTATIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">The vocabulary</p>
+    <h2>Every value has a shape. Here's how you write one down.</h2>
+
+    <app-code-lab
+      file="primitives.ts"
+      [code]="primitivesSample"
+      [notes]="primitivesNotes"
+      notesLabel="One claim per line"
+    />
+
+    <ul>
+      <li>
+        <code>readonly number[]</code> / <code>readonly [string, number]</code> forbid mutation —
+        <code>push</code> simply doesn't exist on the readonly type. Prefer <code>readonly</code> for anything you hand
+        out of a service, where a caller mutating your internal array would be a bug you'd rather catch at build time.
+      </li>
+      <li>
+        Labels on a tuple (<code>[x: number, y: number]</code>) are pure documentation — they don't change what the type
+        accepts — but they make a function signature readable without opening its body.
+      </li>
+    </ul>
+
+    <p>
+      One more gap worth knowing before you trust an index read: <code>xs[i]</code> always types as the element type,
+      never <code>T | undefined</code>, no matter what <code>i</code> is.
+    </p>
+
+    <div class="code">
+      <pre>{{ indexAccessSample }}</pre>
+    </div>
+
+    <p>
+      <code>strict</code> mode — this app's setting — turns on eight separate checks, and this isn't one of them.
+      <code>noUncheckedIndexedAccess</code> is the opt-in flag that fixes it: flip it on and
+      <span class="bf-break">every indexed read in the program</span> — array elements, <code>Record</code> lookups,
+      index signatures — becomes <code>T | undefined</code>, forcing a check, <code>.at()</code>, or
+      <code>??</code> before you can use it. It's off by default because it's noisy — a loop like
+      <code>for (let i = 0; i &lt; xs.length; i++) total += xs[i]</code> suddenly needs a guard on every line — so most
+      teams leave it off and lean on discipline instead.
+    </p>
+
+    <app-napkin lead="try this —" label="One thing to actually do">
+      Open this project's <code>tsconfig.json</code>, add <code>"noUncheckedIndexedAccess": true</code> under
+      <code>compilerOptions</code>, and run a typecheck. However many new red squiggles show up is exactly how many
+      index reads in this app were already unsound — revert the flag once you've had a look.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 5. INFERENCE & WIDENING ============ -->
+  <section>
+    <p class="bf-eyebrow">Inference &amp; widening</p>
+    <h2>You almost never write this one. The compiler infers it — badly, unless you know why.</h2>
+
+    <p>
+      You rarely annotate an initialized variable; TypeScript <em>infers</em> the type from the initializer. But the
+      rule has a twist — <code>let</code> and <code>const</code> infer <strong>differently</strong>, and knowing why
+      saves you from a whole family of confusing errors. Step through real cases, including the two that catch people
+      who assumed "empty array" always means the same thing:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — what does TS infer here?</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (c of inferCases; track c.code; let i = $index) {
+          <button
+            type="button"
+            [class.ghost]="inferIdx() !== i"
+            [attr.aria-pressed]="inferIdx() === i"
+            (click)="inferIdx.set(i)"
+          >
+            case {{ i + 1 }}
+          </button>
+        }
+      </div>
+      <div class="code">
+        <pre
+          >{{ inferCases[inferIdx()].code }}
+// inferred: {{ inferCases[inferIdx()].inferred }}</pre>
+      </div>
+      <p class="demo__note">{{ inferCases[inferIdx()].why }}</p>
+    </div>
+
+    <div class="tip">
+      <strong>The professional dosage:</strong> annotate <strong>function parameters</strong> (inference has nothing to
+      infer from), <strong>return types of public APIs</strong> (locks the contract — an accidental change becomes an
+      error <em>inside</em> the function instead of rippling to every caller), and anything inference gets wrong (null
+      initializers, the class-field array above). Let inference handle local variables — over-annotating is noise that
+      can even mask a better inferred type.
+    </div>
+
+    <app-quiz
+      [question]="wideningQuizQuestion"
+      [options]="wideningQuiz"
+      followUp="Fix it three ways: `const method = 'GET'` (keeps the literal), `let method: 'GET' | 'POST' = 'GET'` (annotate away the widening), or `'GET' as const` at the call site."
+    />
+  </section>
+
+  <!-- ============ 6. ANY / UNKNOWN / NEVER / VOID ============ -->
+  <section>
+    <p class="bf-eyebrow">The escape hatches</p>
+    <h2>Four types for when you don't know the shape — or want to say "anything".</h2>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="any" kicker="opt out" tone="accent">
+        Turns off checking completely. Assignable to and from everything — and <strong>contagious</strong>: every value
+        your code derives from an <code>any</code> becomes <code>any</code> too. One untyped API call can quietly
+        de-type an entire call chain.
+      </app-tape-card>
+      <app-tape-card heading="unknown" kicker="the safe any" tone="olive">
+        Holds anything, same as <code>any</code>, but you cannot call a method or read a property until you've
+        <strong>narrowed</strong> it. Same flexibility at the boundary, none of the spread.
+      </app-tape-card>
+      <app-tape-card heading="never" kicker="the empty type" tone="gold">
+        No value can ever have it. Returned by a function that always throws; the type control-flow analysis lands on
+        once every branch of a union has been eliminated — which is what makes exhaustiveness checking possible.
+      </app-tape-card>
+      <app-tape-card heading="void" kicker="no promise made" tone="gold">
+        Means "don't rely on a return value" — not "returns nothing". A <code>() =&gt; void</code> callback is still
+        <em>allowed</em> to return something; the type only promises nobody reads it. That's why
+        <code>arr.forEach(x =&gt; list.push(x))</code> compiles even though <code>push</code> returns a number.
+      </app-tape-card>
+    </div>
+
+    <app-bubbles
+      [turns]="anyUnknownTalk"
+      caption="The whole trade-off, in six lines. Notice which one the compiler actually wanted all along."
+    />
+
+    <p>The boundary pattern — how untyped data should enter a typed program:</p>
+
+    <app-code-lab
+      file="parse.ts"
+      [code]="boundarySample"
+      [notes]="boundaryNotes"
+      notesLabel="Three narrowing steps before a single read"
+    />
+
+    <app-quiz
+      [question]="neverArrayQuizQuestion"
+      [options]="neverArrayQuiz"
+      followUp="The same trap resurfaces with Record, generics and utility types — the class field case is worth remembering by name."
+    />
+  </section>
+
+  <!-- ============ 7. UNION & LITERAL TYPES ============ -->
+  <section>
+    <p class="bf-eyebrow">Union &amp; literal types</p>
+    <h2>Model a finite set of states, and a typo becomes a build failure.</h2>
+
+    <p>
+      A union (<code>|</code>) says "one of these"; a literal type shrinks a value down to exact constants. Together
+      they turn stringly-typed chaos into a checked vocabulary:
+    </p>
+
+    <app-compare
+      leftTitle="Stringly typed"
+      leftTone="bad"
+      rightTitle="A literal union"
+      rightTone="good"
+      note="Same two values, but only one side fails the build when someone fat-fingers a status."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ stringlyTypedSample }}</pre>
+        </div>
+        <p>Compiles. Ships. The typo is discovered by a user, not by a build.</p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ literalUnionSample }}</pre>
+        </div>
+        <p>Misspell one state anywhere in the codebase and the build fails at the exact line.</p>
+      </div>
+    </app-compare>
+
+    <p>
+      Literal types aren't limited to strings — <code>type Status = 200 | 404 | 500</code> works exactly the same way
+      with numbers, and <code>type Nullable&lt;T&gt; = T | null | undefined</code> shows a union composing with
+      anything, including a type parameter you haven't met yet — that's next chapter's whole subject.
+    </p>
+  </section>
+
+  <!-- ============ 8. DISCRIMINATED UNIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">Discriminated unions</p>
+    <h2>Tag every arm, and the compiler tells them apart for you.</h2>
+
+    <p>
+      Give every union member a shared literal field — the <span class="term">discriminant</span>, here
+      <code>kind</code> — and TypeScript can identify the whole arm from that one comparison:
+    </p>
+
+    <app-code-lab
+      file="shape.ts"
+      [code]="shapeSample"
+      [notes]="shapeNotes"
+      notesLabel="Where the discriminant does its work"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the union narrowing, running</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button
+          type="button"
+          [class.ghost]="shape().kind !== 'circle'"
+          [attr.aria-pressed]="shape().kind === 'circle'"
+          (click)="shape.set({ kind: 'circle', radius: 5 })"
+        >
+          circle
+        </button>
+        <button
+          type="button"
+          [class.ghost]="shape().kind !== 'rect'"
+          [attr.aria-pressed]="shape().kind === 'rect'"
+          (click)="shape.set({ kind: 'rect', width: 4, height: 6 })"
+        >
+          rectangle
+        </button>
+      </div>
+      <p>
+        shape = <code>{{ describe() }}</code>
+      </p>
+      <p>
+        area = <strong>{{ area() | number: '1.0-2' }}</strong>
+      </p>
+      <p class="demo__note">
+        <code>area()</code> is exactly the <code>switch</code> above. Inside each branch the editor's autocomplete
+        offers only that arm's own properties — narrowing is an editor feature as much as a checker feature.
+      </p>
+    </div>
+
+    <p>
+      Model impossible states this way — <code>status: 'loading'</code> can't carry an error message, because that arm
+      has no <code>message</code> field to carry one on — and a whole class of bugs becomes something the compiler
+      catches instead of something a user reports. The <a routerLink="/ts-narrowing">type narrowing lesson</a> goes deep
+      on the <code>never</code>-exhaustiveness trick this pattern sets up — how one extra union arm turns into a build
+      failure at the exact switch that forgot it.
+    </p>
+  </section>
+
+  <!-- ============ 9. STRUCTURAL TYPING ============ -->
+  <section>
+    <p class="bf-eyebrow">Structural typing</p>
+    <h2>TypeScript checks the shape. Never the name.</h2>
+
+    <p>
+      TypeScript is <span class="term">structural</span> — "duck typing" — which means names are irrelevant and members
+      are everything. Two interfaces that never mention each other are still compatible if they happen to describe the
+      same shape:
+    </p>
+
+    <app-code-lab
+      file="structural.ts"
+      [code]="structuralSample"
+      [notes]="structuralNotes"
+      notesLabel="Same shape, different names, zero relationship"
+    />
+
+    <app-predict
+      prompt="Line 15 works because `labeled` arrives through a variable. Predict: does this — the identical three properties, written as a fresh object literal instead — compile?"
+      [code]="excessPropertyCode"
+      [answer]="excessPropertyAnswer"
+      revealLabel="Reveal why the shape alone isn't enough"
+    />
+
+    <div class="warn">
+      <strong>The excess-property check only fires on a fresh literal.</strong> Route the exact same object through a
+      variable, a function return, or a spread, and the check is skipped — which is exactly how a typo'd optional
+      property escapes into a codebase undetected. If you want the check on data that didn't arrive as a literal, that's
+      what <code>satisfies</code> is for, a couple of sections from now.
+    </div>
+  </section>
+
+  <!-- ============ 10. ASSERTIONS & SATISFIES ============ -->
+  <section>
+    <p class="bf-eyebrow">Overriding the compiler</p>
+    <h2>Three ways to end an argument with the compiler — only one of them checked.</h2>
+
+    <app-code-lab
+      file="assertions.ts"
+      [code]="assertionsSample"
+      [notes]="assertionsNotes"
+      notesLabel="Trust, promise, validate — pick one on purpose"
+    />
+
+    <p>
+      <code>satisfies</code> is the one most people under-use, because it's usually introduced as a footnote next to
+      <code>as</code>. Watch what it buys you against a plain annotation on the exact same data:
+    </p>
+
+    <app-compare
+      leftTitle="An annotation — `Record<string, string[]>`"
+      leftTone="bad"
+      rightTitle="`satisfies Record<Section, string[]>`"
+      rightTone="good"
+      note="An annotation constrains AND widens the object's own type; satisfies constrains WITHOUT widening it."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ routesAnnotationSample }}</pre>
+        </div>
+        <p>
+          <code>routes</code>'s type becomes the open dictionary <code>Record&lt;string, string[]&gt;</code> — every
+          possible string is a "valid" key, so a typo'd key and a made-up key both nod along.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ routesSatisfiesSample }}</pre>
+        </div>
+        <p>
+          <code>routes</code> keeps its own exact inferred shape — three named keys, nothing more — validated against
+          <code>Section</code> at the same time. A typo is caught where it happens; a made-up key is caught where it's
+          read.
+        </p>
+      </div>
+    </app-compare>
+
+    <p>{{ satisfiesRule }}</p>
+
+    <app-remember variant="rule">
+      <strong>Narrow first, <code>satisfies</code> second, <code>as</code>/<code>!</code> last</strong> — and each one
+      should carry a comment saying <em>why</em> it's safe. Narrowing is checked at runtime; <code>satisfies</code>
+      is checked at compile time without lying about the shape; an assertion is a promise the runtime never audits.
+    </app-remember>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Types are <strong>erased before a single line runs</strong>. Annotate for the compiler and your editor — never
+        for anything that happens in the browser.
+      </li>
+      <li>
+        <code>let</code> widens what it holds to a settleable type; <code>const</code> keeps the literal;
+        <code>as const</code> freezes a whole value, deeply. A class field's <code>= []</code> gets none of the leniency
+        a local variable's does — it commits straight to <code>never[]</code>.
+      </li>
+      <li>
+        <code>any</code> is contagious and checks nothing; <code>unknown</code> holds anything just as flexibly but
+        makes you narrow before you touch it. Reach for <code>unknown</code> at every untyped boundary.
+      </li>
+      <li>
+        A <strong>discriminated union</strong> — one shared literal field, a different shape per arm — turns "did I
+        handle every case" into something the compiler proves.
+      </li>
+      <li>
+        Typing is <strong>structural</strong>: shape beats name, except on a fresh object literal, where the
+        excess-property check catches the typo a shape check alone would wave through.
+      </li>
+      <li>
+        <code>satisfies</code> validates without widening; <code>as</code> and <code>!</code> are promises the runtime
+        never checks. Narrow first, <span class="key"><code>satisfies</code> second, assert last</span>.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-interfaces">Next: Interfaces vs Type Aliases →</a></p>
+  </section>
 </article>
