@@ -1,8 +1,37 @@
+/* ============================================================
+   Glossary — a searchable, printable A-Z reference.
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a reference tool, not a lesson, so it does not opt into
+   `.lesson.bf` — no Chapter/CodeLab/annotated-code treatment here, and
+   `.bf-btn`/`.key`/`.term` are left alone since those render with zero
+   styling outside that scope. It picks up the warm palette and type for
+   free from the app-wide remap in that file's §3; what follows is
+   (a) retinting every literal colour this page used to hard-code against
+   the old indigo theme, (b) the room, radii and motion the rest of the
+   restyled app now has, and (c) two presentation devices from
+   shared/brain/ that genuinely fit this page's own content: `app-napkin`
+   for the one aside worth interrupting for (bring the printout to the
+   exam), and `app-bubbles` for the empty-search state, echoing back what
+   was typed the way Practice's own empty state already does.
+
+   Colour roles follow the same legend as the rest of the app (see
+   styles.css's own legend comment):
+     --accent  interactive — the search focus ring, jump-bar letters,
+               the letter badges, the print button
+     --blue    a link that takes you elsewhere — "study this topic"
+   Nothing on this page carries a correctness/pass-fail meaning, so
+   green/red/amber are unused here.
+   ============================================================ */
+
 .gl-hero {
   text-align: center;
-  padding: 48px 24px 24px;
+  padding: 48px 24px 20px;
 }
 .gl-hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   margin: 12px 0;
 }
@@ -10,17 +39,39 @@
   max-width: 620px;
   margin: 0 auto;
   color: var(--text-muted);
+  line-height: 1.6;
 }
-.pill {
-  display: inline-block;
-  font-size: 0.74rem;
+/* The one number worth landing on before you read the sentence around it.
+   Plain --bf-accent on --bg measures ~4.1:1 at this weight/size — under the
+   4.5:1 AA-normal-text line (same measured issue as the pill below and
+   home.css's own .hero .pill); nudged toward ink for a safer margin. */
+.gl-count {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
+}
+
+.gl-hero .pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
   font-weight: 600;
+  /* Plain --bf-accent on --bf-accent-wash measures under the 4.5:1 AA line
+     at this size (same fix as home.css's own .hero .pill); nudged toward
+     ink for a safer margin. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
+  background: var(--bf-accent-wash);
+  border-color: color-mix(in srgb, var(--bf-accent) 30%, transparent);
+}
+
+/* ---- Printing tip — app-napkin, the one thing worth interrupting for ----
+   `display: block` is load-bearing, not decoration: `<app-napkin>` has no
+   host `display` rule of its own, so it defaults to `inline` and both
+   `max-width` and `margin: auto` would silently no-op without this (the
+   same reason Practice's own `.adaptive-napkin` sets it). */
+.gl-napkin {
+  display: block;
+  max-width: 620px;
+  margin: 4px auto 28px;
 }
 
 .gl-toolbar {
@@ -34,21 +85,44 @@
 .gl-search {
   flex: 1;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--bf-r, 10px);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   font-size: 0.92rem;
+  transition: border-color 0.15s ease;
+}
+.gl-search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
 }
 .print-btn {
-  padding: 9px 16px;
-  border-radius: 10px;
+  padding: 9px 18px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
   font-size: 0.84rem;
+  font-weight: 600;
   white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.print-btn:hover {
+  border-color: var(--accent);
+  /* Same ~3.9:1-under-AA measurement as the letter badge above — nudged
+     toward ink so the hover state stays readable, not just the border. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
+  background: var(--bf-accent-wash);
+  transform: translateY(-1px);
+}
+.print-btn:active {
+  transform: translateY(0) scale(0.975);
 }
 
 .gl-jump {
@@ -60,22 +134,32 @@
   gap: 4px;
 }
 .gl-jump a {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 700;
   text-decoration: none;
   color: var(--text-muted);
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .gl-jump a.has-terms {
-  color: #6366f1;
+  /* Same ~4.1:1-under-AA measurement as .gl-count above — nudged toward ink. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
 }
 .gl-jump a.has-terms:hover {
-  background: rgba(99, 102, 241, 0.12);
+  background: var(--bf-accent-wash);
+  transform: translateY(-1px);
+}
+.gl-jump a.has-terms:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .gl-jump a.no-terms {
   pointer-events: none;
@@ -88,18 +172,43 @@
   padding: 0 24px 60px;
 }
 .gl-group {
-  margin-bottom: 28px;
+  margin-bottom: 30px;
 }
 .gl-group h2 {
-  font-size: 1.1rem;
-  color: #6366f1;
+  display: flex;
+  align-items: center;
+  margin: 0 0 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
-  margin: 0 0 12px;
+}
+/* The letter as a small monogram tile rather than plain coloured text — a
+   dictionary-style index marker gives the eye something to land on as it
+   scans down the page, the same job the eyebrow rule does on other pages. */
+.gl-letter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--bf-r, 10px);
+  background: var(--bf-accent-wash);
+  /* Plain --bf-accent on --bf-accent-wash measures ~3.9:1 by hand at this
+     size — under the 4.5:1 AA-normal-text line (same fix as the pill and
+     home.css's own .hero .pill). Nudged toward ink for a safer ~5:1. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.15rem;
 }
 .gl-term {
-  padding: 12px 0;
+  padding: 12px 10px;
+  margin: 0 -10px;
+  border-radius: var(--bf-r, 10px);
   border-bottom: 1px dashed var(--border);
+  transition: background-color 0.15s ease;
+}
+.gl-term:hover {
+  background: var(--bg-elevated);
 }
 .gl-term:last-child {
   border-bottom: none;
@@ -108,6 +217,7 @@
   font-weight: 700;
   font-size: 0.95rem;
   margin-bottom: 4px;
+  color: var(--text);
 }
 .gl-term dd {
   margin: 0;
@@ -119,24 +229,48 @@
   display: inline-block;
   margin-top: 6px;
   font-size: 0.8rem;
+  font-weight: 600;
   color: var(--blue);
   text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.gl-link:hover {
+  transform: translateX(2px);
+}
+
 .empty-state {
   text-align: center;
-  padding: 60px 24px;
+  padding: 40px 24px 60px;
   color: var(--text-muted);
+}
+.empty-state app-bubbles {
+  display: block;
+  max-width: 460px;
+  margin: 0.5rem auto 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .print-btn,
+  .gl-jump a,
+  .gl-link {
+    transition: none;
+  }
 }
 
 @media print {
   .gl-toolbar,
   .gl-jump,
-  .gl-link {
+  .gl-link,
+  .gl-napkin {
     display: none !important;
   }
   .gl-hero {
     padding: 0 0 16px;
     text-align: left;
+  }
+  .gl-hero .pill {
+    display: none;
   }
   .gl-body {
     max-width: none;
@@ -144,5 +278,14 @@
   }
   .gl-term {
     break-inside: avoid;
+    margin: 0;
+    padding: 8px 0;
+  }
+  .gl-letter-badge {
+    width: auto;
+    height: auto;
+    padding: 0;
+    background: none;
+    color: #000;
   }
 }

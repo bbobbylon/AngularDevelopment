@@ -1,27 +1,29 @@
-<section class="lesson">
-  @if (lesson(); as l) {
-    <span class="lesson__eyebrow">{{ levelLabel(l.level) }} · {{ l.category }}</span>
-    <h1>{{ l.title }}</h1>
-    <p class="lead">{{ l.summary }}</p>
+@if (lesson(); as l) {
+  <header class="hero">
+    <span class="pill" appReveal>{{ levelLabel(l.level) }} · {{ l.category }}</span>
+    <h1 appReveal [appRevealDelay]="60">{{ l.title }}</h1>
+    <p class="lead" appReveal [appRevealDelay]="120">{{ l.summary }}</p>
+  </header>
 
-    <div class="demo">
-      <p class="demo__title" style="--green: var(--amber)">Lesson in progress</p>
-      <p>
-        This concept is part of the curriculum and reserved here, but its interactive lesson is still being written. The
-        structure, route and navigation entry already exist — only the demo content is pending.
-      </p>
-      <p style="margin-bottom: 0">
-        <a routerLink="/">← Back to the full curriculum</a>
-      </p>
-    </div>
+  <section class="status" appReveal [appRevealDelay]="180">
+    <span class="bf-eyebrow bf-eyebrow--gold">Reserved, Not Written Yet</span>
+    <app-bubbles [turns]="statusTurns(l)" />
+  </section>
 
-    <div class="note">
-      <strong>Want to contribute this one?</strong> Create
-      <code>src/app/lessons/{{ l.level }}/{{ l.id }}/{{ l.id }}.ts</code>, then add its <code>loadComponent</code> to
-      <code>core/curriculum.ts</code>.
-    </div>
-  } @else {
+  <app-napkin lead="want in?" label="Contribute this lesson" class="contribute" appReveal [appRevealDelay]="240">
+    <p>
+      Create <code>src/app/lessons/{{ l.level }}/{{ l.id }}/{{ l.id }}.ts</code>, then wire it into
+      <code>core/curriculum.ts</code> with a <code>loadComponent</code> entry.
+    </p>
+  </app-napkin>
+
+  <p class="back" appReveal [appRevealDelay]="280">
+    <a routerLink="/">← Back to the full curriculum</a>
+  </p>
+} @else {
+  <div class="not-found" appReveal>
+    <span class="bf-hand not-found__hand" aria-hidden="true">hmm, that one's not on the map —</span>
     <h1>Lesson not found</h1>
     <p><a routerLink="/">← Back to the curriculum</a></p>
-  }
-</section>
+  </div>
+}

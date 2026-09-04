@@ -2,6 +2,9 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Bubbles, Napkin, type BubbleTurn } from '../../shared/brain';
+import { highlight } from '../../shared/highlighter';
 
 /** HTTP verbs the playground can issue. */
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -203,7 +206,7 @@ const STEP_META: { title: string; blurb: string }[] = [
  */
 @Component({
   selector: 'app-api-playground',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, Bubbles, Napkin],
   styleUrl: './api-playground.css',
   templateUrl: './api-playground.html',
 })
@@ -234,6 +237,20 @@ export class ApiPlayground {
 
   /** Per-step titles and explanations. */
   readonly stepMeta = STEP_META;
+
+  /**
+   * The two-line exchange shown in place of the step list before the first
+   * request goes out. A dialogue reads as an invitation ("do this") rather
+   * than as a caption on empty space, which is what the plain sentence it
+   * replaces amounted to.
+   */
+  readonly introTurns: BubbleTurn[] = [
+    { who: 'You', says: 'Configure a request and hit **Send**.' },
+    {
+      who: 'Playground',
+      says: 'Watch — the six lifecycle steps light up here with the real data at each stage.',
+    },
+  ];
 
   // --- builder state ---
 
@@ -419,6 +436,23 @@ export class ApiPlayground {
     lines.push(`  });`);
     return lines.join('\n');
   });
+
+  /**
+   * Syntax-highlighted copies of the five raw text panels above (the built
+   * request, the wire message, the generated code, and the error/success
+   * bodies), built the same way `shared/teaching/predict` does: {@link
+   * highlight} tokenises into `<span class="hl-*">` markup and escapes every
+   * character it emits, so binding the result with `[innerHTML]` is safe
+   * even though the request body and custom header value are free-typed by
+   * the user. Kept as separate computeds — rather than highlighting the
+   * signals in place — so `generatedCode`, `requestObjectJson`, etc. stay
+   * plain strings for anything else that reads them (e.g. `JSON.parse`).
+   */
+  readonly generatedCodeHtml = computed(() => highlight(this.generatedCode()));
+  readonly requestObjectHtml = computed(() => highlight(this.requestObjectJson()));
+  readonly wireMessageHtml = computed(() => highlight(this.wireMessage()));
+  readonly errorMessageHtml = computed(() => highlight(this.errorMessage()));
+  readonly rawBodyHtml = computed(() => highlight(this.rawBody()));
 
   // --- lifecycle helpers ---
 

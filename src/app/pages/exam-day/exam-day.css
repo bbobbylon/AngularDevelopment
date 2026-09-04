@@ -1,8 +1,54 @@
+/* ============================================================
+   Exam-Day Readiness Check — the full dress rehearsal: a timed exam
+   leg plus two build briefs, ending in one READY / NOT YET verdict.
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a study tool, not a lesson, so it does not opt into `.lesson.bf`
+   — no Chapter/CodeLab/annotated-code treatment here. It picks up the warm
+   palette and type for free from the app-wide remap in that file's §3; what
+   follows is (a) retinting every literal colour this page used to hard-code
+   against the old indigo/zinc theme, and (b) the room, radii and motion the
+   rest of the restyled app now has. `app-tape-card` replaces the old plain
+   "1 · 2 · 3" step list (three short, parallel, named items — exactly the
+   shape TapeCard is for; Practice and Mock Exam use it the same way for
+   their own stat rows) and `app-napkin` replaces the old "check in
+   progress" banner (the one thing to do before continuing, same job it does
+   for Mock Exam's weak-areas nudge and Coding-Task's hint box).
+
+   Colour roles follow the same six-hue legend as the rest of the app (see
+   styles.css's own legend comment, and practice.css / mock-exam.css /
+   certification.css / coding-tasks.css for the same pattern applied to a
+   near-identical MCQ card and brief list — this page's exam leg is a
+   trimmed-down Mock Exam and its briefs leg is a trimmed-down Coding-Task
+   list, so it deliberately reuses their exact colours rather than
+   inventing a fifth palette):
+     --accent  interactive — buttons, the option you've picked (this leg
+               gives no feedback until the end, same as Mock Exam's active
+               phase, so "selected" reads as "in progress", not amber's
+               "committed, ungraded")
+     --amber   the build-briefs leg — a task not yet verified done
+     --green   correct / passed / READY
+     --red     wrong / failed / NOT YET
+     --blue    a link back into the rest of the app, and the "past checks"
+               history heading (same job as Mock Exam's "Previous attempts")
+     --violet  new vocabulary — reused for the category badge, since a
+               category names a subject, not a correctness signal
+   Difficulty badges (junior/mid/senior) avoid red for "senior", for the
+   same reason the other three exam-prep pages give: this page already
+   spends red on "wrong answer leg" a few pixels away, and a senior badge
+   that reads as an error state would be actively confusing. They use the
+   same green/amber/accent tier convention as Practice, Mock Exam and
+   Coding-Task, so all four surfaces read as one system.
+   ============================================================ */
+
 .ed-hero {
   text-align: center;
   padding: 48px 24px 24px;
 }
 .ed-hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   margin: 12px 0;
 }
@@ -11,76 +57,59 @@
   margin: 0 auto;
   color: var(--text-muted);
 }
-.pill {
-  display: inline-block;
-  font-size: 0.74rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
-  font-weight: 600;
-}
 
 .panel {
-  max-width: 760px;
+  max-width: 780px;
   margin: 0 auto 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px 28px;
-}
-.panel h3 {
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0 0 10px;
+  border-radius: var(--bf-r-lg, 20px);
+  padding: 26px 28px 28px;
+  box-shadow: var(--shadow);
 }
 .panel.last {
   margin-bottom: 60px;
 }
-.steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin: 8px 0 4px;
-}
-.step {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-}
-.step strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.94rem;
-}
-.step span {
-  font-size: 0.84rem;
-  color: var(--text-muted);
-  line-height: 1.5;
+
+/* ---- The format — app-tape-card, one per leg of the check ---- */
+.steps-grid {
+  margin: 1.1rem 0 0.4rem;
 }
 .bar-note {
   font-size: 0.88rem;
   color: var(--text-muted);
-  margin: 14px 0 0;
+  margin: 1.4rem 0 0;
 }
 
 .primary-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 16px;
   padding: 11px 24px;
-  background: #6366f1;
-  color: #fff;
+  /* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
+  color: var(--bg);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-body);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.primary-btn:hover:not(:disabled) {
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
+  transform: translateY(-1px);
+  box-shadow: var(--bf-shadow-lift);
+  text-decoration: none;
+}
+.primary-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
+  box-shadow: none;
 }
 .primary-btn:disabled {
   opacity: 0.5;
@@ -89,16 +118,25 @@
 .primary-btn.small {
   padding: 8px 18px;
   font-size: 0.88rem;
-  margin-top: 0;
 }
 .ghost-btn {
   padding: 8px 18px;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
   cursor: pointer;
+  font-family: var(--font-body);
   font-size: 0.88rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ghost-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 .link-back {
   display: inline-block;
@@ -106,22 +144,32 @@
   font-size: 0.84rem;
   color: var(--blue);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.resume-box {
+.link-back:hover {
+  color: var(--accent);
+}
+
+.start-row {
+  margin-top: 1.4rem;
+}
+
+/* ---- Resume — app-napkin, the one thing to do before continuing ---- */
+.resume-napkin {
+  margin: 1.6rem 0 0;
+}
+.resume-text {
+  margin: 0;
+  color: var(--bf-ink);
+}
+.resume-text strong {
+  color: var(--bf-ink);
+}
+.resume-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 4px;
-  padding: 14px 16px;
-  border: 1px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.07);
-  border-radius: 12px;
-  font-size: 0.88rem;
-}
-.resume-box .grow {
-  flex: 1;
-  min-width: 200px;
+  margin-top: 0.8rem;
 }
 
 .history-row {
@@ -131,22 +179,23 @@
   padding: 9px 0;
   border-top: 1px solid var(--border);
   font-size: 0.86rem;
+  flex-wrap: wrap;
 }
 .h-verdict {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 2px 10px;
-  border-radius: 12px;
+  border-radius: var(--bf-r-pill, 999px);
   flex-shrink: 0;
 }
 .h-verdict.ready {
-  background: rgba(34, 197, 94, 0.15);
-  color: #16a34a;
+  background: var(--bf-olive-wash);
+  color: var(--green);
 }
 .h-verdict.notyet {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  background: var(--bf-danger-wash);
+  color: var(--red);
 }
 .h-detail {
   color: var(--text-muted);
@@ -157,6 +206,7 @@
   font-size: 0.78rem;
 }
 
+/* ---- Exam leg — same MCQ card as Mock Exam's active phase ---- */
 .exam-bar {
   position: sticky;
   top: 0;
@@ -164,14 +214,16 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  max-width: 760px;
+  max-width: 780px;
   margin: 0 auto;
   padding: 14px 24px;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 .exam-progress {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
 }
 .timer {
@@ -181,27 +233,32 @@
   font-size: 1.05rem;
   padding: 4px 12px;
   border-radius: 8px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  background: var(--bf-accent-wash);
+  color: var(--accent);
 }
 .timer.warn {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-  animation: edpulse 1s infinite;
+  background: var(--bf-danger-wash);
+  color: var(--red);
 }
-@keyframes edpulse {
+@media (prefers-reduced-motion: no-preference) {
+  .timer.warn {
+    animation: ed-pulse 1s infinite;
+  }
+}
+@keyframes ed-pulse {
   50% {
     opacity: 0.55;
   }
 }
 
 .q-card {
-  max-width: 760px;
+  max-width: 780px;
   margin: 16px auto 60px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px 28px;
+  border-radius: var(--bf-r-lg, 20px);
+  padding: 26px 28px;
+  box-shadow: var(--shadow);
 }
 .q-badges {
   display: flex;
@@ -211,45 +268,48 @@
 }
 .badge-diff {
   font-size: 0.72rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--bf-r-pill, 999px);
+  font-weight: 700;
   text-transform: capitalize;
 }
 .badge-diff.junior {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--bf-olive-wash);
+  color: var(--green);
 }
 .badge-diff.mid {
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--bf-gold-wash);
+  color: var(--amber);
 }
 .badge-diff.senior {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bf-accent-wash);
+  color: var(--accent);
 }
+/* Category — names a subject rather than a correctness state, so it reuses
+   .term's "new vocabulary" hue instead of a fourth correctness colour. */
 .badge-type {
   font-size: 0.72rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid #6366f1;
-  color: #6366f1;
+  padding: 3px 10px;
+  border-radius: var(--bf-r-pill, 999px);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--violet) 32%, transparent);
+  color: var(--violet);
   text-transform: capitalize;
 }
 .q-text {
   font-weight: 500;
   font-size: 1.02rem;
   margin: 0 0 14px;
-  line-height: 1.5;
+  line-height: 1.55;
+  color: var(--text);
 }
 .q-code {
-  background: #1e1e2e;
-  color: #cdd6f4;
-  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-radius: var(--radius);
   padding: 14px 16px;
   font-size: 0.82rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   margin: 0 0 14px;
   overflow-x: auto;
@@ -266,19 +326,25 @@
   gap: 10px;
   padding: 11px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 13px;
   cursor: pointer;
   font-size: 0.9rem;
   background: transparent;
   text-align: left;
   color: var(--text);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .opt:hover {
-  background: rgba(99, 102, 241, 0.05);
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  transform: translateX(2px);
 }
 .opt.selected {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+  background: var(--bf-accent-wash);
 }
 .opt-letter {
   width: 22px;
@@ -289,7 +355,7 @@
   align-items: center;
   justify-content: center;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 700;
   flex-shrink: 0;
 }
 .q-actions {
@@ -298,31 +364,43 @@
   gap: 12px;
 }
 
+/* ---- Build briefs — same brief-list colours as Coding-Task Simulator ---- */
 .score-chip {
   display: inline-block;
   font-size: 0.88rem;
   font-weight: 700;
   padding: 6px 16px;
-  border-radius: 16px;
+  border-radius: var(--bf-r-pill, 999px);
   margin-bottom: 4px;
+  border: 1px solid transparent;
 }
 .score-chip.pass {
-  background: rgba(34, 197, 94, 0.12);
-  color: #16a34a;
+  background: var(--bf-olive-wash);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  color: var(--green);
 }
 .score-chip.fail {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: var(--bf-danger-wash);
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+  color: var(--red);
+}
+.task-list-head {
+  margin-top: 1.5rem;
 }
 .task-row {
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 14px 0;
-  border-top: 1px solid var(--border);
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--bf-r-lg, 16px);
+  background: var(--bg-elevated);
 }
-.task-row:first-of-type {
-  border-top: none;
+.task-row + .task-row {
+  margin-top: 12px;
+}
+.task-row.done {
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
 }
 .task-status {
   font-size: 1.3rem;
@@ -336,6 +414,7 @@
   display: block;
   font-size: 0.96rem;
   margin-bottom: 4px;
+  color: var(--text);
 }
 .task-info p {
   margin: 0;
@@ -347,6 +426,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
   margin-top: 8px;
 }
 .tasks-actions {
@@ -354,49 +434,55 @@
   gap: 12px;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 18px;
 }
 .hint-note {
   font-size: 0.84rem;
   color: var(--text-muted);
 }
+.tasks-note {
+  margin-top: 12px;
+}
 
+/* ---- Verdict — same pass/fail hero shape as Mock Exam's review ---- */
 .verdict-hero {
-  max-width: 760px;
+  max-width: 780px;
   margin: 24px auto 16px;
   text-align: center;
-  padding: 36px 24px;
-  border-radius: 20px;
+  padding: 40px 24px;
+  border-radius: var(--bf-r-lg, 24px);
   border: 1px solid var(--border);
 }
 .verdict-hero.ready {
-  background: rgba(34, 197, 94, 0.08);
-  border-color: #22c55e;
+  background: var(--bf-olive-wash);
+  border-color: var(--green);
 }
 .verdict-hero.notyet {
-  background: rgba(239, 68, 68, 0.06);
-  border-color: #ef4444;
+  background: var(--bf-danger-wash);
+  border-color: var(--red);
 }
 .verdict-badge {
   display: inline-block;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.08em;
-  padding: 5px 16px;
-  border-radius: 20px;
+  padding: 5px 18px;
+  border-radius: var(--bf-r-pill, 999px);
 }
 .verdict-hero.ready .verdict-badge {
-  background: #22c55e;
-  color: #fff;
+  background: var(--green);
+  color: var(--bf-surface);
 }
 .verdict-hero.notyet .verdict-badge {
-  background: #ef4444;
-  color: #fff;
+  background: var(--red);
+  color: var(--bf-surface);
 }
 .verdict-title {
-  font-size: 2.2rem;
+  font-family: var(--font-display);
   font-weight: 800;
-  margin: 12px 0 4px;
+  font-size: 2.2rem;
+  margin: 14px 0 4px;
+  color: var(--bf-ink);
 }
 .verdict-hero p {
   color: var(--text-muted);
@@ -419,8 +505,30 @@
   border-bottom: none;
 }
 .v-line strong.good {
-  color: #16a34a;
+  color: var(--green);
 }
 .v-line strong.bad {
-  color: #dc2626;
+  color: var(--red);
+}
+.verdict-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 22px;
+}
+
+@media (max-width: 560px) {
+  .exam-bar {
+    flex-wrap: wrap;
+  }
+  .timer {
+    margin-left: auto;
+  }
+  .panel,
+  .q-card {
+    border-radius: var(--radius);
+    padding: 22px 20px;
+  }
 }

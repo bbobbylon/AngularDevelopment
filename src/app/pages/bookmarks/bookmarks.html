@@ -1,26 +1,33 @@
-<div class="bm-hero">
-  <span class="pill">Saved</span>
-  <h1>Bookmarks &amp; Notes</h1>
-  <p>
-    Lessons and practice questions you starred, with any notes you attached. Star a lesson from the ☆ button in the
-    header, or a practice question from its card on the Practice page.
+<header class="bm-hero">
+  <span class="pill" appReveal>Saved</span>
+  <h1 appReveal [appRevealDelay]="80">Bookmarks &amp; Notes</h1>
+  <p appReveal [appRevealDelay]="160">
+    Lessons and practice questions you starred, with any notes you attached. Star a lesson from the
+    <span class="bm-key">☆ button</span> in the header, or a practice question from its card on the
+    <a routerLink="/practice" class="bm-link">Practice page</a>.
   </p>
-</div>
+</header>
 
 @if (bookmarks.list().length === 0) {
-  <div class="empty-state">
-    Nothing bookmarked yet — look for the ☆ star on a lesson page, or on any practice challenge, to save it here.
+  <app-napkin lead="psst —" label="How to save one" class="bm-napkin" appReveal [appRevealDelay]="220">
+    Nothing bookmarked yet. Look for the <strong>☆</strong> star on a lesson page, or on any practice challenge, to save
+    it here.
+  </app-napkin>
+  <div class="bm-empty-actions" appReveal [appRevealDelay]="260">
+    <a routerLink="/" class="primary-btn small">Browse lessons →</a>
+    <a routerLink="/practice" class="link-back">or try Practice</a>
   </div>
 } @else {
   <div class="bm-list">
     @for (b of bookmarks.list(); track b.id) {
-      <div class="bm-card">
+      <div class="bm-card" appReveal [appRevealDelay]="($index % 6) * 40">
         <div class="bm-head">
           @if (isLesson(b.id)) {
             <a [routerLink]="'/' + b.id" class="bm-title">{{ b.label }}</a>
           } @else {
             <a routerLink="/practice" class="bm-title">{{ b.label }}</a>
           }
+          <span class="bm-kind">{{ isLesson(b.id) ? 'Lesson' : 'Practice' }}</span>
           <button class="bm-remove" (click)="bookmarks.remove(b.id)" aria-label="Remove bookmark">✕</button>
         </div>
         <textarea

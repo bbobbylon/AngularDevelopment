@@ -94,10 +94,12 @@
   border-color: var(--accent);
   transform: translateY(-1px);
 }
+/* Plain --accent + --bg fails WCAG AA in light mode (4.12:1) — --accent-solid
+   (brain-friendly.css §3) is the fix; see its own comment for the numbers. */
 .chip.active {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--bg);
-  border-color: var(--accent);
+  border-color: var(--accent-solid);
 }
 /* Weak-area chips live inside <app-napkin>, so they sit on its gold-tinted
    paper rather than the card surface — a plain surface chip would look like
@@ -107,10 +109,14 @@
   border-color: color-mix(in srgb, var(--amber) 45%, transparent);
   color: var(--amber);
 }
+/* Plain --amber (--bf-gold) + --bf-clay-ink measures only 3.40:1 in light
+   mode — well under 4.5:1 AA-normal. --bf-gold-bright pairs with the same
+   clay-ink at 5.78:1, the same precedent api-playground.css's
+   .chip.method-PATCH.active follows. */
 .chip.weak.active {
-  background: var(--amber);
+  background: var(--bf-gold-bright);
   color: var(--bf-clay-ink);
-  border-color: var(--amber);
+  border-color: var(--bf-gold-bright);
 }
 
 /* ---- Config summary — app-tape-card, one per exam parameter ---- */
@@ -170,7 +176,8 @@
   align-items: center;
   gap: 6px;
   padding: 11px 24px;
-  background: var(--accent);
+  /* --accent-solid, not plain --accent — see .chip.active's comment above. */
+  background: var(--accent-solid);
   color: var(--bg);
   border: none;
   border-radius: var(--bf-r-pill, 999px);
@@ -184,7 +191,8 @@
     background-color 0.16s ease;
 }
 .primary-btn:hover:not(:disabled) {
-  background: var(--bf-accent-bright);
+  /* not plain --bf-accent-bright — brain-friendly.css §3 */
+  background: var(--accent-bright-solid);
   transform: translateY(-1px);
   box-shadow: var(--bf-shadow-lift);
 }

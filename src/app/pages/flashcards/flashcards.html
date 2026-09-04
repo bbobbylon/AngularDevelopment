@@ -1,16 +1,16 @@
 @switch (phase()) {
   @case ('config') {
     <div class="fc-hero">
-      <span class="pill">Active Recall</span>
-      <h1>Flashcard Drills</h1>
-      <p>
+      <span class="pill" appReveal>Active Recall</span>
+      <h1 appReveal [appRevealDelay]="80">Flashcard Drills</h1>
+      <p appReveal [appRevealDelay]="160">
         Answer from memory before you flip — no options to lean on. Cards you miss cycle back until you clear them, and
         also land in the spaced-repetition review queue for later days.
       </p>
     </div>
 
-    <div class="panel">
-      <h3>Category</h3>
+    <div class="panel" appReveal [appRevealDelay]="220">
+      <h3 class="bf-eyebrow">Category</h3>
       <div class="chips">
         @for (cat of categoryFilters; track cat.id) {
           <button [class.active]="category() === cat.id" (click)="category.set(cat.id)">
@@ -19,7 +19,7 @@
         }
       </div>
 
-      <h3>Difficulty</h3>
+      <h3 class="bf-eyebrow">Difficulty</h3>
       <div class="chips">
         @for (d of diffFilters; track d.id) {
           <button [class.active]="difficulty() === d.id" (click)="difficulty.set(d.id)">
@@ -28,7 +28,7 @@
         }
       </div>
 
-      <h3>Deck size</h3>
+      <h3 class="bf-eyebrow">Deck size</h3>
       <div class="chips">
         @for (size of deckSizes; track size) {
           <button [class.active]="deckSize() === size" [disabled]="pool().length < size" (click)="deckSize.set(size)">
@@ -45,27 +45,30 @@
       </button>
       <a routerLink="/practice" class="link-back">Practice page</a>
 
-      <p class="kbd-note">Keyboard: <kbd>Space</kbd> flip · <kbd>←</kbd> again · <kbd>→</kbd> got it</p>
+      <app-napkin lead="psst —" label="Keyboard shortcuts" class="kbd-napkin">
+        Keep your hands on the keys once you're drilling: <kbd>Space</kbd> flips the card, <kbd>←</kbd> grades it Again,
+        <kbd>→</kbd> grades it Got it.
+      </app-napkin>
     </div>
   }
 
   @case ('drill') {
     <div class="fc-hero" style="padding-bottom: 8px">
-      <span class="pill">Active Recall</span>
-      <h1>Flashcard Drill</h1>
+      <span class="pill" appReveal>Active Recall</span>
+      <h1 appReveal [appRevealDelay]="80">Flashcard Drill</h1>
     </div>
 
-    <div class="drill-bar">
+    <div class="drill-bar" appReveal [appRevealDelay]="120">
       <span>{{ cleared() }} / {{ deckTotal() }} cleared</span>
       <span class="spacer"></span>
-      <span class="queue-tag">{{ queue().length }} in deck</span>
+      <span class="bf-chip">{{ queue().length }} in deck</span>
     </div>
-    <div class="progress-outer">
+    <div class="progress-outer" appReveal [appRevealDelay]="140">
       <div class="progress-inner" [style.width]="progressPercent() + '%'"></div>
     </div>
 
     @if (current(); as ch) {
-      <div class="card-scene">
+      <div class="card-scene" appReveal [appRevealDelay]="180">
         <div class="card-inner" [class.flipped]="flipped()" (click)="flipFromCard()">
           <div class="card-face">
             <div class="q-badges">
@@ -113,27 +116,27 @@
 
   @case ('summary') {
     <div class="fc-hero">
-      <span class="pill">Active Recall</span>
-      <h1>Deck Cleared 🎉</h1>
+      <span class="pill" appReveal>Active Recall</span>
+      <h1 appReveal [appRevealDelay]="80">Deck Cleared 🎉</h1>
     </div>
 
-    <div class="panel">
+    <div class="panel" appReveal [appRevealDelay]="140">
       <p class="sum-line">
         <strong>{{ firstTryCount() }} / {{ deckTotal() }}</strong> known on the first flip.
       </p>
       <div class="sum-grid">
-        <div>
-          <strong>{{ deckTotal() }}</strong
-          ><span>cards drilled</span>
-        </div>
-        <div>
-          <strong>{{ firstTryCount() }}</strong
-          ><span>first-try</span>
-        </div>
-        <div>
-          <strong>{{ missedIds().size }}</strong
-          ><span>needed repeats</span>
-        </div>
+        <app-tape-card heading="Drilled" tone="accent">
+          <span class="stat-num">{{ deckTotal() }}</span>
+          <span class="stat-label">cards drilled</span>
+        </app-tape-card>
+        <app-tape-card heading="First-try" tone="olive">
+          <span class="stat-num">{{ firstTryCount() }}</span>
+          <span class="stat-label">known cold</span>
+        </app-tape-card>
+        <app-tape-card heading="Repeats" tone="gold">
+          <span class="stat-num">{{ missedIds().size }}</span>
+          <span class="stat-label">needed another pass</span>
+        </app-tape-card>
       </div>
       @if (missedIds().size > 0) {
         <p class="sum-note">
@@ -141,7 +144,7 @@
           {{ missedIds().size === 1 ? 'was' : 'were' }} added to the spaced-repetition queue.
         </p>
       }
-      <div>
+      <div class="summary-actions">
         <button class="primary-btn" (click)="phase.set('config')">New deck</button>
         @if (missedIds().size > 0) {
           <a routerLink="/review" class="link-back">Go to Review queue →</a>

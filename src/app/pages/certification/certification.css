@@ -167,10 +167,10 @@ h2[data-key="senior"] {
   padding: 10px 22px;
   border: none;
   border-radius: 999px;
-  background: var(--accent);
-  /* --bg rather than a literal white: it is cream-on-orange in light mode
-     and near-black-on-bright-orange in dark mode, the same pairing the
-     brain-friendly button already proved clears AA in both schemes. */
+  /* --accent-solid (brain-friendly.css §3), not plain --accent: plain
+     accent + --bg text measures only 4.12:1 in light mode, under WCAG AA's
+     4.5:1 line — see that token's own comment for the fix and the numbers. */
+  background: var(--accent-solid);
   color: var(--bg);
   font-family: var(--font-body);
   font-size: 0.9rem;
@@ -183,7 +183,7 @@ h2[data-key="senior"] {
     background-color 0.16s ease;
 }
 .exam-cta__btn:hover {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
   transform: translateY(-1px);
   box-shadow: var(--bf-shadow-lift);
 }
@@ -355,7 +355,8 @@ h2[data-key="senior"] {
 .check-btn {
   margin-top: 16px;
   padding: 10px 24px;
-  background: var(--accent);
+  /* --accent-solid, not plain --accent — see .exam-cta__btn's comment above. */
+  background: var(--accent-solid);
   color: var(--bg);
   border: none;
   border-radius: 999px;
@@ -368,7 +369,7 @@ h2[data-key="senior"] {
     background-color 0.16s ease;
 }
 .check-btn:hover:not(:disabled) {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
@@ -481,7 +482,8 @@ h2[data-key="senior"] {
 }
 .btn-primary {
   padding: 10px 22px;
-  background: var(--accent);
+  /* --accent-solid, not plain --accent — see .exam-cta__btn's comment above. */
+  background: var(--accent-solid);
   color: var(--bg);
   border: none;
   border-radius: 999px;
@@ -494,7 +496,7 @@ h2[data-key="senior"] {
     background-color 0.16s ease;
 }
 .btn-primary:hover {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }

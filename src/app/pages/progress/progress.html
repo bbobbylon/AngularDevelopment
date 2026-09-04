@@ -1,20 +1,28 @@
 <div class="pg-hero">
-  <span class="pill">Your Journey</span>
-  <h1>Progress Dashboard</h1>
-  <p>
+  <span class="pill" appReveal>Your Journey</span>
+  <h1 appReveal [appRevealDelay]="80">Progress Dashboard</h1>
+  <p appReveal [appRevealDelay]="160">
     Everything you have studied, answered, drilled and built — in one place. Each section links to the tool that owns
     it.
   </p>
-  <button class="ghost-btn" style="margin-top: 14px" (click)="exportReport()">⬇ Export Full Report</button>
+  <button class="ghost-btn" appReveal [appRevealDelay]="200" (click)="exportReport()">⬇ Export Full Report</button>
 </div>
 
-<div class="score-panel">
+<div class="score-panel" appReveal [appRevealDelay]="220">
   <svg
     class="ring"
     viewBox="0 0 120 120"
     role="img"
     [attr.aria-label]="'Readiness score ' + readinessScore() + ' percent'"
   >
+    <defs>
+      <!-- Same accent → gold sweep as the topbar's reading-progress fill (app.css)
+           and the home hero headline — one signature gradient for "progress" wherever it appears. -->
+      <linearGradient id="progress-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop class="ring-stop-a" offset="0%" />
+        <stop class="ring-stop-b" offset="100%" />
+      </linearGradient>
+    </defs>
     <circle class="ring-track" cx="60" cy="60" r="52" />
     <circle
       class="ring-fill"
@@ -62,33 +70,36 @@
 </div>
 
 <div class="stats-row">
-  <div class="stat-box accent">
-    <strong>{{ practiceAnswered() }}</strong
-    ><span>challenges answered</span>
-  </div>
-  <div class="stat-box" [class.good]="practiceAccuracy() >= 70">
-    <strong>{{ practiceAccuracy() }}%</strong><span>practice accuracy</span>
-  </div>
-  <div class="stat-box" [class.good]="bestExam() >= 70">
-    <strong>{{ examAttempts().length === 0 ? '—' : bestExam() + '%' }}</strong
-    ><span>best mock exam</span>
-  </div>
-  <div class="stat-box" [class.warn]="reviewDue() > 0">
-    <strong>{{ reviewDue() }}</strong
-    ><span>reviews due</span>
-  </div>
-  <div class="stat-box">
-    <strong>{{ tasksDone() }}/{{ tasksTotal }}</strong
-    ><span>coding tasks</span>
-  </div>
-  <div class="stat-box" [class.good]="streak.current() > 0">
-    <strong>🔥 {{ streak.current() }}</strong>
-    <span>day streak (best {{ streak.longest() }})</span>
-  </div>
+  <app-tape-card heading="Challenges Answered" tone="accent" appReveal [appRevealDelay]="260">
+    <span class="stat-num">{{ practiceAnswered() }}</span>
+    <span class="stat-label">across the practice bank</span>
+  </app-tape-card>
+  <app-tape-card heading="Practice Accuracy" tone="gold" appReveal [appRevealDelay]="300">
+    <span class="stat-num" [class.good]="practiceAccuracy() >= 70">{{ practiceAccuracy() }}%</span>
+    <span class="stat-label">on answered questions</span>
+  </app-tape-card>
+  <app-tape-card heading="Best Mock Exam" tone="blue" appReveal [appRevealDelay]="340">
+    <span class="stat-num" [class.good]="bestExam() >= 70">{{
+      examAttempts().length === 0 ? '—' : bestExam() + '%'
+    }}</span>
+    <span class="stat-label">highest score yet</span>
+  </app-tape-card>
+  <app-tape-card heading="Reviews Due" tone="accent" appReveal [appRevealDelay]="380">
+    <span class="stat-num" [class.warn]="reviewDue() > 0">{{ reviewDue() }}</span>
+    <span class="stat-label">waiting in the queue</span>
+  </app-tape-card>
+  <app-tape-card heading="Coding Tasks" tone="gold" appReveal [appRevealDelay]="420">
+    <span class="stat-num">{{ tasksDone() }}/{{ tasksTotal }}</span>
+    <span class="stat-label">build briefs done</span>
+  </app-tape-card>
+  <app-tape-card heading="Day Streak" tone="olive" appReveal [appRevealDelay]="460">
+    <span class="stat-num" [class.good]="streak.current() > 0">🔥 {{ streak.current() }}</span>
+    <span class="stat-label">best {{ streak.longest() }}</span>
+  </app-tape-card>
 </div>
 
 <div class="grid">
-  <div class="panel">
+  <div class="panel" appReveal [appRevealDelay]="0">
     <h2>📖 Lessons</h2>
     <p class="sub">Curriculum pages opened at least once.</p>
     <div class="bar-label">
@@ -98,7 +109,7 @@
     <a routerLink="/" class="go-link">Browse the curriculum →</a>
   </div>
 
-  <div class="panel">
+  <div class="panel" appReveal [appRevealDelay]="50">
     <h2>🔁 Review Queue</h2>
     <p class="sub">Spaced repetition over everything you have missed.</p>
     <div class="metric-line">
@@ -115,11 +126,11 @@
     }}</a>
   </div>
 
-  <div class="panel">
+  <div class="panel" appReveal [appRevealDelay]="100">
     <h2>🎓 Exam-Day Readiness</h2>
     <p class="sub">The full dress rehearsal: timed exam + build briefs.</p>
     @if (readinessChecks().length === 0) {
-      <p class="empty">No readiness checks run yet — the one number that says "book it".</p>
+      <p class="empty bf-hand bf-hand--note">No readiness checks run yet — the one number that says "book it".</p>
     } @else {
       @for (check of recentReadiness(); track check.when) {
         <div class="attempt">
@@ -136,7 +147,7 @@
     </a>
   </div>
 
-  <div class="panel">
+  <div class="panel" appReveal [appRevealDelay]="150">
     <h2>🛠️ Coding Tasks</h2>
     <p class="sub">Practical-exam build briefs completed.</p>
     <div class="bar-label">
@@ -146,7 +157,7 @@
     <a routerLink="/coding-tasks" class="go-link">Take on a build task →</a>
   </div>
 
-  <div class="panel wide">
+  <div class="panel wide" appReveal [appRevealDelay]="200">
     <h2>⚡ Practice Challenges</h2>
     <p class="sub">
       {{ practiceAnswered() }} of {{ challengeTotal }} answered · {{ practiceCorrect() }} correct ({{
@@ -164,21 +175,28 @@
         <div class="cat-row">
           <span class="name">{{ cat.label }}</span>
           <div class="bar-outer" style="margin: 0">
-            <div class="bar-inner" [class.green]="cat.percent >= 70" [style.width]="cat.percent + '%'"></div>
+            <div
+              class="bar-inner"
+              [class.green]="cat.percent >= 70"
+              [class.weak]="cat.percent < 70"
+              [style.width]="cat.percent + '%'"
+            ></div>
           </div>
           <span class="pct" [class.weak]="cat.percent < 70">{{ cat.percent }}% ({{ cat.total }})</span>
         </div>
       }
     } @else {
-      <p class="empty">No challenges answered yet — the category breakdown appears here.</p>
+      <p class="empty bf-hand bf-hand--note">No challenges answered yet — the category breakdown appears here.</p>
     }
     <a routerLink="/practice" class="go-link">Go practice →</a>
   </div>
 
-  <div class="panel wide">
+  <div class="panel wide" appReveal [appRevealDelay]="250">
     <h2>⏱ Mock Exams</h2>
     @if (examAttempts().length === 0) {
-      <p class="empty">No mock exams taken yet. A timed run is the closest thing to the real exam.</p>
+      <p class="empty bf-hand bf-hand--note">
+        No mock exams taken yet. A timed run is the closest thing to the real exam.
+      </p>
     } @else {
       <p class="sub">
         {{ examAttempts().length }} attempt{{ examAttempts().length === 1 ? '' : 's' }} · best {{ bestExam() }}% ·
@@ -209,12 +227,18 @@
     <a routerLink="/mock-exam" class="go-link">Take a mock exam →</a>
   </div>
 
-  <div class="panel wide">
+  <div class="panel wide" appReveal [appRevealDelay]="300">
     <h2>🏅 Achievements</h2>
     <p class="sub">{{ unlockedCount() }} of {{ achievements().length }} unlocked.</p>
     <div class="badge-grid">
       @for (a of achievements(); track a.id) {
-        <div class="badge" [class.unlocked]="a.unlocked" [title]="a.description">
+        <div
+          class="badge"
+          [class.unlocked]="a.unlocked"
+          [title]="a.description"
+          appReveal
+          [appRevealDelay]="$index * 20"
+        >
           <span class="badge-icon">{{ a.icon }}</span>
           <span class="badge-title">{{ a.title }}</span>
           <span class="badge-desc">{{ a.description }}</span>

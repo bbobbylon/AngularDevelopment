@@ -1,53 +1,46 @@
 @switch (phase()) {
   @case ('idle') {
     <div class="ed-hero">
-      <span class="pill">The Full Dress Rehearsal</span>
-      <h1>Exam-Day Readiness Check</h1>
-      <p>
+      <span class="pill" appReveal>The Full Dress Rehearsal</span>
+      <h1 appReveal [appRevealDelay]="60">Exam-Day Readiness Check</h1>
+      <p appReveal [appRevealDelay]="120">
         One sitting, just like the real thing: a timed {{ examQuestions }}-question exam followed by two practical build
         briefs. Pass both bars and you are ready to book the exam.
       </p>
     </div>
 
-    <div class="panel">
-      <h3>The format</h3>
-      <div class="steps">
-        <div class="step">
-          <strong>1 · Timed exam</strong>
-          <span
-            >{{ examQuestions }} mixed questions from the full bank, {{ examMinutes }} minutes, no feedback until the
-            end. Score {{ passMark }}%+ to pass this leg.</span
-          >
-        </div>
-        <div class="step">
-          <strong>2 · Build briefs</strong>
-          <span
-            >Two coding tasks assigned from the simulator (one mid, one senior). Complete them in the Coding-Task
-            Simulator, then come back.</span
-          >
-        </div>
-        <div class="step">
-          <strong>3 · Verdict</strong>
-          <span
-            >READY means exam ≥ {{ passMark }}% <em>and</em> both briefs done. Anything less tells you exactly which leg
-            to train.</span
-          >
-        </div>
+    <div class="panel" appReveal [appRevealDelay]="180">
+      <h3 class="bf-eyebrow">The format</h3>
+      <div class="bf-grid-3 steps-grid">
+        <app-tape-card kicker="Step 1" heading="Timed exam" tone="accent">
+          {{ examQuestions }} mixed questions from the full bank, {{ examMinutes }} minutes, no feedback until the end.
+          Score {{ passMark }}%+ to pass this leg.
+        </app-tape-card>
+        <app-tape-card kicker="Step 2" heading="Build briefs" tone="gold">
+          Two coding tasks assigned from the simulator (one mid, one senior). Complete them in the Coding-Task
+          Simulator, then come back.
+        </app-tape-card>
+        <app-tape-card kicker="Step 3" heading="Verdict" tone="olive">
+          READY means exam ≥ {{ passMark }}% <em>and</em> both briefs done. Anything less tells you exactly which leg to
+          train.
+        </app-tape-card>
       </div>
       <p class="bar-note">
         Misses from the exam leg feed your review queue, and every verdict shows up on the Progress Dashboard.
       </p>
 
       @if (active(); as check) {
-        <div class="resume-box">
-          <span class="grow">
-            ⏸ Check in progress — exam scored <strong>{{ check.exam.scorePercent }}%</strong>, coding tasks pending.
-          </span>
-          <button class="primary-btn small" (click)="resume()">Resume →</button>
-          <button class="ghost-btn" (click)="abandon()">Discard</button>
-        </div>
+        <app-napkin lead="⏸" label="Check in progress" class="resume-napkin" appReveal [appRevealDelay]="220">
+          <p class="resume-text">
+            Exam scored <strong>{{ check.exam.scorePercent }}%</strong> — coding tasks still pending.
+          </p>
+          <div class="resume-actions">
+            <button class="primary-btn small" (click)="resume()">Resume →</button>
+            <button class="ghost-btn" (click)="abandon()">Discard</button>
+          </div>
+        </app-napkin>
       } @else {
-        <div>
+        <div class="start-row" appReveal [appRevealDelay]="220">
           <button class="primary-btn" (click)="startCheck()">Start the check →</button>
           <a routerLink="/mock-exam" class="link-back">or a plain mock exam</a>
         </div>
@@ -55,8 +48,8 @@
     </div>
 
     @if (history().length > 0) {
-      <div class="panel last">
-        <h3>Past checks</h3>
+      <div class="panel last" appReveal [appRevealDelay]="260">
+        <h3 class="bf-eyebrow bf-eyebrow--blue">Past checks</h3>
         @for (r of history(); track r.when) {
           <div class="history-row">
             <span class="h-verdict" [class.ready]="r.ready" [class.notyet]="!r.ready">
@@ -81,7 +74,7 @@
     </div>
 
     @if (current(); as ch) {
-      <div class="q-card">
+      <div class="q-card" appReveal>
         <div class="q-badges">
           <span class="badge-diff {{ ch.difficulty }}">{{ ch.difficulty }}</span>
           <span class="badge-type">{{ ch.category }}</span>
@@ -115,15 +108,15 @@
 
   @case ('tasks') {
     <div class="ed-hero">
-      <span class="pill">Leg 2 of 2</span>
-      <h1>Build Briefs</h1>
-      <p>
+      <span class="pill" appReveal>Leg 2 of 2</span>
+      <h1 appReveal [appRevealDelay]="60">Build Briefs</h1>
+      <p appReveal [appRevealDelay]="120">
         Exam leg done. Now complete both assigned tasks in the Coding-Task Simulator — check every requirement and mark
         them complete there, then evaluate.
       </p>
     </div>
 
-    <div class="panel last">
+    <div class="panel last" appReveal [appRevealDelay]="180">
       @if (active(); as check) {
         <span
           class="score-chip"
@@ -134,9 +127,9 @@
           {{ check.exam.scorePercent >= passMark ? 'passed' : 'below the ' + passMark + '% bar' }}
         </span>
 
-        <h3 style="margin-top: 18px">Your assigned tasks</h3>
+        <h3 class="bf-eyebrow bf-eyebrow--gold task-list-head">Your assigned tasks</h3>
         @for (task of assignedTasks(); track task.id) {
-          <div class="task-row">
+          <div class="task-row" [class.done]="doneTaskIds().has(task.id)">
             <span class="task-status">{{ doneTaskIds().has(task.id) ? '✅' : '⬜' }}</span>
             <div class="task-info">
               <strong>{{ task.title }}</strong>
@@ -151,13 +144,11 @@
         }
 
         <div class="tasks-actions">
-          <a routerLink="/coding-tasks" class="primary-btn small" style="text-decoration: none">
-            Open the simulator →
-          </a>
+          <a routerLink="/coding-tasks" class="primary-btn small">Open the simulator →</a>
           <button class="ghost-btn" (click)="refreshTaskStatus()">↻ Re-check status</button>
           <button class="primary-btn small" (click)="evaluate()">Evaluate readiness</button>
         </div>
-        <p class="hint-note" style="margin-top: 12px">
+        <p class="hint-note tasks-note">
           {{ assignedDoneCount() }} / {{ tasksRequired }} briefs completed. You can evaluate any time — incomplete
           briefs just count against the verdict.
         </p>
@@ -167,7 +158,7 @@
 
   @case ('result') {
     @if (lastResult(); as r) {
-      <div class="verdict-hero" [class.ready]="r.ready" [class.notyet]="!r.ready">
+      <div class="verdict-hero" [class.ready]="r.ready" [class.notyet]="!r.ready" appReveal>
         <span class="verdict-badge">{{ r.ready ? 'READY' : 'NOT YET' }}</span>
         <div class="verdict-title">
           {{ r.ready ? 'Book the exam. 🎉' : 'Close — train the weak leg.' }}
@@ -189,7 +180,7 @@
           </div>
         </div>
 
-        <div style="margin-top: 20px">
+        <div class="verdict-actions">
           <button class="primary-btn" (click)="backToIdle()">Done</button>
           <button class="ghost-btn" (click)="exportResults(r)">⬇ Export Results</button>
           @if (!r.ready) {

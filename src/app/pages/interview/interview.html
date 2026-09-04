@@ -1,36 +1,36 @@
 <div class="hero">
-  <span class="pill">Interview Prep</span>
-  <h1>Angular Interview Questions</h1>
-  <p>
+  <span class="pill" appReveal>Interview Prep</span>
+  <h1 appReveal [appRevealDelay]="70">Angular Interview Questions</h1>
+  <p appReveal [appRevealDelay]="130">
     253 real interview questions — Junior, Mid, and Senior — with complete answers. Browse the accordion or use
     Flashcard mode to drill yourself and track what you know.
   </p>
   <div class="stats-row">
-    <div class="stat-box">
-      <strong>{{ countFor('junior') }}</strong
-      ><span>Junior</span>
-    </div>
-    <div class="stat-box">
-      <strong>{{ countFor('mid') }}</strong
-      ><span>Mid</span>
-    </div>
-    <div class="stat-box">
-      <strong>{{ countFor('senior') }}</strong
-      ><span>Senior</span>
-    </div>
-    <div class="stat-box">
-      <strong>{{ easyCount() }}</strong
-      ><span>✓ Easy</span>
-    </div>
-    <div class="stat-box">
-      <strong>{{ reviewCount() }}</strong
-      ><span>↺ Review</span>
-    </div>
+    <app-tape-card heading="Junior" tone="olive" appReveal [appRevealDelay]="190">
+      <span class="stat-num">{{ countFor('junior') }}</span>
+      <span class="stat-label">questions</span>
+    </app-tape-card>
+    <app-tape-card heading="Mid-level" tone="gold" appReveal [appRevealDelay]="220">
+      <span class="stat-num">{{ countFor('mid') }}</span>
+      <span class="stat-label">questions</span>
+    </app-tape-card>
+    <app-tape-card heading="Senior" tone="accent" appReveal [appRevealDelay]="250">
+      <span class="stat-num">{{ countFor('senior') }}</span>
+      <span class="stat-label">questions</span>
+    </app-tape-card>
+    <app-tape-card heading="Easy" tone="olive" appReveal [appRevealDelay]="280">
+      <span class="stat-num">{{ easyCount() }}</span>
+      <span class="stat-label">✓ got it</span>
+    </app-tape-card>
+    <app-tape-card heading="Review" tone="gold" appReveal [appRevealDelay]="310">
+      <span class="stat-num">{{ reviewCount() }}</span>
+      <span class="stat-label">↺ to revisit</span>
+    </app-tape-card>
   </div>
 </div>
 
 <!-- Mode toggle -->
-<div class="mode-toggle">
+<div class="mode-toggle" appReveal [appRevealDelay]="340">
   <button class="mode-btn" [class.active]="mode() === 'browse'" (click)="switchMode('browse')">Browse</button>
   <button class="mode-btn" [class.active]="mode() === 'flashcard'" (click)="switchMode('flashcard')">
     ⚡ Flashcard Mode
@@ -38,14 +38,14 @@
 </div>
 
 <!-- Shared filters -->
-<div class="filters">
+<div class="filters" appReveal [appRevealDelay]="370">
   @for (l of levelFilters; track l.id) {
     <button class="filter-btn" [class.active]="activeLevel() === l.id" (click)="activeLevel.set(l.id)">
       {{ l.label }}
     </button>
   }
 </div>
-<div class="filters" style="padding-top: 0">
+<div class="filters filters--cats" appReveal [appRevealDelay]="390">
   @for (c of categoryFilters; track c.id) {
     <button class="filter-btn" [class.active]="activeCategory() === c.id" (click)="activeCategory.set(c.id)">
       {{ c.label }}
@@ -56,21 +56,25 @@
 <!-- ─── BROWSE MODE ───────────────────────────────────────────── -->
 @if (mode() === 'browse') {
   @if (visibleQA().length === 0) {
-    <div class="empty-state">No questions match the selected filters.</div>
-  } @else {
-    <div class="tip-box">
-      <strong>How to use:</strong> Read the question, close the accordion, try to answer out loud, then open it to
-      check. Rate yourself — it helps you track what sticks.
+    <div class="empty-state">
+      <app-bubbles [turns]="emptyStateTurns()" />
     </div>
+  } @else {
+    <app-napkin lead="tip —" label="How to use this page" class="howto-napkin">
+      Read the question, keep the accordion closed, and try answering <strong>out loud</strong> before you check it.
+      Rating yourself afterward is what tells you what's actually sticking.
+    </app-napkin>
     <div class="qa-list">
-      @for (qa of visibleQA(); track qa.id) {
+      @for (qa of visibleQA(); track qa.id; let i = $index) {
         <div
           class="qa-card"
           [class.rated-easy]="getRating(qa.id) === 'easy'"
           [class.rated-review]="getRating(qa.id) === 'review'"
+          appReveal
+          [appRevealDelay]="(i % 6) * 40"
         >
           <div class="qa-header" (click)="toggle(qa.id)">
-            <div class="qa-q">{{ qa.q }}</div>
+            <div class="qa-q"><app-rich-text [text]="qa.q" /></div>
             <div class="qa-badges">
               @if (getRating(qa.id) === 'easy') {
                 <span class="badge-easy">✓ Easy</span>
@@ -85,19 +89,15 @@
           </div>
           @if (isOpen(qa.id)) {
             <div class="qa-body">
-              <div class="qa-answer">{{ qa.a }}</div>
+              <div class="qa-answer"><app-rich-text [text]="qa.a" /></div>
               @if (qa.followUp) {
                 <div class="qa-followup">
-                  <strong>Follow-up question</strong>
-                  {{ qa.followUp }}
+                  <strong class="qa-followup__label">Follow-up question</strong>
+                  <app-rich-text [text]="qa.followUp" />
                 </div>
               }
               @if (qa.topicPath) {
-                <a
-                  [routerLink]="'/' + qa.topicPath"
-                  style="display: inline-block; margin-bottom: 10px; font-size: 0.82rem; color: var(--blue)"
-                  >Study this topic →</a
-                >
+                <a [routerLink]="'/' + qa.topicPath" class="topic-link topic-link--browse">Study this topic →</a>
               }
               <div class="browse-rate">
                 <button class="rate-easy" (click)="browseRate(qa.id, 'easy')">✓ Got it</button>
@@ -114,12 +114,14 @@
 <!-- ─── FLASHCARD MODE ───────────────────────────────────────── -->
 @if (mode() === 'flashcard') {
   @if (flashQueue().length === 0) {
-    <div class="empty-state">No questions match the selected filters.</div>
+    <div class="empty-state">
+      <app-bubbles [turns]="emptyStateTurns()" />
+    </div>
   } @else if (sessionDone()) {
     <!-- Session summary -->
     <div class="session-done">
       <div class="done-title">Session complete!</div>
-      <p style="color: var(--text-muted); margin: 0 0 4px">You went through {{ flashQueue().length }} questions.</p>
+      <p class="done-sub">You went through {{ flashQueue().length }} questions.</p>
       <div class="done-stats">
         <div class="done-stat easy-stat">
           <strong>{{ easyCount() }}</strong>
@@ -141,8 +143,8 @@
           <h3>Questions to revisit ({{ reviewQueue().length }})</h3>
           @for (qa of reviewQueue(); track qa.id) {
             <div class="done-review-item" (click)="jumpTo(qa.id)">
-              <span style="flex-shrink: 0; color: #f59e0b">↺</span>
-              {{ qa.q }}
+              <span class="done-review-icon" aria-hidden="true">↺</span>
+              <app-rich-text [text]="qa.q" />
             </div>
           }
         </div>
@@ -152,9 +154,7 @@
     <!-- Active flashcard session -->
     <div class="fc-wrap">
       <div class="fc-topbar">
-        <span style="font-size: 0.82rem; color: var(--text-muted)">
-          {{ ratedCount() }} / {{ flashQueue().length }} rated
-        </span>
+        <span class="fc-rated-count"> {{ ratedCount() }} / {{ flashQueue().length }} rated </span>
         <div class="fc-prog-bar-outer">
           <div class="fc-prog-bar-inner" [style.width]="(ratedCount() / flashQueue().length) * 100 + '%'"></div>
         </div>
@@ -166,29 +166,23 @@
           <div class="fc-eyebrow">
             <span class="badge-level {{ card.level }}">{{ card.level }}</span>
             <span class="badge-cat">{{ card.category }}</span>
-            <span style="margin-left: auto">{{ cardIndex() + 1 }} / {{ flashQueue().length }}</span>
+            <span class="fc-position">{{ cardIndex() + 1 }} / {{ flashQueue().length }}</span>
           </div>
 
           @if (!revealed()) {
-            <p class="fc-question">{{ card.q }}</p>
+            <p class="fc-question"><app-rich-text [text]="card.q" /></p>
             <p class="fc-reveal-hint">Think about it, then tap to reveal the answer.</p>
           } @else {
-            <p
-              class="fc-question"
-              style="font-size: 0.92rem; font-weight: 400; color: var(--text-muted); margin-bottom: 8px"
-            >
-              {{ card.q }}
-            </p>
-            <div class="fc-answer">{{ card.a }}</div>
+            <p class="fc-question fc-question--asked"><app-rich-text [text]="card.q" /></p>
+            <div class="fc-answer"><app-rich-text [text]="card.a" /></div>
             @if (card.followUp) {
-              <div class="fc-followup"><strong>Follow-up</strong>{{ card.followUp }}</div>
+              <div class="fc-followup">
+                <strong class="fc-followup__label">Follow-up</strong>
+                <app-rich-text [text]="card.followUp" />
+              </div>
             }
             @if (card.topicPath) {
-              <a
-                [routerLink]="'/' + card.topicPath"
-                style="display: inline-block; margin-top: 12px; font-size: 0.82rem; color: var(--blue)"
-                >Study this topic →</a
-              >
+              <a [routerLink]="'/' + card.topicPath" class="topic-link topic-link--fc">Study this topic →</a>
             }
           }
         </div>

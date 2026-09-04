@@ -10,6 +10,8 @@ import {
   type Difficulty,
 } from '../practice/practice-data';
 import { recordMisses } from '../practice/review-queue';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Napkin, TapeCard } from '../../shared/brain';
 
 /** Which screen the drill page is on. See {@link Flashcards}. */
 type Phase = 'config' | 'drill' | 'summary';
@@ -51,7 +53,7 @@ const DECK_SIZES = [10, 20, 40] as const;
  */
 @Component({
   selector: 'app-flashcards',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, TapeCard, Napkin],
   host: { '(window:keydown)': 'onKey($event)' },
   styleUrl: './flashcards.css',
   templateUrl: './flashcards.html',

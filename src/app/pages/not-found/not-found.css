@@ -1,3 +1,18 @@
+/* ============================================================
+   404 — the router's wildcard destination.
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a tiny, high-visibility page, not a lesson, so it does not opt
+   into `.lesson.bf` — no Chapter/CodeLab treatment. It gets the warm
+   palette and type for free from the app-wide remap in that file's §3;
+   what follows is (a) retinting the two literal indigo/purple colours this
+   page used to hard-code against the old theme, and (b) enough room and
+   personality that a wrong turn still feels like part of the same book as
+   everywhere else in the app — this is exactly the kind of small, blunt
+   page the brief calls out as a good place for the hand-voice typeface,
+   used once and briefly rather than for the whole message.
+   ============================================================ */
+
 .not-found {
   display: flex;
   flex-direction: column;
@@ -5,54 +20,117 @@
   justify-content: center;
   min-height: 60vh;
   text-align: center;
-  padding: 48px 24px;
+  padding: 56px 24px;
 }
+
+/* The author leaning in for one aside before the page gets on with telling
+   you what happened — brain-friendly.css §6. `.bf-hand`/`.bf-hand--note`
+   are the bare (unscoped) pairing already used the same way for an
+   empty-state line on the restyled Progress page: hand voice, muted ink,
+   never load-bearing.
+
+   `.aside` (the `<p>`, carrying `appReveal`) and `.hand` (a nested `<span>`
+   around the text) are two elements, not one, on purpose: `appReveal`
+   toggles `transform` between the global `.reveal`/`.reveal--visible`
+   rules in src/styles.css, and Angular's emulated view encapsulation
+   compiles this component's own selectors with an `[_ngcontent-*]`
+   attribute appended — which would give a same-element `.hand { transform:
+   rotate(...) }` higher specificity than those unscoped global rules and
+   permanently cancel their translateY, no matter which one is declared
+   "last". Splitting the tilt onto a child sidesteps the conflict entirely:
+   the `<p>` slides and fades like every other element on this page, and
+   the `<span>`'s rotate composes on top of that instead of fighting it. */
+.aside {
+  margin: 0 0 6px;
+}
+.hand {
+  display: inline-block;
+  transform: rotate(-1.5deg);
+}
+
+/* The big numeral. Was a flat indigo→purple gradient (#6366f1 → #a855f7)
+   that had nothing to do with the rest of the old theme's palette either;
+   swapped for the same ink→accent gradient the Certification and Practice
+   hero headlines use, so a 404 reads as the same product as everywhere
+   else you can land after a wrong click. */
 .code {
-  font-size: 6rem;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(4.5rem, 15vw, 7.5rem);
   line-height: 1;
-  background: linear-gradient(135deg, #6366f1, #a855f7);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  background: linear-gradient(100deg, var(--text), var(--accent));
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin: 0 0 16px;
+  color: transparent;
 }
+
 h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3.6vw, 1.9rem);
+  letter-spacing: -0.008em;
+  color: var(--text);
+  margin: 0 0 10px;
 }
-p {
+
+.lead {
   color: var(--text-muted);
-  margin: 0 0 32px;
-  max-width: 360px;
+  line-height: 1.6;
+  margin: 0 0 36px;
+  max-width: 380px;
 }
+
 .actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
   justify-content: center;
 }
+
 .btn-primary {
-  padding: 10px 20px;
-  background: #6366f1;
-  color: #fff;
-  border-radius: 8px;
+  padding: 11px 24px;
+  /* --accent-solid (brain-friendly.css §3), not plain --accent: plain
+     accent + --bg text measures only 4.12:1 in light mode, under WCAG AA's
+     4.5:1 line — see that token's own comment for the fix and the numbers. */
+  background: var(--accent-solid);
+  color: var(--bg);
+  border-radius: var(--bf-r-pill, 999px);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.92rem;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 }
 .btn-primary:hover {
-  background: #5558e3;
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
+.btn-primary:active {
+  transform: translateY(0) scale(0.975);
+  box-shadow: none;
+}
+
 .btn-ghost {
-  padding: 10px 20px;
+  padding: 11px 24px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--bf-r-pill, 999px);
   text-decoration: none;
   color: var(--text);
   font-size: 0.92rem;
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 .btn-ghost:hover {
   background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }

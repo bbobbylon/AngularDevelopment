@@ -1,14 +1,70 @@
-/* ─── layout ────────────────────────────────────────── */
+/* ============================================================
+   Interview Prep — 253 interview Q&As in two modes (browse
+   accordion, flashcard drill).
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a study tool, not a lesson, so it does not opt into `.lesson.bf`
+   — no Chapter/CodeLab/annotated-code treatment here. It picks up the warm
+   palette and type for free from the app-wide remap in that file's §3; what
+   follows is (a) retinting every literal colour this page used to hard-code
+   against the old indigo/zinc theme, and (b) the room, radii and motion the
+   rest of the restyled app now has.
+
+   Colour roles follow the same six-hue legend as practice.css and
+   certification.css — the two other exam-prep pages this one is meant to
+   read as one system with:
+     --accent  interactive — buttons, filter chips, the thing you can press
+     --amber   "needs another pass" — the review rating and the mid-level
+               tier, mirroring the Quiz component's own "gold = commit"
+               convention (a card you have not yet nailed down)
+     --green   "you know this" — the easy rating and the junior tier
+     --violet  a named subject, not a correctness signal — the category
+               chip, exactly as practice.css's own .badge-category
+   Tier badges (junior/mid/senior) deliberately avoid red for "senior", for
+   the same reason certification.css and practice.css give: red is spent
+   elsewhere as a correctness/danger signal, and a senior badge that reads
+   as an error would be actively confusing. Junior/mid/senior instead follow
+   the other two exam-prep pages' own green/amber/accent tier convention.
+   ============================================================ */
+
 :host {
   display: block;
   max-width: 900px;
   margin: 0 auto;
 }
+
+/* Inline code / bold emphasis rendered by <app-rich-text> out of the Q&A
+   copy's existing `backtick` and **bold** markers. Scoped to this
+   component's view (Angular's emulated encapsulation), so it never leaks
+   onto a lesson or any other page — the equivalent of `.lesson.bf`'s own
+   inline-code and <strong> treatment, hand-rolled from the raw tokens
+   because this page does not carry the `.lesson.bf` scope. */
+:host ::ng-deep code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  /* var(--accent) alone measures 3.93:1 on --bf-accent-wash in light mode —
+     short of the 4.5:1 AA text minimum. An 18% blend toward --text clears
+     AA in both schemes (~5:1) without meaningfully changing the hue. */
+  color: color-mix(in srgb, var(--accent) 82%, var(--text));
+  background: var(--bf-accent-wash);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 6px;
+  padding: 0.08em 0.4em;
+}
+:host ::ng-deep strong {
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ─── hero ────────────────────────────────────────────────── */
 .hero {
   text-align: center;
   padding: 40px 24px 24px;
 }
 .hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   margin: 12px 0;
 }
@@ -17,27 +73,33 @@
   margin: 0 auto 20px;
   color: var(--text-muted);
 }
+
+/* ---- Stat tiles — app-tape-card, one per running total ---- */
 .stats-row {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
-.stat-box {
-  text-align: center;
-  padding: 10px 18px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
+.stats-row app-tape-card {
+  flex: 1 1 150px;
+  max-width: 180px;
+  text-align: left;
 }
-.stat-box strong {
+.stat-num {
   display: block;
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  line-height: 1.1;
+  color: var(--bf-ink);
 }
-.stat-box span {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+.stat-label {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.76rem;
+  color: var(--bf-ink-2);
 }
 
 /* ─── mode toggle ─────────────────────────────────── */
@@ -49,23 +111,29 @@
 }
 .mode-btn {
   padding: 9px 22px;
-  border-radius: 8px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: var(--surface);
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--text);
   font-weight: 500;
-  transition: all 0.15s;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+/* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
 .mode-btn.active {
-  background: #6366f1;
-  color: #fff;
-  border-color: #6366f1;
+  background: var(--accent-solid);
+  color: var(--bg);
+  border-color: var(--accent-solid);
 }
 .mode-btn:hover:not(.active) {
-  border-color: #6366f1;
-  color: #6366f1;
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 /* ─── filters ─────────────────────────────────────── */
@@ -75,19 +143,39 @@
   flex-wrap: wrap;
   padding: 0 24px 10px;
 }
+.filters--cats {
+  padding-top: 0;
+}
 .filter-btn {
   padding: 5px 13px;
-  border-radius: 20px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: var(--surface);
   cursor: pointer;
   font-size: 0.83rem;
   color: var(--text);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.filter-btn:hover:not(.active) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+/* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
 .filter-btn.active {
-  background: #6366f1;
-  color: #fff;
-  border-color: #6366f1;
+  background: var(--accent-solid);
+  color: var(--bg);
+  border-color: var(--accent-solid);
+}
+
+/* ---- "How to use this page" — app-napkin, the one thing to do before
+   the list, not another tinted rectangle among the many badges below ---- */
+.howto-napkin {
+  display: block;
+  margin: 0 24px 20px;
 }
 
 /* ─── browse: qa accordion ───────────────────────── */
@@ -99,16 +187,23 @@
 }
 .qa-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--bf-r-lg, 18px);
   overflow: hidden;
   background: var(--surface);
-  transition: border-color 0.15s;
+  transition:
+    border-color 0.15s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+.qa-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bf-shadow-lift);
 }
 .qa-card.rated-easy {
-  border-color: #22c55e;
+  border-color: var(--green);
 }
 .qa-card.rated-review {
-  border-color: #f59e0b;
+  border-color: var(--amber);
 }
 .qa-header {
   display: flex;
@@ -119,7 +214,7 @@
   user-select: none;
 }
 .qa-header:hover {
-  background: rgba(99, 102, 241, 0.04);
+  background: var(--bf-accent-wash);
 }
 .qa-q {
   font-weight: 500;
@@ -132,52 +227,66 @@
   gap: 5px;
   flex-shrink: 0;
   align-items: center;
+  flex-wrap: wrap;
 }
+
+/* Tier badges — same green/amber/accent convention as practice.css's
+   .badge-diff and certification.css's .exam-level-badge, so all three
+   exam-prep pages read as one system. */
 .badge-level {
   font-size: 0.7rem;
-  padding: 3px 8px;
-  border-radius: 20px;
+  padding: 3px 9px;
+  border-radius: var(--bf-r-pill, 999px);
   font-weight: 700;
+  text-transform: capitalize;
 }
 .badge-level.junior {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--bf-olive-wash);
+  color: var(--green);
 }
 .badge-level.mid {
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--bf-gold-wash);
+  /* Text-on-wash contrast fix — see the note on the ::ng-deep code rule above;
+     applies to every var(--amber)/var(--accent)/var(--violet) text-on-wash
+     pair below. */
+  color: color-mix(in srgb, var(--amber) 82%, var(--text));
 }
 .badge-level.senior {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bf-accent-wash);
+  color: color-mix(in srgb, var(--accent) 82%, var(--text));
 }
+
+/* Category — a named subject, not a correctness state, so it reuses the
+   "new vocabulary" hue rather than a fourth colour with its own meaning.
+   Same pattern as practice.css's .badge-category. */
 .badge-cat {
   font-size: 0.7rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 3px 9px;
+  border-radius: var(--bf-r-pill, 999px);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--violet) 32%, transparent);
+  color: color-mix(in srgb, var(--violet) 82%, var(--text));
+  text-transform: capitalize;
 }
 .badge-easy {
   font-size: 0.7rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: #dcfce7;
-  color: #166534;
+  padding: 3px 9px;
+  border-radius: var(--bf-r-pill, 999px);
+  background: var(--bf-olive-wash);
+  color: var(--green);
   font-weight: 700;
 }
 .badge-review {
   font-size: 0.7rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: #fef9c3;
-  color: #854d0e;
+  padding: 3px 9px;
+  border-radius: var(--bf-r-pill, 999px);
+  background: var(--bf-gold-wash);
+  color: color-mix(in srgb, var(--amber) 82%, var(--text));
   font-weight: 700;
 }
 .qa-chevron {
   flex-shrink: 0;
-  transition: transform 0.2s;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   color: var(--text-muted);
   font-size: 0.8rem;
 }
@@ -192,53 +301,82 @@
   margin: 12px 0 8px;
   font-size: 0.91rem;
   line-height: 1.65;
+  color: color-mix(in srgb, var(--text) 92%, var(--bg));
 }
-.qa-followup {
+
+/* Follow-up callout — "look here", the accent hue, since a good interviewer's
+   follow-up is usually where the interview is actually decided. */
+.qa-followup,
+.fc-followup {
   margin: 8px 0 12px;
   padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius);
+  background: var(--bf-accent-wash);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   font-size: 0.84rem;
+  line-height: 1.6;
 }
-.qa-followup strong {
+/* `strong.` rather than a bare class: the page-wide `strong` rule above
+   compiles (via ::ng-deep) to an attribute+type selector, which otherwise
+   outranks a single class here and would win the colour back to ink. */
+strong.qa-followup__label,
+strong.fc-followup__label {
   display: block;
   margin-bottom: 3px;
-  font-size: 0.75rem;
-  color: #6366f1;
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--accent) 82%, var(--text));
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
 }
 .browse-rate {
   display: flex;
   gap: 8px;
   margin-top: 10px;
 }
-.rate-easy {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid #22c55e;
-  background: rgba(34, 197, 94, 0.08);
-  color: #166534;
-  cursor: pointer;
-  font-size: 0.83rem;
-  font-weight: 600;
+.topic-link {
+  display: inline-block;
+  font-size: 0.82rem;
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.rate-easy:hover {
-  background: rgba(34, 197, 94, 0.18);
+.topic-link--browse {
+  margin: 0 0 10px;
 }
+.topic-link--fc {
+  margin: 12px 0 0;
+}
+
+/* Rated pills — outlined so the answer body underneath stays the loudest
+   thing on the card; same green/amber pair as the tier badges above. */
+.rate-easy,
 .rate-review {
   padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.08);
-  color: #854d0e;
+  border-radius: var(--bf-r-pill, 999px);
   cursor: pointer;
   font-size: 0.83rem;
   font-weight: 600;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rate-easy {
+  border: 1px solid var(--green);
+  background: var(--bf-olive-wash);
+  color: var(--green);
+}
+.rate-easy:hover {
+  background: color-mix(in srgb, var(--green) 20%, var(--bf-olive-wash));
+  transform: translateY(-1px);
+}
+.rate-review {
+  border: 1px solid var(--amber);
+  background: var(--bf-gold-wash);
+  color: color-mix(in srgb, var(--amber) 82%, var(--text));
 }
 .rate-review:hover {
-  background: rgba(245, 158, 11, 0.18);
+  background: color-mix(in srgb, var(--amber) 20%, var(--bf-gold-wash));
+  transform: translateY(-1px);
 }
 
 /* ─── flashcard ──────────────────────────────────── */
@@ -252,18 +390,23 @@
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
+.fc-rated-count {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
 .fc-prog-bar-outer {
   flex: 1;
   height: 6px;
   background: var(--border);
   border-radius: 3px;
   min-width: 80px;
+  overflow: hidden;
 }
 .fc-prog-bar-inner {
   height: 100%;
   border-radius: 3px;
-  transition: width 0.3s;
-  background: linear-gradient(90deg, #22c55e, #6366f1);
+  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--green), var(--accent));
 }
 .fc-counts {
   font-size: 0.82rem;
@@ -273,17 +416,17 @@
 .fc-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: var(--bf-r-lg, 20px);
   min-height: 280px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 36px 32px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow);
   transition:
-    opacity 0.18s,
-    transform 0.18s;
+    opacity 0.18s ease,
+    transform 0.18s ease;
 }
 .fc-card.fading {
   opacity: 0;
@@ -296,38 +439,39 @@
   color: var(--text-muted);
   margin-bottom: 14px;
   display: flex;
+  align-items: center;
   gap: 8px;
 }
-.fc-question {
-  font-size: 1.18rem;
-  font-weight: 600;
-  line-height: 1.5;
-  margin: 0 0 20px;
+.fc-position {
+  margin-left: auto;
 }
-.fc-reveal-hint {
-  font-size: 0.85rem;
+.fc-question {
+  font-family: var(--font-display);
+  font-size: 1.22rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0 0 20px;
+  color: var(--bf-ink);
+}
+.fc-question--asked {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 400;
   color: var(--text-muted);
+  margin-bottom: 8px;
+}
+/* The author whispering "go on, guess" — a margin aside, not body copy, so
+   it takes the hand voice rather than the reading face. */
+.fc-reveal-hint {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  color: var(--accent);
+  margin: 0;
 }
 .fc-answer {
   font-size: 0.94rem;
   line-height: 1.65;
   color: var(--text);
-}
-.fc-followup {
-  margin-top: 14px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  font-size: 0.85rem;
-}
-.fc-followup strong {
-  display: block;
-  font-size: 0.74rem;
-  color: #6366f1;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
 }
 .fc-actions {
   display: flex;
@@ -337,51 +481,76 @@
 }
 .fc-reveal-btn {
   padding: 11px 28px;
-  background: #6366f1;
-  color: #fff;
+  /* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
+  color: var(--bg);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   cursor: pointer;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 }
 .fc-reveal-btn:hover {
-  background: #5558e3;
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
-.fc-rate-easy {
-  padding: 11px 24px;
-  border-radius: 10px;
-  border: 2px solid #22c55e;
-  background: rgba(34, 197, 94, 0.1);
-  color: #166534;
-  cursor: pointer;
-  font-size: 0.95rem;
-  font-weight: 700;
+.fc-reveal-btn:active {
+  transform: translateY(0) scale(0.975);
+  box-shadow: none;
 }
-.fc-rate-easy:hover {
-  background: rgba(34, 197, 94, 0.2);
-}
+.fc-rate-easy,
 .fc-rate-review {
   padding: 11px 24px;
-  border-radius: 10px;
-  border: 2px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
-  color: #854d0e;
+  border-radius: var(--bf-r-pill, 999px);
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 700;
+  transition:
+    background-color 0.15s ease,
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fc-rate-easy {
+  border: 2px solid var(--green);
+  background: var(--bf-olive-wash);
+  color: var(--green);
+}
+.fc-rate-easy:hover {
+  background: color-mix(in srgb, var(--green) 22%, var(--bf-olive-wash));
+  transform: translateY(-1px);
+}
+.fc-rate-review {
+  border: 2px solid var(--amber);
+  background: var(--bf-gold-wash);
+  color: color-mix(in srgb, var(--amber) 82%, var(--text));
 }
 .fc-rate-review:hover {
-  background: rgba(245, 158, 11, 0.2);
+  background: color-mix(in srgb, var(--amber) 22%, var(--bf-gold-wash));
+  transform: translateY(-1px);
 }
 .fc-skip {
   padding: 11px 18px;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--text-muted);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fc-skip:hover {
+  border-color: var(--accent);
+  /* var(--accent) alone on the page background measures 4.12:1 in light
+     mode — short of AA; the same blend used above clears it. */
+  color: color-mix(in srgb, var(--accent) 82%, var(--text));
+  transform: translateY(-1px);
 }
 
 /* ─── session done ────────────────────────────────── */
@@ -390,9 +559,14 @@
   padding: 48px 24px 60px;
 }
 .done-title {
-  font-size: 1.8rem;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
   font-weight: 700;
   margin: 0 0 8px;
+}
+.done-sub {
+  color: var(--text-muted);
+  margin: 0 0 4px;
 }
 .done-stats {
   display: flex;
@@ -403,19 +577,20 @@
 }
 .done-stat {
   padding: 14px 22px;
-  border-radius: 14px;
+  border-radius: var(--bf-r, 14px);
   text-align: center;
 }
 .done-stat.easy-stat {
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid #22c55e;
+  background: var(--bf-olive-wash);
+  border: 1px solid var(--green);
 }
 .done-stat.review-stat {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid #f59e0b;
+  background: var(--bf-gold-wash);
+  border: 1px solid var(--amber);
 }
 .done-stat strong {
   display: block;
+  font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 800;
 }
@@ -423,10 +598,10 @@
   font-size: 0.83rem;
 }
 .done-stat.easy-stat strong {
-  color: #166534;
+  color: var(--green);
 }
 .done-stat.review-stat strong {
-  color: #854d0e;
+  color: var(--amber);
 }
 .done-actions {
   display: flex;
@@ -448,31 +623,34 @@
   align-items: flex-start;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.05);
+  border-radius: var(--radius);
+  border: 1px solid var(--amber);
+  background: var(--bf-gold-wash);
   font-size: 0.88rem;
   margin-bottom: 8px;
   cursor: pointer;
   text-align: left;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .done-review-item:hover {
-  background: rgba(245, 158, 11, 0.12);
+  background: color-mix(in srgb, var(--amber) 18%, var(--bf-gold-wash));
+  transform: translateX(2px);
+}
+.done-review-icon {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--amber) 82%, var(--text));
 }
 
 .empty-state {
   text-align: center;
-  padding: 60px 24px;
-  color: var(--text-muted);
+  padding: 48px 24px;
 }
-.tip-box {
-  margin: 0 24px 16px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  font-size: 0.87rem;
-  line-height: 1.5;
+.empty-state app-bubbles {
+  display: block;
+  max-width: 460px;
+  margin: 0.5rem auto 0;
 }
 
 @media (max-width: 600px) {
@@ -481,6 +659,6 @@
     min-height: 220px;
   }
   .fc-question {
-    font-size: 1rem;
+    font-size: 1.05rem;
   }
 }

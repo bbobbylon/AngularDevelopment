@@ -2,6 +2,8 @@ import { DatePipe } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BookmarksService } from '../../core/bookmarks.service';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Napkin } from '../../shared/brain';
 
 /**
  * Bookmarks & Notes — every starred lesson or practice question in one
@@ -9,10 +11,14 @@ import { BookmarksService } from '../../core/bookmarks.service';
  * global header star (any lesson page, wired in app.ts) and the per-card
  * star on Practice challenges (practice.ts). This page only reads/edits the
  * shared BookmarksService store; it owns no state of its own.
+ *
+ * Restyled onto the brain-friendly tokens (see bookmarks.css's header
+ * comment) — `Napkin` dresses the empty state and `appReveal` staggers the
+ * card list in on scroll; neither changes what the page does.
  */
 @Component({
   selector: 'app-bookmarks',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, RevealOnScrollDirective, Napkin],
   styleUrl: './bookmarks.css',
   templateUrl: './bookmarks.html',
 })

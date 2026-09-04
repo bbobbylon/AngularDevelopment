@@ -1,7 +1,7 @@
 <div class="pg-hero">
-  <span class="pill">HTTP · Interceptors · Auth</span>
-  <h1>API Playground</h1>
-  <p>
+  <span class="pill" appReveal>HTTP · Interceptors · Auth</span>
+  <h1 appReveal [appRevealDelay]="80">API Playground</h1>
+  <p appReveal [appRevealDelay]="160">
     Build a real request, fire it at a live API, and dissect every step of the journey — the exact headers, bodies and
     objects at each stage, from
     <code>HttpClient</code> call to parsed response.
@@ -11,7 +11,7 @@
 <div class="layout">
   <!-- ======== builder ======== -->
   <div>
-    <div class="panel">
+    <div class="panel" appReveal [appRevealDelay]="220">
       <h3>Presets</h3>
       <div class="chip-row">
         @for (preset of presets; track preset.label) {
@@ -61,14 +61,12 @@
       <h3>Auth</h3>
       <label class="toggle">
         <input type="checkbox" [checked]="authOn()" (change)="authOn.set($any($event.target).checked)" />
-        <span>
-          Attach <code>Authorization: Bearer &lt;JWT&gt;</code> via an interceptor
-          <small
-            >The token is structurally real — decoded below — but unsigned. The API ignores it; watch WHERE it gets
-            attached in step 2.</small
-          >
-        </span>
+        <span> Attach <code>Authorization: Bearer &lt;JWT&gt;</code> via an interceptor </span>
       </label>
+      <app-napkin lead="psst —" label="About this demo token" class="auth-napkin">
+        The token is structurally real — decoded below — but unsigned. The API ignores it; watch WHERE it gets attached
+        in step 2.
+      </app-napkin>
       @if (authOn()) {
         <div class="jwt-box">
           <span class="jwt-h">{{ jwtParts[0] }}</span
@@ -109,18 +107,17 @@
       </button>
     </div>
 
-    <div class="panel code-panel">
+    <div class="panel code-panel" appReveal [appRevealDelay]="280">
       <h3>The same request in Angular</h3>
-      <pre class="code-block">{{ generatedCode() }}</pre>
+      <pre class="code-block" [innerHTML]="generatedCodeHtml()"></pre>
     </div>
   </div>
 
   <!-- ======== lifecycle ======== -->
   <div class="steps">
     @if (!started()) {
-      <div class="panel placeholder-msg">
-        Configure a request and hit <strong>Send</strong> — the six lifecycle steps will light up here with the real
-        data at each stage.
+      <div class="panel placeholder-msg" appReveal [appRevealDelay]="240">
+        <app-bubbles [turns]="introTurns" />
       </div>
     }
     @for (meta of stepMeta; track $index) {
@@ -130,6 +127,8 @@
         [class.active]="state === 'active'"
         [class.done]="state === 'done'"
         [class.error]="state === 'error'"
+        appReveal
+        [appRevealDelay]="240 + $index * 60"
       >
         <button class="step-head" (click)="toggleExpand($index)" [disabled]="state === 'idle'">
           <span class="step-dot">{{ state === 'done' ? '✓' : state === 'error' ? '✗' : $index + 1 }}</span>
@@ -143,7 +142,7 @@
 
             @switch ($index) {
               @case (0) {
-                <pre class="code-block">{{ requestObjectJson() }}</pre>
+                <pre class="code-block" [innerHTML]="requestObjectHtml()"></pre>
                 <p class="note">This object is frozen — every later change must clone it.</p>
               }
               @case (1) {
@@ -167,7 +166,7 @@
                 </table>
               }
               @case (2) {
-                <pre class="code-block">{{ wireMessage() }}</pre>
+                <pre class="code-block" [innerHTML]="wireMessageHtml()"></pre>
               }
               @case (3) {
                 @if (state === 'active') {
@@ -205,10 +204,10 @@
                     Non-2xx → the observable ERRORS instead of emitting. Your <code>catchError</code> / error callback
                     receives an <code>HttpErrorResponse</code>:
                   </p>
-                  <pre class="code-block">{{ errorMessage() }}</pre>
+                  <pre class="code-block" [innerHTML]="errorMessageHtml()"></pre>
                 } @else {
                   <p class="blurb" style="margin-bottom: 4px">{{ parsedSummary() }}</p>
-                  <pre class="code-block">{{ rawBody() }}</pre>
+                  <pre class="code-block" [innerHTML]="rawBodyHtml()"></pre>
                 }
               }
             }
@@ -218,10 +217,10 @@
     }
 
     @if (started() && !running()) {
-      <div class="panel" style="text-align: center; padding: 14px">
-        <a routerLink="/http-basics" style="font-size: 0.84rem">📚 Study HTTP basics →</a>
-        <a routerLink="/http-interceptors" style="font-size: 0.84rem; margin-left: 16px">📚 Interceptors →</a>
-        <a routerLink="/http-crud" style="font-size: 0.84rem; margin-left: 16px">📚 CRUD patterns →</a>
+      <div class="panel next-steps" appReveal>
+        <a routerLink="/http-basics">📚 Study HTTP basics →</a>
+        <a routerLink="/http-interceptors">📚 Interceptors →</a>
+        <a routerLink="/http-crud">📚 CRUD patterns →</a>
       </div>
     }
   </div>

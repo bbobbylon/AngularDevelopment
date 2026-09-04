@@ -1,5 +1,8 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Bubbles, Napkin, TapeCard, type BubbleTurn } from '../../shared/brain';
+import { RichText } from '../../shared/teaching';
 
 /** Seniority a question is typically asked at. `all` is the filter sentinel. */
 type Level = 'all' | 'junior' | 'mid' | 'senior';
@@ -2242,7 +2245,7 @@ const QA_LIST: QA[] = [
  */
 @Component({
   selector: 'app-interview',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, TapeCard, Bubbles, Napkin, RichText],
   styleUrl: './interview.css',
   templateUrl: './interview.html',
 })
@@ -2263,6 +2266,29 @@ export class Interview {
     return QA_LIST.filter(
       (q) => (lev === 'all' || q.level === lev) && (cat === 'all' || q.category === cat),
     );
+  });
+
+  /**
+   * The empty-filter state, staged as a two-line exchange instead of a flat "no
+   * results" sentence — it names the filters actually in effect, so the reader
+   * sees what to loosen rather than reading a generic message that doesn't
+   * reflect what they picked. Shared by both modes: browse and flashcard read
+   * the same {@link visibleQA} / {@link flashQueue} filter, so they hit empty
+   * together.
+   *
+   * Purely presentational: derived from the same filter signals the list
+   * itself reads, and changes nothing about how filtering works.
+   *
+   * @see pages/practice/practice.ts — the same device, same pattern.
+   */
+  readonly emptyStateTurns = computed<BubbleTurn[]>(() => {
+    const levLabel = this.levelFilters.find((l) => l.id === this.activeLevel())?.label ?? 'All';
+    const catLabel =
+      this.categoryFilters.find((c) => c.id === this.activeCategory())?.label ?? 'All';
+    return [
+      { who: 'You', says: `Show me **${levLabel}** · **${catLabel}**.` },
+      { who: 'Interview Prep', says: 'Nothing back there — try widening a filter.' },
+    ];
   });
 
   // ── Browse mode state ──────────────────────────────────────────────────────

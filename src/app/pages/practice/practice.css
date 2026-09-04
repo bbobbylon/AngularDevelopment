@@ -65,7 +65,8 @@
   padding: 9px 20px;
   border-radius: var(--bf-r-pill, 999px);
   border: 1px solid transparent;
-  background: var(--accent);
+  /* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
   color: var(--bg);
   font-size: 0.88rem;
   font-weight: 700;
@@ -76,7 +77,7 @@
     background-color 0.16s ease;
 }
 .exam-cta:hover {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
   transform: translateY(-1px);
   box-shadow: var(--shadow);
   text-decoration: none;
@@ -155,10 +156,11 @@
   border-color: var(--accent);
   transform: translateY(-1px);
 }
+/* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
 .filters button.active {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--bg);
-  border-color: var(--accent);
+  border-color: var(--accent-solid);
 }
 .filters button:disabled {
   opacity: 0.45;
@@ -185,10 +187,11 @@
   border-color: var(--accent);
   transform: translateY(-1px);
 }
+/* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
 .reset-btn.active {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--bg);
-  border-color: var(--accent);
+  border-color: var(--accent-solid);
 }
 .reset-btn--end {
   margin-left: auto;
@@ -385,7 +388,8 @@
 .ch-submit {
   margin: 12px 0 0;
   padding: 8px 20px;
-  background: var(--accent);
+  /* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
   color: var(--bg);
   border: none;
   border-radius: var(--bf-r-pill, 999px);
@@ -398,7 +402,7 @@
     background-color 0.16s ease;
 }
 .ch-submit:hover:not(:disabled) {
-  background: var(--bf-accent-bright);
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
   transform: translateY(-1px);
   box-shadow: var(--shadow);
 }
