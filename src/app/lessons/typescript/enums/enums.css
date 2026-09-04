@@ -1,30 +1,13 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 8px;
-}
-.t th,
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
-}
+/* Enums & Literal Unions — lesson-specific styling.
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+   Almost everything this page draws comes from the brain-friendly layer
+   (`src/brain-friendly.css`): tables, code panels, callouts, chips, buttons
+   and the whole teaching set are themed there. The old `.t` / `.qa` blocks
+   that used to live here are gone for good — the exam questions are an
+   `<app-faq>` now, and the decision table is a bare `<table>`, both styled
+   by the shared layer.
+
+   All three demos on this page (the direction picker, the bit-flag toggles,
+   the role picker) reuse the app-wide `.demo` / `.row` / `.pill` / `.ghost`
+   classes with no bespoke markup of their own, so there is genuinely nothing
+   lesson-specific left to style here. */

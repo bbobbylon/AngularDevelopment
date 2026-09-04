@@ -1,34 +1,7 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+/*
+ * Nothing lesson-specific left to style: the `bf` layer (src/brain-friendly.css)
+ * styles `table`/`th`/`td`, `.pill`, `.demo`, `.code`, `.warn` and the whole
+ * teaching/brain component set by element and shared class, and this lesson's
+ * live components render plain `<tr>`/`<td>` into that table. Kept as an empty
+ * file rather than deleted so `styleUrl` in di-advanced.ts stays valid.
+ */

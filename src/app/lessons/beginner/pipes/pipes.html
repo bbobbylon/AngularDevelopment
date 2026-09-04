@@ -1,397 +1,711 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Pipes</span>
-  <h1>Built-in Pipes</h1>
-  <p class="lead">
-    A pipe transforms a value <em>for display</em>, right in the template, using the <code>|</code> operator. Pipes are
-    <span class="term">pure functions</span> of their input —
-    <span class="key">they format data without ever mutating it.</span>
-  </p>
-
-  <h2>You already know this symbol</h2>
-  <p>
-    Angular didn't invent <code>|</code>. It borrowed it from the Unix shell, and it means exactly the same thing there
-    as here:
-  </p>
-  <div class="code">
-    <pre>
-# In a terminal — the output of each command feeds the next, left to right:
-cat names.txt | sort | uniq
-#              └─────┘ └─────┘
-#              station  station
-
-&lt;!-- In an Angular template — same idea, same direction: --&gt;
-{{ '{{' }} now() | date:'fullDate' | uppercase {{ '}}' }}</pre>
-  </div>
-  <p>
-    So here's the mental model to carry through the rest of the page:
-    <span class="key">a chain of pipes is an assembly line.</span> A value goes in on the left and travels rightward
-    through a row of stations; each one reshapes it and hands the result to the next. Three things follow from the
-    picture, and they cover most of what people get wrong:
-  </p>
-  <ul>
-    <li>
-      <span class="right">Order matters.</span> Each station receives whatever the one before it produced — not the
-      original value.
-    </li>
-    <li>
-      <span class="right">The flow is one-way.</span> A pipe can't reach back and change <code>now()</code>. Your
-      component's data is untouched; only the rendered string differs.
-    </li>
-    <li>
-      <span class="wrong">Types matter more than you'd think.</span> <code>uppercase</code> expects a string. Put it
-      before <code>date</code> instead of after and you're feeding a <code>Date</code> object into a string pipe — the
-      station gets something it can't work with.
-    </li>
-  </ul>
-
-  <h2>Watch a value move down the line</h2>
-  <p>Here is that exact chain, with the intermediate value shown at every stage:</p>
-
-  <svg class="diagram" viewBox="0 0 760 200" role="img" aria-labelledby="pipe-chain-t pipe-chain-d">
-    <title id="pipe-chain-t">A value flowing through a two-pipe chain, showing the value at each stage</title>
-    <desc id="pipe-chain-d">
-      A Date object enters on the left. It passes through the date pipe with the fullDate format, becoming the string
-      "Friday, March 15, 2024". That string then passes through the uppercase pipe, becoming "FRIDAY, MARCH 15, 2024",
-      which is what renders. Below, a note shows the reversed order failing, because uppercase receives a Date object
-      rather than a string.
-    </desc>
-    <defs>
-      <marker id="pc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" />
-      </marker>
-    </defs>
-
-    <!-- input -->
-    <rect x="8" y="46" width="150" height="52" rx="8" fill="var(--bg-elevated)" stroke="var(--border)" />
-    <text x="83" y="68" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--text-muted)">
-      the value
-    </text>
-    <text x="83" y="86" text-anchor="middle" font-size="11" font-family="monospace" fill="var(--text)">
-      Date object
-    </text>
-
-    <!-- station 1 -->
-    <line x1="162" y1="72" x2="204" y2="72" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#pc-arrow)" />
-    <rect x="208" y="46" width="150" height="52" rx="8" fill="var(--bg-card)" stroke="var(--accent)" />
-    <text x="283" y="68" text-anchor="middle" font-size="11.5" font-family="monospace" fill="var(--accent)">
-      | date:'fullDate'
-    </text>
-    <text x="283" y="86" text-anchor="middle" font-size="10" fill="var(--text-muted)">Date → string</text>
-
-    <!-- station 2 -->
-    <line x1="362" y1="72" x2="404" y2="72" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#pc-arrow)" />
-    <text x="383" y="40" text-anchor="middle" font-size="10" font-family="monospace" fill="var(--green)">
-      'Friday, March 15, 2024'
-    </text>
-    <rect x="408" y="46" width="150" height="52" rx="8" fill="var(--bg-card)" stroke="var(--accent)" />
-    <text x="483" y="68" text-anchor="middle" font-size="11.5" font-family="monospace" fill="var(--accent)">
-      | uppercase
-    </text>
-    <text x="483" y="86" text-anchor="middle" font-size="10" fill="var(--text-muted)">string → string</text>
-
-    <!-- output -->
-    <line x1="562" y1="72" x2="604" y2="72" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#pc-arrow)" />
-    <rect x="608" y="46" width="144" height="52" rx="8" fill="var(--bg-elevated)" stroke="var(--green)" />
-    <text x="680" y="68" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--green)">rendered</text>
-    <text x="680" y="86" text-anchor="middle" font-size="9.5" font-family="monospace" fill="var(--text)">
-      'FRIDAY, MARCH 15, 2024'
-    </text>
-
-    <!-- the reversed order -->
-    <line x1="8" y1="130" x2="752" y2="130" stroke="var(--border)" stroke-width="1" />
-    <text x="8" y="154" font-size="11.5" font-weight="700" fill="var(--red)">Swap the two stations and it breaks:</text>
-    <text x="8" y="174" font-size="11" font-family="monospace" fill="var(--text-muted)">
-      now() | uppercase | date:'fullDate' — uppercase is handed a Date, not a string
-    </text>
-    <text x="8" y="192" font-size="11" fill="var(--text-muted)">
-      Each station only knows what the previous one gave it. That is the whole rule.
-    </text>
-  </svg>
-
-  <h2>Text pipes</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <input
-      aria-label="Sample text"
-      [value]="text()"
-      (input)="text.set($any($event.target).value)"
-      style="width: 100%; margin-bottom: 12px"
-    />
-    <table class="pipes">
-      <tr>
-        <td><code>uppercase</code></td>
-        <td>{{ text() | uppercase }}</td>
-      </tr>
-      <tr>
-        <td><code>lowercase</code></td>
-        <td>{{ text() | lowercase }}</td>
-      </tr>
-      <tr>
-        <td><code>titlecase</code></td>
-        <td>{{ text() | titlecase }}</td>
-      </tr>
-      <tr>
-        <td><code>slice:0:5</code></td>
-        <td>{{ text() | slice: 0 : 5 }}</td>
-      </tr>
-    </table>
-  </div>
-
-  <h2>Number pipes (with parameters)</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <input
-      aria-label="Sample number"
-      type="number"
-      [value]="num()"
-      (input)="num.set(+$any($event.target).value)"
-      style="margin-bottom: 12px"
-    />
-    <table class="pipes">
-      <tr>
-        <td><code>number:'1.2-2'</code></td>
-        <td>{{ num() | number: '1.2-2' }}</td>
-      </tr>
-      <tr>
-        <td><code>percent</code></td>
-        <td>{{ num() / 100 | percent }}</td>
-      </tr>
-      <tr>
-        <td><code>currency:'USD'</code></td>
-        <td>{{ num() | currency: 'USD' }}</td>
-      </tr>
-      <tr>
-        <td><code>currency:'EUR':'code'</code></td>
-        <td>{{ num() | currency: 'EUR' : 'code' }}</td>
-      </tr>
-    </table>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 10px">
-      The <code>'1.2-2'</code> means: at least 1 integer digit, 2–2 fraction digits.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · Pipes"
+    title="Built-in Pipes"
+    hand="or, the little | that keeps formatting out of your class"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      A <strong>pipe</strong> takes a raw value — a number, a <code>Date</code>, a whole object — and hands back
+      something ready to look at, right inside the template, using the <code>|</code> operator you've probably already
+      used in a terminal. That much takes ten minutes to learn. The other twenty are the part most tutorials skip:
+      <strong>which pipes are memoized and which aren't</strong> — the built-in docs get this one wrong more often than
+      you'd think — <strong>where <code>|</code> is and isn't legal</strong>, and the one pipe, <code>async</code>, that
+      almost never gets taught at all despite being the one you'll reach for the most.
     </p>
-  </div>
+  </app-chapter>
 
-  <app-remember variant="mnemonic" label="Decoding '1.2-2'">
-    <strong>Before the dot, a floor. After the dot, a range.</strong> Read <code>digitsInfo</code> as
-    <code>minInteger . minFraction - maxFraction</code>. So <code>'1.2-2'</code> is "at least one digit on the left,
-    exactly two on the right" — the <code>2-2</code> pins the fraction to precisely two places, which is why it's the
-    standard money format. The trap is reading the dot as a decimal point in an example number.
-    <span class="key">It's a separator between two settings, not a number.</span>
-  </app-remember>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You have a number. The user needs to see a price.</h2>
 
-  <h2>Date pipe</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <table class="pipes">
-      <tr>
-        <td><code>date</code></td>
-        <td>{{ now() | date }}</td>
-      </tr>
-      <tr>
-        <td><code>date:'short'</code></td>
-        <td>{{ now() | date: 'short' }}</td>
-      </tr>
-      <tr>
-        <td><code>date:'fullDate'</code></td>
-        <td>{{ now() | date: 'fullDate' }}</td>
-      </tr>
-      <tr>
-        <td><code>date:'HH:mm:ss'</code></td>
-        <td>{{ now() | date: 'HH:mm:ss' }}</td>
-      </tr>
-      <tr>
-        <td><code>date:'yyyy-MM-dd'</code></td>
-        <td>{{ now() | date: 'yyyy-MM-dd' }}</td>
-      </tr>
-    </table>
-  </div>
+    <p>
+      <code>num()</code> holds <code>1234.5</code>. Nobody wants to see that on screen — they want
+      <span class="key">$1,234.50</span>. Where does that formatting logic go?
+    </p>
 
-  <h2>json (great for debugging)</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="code">
-      <pre>{{ sample() | json }}</pre>
+    <p>
+      One answer: a method on the class, called from the template — <code>{{ '{{' }} formatPrice() {{ '}}' }}</code>. It
+      works, and it quietly costs more than it looks like it does: a method call in a binding
+      <span class="bf-break">re-runs on every single change-detection pass</span> that reaches that view, whether the
+      price moved or not. Another answer: format it once, store the result in a second field, and remember to update
+      that field every time the price changes. That is the exact
+      <a routerLink="/signals">effect-writing-a-second-signal</a> mistake from the signals lesson, wearing a different
+      hat — a second source of truth, one write away from disagreeing with the first.
+    </p>
+
+    <p>
+      Angular's actual answer is neither: a small, template-only operator built for exactly this job, and nothing else.
+    </p>
+
+    <app-napkin lead="hold on —" label="Predict before reading on">
+      <code>{{ '{{' }} price() | currency {{ '}}' }}</code> — does that call <code>currency</code>'s
+      <code>transform()</code> again on <em>every</em> pass that reaches this binding, the way the method call above
+      would? Or does something stop it? Hold your guess — <em>Purity</em>, further down this page, is where the real
+      answer lives, and it is stranger than a plain "yes" or "no".
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>You've used this symbol before.</h2>
+
+    <p>
+      <code>ls | grep .ts | sort</code> — a shell pipeline. Each command reads what arrived on its left, transforms it,
+      and passes the result to its right. Nothing upstream is touched; nothing downstream needs to know how the
+      transformation happened. Angular didn't invent a new idea for its template pipe — it borrowed this one,
+      <em>including the symbol</em>, because it is already the right shape for "take a value, transform it, hand it on".
+    </p>
+
+    <p>
+      <code>{{ '{{' }} now() | date:'fullDate' | uppercase {{ '}}' }}</code> reads exactly the same way:
+      <code>now()</code> goes in, <code>date</code> formats it, and whatever <code>date</code> produced goes straight
+      into <code>uppercase</code> — which has no idea a <code>Date</code> object was ever involved.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Pipe" kicker="a stage in the line" tone="accent">
+        A class with one job — a <code>transform()</code> method. <code>name</code> in its
+        <code>&#64;Pipe</code> decorator is the word you write after <code>|</code>.
+      </app-tape-card>
+      <app-tape-card heading="Argument" kicker="after the :">
+        Everything following a <code>:</code> becomes a positional parameter to <code>transform()</code>, in the order
+        written: <code>currency:'EUR':'code'</code> passes two.
+      </app-tape-card>
+      <app-tape-card heading="Chain" kicker="left to right" tone="olive">
+        The output of one pipe becomes the input to the next. <code>date | uppercase</code> formats,
+        <em>then</em> uppercases — swap the order and you get a different, usually wrong, result.
+      </app-tape-card>
+      <app-tape-card heading="Pure" kicker="the default" tone="blue">
+        Angular remembers the last input and can skip <code>transform()</code> entirely when nothing changed. What
+        "changed" means is the whole of the next big section.
+      </app-tape-card>
     </div>
-  </div>
 
-  <h2>Chaining pipes</h2>
-  <p>Pipes compose left to right:</p>
-  <div class="code">
-    <pre
-      >{{ '{{' }} now() | date: 'fullDate' | uppercase {{ '}}' }}
+    <app-remember variant="mnemonic">
+      <strong>Left to right, like a shell pipe.</strong> Value in, transformed value out, and the pipe never touches
+      what you handed it. Chain three together and you are simply piping the output of one into the input of the next.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A pipe is a class. That's the whole trick.</h2>
+
+    <p>
+      No runtime magic beyond one decorator. Here is a made-up pipe — not <code>UpperCasePipe</code> itself, so nothing
+      about it can be mistaken for special-cased built-in behaviour.
+    </p>
+
+    <app-code-lab
+      file="shout.pipe.ts"
+      [code]="pipeShapeSample"
+      [notes]="pipeShapeNotes"
+      notesLabel="Line by line — what each symbol is"
+    />
+
+    <p>
+      Which means using a pipe has one more rule than it looks like it should: a standalone component only sees the
+      pipes it lists. Forget to add <code>DatePipe</code> to <code>imports</code> and you don't get a blank date — you
+      get a compile-time error naming exactly the problem: <code>No pipe found with name 'date'.</code>
+    </p>
+
+    <app-flow
+      [steps]="transformSteps"
+      caption="What happens, in order, when Angular checks one `value | pipeName:arg` binding."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same call, from the template and from TypeScript</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="refreshNow()">Refresh <code>now</code> → {{ now() | date: 'mediumTime' }}</button>
+      </div>
+      <div class="row">
+        <span class="pill">template: {{ now() | date: 'shortTime' }}</span>
+        <span class="pill">TypeScript: {{ formattedInClass() }}</span>
+      </div>
+      <p class="demo__note">
+        <code>formattedInClass</code> calls <code>this.datePipe.transform(this.now(), 'shortTime')</code> by hand —
+        <code>DatePipe</code> was <code>inject()</code>-ed like any other service, which only works because it is also
+        listed in this component's own <code>providers</code>. Press refresh: both numbers move together, because they
+        are the same call, made from two different places.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 4. TEXT & NUMBER PIPES ============ -->
+  <section>
+    <p class="bf-eyebrow">The everyday set</p>
+    <h2>Text and numbers, formatted where they're read.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — text pipes</p>
+      <input
+        aria-label="Sample text"
+        [value]="text()"
+        (input)="text.set($any($event.target).value)"
+        style="width: 100%; margin-bottom: 12px"
+      />
+      <table>
+        <tr>
+          <td><code>uppercase</code></td>
+          <td>{{ text() | uppercase }}</td>
+        </tr>
+        <tr>
+          <td><code>lowercase</code></td>
+          <td>{{ text() | lowercase }}</td>
+        </tr>
+        <tr>
+          <td><code>titlecase</code></td>
+          <td>{{ text() | titlecase }}</td>
+        </tr>
+        <tr>
+          <td><code>slice:0:5</code></td>
+          <td>{{ text() | slice: 0 : 5 }}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — number pipes, with parameters</p>
+      <input
+        aria-label="Sample number"
+        type="number"
+        [value]="num()"
+        (input)="num.set(+$any($event.target).value)"
+        style="margin-bottom: 12px"
+      />
+      <table>
+        <tr>
+          <td><code>number:'1.2-2'</code></td>
+          <td>{{ num() | number: '1.2-2' }}</td>
+        </tr>
+        <tr>
+          <td><code>percent</code></td>
+          <td>{{ num() / 100 | percent }}</td>
+        </tr>
+        <tr>
+          <td><code>currency:'USD'</code></td>
+          <td>{{ num() | currency: 'USD' }}</td>
+        </tr>
+        <tr>
+          <td><code>currency:'EUR':'code'</code></td>
+          <td>{{ num() | currency: 'EUR' : 'code' }}</td>
+        </tr>
+      </table>
+      <p class="demo__note">
+        <code>'1.2-2'</code> decodes as <strong>minInteger.minFraction-maxFraction</strong>: at least 1 integer digit,
+        at least 2 and at most 2 fraction digits. It is a format string, not a range — <code>'1.2-2'</code> does not
+        mean "1 to 2".
+      </p>
+    </div>
+
+    <div class="tip">
+      <strong>Chaining is nothing special — it's the mental model from above, applied.</strong>
+      <div class="code" style="margin-top: 10px">
+        <pre
+          >{{ '{{' }} now() | date: 'fullDate' | uppercase {{ '}}' }}
 &rarr; {{ now() | date: 'fullDate' | uppercase }}</pre>
-  </div>
+      </div>
+      <code>date</code> runs first and hands its string to <code>uppercase</code>, which never sees the original
+      <code>Date</code> at all — the same left-to-right handoff as a shell pipeline, and the same rule for why order
+      matters: <code>uppercase | date</code> would try to format an already-uppercased <em>string</em> as a date, and
+      fail.
+    </div>
+  </section>
 
-  <div class="tip">
-    The <strong>async</strong> pipe is special: it subscribes to an Observable or reads a Signal and auto-unsubscribes.
-    It is covered alongside RxJS in the intermediate track. The <code>keyvalue</code> pipe lets you
-    <code>&#64;for</code> over an object's entries.
-  </div>
+  <!-- ============ 5. THE DATE PIPE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The date pipe</p>
+    <h2>The bug that ships to production.</h2>
 
-  <h2>Iterating objects with keyvalue</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <button class="ghost" (click)="sorted.set(!sorted())" style="margin-bottom: 12px">
-      {{ sorted() ? 'Sorted by key' : 'Insertion order' }}
-    </button>
-    <ul>
-      @for (entry of settings() | keyvalue: (sorted() ? undefined : noSort); track entry.key) {
-        <li>
-          <code>{{ entry.key }}</code
-          >: {{ entry.value }}
-        </li>
-      }
-    </ul>
-  </div>
-  <div class="code">
-    <pre
-      >{{ '{{' }} obj | keyvalue {{ '}}' }}             &lt;!-- sorted by key, default --&gt;
+    <div class="demo">
+      <p class="demo__title">Live — format strings</p>
+      <table>
+        <tr>
+          <td><code>date</code></td>
+          <td>{{ now() | date }}</td>
+        </tr>
+        <tr>
+          <td><code>date:'short'</code></td>
+          <td>{{ now() | date: 'short' }}</td>
+        </tr>
+        <tr>
+          <td><code>date:'fullDate'</code></td>
+          <td>{{ now() | date: 'fullDate' }}</td>
+        </tr>
+        <tr>
+          <td><code>date:'HH:mm:ss'</code></td>
+          <td>{{ now() | date: 'HH:mm:ss' }}</td>
+        </tr>
+        <tr>
+          <td><code>date:'medium':'UTC'</code></td>
+          <td>{{ now() | date: 'medium' : 'UTC' }}</td>
+        </tr>
+        <tr>
+          <td><code>date:'medium':'+0530'</code></td>
+          <td>{{ now() | date: 'medium' : '+0530' }}</td>
+        </tr>
+      </table>
+      <p class="demo__note">
+        <code>date</code>'s full signature is <code>date:format:timezone:locale</code>. Leave <code>timezone</code> out
+        and Angular renders in <strong>your browser's own zone</strong> — which is exactly the setting that is different
+        on every reader's machine, and the setting a bug report about "the wrong day" almost always turns out to hinge
+        on.
+      </p>
+    </div>
+
+    <p>
+      That timezone parameter controls <em>display</em> — which clock the same instant is read against. It has nothing
+      to do with a much sharper trap: <em>parsing</em> a bare date-only string, where Angular and plain JavaScript
+      quietly disagree.
+    </p>
+
+    <app-predict
+      prompt="`toDate('2024-03-15')` — Angular's own date-string parser — and `new Date('2024-03-15')` — the JavaScript engine's — both take the exact same string. Do they produce the same instant?"
+      answer="No — and the trace below shows exactly where the two paths split."
+      revealLabel="I'll guess — reveal the trace"
+    />
+
+    <app-code-lab
+      file="date-parsing.ts — traced, not run"
+      [code]="dateParseSample"
+      [notes]="dateParseNotes"
+      notesLabel="Two parsers, one string"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same string, both parses, both rendered in your own local time</p>
+      <table>
+        <tr>
+          <td><code>'2024-03-15' | date:'medium'</code></td>
+          <td>{{ '2024-03-15' | date: 'medium' }}</td>
+        </tr>
+        <tr>
+          <td><code>nativeParsedDate | date:'medium'</code></td>
+          <td>{{ nativeParsedDate | date: 'medium' }}</td>
+        </tr>
+      </table>
+      <p class="demo__note">
+        <code>nativeParsedDate</code> is <code>new Date('2024-03-15')</code>, computed once in the class. If your
+        browser's zone is west of UTC (most of the Americas), the second row shows the <strong>previous evening</strong>
+        — the UTC midnight that string parsed to, translated back into a zone several hours behind it. East of UTC
+        you'll usually see the same date with a different time instead. Either way, the two rows are provably not the
+        same instant, despite starting from one identical string.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>The fix:</strong> store instants in UTC (an ISO string with a <code>Z</code>, or epoch milliseconds), and
+      choose the display zone with the <code>timezone</code> argument explicitly rather than trusting whatever a bare
+      date-only string happens to parse to. For a value that is genuinely date-only — a birthday, not a moment — keep it
+      as a string and format with <code>timezone:'UTC'</code> so no zone conversion happens at all. An unparseable value
+      throws <code>NG02311: Unable to convert "…" into a date</code> rather than rendering silently wrong, which is at
+      least a mercy.
+    </div>
+  </section>
+
+  <!-- ============ 6. LOCALE ============ -->
+  <section>
+    <p class="bf-eyebrow">A correction</p>
+    <h2>Locale-aware pipes don't call <code>Intl</code>.</h2>
+
+    <p>
+      <code>date</code>, <code>currency</code>, <code>number</code> and <code>percent</code> all format according to
+      <code>LOCALE_ID</code> — but they are not thin wrappers over the browser's <code>Intl.DateTimeFormat</code> /
+      <code>Intl.NumberFormat</code>. Angular ships its <strong>own</strong> locale tables, generated from CLDR data,
+      one file per locale under <code>&#64;angular/common/locales</code>. <code>LOCALE_ID</code> just says which table
+      to read from.
+    </p>
+
+    <div class="code">
+      <pre>
+import localeFr from '&#64;angular/common/locales/fr';
+registerLocaleData(localeFr);
+
+// then, at bootstrap:
+providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
+    </div>
+
+    <p>
+      Only the default, <code>'en-US'</code>, ships without asking. Request any other locale without registering it
+      first and Angular throws its <span class="term">own</span> error before formatting ever begins —
+      <code>NG0701: Missing locale data for the locale "…"</code> — which is the tell that the failure lives inside
+      Angular's table lookup, not inside the browser's <code>Intl</code> engine.
+    </p>
+  </section>
+
+  <!-- ============ 7. CONTAINERS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Pipes for containers</p>
+    <h2><code>json</code> and <code>keyvalue</code> play by a different rule.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — json (great for debugging)</p>
+      <div class="code">
+        <pre>{{ sample() | json }}</pre>
+      </div>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — keyvalue, sorted or in insertion order</p>
+      <button class="ghost" (click)="sorted.set(!sorted())" style="margin-bottom: 12px">
+        {{ sorted() ? 'Sorted by key' : 'Insertion order' }}
+      </button>
+      <ul>
+        @for (entry of settings() | keyvalue: (sorted() ? undefined : noSort); track entry.key) {
+          <li>
+            <code>{{ entry.key }}</code
+            >: {{ entry.value }}
+          </li>
+        }
+      </ul>
+      <div class="code">
+        <pre
+          >{{ '{{' }} obj | keyvalue {{ '}}' }}             &lt;!-- sorted by key, default --&gt;
 {{ '{{' }} obj | keyvalue: noSort {{ '}}' }}      &lt;!-- pass a compareFn to keep insertion order --&gt;</pre>
-  </div>
-  <p style="color: var(--text-muted); font-size: 0.85rem">
-    <code>keyvalue</code> turns an object (or <code>Map</code>) into an array of
-    <code>&#123; key, value &#125;</code> pairs so <code>&#64;for</code> can iterate it — plain objects aren't
-    themselves iterable. It re-sorts on every call unless you supply your own stable compare function.
-  </p>
-
-  <h2>Purity & performance</h2>
-  <p>
-    Built-in pipes are <strong>pure</strong>: Angular memoizes the result and only re-runs <code>transform()</code> when
-    the input <em>reference</em> changes. That makes <code>{{ '{{' }} list | sort {{ '}}' }}</code> cheap on every CD
-    pass — far cheaper than calling a method. Arguments can be bound and dynamic (<code>num() | number: format()</code
-    >).
-  </p>
-  <div class="note">
-    <code>currency</code>, <code>date</code>, <code>number</code> and <code>percent</code> format according to
-    <code>LOCALE_ID</code>. For non-default locales you must register the locale data
-    (<code>registerLocaleData()</code>) and provide the locale, or those pipes throw at runtime.
-  </div>
-
-  <h2>Predict the "Angular bug" that isn't one</h2>
-  <p>
-    This gets filed as a date-pipe bug several times a week somewhere in the world, and it is never the date pipe.
-    <span class="key">Work out why one user sees the wrong day and the other doesn't</span> before you open it:
-  </p>
-
-  <app-predict
-    prompt="Why does the New York user see 14 March and the Berlin user see 15 March, from the same string?"
-    [code]="dateTrapSample"
-    answer="**The date pipe is innocent — the string was already the wrong moment before it arrived.**
-
-Per the ECMAScript spec, a *date-only* ISO string like `'2024-03-15'` is parsed as **midnight UTC**. (Add a time — `'2024-03-15T00:00'` — and the very same spec says parse it as midnight *local*. Two nearly identical strings, two different instants. This is genuinely one of the worst corners of the language.)
-
-So `new Date('2024-03-15')` is the instant `2024-03-15T00:00:00Z`. The date pipe then renders it in the *viewer's* timezone:
-
-- Berlin is UTC+1 → 01:00 on 15 March → **Friday, March 15**. Looks fine.
-- New York is UTC-4 → 20:00 on 14 March → **Thursday, March 14**. Off by one.
-
-Nobody in Europe ever reproduces it, which is why the bug survives code review.
-
-**The fixes**, and only one of them is right for each case:
-
-- If the value is a *calendar date* — a birthday, an invoice date, a holiday — it has no timezone and should never be converted to one. Render it with `date:'fullDate':'UTC'`, or don't build a `Date` at all and format the string's parts directly.
-- If the value is a real *instant* — created-at, logged-in-at — then the API should have sent a full timestamp with an offset (`'2024-03-15T09:30:00Z'`) and local rendering is exactly what you want.
-
-The rule underneath: **a date-only string is not a point in time, and turning it into one loses information you can't recover.**"
-    revealLabel="Reveal why they disagree"
-  />
-
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="`num` is `1234.5`. What does `num | number: '1.2-2'` render, in the default `en-US` locale?"
-    [options]="quizOptions"
-    followUp="Two settings, one string: the part before the dot is a minimum for the integer side; the part after is a min-max range for the fraction side. Say “floor, then range” and the format stops being cryptic."
-  />
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Forgetting to import the pipe.</strong> Standalone components must list each pipe in
-      <code>imports</code> (e.g. <code>DatePipe</code>) — a missing import gives "no pipe found".
-    </li>
-    <li>
-      <strong>Mutating an array and expecting a re-run.</strong> Pure pipes only re-run when the input
-      <em>reference</em> changes. <code>arr.push(x)</code> won't trigger it — assign a new array.
-    </li>
-    <li>
-      <strong>Writing a stateful "impure" pipe.</strong> Impure pipes run every CD cycle and wreck perf; do
-      filtering/sorting in the component (a computed signal), not a pipe.
-    </li>
-    <li>
-      <strong>Locale pipes without locale data.</strong> <code>date</code>/<code>currency</code>/
-      <code>number</code> throw for non-default locales unless you <code>registerLocaleData()</code> and provide
-      <code>LOCALE_ID</code>.
-    </li>
-    <li>
-      <strong>Misreading the digits format.</strong> <code>'1.2-2'</code> is
-      <em>minInteger.minFraction-maxFraction</em> — not "1 to 2".
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>What does "pure pipe" mean, and why does it matter?</summary>
-    <div>
-      Angular memoizes the result and only re-runs <code>transform()</code> when the input reference changes — so pipes
-      are cheap on every change-detection pass. Mutating in place skips the re-run.
+      </div>
+      <p class="demo__note">
+        <code>keyvalue</code> turns an object (or <code>Map</code>) into an array of
+        <code>&#123; key, value &#125;</code> pairs so <code>&#64;for</code> can iterate it — a plain object isn't
+        itself iterable. On a big object bound in a hot template, re-sorting on every pass is a real cost; precompute a
+        sorted array in a <code>computed()</code> instead if the source is large.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Decode <code>number: '1.2-2'</code>.</summary>
-    <div>
-      At least 1 integer digit, at least 2 and at most 2 fraction digits — i.e.
-      <em>minIntegerDigits.minFractionDigits-maxFractionDigits</em>.
+
+    <p>
+      Both of these re-run their <code>transform()</code> on every single change-detection pass that reaches them, no
+      comparison first — which is exactly the subject of the next section, and the point where the old version of this
+      page was flatly wrong.
+    </p>
+  </section>
+
+  <!-- ============ 8. PURITY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Purity</p>
+    <h2>Pure by default. Four exceptions, each for its own reason.</h2>
+
+    <p>
+      <strong>Most</strong> built-in pipes are pure — <em>not all of them</em>. A pure pipe memoizes: Angular compares
+      the new input against the one from last time, and if it is <code>===</code> the same,
+      <code>transform()</code> never runs again. Four built-ins opt out of that entirely with <code>pure: false</code>,
+      and each one has a genuinely different reason to.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        pure by default — four deliberate exceptions
+      </caption>
+      <thead>
+        <tr>
+          <th>Pipe</th>
+          <th>Pure?</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>uppercase</code> / <code>lowercase</code> / <code>titlecase</code></td>
+          <td>Pure</td>
+          <td>Strings are primitives — cheap to compare by value, nothing to mutate in place</td>
+        </tr>
+        <tr>
+          <td><code>number</code> / <code>percent</code> / <code>currency</code></td>
+          <td>Pure</td>
+          <td>Numbers, same reasoning</td>
+        </tr>
+        <tr>
+          <td><code>date</code></td>
+          <td>Pure</td>
+          <td>
+            Compared by reference when given a <code>Date</code> object — mutating one in place with
+            <code>d.setHours(…)</code> won't re-render either, the same trap as mutating a signal's array
+          </td>
+        </tr>
+        <tr>
+          <td><code>json</code></td>
+          <td><strong>Impure</strong></td>
+          <td>
+            Its whole job is to show what's inside an object <em>right now</em>, mutations included — memoizing it would
+            make a debugging tool that lies
+          </td>
+        </tr>
+        <tr>
+          <td><code>keyvalue</code></td>
+          <td><strong>Impure</strong></td>
+          <td>
+            Turns a mutable object/<code>Map</code> into an array — mutating the source never changes its reference, so
+            it has to re-diff every pass to notice anything
+          </td>
+        </tr>
+        <tr>
+          <td><code>slice</code></td>
+          <td><strong>Impure</strong></td>
+          <td>
+            Same reasoning as <code>keyvalue</code> — slicing a mutable array has to see mutations, not just
+            replacements
+          </td>
+        </tr>
+        <tr>
+          <td><code>async</code></td>
+          <td><strong>Impure</strong></td>
+          <td>
+            Not about mutation at all — it owns a subscription and has to be given the chance to check on every pass
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-predict
+      prompt="`sample` is a signal holding `{ id: 1, tags: [...], active: true }`, shown above through `| json`. You call `sample().tags.push('x')` — no `set`, no `update` — then click a button whose handler does nothing at all. Does the new tag appear?"
+      answer="Yes — but only once that no-op click happens, not the instant you mutate. The mutation alone schedules nothing; the click is what finally forces a pass. Once that pass reaches the binding, `json` being impure means it re-stringifies unconditionally — mutation and all. Try it below."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same mutation trap from the signals lesson, with an impure pipe watching</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button class="ghost" (click)="mutateSampleTags()">Mutate — <code>sample().tags.push(…)</code></button>
+        <button (click)="noop()">No-op click (forces a pass, changes nothing)</button>
+        <button class="ghost" (click)="resetSample()">reset</button>
+      </div>
+      <div class="code">
+        <pre>{{ sample() | json }}</pre>
+      </div>
+      <p class="demo__note">
+        Press <strong>mutate</strong> a few times: nothing happens yet — no signal write means no pass was scheduled.
+        Press the <strong>no-op</strong> button, which changes no state at all, and every mutated tag appears at once.
+        If <code>json</code> were pure like <code>uppercase</code>, it would compare <code>sample()</code>'s reference —
+        unchanged by a mutation — and stay stale forever, no matter how many no-op clicks you sent its way.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Where should list filtering/sorting live — a pipe or the component?</summary>
-    <div>
-      The component (a <code>computed</code> signal). A filtering pipe would have to be impure and run every cycle. Keep
-      pipes pure and for display formatting.
+
+    <app-remember variant="rule">
+      <strong>Pure compares first; impure just runs.</strong> A pure pipe skips <code>transform()</code> entirely when
+      the input is <code>===</code> what it saw last time. An impure one never checks — it re-runs on every pass that
+      reaches it, which is precisely why <code>async</code>, <code>json</code>, <code>keyvalue</code> and
+      <code>slice</code> are the only four built-ins marked that way, and why each one needed a specific reason to be.
+    </app-remember>
+
+    <app-quiz
+      question="`sample` is a signal. You call `sample().tags.push('x')` (no `set`/`update`), then click a button whose handler does nothing at all. `{{
+        '{{'
+      }} sample() | json {{ '}}' }}` is on screen. What happens?"
+      [options]="purityQuizOptions"
+      followUp="Reproduce it in the demo above: mutate a few times, then the no-op button."
+    />
+  </section>
+
+  <!-- ============ 9. ASYNC ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The pipe nobody taught you</p>
+    <h2><code>async</code> subscribes so you don't have to.</h2>
+
+    <p>
+      Every other pipe on this page is a pure function of a value that already exists. <code>async</code> is different
+      in kind: hand it an <code>Observable</code> or a <code>Promise</code> and it subscribes on your behalf, hands back
+      whatever has arrived so far, and re-checks itself on every pass because it has to — it never knows when the next
+      value is coming.
+    </p>
+
+    <app-bubbles
+      [turns]="asyncTalk"
+      caption="What actually happens on an `async` binding's first render. Note that the template never blocks waiting for a value."
+    />
+
+    <app-code-lab
+      file="async.pipe.ts — simplified"
+      [code]="asyncPipeShapeSample"
+      [notes]="asyncPipeShapeNotes"
+      notesLabel="The whole contract, one line at a time"
+    />
+
+    <h3>Every binding subscribes on its own</h3>
+    <p>
+      Bind the same observable with <code>| async</code> three times and you get three independent subscriptions — on a
+      cold, HTTP-backed source, that is three network requests for what reads like one expression.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — three bindings vs. one, on the same cold source</p>
+      <button (click)="resetCold()" style="margin-bottom: 12px">Reset — swap in a fresh cold source</button>
+      <p style="margin: 0 0 6px">Three separate <code>| async</code> bindings on the exact same observable:</p>
+      <div class="row" style="margin-bottom: 14px">
+        <span class="pill">a: {{ coldSource() | async }}</span>
+        <span class="pill">b: {{ coldSource() | async }}</span>
+        <span class="pill">c: {{ coldSource() | async }}</span>
+      </div>
+      <p style="margin: 0 0 6px">The <code>as</code> pattern — one binding, its result reused three times:</p>
+      @if (coldSource() | async; as shared) {
+        <div class="row">
+          <span class="pill">a: {{ shared }}</span>
+          <span class="pill">b: {{ shared }}</span>
+          <span class="pill">c: {{ shared }}</span>
+        </div>
+      }
+      <p class="demo__note">
+        Top row: three <em>different</em> numbers — each <code>| async</code> is its own subscription, so the producer
+        ran three separate times. Bottom row: three <em>identical</em> numbers, because
+        <code>as shared</code> subscribes once and every later <code>{{ '{{' }} shared {{ '}}' }}</code> is a plain
+        interpolation, not a new pipe. This is exactly why <code>&#64;if (data$ | async; as data)</code> is the idiom,
+        not an optional nicety.
+      </p>
     </div>
-  </details>
 
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>A pipe is just a class with a <code>transform()</code> method.</strong>
-      <code>&#64;Pipe(&#123; name: 'uppercase' &#125;)</code> registers the class; Angular instantiates it once per
-      binding site and calls <code>pipeInstance.transform(value, ...args)</code> — there's no special runtime magic
-      beyond that.
-    </li>
-    <li>
-      <strong>Pure vs impure controls how often that call happens.</strong> A pure pipe (the default) only re-runs
-      <code>transform()</code> when the input or its arguments change by reference/primitive equality. An impure pipe
-      (<code>pure: false</code>) re-runs on <em>every</em> change-detection cycle — every keystroke, every timer tick,
-      every unrelated signal update — which is why a stateful filtering/sorting pipe left impure can quietly wreck
-      performance on a large list.
-    </li>
-    <li>
-      <strong><code>| async</code> subscribes and unsubscribes for you.</strong> The first time a template evaluates
-      <code>obs$ | async</code>, the pipe calls <code>.subscribe()</code> internally; when the view hosting it is
-      destroyed (an <code>&#64;if</code> toggles off, or the component itself is destroyed) the pipe's own
-      <code>ngOnDestroy</code> calls <code>.unsubscribe()</code> — that's the entire trick behind "no manual
-      subscription management".
-    </li>
-    <li>
-      <strong><code>keyvalue</code>'s default sort is itself just a pipe transform</strong> running
-      <code>Array.sort()</code> over <code>Object.keys()</code>/<code>Map</code> entries on every invocation — which is
-      why swapping in a no-op compare function (as above) is the standard way to preserve insertion order.
-    </li>
-    <li>
-      <strong>Locale-aware pipes wrap the platform <code>Intl</code> API</strong>, not hand-rolled formatting logic.
-      <code>DatePipe</code>/<code>CurrencyPipe</code>/ <code>DecimalPipe</code> call into
-      <code>Intl.DateTimeFormat</code>/ <code>Intl.NumberFormat</code> under <code>LOCALE_ID</code> — which is also why
-      missing locale data throws at the <code>Intl</code> layer, not inside Angular.
-    </li>
-  </ul>
+    <h3><code>null</code> until something arrives</h3>
+    <p>
+      <code>transform()</code> always returns immediately. Before the first emission, that means <code>null</code> —
+      every template using <code>async</code> has to have an opinion about what to show meanwhile.
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Syntax: <code>value | pipeName: arg1 : arg2</code> — args can be bound/dynamic.</li>
-    <li>Built-ins live in <code>&#64;angular/common</code>; import the ones you use.</li>
-    <li>Pipes are pure, memoized transforms for <em>display</em> — they never mutate the source.</li>
-    <li>Locale-aware pipes need the locale registered; chain pipes with multiple <code>|</code>.</li>
-  </ul>
+    <div class="demo">
+      <p class="demo__title">Live — a source that waits 1.5s before its first emission</p>
+      <button (click)="restartDelayed()" style="margin-bottom: 12px">Restart</button>
+      @if (delayedSource() | async; as value) {
+        <p>
+          <span class="pill">{{ value }}</span>
+        </p>
+      } @else {
+        <p><span class="pill">Loading…</span></p>
+      }
+      <p class="demo__note">
+        For a second and a half, <code>| async</code> is returning <code>null</code>, and <code>&#64;else</code> is what
+        catches it. Skip the <code>&#64;else</code> and a real app renders an empty gap where a loading state should be
+        — not an error, just nothing, which is often harder to notice in review.
+      </p>
+    </div>
 
-  <p><a routerLink="/lifecycle">Next: Lifecycle Hooks →</a></p>
+    <h3>Unsubscribing happens for you</h3>
+    <p>
+      When the view hosting an <code>async</code> binding is destroyed, the pipe's own
+      <code>ngOnDestroy</code> unsubscribes — the entire trick behind never writing
+      <code>.unsubscribe()</code> yourself.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — remove the ticker, then bring it back</p>
+      <button (click)="showTicker.set(!showTicker())" style="margin-bottom: 12px">
+        {{ showTicker() ? 'Remove the ticker' : 'Bring the ticker back' }}
+      </button>
+      @if (showTicker()) {
+        <p>
+          <span class="pill">tick: {{ ticker | async }}</span>
+        </p>
+      }
+      <p class="demo__note">
+        Let it climb, then remove it and bring it back. It restarts at <strong>1</strong> every time — proof the old
+        subscription was actually torn down, not just hidden. If it hadn't been, a second interval would now be racing
+        the first, and the count would already be high, or climbing unevenly, the moment it reappeared.
+      </p>
+    </div>
+
+    <app-quiz
+      question="Three `{{
+        '{{'
+      }} coldSource() | async {{ '}}' }}` bindings, plus one `@if (coldSource() | async; as v)` block reusing `v` three times — same cold observable throughout. How many times does the producer function run in total, across both patterns?"
+      [options]="asyncQuizOptions"
+      followUp="Press reset above, then count the two rows for yourself."
+    />
+  </section>
+
+  <!-- ============ 10. WHERE | DOESN'T WORK ============ -->
+  <section>
+    <p class="bf-eyebrow">Exam traps</p>
+    <h2>Three places <code>|</code> quietly doesn't do what you expect.</h2>
+
+    <p>A pipe only works inside a <strong>value expression</strong> — an interpolation or a property binding.</p>
+
+    <app-compare
+      leftTitle="Wrong — inside a statement"
+      leftTone="bad"
+      rightTitle="Right — inside a value expression"
+      rightTone="good"
+      note="An event binding runs a statement, not a value expression — a pipe there fails to compile with `Cannot have a pipe in an action expression`. `@for (…; track id | someTransform)` fails the same way, with its own message: `Cannot use pipes in track expressions`."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+&lt;button (click)="save() | uppercase"&gt;
+  Save
+&lt;/button&gt;</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+&lt;button (click)="save()"&gt;
+  {{ '{{' }} status() | uppercase {{ '}}' }}
+&lt;/button&gt;</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      The third trap is subtler, and it lives inside an expression that compiles just fine — a pipe written inside a
+      ternary.
+    </p>
+
+    <app-predict
+      prompt="`ok` is `true`. What does this render?"
+      [code]="ternarySample"
+      answer="`yes` — lowercase, completely unchanged. `|` binds to the branch it's written in, not to the whole conditional: this parses as `ok ? 'yes' : ('no' | uppercase)`. The `yes` branch never sees the pipe at all — only reachable if `ok` were `false`. Parenthesise the whole expression to fix it: `(ok ? 'yes' : 'no') | uppercase`."
+      revealLabel="Reveal what actually renders"
+    />
+
+    <div class="warn">
+      <strong>Rule of thumb:</strong> if a pipe needs to apply to the <em>result</em> of a ternary rather than to one
+      branch of it, wrap the ternary in parentheses first. Nothing about the compiler will warn you — both spellings are
+      syntactically legal, and only one of them does what it looks like it does.
+    </div>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>value | name:arg1:arg2</code> calls <code>transform(value, arg1, arg2)</code> on an ordinary class.
+        <strong>The pipe is the class</strong>; <code>name</code> is what you write after <code>|</code>, and everything
+        after a <code>:</code> becomes a positional argument, in order.
+      </li>
+      <li>
+        <strong>Pure by default.</strong> Angular remembers the last input and skips <code>transform()</code> when it's
+        <code>===</code> the same. <code>async</code>, <code>json</code>, <code>keyvalue</code> and <code>slice</code>
+        opt out for four different, specific reasons — not because "some pipes are just slower".
+      </li>
+      <li>
+        Angular ships its <strong>own locale data</strong> — CLDR tables via <code>registerLocaleData()</code> — not the
+        browser's <code>Intl</code>. A locale you never registered throws <code>NG0701</code>, not something inside
+        <code>Intl</code>.
+      </li>
+      <li>
+        A bare <code>'YYYY-MM-DD'</code> string is <strong>local midnight</strong> to Angular's <code>date</code> pipe
+        but <strong>UTC midnight</strong> to plain <code>new Date(…)</code> — the same string, two different instants,
+        depending on which parser touches it first.
+      </li>
+      <li>
+        Pipes only work in a <strong>value expression</strong> — never in an event binding's statement, never in
+        <code>track</code> — and inside a ternary, <code>|</code> binds to the branch it's written in, not the whole
+        conditional, unless you parenthesise.
+      </li>
+    </ul>
+
+    <p>
+      <a routerLink="/builtin-directives">← Built-in Directives</a> &nbsp;·&nbsp;
+      <a routerLink="/custom-pipes">Custom Pipes</a> &nbsp;·&nbsp;
+      <a routerLink="/lifecycle">Next: Lifecycle Hooks →</a>
+    </p>
+  </section>
 </article>

@@ -1,640 +1,807 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Runtime &amp; Performance</span>
-  <h1>Performance Optimization</h1>
-  <p class="lead">
-    Performance has two axes: <span class="term">load time</span> (how fast the first paint happens) and
-    <span class="term">runtime</span> (how fast the app responds to user interactions). Each needs a different toolkit,
-    and mixing them up is why so much optimization work produces no measurable result. The first rule is always:
-    <span class="key">measure, then optimize.</span>
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="Angular Expert · Runtime"
+    title="Performance Optimization"
+    hand="or, why “it's slow” is never just one bug"
+    [stops]="stops"
+    [current]="4"
+  >
+    <p class="lead">
+      Performance work fails most often not from ignorance of the fixes, but from applying the right fix to the wrong
+      symptom. This page treats <strong>load time</strong>, <strong>runtime</strong>, and
+      <strong>Google's Web Vitals scorecard</strong> as three separate diagnoses — and instead of an "Impact: High"
+      table cell, proves the two most quotable claims on this page with a counter you can watch move.
+    </p>
+  </app-chapter>
 
-  <h2>Think of it like a restaurant</h2>
-  <p>
-    Two completely different complaints get written on the same review card as <em>"slow"</em>, and they have nothing to
-    do with each other:
-  </p>
-  <ul>
-    <li>
-      <strong>"We waited forty minutes to be seated."</strong> That's <span class="term">load time</span>. The fix is
-      about the door — fewer people in the queue, a bigger dining room, seating you before every table is ready. In an
-      app: ship less JavaScript, split it, render some HTML on the server so there's something to look at.
-    </li>
-    <li>
-      <strong>"Once we were seated, nobody refilled the water."</strong> That's <span class="term">runtime</span>. The
-      dining room is full and the kitchen is busy doing work nobody ordered. The fix is about
-      <em>reducing work per request</em> — check fewer components, recompute less, touch the DOM less.
-    </li>
-  </ul>
-  <p>
-    <span class="key">Hiring more door staff will never fix the water refills.</span> Every optimization in this lesson
-    belongs to one axis or the other, and applying the wrong one is wasted effort — which is the single most common
-    mistake in performance work.
-  </p>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>"Slow" is not a diagnosis. It's a symptom.</h2>
 
-  <h2>Where the time actually goes</h2>
-  <p>
-    Here is one user's first ten seconds, drawn on a single timeline. The top half is load, the bottom half is runtime;
-    each metric is marked where it's measured, and the Angular fix sits under the phase it belongs to:
-  </p>
+    <p>
+      Every performance bug report says the same word, and the word is nearly useless.
+      <span class="key">"Slow" describes how it feels, not what's wrong</span> — and a fix aimed at the feeling instead
+      of the cause reliably does nothing, because the two problems hiding under that one word don't share a toolkit.
+    </p>
 
-  <svg class="diagram" viewBox="0 0 760 290" role="img" aria-labelledby="perf-t perf-d">
-    <title id="perf-t">The load-then-runtime timeline, with each Web Vital marked where it is measured</title>
-    <desc id="perf-d">
-      A left-to-right timeline. The load phase runs from the request through the server response (TTFB, target under 800
-      milliseconds), the JavaScript download and parse, and the largest paint (LCP, target under 2.5 seconds); its fixes
-      are SSR, code splitting and image priority. A vertical divider marks the point where the page becomes interactive.
-      The runtime phase that follows is measured by INP, target under 200 milliseconds per interaction, and its fixes
-      are OnPush, signals, track by id and virtual scrolling. CLS is measured across both phases.
-    </desc>
-    <defs>
-      <marker id="perf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
-
-    <!-- phase labels -->
-    <text x="20" y="26" font-size="13" font-weight="700" fill="var(--violet)">LOAD — "how long until I see it?"</text>
-    <text x="470" y="26" font-size="13" font-weight="700" fill="var(--accent)">RUNTIME — "how does it feel?"</text>
-
-    <!-- the timeline bar -->
-    <rect x="20" y="42" width="120" height="34" rx="4" fill="var(--bg-elevated)" stroke="var(--border)" />
-    <rect x="140" y="42" width="180" height="34" rx="0" fill="var(--bg-elevated)" stroke="var(--border)" />
-    <rect x="320" y="42" width="130" height="34" rx="0" fill="var(--bg-elevated)" stroke="var(--border)" />
-    <rect x="458" y="42" width="282" height="34" rx="4" fill="var(--bg-card)" stroke="var(--accent)" />
-    <g font-size="11" fill="var(--text)" text-anchor="middle">
-      <text x="80" y="64">server responds</text>
-      <text x="230" y="64">JS downloads + parses</text>
-      <text x="385" y="64">first real paint</text>
-      <text x="599" y="64">user clicks, types, scrolls…</text>
-    </g>
-
-    <!-- the interactive divider -->
-    <line x1="454" y1="34" x2="454" y2="230" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4 4" />
-
-    <!-- vital markers -->
-    <g stroke="var(--text-muted)" stroke-width="1.2" marker-end="url(#perf-arrow)">
-      <line x1="140" y1="110" x2="140" y2="82" />
-      <line x1="450" y1="110" x2="450" y2="82" />
-      <line x1="600" y1="110" x2="600" y2="82" />
-    </g>
-    <g font-size="12" font-weight="700" text-anchor="middle">
-      <text x="140" y="126" fill="var(--amber)">TTFB</text>
-      <text x="450" y="126" fill="var(--amber)">LCP</text>
-      <text x="600" y="126" fill="var(--amber)">INP</text>
-    </g>
-    <g font-size="10.5" fill="var(--text-muted)" text-anchor="middle">
-      <text x="140" y="142">&lt; 800ms</text>
-      <text x="450" y="142">&lt; 2.5s</text>
-      <text x="600" y="142">&lt; 200ms each</text>
-    </g>
-
-    <!-- fixes -->
-    <g font-size="11" fill="var(--green)" text-anchor="middle" font-weight="600">
-      <text x="140" y="176">SSR + hydration</text>
-      <text x="300" y="176">lazy routes · &#64;defer · budgets</text>
-      <text x="450" y="196">NgOptimizedImage [priority]</text>
-      <text x="599" y="176">OnPush · signals · track id</text>
-      <text x="599" y="196">computed() · virtual scroll</text>
-    </g>
-
-    <!-- CLS spans both -->
-    <line
-      x1="20"
-      y1="228"
-      x2="740"
-      y2="228"
-      stroke="var(--red)"
-      stroke-width="1.2"
-      stroke-dasharray="3 3"
-      opacity="0.8"
+    <app-predict
+      prompt="Two bug reports land the same week: 'the dashboard takes 6 seconds to appear on train Wi-Fi' and 'typing in the search box drops keystrokes once there are 40 items on screen.' Same word — slow — for both. Are they the same bug?"
+      answer="No, and that's most of this lesson in one sentence. The first is a **load-time** problem — bytes crossing a slow network, before Angular has even bootstrapped. The second is a **runtime** problem — change detection doing too much work per keystroke, after the app is already running and the network is irrelevant. Shrinking the bundle won't speed up a keystroke, and a faster change-detection pass won't make Wi-Fi faster. Different disease, different medicine."
+      revealLabel="Reveal the answer"
     />
-    <text x="380" y="248" font-size="11" fill="var(--red)" text-anchor="middle" font-weight="600">
-      CLS is measured across the whole thing (&lt; 0.1) — anything that moves after the user has read it
-    </text>
-    <text x="380" y="272" font-size="11" fill="var(--text-muted)" text-anchor="middle">
-      Fixing the left half never improves the right half. Find out which half you have first.
-    </text>
-  </svg>
 
-  <app-remember variant="mnemonic" label="The three questions, in order">
-    <strong>Measure · Ship less · Do less.</strong> <em>Measure</em> tells you which half of the timeline you're in.
-    <em>Ship less</em> is the entire load-time toolkit — lazy routes, <code>&#64;defer</code>, budgets, SSR.
-    <em>Do less</em> is the entire runtime toolkit — OnPush, signals, <code>track</code> by id, <code>computed()</code>.
-    If you can't say which of the three you're doing right now, you're guessing.
-  </app-remember>
-
-  <div class="tab-row">
-    @for (t of tabs; track t.id) {
-      <button [class.active]="activeTab() === t.id" (click)="activeTab.set(t.id)">
-        {{ t.label }}
-      </button>
-    }
-  </div>
-
-  @if (activeTab() === 'load') {
-    <h2>Load time: ship less JavaScript</h2>
+    <p>Three genuinely different diagnoses share the word "slow" in this lesson:</p>
+    <ul>
+      <li><strong>Load time</strong> — how long until the browser even has your JavaScript and can paint something.</li>
+      <li>
+        <strong>Runtime</strong> — how long the app takes to respond once it's already running, interaction by
+        interaction.
+      </li>
+      <li>
+        <strong>Web Vitals</strong> — the specific scorecard Google measures both of the above through, because a raw
+        millisecond count isn't what search rankings read.
+      </li>
+    </ul>
     <p>
-      The #1 load-time win is reducing the initial bundle size — JavaScript is the most expensive resource on a page
-      (parsed, compiled, executed).
+      Images turn out to be a lever that pulls on two of those at once, so they get their own section rather than a
+      fourth bullet. And profiling — <em>finding out which of the three you actually have</em> — sits last on this page
+      and first in the order you should actually do things, which the next section explains.
+    </p>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Treat it like triage, not surgery.</h2>
+
+    <p>
+      Picture an emergency room instead of an operating theatre. A patient who says "I feel awful" does not go straight
+      to surgery — a doctor asks questions, runs a scan, and only <em>then</em> decides what to treat. Performance work
+      wants the same discipline, and for the same reason: operating on the wrong organ doesn't just waste the afternoon,
+      it leaves the actual problem untouched while you feel productive.
+    </p>
+    <p>
+      Load time is the waiting room — how long before anyone even sees you. Runtime is the treatment room — how fast
+      you're actually helped once you're in one. Web Vitals is the satisfaction survey the hospital gets graded on
+      afterward. And the profiler is the diagnostic scan: the one step every guide, including this one's opening line in
+      its previous version, tells you to do first and then skips.
     </p>
 
-    <h3>Lazy loading routes</h3>
+    <app-remember variant="mnemonic">
+      <strong>Symptom, then diagnosis, then treatment.</strong> "It's slow" is the symptom. Load time, runtime and Web
+      Vitals are three different diagnoses hiding under it. The profiler is the diagnosis step — never skip straight to
+      treatment because a checklist told you a fix was "High impact" on average.
+    </app-remember>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Load time" kicker="the waiting room" tone="accent">
+        How long before the browser has your JavaScript at all, and can paint something believable. Fixed before Angular
+        ever bootstraps.
+      </app-tape-card>
+      <app-tape-card heading="Runtime" kicker="the treatment room" tone="gold">
+        How long the app takes to respond once it's already running — a click, a keystroke, a re-render. Angular's own
+        cost model, at work.
+      </app-tape-card>
+      <app-tape-card heading="Web Vitals" kicker="the satisfaction survey" tone="blue">
+        LCP, INP, CLS, TTFB — the specific numbers Google's ranking algorithm and Chrome's own dashboards actually read,
+        distilled from the two rooms above.
+      </app-tape-card>
+      <app-tape-card heading="Profiling" kicker="the diagnostic scan" tone="olive">
+        How you find out which of the three you actually have, before you spend a sprint treating the wrong one. Last on
+        this page; first in practice.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 3. LOAD TIME ============ -->
+  <section>
+    <p class="bf-eyebrow">Load time</p>
+    <h2>Ship less JavaScript before the first paint.</h2>
+
+    <p>
+      JavaScript is the most expensive resource type a browser handles — every byte is downloaded, then parsed, then
+      compiled, then executed, and none of that overlaps for free. The single highest-leverage load-time fix is simply
+      not sending JavaScript the current screen doesn't need yet.
+    </p>
+
+    <h3>Lazy routes — split between pages</h3>
+    <p>
+      Every feature behind <code>loadComponent</code> or <code>loadChildren</code> becomes its own downloadable chunk.
+    </p>
+    <app-code-lab
+      file="app.routes.ts"
+      [code]="lazyRoutesSample"
+      [notes]="lazyRoutesNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <h3>Preloading — download quietly, after the app is already usable</h3>
+    <p>
+      Lazy alone means a user pays the download cost <em>at</em> the moment they navigate. Preloading starts that
+      download earlier, in the background, once the initial screen is already interactive — so by the time they click,
+      the chunk is often already there.
+    </p>
+    <app-code-lab
+      file="app.config.ts + a route"
+      [code]="preloadStrategySample"
+      [notes]="preloadStrategyNotes"
+      notesLabel="What each line is doing"
+      prompt="A small app has six lazy routes. Is PreloadAllModules or a selective strategy the better default?"
+      output="PreloadAllModules, for a small app — it's one line, and downloading six small chunks in the background costs little. The selective strategy above earns its complexity only once some lazy chunks are genuinely large or rarely visited; preloading a route nobody uses is bandwidth spent on nothing."
+      revealLabel="Reveal the answer"
+    />
+
+    <h3>&#64;defer — split within a page</h3>
+    <p>
+      A route can be lazy and still contain one component too heavy to ship eagerly — a chart library, a rich editor.
+      <code>&#64;defer</code> code-splits that one component out of its own route's chunk.
+    </p>
     <div class="code">
-      <pre>
-// Every feature behind loadComponent/loadChildren is code-split automatically.
-// These chunks download only when the user navigates to that route.
-{{ '{' }}
-  path: 'dashboard',
-  loadComponent: () =&gt; import('./dashboard/dashboard').then(m =&gt; m.Dashboard),
-{{ '}' }},
-{{ '{' }}
-  path: 'settings',
-  loadChildren: () =&gt; import('./settings/settings.routes').then(m =&gt; m.SETTINGS_ROUTES),
-{{ '}' }}</pre>
+      <pre>{{ deferSample }}</pre>
     </div>
 
-    <h3>Preloading strategies</h3>
+    <h3>Bundle budgets — fail the build, not the user</h3>
+    <p>A budget that fails CI catches bloat before it ships, instead of after someone notices the app got slower.</p>
     <div class="code">
-      <pre>
-// Option 1 — preload ALL lazy chunks after initial load (simple, works well for small apps):
-provideRouter(routes, withPreloading(PreloadAllModules))
-
-// Option 2 — preload selectively with data flag (better for large apps):
-export class SelectivePreload implements PreloadingStrategy {{ '{' }}
-  preload(route: Route, load: () =&gt; Observable&lt;any&gt;) {{ '{' }}
-    return route.data?.['preload'] === true ? load() : EMPTY;
-  {{ '}' }}
-{{ '}' }}
-// Then tag routes:
-{{ '{' }} path: 'dashboard', data: {{ '{' }} preload: true {{ '}' }}, loadComponent: ... {{ '}' }}</pre>
+      <pre>{{ bundleBudgetsSample }}</pre>
     </div>
 
-    <h3>&#64;defer — code-split within a route</h3>
-    <div class="code">
-      <pre>
-&#64;defer (on viewport) {{ '{' }}
-  &lt;app-heavy-chart [data]="chartData()" /&gt;
-{{ '}' }}
-&#64;placeholder {{ '{' }}
-  &lt;div class="chart-skeleton"&gt;&lt;/div&gt;
-{{ '}' }}
-
-// The HeavyChart component chunk is NOT in the initial bundle.
-// It downloads only when the placeholder scrolls into the viewport.</pre>
-    </div>
-
-    <h3>Bundle budgets — fail the build before you ship too much</h3>
-    <div class="code">
-      <pre>
-// angular.json:
-"budgets": [
-  {{ '{' }} "type": "initial",            "maximumWarning": "500kB", "maximumError": "1MB"  {{ '}' }},
-  {{ '{' }} "type": "anyComponentStyle",  "maximumError": "4kB"                             {{ '}' }},
-  {{ '{' }} "type": "anyLazyModule",      "maximumWarning": "150kB", "maximumError": "500kB"{{ '}' }}
-]
-
-// Analyze bundle contents:
-ng build --stats-json
-// Then open the stats.json in https://webpack.github.io/analyse/
-// or: npx source-map-explorer dist/app/browser/main*.js</pre>
-    </div>
-
-    <h2>Load-time checklist</h2>
-    <table class="perf-table">
-      <tr>
-        <th>Optimization</th>
-        <th>Impact</th>
-      </tr>
-      <tr>
-        <td>Lazy-load every feature route</td>
-        <td class="good">High — splits largest chunks</td>
-      </tr>
-      <tr>
-        <td>&#64;defer for below-the-fold widgets</td>
-        <td class="good">High — removes from critical path</td>
-      </tr>
-      <tr>
-        <td>Preloading strategy after initial load</td>
-        <td class="good">Medium — improves navigation feel</td>
-      </tr>
-      <tr>
-        <td>Bundle budgets in CI</td>
-        <td class="good">Medium — prevents accidental bloat</td>
-      </tr>
-      <tr>
-        <td>SSR + hydration</td>
-        <td class="good">High — fast first paint, good SEO</td>
-      </tr>
-      <tr>
-        <td>NgOptimizedImage + LCP image priority</td>
-        <td class="good">High — biggest LCP improvement</td>
-      </tr>
-      <tr>
-        <td>Remove unused imports from app.config</td>
-        <td>Low-medium — every provider adds overhead</td>
-      </tr>
+    <table class="t">
+      <caption class="bf-table-caption">
+        The load-time checklist, roughly ordered by leverage
+      </caption>
+      <thead>
+        <tr>
+          <th>Optimization</th>
+          <th>What it buys</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lazy-load every feature route</td>
+          <td>Splits the largest chunks off the critical path entirely</td>
+        </tr>
+        <tr>
+          <td><code>&#64;defer</code> for below-the-fold widgets</td>
+          <td>Removes a heavy component from even a route it's already lazy on</td>
+        </tr>
+        <tr>
+          <td>NgOptimizedImage + <code>priority</code> on the LCP image</td>
+          <td>Usually the single biggest LCP improvement available — see the Images section</td>
+        </tr>
+        <tr>
+          <td>SSR + hydration</td>
+          <td>Fast first paint and a crawlable page, at the cost of a server to run</td>
+        </tr>
+        <tr>
+          <td>Preloading strategy, once the app is already usable</td>
+          <td>Makes the <em>next</em> navigation feel instant without slowing the first one</td>
+        </tr>
+        <tr>
+          <td>Bundle budgets in CI</td>
+          <td>Turns "the bundle crept up again" into a failed build, not a retrospective</td>
+        </tr>
+      </tbody>
     </table>
-  }
 
-  @if (activeTab() === 'runtime') {
-    <h2>Runtime: do less work per change</h2>
+    <app-napkin lead="psst —" label="Try it on your own project">
+      Run <code>ng build --stats-json</code> on whatever you're building right now, then
+      <code>npx source-map-explorer dist/*/browser/main*.js</code>. Find the biggest single package in the initial
+      chunk. If it's a UI library you only use for one modal, that's page one of your own fix — before you read another
+      word of this lesson.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 4. RUNTIME ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Runtime</p>
+    <h2>Do less work per interaction, not more of it faster.</h2>
+
     <p>
-      Runtime performance is about reducing how much Angular does on every user interaction — fewer components checked,
-      fewer DOM mutations, fewer recalculations.
+      Once the app is running, the cost model is the one the
+      <a routerLink="/change-detection">change detection</a> lesson lays out in full: a pass is cheap — a flat array
+      walk with a <code>===</code> compare per binding slot. What's expensive is
+      <span class="bf-break">what you put inside a binding</span>, because that work re-runs on every single pass that
+      reaches the view, whether or not anything it depends on actually changed.
     </p>
 
-    <h3>OnPush + Signals — the modern default</h3>
-    <div class="code">
-      <pre>
-&#64;Component({{ '{' }}
-  changeDetection: ChangeDetectionStrategy.OnPush
-{{ '}' }})
-export class ProductCard {{ '{' }}
-  // With signals, OnPush components update automatically when signals change.
-  // Angular only checks this component when:
-  //   1. An input reference changes
-  //   2. An event fires inside it
-  //   3. An async pipe emits
-  //   4. A signal it reads changes  (new in Angular's signal integration)
-  readonly price = input.required&lt;number&gt;();
-  readonly discounted = computed(() =&gt; this.price() * 0.9);
-{{ '}' }}</pre>
+    <h3>OnPush + signals — prune the walk itself</h3>
+    <p>
+      Before touching what's <em>inside</em> a binding, make sure a pass reaches this view only when it has to. That's
+      what <a routerLink="/onpush">OnPush</a> is for — this page assumes the mechanism and moves straight to the shape.
+    </p>
+    <app-code-lab
+      file="product-card.ts"
+      [code]="onPushSignalsSample"
+      [notes]="onPushSignalsNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <h3>computed() remembers. A template call never does.</h3>
+    <p>
+      Even inside a view that does get checked, a plain method call in a binding re-runs on <strong>every</strong> pass
+      — the framework has no way to know it would return the same answer without calling it. Wrapping the same
+      expression in <code>computed()</code> gives Angular something to check first: has anything this depends on
+      actually changed?
+    </p>
+    <p>
+      Angular's own <a routerLink="/pipes">pipes</a> draw the identical line. A <strong>pure</strong> pipe — the default
+      — is memoized just like <code>computed()</code>: Angular skips re-running <code>transform()</code> unless the
+      input reference itself changed. An <strong>impure</strong> pipe (<code>pure: false</code>) re-runs on every single
+      pass, same as the naive method below. Reach for <code>computed()</code> for anything you derive yourself; the
+      impure escape hatch exists for the rare case a pipe must notice a mutation nothing else announced — and it costs
+      full price every time it does.
+    </p>
+
+    <app-compare
+      leftTitle="A function call in the binding"
+      leftTone="bad"
+      rightTitle="The same work, wrapped in computed()"
+      rightTone="good"
+      note="Same answer, every time. What differs is how many times the work behind it actually runs."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ naiveFilterSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ computedFilterSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="demo">
+      <p class="demo__title">Live — the exact same <code>.filter(i =&gt; i.active).length</code>, called two ways</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="noop()">Fire a no-op pass</button>
+        <button class="ghost" (click)="revealCost()">Reveal call counts</button>
+      </div>
+      <div class="row" style="flex-wrap: wrap">
+        <span class="pill">template call: {{ activeCountNaive() }} active</span>
+        <span class="pill">computed(): {{ activeCountComputed() }} active</span>
+      </div>
+      @if (costReveal(); as r) {
+        <p class="demo__note">
+          Naive method: <strong>{{ r.naiveCalls }}</strong> calls so far, <strong>{{ r.naiveMs }}ms</strong> of real
+          filtering work. <code>computed()</code>: <strong>{{ r.computedCalls }}</strong> call,
+          <strong>{{ r.computedMs }}ms</strong> — total, forever. Click "Fire a no-op pass" a dozen more times and
+          reveal again: the first number keeps climbing. Watch the second one. It will not move again.
+        </p>
+      } @else {
+        <p class="demo__note">
+          Both pills above already show the correct, identical count — same array, same filter. Before you click reveal:
+          guess how many times each function has actually <em>run</em> just from this page loading.
+        </p>
+      }
     </div>
 
-    <h3>Track by stable id in &#64;for</h3>
-    <div class="code">
-      <pre>
-// ✅ Angular re-uses existing DOM nodes when items reorder:
-&#64;for (item of items(); track item.id) {{ '{' }}
-  &lt;app-product-row [item]="item" /&gt;
-{{ '}' }}
+    <app-quiz
+      question="You wrap `items().filter(i => i.active).length` in a `computed()`. The `items` array never changes after the component loads. How many times does the filter function's body actually run, no matter how many change-detection passes happen afterward?"
+      [options]="computedQuizOptions"
+      followUp="That's exactly what the demo above is counting — go fire a few more no-op passes and reveal again if you want a second look."
+    />
 
-// ❌ track $index when the list reorders — Angular destroys and recreates every row:
-&#64;for (item of items(); track $index) {{ '{' }} ... {{ '}' }}</pre>
+    <h3>track by identity, or lose the DOM node underneath the user</h3>
+    <p>
+      <code>&#64;for</code> needs a way to tell "this is the same row, just moved" from "this row was deleted and a new
+      one appeared." <code>track $index</code> answers with position; <code>track item.id</code> answers with the row's
+      actual identity — and only one of those survives a reorder.
+    </p>
+
+    <app-compare
+      leftTitle="track $index"
+      leftTone="bad"
+      rightTitle="track item.id"
+      rightTone="good"
+      note="Both compile. Only one keeps a typed note, a scroll position, or focus attached to the right row after a reorder."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ trackIndexSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ trackIdSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="demo">
+      <p class="demo__title">Live — type a note next to "Apple" in both lists, then shuffle</p>
+      <div class="row" style="margin-bottom: 14px">
+        <button (click)="shuffleFruit()">Shuffle the order</button>
+      </div>
+      <div class="bf-grid-2">
+        <div>
+          <p class="bf-hand--note">track item.id</p>
+          @for (r of fruitRows(); track r.id) {
+            <div class="row" style="margin-bottom: 6px">
+              <span class="pill">{{ r.name }}</span>
+              <input [attr.aria-label]="'note for ' + r.name" placeholder="type a note" />
+            </div>
+          }
+        </div>
+        <div>
+          <p class="bf-hand--note">track $index</p>
+          @for (r of fruitRows(); track $index) {
+            <div class="row" style="margin-bottom: 6px">
+              <span class="pill">{{ r.name }}</span>
+              <input [attr.aria-label]="'note for row ' + $index" placeholder="type a note" />
+            </div>
+          }
+        </div>
+      </div>
+      <p class="demo__note">
+        In the left list, Angular matches each row by <code>id</code> — your note follows "Apple" wherever it lands. In
+        the right list, Angular matches by <em>position</em> — the note stays in the DOM node that started as row 1,
+        which after a shuffle is sitting next to a different name entirely. Nothing errored. The data is correct. The
+        note is just attached to the wrong thing now.
+      </p>
     </div>
 
-    <h3>Memoize with computed() — never compute in templates</h3>
-    <div class="code">
-      <pre>
-// ❌ This runs on EVERY change-detection pass (can be 60x/sec):
-&lt;p&gt;{{ '{{' }} items().filter(i =&gt; i.active).length {{ '}}' }}&lt;/p&gt;
+    <h3>When the list itself is the bottleneck</h3>
+    <p>
+      <code>track item.id</code> stops a reorder from destroying rows, but it does not shrink the DOM. Once a list is
+      genuinely long — hundreds of rows on screen, not tens — the bottleneck quietly moves from
+      <em>change detection</em> to <em>raw DOM node count</em>: layout, paint and memory all scale with how many real
+      elements exist, whether or not Angular ever re-checks them.
+    </p>
+    <p>
+      <code>&#64;angular/cdk/scrolling</code> answers that with <em>windowing</em>: render only the rows currently in
+      (or near) the viewport, and recycle a small pool of real DOM elements as the user scrolls, instead of creating one
+      element per row.
+    </p>
+    <app-code-lab
+      file="big-list.ts"
+      [code]="virtualScrollSample"
+      [notes]="virtualScrollNotes"
+      notesLabel="What each line is doing"
+    />
 
-// ✅ computed() re-evaluates only when items() changes:
-readonly activeCount = computed(() =&gt; this.items().filter(i =&gt; i.active).length);
-// template:
-&lt;p&gt;{{ '{{' }} activeCount() {{ '}}' }}&lt;/p&gt;
-
-// Same rule applies to pure pipes — they are memoized by Angular.
-// But impure pipes run on every pass like a template function call.</pre>
+    <div class="demo">
+      <p class="demo__title">Live — 500 rows exist. Scroll it, and watch how few of them ever touch the DOM.</p>
+      <div class="row" style="margin-bottom: 10px">
+        <span class="pill">rows rendered right now: {{ visibleRowIndexes().length }} / {{ totalRows }}</span>
+      </div>
+      <div
+        class="perf-viewport"
+        (scroll)="onViewportScroll($event)"
+        role="region"
+        aria-label="scrollable list of 500 rows"
+      >
+        <div class="perf-viewport__spacer" [style.height.px]="totalRows * rowHeight">
+          @for (i of visibleRowIndexes(); track i) {
+            <div class="perf-viewport__row" [style.top.px]="i * rowHeight" [style.height.px]="rowHeight">
+              Row #{{ i + 1 }}
+            </div>
+          }
+        </div>
+      </div>
+      <p class="demo__note">
+        This is not <code>*cdkVirtualFor</code> — this app has no <code>&#64;angular/cdk</code> dependency — it's the
+        same idea hand-rolled from a <code>scroll</code> event and two <code>computed()</code>s: track
+        <code>scrollTop</code>, work out which slice of 500 is visible, render only that slice. A production app would
+        reach for the CDK directive above instead of this by-hand version, for the recycling and the accessibility work
+        it already did.
+      </p>
     </div>
 
-    <h3>Avoiding memory leaks</h3>
-    <div class="code">
-      <pre>
-// ❌ This subscription leaks if the component is destroyed:
-ngOnInit() {{ '{' }}
-  this.dataService.items$.subscribe(items =&gt; this.items.set(items));
-{{ '}' }}
+    <app-napkin lead="psst —" label="Try it yourself">
+      Open your browser's Elements panel while the list above is on screen, and scroll it end to end. Count the
+      <code>.perf-viewport__row</code> nodes. It never grows much past a dozen — no matter how far through the 500 rows
+      you've scrolled.
+    </app-napkin>
 
-// ✅ Option 1 — takeUntilDestroyed (Angular 16+):
-private destroyRef = inject(DestroyRef);
-ngOnInit() {{ '{' }}
-  this.dataService.items$.pipe(
-    takeUntilDestroyed(this.destroyRef)
-  ).subscribe(items =&gt; this.items.set(items));
-{{ '}' }}
-
-// ✅ Option 2 — toSignal (auto-unsubscribes with the component):
-readonly items = toSignal(this.dataService.items$, {{ '{' }} initialValue: [] {{ '}' }});
-
-// ✅ Option 3 — async pipe in the template (auto-unsubscribes):</pre>
-    </div>
-
-    <h2>Runtime checklist</h2>
-    <table class="perf-table">
-      <tr>
-        <th>Optimization</th>
-        <th>Impact</th>
-      </tr>
-      <tr>
-        <td>OnPush on every "leaf" component</td>
-        <td class="good">High</td>
-      </tr>
-      <tr>
-        <td>Signals instead of Subjects for state</td>
-        <td class="good">High — automatic fine-grained updates</td>
-      </tr>
-      <tr>
-        <td>track by stable id in &#64;for</td>
-        <td class="good">High for long lists</td>
-      </tr>
-      <tr>
-        <td>computed() for derived values (no template functions)</td>
-        <td class="good">Medium-high</td>
-      </tr>
-      <tr>
-        <td>Unsubscribe / takeUntilDestroyed</td>
-        <td class="good">Critical for memory</td>
-      </tr>
-      <tr>
-        <td>Zoneless (provideZonelessChangeDetection)</td>
-        <td class="good">High for very active apps</td>
-      </tr>
-      <tr>
-        <td>Virtual scrolling for long lists (CDK)</td>
-        <td class="good">Critical for lists 100+</td>
-      </tr>
+    <table class="t">
+      <caption class="bf-table-caption">
+        Long-list decision table — which symptom points to which fix
+      </caption>
+      <thead>
+        <tr>
+          <th>Symptom</th>
+          <th>Reach for</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Reordering an already-short list feels janky</td>
+          <td><code>track item.id</code> — usually the whole fix</td>
+        </tr>
+        <tr>
+          <td>Hundreds of rows, scrolling itself feels heavy</td>
+          <td>Virtual scrolling (<code>*cdkVirtualFor</code>) — caps the DOM node count</td>
+        </tr>
+        <tr>
+          <td>Rows need to stay reachable by find-in-page, a screen reader, or a crawler</td>
+          <td>Pagination — a smaller real list instead of a windowed huge one</td>
+        </tr>
+        <tr>
+          <td>The whole list is expensive to construct, not just long</td>
+          <td><code>&#64;defer</code> the list's container until it's actually needed</td>
+        </tr>
+      </tbody>
     </table>
-  }
 
-  @if (activeTab() === 'webvitals') {
-    <h2>Core Web Vitals</h2>
+    <h3>The subscription nobody remembered to end</h3>
     <p>
-      Google's Core Web Vitals are the metrics that directly affect SEO rankings and user experience scores. They
-      measure real user experience, not lab benchmarks.
+      A leaked subscription is a runtime cost that grows with time rather than with data: every navigation that leaves
+      one behind keeps a destroyed component's callback alive, still doing work, for the life of the app.
+    </p>
+    <app-compare
+      leftTitle="Leaks — nothing ever unsubscribes"
+      leftTone="bad"
+      rightTitle="Tied to the component's destruction"
+      rightTone="good"
+      note="A subscription that never completes needs an explicit teardown. takeUntilDestroyed() is that teardown, written once."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ leakSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ sealedSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+    <p>
+      Two other doors out of the same problem: <code>toSignal(source$)</code> subscribes and unsubscribes with the
+      injection context automatically, and the <code>async</code> pipe does the same from the template. Reach for
+      <code>takeUntilDestroyed</code> specifically when you need the subscription's side effect (like the
+      <code>.set()</code> above) rather than its value.
     </p>
 
-    <div class="vital-grid">
-      <div class="vital-card">
-        <h4>LCP — Largest Contentful Paint</h4>
-        <div class="target">Target: &lt; 2.5s</div>
-        <p>
-          Time until the largest visible element (hero image, heading) is rendered. The most important metric for
-          perceived load speed.
-        </p>
-      </div>
-      <div class="vital-card">
-        <h4>INP — Interaction to Next Paint</h4>
-        <div class="target">Target: &lt; 200ms</div>
-        <p>
-          How long from a user interaction until the next frame paints. Replaced FID in 2024. OnPush + signals + short
-          event handlers are key.
-        </p>
-      </div>
-      <div class="vital-card">
-        <h4>CLS — Cumulative Layout Shift</h4>
-        <div class="target">Target: &lt; 0.1</div>
-        <p>
-          Sum of all unexpected layout shifts during page load. Fix with explicit image dimensions, skeleton
-          placeholders, and avoid DOM insertion above content.
-        </p>
-      </div>
-      <div class="vital-card">
-        <h4>TTFB — Time to First Byte</h4>
-        <div class="target">Target: &lt; 800ms</div>
-        <p>
-          Server response time. SSR reduces TTFB by sending HTML from the server rather than waiting for the full
-          Angular bootstrap.
-        </p>
-      </div>
+    <table class="t">
+      <caption class="bf-table-caption">
+        The runtime checklist
+      </caption>
+      <thead>
+        <tr>
+          <th>Optimization</th>
+          <th>What it buys</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>OnPush on every "leaf" component</td>
+          <td>Prunes the walk — a whole subtree skipped per clean check</td>
+        </tr>
+        <tr>
+          <td><code>computed()</code> for anything derived, never a template function call</td>
+          <td>Turns "recompute every pass" into "recompute when it actually changed"</td>
+        </tr>
+        <tr>
+          <td><code>track item.id</code> in every <code>&#64;for</code></td>
+          <td>Reorders move DOM nodes instead of destroying and rebuilding them</td>
+        </tr>
+        <tr>
+          <td>Virtual scrolling once a list is genuinely long</td>
+          <td>Caps DOM node count — the fix once the bottleneck isn't change detection anymore</td>
+        </tr>
+        <tr>
+          <td><code>takeUntilDestroyed</code> / <code>toSignal</code> / the <code>async</code> pipe</td>
+          <td>No subscription outlives the component that created it</td>
+        </tr>
+        <tr>
+          <td>Zoneless, once every component above is already clean</td>
+          <td>
+            Removes Zone.js's own overhead app-wide — see the <a routerLink="/zoneless">Zoneless</a> lesson; the biggest
+            single lever here, and the last one to pull
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 5. WEB VITALS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Web Vitals</p>
+    <h2>The scorecard Google actually grades you on.</h2>
+
+    <p>
+      Core Web Vitals distill "is this page fast" into a handful of numbers measured from
+      <strong>real users' browsers</strong>, not a lab benchmark — and they feed directly into SEO ranking, which is why
+      they get their own section rather than folding into load time or runtime.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="LCP" kicker="Largest Contentful Paint · target &lt; 2.5s" tone="accent">
+        Time until the largest visible element — usually a hero image or heading — has rendered. The clearest proxy for
+        "does this feel loaded" a user has.
+      </app-tape-card>
+      <app-tape-card heading="INP" kicker="Interaction to Next Paint · target &lt; 200ms" tone="gold">
+        Time from a user interaction to the next frame actually painting. Replaced FID in 2024, and measures your
+        handler's own execution time, not just Angular's.
+      </app-tape-card>
+      <app-tape-card heading="CLS" kicker="Cumulative Layout Shift · target &lt; 0.1" tone="olive">
+        The sum of every unexpected layout shift during load. Fixed with explicit dimensions and skeleton placeholders,
+        not with anything change-detection related.
+      </app-tape-card>
+      <app-tape-card heading="TTFB" kicker="Time to First Byte · target &lt; 800ms" tone="blue">
+        Server response time — before Angular has run a single line. SSR lowers it by sending real HTML instead of
+        waiting for the client bundle to bootstrap.
+      </app-tape-card>
     </div>
 
-    <h2>Angular-specific fixes per vital</h2>
-    <table class="perf-table">
-      <tr>
-        <th>Vital</th>
-        <th>Angular fix</th>
-      </tr>
-      <tr>
-        <td><strong>LCP</strong></td>
-        <td>
-          Add <code>priority</code> to the LCP image with NgOptimizedImage (<code>[ngSrc] [priority]</code>), use SSR
-          for above-the-fold content, avoid lazy-loading LCP components.
-        </td>
-      </tr>
-      <tr>
-        <td><strong>INP</strong></td>
-        <td>
-          OnPush + signals for fast CD, break long event handlers with
-          <code>setTimeout</code> or <code>rxScheduler</code>, avoid synchronous DOM reads in event handlers, use
-          <code>afterNextRender</code> for DOM work.
-        </td>
-      </tr>
-      <tr>
-        <td><strong>CLS</strong></td>
-        <td>
-          Set explicit <code>width</code>/<code>height</code> on images (NgOptimizedImage does this automatically), use
-          <code>&#64;defer</code> placeholders with exact dimensions, avoid injecting ads/banners above existing
-          content.
-        </td>
-      </tr>
+    <table class="t">
+      <caption class="bf-table-caption">
+        Angular-specific fixes, per vital
+      </caption>
+      <thead>
+        <tr>
+          <th>Vital</th>
+          <th>Angular-specific fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>LCP</strong></td>
+          <td>
+            <code>[priority]</code> on the LCP image with <code>NgOptimizedImage</code>, SSR for above-the-fold content,
+            and never <code>&#64;defer</code> the LCP element itself.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>INP</strong></td>
+          <td>
+            Short, non-blocking event handlers — see the ladder below. <code>OnPush</code> helps only the
+            change-detection half of the story.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>CLS</strong></td>
+          <td>
+            Explicit <code>width</code>/<code>height</code> (automatic with <code>NgOptimizedImage</code>),
+            correctly-sized <code>&#64;defer</code> placeholders, never inserting content above what's already on
+            screen.
+          </td>
+        </tr>
+      </tbody>
     </table>
-  }
 
-  @if (activeTab() === 'images') {
-    <h2>NgOptimizedImage — the correct way to handle images</h2>
+    <h3>INP: the ladder of fixes, not just OnPush</h3>
     <p>
-      Images are often the #1 LCP element. <code>NgOptimizedImage</code> (built into Angular, no install needed) adds
-      lazy loading, responsive <code>srcset</code>, size hints, and LCP priority — all automatically.
+      This is the trap the checklist row above names directly: <code>OnPush</code> reduces how much a change-detection
+      <em>pass</em> checks. It does nothing about time your own handler spends running <strong>before</strong> a pass
+      even begins — and that is exactly where a slow synchronous handler burns its 400ms.
+    </p>
+    <app-code-lab
+      file="process-items.ts"
+      [code]="inpFixSample"
+      [notes]="inpFixNotes"
+      notesLabel="What each line is doing"
+    />
+    <div class="warn">
+      Note what's <span class="bf-break">absent</span> from the fix above: no <code>OnPush</code>, no
+      <code>computed()</code>, no signal anywhere. A long task inside your own handler is a JavaScript-execution-time
+      problem — the change-detection knobs from the Runtime section don't touch it at all.
+    </div>
+
+    <app-quiz
+      question="A button's click handler runs a synchronous 400ms loop before returning. Its component is already OnPush. What happens to INP when a user clicks it?"
+      [options]="inpQuizOptions"
+      followUp="Split the loop and yield, as in the snippet above — that's the fix OnPush can't give you."
+    />
+
+    <p>
+      Read Core Web Vitals the way real visitors experience them, not just in a lab run, with the
+      <code>web-vitals</code> library:
     </p>
     <div class="code">
-      <pre>
-import {{ '{' }} NgOptimizedImage {{ '}' }} from '&#64;angular/common';
+      <pre>{{ webVitalsLibSample }}</pre>
+    </div>
+  </section>
 
-&#64;Component({{ '{' }}
-  imports: [NgOptimizedImage],
-  template: '...'
-{{ '}' }})
+  <!-- ============ 6. IMAGES ============ -->
+  <section>
+    <p class="bf-eyebrow">Images</p>
+    <h2>The single biggest LCP lever most teams skip.</h2>
 
-// In template — note ngSrc instead of src:
-&lt;img ngSrc="/hero.webp" width="1200" height="600" priority /&gt;
-//                                                ^^^^^^^^^
-// priority=true adds fetchpriority="high" + preload link → critical LCP fix
+    <p>
+      Images are, more often than any other element, the LCP candidate — and <code>NgOptimizedImage</code> (built into
+      <code>&#64;angular/common</code>, no install) handles the four things that usually go wrong by hand: priority
+      hints, lazy loading, responsive sizing, and reserved layout space.
+    </p>
 
-// Below the fold (lazy by default):
-&lt;img ngSrc="/product.jpg" width="400" height="400" /&gt;
-// Angular adds loading="lazy" and generates srcset automatically
+    <app-code-lab
+      file="product-page.ts"
+      [code]="ngOptimizedImageSample"
+      [notes]="ngOptimizedImageNotes"
+      notesLabel="What each line is doing"
+    />
 
-// With a CDK image loader (Cloudinary, Imgix, etc.):
-// app.config.ts:
-provideImgixLoader('https://mysite.imgix.net')
-// Then in template — NgOptimizedImage calls imgix to resize:
-&lt;img ngSrc="products/shirt.jpg" width="400" height="400" /&gt;</pre>
+    <p>
+      "Supplied by the loader" a moment ago was doing real work: <code>NgOptimizedImage</code> never resizes an image
+      itself — every URL is delegated through an <code>ImageLoader</code>, configured once, app-wide. Point it at a CDN
+      that can resize on request and the same <code>ngSrc</code> starts producing a real <code>srcset</code> instead of
+      one fixed file; skip the config entirely and <code>ngSrc</code> is treated as a literal URL, no resizing at all.
+    </p>
+    <div class="code">
+      <pre>{{ imageLoaderSample }}</pre>
     </div>
 
-    <h2>What NgOptimizedImage does for you</h2>
-    <table class="perf-table">
-      <tr>
-        <th>Feature</th>
-        <th>Manual img</th>
-        <th>NgOptimizedImage</th>
-      </tr>
-      <tr>
-        <td>Lazy loading below fold</td>
-        <td class="bad">Must add loading="lazy"</td>
-        <td class="good">Automatic</td>
-      </tr>
-      <tr>
-        <td>LCP priority preload</td>
-        <td class="bad">Must add fetchpriority + link rel</td>
-        <td class="good">Add [priority] attribute</td>
-      </tr>
-      <tr>
-        <td>Responsive srcset</td>
-        <td class="bad">Must write manually</td>
-        <td class="good">Automatic with loaders</td>
-      </tr>
-      <tr>
-        <td>Intrinsic size warning</td>
-        <td class="bad">Silent layout shift</td>
-        <td class="good">Build-time warning if width/height missing</td>
-      </tr>
-      <tr>
-        <td>CLS prevention</td>
-        <td class="bad">Must add aspect-ratio CSS</td>
-        <td class="good">width/height attributes set it automatically</td>
-      </tr>
+    <table class="t">
+      <caption class="bf-table-caption">
+        What NgOptimizedImage does for you
+      </caption>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Plain &lt;img&gt;</th>
+          <th>NgOptimizedImage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lazy loading below the fold</td>
+          <td>Must add <code>loading="lazy"</code> yourself</td>
+          <td>Automatic</td>
+        </tr>
+        <tr>
+          <td>LCP priority preload</td>
+          <td>Must add <code>fetchpriority</code> and a preload <code>&lt;link&gt;</code></td>
+          <td>Add <code>[priority]</code> — one attribute</td>
+        </tr>
+        <tr>
+          <td>Responsive <code>srcset</code></td>
+          <td>Written by hand</td>
+          <td>Automatic, with a configured loader</td>
+        </tr>
+        <tr>
+          <td>Missing size hints</td>
+          <td>Silent layout shift</td>
+          <td>Build-time error if <code>width</code>/<code>height</code> are missing</td>
+        </tr>
+        <tr>
+          <td>Blur-up placeholder</td>
+          <td>Written by hand</td>
+          <td><code>[placeholder]</code> — one attribute</td>
+        </tr>
+      </tbody>
     </table>
 
     <div class="warn">
-      <code>src</code> and <code>ngSrc</code> are mutually exclusive — using both on the same image is an error. Migrate
-      by renaming all <code>src=</code> to <code>ngSrc=</code> and adding <code>width</code> +
-      <code>height</code> attributes.
+      <strong><code>src</code> and <code>ngSrc</code> are mutually exclusive</strong> — using both on the same image is
+      a build error. Migrate by renaming every <code>src=</code> to <code>ngSrc=</code> and adding the
+      <code>width</code>/<code>height</code> the directive now requires.
     </div>
-  }
+    <div class="warn">
+      <strong>Mark <em>one</em> image <code>priority</code> — your actual LCP element.</strong> The directive warns in
+      the console the moment it sees more than one, and for good reason: <code>fetchpriority="high"</code> on every
+      image competes with itself for the same limited bandwidth, which is the opposite of what priority is for.
+    </div>
+  </section>
 
-  @if (activeTab() === 'profiling') {
-    <h2>Measuring — find the real bottleneck</h2>
+  <!-- ============ 7. MEASURING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Measuring</p>
+    <h2>This should have been step one.</h2>
+
     <p>
-      Never optimize blindly. Use the Angular DevTools profiler and browser performance tools to find what's actually
-      slow, then fix only that.
+      Back to the ER analogy: everything above this section is a treatment. None of it should be applied before the
+      diagnostic scan tells you which room the patient actually needs.
     </p>
 
-    <h3>Angular DevTools Profiler</h3>
-    <div class="code">
-      <pre>
-// Install Angular DevTools browser extension (Chrome/Firefox).
-// 1. Open DevTools → "Angular" tab → "Profiler"
-// 2. Click "Record", interact with the slow part, click "Stop"
-// 3. The flame chart shows:
-//    - Every component that ran change detection
-//    - How many milliseconds each CD pass took
-//    - Which component triggered the cycle
+    <app-flow caption="The Angular DevTools profiling workflow — same five steps, every time" [steps]="profilerSteps" />
 
-// What to look for:
-// - Components that run CD on every tick but rarely change → add OnPush
-// - Components that take > 16ms → you're missing frames (jank)
-// - Deep component trees re-checking the same data → signals or memoize</pre>
+    <p>The flame chart the profiler produces answers three questions directly:</p>
+    <ul>
+      <li>
+        Which components ran change detection on the interaction you just recorded, and how many milliseconds each one's
+        check took.
+      </li>
+      <li>
+        Which components run a pass constantly but rarely change anything visible — usually the first sign an
+        <code>OnPush</code> is missing.
+      </li>
+      <li>Which single component dominates the widest bar — the one worth fixing first, before recording again.</li>
+    </ul>
+
+    <h3>Lighthouse and the Performance tab — two more instruments</h3>
+    <p>
+      The Angular DevTools profiler above answers "which component." These two answer "is the page fast at all" and
+      "what's the browser doing when the cause isn't Angular" — a slow third-party script, an oversized image decode,
+      layout thrashing.
+    </p>
+    <div class="code">
+      <pre>{{ lighthouseWorkflowSample }}</pre>
     </div>
 
-    <h3>Bundle analysis workflow</h3>
+    <h3>Finding it in the bundle, not just the runtime</h3>
     <div class="code">
-      <pre>
-// Step 1 — build with stats
-ng build --stats-json
-// Creates dist/app/browser/stats.json
-
-// Step 2 — visualize with source-map-explorer
-npx source-map-explorer 'dist/app/browser/main.*.js'
-// Shows which modules/packages occupy how many bytes
-
-// Step 3 — common culprits:
-// - moment.js: replace with date-fns (tree-shakeable) or Temporal
-// - lodash: use lodash-es or native Array methods
-// - A massive third-party library in the initial chunk: lazy-load it
-// - Angular animations package if you're not using it: remove the import</pre>
+      <pre>{{ bundleAnalysisSample }}</pre>
     </div>
 
-    <h3>Lighthouse / Web Vitals in Chrome DevTools</h3>
-    <div class="code">
-      <pre>
-// DevTools → Lighthouse tab:
-// - Run "Performance" audit in incognito (no extensions)
-// - Check "Opportunities" section — most impactful fixes first
-// - LCP element is highlighted: add [priority] if it's an image
-
-// DevTools → Performance tab:
-// - Record while interacting
-// - Long Tasks (red) block the main thread > 50ms each
-// - Find the function causing them and defer/split it
-
-// Real-world vitals via web-vitals library:
-import {{ '{' }} onLCP, onINP, onCLS {{ '}' }} from 'web-vitals';
-onLCP(console.log);   // run in app.config or main.ts</pre>
-    </div>
-
-    <h2>Common mistakes</h2>
-    <table class="perf-table">
-      <tr>
-        <th>Mistake</th>
-        <th>Fix</th>
-      </tr>
-      <tr>
-        <td class="bad">
-          Function call in template: <code>{{ '{{' }} sort(items()) {{ '}}' }}</code>
-        </td>
-        <td class="good">Move to <code>computed(() =&gt; sort(items()))</code></td>
-      </tr>
-      <tr>
-        <td class="bad"><code>track $index</code> on a reorderable list</td>
-        <td class="good"><code>track item.id</code> — stable identity</td>
-      </tr>
-      <tr>
-        <td class="bad">Default change detection on every component</td>
-        <td class="good">OnPush on components that only change via inputs/signals</td>
-      </tr>
-      <tr>
-        <td class="bad">Unsubscribed observables</td>
-        <td class="good"><code>takeUntilDestroyed</code> or <code>toSignal()</code></td>
-      </tr>
-      <tr>
-        <td class="bad">Importing the whole library: <code>import _ from 'lodash'</code></td>
-        <td class="good">
-          Named ES imports: <code>import {{ '{' }} debounce {{ '}' }} from 'lodash-es'</code>
-        </td>
-      </tr>
-      <tr>
-        <td class="bad">No <code>priority</code> on the LCP image</td>
-        <td class="good">Add <code>[priority]</code> to the hero image with NgOptimizedImage</td>
-      </tr>
+    <table class="t">
+      <caption class="bf-table-caption">
+        Common mistakes, and the fix
+      </caption>
+      <thead>
+        <tr>
+          <th>Mistake</th>
+          <th>Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            A function call in a binding: <code>{{ '{{' }} sort(items()) {{ '}}' }}</code>
+          </td>
+          <td>Move it to <code>computed(() =&gt; sort(items()))</code></td>
+        </tr>
+        <tr>
+          <td><code>track $index</code> on a list that reorders</td>
+          <td><code>track item.id</code> — stable identity survives the reorder</td>
+        </tr>
+        <tr>
+          <td>Default change detection everywhere, by default</td>
+          <td><code>OnPush</code> on leaf components — see the Runtime section</td>
+        </tr>
+        <tr>
+          <td>A subscription with no teardown</td>
+          <td><code>takeUntilDestroyed</code>, <code>toSignal()</code>, or the <code>async</code> pipe</td>
+        </tr>
+        <tr>
+          <td>Adding <code>OnPush</code> to "fix" a slow click handler</td>
+          <td>Split the work and yield — <code>OnPush</code> never touches handler execution time</td>
+        </tr>
+        <tr>
+          <td>No <code>priority</code> on the actual LCP image</td>
+          <td>Add <code>[priority]</code> to exactly one image with <code>NgOptimizedImage</code></td>
+        </tr>
+      </tbody>
     </table>
-  }
+  </section>
 
-  <h2>The trap that bites everyone once</h2>
-  <p>
-    You've read the runtime tab and you're sold on <code>OnPush</code>. So you add it to a list component. Then you
-    click "Add" and <span class="wrong">nothing happens.</span> Before you read on — decide what's on screen and why:
-  </p>
+  <!-- ============ 8. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <app-predict
-    prompt="The parent's `add()` runs and pushes a second row into the array. The child is `OnPush`. How many rows are on screen after the click — and what would you change?"
-    [code]="onPushTrapSample"
-    answer="**One row.** `push()` mutates the array in place, so `this.rows` is the *same object reference* it was before. `OnPush` means *check me only when an input reference changes, an event fires inside me, or a signal I read changes* — none of those happened, so the child is skipped on every tick from here on. It isn't late; it's never coming.
+  <!-- ============ 9. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-Three fixes, best last:
+    <app-remember variant="rule">
+      <code>computed()</code> and <code>track item.id</code> are the same rule wearing two syntaxes:
+      <strong>tell Angular what changed instead of making it re-derive the answer from scratch.</strong>
+    </app-remember>
 
-1. `this.rows = [...this.rows, newRow]` — a new array, a new reference, the input change is seen. Works, but relies on everyone remembering forever.
-2. `inject(ChangeDetectorRef).markForCheck()` in the child — correct but manual, and now the child needs to know something the parent did.
-3. **Make it a signal.** `rows = signal([{ id: 1, label: 'first' }])`, and `add()` calls `this.rows.update(r => [...r, newRow])`. The child reads the signal in its template, which registers a dependency, and the update marks it dirty automatically — no reference discipline to remember.
+    <ul>
+      <li>
+        <strong>"Slow" is at least three unrelated bugs wearing one word</strong> — load time, runtime, and Web Vitals.
+        Fixing the wrong one isn't a failed sprint, it's a wasted one: nothing breaks, it just doesn't help.
+      </li>
+      <li>
+        Bundle size is solved before Angular even boots: lazy routes and <code>&#64;defer</code> split the JavaScript,
+        and budgets fail the <strong>build</strong> instead of failing the user.
+      </li>
+      <li>
+        A change-detection pass is cheap. What you put inside a binding is not — <code>computed()</code> and
+        <code>track item.id</code> both exist to stop Angular redoing work nothing asked it to redo, and the Cost Lab
+        demo proved the difference in real call counts, not an estimate.
+      </li>
+      <li>
+        Once a list is genuinely long, the bottleneck moves from change detection to raw DOM node count. That's what
+        virtual scrolling answers, and it's a different fix from anything <code>OnPush</code> or <code>track</code>
+        can give you.
+      </li>
+      <li>
+        LCP wants one <code>priority</code> image. INP wants a short handler — <code>OnPush</code> does nothing for a
+        slow synchronous loop inside your own click callback. CLS wants explicit dimensions.
+        <strong>Three different diagnoses, three unrelated fixes.</strong>
+      </li>
+      <li>The profiler is step one, not step five, no matter where it sits on this page.</li>
+    </ul>
 
-This is the whole argument for signals in one bug: `OnPush` plus mutable objects is a correctness hazard you have to stay vigilant about, and `OnPush` plus signals simply isn't."
-    revealLabel="Reveal what's on screen"
-  />
-
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="Same setup as above: a parent mutates its array with `push()`, and the `OnPush` child renders it with `@for (r of rows; track r.id)`. What does the user see after clicking Add?"
-    [options]="quizOptions"
-    followUp="The reusable rule: `OnPush` compares by reference and never deep-compares. If you mutate, you must either replace the reference, call `markForCheck()`, or — much better — stop mutating and use a signal."
-  />
-
-  <app-faq [items]="questions" heading="There are no dumb questions" />
-
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <strong>Two axes, never one:</strong> "slow to appear" and "slow to respond" are different problems with disjoint
-      fixes. Work out which one you have before you change any code.
-    </li>
-    <li>
-      <strong>Load time:</strong> lazy routes, &#64;defer for below-fold, bundle budgets, SSR+hydration,
-      NgOptimizedImage.
-    </li>
-    <li><strong>Runtime:</strong> OnPush, signals, track by stable id, computed() instead of template functions.</li>
-    <li><strong>Web Vitals:</strong> LCP (image priority), INP (short event handlers), CLS (image dimensions).</li>
-    <li><strong>Memory:</strong> always unsubscribe — use takeUntilDestroyed or toSignal.</li>
-    <li><strong>Measure first:</strong> Angular DevTools profiler + Lighthouse before optimizing anything.</li>
-  </ul>
-
-  <p><a routerLink="/after-render">Next: afterRender &amp; afterNextRender →</a></p>
+    <p><a routerLink="/after-render">Next: afterRender &amp; afterNextRender →</a></p>
+  </section>
 </article>

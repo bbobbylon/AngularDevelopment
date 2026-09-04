@@ -1,312 +1,623 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Language Features</span>
-  <h1>Optional Chaining & Nullish Coalescing</h1>
-  <p class="lead">
-    These operators exist because of one design decision: under
-    <code>strictNullChecks</code> (on in every Angular project), <code>null</code> and <code>undefined</code> are
-    <em>not</em> members of other types — a <code>string | undefined</code> won't let you call
-    <code>.trim()</code> until you've dealt with the undefined case. <code>?.</code> and <code>??</code> are the
-    concise, precise way to deal with it. The precision matters: both operators react to <em>nullish</em>
-    (null/undefined) only, never to falsy — the distinction this page drills.
-  </p>
-
-  <h2>Optional chaining <code>?.</code> — exact semantics</h2>
-  <div class="code">
-    <pre>
-user?.address?.city          // undefined instead of a crash
-user?.greet?.()              // call only if greet is non-nullish
-list?.[0]                    // safe index access — ?. before [ ] and ( ) too</pre>
-  </div>
-  <p>Three rules that hold in every case:</p>
-  <ul>
-    <li>
-      <strong>It checks nullish, not falsy.</strong> <code>''?.length</code> is <code>0</code>, not undefined — an empty
-      string is a perfectly good string.
-    </li>
-    <li>
-      <strong>It always produces <code>undefined</code></strong> when it short-circuits — even if the value it tested
-      was <code>null</code>. (<code>null?.x === undefined</code>, never null.) That's why result types read
-      <code>T | undefined</code>.
-    </li>
-    <li>
-      <strong>It short-circuits the <em>entire chain tail</em>.</strong> In <code>a?.b.c.d()</code>, if
-      <code>a</code> is nullish, none of <code>.b.c.d()</code> evaluates — no property reads, no calls, no side effects.
-      You don't need <code>?.</code> at every link, only after each value that can itself be nullish.
-    </li>
-  </ul>
-  <div class="code">
-    <pre>
-a?.b.c        // safe against a being nullish — but crashes if a.b is nullish!
-a?.b?.c       // safe against both. Put ?. exactly where nullability exists —
-              // scattering ?. everywhere hides which links can ACTUALLY be missing.</pre>
-  </div>
-
-  <svg class="diagram" viewBox="0 0 760 200" role="img" aria-labelledby="oc-t oc-d">
-    <title id="oc-t">Where ?. actually protects the chain, link by link</title>
-    <desc id="oc-d">
-      Two rows show the same four-link chain, a dot b dot c dot d called as a function. In the top row, only the first
-      link has a question-mark-dot guard. The first link is safe, but the second link, dot b to dot c, is drawn with a
-      broken connector and a red crash icon, labelled crashes here if a dot b is nullish. In the bottom row, every link
-      has its own question-mark-dot guard, and all four links are drawn intact in green, labelled safe at every link,
-      because every link that can itself be nullish is checked before the next step.
-    </desc>
-    <text x="20" y="26" font-size="12" font-weight="700" fill="var(--red)">a?.b.c.d() — only one guard</text>
-    <g font-size="12" text-anchor="middle">
-      <rect x="20" y="40" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
-      <text x="50" y="60" fill="var(--green)">a?.</text>
-      <line x1="80" y1="55" x2="112" y2="55" stroke="var(--green)" stroke-width="1.5" />
-      <rect x="120" y="40" width="50" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
-      <text x="145" y="60" fill="var(--text-muted)">.b</text>
-      <line x1="170" y1="55" x2="196" y2="55" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="3 3" />
-      <text x="183" y="42" font-size="14" fill="var(--red)">✗</text>
-      <rect x="204" y="40" width="50" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
-      <text x="229" y="60" fill="var(--text-muted)">.c</text>
-      <line x1="254" y1="55" x2="280" y2="55" stroke="var(--border)" stroke-width="1.5" />
-      <rect x="288" y="40" width="66" height="30" rx="6" fill="none" stroke="var(--border)" stroke-width="1.5" />
-      <text x="321" y="60" fill="var(--text-muted)">.d()</text>
-    </g>
-    <text x="380" y="60" font-size="11" fill="var(--red)">
-      ↑ crashes here if a.b is nullish — this link was never guarded
-    </text>
-
-    <line x1="20" y1="96" x2="740" y2="96" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
-
-    <text x="20" y="126" font-size="12" font-weight="700" fill="var(--green)">
-      a?.b?.c?.d?.() — a guard at every link
-    </text>
-    <g font-size="12" text-anchor="middle">
-      <rect x="20" y="140" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
-      <text x="50" y="160" fill="var(--green)">a?.</text>
-      <line x1="80" y1="155" x2="106" y2="155" stroke="var(--green)" stroke-width="1.5" />
-      <rect x="114" y="140" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
-      <text x="144" y="160" fill="var(--green)">b?.</text>
-      <line x1="174" y1="155" x2="200" y2="155" stroke="var(--green)" stroke-width="1.5" />
-      <rect x="208" y="140" width="60" height="30" rx="6" fill="var(--green)" opacity="0.2" />
-      <text x="238" y="160" fill="var(--green)">c?.</text>
-      <line x1="268" y1="155" x2="294" y2="155" stroke="var(--green)" stroke-width="1.5" />
-      <rect x="302" y="140" width="80" height="30" rx="6" fill="var(--green)" opacity="0.2" />
-      <text x="342" y="160" fill="var(--green)">d?.()</text>
-    </g>
-    <text x="400" y="160" font-size="11" fill="var(--green)">safe at every link — nothing to crash on</text>
-  </svg>
-
-  <h2>Nullish coalescing <code>??</code> — and the <code>||</code> trap</h2>
-  <p>
-    Picture two different questions being asked about the same value. <code>a ?? b</code>
-    asks "was anything filled in here at all?" — a reservation was made, even if what got written in was
-    <code>0</code>. <code>a || b</code> asks the pickier question "is what's here good enough to keep?" — and to
-    <code>||</code>, <code>0</code> looks exactly as empty as a genuinely blank field. A volume setting of
-    <code>0</code> passes the first question (something was set) and fails the second (zero isn't "impressive"), which
-    is the entire bug class these operators exist to separate.
-  </p>
-  <p>
-    <code>a ?? b</code> yields <code>b</code> only when <code>a</code> is <code>null</code> or <code>undefined</code>.
-    <code>a || b</code> yields <code>b</code> whenever <code>a</code> is <em>falsy</em> — which wrongly swallows
-    <code>0</code>, <code>''</code> and <code>false</code>, all legitimate values. Classic real bugs: a volume setting
-    of 0 resetting to the default, an empty-string search box reverting to a placeholder query,
-    <code>showBanner: false</code> being ignored.
-  </p>
-
-  <app-remember variant="mnemonic" label="The two questions, side by side">
-    <strong><code>??</code> asks "is it there?" <code>||</code> asks "is it good?"</strong> Nullish coalescing cares
-    only about absence (<code>null</code>/<code>undefined</code>); logical OR cares about quality, and to
-    <code>||</code>, <code>0</code>/<code>''</code>/<code>false</code> all look exactly as bad as nothing at all.
-  </app-remember>
-  <div class="demo">
-    <p class="demo__title">Live — <code>value || 'fallback'</code> vs <code>value ?? 'fallback'</code></p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (c of falsyCases; track c.label) {
-        <button [class.ghost]="picked().label !== c.label" (click)="picked.set(c)">{{ c.label }}</button>
-      }
-    </div>
-    <table class="t">
-      <tr>
-        <th>expression</th>
-        <th>result</th>
-      </tr>
-      <tr>
-        <td>
-          <code>{{ picked().label }} || 'fallback'</code>
-        </td>
-        <td>
-          <strong>{{ orResult() }}</strong>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <code>{{ picked().label }} ?? 'fallback'</code>
-        </td>
-        <td>
-          <strong>{{ nullishResult() }}</strong>
-        </td>
-      </tr>
-    </table>
-    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 8px">
-      They agree only on null/undefined. For <code>0</code>, <code>''</code> and <code>false</code>,
-      <code>||</code> discards a real value; <code>??</code> keeps it.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="TypeScript · Language Features"
+    title="Optional Chaining & Nullish Coalescing"
+    hand="or, the two characters that quietly ended a decade of if (a &amp;&amp; a.b &amp;&amp; a.b.c)"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      Two operators, and three quiet decisions hiding inside every use of them: does this check care about
+      <strong>nullish</strong> or <strong>falsy</strong>? Does a guard protect <strong>one link</strong> in a chain or
+      <strong>the whole tail</strong>? And does "absent" mean <strong>null</strong>, <strong>undefined</strong>, or
+      <strong>both</strong>? Every trap on this page — and there are more than you'd guess for two characters and a
+      question mark — is one of those three questions answered differently than you assumed.
     </p>
-  </div>
-  <div class="warn">
-    You can't mix <code>??</code> with <code>||</code> or <code>&amp;&amp;</code> without parentheses —
-    <code>a ?? b || c</code> is a <strong>syntax error</strong> by spec (the committee refused to define a precedence
-    people would misremember). Be explicit: <code>(a ?? b) || c</code>.
-  </div>
+  </app-chapter>
 
-  <h2>Combine them — the canonical read pattern</h2>
-  <div class="code">
-    <pre>
-const city = user?.address?.city ?? 'Unknown';
-//            └── may be undefined ──┘  └─ so give it a floor
-const theme = profile?.prefs?.theme ?? 'dark';</pre>
-  </div>
-  <p>
-    This pair is the idiom: <code>?.</code> converts "might crash" into "might be undefined", and
-    <code>??</code> converts "might be undefined" into "always a value". After the line runs, <code>city</code> is plain
-    <code>string</code> — the compiler agrees, no assertions needed.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Reaching three properties deep is a bet that all three exist.</h2>
 
-  <div class="demo">
-    <p class="demo__title">Live — chaining through a partial profile</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="full()">full profile</button>
-      <button (click)="partial()">missing address</button>
-      <button (click)="empty()">null profile</button>
-    </div>
-    <p><code>city = profile?.address?.city ?? 'Unknown'</code></p>
     <p>
-      → <strong>{{ city() }}</strong>
+      <code>user.address.city</code> reads beautifully and fails the instant reality disagrees with your optimism. If
+      <code>address</code> hasn't been filled in yet — a brand-new signup, an API response mid-flight, a form nobody's
+      finished — JavaScript doesn't quietly return <code>undefined</code> for the missing piece. It
+      <span class="bf-break">throws</span>, and takes everything after it down with it:
+      <code>TypeError: Cannot read properties of undefined (reading 'city')</code>, on a line that looks completely
+      innocent.
     </p>
-    <p style="font-size: 0.88rem; color: var(--text-muted)">
-      "missing address" short-circuits at the second link; "null profile" at the first. Both land on
-      <code>undefined</code>, and <code>??</code> supplies the floor.
+
+    <p>
+      You've probably written the old fix: <code>user &amp;&amp; user.address &amp;&amp; user.address.city</code>. It
+      works. It is also three separate truthiness checks for what is really
+      <span class="key">one question, asked three times</span>: is this link nullish?
     </p>
-  </div>
 
-  <app-predict
-    prompt="a is null, so a?.notify(computeArg()) obviously doesn't call notify. But does computeArg() itself still run — does its side effect happen?"
-    [code]="skippedArgumentSample"
-    answer="false — computeArg() never runs, and ranSideEffect stays false. The argument expression is part of the call a.notify(...), and optional chaining doesn't evaluate the call at all when a is nullish — not the method lookup, not the arguments, nothing. This trips people up because they correctly reason 'notify won't run' and then assume the arguments were computed anyway, the way they normally would be before any function call. Short-circuiting in a?. chain happens BEFORE argument evaluation, not after."
-  />
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's the shape of the whole lesson in one guess. <code>user?.address?.city</code>, where
+      <code>address</code> genuinely doesn't exist — what value does the <strong>whole expression</strong> produce? Not
+      a crash, not <code>null</code> — say the actual value out loud, and say <em>why</em> it's that one and not the
+      other, before you read on.
+    </app-napkin>
+  </section>
 
-  <h2>The logical-assignment trio</h2>
-  <div class="code">
-    <pre>
-options.timeout ??= 3000;   // assign only if currently null/undefined — defaulting
-cache.user ||= fetchGuest(); // assign if falsy (rarely what you want — see above)
-draft &amp;&amp;= sanitize(draft);   // assign only if currently truthy</pre>
-  </div>
-  <p>
-    All three <strong>short-circuit the assignment itself</strong>: <code>a ??= b</code> doesn't even evaluate
-    <code>b</code> (or trigger a setter on <code>a</code>) when <code>a</code> is already non-nullish. That makes
-    <code>??=</code> ideal for lazy initialization — the expensive right-hand side runs at most once.
-  </p>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2><code>?.</code> is a chain of checkpoints, not a single lock.</h2>
 
-  <h2><code>!</code> — two assertions, zero runtime checks</h2>
-  <div class="code">
-    <pre>
-// 1. non-null assertion (expression position): "trust me, not null"
-const el = document.querySelector('#app')!;
+    <p>
+      Picture a relay, not one locked door. <code>user?.address?.city</code> sets up a checkpoint at every
+      <code>?.</code> — a guard whose only job is to check one thing: is the value that just arrived nullish? Pass, and
+      the baton — the rest of the expression — moves on to the next checkpoint. Fail, and that guard doesn't throw you
+      out. They call the whole relay off, right there, and hand back one specific answer: <code>undefined</code>. Every
+      checkpoint after the failed one — every <code>.</code> and <code>()</code> still to come — never runs at all.
+    </p>
 
-// 2. definite assignment assertion (declaration position):
-//    "this field IS assigned before use, even though no initializer is visible"
-class Comp {{ '{' }}
-  data!: string[];   // e.g. populated by a framework before you read it
-{{ '}' }}</pre>
-  </div>
-  <div class="warn">
-    Both flavors silence the compiler and add <strong>no runtime check</strong> — if you're wrong, the crash still
-    happens, just further from the lie. Prefer a real guard, <code>?.</code>/<code>??</code>, or in Angular:
-    <code>input.required&lt;T&gt;()</code> and signal-based queries, which remove the classic "populated later by the
-    framework" cases where <code>!</code>
-    used to be routine.
-  </div>
+    <p>
+      That last part is the one people miss. A failed checkpoint doesn't skip ahead and try the next check anyway — it
+      ends the <strong>entire</strong> relay from that point on. <code>a?.b.c.d()</code> with a nullish
+      <code>a</code> never reads <code>.b</code>, never reads <code>.c</code>, never calls <code>.d()</code>. One
+      failure, one exit, for the whole rest of the chain.
+    </p>
 
-  <h2>In Angular templates</h2>
-  <div class="code">
-    <pre>
+    <app-remember variant="mnemonic">
+      <strong>Ask, don't assume.</strong> Every <code>?.</code> asks "are you there?" before doing anything else. A
+      nullish answer stops the <em>whole</em> rest of the chain immediately and hands back exactly one value —
+      <code>undefined</code> — never <code>null</code>, whatever was actually missing.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="chainTalk"
+      caption="The relay for `user?.address?.city`, when `address` is the one that's missing. Watch which checkpoint stops it — and what never gets a turn."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Under the hood, it's just <code>if</code>s you didn't have to write.</h2>
+
+    <p><code>?.</code> works before a property read, a call, and an index — the same one guard, three shapes:</p>
+
+    <div class="code">
+      <pre>
+user?.address?.city          // property access
+user?.greet?.()              // call — only if greet is itself non-nullish
+list?.[0]                    // index access — ?. works before [ ] and ( ) too</pre>
+    </div>
+
+    <p>
+      None of that is special syntax hiding special behaviour. Here's
+      <code>user?.address?.city ?? 'Unknown'</code> unrolled by hand into the plain <code>if</code>s it means — not
+      literal compiler output, just what has to be true for the short version to make sense.
+    </p>
+
+    <app-code-lab
+      file="unrolled.ts — what ?. and ?? are actually checking"
+      [code]="desugarSample"
+      [notes]="desugarNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-predict
+      prompt="One more before you move on. What does `null?.foo` evaluate to — and is it `null`, or something else?"
+      answer="`undefined`. Optional chaining normalizes EVERY nullish input — `null` included — to the same one output on short-circuit, so the type you get back is always `T | undefined`, never `T | null | undefined`. It's the same normalizing instinct behind APIs like `Array.prototype.find`, which returns `undefined` for 'not found' regardless of what was in the array."
+      revealLabel="Reveal the value"
+    />
+  </section>
+
+  <!-- ============ 4. THE THREE RULES ============ -->
+  <section>
+    <p class="bf-eyebrow">Three rules</p>
+    <h2>Memorize these, and every <code>?.</code> question on an exam is arithmetic.</h2>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Nullish, not falsy" kicker="rule 1" tone="accent">
+        <code>''?.length</code> is <code>0</code>, not <code>undefined</code> — an empty string is a perfectly good
+        string. The check is always <code>=== null || === undefined</code>, never a truthiness test.
+      </app-tape-card>
+      <app-tape-card heading="Always undefined" kicker="rule 2" tone="gold">
+        Short-circuiting always produces <code>undefined</code> — even when the thing that was actually nullish was
+        <code>null</code>. <code>null?.x === undefined</code>, never <code>null</code>.
+      </app-tape-card>
+      <app-tape-card heading="Skips the whole tail" kicker="rule 3" tone="olive">
+        In <code>a?.b.c.d()</code>, a nullish <code>a</code> stops everything after it — <code>.b</code>,
+        <code>.c</code> and <code>.d()</code> never run. Guard every link that can genuinely be missing, not just the
+        first.
+      </app-tape-card>
+    </div>
+
+    <app-compare
+      leftTitle="Under-protected — `a?.b.c`"
+      leftTone="bad"
+      rightTitle="Matched to the types — `a?.b?.c`"
+      rightTone="good"
+      note="The fix is never 'add more `?.` everywhere' — it's one `?.` per link the TYPE says can be `null` or `undefined`, and nowhere else."
+    >
+      <div left>
+        <div class="code">
+          <pre>a?.b.c</pre>
+        </div>
+        <p>
+          Safe against <code>a</code> alone. If <code>b</code> can <em>also</em> be nullish, this throws — the second
+          link never got a guard.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>a?.b?.c</pre>
+        </div>
+        <p>
+          Every nullable link has its own <code>?.</code>. Neither <code>a</code> nor <code>b</code> can throw here.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 5. LIVE DEMO — OPTIONAL CHAINING ============ -->
+  <section>
+    <p class="bf-eyebrow">See it work</p>
+    <h2>Watch the chain survive a missing link — live.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — chaining through a partial profile</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button type="button" (click)="full()">full profile</button>
+        <button type="button" (click)="partial()">missing address</button>
+        <button type="button" (click)="empty()">null profile</button>
+      </div>
+      <p><code>city = profile?.address?.city ?? 'Unknown'</code></p>
+      <p>
+        → <strong>{{ city() }}</strong>
+      </p>
+      <p class="demo__note">
+        "missing address" short-circuits at the second checkpoint; "null profile" short-circuits at the first. Both land
+        on <code>undefined</code>, and <code>??</code> is what supplies the floor either way.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 6. FALSY VS NULLISH ============ -->
+  <section>
+    <p class="bf-eyebrow">The other operator</p>
+    <h2><code>??</code> asks one question. <code>||</code> asks a much blunter one.</h2>
+
+    <p>
+      <code>a ?? b</code> yields <code>b</code> only when <code>a</code> is <code>null</code> or <code>undefined</code>.
+      <code>a || b</code> yields <code>b</code> whenever <code>a</code> is <em>falsy</em> — which wrongly swallows
+      <code>0</code>, <code>''</code> and <code>false</code>, all legitimate values. Classic real bugs: a volume setting
+      of 0 resetting to the default, an empty-string search box reverting to a placeholder query,
+      <code>showBanner: false</code> being silently ignored.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — three ways of asking "is this missing?"</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (c of falsyCases; track c.label) {
+          <button type="button" [class.ghost]="picked().label !== c.label" (click)="picked.set(c)">
+            {{ c.label }}
+          </button>
+        }
+      </div>
+      <table>
+        <caption class="bf-table-caption">
+          Same value, three fallback strategies
+        </caption>
+        <thead>
+          <tr>
+            <th>expression</th>
+            <th>result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code>{{ picked().label }} || 'fallback'</code>
+            </td>
+            <td>
+              <strong>{{ orResult() }}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>{{ picked().label }} ?? 'fallback'</code>
+            </td>
+            <td>
+              <strong>{{ nullishResult() }}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <code>function f({{ picked().label }} = 'fallback')</code>
+            </td>
+            <td>
+              <strong>{{ defaultResult() }}</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="demo__note">
+        Watch <code>null</code> specifically: it is the one value where all three strategies disagree with each other in
+        a way that matters. <code>||</code> and <code>??</code> both replace it — but only <code>??</code> does that on
+        purpose. The default-parameter row keeps it completely untouched, which is exactly the trap the next section is
+        about.
+      </p>
+    </div>
+
+    <div class="warn">
+      You can't mix <code>??</code> with <code>||</code> or <code>&amp;&amp;</code> without parentheses —
+      <code>a ?? b || c</code> is a <strong>syntax error</strong> by spec (the committee refused to define a precedence
+      people would misremember). Be explicit: <code>(a ?? b) || c</code>.
+    </div>
+
+    <app-quiz
+      question="A volume slider stores `0` because the user explicitly muted it. Playback code reads `settings.volume || 50`. What shows up?"
+      [options]="volumeQuiz"
+      followUp="Pick 'null' on the bench above and compare its `||` row with its `??` row — same input, two different answers."
+    />
+  </section>
+
+  <!-- ============ 7. THE THIRD MEMBER — DEFAULTS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The one nobody mentions</p>
+    <h2>Default values agree with <code>??</code> on almost everything. Almost.</h2>
+
+    <p>
+      <code>??</code> and a default value — <code>function f(x = 'fallback')</code>, or
+      <code>const &#123; x = 'fallback' &#125; = obj</code> — both exist to fill in "absent". They just define
+      <span class="term">absent</span> differently. <code>??</code> means null-or-undefined. A default means
+      <span class="bf-break">only undefined</span>.
+    </p>
+
+    <app-napkin lead="one more —" label="Predict before the table">
+      <code>const body = &#123; tags: null &#125;;</code> then <code>const &#123; tags = [] &#125; = body;</code> — what
+      is <code>tags</code> now? An array, or <code>null</code>? Commit to an answer before you scroll to the table.
+    </app-napkin>
+
+    <table>
+      <caption class="bf-table-caption">
+        Same value, all three fallback strategies at once
+      </caption>
+      <thead>
+        <tr>
+          <th>value of <code>x</code></th>
+          <th><code>x || fallback</code></th>
+          <th><code>x ?? fallback</code></th>
+          <th><code>function f(x = fallback)</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>0</code></td>
+          <td>fallback</td>
+          <td><code>0</code></td>
+          <td><code>0</code></td>
+        </tr>
+        <tr>
+          <td><code>''</code></td>
+          <td>fallback</td>
+          <td><code>''</code></td>
+          <td><code>''</code></td>
+        </tr>
+        <tr>
+          <td><code>false</code></td>
+          <td>fallback</td>
+          <td><code>false</code></td>
+          <td><code>false</code></td>
+        </tr>
+        <tr>
+          <td><code>null</code></td>
+          <td>fallback</td>
+          <td>fallback</td>
+          <td>
+            <span class="bf-break"><code>null</code></span> — the default never fires
+          </td>
+        </tr>
+        <tr>
+          <td><code>undefined</code></td>
+          <td>fallback</td>
+          <td>fallback</td>
+          <td>fallback</td>
+        </tr>
+        <tr>
+          <td><em>argument omitted</em></td>
+          <td>—</td>
+          <td>—</td>
+          <td>fallback</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      One row disagrees, and it's the row that matters most in practice: <code>null</code>. A default parameter treats
+      it as a real, present value — because to the language, it is one — and hands it straight through untouched.
+    </p>
+
+    <app-code-lab
+      file="load-profile.ts"
+      [code]="apiBugSample"
+      [notes]="apiBugNotes"
+      notesLabel="Where the destructuring default and ?? part ways"
+    />
+
+    <p>
+      The fix is the operator this whole page is about: <code>const tags = body.tags ?? [];</code>.
+      <code>??</code> catches <em>both</em> <code>null</code> and <code>undefined</code>; the destructuring default only
+      ever caught one of them.
+    </p>
+
+    <div class="code">
+      <pre>{{ nestedDefaultSample }}</pre>
+    </div>
+
+    <app-remember variant="rule">
+      <code>??</code> asks "null or undefined?" A default asks only "undefined?" They agree on every value except one —
+      <code>null</code>. <code>??</code> catches it; a default lets it through unchanged.
+    </app-remember>
+
+    <app-quiz
+      [question]="defaultsQuizQuestion"
+      [options]="defaultsQuiz"
+      followUp="This is the exact shape of the row you just read in the table above — with a function parameter standing in for the destructured property."
+    />
+  </section>
+
+  <!-- ============ 8. COMBINE THEM ============ -->
+  <section>
+    <p class="bf-eyebrow">Putting them together</p>
+    <h2>The idiom is two operators doing two different jobs.</h2>
+
+    <app-flow
+      caption="`?.` converts 'might crash' into 'might be undefined'. `??` converts that into 'always a value'. Neither operator alone gets you all the way there."
+      [steps]="idiomSteps"
+    />
+
+    <div class="code">
+      <pre>
+const city = user?.address?.city ?? 'Unknown';
+const theme = settings?.prefs?.theme ?? 'dark';</pre>
+    </div>
+
+    <p>
+      After a line like this runs, <code>city</code> is plain <code>string</code> — not <code>string | undefined</code>.
+      The compiler agrees, no assertions needed, nothing left to prove downstream.
+    </p>
+  </section>
+
+  <!-- ============ 9. LOGICAL ASSIGNMENT ============ -->
+  <section>
+    <p class="bf-eyebrow">The assignment trio</p>
+    <h2><code>??=</code>, <code>||=</code>, <code>&amp;&amp;=</code> — and the call that never happens.</h2>
+
+    <p>
+      All three short-circuit the <strong>assignment itself</strong> — and, as the second half of this sample proves,
+      that means the right-hand side isn't merely unused when the guard fails, it is never <em>evaluated</em> at all.
+    </p>
+
+    <app-code-lab
+      file="lazy-init.ts"
+      [code]="logicalAssignSample"
+      [notes]="logicalAssignNotes"
+      notesLabel="Line by line — including the call that gets skipped"
+    />
+  </section>
+
+  <!-- ============ 10. THE ! ASSERTION ============ -->
+  <section>
+    <p class="bf-eyebrow">Narrowing by force</p>
+    <h2><code>!</code> — two assertions, zero runtime checks.</h2>
+
+    <app-code-lab
+      file="assertions.ts"
+      [code]="bangAssertSample"
+      [notes]="bangAssertNotes"
+      notesLabel="Same character, two completely different promises"
+    />
+
+    <div class="warn">
+      Both flavors silence the compiler and add <strong>no runtime check</strong> — if you're wrong, the crash still
+      happens, just further from the lie. Prefer a real guard, <code>?.</code>/<code>??</code>, or in Angular:
+      <code>input.required&lt;T&gt;()</code> and signal-based queries, which remove the classic "populated later by the
+      framework" cases where <code>!</code> used to be routine.
+    </div>
+  </section>
+
+  <!-- ============ 11. EXAM CORNER — WHERE ?. REFUSES TO GO ============ -->
+  <section>
+    <p class="bf-eyebrow">Exam corner · syntax</p>
+    <h2>Four places <code>?.</code> refuses to go, and one bracket that changes everything.</h2>
+
+    <app-predict
+      prompt="Given `const user = null`, compare `user?.address.city` with `(user?.address).city`. One returns `undefined`. The other throws. Which is which, and why?"
+      [code]="parensSample"
+      [answer]="parensAnswer"
+      revealLabel="Reveal which one throws"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        Where the guard does and doesn't reach
+      </caption>
+      <thead>
+        <tr>
+          <th>Expression</th>
+          <th>What happens</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>obj?.a.b</code> — <code>obj</code> exists, <code>obj.a</code> is <code>undefined</code></td>
+          <td><span class="bf-break">Throws</span> — <code>TypeError</code> reading <code>b</code> of undefined</td>
+          <td>
+            <code>?.</code> after <code>obj</code> only guards <code>obj</code> itself. Past it, <code>.a.b</code> is
+            ordinary, unguarded access — guard every link: <code>obj?.a?.b</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>(user?.address).city</code></td>
+          <td><span class="bf-break">Throws</span>, even though <code>user?.address.city</code> (no parens) is fine</td>
+          <td>
+            Parentheses <strong>end</strong> the optional chain. What's inside evaluates first; <code>.city</code> then
+            reads from that result unguarded.
+          </td>
+        </tr>
+        <tr>
+          <td><code>user?.name = 'new value'</code></td>
+          <td>SyntaxError, at compile time</td>
+          <td>
+            An optional chain is not a valid assignment target — there's no such thing as "assign, unless nullish".
+          </td>
+        </tr>
+        <tr>
+          <td><code>new user?.Ctor()</code></td>
+          <td>SyntaxError, at compile time</td>
+          <td>
+            <code>new</code> needs a definite constructor; the spec forbids an optional chain directly inside a
+            <code>new</code> expression.
+          </td>
+        </tr>
+        <tr>
+          <td><code>delete user?.address</code></td>
+          <td>Perfectly legal — evaluates to <code>true</code> if <code>user</code> is nullish</td>
+          <td><code>delete</code> is allowed to short-circuit: nothing to delete, and nothing failed.</td>
+        </tr>
+        <tr>
+          <td><code>user?.method?.()</code></td>
+          <td>Two independent guards, not one</td>
+          <td>
+            The second <code>?.</code> guards <code>method</code> itself being missing — a nullish callback — not
+            <code>user</code> a second time.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 12. NOUNCHECKEDINDEXEDACCESS ============ -->
+  <section>
+    <p class="bf-eyebrow">A stricter compiler flag</p>
+    <h2><code>noUncheckedIndexedAccess</code> makes <code>arr[0]</code> stop lying to you.</h2>
+
+    <p>
+      By default, TypeScript trusts you completely about array bounds. <code>const first = list[0]</code> types
+      <code>first</code> as <code>string</code>, never <code>string | undefined</code>, even though
+      <code>list</code> might be empty. <code>Map.get()</code> has always been honest about this —
+      <code>map.get(key)</code> is <code>T | undefined</code> unconditionally, because a <code>Map</code> makes no
+      promise the key exists. <code>noUncheckedIndexedAccess</code> applies that same honesty to <code>[]</code> access
+      — and it is not part of <code>strict: true</code>, so most codebases have never turned it on.
+    </p>
+
+    <app-compare
+      leftTitle="Off — the default"
+      leftTone="bad"
+      rightTitle="On — noUncheckedIndexedAccess"
+      rightTone="good"
+      note="`map.get(k)` has always returned `T | undefined`, flag or no flag — only bracket-indexed array and tuple access changes."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+const list: string[] = [];
+const first = list[0];   // string — the compiler is sure
+first.toUpperCase();     // compiles. Throws: list is empty.</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+const list: string[] = [];
+const first = list[0];   // string | undefined — honestly
+first.toUpperCase();     // ✗ 'first' is possibly 'undefined'</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>Three idiomatic fixes, all of which tell the truth up front:</p>
+    <ul>
+      <li>Destructure and guard — <code>const [first] = list; if (!first) return;</code></li>
+      <li>
+        Reach for <code>.at(-1)</code> (or <code>.at(0)</code>), which has always returned
+        <code>T | undefined</code> regardless of the flag.
+      </li>
+      <li>Lean on <code>??</code> at the read site — <code>map.get(id) ?? fallbackUser</code>.</li>
+    </ul>
+
+    <p>
+      The temptation is <code>list[0]!</code> — and sometimes that's fine: right after you <code>.push()</code> the only
+      item, you already know it's there. On <code>req.query.ids[0]</code> from an incoming request, it isn't a promise
+      you can make; that data came from outside your program.
+    </p>
+  </section>
+
+  <!-- ============ 13. IN ANGULAR TEMPLATES ============ -->
+  <section>
+    <p class="bf-eyebrow">In Angular templates</p>
+    <h2>Same operators, same rules — plus one idiom worth adopting.</h2>
+
+    <div class="code">
+      <pre>
 &lt;p&gt;{{ '{{' }} user()?.address?.city ?? 'n/a' {{ '}}' }}&lt;/p&gt;
 
 &#64;if (user()?.address; as addr) {{ '{' }}
   &lt;p&gt;{{ '{{' }} addr.city {{ '}}' }}&lt;/p&gt;   &lt;!-- narrowed once, used clean --&gt;
 {{ '}' }}</pre>
-  </div>
-  <p>
-    Template expressions support both operators with identical semantics. When a template reads several members off the
-    same maybe-nullish object, prefer the
-    <code>&#64;if (…; as x)</code> form — one check, then plain reads — over repeating <code>?.</code> on every binding.
-  </p>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary><code>null?.foo</code> — what's the value, and why isn't it <code>null</code>?</summary>
-    <div>
-      <code>undefined</code>. Optional chaining normalizes both nullish inputs to <code>undefined</code> on
-      short-circuit so the result type is always <code>T | undefined</code> rather than
-      <code>T | null | undefined</code> — one absent-value to handle downstream instead of two. It's the same
-      normalization reason APIs like <code>Array.find</code> return undefined.
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A volume slider stores <code>0</code>, but playback always starts at 50. The code reads
-      <code>settings.volume || 50</code>. Diagnose.
-    </summary>
-    <div>
-      <code>0</code> is falsy, so <code>||</code> discards the user's explicit 0 and substitutes the default. Fix:
-      <code>settings.volume ?? 50</code> — the fallback then applies only when volume was never set (null/undefined),
-      not when it was set to a falsy-but-valid value. This is the canonical <code>||</code>-vs-<code>??</code> interview
-      question.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      In <code>obj?.a.b</code>, <code>obj</code> is non-null but <code>obj.a</code> is undefined. Crash or undefined?
-    </summary>
-    <div>
-      Crash — <code>TypeError: Cannot read properties of undefined</code>. The <code>?.</code> guards only the value
-      immediately before it (<code>obj</code>); once past that check, <code>.a.b</code> is ordinary access.
-      Short-circuiting protects the <em>tail</em> from a nullish <em>head</em>, not every link from every other link.
-      Guard each genuinely nullable link: <code>obj?.a?.b</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>When is <code>x!.y</code> defensible over <code>x?.y</code>?</summary>
-    <div>
-      When absence is a <em>programmer error</em> rather than a valid state — e.g. reading a map entry you inserted two
-      lines earlier. There, <code>?.</code> would silently continue with undefined and move the failure somewhere
-      mysterious, while <code>!</code> at least crashes at the true location. Better still is an explicit guard that
-      throws a descriptive error. Rule: <code>?.</code> for "absence is normal", assertion/throw for "absence is a bug".
-    </div>
-  </details>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="date is actually undefined at runtime, but you wrote date!.getFullYear() to silence the compiler. What happens when this line runs?"
-    [options]="quizOptions"
-    followUp="The assertion is a promise you make to the compiler, not a runtime instruction. When the promise is false, the crash still happens — just as it would with no assertion at all — which is why a real guard or ?. usually beats reaching for !."
-  />
+    <p>
+      Template expressions support both operators with identical semantics — even reading through a signal call like
+      <code>user()</code> changes nothing about how <code>?.</code> or <code>??</code> behave. When a template reads
+      several members off the same maybe-nullish object, prefer <code>&#64;if (…; as x)</code> — one check, then plain
+      reads — over repeating <code>?.</code> on every binding.
+    </p>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>?.</code> reacts to nullish only, always yields <code>undefined</code> on short-circuit, and skips the whole
-      chain tail — but each nullable link needs its own <code>?.</code>.
-    </li>
-    <li>
-      <code>??</code> falls back only on null/undefined; <code>||</code> also swallows
-      <code>0</code>/<code>''</code>/<code>false</code> — a real bug class. Mixing them without parentheses is a syntax
-      error.
-    </li>
-    <li>
-      <code>??=</code>/<code>||=</code>/<code>&amp;&amp;=</code> short-circuit the assignment itself —
-      <code>??=</code> is lazy defaulting.
-    </li>
-    <li>
-      <code>!</code> (non-null and definite-assignment flavors) is a compile-time promise with no runtime check;
-      required inputs and guards usually beat it.
-    </li>
-    <li>In templates, prefer one <code>&#64;if (…; as x)</code> narrow over repeating <code>?.</code> per binding.</li>
-  </ul>
+  <!-- ============ 14. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <p><a routerLink="/what-is-angular">Next: What is Angular? →</a></p>
+  <!-- ============ 15. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>?.</code> checks <strong>nullish</strong>, never falsy, and always yields <code>undefined</code> on
+        short-circuit — never <code>null</code> — because it normalizes every missing link to the same one value.
+      </li>
+      <li>
+        Each <code>?.</code> only guards the thing to its <strong>left</strong>. <code>a?.b.c</code> is not
+        <code>a?.b?.c</code>, and a stray <code>(user?.address).city</code> throws because the parentheses ended the
+        chain before <code>.city</code> was ever protected.
+      </li>
+      <li>
+        <code>??</code> asks "null or undefined?"; <code>||</code> asks "falsy?" — they agree everywhere except
+        <code>0</code>, <code>''</code> and <code>false</code>, which is where real bugs live. Mixing
+        <code>??</code> with <code>||</code>/<code>&amp;&amp;</code> without parentheses is a syntax error by design.
+      </li>
+      <li>
+        A default parameter or destructuring default asks a <strong>narrower</strong> question than <code>??</code> —
+        only "undefined?", never "null?". They are not interchangeable, and the gap is exactly <code>null</code>.
+      </li>
+      <li>
+        <code>??=</code>/<code>||=</code>/<code>&amp;&amp;=</code> short-circuit the <strong>assignment</strong>,
+        including skipping evaluation of the right-hand side entirely — which is what makes <code>??=</code> the tool
+        for lazy, pay-once initialization.
+      </li>
+      <li>
+        <code>!</code> (both flavors) is a compile-time-only promise with zero runtime check. Prefer a real guard,
+        <code>?.</code>/<code>??</code>, or — in Angular — <code>input.required&lt;T&gt;()</code> and signal queries,
+        which remove most of the cases <code>!</code> used to cover.
+      </li>
+    </ul>
+
+    <p><a routerLink="/what-is-angular">Next: What is Angular? →</a></p>
+  </section>
 </article>

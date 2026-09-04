@@ -1,80 +1,159 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Programming from Zero</span>
-  <h1>Decisions &amp; Loops</h1>
-  <p class="lead">
-    So far our code runs straight down, top to bottom. Real programs need to
-    <strong>make decisions</strong> ("if the user is logged in, show the dashboard") and
-    <strong>repeat work</strong> ("for every product, show a card"). Branching and looping are the control flow of every
-    program you will ever read — and they reappear, renamed, inside Angular templates as <code>&#64;if</code> and
-    <code>&#64;for</code>.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Foundations · Programming from Zero"
+    title="Decisions &amp; Loops"
+    hand="or, teaching your code to say maybe, and to say it again"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      Every program you've written so far runs in one straight line, top to bottom, exactly once. Real programs aren't
+      like that — they need to <strong>make decisions</strong> ("if the user is logged in, show the dashboard") and
+      <strong>repeat work</strong> ("for every product, show a card"). This lesson gives your code both:
+      <strong>branching</strong>, so it can choose a path, and <strong>looping</strong>, so it can do something more
+      than once without you writing it out by hand. Everything here reappears later wearing Angular's own syntax —
+      <code>&#64;if</code>, <code>&#64;for</code> and <code>&#64;switch</code> are these exact ideas inside a template.
+    </p>
+  </app-chapter>
 
-  <h2>Making decisions with <code>if</code></h2>
-  <p>
-    An <code>if</code> statement runs a block of code <em>only when</em> a condition is <code>true</code>. Reading it
-    piece by piece:
-  </p>
-  <div class="code">
-    <pre>
-const age = 20;
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Straight-line code can't say maybe.</h2>
 
-if (age >= 18) {{ '{' }}                    // ← the condition, in parentheses
-  console.log('You can vote.');      // ← the "then" block: runs when true
-{{ '}' }} else {{ '{' }}
-  console.log('Too young.');         // ← the "else" block: runs otherwise
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Line 3, the condition:</strong> <code>age >= 18</code> is evaluated first and collapses to a single
-      boolean — here <code>20 >= 18</code> → <code>true</code>. Anything boolean-valued can go here.
-    </li>
-    <li>
-      <strong
-        >The braces <code>{{ '{' }} {{ '}' }}</code
-        >:</strong
+    <p>
+      A script that only ever runs top to bottom can't choose between two outcomes, and it can't do something a variable
+      number of times. Both of those are things nearly every real feature needs — and both come from handing control of
+      "what runs next" to a <em>test</em> instead of to the next line down.
+    </p>
+
+    <app-napkin lead="predict before reading on —" label="Which of these run?">
+      Four values are about to meet an <code>if</code>: the empty string <code>''</code>, the string <code>'Bob'</code>,
+      <code>undefined</code>, and the <strong>string</strong> <code>'0'</code>. Before you scroll any further — which of
+      the four make <code>if (value) &#123; … &#125;</code> actually run its block? One of them is not what most people
+      guess.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE ANALOGY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2><code>if</code>/<code>else</code> is a railway switch.</h2>
+
+    <p>
+      One train arrives. It hits a switch — the condition — and the switch sends it down exactly one of two tracks. It
+      can never run down both, and it can never sit at the junction doing nothing. Everything in the first half of this
+      lesson — <code>else if</code> chains, truthiness, the ternary, <code>&amp;&amp;</code>/<code>||</code>, even
+      <code>switch</code> itself — is just another way of asking that same fork a question.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 760 260"
+        role="img"
+        aria-label="A single track arrives at a switch labelled age greater than or equal to 18. The switch forks into two tracks: the upper one, labelled true, leads to a box reading you can vote. The lower one, labelled false, leads to a box reading too young to vote."
+        class="dia__svg"
       >
-      group the lines that belong to that branch. Exactly one branch runs — never both, never neither (when an
-      <code>else</code> exists).
-    </li>
-    <li>
-      <strong><code>else</code> is optional:</strong> without it, a false condition simply skips the block and life
-      continues below.
-    </li>
-  </ul>
-  <p>Chains test conditions <em>top to bottom, first match wins</em> — order matters:</p>
-  <div class="code">
-    <pre>
-if (score > 90)      grade = 'A';   // tested first
-else if (score > 80) grade = 'B';   // only reached when score <= 90
-else                 grade = 'C';   // the catch-all
+        <defs>
+          <marker
+            id="dl-arrow-switch"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
 
-// ⚠️ reversed order would be a bug:
-// if (score > 80) grade = 'B';     ← a 95 stops HERE and never sees the A test</pre>
-  </div>
+        <path d="M 20 130 L 200 130" class="dia-rule" fill="none" marker-end="url(#dl-arrow-switch)" />
 
-  <div class="demo">
-    <p class="demo__title">Live — a decision in action</p>
-    <div class="field">
-      <label>Your age</label>
-      <input aria-label="Your age" type="number" [value]="age()" (input)="age.set(+$any($event.target).value)" />
-    </div>
-    <div class="code">
-      <pre>
-if (age >= 18) {{ '{' }} message = 'You can vote 🗳️' {{ '}' }}
+        <rect x="200" y="95" width="190" height="70" rx="14" class="dia-box dia-box--lit" />
+        <text x="295" y="136" text-anchor="middle" class="dia-mono">age &gt;= 18 ?</text>
+
+        <path d="M 390 130 C 470 130, 470 55, 560 55" class="dia-rule" fill="none" marker-end="url(#dl-arrow-switch)" />
+        <text x="452" y="98" text-anchor="middle" class="dia-hand">true</text>
+        <rect x="560" y="20" width="180" height="70" rx="14" class="dia-box" />
+        <text x="650" y="61" text-anchor="middle" class="dia-mono dia-mono--sm">'You can vote 🗳️'</text>
+
+        <path
+          d="M 390 130 C 470 130, 470 205, 560 205"
+          class="dia-rule"
+          fill="none"
+          marker-end="url(#dl-arrow-switch)"
+        />
+        <text x="452" y="168" text-anchor="middle" class="dia-hand">false</text>
+        <rect x="560" y="170" width="180" height="70" rx="14" class="dia-box" />
+        <text x="650" y="211" text-anchor="middle" class="dia-mono dia-mono--sm">'Too young to vote'</text>
+      </svg>
+      <figcaption>
+        One condition, two tracks, no third option. When there's no <code>else</code>, the false track simply isn't
+        drawn — the train stops at the junction and execution continues below, having done nothing at all.
+      </figcaption>
+    </figure>
+
+    <app-remember variant="mnemonic">
+      <strong>One train, one switch, exactly one track.</strong> An <code>if</code> / <code>else if</code> /
+      <code>else</code> chain is one train hitting one switch — it leaves on exactly one track, never two, never none
+      once a catch-all <code>else</code> exists.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM: IF/ELSE/ELSE-IF ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Reading a decision, piece by piece.</h2>
+
+    <app-code-lab
+      file="vote.ts"
+      [code]="ifElseSample"
+      [notes]="ifElseNotes"
+      notesLabel="Every symbol on these seven lines"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the exact same decision, wired to an input</p>
+      <div class="field">
+        <label class="field__label" for="dl-age">age</label>
+        <input id="dl-age" type="number" [value]="age()" (input)="age.set(+$any($event.target).value)" />
+      </div>
+      <pre class="readout">
+if (age &gt;= 18) {{ '{' }} message = 'You can vote 🗳️' {{ '}' }}
 else        {{ '{' }} message = 'Too young to vote' {{ '}' }}
 
 → {{ voteMessage() }}</pre>
     </div>
-  </div>
 
-  <h2>Truthiness — the gotcha inside every condition</h2>
-  <p>
-    JavaScript lets <em>any</em> value stand where a boolean is expected, silently converting it. Six values convert to
-    <code>false</code> (the "falsy six") — everything else is truthy:
-  </p>
-  <div class="code">
-    <pre>
+    <p>
+      Chains of <code>else if</code> test conditions <strong>top to bottom, first match wins</strong> — and stop the
+      instant one matches. Order isn't cosmetic; get it backwards and a test upstream can swallow a case that should
+      have gone somewhere more precise.
+    </p>
+
+    <app-predict
+      prompt="A 95 should obviously come back as an `'A'`. Trace this by hand before you reveal — what does it actually return?"
+      [code]="reversedGradeSample"
+      answer="`'B'`. Chains test **top to bottom** and stop at the very first match: `score > 80` is checked first, `95 > 80` is `true`, and the function returns immediately — the `score > 90` line is never even reached. Order your conditions from **most specific to least** (the narrowest test first), or a wide test upstream swallows every case that should have gone somewhere more precise."
+      revealLabel="Reveal what it returns"
+    />
+  </section>
+
+  <!-- ============ 4. TRUTHINESS ============ -->
+  <section>
+    <p class="bf-eyebrow">The gotcha</p>
+    <h2>Six values fake being false.</h2>
+
+    <p>
+      JavaScript lets <em>any</em> value stand where a boolean is expected, silently converting it. Exactly six values
+      convert to <code>false</code> — the "falsy six" — and every other value, no matter how empty-looking, is
+      <span class="key">truthy</span>.
+    </p>
+
+    <div class="code">
+      <pre>
 // the falsy six:
 false   0   ''   null   undefined   NaN
 
@@ -85,290 +164,577 @@ if (items.length) {{ '{' }} … {{ '}' }} // runs when the array has at least on
 const discount = 0;
 if (discount) {{ '{' }} … {{ '}' }}     // skipped! 0 fails the test even though 0 is real data
 if (discount !== undefined) {{ '{' }} … {{ '}' }}  // ✅ say what you actually mean</pre>
-  </div>
-  <p>
-    Truthiness makes conditions short, but the professional habit is: when 0 or
-    <code>''</code> are legitimate values, compare explicitly. You'll meet the polished fix (<code>??</code>, the
-    nullish operator) in the TypeScript tier.
-  </p>
-
-  <app-predict
-    prompt="A user enters a promo code that is genuinely valid — it just happens to be worth 0% off. describeDiscount checks if (discountPercent) before building its message. What does the user see?"
-    [code]="zeroDiscountSample"
-    answer="'No discount code entered' — the exact opposite of what actually happened. discountPercent is 0, and 0 is falsy, so if (discountPercent) treats a REAL, successfully-applied 0%-off code identically to no code being entered at all. The function has no way to tell 'nothing happened' apart from 'something happened and it was worth nothing' — because both collapse to the same falsy check. The fix is the same one the callout above already points at: compare explicitly, if (discountPercent !== undefined), so a real 0 takes the true branch and only an actually-missing value takes the false one."
-  />
-
-  <h2>The <code>for</code> loop — three parts, traced live</h2>
-  <p>
-    The classic counting loop packs three instructions into its header:
-    <strong>① init</strong> (once, before), <strong>② test</strong> (before every lap), <strong>③ body</strong>,
-    <strong>④ step</strong> (after every lap). Step through every micro-moment of a real three-lap loop:
-  </p>
-  <div class="code">
-    <pre>
-for (let i = 0;  i < 3;  i++) {{ '{' }}
-     └─ ① ─┘   └─ ② ─┘ └ ④ ┘
-  console.log('Hello ' + i);   // ← ③ the body
-{{ '}' }}</pre>
-  </div>
-  <svg class="diagram" viewBox="0 0 460 220" role="img" aria-labelledby="dl-t dl-d">
-    <title id="dl-t">The for-loop cycle: init once, then test, body, step, repeat</title>
-    <desc id="dl-d">
-      A cycle of four boxes arranged in a loop. Init sits at the top, feeding into test. Test feeds into body only when
-      true, body feeds into step, and step feeds back into test again, forming a circle. An arrow leaving test when the
-      condition is false exits the circle entirely and continues after the loop. Init has a note that it runs exactly
-      once, before the circle begins.
-    </desc>
-    <text x="230" y="20" font-size="11" text-anchor="middle" fill="var(--text-muted)">
-      runs once, before the cycle begins
-    </text>
-    <rect x="170" y="30" width="120" height="34" rx="8" fill="var(--violet)" opacity="0.18" />
-    <text x="230" y="52" font-size="12" text-anchor="middle" fill="var(--violet)" font-weight="700">① init</text>
-    <line x1="230" y1="64" x2="230" y2="90" stroke="var(--border)" stroke-width="1.5" />
-
-    <rect x="170" y="92" width="120" height="34" rx="8" fill="var(--green)" opacity="0.18" />
-    <text x="230" y="114" font-size="12" text-anchor="middle" fill="var(--green)" font-weight="700">② test</text>
-
-    <line x1="290" y1="109" x2="330" y2="109" stroke="var(--border)" stroke-width="1.5" />
-    <rect x="70" y="154" width="120" height="34" rx="8" fill="var(--amber)" opacity="0.2" />
-    <text x="130" y="176" font-size="12" text-anchor="middle" fill="var(--amber)" font-weight="700">③ body</text>
-    <line x1="170" y1="126" x2="140" y2="152" stroke="var(--border)" stroke-width="1.5" />
-    <text x="145" y="145" font-size="10" fill="var(--green)">true</text>
-
-    <rect x="270" y="154" width="120" height="34" rx="8" fill="var(--violet)" opacity="0.18" />
-    <text x="330" y="176" font-size="12" text-anchor="middle" fill="var(--violet)" font-weight="700">④ step</text>
-    <line x1="130" y1="154" x2="150" y2="130" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="0" />
-    <line x1="190" y1="171" x2="266" y2="171" stroke="var(--border)" stroke-width="1.5" />
-    <line x1="330" y1="154" x2="270" y2="126" stroke="var(--border)" stroke-width="1.5" />
-
-    <text x="360" y="100" font-size="10" fill="var(--red)">false</text>
-    <text x="330" y="204" font-size="11" text-anchor="middle" fill="var(--text-muted)">
-      false → exits the circle, continues after the loop
-    </text>
-  </svg>
-
-  <div class="demo">
-    <p class="demo__title">Live — one micro-step at a time</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="frameBack()" [disabled]="frame() === 0" class="ghost">← Back</button>
-      <button (click)="frameFwd()" [disabled]="frame() === frames.length - 1">Step →</button>
-      <button class="ghost" (click)="frame.set(0)">Reset</button>
     </div>
-    <div class="loop-state">
-      <div class="ls-box">
-        <span>phase</span><strong>{{ frames[frame()].phase }}</strong>
-      </div>
-      <div class="ls-box">
-        <span>i</span><strong>{{ frames[frame()].i }}</strong>
-      </div>
-      <div class="ls-box">
-        <span>test</span><strong>{{ frames[frame()].test }}</strong>
-      </div>
-    </div>
-    <p style="font-size: 0.9rem; margin: 10px 0 6px">{{ frames[frame()].note }}</p>
-    <div class="console">
-      @for (line of frames[frame()].output; track $index) {
-        <div>{{ line }}</div>
-      } @empty {
-        <div class="dim">// console output appears here…</div>
-      }
-    </div>
-  </div>
-  <div class="note">
-    Two details everyone gets asked eventually: the loop runs while the test is true (so <code>i &lt; 3</code> gives
-    laps 0, 1, 2 — <em>three</em> laps, and <strong>i ends at 3</strong>); and starting at 0 is deliberate — almost
-    everything in programming counts from zero, including array positions.
-  </div>
 
-  <h2>The loops you'll actually write</h2>
-  <div class="code">
-    <pre>
-// "for...of" — walk every ITEM of an array; no counter bookkeeping to get wrong:
-for (const fruit of ['apple', 'banana', 'cherry']) {{ '{' }}
-  console.log(fruit);          // apple, then banana, then cherry
+    <div class="warn">
+      <strong>The string <code>'0'</code> is not the number <code>0</code>.</strong> Any non-empty string is truthy —
+      including the three characters <code>'0'</code>. Read data straight from an input field or a URL and it arrives as
+      a <em>string</em>; <code>if (paramValue)</code> happily runs even when <code>paramValue</code> is the text
+      <code>'0'</code>. That's the answer to the napkin above.
+    </div>
+
+    <p>
+      Truthiness makes conditions short, but the professional habit is: when <code>0</code> or <code>''</code> are
+      legitimate values, compare explicitly. You'll meet the polished version of that fix — the nullish operator
+      <code>??</code> — in the TypeScript tier.
+    </p>
+
+    <app-quiz
+      question="`const discount = 0; if (discount) { applyDiscount(); }` — does `applyDiscount()` run?"
+      [options]="truthinessQuizOptions"
+      followUp="This is the exact trap the ?? operator exists to fix — you'll meet it properly soon."
+    />
+  </section>
+
+  <!-- ============ 5. EXPRESSIONS, NOT STATEMENTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Expressions, not statements</p>
+    <h2>Sometimes you just want a value, not a branch.</h2>
+
+    <p>
+      <code>if</code>/<code>else</code> is a <span class="term">statement</span> — an instruction that runs code. It can
+      never sit on the right-hand side of <code>=</code>, and it can never appear inside a string. Often what you
+      actually want isn't a branch at all, it's <em>one value or another</em> — and for that, JavaScript has an
+      <span class="term">expression</span> form of the same fork.
+    </p>
+
+    <app-code-lab
+      file="label.ts"
+      [code]="ternarySample"
+      [notes]="ternaryNotes"
+      notesLabel="Reading the ternary against the if/else it replaces"
+    />
+
+    <app-napkin lead="the trick is —" label="How to read a ternary">
+      Read <code>condition ? a : b</code> out loud as <strong>"condition — if so, `a`; otherwise, `b`."</strong> The
+      <code>?</code> is the fork, the <code>:</code> is the word "otherwise." Say it that way a few times and the
+      punctuation stops looking like noise.
+    </app-napkin>
+
+    <h3><code>&amp;&amp;</code> and <code>||</code> are value-producing too</h3>
+
+    <p>
+      These two look like they only glue booleans together, but neither one actually returns
+      <code>true</code>/<code>false</code> — each hands back <strong>one of its own operands</strong>, unchanged.
+    </p>
+
+    <app-code-lab
+      file="guards.ts"
+      [code]="andOrSample"
+      [notes]="andOrNotes"
+      notesLabel="What each operator actually hands back"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the `||` default, and where it disagrees with the explicit fix</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button [class.ghost]="orDemoValue() !== undefined" (click)="orDemoValue.set(undefined)">
+          no value (undefined)
+        </button>
+        <button [class.ghost]="orDemoValue() !== 0" (click)="orDemoValue.set(0)">0</button>
+        <button [class.ghost]="orDemoValue() !== 5" (click)="orDemoValue.set(5)">5</button>
+        <button [class.ghost]="orDemoValue() !== 20" (click)="orDemoValue.set(20)">20</button>
+      </div>
+      <pre class="readout">{{ orDemoReadout() }}</pre>
+      <p class="demo__note">
+        Press <strong>0</strong>: the two lines disagree. <code>||</code> can't tell "zero" from "nothing was ever set"
+        — both look falsy to it — while the explicit comparison can, because it asks the one question that actually
+        matters: <em>is this specifically <code>undefined</code>?</em>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 6. SWITCH ============ -->
+  <section>
+    <p class="bf-eyebrow">The other branch</p>
+    <h2><code>switch</code>: one value, many exact matches.</h2>
+
+    <p>
+      When a chain of <code>else if</code> is really just testing <em>one</em> variable against a list of exact values,
+      <code>switch</code> says the same thing more clearly. It tests with strict <code>===</code> — so a
+      <code>case 1</code> never matches the string <code>'1'</code> — and it has one behaviour <code>if</code>/
+      <code>else</code> doesn't: once a case is entered, execution keeps running <strong>downward</strong> until it hits
+      a <code>break</code>, whether or not the next case's label still matches.
+    </p>
+
+    <app-code-lab
+      file="status.ts"
+      [code]="switchSample"
+      [notes]="switchNotes"
+      notesLabel="case, break, default, and the === underneath all of it"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same switch, with `break` on a toggle</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button [class.ghost]="status() !== 'active'" (click)="status.set('active')">active</button>
+        <button [class.ghost]="status() !== 'pending'" (click)="status.set('pending')">pending</button>
+        <button [class.ghost]="status() !== 'banned'" (click)="status.set('banned')">banned</button>
+        <button [class.ghost]="status() !== 'archived'" (click)="status.set('archived')">archived</button>
+      </div>
+      <div class="row" style="margin-bottom: 10px">
+        <button [class.ghost]="!useBreaks()" (click)="useBreaks.update((v) => !v)">
+          {{ useBreaks() ? 'break included ✓' : 'break omitted ✗' }}
+        </button>
+      </div>
+      <pre class="readout">{{ switchLog() }}</pre>
+      <p class="demo__note">
+        Switch to <strong>pending</strong> and turn the toggle off: the log prints <em>both</em>
+        "Verification pending." and "Account banned." — a pending account is never banned, but with no
+        <code>break</code>, execution doesn't know to stop and just keeps running downward.
+      </p>
+    </div>
+
+    <app-compare
+      leftTitle="Accidental — a missing `break`"
+      rightTitle="Deliberate — grouped cases"
+      leftTone="bad"
+      rightTone="good"
+      note="Fall-through isn't a bug in JavaScript — it's a decision you either make on purpose (right) or forget to prevent (left). The syntax can't tell them apart; only a `break` can."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+switch (status) {{ '{' }}
+  case 'pending':
+    log.push('Verification pending.');
+    // ← missing break!
+  case 'banned':
+    log.push('Account banned.');
+    break;
+  default:
+    log.push('Unknown status.');
 {{ '}' }}
 
-// "while" — loop when you don't know the lap count in advance:
-let tries = 0;
-while (!connected && tries < 5) {{ '{' }}
-  attemptConnection();
-  tries++;                     // ⚠️ forget this line → infinite loop, frozen tab
+// status = 'pending' logs BOTH lines —
+// 'banned' fires even though the
+// account isn't banned at all.</pre>
+        </div>
+        <p>
+          One forgotten <code>break</code> and a <em>pending</em> account gets told it's banned too. Nothing crashes —
+          it just quietly runs code that was never meant to run for this value.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+switch (day) {{ '{' }}
+  case 'Sat':
+  case 'Sun':
+    return 'Weekend';   // both share this line
+  default:
+    return 'Weekday';
 {{ '}' }}
 
-// escape hatches, valid in any loop:
-break;      // leave the loop entirely, right now
-continue;   // abandon THIS lap, jump to the next test</pre>
-  </div>
-  <ul>
-    <li>
-      <code>for...of</code> replaces 90% of counting loops: no off-by-one bugs, reads like English. Use the counting
-      <code>for</code> only when you genuinely need the index.
-    </li>
-    <li>
-      <code>while</code> is for "until something happens" — retries, polling, games. Its danger is the
-      <strong>infinite loop</strong>: if the condition never turns false, the browser tab freezes. Something in the body
-      must move toward the exit.
-    </li>
-  </ul>
+// 'Sat' has no code of its own — it
+// falls straight through into 'Sun',
+// which is exactly the point.</pre>
+        </div>
+        <p>
+          Same mechanism, aimed on purpose: stack cases with no body between them and they all run the line that finally
+          has one. No <code>break</code> needed until the group is done.
+        </p>
+      </div>
+    </app-compare>
 
-  <h2>The modern way: <code>map</code>, <code>filter</code>, <code>reduce</code></h2>
-  <p>
-    Most production code doesn't write raw loops at all. Arrays carry helper methods that do the looping for you — you
-    supply a small arrow function describing what to do with <em>one item</em>, and it's applied to each:
-  </p>
-  <div class="code">
-    <pre>
+    <app-quiz
+      question="`switch (status)` has case `'pending'` with no `break`, falling into case `'banned'`, which does have one. `status` is `'pending'`. Which log lines print?"
+      [options]="switchQuizOptions"
+      followUp="Reproduce it above: pick pending, turn the toggle off, and read the readout."
+    />
+  </section>
+
+  <!-- ============ 7. THE FOR LOOP, TRACED LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism, again</p>
+    <h2>A <code>for</code> loop packs four instructions into one line.</h2>
+
+    <p>
+      The classic counting loop is one line doing four jobs: <strong>① init</strong> (once, before anything),
+      <strong>② test</strong> (before every lap), <strong>③ body</strong>, <strong>④ step</strong> (after every lap,
+      then back to the test). Own that cycle and every loop bug you'll ever hit is really just "which of the four went
+      missing."
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 900 300"
+        role="img"
+        aria-label="Four boxes in a row: init, test, body and step, connected left to right by arrows. A curved arrow loops from step back to test, labelled loop again, every lap. A short arrow leaves test downward, labelled false, done."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="dl-arrow-loop"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <path d="M 795 110 C 795 35, 335 35, 335 110" class="dia-rule" fill="none" marker-end="url(#dl-arrow-loop)" />
+        <text x="565" y="28" text-anchor="middle" class="dia-hand">loop again — every lap</text>
+
+        <rect x="20" y="110" width="170" height="70" rx="14" class="dia-box" />
+        <text x="105" y="140" text-anchor="middle" class="dia-mono">① init</text>
+        <text x="105" y="162" text-anchor="middle" class="dia-mono dia-mono--sm">i = 0 — once</text>
+
+        <path d="M 190 145 L 250 145" class="dia-rule" fill="none" marker-end="url(#dl-arrow-loop)" />
+
+        <rect x="250" y="110" width="170" height="70" rx="14" class="dia-box dia-box--lit" />
+        <text x="335" y="140" text-anchor="middle" class="dia-mono">② test</text>
+        <text x="335" y="162" text-anchor="middle" class="dia-mono dia-mono--sm">i &lt; 3 ?</text>
+
+        <path d="M 420 145 L 480 145" class="dia-rule" fill="none" marker-end="url(#dl-arrow-loop)" />
+
+        <rect x="480" y="110" width="170" height="70" rx="14" class="dia-box" />
+        <text x="565" y="140" text-anchor="middle" class="dia-mono">③ body</text>
+        <text x="565" y="162" text-anchor="middle" class="dia-mono dia-mono--sm">run the code</text>
+
+        <path d="M 650 145 L 710 145" class="dia-rule" fill="none" marker-end="url(#dl-arrow-loop)" />
+
+        <rect x="710" y="110" width="170" height="70" rx="14" class="dia-box" />
+        <text x="795" y="140" text-anchor="middle" class="dia-mono">④ step</text>
+        <text x="795" y="162" text-anchor="middle" class="dia-mono dia-mono--sm">i++</text>
+
+        <path d="M 335 180 L 335 235" class="dia-rule" fill="none" marker-end="url(#dl-arrow-loop)" />
+        <text x="335" y="258" text-anchor="middle" class="dia-hand">false → done</text>
+      </svg>
+      <figcaption>
+        Test guards every single lap, including the first — a loop whose test starts out false never runs its body at
+        all. Step runs last and feeds straight back into test, which is the entire engine of a loop.
+      </figcaption>
+    </figure>
+
+    <app-code-lab
+      file="hello.ts"
+      [code]="forHeaderSample"
+      [notes]="forHeaderNotes"
+      notesLabel="Three instructions, one header"
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="① init" kicker="runs once" tone="gold">
+        Sets up whatever the loop needs to track — almost always a counter — <strong>before</strong> the first test.
+      </app-tape-card>
+      <app-tape-card heading="② test" kicker="checked every lap" tone="accent">
+        A boolean, checked <strong>before</strong> every lap including the first. <code>false</code> ends the loop
+        immediately — the body doesn't run one more time.
+      </app-tape-card>
+      <app-tape-card heading="③ body" kicker="the actual work" tone="olive">
+        The code between the braces. Runs once per lap, in full, before the step.
+      </app-tape-card>
+      <app-tape-card heading="④ step" kicker="runs after every lap" tone="accent">
+        Almost always what moves the loop toward failing its test. Skip it and you've written
+        <code>while (true)</code> by accident.
+      </app-tape-card>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — one micro-step at a time</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="frameBack()" [disabled]="frame() === 0" class="ghost">← Back</button>
+        <button (click)="frameFwd()" [disabled]="frame() === frames.length - 1">Step →</button>
+        <button class="ghost" (click)="frame.set(0)">Reset</button>
+      </div>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <span class="bf-chip">phase: {{ frames[frame()].phase }}</span>
+        <span class="bf-chip">i: {{ frames[frame()].i }}</span>
+        <span class="bf-chip">test: {{ frames[frame()].test }}</span>
+      </div>
+      <p class="demo__note">{{ frames[frame()].note }}</p>
+      <div class="console">
+        @for (line of frames[frame()].output; track $index) {
+          <div>{{ line }}</div>
+        } @empty {
+          <div class="dim">// console output appears here…</div>
+        }
+      </div>
+    </div>
+
+    <app-remember variant="rule">
+      <strong>Init once, test before, step after.</strong> Forget the step in a <code>while</code> loop and the test
+      never turns false — the tab freezes, not crashes. Every loop needs something moving it toward the exit; when a
+      page hangs, that's the first thing to check.
+    </app-remember>
+  </section>
+
+  <!-- ============ 8. THE LOOPS YOU'LL ACTUALLY WRITE ============ -->
+  <section>
+    <p class="bf-eyebrow">Loops you'll actually write</p>
+    <h2><code>for...of</code>, <code>while</code>, and the exits only loops have.</h2>
+
+    <app-code-lab
+      file="loops.ts"
+      [code]="forOfWhileSample"
+      [notes]="forOfWhileNotes"
+      notesLabel="Where the counter goes when there isn't one built in"
+    />
+
+    <ul>
+      <li>
+        <code>for...of</code> replaces most counting loops: no off-by-one bugs, reads like English. Use the counting
+        <code>for</code> only when you genuinely need the index.
+      </li>
+      <li>
+        <code>while</code> is for "until something happens" — retries, polling, games. Its danger is the
+        <strong>infinite loop</strong>: if the condition never turns false, the browser tab freezes.
+      </li>
+    </ul>
+
+    <app-bubbles
+      [turns]="breakContinueTalk"
+      caption="What each one actually does — and the one place they share a rule: inside a switch, break means switch, not loop."
+    />
+  </section>
+
+  <!-- ============ 9. THE ARRAY-METHOD TRAPS ============ -->
+  <section>
+    <p class="bf-eyebrow">Two traps hiding in plain sight</p>
+    <h2>"Just use array methods" has an asterisk.</h2>
+
+    <p>
+      Later in this lesson you'll meet <code>map</code>/<code>filter</code>/<code>reduce</code> as the modern
+      replacement for raw loops — and that's good advice, right up until you need something a plain function can't give
+      you: an early exit, or a change made to the very list you're walking.
+    </p>
+
+    <h3>forEach has no <code>break</code> — none at all</h3>
+
+    <p>
+      Not a smaller version of <code>break</code>. Not skippable with <code>return</code>. <code>forEach</code> has no
+      early-exit mechanism whatsoever.
+    </p>
+
+    <app-predict
+      prompt="That `return n` looks like it should stop the search the moment a negative number turns up. Trace it before you reveal — what does the whole function actually return?"
+      [code]="forEachTrapSample"
+      answer="`undefined`. Two things go wrong at once. First, `return` inside the arrow function only ends **that one call** of the callback — `forEach` doesn't know or care what you returned, and moves straight on to the next item regardless. Second, because `forEach` never returns anything itself, `findFirstNegative` falls off its own end having returned nothing, which JavaScript reports as `undefined`. For a real early exit, reach for a `for...of` loop with a genuine `break`, or `.find()` — which exists to do exactly this."
+      revealLabel="Reveal the real return value"
+    />
+
+    <h3>Mutating the array you're mid-loop over</h3>
+
+    <p>
+      <code>splice</code> doesn't just remove an item — it <strong>shifts every later item one slot left</strong>. Do
+      that from inside a counting loop that's still climbing upward, and whatever just slid into the deleted slot gets
+      stepped straight over.
+    </p>
+
+    <app-code-lab
+      file="remove-evens.ts"
+      [code]="spliceBugSample"
+      [notes]="spliceBugNotes"
+      notesLabel="Where the skip actually happens"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — prove it: run both versions on the same array</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="runSpliceBuggy()">Run buggy version (for + splice)</button>
+        <button (click)="runSpliceSafe()">Run safe version (filter)</button>
+        <button class="ghost" (click)="resetSplice()">Reset</button>
+      </div>
+      <pre class="readout">{{ spliceReadout() }}</pre>
+      <p class="demo__note">
+        Run the buggy version: a <span class="bf-break">4 survives</span>, because it was the two adjacent evens —
+        <code>2</code> then <code>4</code> — that triggered the skip. Reset and run the safe version and every even
+        number is gone. <code>filter</code> never has this problem, because it builds a brand-new array instead of
+        performing surgery on the one it's walking.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 10. MAP / FILTER / REDUCE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The modern way</p>
+    <h2><code>map</code>, <code>filter</code>, <code>reduce</code>: looping without a loop.</h2>
+
+    <p>
+      Most production code doesn't write raw loops at all. Arrays carry helper methods that do the looping for you — you
+      supply a small function describing what to do with <em>one item</em>, and it's applied to each.
+    </p>
+
+    <div class="code">
+      <pre>
 const nums = [1, 2, 3, 4, 5, 6];
 
-nums.map(n => n * 10)          // [10, 20, 30, 40, 50, 60]  transform each (same count)
-nums.filter(n => n % 2 === 0)  // [2, 4, 6]                 keep passers (fewer or same)
-nums.reduce((sum, n) => sum + n, 0)   // 21                 boil down to ONE value
+nums.map(n =&gt; n * 10)          // [10, 20, 30, 40, 50, 60]  transform each (same count)
+nums.filter(n =&gt; n % 2 === 0)  // [2, 4, 6]                 keep passers (fewer or same)
+nums.reduce((sum, n) =&gt; sum + n, 0)   // 21                 boil down to ONE value
 
 // and they CHAIN — each returns a new array for the next to consume:
-nums.filter(n => n % 2 === 0)  // [2, 4, 6]
-    .map(n => n * 10)          // [20, 40, 60]
-    .reduce((s, n) => s + n, 0) // 120</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>map</code></strong> — same length out, every item transformed. "Turn each product into a price."
-    </li>
-    <li>
-      <strong><code>filter</code></strong> — the arrow function is a yes/no test; survivors pass through unchanged.
-      "Keep the in-stock products."
-    </li>
-    <li>
-      <strong><code>reduce</code></strong> — carries an accumulator (<code>sum</code>) across items; the
-      <code>0</code> is its starting value. "Total the cart." Trickier to read — reach for it when you need one value
-      out of many.
-    </li>
-    <li>
-      <strong>None of them touch the original array</strong> — they build new ones. That "don't mutate, produce anew"
-      habit becomes a load-bearing rule when you reach OnPush change detection in the expert tier.
-    </li>
-  </ul>
+nums.filter(n =&gt; n % 2 === 0)  // [2, 4, 6]
+    .map(n =&gt; n * 10)          // [20, 40, 60]
+    .reduce((s, n) =&gt; s + n, 0) // 120</pre>
+    </div>
 
-  <table class="t">
-    <tr>
-      <th>Method</th>
-      <th>Output length</th>
-      <th>Use for</th>
-    </tr>
-    <tr>
-      <td><code>map</code></td>
-      <td>same as input, always</td>
-      <td>transforming every item into something else</td>
-    </tr>
-    <tr>
-      <td><code>filter</code></td>
-      <td>0 to input length</td>
-      <td>keeping only items that pass a yes/no test</td>
-    </tr>
-    <tr>
-      <td><code>reduce</code></td>
-      <td>exactly 1 (not even an array)</td>
-      <td>collapsing everything into a single total/object</td>
-    </tr>
-  </table>
+    <ul>
+      <li>
+        <strong><code>map</code></strong> — same length out, every item transformed. "Turn each product into a price."
+      </li>
+      <li>
+        <strong><code>filter</code></strong> — the function is a yes/no test; survivors pass through unchanged. "Keep
+        the in-stock products."
+      </li>
+      <li>
+        <strong><code>reduce</code></strong> — carries an accumulator across items; the seed is its starting value.
+        "Total the cart."
+      </li>
+      <li>
+        <strong>None of them touch the original array</strong> — they build new ones. That "don't mutate, produce anew"
+        habit becomes load-bearing when you reach OnPush change detection in the expert tier.
+      </li>
+    </ul>
 
-  <app-remember variant="mnemonic" label="What each stage does to the count">
-    <strong>map keeps the count. filter cuts the count. reduce collapses to one.</strong> If you're reaching for map but
-    secretly want some items gone, you actually want <code>filter().map()</code>.
-  </app-remember>
+    <div class="demo">
+      <p class="demo__title">Live — build a pipeline over 1–8</p>
+      <p>
+        start: <code>[{{ nums.join(', ') }}]</code>
+      </p>
+      <div class="row" style="margin: 8px 0; flex-wrap: wrap">
+        <button [class.ghost]="!useFilter()" (click)="useFilter.update((v) => !v)">filter: even</button>
+        <span class="dim">then</span>
+        <button [class.ghost]="!useMap()" (click)="useMap.update((v) => !v)">map: × 3</button>
+        <span class="dim">then</span>
+        <button [class.ghost]="!useReduce()" (click)="useReduce.update((v) => !v)">reduce: sum</button>
+      </div>
+      <pre class="readout">{{ pipelineExpr() }}</pre>
+      <p class="demo__note">
+        Toggle stages on and off — each stage feeds the next, and the original array is never modified.
+      </p>
+    </div>
 
-  <div class="demo">
-    <p class="demo__title">Live — build a pipeline over 1–8</p>
+    <h3><code>reduce</code>, slowed down</h3>
+
     <p>
-      start: <code>[{{ nums.join(', ') }}]</code>
+      <code>reduce</code>'s function takes two arguments — the accumulator and the current item — and whatever you
+      return becomes the accumulator the <em>next</em> lap sees. Traced one lap at a time:
     </p>
-    <div class="row" style="margin: 8px 0; flex-wrap: wrap">
-      <button [class.ghost]="!useFilter()" (click)="useFilter.update((v) => !v)">filter: even</button>
-      <span class="dim">then</span>
-      <button [class.ghost]="!useMap()" (click)="useMap.update((v) => !v)">map: × 3</button>
-      <span class="dim">then</span>
-      <button [class.ghost]="!useReduce()" (click)="useReduce.update((v) => !v)">reduce: sum</button>
-    </div>
-    <div class="code">
-      <pre>{{ pipelineExpr() }}</pre>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Toggle stages on and off — each stage feeds the next, and the original array is never modified.
+
+    <app-flow
+      [steps]="reduceFlow"
+      direction="vertical"
+      caption="`[2, 5, 3].reduce((sum, n) => sum + n, 0)`, one lap at a time."
+    />
+
+    <p>
+      That's the numeric case everyone learns first. What surprises people is that the seed doesn't have to be a number
+      — <code>reduce</code> is the one method of the three that can change <em>shape</em>, not just size:
     </p>
-  </div>
 
-  <div class="note">
-    Why prefer these over raw loops? They read like English, they can't off-by-one, they don't mutate, and they are
-    <em>exactly</em> the mental model Angular templates use: <code>&#64;for (item of items)</code> is
-    <code>for...of</code>, <code>&#64;if</code> is <code>if</code>, and a "filter the list, then render it" feature is
-    literally <code>filter().map()</code> spread across a component and its template.
-  </div>
+    <app-code-lab
+      file="lookup.ts"
+      [code]="reduceLookupSample"
+      [notes]="reduceLookupNotes"
+      notesLabel="An array in, an object out"
+    />
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      How many times does <code>for (let i = 1; i &lt;= 5; i += 2)</code> loop, and what values does i take?
-    </summary>
-    <div>
-      Three laps: i = 1, 3, 5. The step can be anything — <code>i += 2</code> counts by twos. After the loop i is 7 (the
-      first value that failed the test).
+    <app-remember variant="rule">
+      <code>map</code> transforms, <code>filter</code> selects, <code>reduce</code> collapses to
+      <strong>any shape you build</strong> — an array, an object, a single number. None of the three ever mutates the
+      array they were called on.
+    </app-remember>
+  </section>
+
+  <!-- ============ 11. FORWARD CONNECTION TO ANGULAR ============ -->
+  <section>
+    <p class="bf-eyebrow">Why this matters in Angular</p>
+    <h2><code>&#64;if</code>, <code>&#64;for</code> and <code>&#64;switch</code> are these exact ideas.</h2>
+
+    <p>
+      Everything above is plain JavaScript, running in your head or in a console. Angular templates use the identical
+      concepts, wearing template syntax instead of statement syntax:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        Same ideas, Angular's syntax
+      </caption>
+      <thead>
+        <tr>
+          <th>Plain JavaScript</th>
+          <th>Angular template</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>if / else if / else</code></td>
+          <td><code>&#64;if / &#64;else if / &#64;else</code></td>
+        </tr>
+        <tr>
+          <td><code>for...of</code></td>
+          <td><code>&#64;for (item of items; track item.id)</code></td>
+        </tr>
+        <tr>
+          <td><code>switch / case / default</code></td>
+          <td><code>&#64;switch / &#64;case / &#64;default</code></td>
+        </tr>
+        <tr>
+          <td><code>list.filter(...).map(...)</code>, then render</td>
+          <td><code>&#64;for</code> over an already-filtered/mapped signal</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      Every trap on this page ports directly: an Angular <code>&#64;switch</code> case still can't fall through because
+      it has no <code>break</code> at all (Angular removed the footgun); an <code>&#64;if</code> still runs exactly one
+      branch; and a list you render with <code>&#64;for</code> is still best built with <code>filter</code>/<code
+        >map</code
+      >
+      rather than mutated in place — the exact habit §9 and §10 were building.
     </div>
-  </details>
-  <details class="qa">
-    <summary>What's the output length of <code>[1,2,3].map(...)</code> vs <code>[1,2,3].filter(...)</code>?</summary>
-    <div>
-      <code>map</code> always returns exactly 3 items (one transformed output per input — even if the transform returns
-      the same value). <code>filter</code> returns 0–3 depending on how many pass. If you find yourself wanting map to
-      "skip" items, you actually want <code>filter().map()</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>if (items.length)</code> work as "is the array non-empty?"</summary>
-    <div>
-      Truthiness: an empty array has <code>length</code> 0, and 0 is falsy; any other length is a non-zero number, which
-      is truthy. It's idiomatic and safe here because length can't be null — but remember the discount-0 trap when the
-      value itself could legitimately be 0.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Spot the infinite loop: <code>let i = 10; while (i > 0) {{ '{' }} console.log(i); {{ '}' }}</code>
-    </summary>
-    <div>
-      Nothing inside the body changes <code>i</code>, so the test is true forever and the tab freezes. Fix:
-      <code>i--</code> inside the body. Every while loop needs something moving it toward the exit — check for that
-      first whenever a page hangs.
-    </div>
-  </details>
+  </section>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="For [1,2,3,4,5,6], is nums.map(n => n * 2).filter(n => n % 2 === 0) the same result as nums.filter(n => n % 2 === 0).map(n => n * 2)?"
-    [options]="quizOptions"
-    followUp="Chain order changes what data survives to reach the next stage — the pipeline demo above shows exactly this by letting you toggle each stage on and off and watch the intermediate array change. Whichever stage runs first controls what the next one even gets to see."
-  />
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>if / else if / else</code> picks exactly one branch, testing top-to-bottom — order your conditions from most
-      to least specific.
-    </li>
-    <li>
-      Conditions use <strong>truthiness</strong>: <code>false, 0, '', null, undefined, NaN</code> are falsy; compare
-      explicitly when 0 or '' are real values.
-    </li>
-    <li>
-      A <code>for</code> loop is ① init → ② test → ③ body → ④ step, looping while the test is true;
-      <code>for...of</code> walks items and avoids counter bugs; <code>while</code> needs a visible path to the exit.
-    </li>
-    <li>
-      <code>map</code> transforms, <code>filter</code> selects, <code>reduce</code> aggregates — they chain, never
-      mutate, and are the style Angular code uses everywhere.
-    </li>
-    <li>
-      Template control flow (<code>&#64;if</code>, <code>&#64;for</code>) is these exact ideas wearing Angular syntax.
-    </li>
-  </ul>
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-  <p><a routerLink="/dom-and-events">Next: The DOM &amp; Events →</a></p>
+    <ul>
+      <li>
+        <code>if / else if / else</code> chains test <strong>top to bottom, first match wins</strong> — order conditions
+        most-specific first, and remember that exactly one branch runs (or none, without an <code>else</code>).
+      </li>
+      <li>
+        <strong>Truthiness</strong> lets almost anything stand in for a boolean, but the falsy six include real, valid
+        data — <code>0</code> and <code>''</code> especially. Compare explicitly (<code>!== undefined</code>, or the
+        <code>??</code> you'll meet soon) when either could legitimately happen.
+      </li>
+      <li>
+        A ternary (<code>cond ? a : b</code>) is an <strong>expression</strong>, not a statement — it can sit inside
+        interpolation; <code>if</code> can't. <code>&amp;&amp;</code> and <code>||</code> short-circuit and return
+        <strong>one of their operands</strong>, not necessarily a boolean.
+      </li>
+      <li>
+        <code>switch</code> tests one value against many exact matches with <code>===</code>, and
+        <strong>falls through without a `break`</strong> — a bug by accident, a feature when deliberate for grouped
+        cases. <code>default</code> catches whatever didn't match.
+      </li>
+      <li>
+        A <code>for</code> loop is <strong>①init → ②test → ③body → ④step</strong>, looping while the test holds.
+        <code>forEach</code> has no <code>break</code>/<code>continue</code> at all, and mutating an array
+        (<code>splice</code>) while you're mid-loop over it skips items — build a new array instead.
+      </li>
+      <li>
+        <code>map</code> transforms, <code>filter</code> selects, <code>reduce</code> collapses to any shape you build
+        (including an object) — none of the three mutate, and that habit is exactly what Angular's change detection will
+        reward later.
+      </li>
+    </ul>
+
+    <p><a routerLink="/async-basics">Next: Doing Things Later: Async →</a></p>
+  </section>
 </article>

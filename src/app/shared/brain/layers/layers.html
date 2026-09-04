@@ -31,7 +31,7 @@
     <!-- The same containment, spelled out for assistive tech. Visually hidden
          because sighted readers already have it from the rings. -->
     <ol class="layers__sr">
-      @for (ring of inward(); track $index) {
+      @for (ring of containment(); track $index) {
         <li>{{ ring.label }}{{ ring.sub ? ' — ' + ring.sub : '' }}, which wraps:</li>
       }
       <li>{{ core().label }}{{ core().sub ? ' — ' + core().sub : '' }}</li>

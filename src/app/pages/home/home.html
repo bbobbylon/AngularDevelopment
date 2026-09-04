@@ -6,33 +6,39 @@
     Beginner, Intermediate and Expert Angular — plus interactive practice challenges, interview prep, and real project
     walkthroughs. Everything you need to land a senior Angular role.
   </p>
-  <div class="stats" appReveal [appRevealDelay]="240">
-    <div class="stat">
-      <strong>{{ animTotal() }}</strong>
-      <span>concepts</span>
-    </div>
-    <div class="stat">
-      <strong>{{ animBuilt() }}</strong>
-      <span>live lessons</span>
-    </div>
-    <div class="stat">
-      <strong>{{ animExercises() }}+</strong>
-      <span>exercises</span>
-    </div>
-    <div class="stat">
-      <strong>{{ animInterviews() }}</strong>
-      <span>interview Q&A</span>
-    </div>
-    <div class="stat">
-      <strong>5</strong>
-      <span>difficulty tracks</span>
-    </div>
-    <div class="stat stat--progress">
-      <strong
-        >{{ progress.visitedCount() }}<span class="stat__denom">/{{ built() }}</span></strong
+
+  <!--
+    Hero stats as tape-pinned cards rather than a plain figure row — the
+    single biggest "Head First hero" opportunity on the page. Every binding
+    below is untouched from the old flex row; only the wrapper changed.
+  -->
+  <div class="stats">
+    <app-tape-card heading="Concepts" tone="accent" appReveal [appRevealDelay]="240">
+      <span class="stat-num">{{ animTotal() }}</span>
+      <span class="stat-label">across 5 tracks</span>
+    </app-tape-card>
+    <app-tape-card heading="Live Lessons" tone="gold" appReveal [appRevealDelay]="290">
+      <span class="stat-num">{{ animBuilt() }}</span>
+      <span class="stat-label">ready right now</span>
+    </app-tape-card>
+    <app-tape-card heading="Exercises" tone="blue" appReveal [appRevealDelay]="340">
+      <span class="stat-num">{{ animExercises() }}+</span>
+      <span class="stat-label">spot-the-bug &amp; more</span>
+    </app-tape-card>
+    <app-tape-card heading="Interview Q&amp;A" tone="accent" appReveal [appRevealDelay]="390">
+      <span class="stat-num">{{ animInterviews() }}</span>
+      <span class="stat-label">Junior → Senior</span>
+    </app-tape-card>
+    <app-tape-card heading="Difficulty Tracks" tone="gold" appReveal [appRevealDelay]="440">
+      <span class="stat-num">5</span>
+      <span class="stat-label">zero to expert</span>
+    </app-tape-card>
+    <app-tape-card heading="Lessons Visited" tone="olive" appReveal [appRevealDelay]="490">
+      <span class="stat-num"
+        >{{ progress.visitedCount() }}<span class="stat-num__denom">/{{ built() }}</span></span
       >
-      <span>lessons visited</span>
-    </div>
+      <span class="stat-label">your progress</span>
+    </app-tape-card>
   </div>
 </header>
 
@@ -128,6 +134,7 @@
 <!-- Project overview (resume / demo snapshot) -->
 <section class="about" appReveal>
   <div class="about__header">
+    <span class="bf-eyebrow">Under the Hood</span>
     <h2 class="about__title">Project Overview</h2>
     <p class="about__sub">
       Built as a portfolio project demonstrating end-to-end Angular 21 engineering — from architecture to UX.
@@ -242,7 +249,8 @@
 @let filtered = visibleLevels() | filterLessons: searchQuery();
 
 @if (filtered.length === 0) {
-  <div class="empty-state">
+  <div class="empty-state" appReveal>
+    <span class="bf-hand empty-state__hand" aria-hidden="true">hmm, nothing here —</span>
     <p>
       No lessons match <strong>"{{ searchQuery() }}"</strong>. Try a different keyword.
     </p>

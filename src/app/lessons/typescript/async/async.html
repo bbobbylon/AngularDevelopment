@@ -1,371 +1,600 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Language Features</span>
-  <h1>Promises & async/await</h1>
-  <p class="lead">
-    A <code>Promise</code> is a one-shot state machine for a value that arrives later: it starts <em>pending</em> and
-    settles exactly once — to <em>fulfilled</em> with a value or <em>rejected</em> with a reason — and never changes
-    again. <code>async/await</code> is syntax over that machine, not a different mechanism. Understanding what
-    <code>await</code> actually does (suspend the function, queue a microtask) explains every ordering surprise on this
-    page, and sets up the contrast with Angular's Observables.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="TypeScript · Language Features"
+    title="Promises &amp; async/await"
+    hand="or, how to hold a value that hasn't happened yet"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      A <code>Promise</code> is a one-shot state machine for a value that doesn't exist yet: it starts <em>pending</em>,
+      and settles exactly once — to <em>fulfilled</em> with a value or <em>rejected</em> with a reason — and never
+      changes again. <code>async</code>/<code>await</code> is syntax laid over that machine, not a separate feature;
+      every ordering surprise on this page, every dropped rejection, every accidental sequential loop is really the same
+      machine misunderstood in a different spot. Get the machine right and the syntax stops being magic.
+    </p>
+  </app-chapter>
 
-  <h2>Creating &amp; consuming</h2>
-  <div class="code">
-    <pre>
-const wait = (ms: number) =&gt;
-  new Promise&lt;void&gt;(resolve =&gt; setTimeout(resolve, ms));
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You can't have the value yet. What do you hold instead?</h2>
 
-// .then chaining — each .then returns a NEW promise, which is why chains work:
-wait(500).then(() =&gt; 'done').then(msg =&gt; console.log(msg)).catch(err =&gt; …);
+    <p>
+      Call a function that hits the network, and the answer isn't there. Not slow — <em>not there</em>. Nothing in
+      JavaScript can make your code wait for bytes that haven't arrived without freezing every tab in the browser, so
+      the function has to return <em>something</em>, right now, before any real answer exists. Something has to
+      <span class="key">stand in for the value before the value does</span>.
+    </p>
 
-// async/await (preferred)
-async function run() {{ '{' }}
-  await wait(500);
-  console.log('done');
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>An <code>async</code> function always returns a Promise</strong> — <code>return 5</code> becomes
-      <code>Promise&lt;number&gt;</code>; a thrown error becomes a rejection. The caller can't tell whether you used
-      await or raw .then internally.
-    </li>
-    <li>
-      <strong><code>await x</code> works on any "thenable"</strong>, and unwraps nested promises fully — you never get
-      <code>Promise&lt;Promise&lt;T&gt;&gt;</code>. (The type-level mirror is <code>Awaited&lt;T&gt;</code>.)
-    </li>
-    <li>
-      <strong>Promises are eager:</strong> the executor function runs the moment <code>new Promise(…)</code> executes —
-      before any .then is attached. This is the deepest contrast with lazy Observables.
-    </li>
-  </ul>
+    <p>
+      That stand-in is the <code>Promise</code>. Not the answer — a receipt for an answer that's coming. Everything
+      confusing on this page traces back to one of three questions about that receipt:
+    </p>
 
-  <h2>What <code>await</code> desugars to</h2>
-  <div class="code">
-    <pre>
-async function f() {{ '{' }}
-  const a = await getA();      // ≈ getA().then(a =&gt; {{ '{' }} …rest of the function… {{ '}' }})
-  return a + 1;
-{{ '}' }}</pre>
-  </div>
-  <p>
-    At each <code>await</code>, the function <em>suspends</em>: everything after the await is packaged as a continuation
-    and scheduled as a <strong>microtask</strong> once the awaited promise settles. The function returns to its caller
-    immediately at the first await — async functions run synchronously <em>up to</em> the first await, then yield.
-    Nothing blocks; the event loop keeps servicing other work while the promise is pending.
-  </p>
+    <ul>
+      <li><strong>When</strong> does code waiting on the receipt actually get to run? (<strong>timing</strong>)</li>
+      <li>What happens if the receipt comes back saying no? (<strong>failure</strong>)</li>
+      <li>How do you hold several receipts at once? (<strong>combining</strong>)</li>
+    </ul>
 
-  <h2>Microtasks vs macrotasks — watch the order</h2>
-  <div class="code">
-    <pre>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's one to commit to before you scroll. You call an <code>async</code> function. It has exactly one
+      <code>await</code> in it, partway through. <strong>What does the call itself return, immediately</strong> — before
+      that <code>await</code> has settled? Say it out loud. There's a live demo a couple of sections down, and a
+      predict-the-order puzzle right after it, that will hold you to the answer.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A Promise is a claim ticket, not the coffee.</h2>
+
+    <p>
+      You hand over your order; the barista hands you a ticket. The ticket isn't the coffee — it's a promise
+      <em>(sorry)</em> that one of two things will happen: the coffee shows up, or someone tells you they're out of
+      beans. Either way, once that happens, it has <span class="term">settled</span> — the ticket doesn't change again,
+      no matter how many more times you wave it at the counter.
+    </p>
+
+    <p>
+      And here's the detail that trips people up later: the kitchen starts on your order the second you hand over your
+      money — not when you first glance at the ticket. A <code>Promise</code> is <span class="term">eager</span> in
+      exactly that sense: its executor runs at construction, before anything has attached a <code>.then()</code> to it.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Pending → settles once → fulfilled or rejected, never both, never again.</strong> Every question about a
+      Promise is really a question about which side of that arrow you're standing on.
+    </app-remember>
+
+    <app-flow
+      direction="vertical"
+      [steps]="lifecycleSteps"
+      caption="Three stops, one of two endings. However many `.then()`s you attach and however long you wait, a settled promise cannot un-settle, and it cannot settle a second time."
+    />
+
+    <div class="bf-grid-2">
+      <div class="bf-card bf-card--solution">
+        <p class="bf-card__label">Fulfilled</p>
+        <p>
+          The executor called <code>resolve(value)</code>. Every <code>.then()</code> attached to this promise — even
+          one attached after it already settled — runs with that value.
+        </p>
+      </div>
+      <div class="bf-card bf-card--problem">
+        <p class="bf-card__label">Rejected</p>
+        <p>
+          The executor called <code>reject(reason)</code>, or threw. Every <code>.catch()</code> — or the nearest
+          <code>catch</code> block around an <code>await</code> — runs with that reason instead.
+        </p>
+      </div>
+    </div>
+
+    <app-bubbles
+      [turns]="awaitTalk"
+      caption="What `await` actually sets in motion. Notice the Promise never runs your code — it only asks the microtask queue to."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Await doesn't wait. It suspends and schedules a comeback.</h2>
+
+    <p>
+      Start with the shape everyone already half-knows: an eager executor, a <code>.then()</code> chain, and the
+      <code>async</code>/<code>await</code> spelling of the exact same thing.
+    </p>
+
+    <app-code-lab
+      file="wait.ts"
+      [code]="createConsumeSample"
+      [notes]="createConsumeNotes"
+      notesLabel="What each line actually does"
+    />
+
+    <p>
+      Now the part that matters: what does the compiler turn <code>await</code> <em>into</em>? Nothing magical — a
+      <span class="term">continuation</span> scheduled on a <span class="term">microtask</span> queue.
+    </p>
+
+    <app-code-lab
+      file="desugar.ts — what await hides"
+      [code]="desugarSample"
+      [notes]="desugarNotes"
+      notesLabel="Same function, two ways to write it"
+    />
+
+    <p>
+      Put those two facts together and you get the single most useful sentence on this page:
+      <strong
+        >an async function runs synchronously up to its first <code>await</code>, then returns to its caller
+        immediately</strong
+      >
+      — with a pending promise, not a value. Nothing blocks. The event loop keeps servicing everything else while that
+      promise is out there.
+    </p>
+
+    <app-predict
+      prompt="Trace it before you scroll. In what order do the four console.log lines actually print?"
+      [code]="syncUntilAwaitSample"
+      [answer]="syncUntilAwaitAnswer"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same idea, running for real</p>
+      <div class="row">
+        <button (click)="run()" [disabled]="busy()">{{ busy() ? 'Working…' : 'Run async task' }}</button>
+        <span class="pill">{{ result() }}</span>
+      </div>
+      <p class="demo__note">
+        The handler is an <code>async</code> method: it sets state, awaits a 900ms promise, then sets state again. Click
+        it and try scrolling, clicking elsewhere, anything — the page never stops responding, because
+        <code>await</code> never blocks anything. It just parks this one function.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 4. QUESTION 1 OF 3 · TIMING ============ -->
+  <section>
+    <p class="bf-eyebrow">Question 1 of 3 · timing</p>
+    <h2>When does the paused code actually resume?</h2>
+
+    <p>
+      Every continuation — every resumed <code>await</code>, every <code>.then()</code> callback — is a
+      <span class="term">microtask</span>. Every timer, click and repaint is a <span class="term">macrotask</span>. The
+      rule that decides everything on this page:
+    </p>
+
+    <div class="code">
+      <pre>
 console.log('1: sync');
 setTimeout(() =&gt; console.log('4: macrotask (timer)'));
 Promise.resolve().then(() =&gt; console.log('3: microtask'));
 console.log('2: sync');</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — run exactly that code and watch the log</p>
-    <div class="row" style="margin-bottom: 8px">
-      <button (click)="runOrder()">Run</button>
-      <button class="ghost" (click)="orderLog.set([])">Clear</button>
     </div>
-    @if (orderLog().length) {
-      <div class="code">
-        <pre>{{ orderLog().join('\n') }}</pre>
+
+    <div class="demo">
+      <p class="demo__title">Live — run exactly that code and watch the log</p>
+      <div class="row" style="margin-bottom: 8px">
+        <button (click)="runOrder()">Run</button>
+        <button class="ghost" (click)="orderLog.set([])">Clear</button>
       </div>
-    } @else {
-      <p style="color: var(--text-muted); font-size: 0.9rem">— log is empty —</p>
-    }
-  </div>
-  <p>
-    The rule: after the current synchronous code finishes, the engine drains the
-    <strong>entire microtask queue</strong> (promise reactions, including every suspended
-    <code>await</code> continuation) before it takes even one macrotask (timers, I/O, clicks). A microtask that queues
-    more microtasks keeps the drain going — an accidental infinite microtask loop starves rendering entirely, which a
-    <code>setTimeout</code> loop would not.
-  </p>
-  <p>
-    Picture a restaurant kitchen with two order queues: a <strong>VIP queue</strong> and a
-    <strong>regular queue</strong>. The head chef's rule is strict — after finishing the ticket currently in hand, clear
-    the <em>entire</em> VIP queue down to nothing, including any new VIP ticket that arrives while clearing it, before
-    touching a single regular ticket. Regular tickets (macrotasks: timers, clicks, I/O) only get a turn once VIP orders
-    (microtasks: promise reactions) run completely dry — even for a moment.
-  </p>
+      @if (orderLog().length) {
+        <div class="code">
+          <pre>{{ orderLog().join('\n') }}</pre>
+        </div>
+      } @else {
+        <p class="demo__note">— log is empty —</p>
+      }
+    </div>
 
-  <svg class="diagram" viewBox="0 0 760 190" role="img" aria-labelledby="async-t async-d">
-    <title id="async-t">Sync first, then the whole microtask queue, then one macrotask</title>
-    <desc id="async-d">
-      A three-step timeline. Step one, sync code, runs console log one colon sync and console log two colon sync, drawn
-      as a solid violet block. Step two, an arrow leads to the microtask queue, drawn as a green block containing the
-      resolved promise's then callback, labelled entire queue drains here, even microtasks queued during the drain. Step
-      three, only after the green block is completely empty, an arrow leads to a single amber block labelled one
-      macrotask, the zero millisecond timer callback. A note underneath reads the timer was ready the whole time; it
-      simply never gets a turn until the microtask queue hits zero.
-    </desc>
-    <rect x="20" y="30" width="180" height="50" rx="8" fill="var(--violet)" opacity="0.18" />
-    <text x="110" y="52" font-size="12" text-anchor="middle" fill="var(--violet)" font-weight="700">sync code</text>
-    <text x="110" y="70" font-size="11" text-anchor="middle" fill="var(--text-muted)">'1: sync' / '2: sync'</text>
-    <line x1="200" y1="55" x2="256" y2="55" stroke="var(--border)" stroke-width="1.5" />
-    <rect x="264" y="20" width="220" height="70" rx="8" fill="var(--green)" opacity="0.18" />
-    <text x="374" y="42" font-size="12" text-anchor="middle" fill="var(--green)" font-weight="700">
-      microtask queue drains fully
-    </text>
-    <text x="374" y="60" font-size="11" text-anchor="middle" fill="var(--text-muted)">Promise.resolve().then(…)</text>
-    <text x="374" y="76" font-size="10" text-anchor="middle" fill="var(--green)">'3: microtask'</text>
-    <line x1="484" y1="55" x2="540" y2="55" stroke="var(--border)" stroke-width="1.5" />
-    <rect x="548" y="30" width="190" height="50" rx="8" fill="var(--amber)" opacity="0.2" />
-    <text x="643" y="52" font-size="12" text-anchor="middle" fill="var(--amber)" font-weight="700">one macrotask</text>
-    <text x="643" y="70" font-size="11" text-anchor="middle" fill="var(--text-muted)">'4: timer'</text>
-    <text x="380" y="130" font-size="11" text-anchor="middle" fill="var(--text-muted)">
-      the timer was ready the whole time — it simply never got a turn until the green queue hit zero
-    </text>
-    <text x="380" y="160" font-size="11" text-anchor="middle" fill="var(--red)">
-      only after step 2 is fully empty does step 3 begin
-    </text>
-  </svg>
+    <p>
+      After the current synchronous code finishes, the engine drains the <strong>entire microtask queue</strong> — every
+      promise reaction, every suspended <code>await</code> continuation — before it takes even one macrotask. A
+      microtask that queues another microtask keeps the drain going, which is exactly how an accidental infinite
+      microtask loop <span class="bf-break">starves rendering entirely</span> — no error, no warning, just a page that
+      stops painting.
+    </p>
 
-  <app-remember variant="rule" label="The drain order">
-    <strong
-      >Sync code first. Then EVERY microtask, all the way down — even new ones queued while draining. Only then does one
-      macrotask get a turn.</strong
+    <p>Ready for the version that actually catches people out? Same rule, harder to see coming:</p>
+
+    <app-predict
+      prompt="Six console.logs below, labelled A through F so the labels don't give away the order. What actually prints?"
+      [code]="tickPuzzleSample"
+      [answer]="tickPuzzleAnswer"
+      revealLabel="Reveal the real order"
+    />
+
+    <app-remember variant="rule">
+      The whole microtask queue drains before the next macrotask runs — every queued <code>.then</code>/<code
+        >await</code
+      >
+      continuation goes first, however many there are, and only then does a timer, click or paint get a turn. What
+      decides the order <em>within</em> the queue is when each one was <strong>enqueued</strong>, not where it sits in
+      your file.
+    </app-remember>
+  </section>
+
+  <!-- ============ 5. QUESTION 2 OF 3 · FAILURE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Question 2 of 3 · failure</p>
+    <h2>What happens when the promise says no?</h2>
+
+    <p>
+      A rejection has to <span class="key">land somewhere</span>, and the most common way to lose one is a one-word
+      difference nobody teaches until it bites:
+    </p>
+
+    <app-compare
+      leftTitle="Without `await` — the bug"
+      rightTitle="With `await` — safe"
+      leftTone="bad"
+      rightTone="good"
+      note="Outside a try/catch the two are equivalent, minus one microtask tick. Inside one, only the version on the right can catch anything at all."
     >
-    A microtask that keeps re-queuing itself never lets that turn arrive.
-  </app-remember>
+      <div left>
+        <div class="code">
+          <pre>{{ returnBugSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ returnFixSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
 
-  <app-predict
-    prompt="loop() re-schedules itself as a new microtask every time it runs, forever. A setTimeout(…, 0) is also queued. Does the setTimeout callback ever get to run?"
-    [code]="microtaskStarvationSample"
-    answer="No — never. The engine's rule is to fully drain the microtask queue before taking even one macrotask, and loop() guarantees that queue is never empty: the instant one Promise.resolve().then(loop) callback finishes, it has already queued the next one. The setTimeout callback is sitting in the macrotask queue the entire time, perfectly valid and ready — it simply never gets a turn, because 'the microtask queue is empty' never becomes true. This is the real-world failure mode of the 'accidental infinite microtask loop' warned about above: it doesn't just delay rendering, it can starve timers and I/O forever too."
-  />
+    <app-quiz
+      question="load() rejects. Which version above actually runs its catch block, and why does the other one skip it?"
+      [options]="returnAwaitQuiz"
+      followUp="return p hands the still-pending promise to the caller and pops this function's try/catch off the stack in the same instant — the rejection happens later, with nobody home."
+    />
 
-  <h2>Error handling — including the <code>return await</code> subtlety</h2>
-  <div class="code">
-    <pre>
-async function load() {{ '{' }}
-  try {{ '{' }}
-    const res = await fetch('/api/user');
-    if (!res.ok) throw new Error(`HTTP ${{ '{' }}res.status{{ '}' }}`);  // fetch does NOT reject on 404!
-    return await res.json();     // ⚠️ 'return await' matters here — see below
-  {{ '}' }} catch (err) {{ '{' }}
-    console.error(err);
-    return null;
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>return await p</code> vs <code>return p</code>:</strong> outside a try/catch they're equivalent
-      (minus one microtask tick). <em>Inside</em> a try/catch they are not — <code>return p</code> hands the pending
-      promise out before it settles, so a rejection <strong>skips your catch block</strong>. When the return sits in a
-      try, keep the await.
-    </li>
-    <li>
-      <strong>Unhandled rejections don't vanish.</strong> A rejected promise with no handler fires the global
-      <code>unhandledrejection</code> event and logs an error. A floating <code>doWork()</code> call (no await, no
-      .catch) is a bug magnet — either await it or attach a handler.
-    </li>
-    <li>
-      <strong><code>catch (err)</code> types <code>err</code> as <code>unknown</code></strong> — anything can be thrown.
-      Narrow before using: <code>if (err instanceof Error) …</code>.
-    </li>
-  </ul>
+    <div class="note">
+      A rejection has to exist before <code>return await</code> can save it — and <code>fetch()</code> hands you fewer
+      of those than people assume. Its promise rejects only on a <strong>network</strong> failure — DNS, offline, CORS.
+      A <code>404</code> or <code>500</code> is still a normal, fulfilled response: <code>res.ok</code> is
+      <code>false</code>, but nothing throws. Skip the check —
+      <code>if (!res.ok) throw new Error(`HTTP ${{ '{' }}res.status{{ '}' }}`);</code> — and a failed request sails
+      straight through your <code>catch</code> block untouched.
+    </div>
 
-  <h2>Sequential vs parallel — race them</h2>
-  <div class="code">
-    <pre>
+    <p>
+      That's the famous trap. The far more common one doesn't involve <code>try</code>/<code>catch</code> at all — it's
+      a single method call that quietly never waits for anything:
+    </p>
+
+    <app-code-lab
+      file="save-all.ts"
+      [code]="forEachBugSample"
+      [notes]="forEachBugNotes"
+      notesLabel="Why 'all saved' lies"
+      prompt="Three items, each taking a different amount of time to save. What logs first — 'all saved', or any of the 'saved' lines?"
+      output="**'all saved' — first, every time**, before a single 'saved' line, no matter how fast save() is. `Array.prototype.forEach` predates promises; it has no idea an async callback returns anything worth waiting for, so it fires all three callbacks back to back and returns immediately. Worse than the ordering: if any save() rejects, nothing in saveAll ever sees it — the rejection has nowhere to land and surfaces as a global **unhandled rejection**, not an error you can catch."
+    />
+
+    <app-compare
+      leftTitle="Wrong — forEach discards the promises"
+      rightTitle="Right — Promise.all waits for all of them"
+      leftTone="bad"
+      rightTone="good"
+      note="Need them one at a time instead of all at once? `for (const item of items) await save(item);` — an ordinary loop, not `forEach`, is the only shape that makes sequential await work at all."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ forEachFixBadSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ forEachFixGoodSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      The same bug hides in <code>filter</code> and <code>some</code>:
+      <code>items.filter(async (x) =&gt; check(x))</code> keeps <strong>every</strong> item, because the callback
+      returns a <code>Promise</code> — and a <code>Promise</code> object is always truthy, whatever value it eventually
+      holds. ESLint's <code>no-misused-promises</code> rule exists specifically to catch a <code>Promise</code> handed
+      to a callback that was never going to await it.
+    </div>
+
+    <p>
+      One more way a rejection disappears: nobody attaches a handler at all. That doesn't fail silently either — a
+      rejected promise with no <code>.catch</code> and no awaiting caller fires the global
+      <code>unhandledrejection</code> event and logs an error. A floating <code>doWork()</code> call — no
+      <code>await</code>, no <code>.catch</code> — is a bug magnet for exactly this reason.
+    </p>
+  </section>
+
+  <!-- ============ 6. QUESTION 3 OF 3 · COMBINING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Question 3 of 3 · combining</p>
+    <h2>How do you run several of these at once?</h2>
+
+    <p>Two ways to structure the same three tasks, and only one of them overlaps them:</p>
+
+    <div class="code">
+      <pre>
 // sequential (slow): the second await doesn't start until the first settles
 const a = await taskA();  const b = await taskB();
 
 // parallel (fast): start both promises first, THEN await
 const [a2, b2] = await Promise.all([taskA(), taskB()]);</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — three 400ms tasks, both strategies timed</p>
-    <div class="row">
-      <button (click)="raceStrategies()" [disabled]="racing()">{{ racing() ? 'Racing…' : 'Run both' }}</button>
-      <span class="pill">sequential: {{ seqTime() }}</span>
-      <span class="pill">parallel: {{ parTime() }}</span>
     </div>
-    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 8px">
-      Sequential ≈ 3 × 400ms because each await parks the function until the previous task settles. Parallel ≈ 400ms
-      because all three timers run concurrently — awaiting only joins the results.
+
+    <div class="demo">
+      <p class="demo__title">Live — three 400ms tasks, both strategies timed</p>
+      <div class="row">
+        <button (click)="raceStrategies()" [disabled]="racing()">{{ racing() ? 'Racing…' : 'Run both' }}</button>
+        <span class="pill">sequential: {{ seqTime() }}</span>
+        <span class="pill">parallel: {{ parTime() }}</span>
+      </div>
+      <p class="demo__note">
+        Sequential ≈ 3 × 400ms because each <code>await</code> parks the function until the previous task settles.
+        Parallel ≈ 400ms because all three timers run concurrently — awaiting only joins the results.
+      </p>
+    </div>
+
+    <div class="warn">
+      <code>await</code> inside a <code>for</code> loop is the <span class="bf-break">stealth version</span> of the
+      sequential case — same cost, much easier to write by accident. To parallelize, map to promises first:
+      <code>await Promise.all(items.map(fetchOne))</code>, and note the promises start during the <code>map</code>, not
+      during the <code>all</code>.
+    </div>
+
+    <p>Four ways to combine them once they've started, and they disagree about failure on purpose:</p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Promise.all" kicker="fail-fast">
+        Resolves with every value, in order. Rejects the instant <strong>any one</strong> input rejects — the other
+        results still happen, but they're discarded.
+      </app-tape-card>
+      <app-tape-card heading="Promise.allSettled" kicker="never rejects">
+        Resolves with one <code>&#123;status, value|reason&#125;</code> per input, always. Inspect each result yourself.
+      </app-tape-card>
+      <app-tape-card heading="Promise.race" kicker="first to settle">
+        Resolves or rejects with whichever input <strong>settles first</strong> — fulfillment or rejection, either one
+        wins.
+      </app-tape-card>
+      <app-tape-card heading="Promise.any" kicker="first to succeed">
+        Resolves with the first <strong>fulfillment</strong>. Rejects only if <strong>every</strong> input rejects, with
+        an <code>AggregateError</code>.
+      </app-tape-card>
+    </div>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        The same four combinators, spelled out in full
+      </caption>
+      <thead>
+        <tr>
+          <th>Combinator</th>
+          <th>Resolves with</th>
+          <th>Rejects when</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Promise.all</code></td>
+          <td>array of all values (order preserved)</td>
+          <td><strong>any</strong> input rejects — fail-fast; other results are discarded</td>
+        </tr>
+        <tr>
+          <td><code>Promise.allSettled</code></td>
+          <td>array of <code>&#123;status, value|reason&#125;</code></td>
+          <td>never — inspect per-result status</td>
+        </tr>
+        <tr>
+          <td><code>Promise.race</code></td>
+          <td>first to <em>settle</em> (value or rejection)</td>
+          <td>first settler was a rejection — used for timeouts</td>
+        </tr>
+        <tr>
+          <td><code>Promise.any</code></td>
+          <td>first to <em>fulfill</em></td>
+          <td>only if <strong>all</strong> reject (<code>AggregateError</code>)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="code">
+      <pre>{{ raceTimeoutSample }}</pre>
+    </div>
+
+    <p>
+      Almost no TypeScript so far — put that right. Here's what the compiler actually infers off the back of those two:
     </p>
-  </div>
-  <div class="warn">
-    <code>await</code> inside a <code>for</code> loop is the stealth version of the sequential case. To parallelize, map
-    to promises first: <code>await Promise.all(items.map(fetchOne))</code> — and note the promises start during the
-    <code>map</code>, not during the <code>all</code>.
-  </div>
 
-  <h2>The four combinators — failure semantics matter</h2>
-  <table class="t">
-    <tr>
-      <th>Combinator</th>
-      <th>Resolves with</th>
-      <th>Rejects when</th>
-    </tr>
-    <tr>
-      <td><code>Promise.all</code></td>
-      <td>array of all values (order preserved)</td>
-      <td><strong>any</strong> input rejects — fail-fast; other results are discarded</td>
-    </tr>
-    <tr>
-      <td><code>Promise.allSettled</code></td>
-      <td>
-        array of <code>{{ '{' }}status, value|reason{{ '}' }}</code>
-      </td>
-      <td>never — inspect per-result status</td>
-    </tr>
-    <tr>
-      <td><code>Promise.race</code></td>
-      <td>first to <em>settle</em> (value or rejection)</td>
-      <td>first settler was a rejection — used for timeouts</td>
-    </tr>
-    <tr>
-      <td><code>Promise.any</code></td>
-      <td>first to <em>fulfill</em></td>
-      <td>only if <strong>all</strong> reject (<code>AggregateError</code>)</td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>
-// the classic race use — a timeout wrapper:
-const result = await Promise.race([
-  fetchData(),
-  wait(5000).then(() =&gt; {{ '{' }} throw new Error('timeout'); {{ '}' }}),
-]);
-// note: race doesn't CANCEL the loser — promises are not cancellable. The slow
-// fetch keeps running; you've merely stopped waiting for it.</pre>
-  </div>
+    <app-code-lab
+      file="combinators.ts"
+      [code]="combinatorTypesSample"
+      [notes]="combinatorTypesNotes"
+      notesLabel="Tuples, discriminants, and one honest any"
+    />
 
-  <h2>Try it</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a simulated async task</p>
-    <div class="row">
-      <button (click)="run()" [disabled]="busy()">{{ busy() ? 'Working…' : 'Run async task' }}</button>
-      <span class="pill">{{ result() }}</span>
-    </div>
-    <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 8px">
-      The handler is an <code>async</code> method: it sets state, awaits a 900ms promise (the UI stays fully responsive
-      — nothing blocks), then sets state again. Signals make both updates render.
+    <p>
+      That tuple trick needs an array <em>literal</em>. Reach for <code>.map()</code> over a list whose length isn't
+      known at compile time, and the tuple disappears:
     </p>
-  </div>
-
-  <h2>Promise vs Observable — and the bridge</h2>
-  <table class="t">
-    <tr>
-      <th></th>
-      <th>Promise</th>
-      <th>Observable (RxJS)</th>
-    </tr>
-    <tr>
-      <td>Values</td>
-      <td>exactly one settlement</td>
-      <td>zero, one, or many over time</td>
-    </tr>
-    <tr>
-      <td>Eager / lazy</td>
-      <td>eager (executor runs at construction)</td>
-      <td>lazy (producer runs per subscribe)</td>
-    </tr>
-    <tr>
-      <td>Cancellable</td>
-      <td>no</td>
-      <td>yes (unsubscribe tears down the producer)</td>
-    </tr>
-    <tr>
-      <td>Retryable</td>
-      <td>no — settled is settled</td>
-      <td>yes — resubscribe (<code>retry</code>)</td>
-    </tr>
-    <tr>
-      <td>Operators</td>
-      <td>then/catch/finally + combinators</td>
-      <td>map, switchMap, debounceTime, …</td>
-    </tr>
-  </table>
-  <div class="note">
-    Angular's <code>HttpClient</code> returns Observables, but bridging is routine: <code>firstValueFrom(obs$)</code> /
-    <code>lastValueFrom(obs$)</code> produce promises (rejecting with <code>EmptyError</code> if the source completes
-    without emitting), and <code>from(promise)</code> goes the other way. Historical note: zone.js-based Angular patched
-    Promise resolution to trigger change detection; in zoneless apps nothing is patched — signals carry the update
-    instead, exactly as the demos here do.
-  </div>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      What does an <code>async</code> function return to its caller <em>before</em> its first await settles?
-    </summary>
-    <div>
-      A pending Promise, immediately. The body runs synchronously up to the first <code>await</code>, then the function
-      suspends and control returns to the caller with the not-yet-settled promise. This is why side effects placed
-      before the first await happen "now", while everything after it happens in a later microtask.
+    <div class="code">
+      <pre>{{ mapWideningSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Inside a try/catch, <code>return fetchJson()</code> silently skips the catch on failure. Why does
-      <code>return await fetchJson()</code> fix it?
-    </summary>
-    <div>
-      Without await, the function returns the pending promise and pops its try/catch scope off the stack — the later
-      rejection happens outside any protection and surfaces at the caller. With <code>return await</code>, the rejection
-      is raised <em>inside</em> the function as an exception while the try/catch is still active. Lint rules like
-      <code>no-return-await</code> explicitly except this case.
+    <p>Need to name what an async function resolves to, without wrapping the type yourself? One line does both jobs:</p>
+    <div class="code">
+      <pre>{{ awaitedIdiomSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>Promise.all</code> vs <code>allSettled</code> for saving 10 independent form sections — which and why?
-    </summary>
-    <div>
-      <code>allSettled</code>. <code>all</code> is fail-fast: one rejection rejects the whole thing and you can't tell
-      which of the other nine succeeded (they still ran — their results are just discarded).
-      <code>allSettled</code> never rejects and reports each outcome, letting you show "8 saved, 2 failed — retry?". Use
-      <code>all</code> when results are useless unless complete; <code>allSettled</code> when partial success is
-      meaningful.
+
+    <app-quiz
+      question="Ten independent form sections save at once. Three might fail for unrelated reasons. Which combinator, and why?"
+      [options]="combinatorQuiz"
+      followUp="Try swapping Promise.all for Promise.allSettled in your head: what would each one tell the user after two of ten fail?"
+    />
+  </section>
+
+  <!-- ============ 7. THE ESCAPE HATCH ============ -->
+  <section>
+    <p class="bf-eyebrow">The escape hatch</p>
+    <h2>Or cancel one before it finishes at all.</h2>
+
+    <p>
+      None of the four combinators above actually stop anything — <code>race</code> only stops <em>listening</em>.
+      <code>AbortController</code> is the real thing: a signal an async operation can check, and react to, while it's
+      still in flight.
+    </p>
+
+    <app-code-lab
+      file="cancellable-wait.ts"
+      [code]="cancellableWaitSample"
+      [notes]="cancellableWaitNotes"
+      notesLabel="Cancellation, one line at a time"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — cancel a real in-flight promise</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="startCancellable()" [disabled]="cancelState() === 'running'">Start a 3s task</button>
+        <button class="ghost" (click)="cancelIt()" [disabled]="cancelState() !== 'running'">Cancel</button>
+        <span class="pill">{{ cancelState() }}</span>
+      </div>
+      <p class="demo__note">
+        Press Start, then Cancel before the 3 seconds are up. The pill jumps straight to <code>cancelled</code> —
+        <code>clearTimeout</code> really did stop the timer, and the promise really did reject, caught right here in a
+        <code>catch</code> block instead of becoming an unhandled rejection. Let it run to completion instead and the
+        pill reads <code>done</code>. <code>Promise.race</code>, two sections up, could only ever tell you which one
+        settled first — it was never able to make the loser stop.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Does <code>Promise.race</code> cancel the losing operation? What does that imply for a fetch timeout?
-    </summary>
-    <div>
-      No — promises have no cancellation. Race only decides which settlement <em>you observe first</em>; the losing
-      fetch continues consuming network and memory. Real cancellation needs a cooperating mechanism:
-      <code>AbortController</code> passed to fetch, or an Observable (where unsubscribe aborts the request — what
-      HttpClient does under <code>switchMap</code>).
+
+    <p>
+      Two shortcuts worth knowing once you understand the manual version: <code>AbortSignal.timeout(5000)</code> hands
+      you a signal that aborts itself after 5 seconds — no <code>setTimeout</code> of your own required — and
+      <code>AbortSignal.any([sig1, sig2])</code> combines several signals into one that aborts the moment
+      <strong>any</strong> of them does, which is exactly how you'd wire "cancel on navigation OR on a 5-second timeout"
+      together.
+    </p>
+  </section>
+
+  <!-- ============ 8. PROMISE VS OBSERVABLE VS ASYNC ITERABLE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Pulling it together</p>
+    <h2>One value, or many — and who's actually in control?</h2>
+
+    <p>
+      Three shapes for "a value that arrives later" now, not two. Angular's own <code>HttpClient</code> hands you an
+      Observable; this page has been building a Promise by hand; and modern fetch responses can stream as an async
+      iterable. Side by side:
+    </p>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        Three ways to hold a value that isn't here yet
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Promise</th>
+          <th>Observable (RxJS)</th>
+          <th>Async iterable (<code>for await</code>)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Values</td>
+          <td>exactly one settlement</td>
+          <td>zero, one, or many over time</td>
+          <td>zero, one, or many, pulled one at a time</td>
+        </tr>
+        <tr>
+          <td>Eager / lazy</td>
+          <td>eager (executor runs at construction)</td>
+          <td>lazy (producer runs per subscribe)</td>
+          <td>lazy (generator body runs only once iterated)</td>
+        </tr>
+        <tr>
+          <td>Cancellable</td>
+          <td>no</td>
+          <td>yes (unsubscribe tears down the producer)</td>
+          <td>yes (<code>break</code> calls <code>.return()</code>, running cleanup)</td>
+        </tr>
+        <tr>
+          <td>Retryable</td>
+          <td>no — settled is settled</td>
+          <td>yes — resubscribe (<code>retry</code>)</td>
+          <td>no — a consumed generator is done</td>
+        </tr>
+        <tr>
+          <td>Operators</td>
+          <td>then/catch/finally + combinators</td>
+          <td>map, switchMap, debounceTime, …</td>
+          <td>none — plain loop logic only</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The third column, worked out in full — a paginated API as an async generator, consumed with a plain loop:</p>
+
+    <app-code-lab
+      file="pages.ts"
+      [code]="asyncIterSample"
+      [notes]="asyncIterNotes"
+      notesLabel="Pausable AND awaitable, at the same time"
+    />
+
+    <div class="note">
+      Angular's <code>HttpClient</code> returns Observables, but bridging is routine:
+      <code>firstValueFrom(obs$)</code> / <code>lastValueFrom(obs$)</code> produce promises (rejecting with
+      <code>EmptyError</code> if the source completes without emitting), and <code>from(promise)</code> goes the other
+      way. Historical note: zone.js-based Angular patched Promise resolution to trigger change detection; in zoneless
+      apps nothing is patched — signals carry the update instead, exactly as every live demo on this page does.
     </div>
-  </details>
+  </section>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="const p = new Promise(resolve => { console.log('X'); resolve(1); }); — with no .then attached anywhere yet. Does 'X' log?"
-    [options]="quizOptions"
-    followUp="This is the 'Promises are eager' bullet from the top of the page, tested the hard way: the executor is called synchronously the moment new Promise(...) runs, whether or not anyone ever calls .then. It's the exact opposite of an Observable, whose producer function stays dormant until subscribe() — which is why swapping a Promise-returning function for an Observable-returning one can silently change WHEN side effects happen, not just how you consume the result."
-  />
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A promise settles once (fulfilled/rejected) and is eager; <code>async</code> functions always return promises and
-      run synchronously up to the first <code>await</code>.
-    </li>
-    <li>Await continuations are microtasks: the whole microtask queue drains before any timer/event macrotask runs.</li>
-    <li>
-      Use <code>return await</code> inside try/catch; never leave promises floating; <code>catch</code> errors are
-      <code>unknown</code>.
-    </li>
-    <li>
-      Start promises first, then await — <code>Promise.all</code> (fail-fast), <code>allSettled</code> (per-result),
-      <code>race</code> (first settle), <code>any</code> (first success). None of them cancel losers.
-    </li>
-    <li>
-      Observables are lazy, multi-value, cancellable and retryable; bridge with
-      <code>firstValueFrom</code>/<code>from</code>.
-    </li>
-  </ul>
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
 
-  <p><a routerLink="/ts-nullish">Next: Optional Chaining &amp; Nullish Coalescing →</a></p>
+    <ul>
+      <li>
+        A promise is <strong>eager</strong> — the executor runs at construction — and settles exactly once.
+        <code>async</code> functions always return a promise and run
+        <strong>synchronously up to their first <code>await</code></strong
+        >, then suspend.
+      </li>
+      <li>
+        Await continuations are microtasks: the whole queue drains before any timer, click or paint gets a turn — and
+        the order things were <strong>queued</strong>, not the order they appear in your file, decides who goes first.
+      </li>
+      <li>
+        Use <code>return await</code> inside a try/catch. A floating async call — <code>forEach(async …)</code>, an
+        un-awaited promise — is a bug magnet, not a shortcut. <code>catch</code> gives you <code>unknown</code>, always
+        check before you touch it.
+      </li>
+      <li>
+        Start every promise before you await any of them. <code>Promise.all</code> is fail-fast,
+        <code>allSettled</code> never rejects, <code>race</code> and <code>any</code> pick a winner — none of the four
+        cancels a loser. <code>AbortController</code> is what actually can.
+      </li>
+      <li>
+        Observables are lazy, multi-valued, cancellable and retryable where Promises are none of those; async iterables
+        add pull-based, one-at-a-time consumption. Bridge with <code>firstValueFrom</code>/<code>from</code>, and
+        remember <code>resource()</code> and fetch-backed <code>HttpClient</code> both cancel through the exact
+        <code>AbortSignal</code> you just used by hand.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-nullish">Next: Optional Chaining &amp; Nullish Coalescing →</a></p>
+  </section>
 </article>

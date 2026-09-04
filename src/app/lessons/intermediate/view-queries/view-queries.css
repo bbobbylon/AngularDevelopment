@@ -1,40 +1,113 @@
-table.cmp {
+/* Tables, callouts, demo panels, pills and code blocks are all styled by the
+   shared brain-friendly layer now (src/brain-friendly.css §8–15), which is why
+   this file is nearly empty — the `.cmp`/`.t`/`.qa`/`.ok` blocks that used to
+   live here were per-lesson copies of rules the theme now owns, and the exam
+   questions are an <app-faq> instead of hand-rolled <details>. The one thing
+   genuinely specific to this lesson is the child-component "wall" diagram in
+   the "How far it reaches" section. */
+
+/* ── The child-component wall ────────────────────────────────────────────────
+   Hand-authored SVG rather than <app-layers>: that component draws concentric
+   containment (one thing wrapped INSIDE another, reachable by going deeper),
+   which is the wrong shape here — a child's template isn't a deeper layer of
+   the parent's, it's a separate file behind a boundary a query cannot cross at
+   all. A wall reads correctly; rings would teach the opposite lesson.
+
+   Every colour is a --bf-* token so the figure follows the page into dark
+   mode, and the whole <svg> is aria-hidden with the same information repeated
+   in the <figcaption> — matching the diagram convention in beginner/signals. */
+.wall-fig {
+  margin: 1.6rem 0;
+}
+
+.wall {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-  margin: 12px 0;
+  max-width: 600px;
+  height: auto;
+  margin: 0 auto;
 }
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.cmp td code {
-  white-space: nowrap;
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
+
+.wall-fig figcaption {
+  max-width: 60ch;
+  margin: 0.9rem auto 0;
   font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
+}
+
+.wall__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+.wall__box--child {
+  fill: var(--bf-danger-wash);
+  stroke: color-mix(in srgb, var(--bf-danger) 40%, transparent);
+}
+
+.wall__hatch {
+  fill: var(--bf-surface-2);
+  stroke: var(--bf-rule);
+}
+
+.wall__title {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.wall__chip {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+  stroke-width: 1.4;
+}
+
+.wall__chip--dashed {
+  fill: none;
+  stroke: var(--bf-rule);
+  stroke-dasharray: 5 4;
+}
+
+.wall__chip--blocked {
+  fill: var(--bf-surface-2);
+  stroke: color-mix(in srgb, var(--bf-danger) 40%, transparent);
+  stroke-dasharray: 3 3;
+}
+
+.wall__chip-label {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.wall__chip-label--blocked {
+  fill: var(--bf-danger);
+}
+
+.wall__sub {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 8.5px;
+}
+
+.wall__hand {
+  fill: var(--bf-accent);
+  font-family: var(--font-hand);
+  font-size: 16px;
+}
+
+.wall__arrow {
+  fill: none;
+  stroke: var(--bf-olive);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.wall__arrowhead {
+  fill: var(--bf-olive);
 }

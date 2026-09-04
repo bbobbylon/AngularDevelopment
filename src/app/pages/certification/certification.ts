@@ -1,6 +1,16 @@
-import { Component, OnDestroy, computed, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  OnDestroy,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LESSON_BY_ID } from '../../core/curriculum';
+import { Napkin } from '../../shared/brain';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
 
 // ── Exam topic map (study guide) ─────────────────────────────────────────────
 /** One line of the study map: a syllabus topic and the lessons that cover it.
@@ -1365,7 +1375,7 @@ type ExamView = 'map' | 'exam' | 'results';
  */
 @Component({
   selector: 'app-certification',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, Napkin],
   styleUrl: './certification.css',
   templateUrl: './certification.html',
 })
@@ -1405,6 +1415,42 @@ export class Certification implements OnDestroy {
    *  once per topic that cites it, since the figure is "syllabus coverage",
    *  not "distinct lessons". */
   protected readonly totalCovered = computed(() => this.levels().reduce((s, l) => s + l.count, 0));
+
+  /** Displayed value counting up towards {@link totalCovered} on first paint —
+   *  the same count-up treatment the home page's hero stats use. Purely
+   *  presentational: {@link totalCovered} stays the real figure the rest of
+   *  the page reasons about, this is only how it is revealed. See the
+   *  constructor for the animation itself. */
+  protected readonly animTotalCovered = signal(0);
+
+  /**
+   * Starts the hero counter's count-up and registers its cleanup.
+   *
+   * Runs inside `afterNextRender` rather than at construction: there is
+   * nothing to animate before the DOM exists, and `afterNextRender` never
+   * fires during SSR, so a server-rendered page emits the final number
+   * directly rather than a mid-count frame. Skips straight to the final
+   * value under `prefers-reduced-motion: reduce`, and the interval is
+   * cleared via `DestroyRef` if the page is left mid-count.
+   */
+  constructor() {
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
+      const target = this.totalCovered();
+      if (target <= 0 || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        this.animTotalCovered.set(target);
+        return;
+      }
+      let n = 0;
+      const step = Math.max(1, Math.ceil(target / 40));
+      const id = setInterval(() => {
+        n = Math.min(n + step, target);
+        this.animTotalCovered.set(n);
+        if (n >= target) clearInterval(id);
+      }, 18);
+      destroyRef.onDestroy(() => clearInterval(id));
+    });
+  }
 
   // ── Exam simulator state ──────────────────────────────────────────────────
   /** Which screen is showing. */

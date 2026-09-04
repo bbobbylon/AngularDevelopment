@@ -1,17 +1,13 @@
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+/* Generics — lesson-specific styling.
+
+   Everything this page draws comes from the brain-friendly layer
+   (`src/brain-friendly.css`) and the app's global styles: tables, callouts,
+   code panels, chips, buttons, `.demo`/`.row`/`.pill`/`.ghost` and the whole
+   teaching + presentation set are themed there. The old `.qa` block from the
+   pre-migration lesson is gone for good — those exam questions are an
+   `<app-faq>` and two `<app-quiz>`s now, which are keyboard-operable and
+   consistent with every other migrated lesson.
+
+   Nothing bespoke was needed here: unlike `narrowing`'s live benches, this
+   lesson's two demos (the Box chain, the byId lookup) reuse the same
+   `.demo`/`.row`/`.pill` shapes every other lesson's simple demos use. */

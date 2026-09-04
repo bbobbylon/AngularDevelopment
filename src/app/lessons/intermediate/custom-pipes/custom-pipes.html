@@ -1,419 +1,526 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Pipes &amp; Directives</span>
-  <h1>Custom Pipes</h1>
-  <p class="lead">
-    A pipe transforms a value <em>for display</em> — formatting, filtering, mapping — without touching the component
-    class. Decorate a class with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's
-    <code>imports</code>, and use the <code>|</code> operator in the template.
-    <span class="key">The value in your component never changes; only what the user sees does.</span>
-  </p>
-
-  <h2>Think of it as a lens filter</h2>
-  <p>
-    Screw a polarising filter onto a camera and the sky goes deeper blue. Nothing happened to the sky — the filter sits
-    between the scene and the sensor and changes what gets recorded. Unscrew it and the sky is exactly as it was.
-  </p>
-  <p>
-    That's a pipe. <code>{{ '{{' }} price | currency {{ '}}' }}</code> puts a filter between <code>this.price</code> and
-    the pixels. <code>this.price</code> is still the number <code>4.5</code>; the screen says <code>$4.50</code>. Two
-    consequences follow from the analogy and they're both worth holding on to:
-  </p>
-  <ul>
-    <li>
-      <span class="right">Filters stack.</span> You can screw one onto another —
-      <code>{{ '{{' }} value | truncate:30 | sentenceCase {{ '}}' }}</code> — and they apply left to right.
-    </li>
-    <li>
-      <span class="wrong">Filters can't change the scene.</span> A pipe that mutates its input is a bug, not a clever
-      trick, because Angular assumes it hasn't and caches accordingly.
-    </li>
-  </ul>
-
-  <h2>Anatomy</h2>
-  <div class="code">
-    <pre>
-&#64;Pipe(&#123; name: 'truncate', standalone: true &#125;)   // pure by default
-export class TruncatePipe implements PipeTransform &#123;
-  transform(value: string, limit = 20, trail = '…'): string &#123;
-    return value.length > limit
-      ? value.slice(0, limit).trimEnd() + trail
-      : value;
-  &#125;
-&#125;
-
-// In a component:
-imports: [TruncatePipe]
-
-// Template — extra args follow the colon:
-{{ '{{' }} title | truncate:40:'...' {{ '}}' }}</pre>
-  </div>
-
-  <h2>Demo 1 — truncate (pure)</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <label style="font-size: 0.85rem; color: var(--text-muted)">Limit: {{ limit() }}</label>
-    <input
-      aria-label="Limit"
-      type="range"
-      min="5"
-      max="80"
-      [ngModel]="limit()"
-      (ngModelChange)="limit.set(+$event)"
-      style="width: 100%; margin-bottom: 12px"
-    />
-    <p><span class="pill">original</span> {{ longText }}</p>
-    <p>
-      <span class="pill" style="color: var(--green)">| truncate:{{ limit() }}</span> {{ longText | truncate: limit() }}
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Intermediate · Pipes &amp; Directives"
+    title="Custom Pipes"
+    hand="or, formatting for the screen without cluttering the component underneath it"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      A pipe formats a value for display — currency, a relative date, a filtered list — without moving that logic into
+      the component class or repeating it in five templates. The mechanics are five minutes of work: decorate a class
+      with <code>&#64;Pipe</code>, implement <code>transform()</code>, add it to a component's <code>imports</code>, and
+      write <code>|</code> in the template. What is worth the other forty minutes is what <strong>pure</strong> actually
+      promises you, exactly what breaks it, and the one honest reason to give it up.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>Demo 2 — sentenceCase (pure)</h2>
-  <div class="code">
-    <pre>
-// `name` is what you type in the template: {{ '{{' }} text | sentenceCase {{ '}}' }}.
-// It is NOT the class name, and it must be unique across everything the
-// template imports.
-&#64;Pipe(&#123; name: 'sentenceCase', standalone: true &#125;)
-// implements PipeTransform is optional at runtime but worth keeping: it makes
-// TypeScript check that transform() exists and is shaped correctly.
-export class SentenceCasePipe implements PipeTransform &#123;
-  // The FIRST parameter is always the piped value — the thing on the left of
-  // the |. Any further parameters come from :args in the template.
-  transform(value: string): string &#123;
-    // charAt(0) rather than value[0]: on an empty string charAt returns ''
-    // instead of undefined, so this doesn't throw on ''.
-    // Note it returns a NEW string and never touches `value`. That purity is
-    // what makes a pipe safe to memoise — see the pure/impure section below.
-    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
-  &#125;
-&#125;</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <input
-      aria-label="Type in any case"
-      [(ngModel)]="rawText"
-      placeholder="Type in any case…"
-      style="width: 100%; margin-bottom: 10px"
-    />
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Where does formatting for the screen actually live?</h2>
+
     <p>
-      <span class="pill" style="color: var(--green)">| sentenceCase</span>
-      {{ rawText() | sentenceCase }}
+      Say you need to show <code>"3m ago"</code> instead of a raw ISO timestamp. Nothing stops you from formatting it in
+      the component — a getter, a method called from the template, or a field you write to when the data arrives. All
+      three work. All three also share a problem you will not notice until the component is checked a lot:
+      <span class="key">none of them remember the answer they gave last time</span>.
     </p>
-  </div>
 
-  <h2>Demo 3 — filterBy (generic array filter)</h2>
-  <p>
-    A generic filter pipe takes an array, a field name, and a query string. This is the same pattern as the
-    <code>FilterLessonsPipe</code> powering the home-page search in this app.
-  </p>
-  <div class="code">
-    <pre>
-&#64;Pipe(&#123; name: 'filterBy', standalone: true &#125;)
-export class FilterByPipe implements PipeTransform &#123;
-  // GENERIC, so the pipe works on any array of objects and the return type
-  // stays T[] rather than collapsing to any. `keyof T` then makes `field`
-  // autocomplete to real property names — pass a typo and it won't compile.
-  transform&lt;T extends Record&lt;string, unknown&gt;&gt;(
-    items: T[], field: keyof T, query: string
-  ): T[] &#123;
-    // Normalise ONCE, outside the loop, instead of per item.
-    const q = query.trim().toLowerCase();
-    // Empty query → return the ORIGINAL array reference, not a copy. That
-    // matters: a fresh array every call would look like a change to OnPush
-    // consumers and defeat the memoisation this pipe relies on.
-    if (!q) return items;
-    // String(...) coerces numbers, booleans and null safely, so filtering on
-    // a numeric column doesn't throw on .toLowerCase().
-    return items.filter(i =&gt; String(i[field]).toLowerCase().includes(q));
-  &#125;
-&#125;
+    <ul>
+      <li>
+        A <strong>getter</strong> re-runs its whole body on every single read — and a template reads it once per
+        binding, per check.
+      </li>
+      <li>
+        A <strong>method call</strong> in a binding, <code>{{ '{{' }} formatPrice(price) {{ '}}' }}</code>, is exactly
+        the same cost with worse syntax.
+      </li>
+      <li>
+        Formatting <strong>at the source</strong> — storing <code>"$4.00"</code> instead of <code>4</code> — throws the
+        real number away, so the next thing that needs to do math with it can't.
+      </li>
+    </ul>
 
-// Template — arguments are colon-separated, in the order transform() declares
-// them after the value: 'name' → field, query() → query.
-&#64;for (f of fruits | filterBy:'name':query(); track f.name) &#123; … &#125;
-// This is PURE, so it re-runs only when `fruits`, 'name' or query() changes
-// by reference. Push into `fruits` instead of replacing it and the list will
-// not update — the classic filtering-pipe bug.</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <input
-      aria-label="Filter fruits"
-      [(ngModel)]="fruitQuery"
-      placeholder="Filter fruits…"
-      style="width: 100%; margin-bottom: 10px"
+    <p>
+      A pipe is the fourth option, and it is the only one of the four that can be genuinely cheap — because, unlike a
+      getter, a <span class="term">pure</span> pipe is allowed to remember its last answer and skip the work entirely
+      when nothing has changed. That single fact is most of this lesson.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Picture a component checked forty times a second — nothing exotic, that's just forty clicks somewhere in a
+      Default-strategy app. Its template has <code>{{ '{{' }} getFormattedPrice() {{ '}}' }}</code>, a getter that
+      formats a number as currency. How many times does the formatting logic inside that getter actually run in that one
+      second? Now guess again for <code>{{ '{{' }} price | currency {{ '}}' }}</code> on the same component, the same
+      forty checks, formatting the exact same unchanged <code>price</code>. Both lines show identical text on screen.
+      They do not cost the same — keep reading to find out why.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A pure pipe is a bouncer with exactly one Polaroid.</h2>
+
+    <p>
+      Picture a bouncer at a door who is only allowed to hold <strong>one photo</strong> at a time. Someone walks up;
+      the bouncer compares their face against the photo. Different person? Take a new photo, replace the old one, let
+      them through after doing the actual work of checking ID. <em>Same</em> person as the photo — recognisably,
+      unmistakably the same, not just similar — and the bouncer waves them through on sight, no ID check, no new photo.
+      That is the entire deal a pure pipe offers Angular: one slot of memory, one comparison, and real work only on a
+      miss.
+    </p>
+
+    <p>
+      The comparison the bouncer makes is <code>===</code>, not "looks similar" — <span class="term">reference</span>
+      equality, the strictest kind. Two arrays with identical contents are two different people to this bouncer if they
+      are not the literal same object in memory. That detail is not a footnote; it is the entire cause of the single
+      most common pipe bug there is, and there is a live demo of it a few sections down.
+    </p>
+
+    <app-remember variant="mnemonic">
+      One bouncer, one Polaroid. A pure pipe remembers exactly one input and one output — the last ones — and only
+      redoes the work when what walks up next doesn't match the photo <code>===</code>.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="The same fact as the Polaroid, staged as the check a pipe instance actually runs — a miss, then a hit."
     />
-    <div class="row" style="flex-wrap: wrap; gap: 8px">
-      @for (f of fruits | filterBy: 'name' : fruitQuery(); track f['name']) {
-        <span class="pill" [style.border-color]="f['color']" [style.color]="f['color']">
-          {{ f['name'] }}
-        </span>
-      } @empty {
-        <span style="color: var(--text-muted); font-size: 0.85rem">No fruits match.</span>
+  </section>
+
+  <!-- ============ 3. ANATOMY, WITH THE FIRST REAL PIPE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A pipe is a class with one method — transform().</h2>
+
+    <p>
+      Here is the whole shape, with the pipe that trims long text down to size. Read it once with the notes; every other
+      pipe in this lesson is the same skeleton with a different <code>transform()</code>.
+    </p>
+
+    <app-code-lab file="truncate.pipe.ts" [code]="truncateSample" [notes]="truncateNotes" notesLabel="Line by line" />
+
+    <div class="demo">
+      <p class="demo__title">Live — truncate (pure), with its default arguments exposed as a slider</p>
+      <label style="font-size: 0.85rem; color: var(--bf-ink-2)">Limit: {{ limit() }}</label>
+      <input
+        aria-label="Character limit"
+        type="range"
+        min="5"
+        max="80"
+        [ngModel]="limit()"
+        (ngModelChange)="limit.set(+$event)"
+        style="width: 100%; margin: 6px 0 14px"
+      />
+      <p><span class="pill">original</span> {{ longText }}</p>
+      <p>
+        <span class="pill" style="color: var(--bf-olive)">| truncate:{{ limit() }}</span>
+        {{ longText | truncate: limit() }}
+      </p>
+      <p class="demo__note">
+        Drag the slider back and forth — every position is a genuinely new <code>limit</code> argument, so the pipe's
+        Polaroid never matches and <code>transform()</code> really does run on every single frame. That is fine: it is
+        meant to. The interesting case is what happens when nothing changes at all, which is what the next demo below is
+        built to show.
+      </p>
+    </div>
+
+    <div class="warn">
+      One more rule worth knowing up front: the string in <code>name</code> is what you type after <code>|</code>, and
+      it must be <strong>unique</strong> across everything a component's <code>imports</code> array pulls in. Two
+      different pipes both named <code>format</code> is a silent last-one-wins, not a compile error.
+    </div>
+  </section>
+
+  <!-- ============ 4. CHAINING, AND THE PRECEDENCE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Chaining, and a syntax trap</p>
+    <h2>Pipes chain left to right — but <code>|</code> doesn't bind the way you'd guess.</h2>
+
+    <p>
+      Chaining is just function composition with different punctuation: each pipe's output becomes the next pipe's first
+      argument, in the order they're written.
+    </p>
+
+    <app-code-lab
+      file="sentence-case.pipe.ts"
+      [code]="sentenceCaseSample"
+      [notes]="sentenceCaseNotes"
+      notesLabel="Line by line"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — sentenceCase (pure), chained after truncate</p>
+      <input
+        aria-label="Type in any case"
+        [(ngModel)]="rawText"
+        placeholder="Type in any case…"
+        style="width: 100%; margin-bottom: 10px"
+      />
+      <p>
+        <span class="pill" style="color: var(--bf-olive)">| truncate:20 | sentenceCase</span>
+        {{ rawText() | truncate: 20 | sentenceCase }}
+      </p>
+    </div>
+
+    <app-flow
+      caption="Each pipe hands its OUTPUT to the next as that pipe's first argument. Reorder them — try `sentenceCase` before `truncate` on a long ALL-CAPS string — and the ellipsis lands somewhere completely different."
+      [steps]="chainSteps"
+    />
+
+    <p>
+      One more thing about that <code>|</code>: inside a template expression it is <strong>always</strong> the pipe
+      operator, never bitwise OR. Write <code>a | b</code> expecting a bitwise trick from another language and Angular
+      goes looking for a pipe named <code>b</code> — and fails to compile if there isn't one.
+    </p>
+
+    <p>Now the trap. Pipes combine with the ternary operator in a way that looks obvious and is not:</p>
+
+    <app-predict
+      prompt="`{{
+        '{{'
+      }} isAdmin ? name : fallback | uppercase {{ '}}' }}` — which part of this actually gets uppercased?"
+      code="{{ '{{' }} isAdmin ? name : fallback | uppercase {{ '}}' }}"
+      answer="Only `fallback`. Angular's template parser resolves a pipe expression **inside each branch** of a ternary, not around the whole thing — so this reads as `isAdmin ? name : (fallback | uppercase)`. `name` is never touched, and nothing warns you: it's a silently half-applied transform. Fix it by parenthesising the whole conditional: `(isAdmin ? name : fallback) | uppercase`. The same rule governs `??` — `a ?? b | pipe` only pipes `b` — and it's why a pipe **argument** containing a ternary needs its own parens too: `value | filterBy: (useId ? 'id' : 'name')`."
+      revealLabel="Reveal what actually gets uppercased"
+    />
+  </section>
+
+  <!-- ============ 5. GENERIC PIPES, AND WHAT BREAKS THE CACHE ============ -->
+  <section>
+    <p class="bf-eyebrow">Generic pipes, and the cache</p>
+    <h2>A pipe over an array is still just comparing references.</h2>
+
+    <p>
+      Nothing about the Polaroid changes when the value flowing through it is an array instead of a string —
+      <code>===</code> on an array compares its <strong>address</strong>, not its contents. That single fact both makes
+      a filter pipe fast and sets the trap for the single most common pipe bug in real apps.
+    </p>
+
+    <app-code-lab file="filter-by.pipe.ts" [code]="filterBySample" [notes]="filterByNotes" notesLabel="Line by line" />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Mutate, don't replace" kicker="the demo below" tone="accent">
+        Pushing into an array Angular already has a reference to changes its <em>contents</em> but not its
+        <em>address</em>. A pure pipe compares addresses.
+      </app-tape-card>
+      <app-tape-card heading="A fresh literal argument" kicker="| filterBy: { field }" tone="accent">
+        An object or array literal written inline in a template is a brand-new reference on
+        <strong>every single check</strong>, so the pipe never gets to reuse its cache at all — even when nothing
+        meaningful changed.
+      </app-tape-card>
+      <app-tape-card heading="Hidden impurity" kicker="pure by default" tone="accent">
+        A pipe marked pure (the default) that quietly reads <code>Date.now()</code> or a mutable module-level variable
+        can produce a genuinely different answer while Angular still sees the same input reference — and skips calling
+        it. The output goes stale until something unrelated finally changes.
+      </app-tape-card>
+    </div>
+
+    <app-napkin lead="try it —" label="Do this before you keep reading">
+      Scroll to the fruit list below. Before typing anything in the search box, press
+      <strong>Push a Kiwi (mutate)</strong> two or three times, and watch the two counts: the total
+      <em>in the array</em>, and the pills actually rendered. Then press <strong>Add a Kiwi (replace)</strong> once.
+      Both buttons genuinely add a fruit. Only one of them ever shows up.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — filterBy (pure, generic), with a mutate-vs-replace switch built in</p>
+      <input
+        aria-label="Filter fruits"
+        [(ngModel)]="fruitQuery"
+        placeholder="Filter fruits…"
+        style="width: 100%; margin-bottom: 10px"
+      />
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button type="button" (click)="pushFruitByMutation()">Push a Kiwi <code>(mutate)</code></button>
+        <button type="button" (click)="addFruitByReplacing()">Add a Kiwi <code>(replace)</code></button>
+        <button type="button" class="ghost" (click)="resetFruits()">Reset</button>
+      </div>
+      <p style="margin: 0 0 10px">
+        <span class="pill">in the array: {{ fruits.length }}</span>
+        <span class="pill">query: "{{ fruitQuery() || '(none)' }}"</span>
+      </p>
+      <div class="row" style="flex-wrap: wrap">
+        @for (f of fruits | filterBy: 'name' : fruitQuery(); track f['name']) {
+          <span class="pill" [style.border-color]="f['color']" [style.color]="f['color']">
+            {{ f['name'] }}
+          </span>
+        } @empty {
+          <span style="color: var(--bf-ink-2); font-size: 0.85rem">No fruits match.</span>
+        }
+      </div>
+      <p class="demo__note">
+        "In the array" jumps immediately on <strong>every</strong> press — that count reads
+        <code>fruits.length</code> directly, no pipe involved. The pill row is the honest one: after
+        <strong>mutate</strong> it does not budge, because <code>filterBy</code>'s cached <code>items</code> argument is
+        still the exact same array reference it was last time. After <strong>replace</strong> a Kiwi finally appears,
+        because that button built a whole new array — a different reference, a cache miss, a real re-run.
+      </p>
+    </div>
+
+    <app-quiz
+      question="A pure pipe is described as 'memoized'. What does Angular actually cache?"
+      [options]="memoQuiz"
+      followUp="Reread the tape cards above with this in mind — all three are different ways of accidentally handing the pipe a 'new' reference, or of hiding a real change behind an old one."
+    />
+  </section>
+
+  <!-- ============ 6. DEPENDENCY INJECTION ============ -->
+  <section>
+    <p class="bf-eyebrow">Dependency injection</p>
+    <h2>transform() runs inside an injection context, same as a component.</h2>
+
+    <p>
+      A pipe is an ordinary injectable class. <code>inject()</code> works inside one exactly as it does inside a
+      component or a service — here, to reuse Angular's own built-in <code>DatePipe</code> as a fallback formatter
+      rather than reimplementing date formatting from scratch.
+    </p>
+
+    <app-code-lab
+      file="relative-time.pipe.ts — injecting a service"
+      [code]="relativeTimeSample"
+      [notes]="relativeTimeNotes"
+      notesLabel="Line by line"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — relativeTime (pure, injects DatePipe)</p>
+      @for (post of posts; track post.id) {
+        <div class="post-row">
+          <span>{{ post.title }}</span>
+          <span class="pill" style="color: var(--bf-ink-2); white-space: nowrap">
+            {{ post.date | relativeTime }}
+          </span>
+        </div>
       }
     </div>
-  </div>
+  </section>
 
-  <h2>Demo 4 — relativeTime (pipe that injects a service)</h2>
-  <p>
-    Pipes run in an injection context — <code>inject()</code> works inside them just like in components. Here
-    <code>RelativeTimePipe</code> injects Angular's built-in <code>DatePipe</code> as a fallback formatter.
-  </p>
-  <div class="code">
-    <pre>
-&#64;Pipe(&#123; name: 'relativeTime', standalone: true &#125;)
-export class RelativeTimePipe implements PipeTransform &#123;
-  private readonly datePipe = inject(DatePipe);   // ← inject inside a pipe
+  <!-- ============ 7. IMPURE PIPES ============ -->
+  <section>
+    <p class="bf-eyebrow">Impure pipes</p>
+    <h2><code>pure: false</code> means "ask me on every single check."</h2>
 
-  transform(isoDate: string): string &#123;
-    const diff = Date.now() - new Date(isoDate).getTime();
-    const mins = Math.floor(diff / 60_000);
-    if (mins &lt; 60) return &#96;&#36;&#123;mins&#125;m ago&#96;;
-    return this.datePipe.transform(isoDate, 'mediumDate') ?? isoDate;
-  &#125;
-&#125;
+    <p>
+      Sometimes a pipe genuinely needs to react to something a reference comparison cannot see — here, characters typed
+      into a search box highlighting matches inside text that hasn't itself changed. <code>pure: false</code> switches
+      off the Polaroid entirely: no cache, no skipped calls, <code>transform()</code> runs on
+      <strong>every</strong> change-detection pass that reaches this view, whether or not its arguments moved.
+    </p>
 
-// Add DatePipe to the component's providers array.</pre>
-  </div>
-
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    @for (post of posts; track post.id) {
-      <div class="post-row">
-        <span>{{ post.title }}</span>
-        <span class="pill" style="color: var(--text-muted); white-space: nowrap">
-          {{ post.date | relativeTime }}
-        </span>
-      </div>
-    }
-  </div>
-
-  <h2>Demo 5 — highlight (impure, pure: false)</h2>
-  <p>
-    An impure pipe (<code>pure: false</code>) re-runs on <em>every</em>
-    change-detection pass. Use it sparingly — only when you need to react to mutations inside an existing object or
-    array reference.
-  </p>
-  <div class="code">
-    <pre>
-// pure: false makes this run on EVERY change-detection pass, not just when
-// its inputs change by reference. Expensive — and here it is arguably not
-// even needed, since term() is a signal that changes by value anyway.
-&#64;Pipe(&#123; name: 'highlight', standalone: true, pure: false &#125;)
-export class HighlightPipe implements PipeTransform &#123;
-  // Second parameter = the pipe argument: | highlight: term()
-  transform(value: string, term: string): string &#123;
-    // Empty search term → return the input untouched, and skip building a
-    // regex that would match everything.
-    if (!term) return value;
-    // The capture group ( ) is what $1 refers to in the replacement, so the
-    // matched text is preserved inside the &lt;mark&gt;.
-    // 'g' = replace every occurrence, 'i' = case-insensitive.
-    return value.replace(new RegExp(&#96;($&#123;term&#125;)&#96;, 'gi'), '&lt;mark&gt;$1&lt;/mark&gt;');
-    // WARNING worth knowing: `term` goes into a regex unescaped, so a user
-    // typing "(" throws, and it goes into innerHTML below. Angular's
-    // sanitizer strips scripts, but a production version should escape both
-    // the regex metacharacters and the input text first.
-  &#125;
-&#125;
-
-// Template: bind innerHTML because the pipe returns HTML
-// Interpolation would print the literal "&lt;mark&gt;" characters on screen —
-// [innerHTML] is what makes the browser parse them as markup.
-&lt;p [innerHTML]="sentence | highlight: term()"&gt;&lt;/p&gt;</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <input
-      aria-label="Term to highlight"
-      [(ngModel)]="highlightQuery"
-      placeholder="Term to highlight…"
-      style="width: 100%; margin-bottom: 10px"
+    <app-code-lab
+      file="highlight.pipe.ts — impure"
+      [code]="highlightSample"
+      [notes]="highlightNotes"
+      notesLabel="Line by line"
     />
-    @for (item of highlightItems; track item) {
-      <p style="margin: 4px 0" [innerHTML]="item | highlight: highlightQuery()"></p>
-    }
-  </div>
 
-  <h2>Pure vs impure — what actually runs, and when</h2>
-  <p>
-    This is the part that decides whether your pipe is free or ruinous, so here it is drawn rather than described. Both
-    rows are the same eight change-detection ticks. A filled mark means <code>transform()</code> ran:
-  </p>
+    <div class="demo">
+      <p class="demo__title">Live — highlight (impure, pure: false)</p>
+      <input
+        aria-label="Term to highlight"
+        [(ngModel)]="highlightQuery"
+        placeholder="Term to highlight…"
+        style="width: 100%; margin-bottom: 10px"
+      />
+      @for (item of highlightItems; track item) {
+        <p style="margin: 4px 0" [innerHTML]="item | highlight: highlightQuery()"></p>
+      }
+      <p class="demo__note">
+        This works here because this whole component uses the Default strategy, which checks every view on every pass
+        regardless of what changed. That is not a guarantee — read on.
+      </p>
+    </div>
 
-  <svg class="diagram" viewBox="0 0 760 250" role="img" aria-labelledby="pipe-t pipe-d">
-    <title id="pipe-t">A pure pipe versus an impure pipe across eight change-detection ticks</title>
-    <desc id="pipe-d">
-      Two rows over the same eight change-detection ticks. The pure pipe row runs transform only on tick 1 (first
-      render) and tick 5 (where the input reference changed); the other six ticks are cache hits. The impure pipe row
-      runs transform on all eight ticks. Below, a note: on tick 3 the array was mutated in place with push, and the pure
-      pipe did not notice because the reference did not change.
-    </desc>
+    <p>
+      <code>pure: false</code> buys you certainty about <strong>whether transform() runs on a check</strong>. It buys
+      you nothing about <strong>whether a check ever happens</strong> — and that second question belongs to change
+      detection, not to the pipe.
+    </p>
 
-    <!-- tick ruler -->
-    <text x="14" y="26" font-size="11" fill="var(--text-muted)">change-detection ticks →</text>
-    <g font-size="11" fill="var(--text-muted)" text-anchor="middle">
-      <text x="220" y="26">1</text>
-      <text x="285" y="26">2</text>
-      <text x="350" y="26">3</text>
-      <text x="415" y="26">4</text>
-      <text x="480" y="26">5</text>
-      <text x="545" y="26">6</text>
-      <text x="610" y="26">7</text>
-      <text x="675" y="26">8</text>
-    </g>
+    <app-predict
+      prompt="Wrap that same `highlight` binding in an OnPush component. Change the search term on a shared service from a completely different part of the app, and touch nothing else in this component — no changed input, no local click. Does the highlight update?"
+      answer="No — and the pipe's purity has nothing to do with it. `pure: false` only says 'run me on every pass this view gets'; it says nothing about whether a pass ever reaches this view. An OnPush component with no changed input, no local event and no signal read is never marked dirty in the first place, so the impure pipe simply never gets asked again. The fix is not `pure: true` — it's giving the view something to react to: read the term as a signal instead of a plain field, and the read itself registers this view as a consumer, which is what actually gets it re-checked."
+      revealLabel="Reveal the answer"
+    />
 
-    <!-- what happened on each tick -->
-    <g font-size="10" fill="var(--text-muted)" text-anchor="middle">
-      <text x="220" y="44">render</text>
-      <text x="350" y="44">push()</text>
-      <text x="480" y="44">new ref</text>
-    </g>
+    <app-compare
+      leftTitle="Wrong — impure alone, inside OnPush"
+      leftTone="bad"
+      rightTitle="Right — read a signal instead"
+      rightTone="good"
+      note="Same pipe, same pure: false. The fix is entirely on the component side — give the view a reason to be marked dirty."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ onPushImpureBadSample }}</pre>
+        </div>
+        <div class="code">
+          <pre>{{ onPushImpureBadTemplate }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ onPushImpureGoodSample }}</pre>
+        </div>
+        <div class="code">
+          <pre>{{ onPushImpureGoodTemplate }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
 
-    <!-- pure row -->
-    <text x="14" y="82" font-size="12.5" font-weight="700" fill="var(--green)">pure (default)</text>
-    <text x="14" y="98" font-size="10.5" fill="var(--text-muted)">runs 2 / 8</text>
-    <line x1="200" y1="86" x2="700" y2="86" stroke="var(--border)" stroke-width="1.5" />
-    <g>
-      <circle cx="220" cy="86" r="9" fill="var(--green)" />
-      <circle cx="285" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
-      <circle cx="350" cy="86" r="5" fill="none" stroke="var(--red)" stroke-width="2" />
-      <circle cx="415" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
-      <circle cx="480" cy="86" r="9" fill="var(--green)" />
-      <circle cx="545" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
-      <circle cx="610" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
-      <circle cx="675" cy="86" r="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" />
-    </g>
+  <!-- ============ 8. THE ONE LEGITIMATE EXCEPTION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The one legitimate exception</p>
+    <h2>Some pipes own something that has to be torn down.</h2>
 
-    <!-- impure row -->
-    <text x="14" y="152" font-size="12.5" font-weight="700" fill="var(--amber)">pure: false</text>
-    <text x="14" y="168" font-size="10.5" fill="var(--text-muted)">runs 8 / 8</text>
-    <line x1="200" y1="156" x2="700" y2="156" stroke="var(--border)" stroke-width="1.5" />
-    <g fill="var(--amber)">
-      <circle cx="220" cy="156" r="9" />
-      <circle cx="285" cy="156" r="9" />
-      <circle cx="350" cy="156" r="9" />
-      <circle cx="415" cy="156" r="9" />
-      <circle cx="480" cy="156" r="9" />
-      <circle cx="545" cy="156" r="9" />
-      <circle cx="610" cy="156" r="9" />
-      <circle cx="675" cy="156" r="9" />
-    </g>
+    <p>
+      There is exactly one honest reason to reach for <code>pure: false</code> that has nothing to do with "the
+      arguments didn't change but I need to re-check anyway": a pipe whose value changes on
+      <strong>its own schedule</strong> — a timer, a socket, an Observable — because there is no argument change to key
+      a cache off in the first place. Angular's own built-in <code>async</code> pipe is exactly this. Here it is,
+      rebuilt from scratch.
+    </p>
 
-    <!-- the tick-3 callout -->
-    <line x1="350" y1="98" x2="350" y2="196" stroke="var(--red)" stroke-width="1.2" stroke-dasharray="3 3" />
-    <text x="350" y="212" font-size="11" fill="var(--red)" text-anchor="middle" font-weight="600">
-      tick 3: you pushed into the array — same reference, so the pure pipe skipped it
-    </text>
-    <text x="350" y="232" font-size="11" fill="var(--text-muted)" text-anchor="middle">
-      The screen is now stale. The impure pipe caught it — at the cost of running on all eight ticks.
-    </text>
-  </svg>
+    <app-code-lab
+      file="mini-async.pipe.ts — a homemade async pipe"
+      [code]="miniAsyncSample"
+      [notes]="miniAsyncNotes"
+      notesLabel="Line by line — the same shape as | async"
+    />
 
-  <app-remember variant="rule" label="The one-line rule">
-    <strong>A pure pipe watches the box, not the contents.</strong> It re-runs when the input is a
-    <em>different object</em> (<code>!==</code> what it saw last time), never when the same object's insides changed.
-    So: replace, don't mutate. And when you can't control that, don't reach for <code>pure: false</code> — reach for
-    <code>computed()</code>, which tracks reads instead of comparing references and costs you nothing on the ticks where
-    nothing changed.
-  </app-remember>
+    <div class="demo">
+      <p class="demo__title">
+        Live — two clocks, mounted and torn down on demand
+        <span class="pill">active subscriptions: {{ activityLog.count() }}</span>
+      </p>
+      <div class="row" style="margin-bottom: 12px">
+        <button type="button" (click)="showClocks.set(!showClocks())">
+          {{ showClocks() ? 'Unmount both clocks' : 'Mount two clocks' }}
+        </button>
+      </div>
+      @if (showClocks()) {
+        <div class="row" style="flex-wrap: wrap; margin-bottom: 12px">
+          <span class="pill">Clock A: {{ ticks$ | miniAsync }}s</span>
+          <span class="pill">Clock B: {{ ticks$ | miniAsync }}s</span>
+        </div>
+      }
+      <p class="demo__note">
+        Mount the clocks and the subscription count jumps to <strong>2</strong> — two separate bindings, two separate
+        <code>MiniAsyncPipe</code> instances, two independent subscriptions to the same <code>ticks$</code>. Unmount,
+        and it drops straight back to <strong>0</strong>: Angular destroyed both bindings, which called
+        <code>ngOnDestroy</code> on both pipe instances, which unsubscribed both. Nothing about that cleanup was written
+        by you.
+        <br />
+        recent activity: {{ activityLog.entries().join(' · ') || 'nothing yet — mount the clocks above' }}
+      </p>
+    </div>
+  </section>
 
-  <h2>Predict the bug</h2>
-  <p>
-    Everything below compiles, and every piece of it looks like the examples above. Decide what the user sees after
-    clicking the button before you open the answer:
-  </p>
+  <!-- ============ 9. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Pure vs impure, side by side.</h2>
 
-  <app-predict
-    prompt="The list shows Apple and Banana. The search box is empty. You click Add Kiwi. What is on screen now — and what would you change?"
-    [code]="mutationTrapSample"
-    answer="**Still just Apple and Banana.** `push()` mutated the array in place, so `this.fruits` is the same object reference it was before. `filterBy` is pure, so Angular compares this render's arguments to the last render's, finds them all `===`, and returns the cached result without calling `transform()` at all. Kiwi exists in the data and will never appear on screen.
+    <table>
+      <caption class="bf-table-caption">
+        The whole decision, in one table
+      </caption>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Pure (default)</th>
+          <th>Impure (<code>pure: false</code>)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Re-runs when</td>
+          <td>Any argument's <em>reference</em> changes</td>
+          <td>Every change-detection pass that reaches this view</td>
+        </tr>
+        <tr>
+          <td>What's cached</td>
+          <td>One input/output pair, per binding site</td>
+          <td>Nothing</td>
+        </tr>
+        <tr>
+          <td>Reruns inside a non-dirty OnPush host?</td>
+          <td>N/A — never re-checked either way</td>
+          <td>No. Impure buys "every check", not "a check happens"</td>
+        </tr>
+        <tr>
+          <td>May own cleanup (a subscription, a timer)?</td>
+          <td>No — nothing ever calls it when nobody's checking</td>
+          <td>Yes, and it should implement <code>ngOnDestroy</code> if it does</td>
+        </tr>
+        <tr>
+          <td>Best for</td>
+          <td>Formatting, filtering, mapping — presentational work</td>
+          <td>Reacting to mutation, or owning a subscription's lifecycle</td>
+        </tr>
+      </tbody>
+    </table>
 
-Worse, it's *intermittently* wrong: type a character in the search box and the `query()` argument changes, the cache misses, the pipe re-runs — and Kiwi appears. So the bug looks like “the list only updates when I search”, which sends people hunting in completely the wrong place.
+    <app-remember variant="rule">
+      Reach for <code>computed()</code> before <code>pure: false</code>. The one legitimate reason to write an impure
+      pipe is that it owns something that needs tearing down — a subscription, a timer — not that its output merely
+      changes on its own.
+    </app-remember>
 
-The fixes, worst to best:
+    <app-quiz
+      question="A todos array gets items pushed into it from several places in the app, and a panel needs to show only the incomplete ones. Which is the best fit?"
+      [options]="toolQuiz"
+      followUp="Notice that three of the four options were already ruled out somewhere earlier on this page — this is the same set of ideas, just aimed at one decision."
+    />
+  </section>
 
-1. `pure: false` — works, and now the filter runs on every change-detection pass forever. You have fixed a correctness bug by making the whole list slow.
-2. `this.fruits = [...this.fruits, kiwi]` — a new reference, cache miss, correct render. Fine, but it depends on every future contributor remembering never to mutate.
-3. **Delete the pipe.** `filtered = computed(() => this.fruits().filter(f => f.name.toLowerCase().includes(this.query().toLowerCase())))`, with `fruits` as a signal. `computed()` tracks the signal *read*, so `fruits.update(...)` invalidates it automatically — there is no reference discipline left to get wrong. This is why Angular's own guidance is to filter in the component and keep pipes for formatting."
-    revealLabel="Reveal what's on screen"
-  />
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="The same interpolation — `user.name | truncate:10` — appears twice in one template, once in the header and once in the footer. Same value, same argument, same pipe class. On the first render, how many times does `transform()` run?"
-    [options]="quizOptions"
-    followUp="The mental model to keep: one `|` in a template means one pipe instance with one cache slot. That is also why a pipe must never hold state between calls — the instance is long-lived and reused for every render of that binding."
-  />
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-  <h2>Pure vs impure — quick reference</h2>
-  <table class="t">
-    <thead>
-      <tr>
-        <th>Property</th>
-        <th>Pure (default)</th>
-        <th>Impure (<code>pure: false</code>)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Re-runs when</td>
-        <td>Input <em>reference</em> changes</td>
-        <td>Every change-detection pass</td>
-      </tr>
-      <tr>
-        <td>Memoized by Angular</td>
-        <td>Yes</td>
-        <td>No</td>
-      </tr>
-      <tr>
-        <td>Performance</td>
-        <td>Fast</td>
-        <td>Can be slow — use sparingly</td>
-      </tr>
-      <tr>
-        <td>Best for</td>
-        <td>Formatting, filtering by value, mapping</td>
-        <td>Reactive mutations inside existing refs</td>
-      </tr>
-      <tr>
-        <td>Alternatives</td>
-        <td>—</td>
-        <td><code>computed()</code> reacts to mutations too and is faster</td>
-      </tr>
-    </tbody>
-  </table>
+    <ul>
+      <li>
+        A pipe is <code>&#64;Pipe(&#123; name, standalone: true &#125;)</code> plus
+        <code>transform(value, ...args)</code>. The first parameter is always what sat left of <code>|</code>; every
+        <code>:arg</code> after it is a further parameter, defaults and all.
+      </li>
+      <li>
+        <strong>Pure by default means single-slot memoisation, per binding site</strong> — not a shared, keyed cache.
+        Two identical bindings never share a result, and the slot is overwritten the instant an argument's reference
+        changes.
+      </li>
+      <li>
+        That cache is exactly why <strong>mutating an array (or object)</strong> you pipe does not render — the
+        reference is unchanged, so a pure pipe hands back its old answer. Replace it instead.
+      </li>
+      <li>
+        <strong>Impure (<code>pure: false</code>) reruns on every check that reaches its view</strong> — costly, and
+        still silent inside an OnPush component nothing else marks dirty. Its one honest use is owning something with a
+        teardown: a subscription, a timer, <code>ngOnDestroy</code> required.
+      </li>
+      <li>
+        The pipe operator binds <strong>tighter</strong> than a ternary's branches —
+        <code>cond ? a : b | pipe</code> only ever pipes <code>b</code>. Parenthesise the whole conditional when you
+        mean the whole thing piped.
+      </li>
+      <li>
+        For anything actually reactive — filtering, deriving, combining signals — reach for <code>computed()</code>
+        first. A pipe is for genuinely presentational formatting.
+      </li>
+    </ul>
 
-  <div class="warn">
-    Before reaching for an impure pipe to filter a mutable array, try a
-    <code>computed()</code> signal — it only re-runs when its dependencies change, not on every CD pass.
-  </div>
-  <div class="note">
-    Pipes are standalone tree-shakable classes. Chain them freely:
-    <code>{{ '{{' }} value | truncate:30 | sentenceCase {{ '}}' }}</code>. A pipe instance is <strong>reused</strong> —
-    keep <code>transform()</code> free of hidden mutable state. All extra template arguments land in
-    <code>transform(value, ...args)</code>
-    in order.
-  </div>
-
-  <app-faq [items]="questions" heading="There are no dumb questions" />
-
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>&#64;Pipe(&#123; name, standalone: true &#125;)</code> + <code>transform(value, ...args)</code> is all you
-      need.
-    </li>
-    <li>
-      A pipe is a <strong>lens filter</strong>: it changes what's displayed, never the underlying value. Mutating the
-      input inside <code>transform()</code> is always a bug.
-    </li>
-    <li>Pure pipes are memoized — they only re-run when the input reference changes.</li>
-    <li>Pipes can <code>inject()</code> services: <code>DatePipe</code>, <code>HttpClient</code>, I18n services…</li>
-    <li>For filtering reactive state, prefer <code>computed()</code> over impure pipes.</li>
-    <li>Standalone pipes live in a component's <code>imports</code> array — no NgModule needed.</li>
-  </ul>
-
-  <p><a routerLink="/attribute-directives">Next: Custom Attribute Directives →</a></p>
+    <p><a routerLink="/attribute-directives">Next: Custom Attribute Directives →</a></p>
+  </section>
 </article>

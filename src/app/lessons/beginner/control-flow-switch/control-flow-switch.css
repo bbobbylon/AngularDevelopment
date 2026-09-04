@@ -1,47 +1,14 @@
-.panel {
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-elevated);
-}
-.panel p {
+/* Tables, callouts, demo panels, pills and the code window are all styled by
+   the shared brain-friendly layer now (src/brain-friendly.css §14–15), so the
+   `.panel` / `.cmp` table / `.ok` / `.qa` accordion rules that used to live
+   here are gone — the exam questions on this page are an `<app-faq>`, which
+   is keyboard-accessible and consistent with every other migrated lesson.
+
+   The one thing genuinely specific to this lesson is the emphasis on a live
+   demo's rendered output — bumped up from the layer's default paragraph size
+   so the one line the reader is meant to read after clicking a button is the
+   most prominent thing in the panel, not just another paragraph. */
+.readout-line {
   margin: 0;
   font-size: 1.05rem;
-}
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }

@@ -6,7 +6,7 @@
  * from the lesson file would make the parent/child imports circular.
  */
 
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, type OnDestroy, computed, inject, signal } from '@angular/core';
 
 /**
  * A singleton service. `providedIn: 'root'` registers it once for the whole app,
@@ -55,16 +55,63 @@ export class CartService {
 }
 
 /**
+ * A tiny root-provided log, so the "when does `ngOnDestroy` actually run?"
+ * demo has something on screen to point at. A real app would reach for
+ * structured logging or a monitoring tool; this exists purely to make an
+ * otherwise-invisible lifecycle event visible on the page.
+ */
+@Injectable({ providedIn: 'root' })
+export class LifecycleLog {
+  private readonly lines = signal<string[]>([]);
+  /**
+   * The log, oldest first.
+   */
+  readonly entries = this.lines.asReadonly();
+  /**
+   * Appends a line.
+   *
+   * @param line What happened.
+   */
+  record(line: string) {
+    this.lines.update((l) => [...l, line]);
+  }
+}
+
+/**
  * Deliberately has NO `providedIn`. It becomes injectable only once something
  * lists it in a `providers` array — the star of the component-scoped-instance demo.
+ *
+ * Also implements {@link OnDestroy}, which the {@link CartService} above never
+ * needs to: a root service's owner is the whole application, so its
+ * `ngOnDestroy` would only ever run when the app itself closes. This one is
+ * owned by whichever component provides it, so it is actually destroyed —
+ * see the "Service teardown" section, which removes a widget live and watches
+ * the log below gain a line the instant it happens.
  */
 @Injectable()
-export class CounterService {
+export class CounterService implements OnDestroy {
+  private readonly log = inject(LifecycleLog);
+
   /**
    * The count. Per-instance, because this service is provided by the component
    * rather than at root.
    */
   readonly count = signal(0);
+
+  /**
+   * Stands in for a resource a real service might hold open — a WebSocket, a
+   * polling interval, a subscription — so the teardown demo has something
+   * that visibly keeps running until `ngOnDestroy` stops it.
+   */
+  readonly heartbeat = signal(0);
+
+  /** The interval driving {@link heartbeat}. Cleared in `ngOnDestroy`. */
+  private readonly timer = setInterval(() => this.heartbeat.update((h) => h + 1), 400);
+
+  constructor() {
+    this.log.record('CounterService: created');
+  }
+
   /**
    * Increments the count.
    */
@@ -76,5 +123,16 @@ export class CounterService {
    */
   reset() {
     this.count.set(0);
+  }
+
+  /**
+   * Called once, when the injector that owns this instance is destroyed —
+   * for a component-provided service, that is when the component itself is
+   * destroyed. Without this, {@link timer} would keep firing forever, on an
+   * object nothing can reach any more.
+   */
+  ngOnDestroy(): void {
+    clearInterval(this.timer);
+    this.log.record('CounterService: destroyed — heartbeat cleared');
   }
 }

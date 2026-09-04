@@ -1,49 +1,163 @@
+/* Tables, callouts, demo panels, pills and the code window are all styled by
+   the shared brain-friendly layer now (src/brain-friendly.css §14–15), and
+   the exam questions on this page are an `<app-faq>` — so the old `.qa`
+   accordion rules that used to live here are gone.
+
+   What is left is genuinely specific to this lesson: the vending-machine
+   diagram, the four-stage call tracker, the live readout panels, and the
+   labelled demo fields. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAM
+   One SVG carries this lesson: the vending machine (arguments in, body
+   runs, return value out). Every colour comes from a --bf-* token rather
+   than a literal, so it follows the reader's light/dark choice with no
+   duplicate rules, on the same palette the rest of the layer uses.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
+}
+
+.dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+/* A container drawn on the page: the same surface + hairline as a .bf-card,
+   so a box in a diagram reads as the same kind of object as a box in the
+   layout. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+/* The box the whole diagram is about — the function itself. */
+.dia-box--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+/* The physical thing at the end of the process — clay, per the layer's
+   convention that clay means "the solid object in a diagram". */
+.dia-box--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+
+.dia-mono--on-solid {
+  fill: var(--bf-clay-ink);
+  font-weight: 600;
+}
+
+/* The author's handwriting, inside the picture. Same face and hue as
+   `.bf-hand` in the running text, so the margin voice sounds the same
+   whether it is set in HTML or drawn in SVG. */
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. THE CALL-STACK STEPPER
+   ------------------------------------------------------------------ */
+.stages {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stage-chip {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r-pill);
+  padding: 4px 14px;
+  color: var(--bf-ink-2);
+  background: var(--bf-surface);
+}
+
+.stage-chip.on {
+  border-color: var(--bf-accent);
+  color: var(--bf-ink);
+  font-weight: 700;
+  background: var(--bf-accent-wash);
+}
+
+.stage-chip.done {
+  border-color: var(--bf-olive);
+}
+
+/* ------------------------------------------------------------------
+   3. LIVE READOUTS
+   Deliberately NOT `.code pre`. `app.ts` re-highlights every `.code pre`
+   after navigation by overwriting its innerHTML; a live readout re-renders
+   on every keystroke or click, so it wears the editor's clothes without
+   ever joining that sweep. See `foundations/arrays-objects-basics.css` for
+   the sibling lesson that established this pattern.
+   ------------------------------------------------------------------ */
+.readout {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  border-radius: var(--bf-r);
+  border: 1px solid var(--bf-rule);
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.75;
+  overflow-x: auto;
+  white-space: pre;
+  box-shadow: var(--bf-shadow);
+}
+
+/* ------------------------------------------------------------------
+   4. DEMO FIELDS
+   ------------------------------------------------------------------ */
 .field {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
 }
-.field label {
+
+.field__label {
   min-width: 110px;
-  color: var(--text-muted);
-}
-
-.stages {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.stage-chip {
-  font-size: 0.78rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 3px 12px;
-  color: var(--text-muted);
-}
-.stage-chip.on {
-  border-color: var(--accent);
-  color: var(--text);
-  font-weight: 600;
-}
-.stage-chip.done {
-  border-color: var(--green);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
 }

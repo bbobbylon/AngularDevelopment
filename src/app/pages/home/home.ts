@@ -18,6 +18,7 @@ import { FilterLessonsPipe } from '../../shared/filter-lessons.pipe';
 import { FilterTabsComponent, TabOption } from '../../shared/filter-tabs.component';
 import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
 import { TooltipDirective } from '../../shared/tooltip.directive';
+import { TapeCard } from '../../shared/brain';
 
 /**
  * Home — the curriculum landing page and the app's table of contents.
@@ -25,6 +26,11 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
  * Renders all 100+ lessons grouped by level and then by category, with a level
  * filter, a free-text search, per-lesson completion ticks from
  * {@link ProgressService}, and animated hero counters.
+ *
+ * This is a tool, not a lesson — it never opts into `.lesson.bf`. The hero's
+ * six counters are the one place it reaches for a brain-friendly *presentation*
+ * device ({@link TapeCard}): the app-wide warm palette and type tokens from
+ * `brain-friendly.css` §3 apply to every page unconditionally, restyle-only.
  *
  * ## Where the grouping happens
  *
@@ -52,6 +58,7 @@ import { TooltipDirective } from '../../shared/tooltip.directive';
     FilterTabsComponent,
     TooltipDirective,
     RevealOnScrollDirective,
+    TapeCard,
   ],
   templateUrl: './home.html',
   styleUrl: './home.css',

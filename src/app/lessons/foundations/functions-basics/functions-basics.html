@@ -1,397 +1,595 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Programming from Zero</span>
-  <h1>Functions</h1>
-  <p class="lead">
-    A function is a <strong>reusable set of instructions with a name</strong>. Instead of writing the same steps over
-    and over, you wrap them once and "call" them by name. But there's a deeper idea hiding here that powers everything
-    from <code>map</code> to Angular event handlers: <em>a function is itself a value</em> — you can store it, pass it,
-    and hand it to someone else to run later. This page builds both ideas.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Foundations · Programming from Zero"
+    title="Functions"
+    hand="or, how to write the same three lines exactly once"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      A function is a set of instructions you write once and can run as many times as you like, by name. That alone
+      would make it worth learning — but it hides a second, bigger idea: <strong>a function is itself a value</strong>.
+      You can store one in a variable, hand it to another function, and let someone else decide when to press the
+      button. That second idea is the one that eventually explains <code>map</code>, every Angular event binding, and
+      most of what RxJS does. This page builds both, in that order, with a live call traced moment by moment so "the
+      function runs" stops being a black box.
+    </p>
+  </app-chapter>
 
-  <h2>The vending-machine anatomy</h2>
-  <p>
-    Input goes in, work happens inside, output comes back. In code those parts are <em>parameters</em>, the
-    <em>body</em>, and the <em>return value</em>:
-  </p>
-  <div class="code">
-    <pre>
-function double(n) {{ '{' }}
-└──┬───┘ └─┬──┘└┬┘
-"defining  its   parameter: a placeholder variable
-a function" name  that will hold whatever comes in
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You're about to write the same three lines a third time.</h2>
 
-  return n * 2;   // the body: do the work, send the answer OUT
-{{ '}' }}
-
-double(5)    // → 10     "calling" it: parentheses mean RUN
-double(8)    // → 16     same machine, different input</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Defining ≠ running.</strong> The <code>function</code> block just <em>creates</em> the machine — nothing
-      inside executes until a call happens. A function defined but never called is code that never runs.
-    </li>
-    <li>
-      <strong>Parameter vs argument:</strong> the placeholder in the definition (<code>n</code>) is a
-      <em>parameter</em>; the real value at the call (<code>5</code>) is an <em>argument</em>. Multiple inputs are
-      separated by commas and matched <em>by position</em>: <code>add(2, 3)</code> fills <code>a=2, b=3</code>.
-    </li>
-    <li>
-      <strong><code>return</code> does two jobs:</strong> it hands the value back
-      <em>and immediately ends the function</em>. Code after a return never runs. A function with no return hands back
-      <code>undefined</code>.
-    </li>
-  </ul>
-
-  <svg class="diagram" viewBox="0 0 760 300" role="img" aria-labelledby="fn-t fn-d">
-    <title id="fn-t">One call, drawn as a machine: arguments in, return value out</title>
-    <desc id="fn-d">
-      On the left, two arguments, fifty and twenty, feed into a box labelled function tip of bill and percent. Inside
-      the box the parameters are shown as freshly filled variables, bill equals 50 and percent equals 20, sitting above
-      the body, which computes bill times percent over one hundred. An arrow leaves the right of the box carrying the
-      return value, ten. Below, the same call is shown collapsing: the line const t equals tip of 50 and 20 becomes
-      const t equals 10, because a call is an expression that gets replaced by whatever it returns. A note points at the
-      parameters to say they exist only for the duration of this one call.
-    </desc>
-    <defs>
-      <marker id="fn-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
-
-    <text x="20" y="40" font-size="11" font-weight="700" fill="var(--text-muted)">arguments (the real values)</text>
-    <rect x="30" y="86" width="50" height="26" rx="5" fill="var(--green)" opacity="0.3" />
-    <text x="55" y="104" font-size="12" text-anchor="middle" font-weight="700" fill="var(--green)">50</text>
-    <rect x="90" y="86" width="50" height="26" rx="5" fill="var(--green)" opacity="0.3" />
-    <text x="115" y="104" font-size="12" text-anchor="middle" font-weight="700" fill="var(--green)">20</text>
-    <line x1="146" y1="99" x2="192" y2="99" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#fn-arrow)" />
-
-    <rect x="200" y="50" width="300" height="140" rx="10" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="216" y="72" font-size="11.5" font-weight="700" fill="var(--text-muted)">function tip(bill, percent)</text>
-
-    <rect x="216" y="84" width="120" height="28" rx="5" fill="var(--green)" opacity="0.2" />
-    <text x="276" y="103" font-size="11.5" text-anchor="middle" fill="var(--green)" font-weight="700">bill = 50</text>
-    <rect x="348" y="84" width="136" height="28" rx="5" fill="var(--green)" opacity="0.2" />
-    <text x="416" y="103" font-size="11.5" text-anchor="middle" fill="var(--green)" font-weight="700">
-      percent = 20
-    </text>
-
-    <line x1="216" y1="126" x2="484" y2="126" stroke="var(--border)" stroke-width="1" stroke-dasharray="4 4" />
-    <text x="216" y="150" font-size="11.5" fill="var(--text-muted)">return bill * (percent / 100);</text>
-    <text x="216" y="172" font-size="10" fill="var(--text-muted)">the body — do the work, hand the answer out</text>
-
-    <line
-      x1="506"
-      y1="120"
-      x2="552"
-      y2="120"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#fn-arrow)"
-    />
-    <rect x="558" y="107" width="52" height="28" rx="5" fill="var(--green)" opacity="0.4" />
-    <text x="584" y="126" font-size="12.5" text-anchor="middle" font-weight="700" fill="var(--green)">10</text>
-    <text x="622" y="126" font-size="11" fill="var(--green)">the return value</text>
-
-    <text x="200" y="208" font-size="10" fill="var(--red)">
-      ↑ these two boxes are created fresh for this call, and destroyed when it ends
-    </text>
-
-    <line x1="20" y1="226" x2="740" y2="226" stroke="var(--border)" stroke-width="1" />
-
-    <text x="20" y="256" font-size="12.5" fill="var(--text-muted)">const t = tip(50, 20);</text>
-    <line
-      x1="196"
-      y1="251"
-      x2="242"
-      y2="251"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#fn-arrow)"
-    />
-    <text x="252" y="256" font-size="12.5" font-weight="700" fill="var(--green)">const t = 10;</text>
-    <text x="400" y="256" font-size="11" fill="var(--text-muted)">the call was replaced by what it returned</text>
-
-    <text x="20" y="284" font-size="11" fill="var(--text-muted)">
-      That one rule is why calls nest: double(double(3)) collapses to double(6), then to 12.
-    </text>
-  </svg>
-
-  <app-remember variant="mnemonic" label="The one that saves you most often">
-    <strong>The name is the machine. The parentheses press the button.</strong> <code>shout</code> hands someone the
-    machine; <code>shout()</code> presses it now and hands over whatever fell out. Nearly every callback bug in this
-    lesson — and in Angular, and in RxJS — is a pair of parentheses in the wrong place.
-  </app-remember>
-
-  <h2>Four pairs everyone mixes up</h2>
-  <table class="t">
-    <tr>
-      <th>These look alike…</th>
-      <th>…but they are not the same thing</th>
-    </tr>
-    <tr>
-      <td><code>n</code> in <code>function double(n)</code> vs <code>5</code> in <code>double(5)</code></td>
-      <td>
-        <strong>Parameter</strong> vs <strong>argument</strong>. The parameter is the empty box in the definition; the
-        argument is the value you drop into it at the call. Matched <em>by position</em>, not by name.
-      </td>
-    </tr>
-    <tr>
-      <td><code>function save() &#123;…&#125;</code> vs <code>save()</code></td>
-      <td>
-        <strong>Defining</strong> vs <strong>calling</strong>. Defining builds the machine and runs nothing. A function
-        defined and never called is code that never executes.
-      </td>
-    </tr>
-    <tr>
-      <td><code>setTimeout(ping, 100)</code> vs <code>setTimeout(ping(), 100)</code></td>
-      <td>
-        <strong>Passing</strong> vs <strong>calling-then-passing</strong>. The first hands over the machine for the
-        timer to run later. The second runs <code>ping</code> right now and hands the timer its return value — usually
-        <code>undefined</code>, so nothing happens in 100 ms.
-      </td>
-    </tr>
-    <tr>
-      <td><code>(a, b) =&gt; a + b</code> vs <code>(a, b) =&gt; &#123; a + b &#125;</code></td>
-      <td>
-        <strong>Implicit</strong> vs <strong>explicit</strong> return. No braces means "this expression is the answer".
-        Braces mean "this is a full body", and a full body returns only what <code>return</code> says — here, nothing.
-      </td>
-    </tr>
-  </table>
-
-  <h2>Watch one call happen, moment by moment</h2>
-  <div class="demo">
-    <p class="demo__title">Live — step through tip(50, 20)</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="stageBack()" [disabled]="stage() === 0" class="ghost">← Back</button>
-      <button (click)="stageFwd()" [disabled]="stage() === callTrace.length - 1">Step →</button>
-    </div>
-    <div class="stages">
-      @for (f of callTrace; track f.stage; let i = $index) {
-        <span class="stage-chip" [class.on]="stage() === i" [class.done]="stage() > i">{{ f.stage }}</span>
-      }
-    </div>
-    <div class="code" style="margin-top: 10px">
-      <pre>{{ callTrace[stage()].code }}</pre>
-    </div>
-    <p style="font-size: 0.92rem">{{ callTrace[stage()].detail }}</p>
-  </div>
-  <div class="note">
-    The step-4 mental model is the one to keep: <strong>a call is replaced by its return value</strong>. That's why you
-    can nest calls — <code>double(double(3))</code> — the inner call collapses to 6, then the outer to 12. Complex
-    expressions are just this rule applied repeatedly.
-  </div>
-
-  <h2>Try it — a tip calculator function</h2>
-  <div class="demo">
-    <p class="demo__title">Live — the same function, different inputs</p>
-    <div class="field">
-      <label>Bill amount</label>
-      <input aria-label="Bill amount" type="number" [value]="bill()" (input)="bill.set(+$any($event.target).value)" />
-    </div>
-    <div class="field">
-      <label>Tip percent</label>
-      <input
-        aria-label="Tip percent"
-        type="number"
-        [value]="percent()"
-        (input)="percent.set(+$any($event.target).value)"
-      />
-    </div>
     <div class="code">
       <pre>
+const bill1 = 50;
+const tip1 = bill1 * (20 / 100);
+const total1 = bill1 + tip1;
+
+const bill2 = 80;
+const tip2 = bill2 * (20 / 100);
+const total2 = bill2 + tip2;
+
+const bill3 = 120;
+const tip3 = bill3 * (20 / 100);
+const total3 = bill3 + tip3;
+// ...and the fourth bill? The fortieth?</pre>
+    </div>
+
+    <p>
+      Every line of that block is correct. The problem is that it is <em>the same three lines</em>, retyped with
+      different numbers, and it will keep needing to be retyped for every bill that ever arrives. What you actually want
+      is <span class="key">one set of instructions you can hand different numbers to, over and over</span> — write the
+      recipe once, use it forever. That is a function, and nearly everything else on this page is detail on that one
+      sentence.
+    </p>
+
+    <app-napkin lead="hang on —" label="Sketch it before reading on">
+      Forget syntax for a second. If you were designing "a machine that can compute any bill's tip", what would it need?
+      Something has to go <strong>in</strong> (which numbers?), something has to happen (the actual maths), and
+      something has to come back <strong>out</strong>. Picture that shape — in, work, out — before the next section
+      names the three parts for you. You will be right, and being right on paper before you're told the words is exactly
+      how the words stick.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A function is a vending machine.</h2>
+
+    <p>
+      Picture a vending machine. You put coins in a slot — that's an <span class="term">input</span>. Something happens
+      inside that you don't have to think about — gears turn, a mechanism runs. A snack drops into the tray — that's the
+      <span class="term">output</span>. Crucially, none of that happens just because the machine exists. It happens
+      because you pressed a button and pushed coins in. The machine can sit there, fully built and ready, for a year
+      without ever dispensing a single snack.
+    </p>
+
+    <p>
+      A function is the same shape, with different words for the same three parts. The
+      <span class="term">parameters</span> are the coin slot — placeholders for whatever comes in. The
+      <span class="term">body</span> is the gears — the work, hidden from whoever's using the machine. The
+      <span class="term">return value</span> is the tray — what comes back out. And exactly like the vending machine,
+      <strong>writing a function does not run it.</strong> <code>function tip(bill, percent) &#123; ... &#125;</code> on
+      its own does nothing at all — no maths happens, nothing is computed — until something presses the button by
+      writing <code>tip(50, 20)</code>.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 700 265"
+        role="img"
+        aria-label="A box labelled tip, open paren bill comma percent close paren. Two arrows enter from the left, labelled bill and percent, arguments in. One arrow leaves on the right, labelled return value out, pointing at a small solid box containing the number ten. A handwritten note below the box reads: define does not equal run."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="fn-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <!-- inputs -->
+        <text x="20" y="70" class="dia-mono dia-mono--sm">ARGUMENTS IN</text>
+        <rect x="20" y="90" width="90" height="40" rx="20" class="dia-box" />
+        <text x="65" y="115" text-anchor="middle" class="dia-mono">bill</text>
+        <rect x="20" y="150" width="120" height="40" rx="20" class="dia-box" />
+        <text x="80" y="175" text-anchor="middle" class="dia-mono">percent</text>
+
+        <path d="M 110 110 L 226 110" class="dia-rule" fill="none" marker-end="url(#fn-arrow)" />
+        <path d="M 140 170 L 226 170" class="dia-rule" fill="none" marker-end="url(#fn-arrow)" />
+
+        <!-- the machine -->
+        <rect x="230" y="60" width="200" height="140" rx="20" class="dia-box dia-box--lit" />
+        <text x="330" y="110" text-anchor="middle" class="dia-mono">tip(bill,</text>
+        <text x="330" y="132" text-anchor="middle" class="dia-mono">percent)</text>
+        <text x="330" y="165" text-anchor="middle" class="dia-mono dia-mono--sm">the body runs here</text>
+
+        <!-- output -->
+        <text x="570" y="65" text-anchor="middle" class="dia-mono dia-mono--sm">RETURN VALUE OUT</text>
+        <path d="M 430 110 L 516 110" class="dia-rule" fill="none" marker-end="url(#fn-arrow)" />
+        <rect x="520" y="80" width="100" height="60" rx="14" class="dia-box dia-box--solid" />
+        <text x="570" y="118" text-anchor="middle" class="dia-mono dia-mono--on-solid">10</text>
+
+        <!-- handwritten -->
+        <path d="M 330 233 C 330 222, 330 212, 330 203" class="dia-rule" fill="none" marker-end="url(#fn-arrow)" />
+        <text x="330" y="252" text-anchor="middle" class="dia-hand">define ≠ run</text>
+      </svg>
+      <figcaption>
+        Nothing above happens on its own. The box sits there, fully defined, doing nothing at all, until a call —
+        <code>tip(50, 20)</code> — presses the button: values flow in through the parameters, the body runs once, and a
+        single value flows back out through <code>return</code>.
+      </figcaption>
+    </figure>
+
+    <app-remember variant="mnemonic">
+      <strong>Defining builds the machine. Calling presses the button.</strong> And once pressed, the call itself
+      disappears — it's replaced by whatever the machine handed back. That's the rule every example on this page is
+      secretly demonstrating.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE VOCABULARY, ON THE SMALLEST FUNCTION ============ -->
+  <section>
+    <p class="bf-eyebrow">The vocabulary</p>
+    <h2>Four words explain the whole machine.</h2>
+
+    <p>Time to put names on the machine's parts, using the smallest possible function.</p>
+
+    <app-code-lab file="double.ts" [code]="anatomySample" [notes]="anatomyNotes" notesLabel="Every symbol, named" />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Parameter" kicker="in the definition">
+        The placeholder name written inside the parentheses of a function's definition — <code>n</code> in
+        <code>function double(n)</code>. It has no value of its own; it's a name waiting to be filled in.
+      </app-tape-card>
+      <app-tape-card heading="Argument" kicker="at the call site">
+        The real value you hand over when you call a function — <code>5</code> in <code>double(5)</code>. Arguments are
+        matched to parameters <strong>by position</strong>: the first argument fills the first parameter, no matter what
+        either one is named.
+      </app-tape-card>
+      <app-tape-card heading="Call" kicker="parentheses after a name" tone="accent">
+        The only thing that makes a function's body actually run. <code>double</code> alone is just a name pointing at a
+        machine; <code>double(5)</code> — with parentheses — is what presses the button.
+      </app-tape-card>
+      <app-tape-card heading="Return value" kicker="what comes back" tone="accent">
+        What a call collapses into once the body finishes. <code>double(5)</code> isn't just "a thing that ran" — the
+        whole expression <strong>becomes</strong> <code>10</code>, as if you'd typed <code>10</code> there yourself.
+      </app-tape-card>
+    </div>
+
+    <p>
+      Get comfortable moving between those four words —
+      <strong>"parameters are matched to arguments by position"</strong> is a sentence you will see verbatim on an exam,
+      and it means exactly what <code>double(n)</code> and <code>double(5)</code> just showed you:
+    </p>
+
+    <div class="code">
+      <pre>
+function add(a, b) {{ '{' }} return a + b; {{ '}' }}
+
+add(2, 3);   // a = 2, b = 3 — matched by POSITION
+add(3, 2);   // a = 3, b = 2 — same function, different pairing, different answer</pre>
+    </div>
+  </section>
+
+  <!-- ============ 4. THE MECHANISM — WATCH ONE CALL HAPPEN ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A call happens in four distinct moments.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — step through tip(50, 20)</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="stageBack()" [disabled]="stage() === 0" class="ghost">← Back</button>
+        <button (click)="stageFwd()" [disabled]="stage() === callTrace.length - 1">Step →</button>
+      </div>
+      <div class="stages">
+        @for (f of callTrace; track f.stage; let i = $index) {
+          <span class="stage-chip" [class.on]="stage() === i" [class.done]="stage() > i">{{ f.stage }}</span>
+        }
+      </div>
+      <pre class="readout" style="margin-top: 10px">{{ callTrace[stage()].code }}</pre>
+      <p class="demo__note">{{ callTrace[stage()].detail }}</p>
+    </div>
+
+    <p>
+      Step 4 is the one to tattoo on your brain: <strong>a call is replaced by its return value.</strong> That's why
+      nested calls work — the inner one always has to finish first, because the outer one needs a value to work with
+      that doesn't exist until then.
+    </p>
+
+    <app-predict
+      prompt="`double(double(3))` — two calls, nested. Before you scroll: what number does the whole expression become, and which call resolves first, inner or outer?"
+      [code]="nestedCallSample"
+      answer="`12`, and the **inner** call always resolves first — there's no way to run the outer one before it, because the outer call needs a value to pass to `double`, and that value doesn't exist until `double(3)` has finished. So `double(3)` collapses to `6` first, leaving `double(6)` — which then collapses to `12`. This is 'a call is replaced by its return value' applied twice in a row, and it's exactly how a deeply nested expression like `a(b(c(x)))` always resolves: inside-out, one collapse at a time."
+      revealLabel="Reveal the resolution order"
+    />
+  </section>
+
+  <!-- ============ 5. TRY IT — REAL INPUTS, INCLUDING MISSING ONES ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>The same machine takes different inputs — even none at all.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — the same function, different inputs</p>
+      <div class="field">
+        <label class="field__label" for="fn-bill">Bill amount</label>
+        <input
+          id="fn-bill"
+          aria-label="Bill amount"
+          type="number"
+          [value]="bill()"
+          (input)="bill.set(+$any($event.target).value)"
+        />
+      </div>
+      <div class="field">
+        <label class="field__label" for="fn-percent">Tip percent</label>
+        <input
+          id="fn-percent"
+          aria-label="Tip percent"
+          type="number"
+          [value]="percent()"
+          (input)="percent.set(+$any($event.target).value)"
+        />
+      </div>
+
+      <pre class="readout">
 function tip(bill, percent) {{ '{' }}
   return bill * (percent / 100);
 {{ '}' }}
 
 tip({{ bill() }}, {{ percent() }})   →   {{ tipAmount() }}
 total = bill + tip({{ bill() }}, {{ percent() }})   →   {{ total() }}</pre>
+      <p class="demo__note">
+        Notice the reuse on the total line — the same <code>tip(...)</code> machine runs again rather than the maths
+        being written twice. One definition, endless calls.
+      </p>
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      One definition, endless calls. Notice the reuse on the total line — the same machine runs again rather than the
-      math being written twice.
+
+    <h3>What happens if you forget an argument?</h3>
+
+    <p>
+      Real code does this constantly — an argument gets left off by accident, or a caller genuinely doesn't have a value
+      yet. JavaScript's answer is not an error. Tick the box below and watch the same bill go through two different
+      versions of "the same" function.
     </p>
-  </div>
 
-  <h2>Scope — what a function can see</h2>
-  <div class="code">
-    <pre>
-const taxRate = 0.2;              // OUTER scope
-
-function priceWithTax(price) {{ '{' }}
-  const tax = price * taxRate;    // ✅ can see outward: taxRate is visible
-  return price + tax;
-{{ '}' }}
-
-priceWithTax(100);   // → 120
-// console.log(tax);  ❌ error — "tax" exists only INSIDE the function</pre>
-  </div>
-  <p>
-    Variables declared inside a function (including its parameters) are
-    <strong>local</strong>: created fresh at each call, invisible outside, destroyed when the call ends. The function
-    <em>can</em> see outward to variables around it — visibility is one-way, inside-out. This is a feature: the
-    function's internals can't leak out or collide with names elsewhere, which is what makes hundreds of functions
-    coexist safely in one app.
-  </p>
-
-  <app-predict
-    prompt="applyDiscount reaches into order on one line and reassigns order on the next. cart is a plain object passed as the argument. What does the last line print?"
-    [code]="mutationSample"
-    answer="90 0 — not 90 90, and not 0 0. Line A reaches THROUGH the parameter into the same object cart already points at, so order.total = order.total * 0.9 mutates the caller's object directly: cart.total becomes 90. Line B then does something completely different — it points the LOCAL variable order at a brand-new object, {{
-      '{'
-    }} total: 0 {{
-      '}'
-    }}. That reassignment only changes what the parameter refers to inside this call; it has no effect on cart, which was never told to point anywhere else. The function returns the new object, so result.total is 0 while cart.total is 90. Reaching into an object mutates the caller; reassigning the parameter only swaps the function's own local label."
-  />
-  <p>
-    That's the split that trips people up for years: a parameter is a variable holding a
-    <strong>reference</strong> to the caller's object, not the object itself. Changing a <em>property</em> of that
-    reference reaches back to the original. Reassigning the <em>variable</em> just relabels the local box and leaves the
-    caller untouched.
-  </p>
-
-  <h2>The modern "arrow" style</h2>
-  <div class="code">
-    <pre>
-// classic:
-function add(a, b) {{ '{' }} return a + b; {{ '}' }}
-
-// arrow — read "=>" as "goes to". Same machine, terser suit:
-const add = (a, b) => a + b;
-//          └──┬──┘    └─┬─┘
-//         parameters   single-expression body: its value
-//                      is returned AUTOMATICALLY (no braces!)
-
-// with braces you're back to writing return yourself:
-const add2 = (a, b) => {{ '{' }}
-  const sum = a + b;
-  return sum;          // braces = full body = explicit return needed
-{{ '}' }};
-
-// one parameter may drop its parentheses:
-const double = n => n * 2;</pre>
-  </div>
-  <div class="warn">
-    The classic slip: <code>(a, b) =&gt; {{ '{' }} a + b {{ '}' }}</code> returns <code>undefined</code> — the braces
-    made it a full body, and nobody wrote <code>return</code>. Either drop the braces or add the return.
-  </div>
-
-  <h2>The superpower: functions are values</h2>
-  <p>
-    <code>const add = …</code> above already gave it away: a function can be stored in a variable. Which means it can
-    also be <em>passed to another function</em> — and that flips the relationship: instead of you running it, you hand
-    it over and <strong>someone else runs it later</strong>. A function passed around like this is called a
-    <strong>callback</strong>:
-  </p>
-  <div class="code">
-    <pre>
-const shout = (name) => name.toUpperCase() + '!';
-
-// pass the FUNCTION ITSELF — note: no parentheses, we're not calling it
-['ada', 'grace'].map(shout)      // ['ADA!', 'GRACE!'] — map calls it per item
-
-button.addEventListener('click', onSave)  // browser calls it per click
-setTimeout(ping, 2000)                    // timer calls it in 2 seconds
-
-// ⚠️ the classic bug — parentheses call it NOW and pass the RESULT:
-setTimeout(ping(), 2000)   // ping ran immediately; setTimeout got undefined</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>shout</code> vs <code>shout()</code></strong> — the name is the machine; the parentheses press its
-      button. When handing a callback over, you pass the machine, unpressed.
-    </li>
-    <li>
-      Every <code>map</code>/<code>filter</code> from the last lesson was a callback all along — you supplied the
-      per-item function; the array method did the looping and calling.
-    </li>
-    <li>
-      Angular runs on this: <code>(click)="onSave()"</code> hands the framework a function to call on each click; RxJS,
-      effects and route guards are callbacks end to end. Get comfortable passing functions and half the framework's API
-      shapes become obvious.
-    </li>
-  </ul>
-
-  <div class="note">
-    Functions let you <strong>name an idea</strong>: <code>calculateTotal()</code>, <code>isLoggedIn()</code>,
-    <code>sendEmail()</code>. A well-named function reads like a sentence and hides the messy details. Good programs are
-    mostly small, well-named functions calling each other — Angular itself is thousands of them.
-  </div>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      What does this print? <code>function f(x) {{ '{' }} return x * 2; console.log('hi'); {{ '}' }} f(3);</code>
-    </summary>
-    <div>
-      Nothing is printed (the call evaluates to 6). <code>return</code> ends the function immediately — the
-      <code>console.log</code> line is unreachable code. Editors and linters flag code after a return for exactly this
-      reason.
+    <div class="demo">
+      <p class="demo__title">Live — the exact same bill, called two different ways</p>
+      <label class="row" style="margin-bottom: 12px">
+        <input type="checkbox" [checked]="omitPercent()" (change)="omitPercent.set($any($event.target).checked)" />
+        Call it with the percent argument left off
+      </label>
+      <pre class="readout">{{ argsReadout() }}</pre>
+      <p class="demo__note">
+        Tick the box: the top line goes from a real number to <code>NaN</code> — silently, no error, no warning. The
+        bottom line, calling <code>tipSafe</code> instead, quietly falls back to <code>15</code> and keeps working.
+        That's the entire argument for default parameters in one checkbox.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      What's the difference between <code>setTimeout(ping, 1000)</code> and <code>setTimeout(ping(), 1000)</code>?
-    </summary>
-    <div>
-      The first passes the function itself; the timer calls it after 1s — correct. The second
-      <em>calls ping right now</em> and passes its return value (probably <code>undefined</code>) to the timer, so
-      nothing happens later. Rule: a callback is passed without parentheses.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Why does <code>const f = (n) =&gt; {{ '{' }} n + 1 {{ '}' }}; f(1)</code> give <code>undefined</code>?
-    </summary>
-    <div>
-      The braces make a full function body, and full bodies only return what <code>return</code> states — there isn't
-      one. Fix: <code>(n) =&gt; n + 1</code> (implicit return) or add <code>return n + 1;</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Two calls run at once: <code>tip(50, 20)</code> and <code>tip(80, 10)</code>. Do their <code>bill</code> variables
-      collide?
-    </summary>
-    <div>
-      No — parameters and locals are created fresh <em>per call</em> and are invisible outside it. Each call gets its
-      own private set of boxes. That isolation (scope) is why a function can be called from anywhere, even by itself,
-      without stepping on other calls.
-    </div>
-  </details>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="function sayHi() { console.log('hi'); } sayHi(); const sayBye = () => console.log('bye'); sayBye();
-    — but what if the CALLS come first, ABOVE both definitions in the file?"
-    [options]="quizOptions"
-    followUp="This is why style guides put function declarations first, arrow-function constants after: it makes the file's real execution order match its visual top-to-bottom order, instead of relying on hoisting to bail you out."
-  />
+    <app-code-lab
+      file="tip.ts"
+      [code]="defaultsSample"
+      [notes]="defaultsNotes"
+      notesLabel="Where the default parameter kicks in — and where it doesn't"
+      prompt="Before you scroll: what does the `tip(50)` line above actually print?"
+      output="`NaN`. `percent` was never supplied, so inside the function it is `undefined` — and `undefined / 100` is `NaN`, so `50 * NaN` is `NaN`. No crash, no warning: just a number that is quietly wrong, ready to corrupt whatever total it gets added to next. `tipSafe`, right below it, is the fix: give the parameter a **default value** with `= 15`, and it is used automatically whenever the caller leaves that argument out."
+      revealLabel="Reveal what tip(50) actually returns"
+    />
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A function = parameters in → body runs → <code>return</code> out. Defining creates it;
-      <em>calling</em> (parentheses) runs it; the call is replaced by its return value.
-    </li>
-    <li>
-      <code>return</code> also <strong>ends</strong> the function — later lines never run; no return means
-      <code>undefined</code>.
-    </li>
-    <li>
-      Locals and parameters exist per-call and are invisible outside (<strong>scope</strong>); functions see outward,
-      never inward.
-    </li>
-    <li>
-      Arrow style: <code>(a, b) =&gt; a + b</code> auto-returns; add braces and you must write
-      <code>return</code> yourself.
-    </li>
-    <li>
-      Functions are <strong>values</strong> — passing one (no parentheses!) as a <strong>callback</strong> is the
-      pattern behind <code>map</code>, event handlers, timers, and most of Angular's API surface.
-    </li>
-  </ul>
+    <h3>…and when there are too many arguments, or you don't know how many are coming?</h3>
 
-  <p><a routerLink="/arrays-objects-basics">Next: Arrays &amp; Objects →</a></p>
+    <p>
+      Extra arguments aren't an error either — a function only ever looks at as many as it has parameters for, and the
+      rest are silently thrown away. Sometimes, though, you genuinely want <em>any number</em> of arguments as a single
+      list. That's what the three dots below are for.
+    </p>
+
+    <app-code-lab
+      file="sum.ts"
+      [code]="restSample"
+      [notes]="restNotes"
+      notesLabel="Dropped arguments, then gathered ones"
+    />
+  </section>
+
+  <!-- ============ 6. SCOPE ============ -->
+  <section>
+    <p class="bf-eyebrow">Scope</p>
+    <h2>A function can see out, never in.</h2>
+
+    <app-code-lab
+      file="tax.ts"
+      [code]="scopeSample"
+      [notes]="scopeNotes"
+      notesLabel="Where taxRate is visible, and where tax is not"
+    />
+
+    <p>
+      Variables declared inside a function — including its parameters — are
+      <span class="term">local</span>: created fresh at each call, invisible outside it, and destroyed when the call
+      ends. The function <em>can</em> see outward to variables declared around it; visibility is one-way, inside-out.
+      This is a feature, not a limitation: it's what lets hundreds of functions coexist in one app without their
+      internal names leaking out and colliding.
+    </p>
+
+    <app-quiz
+      question="Two calls run one after another: `tip(50, 20)` and `tip(80, 10)`. Do their `bill` variables collide?"
+      [options]="scopeQuizOptions"
+      followUp="This is exactly what makes recursion possible — a function calling itself needs each call to keep its own private set of variables, or it could never work."
+    />
+  </section>
+
+  <!-- ============ 7. CLOSURES ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Going deeper</p>
+    <h2>A function can remember where it was born.</h2>
+
+    <p>
+      The Scope section above ended on a promise: locals die the moment their call ends. That is true —
+      <span class="bf-break">except when it isn't</span>. If a function hands back <em>another function</em>, and that
+      returned function still reads a variable from the call that created it, something has to keep that variable alive.
+      It has to, or the returned function would be reading garbage. That "something" is a
+      <span class="term">closure</span>, and it is one of the most-tested ideas in this entire curriculum.
+    </p>
+
+    <app-code-lab
+      file="counter.ts"
+      [code]="closureSample"
+      [notes]="closureNotes"
+      notesLabel="Why count survives, and why the two calls don't share it"
+    />
+
+    <app-bubbles
+      [turns]="closureTalk"
+      caption="What actually keeps count alive after makeCounter has already finished running."
+    />
+
+    <app-layers
+      [core]="{ label: 'count', sub: 'the private variable for one call' }"
+      [rings]="[
+        { label: 'Global scope', sub: 'everything at the top of the file' },
+        { label: 'A call to makeCounter()', sub: 'the birth scope' },
+      ]"
+      arrow="increment() reaches in here"
+      caption="`increment` was **defined inside** `makeCounter`, so it can see through both rings to `count` — the same outward-visibility rule from Scope, applied one layer deeper. What makes it a *closure* rather than just 'scope' is that `increment` keeps that access **after** `makeCounter` has already returned and would otherwise be long gone."
+    />
+
+    <app-remember variant="rule">
+      <strong>A function remembers where it was born, not where it's called.</strong> Every fresh call to
+      <code>makeCounter()</code> gives birth to a brand-new scope, and every function returned from that call is bound
+      to that one scope for life — never to any other.
+    </app-remember>
+
+    <app-napkin lead="predict —" label="Before you press the buttons">
+      Two buttons are about to appear below, each wired to its own call of <code>makeCounter()</code>. Before you press
+      either one: do you think pressing button A five times will affect what button B shows, or are they completely
+      independent? Commit to an answer, then go prove yourself right or wrong.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — two calls to makeCounter(), two independent counters</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="pressCounterA()">Press counter A</button>
+        <button (click)="pressCounterB()">Press counter B</button>
+      </div>
+      <div class="row">
+        <span class="pill">counterA() → {{ counterAValue() }}</span>
+        <span class="pill">counterB() → {{ counterBValue() }}</span>
+      </div>
+      <p class="demo__note">
+        Press A several times in a row, then press B once. B still reads <code>1</code> — it has never been called
+        before, and it was never going to share A's <code>count</code> no matter how many times A gets pressed. Two
+        calls to <code>makeCounter()</code>, two entirely private boxes.
+      </p>
+    </div>
+
+    <app-quiz
+      question="`makeCounter()` is called twice, producing `counterA` and `counterB`. You call `counterA()` three times, then `counterB()` once. What does that last call — `counterB()` — return?"
+      [options]="closureQuizOptions"
+      followUp="The live demo above is this exact question with buttons attached."
+    />
+  </section>
+
+  <!-- ============ 8. ARROW FUNCTIONS AND HOISTING ============ -->
+  <section>
+    <p class="bf-eyebrow">The modern spelling</p>
+    <h2>One of these is safe to call early. The other isn't.</h2>
+
+    <app-code-lab
+      file="arrows.ts"
+      [code]="arrowSample"
+      [notes]="arrowNotes"
+      notesLabel="Same machine, terser suit — until the braces come back"
+    />
+
+    <app-predict
+      prompt="`const sum = (a, b) => { a + b };` — called as `sum(2, 3)`. What does it return?"
+      [code]="arrowTrapSample"
+      answer="`undefined`. The curly braces after `=>` switch you into a **full function body** — and a full body only returns what you explicitly hand to `return`. Nobody wrote `return` here, so `a + b` is computed and then thrown away, exactly like any function with no return statement. Drop the braces (`(a, b) => a + b`) for an implicit return, or keep them and add the word yourself (`{ return a + b; }`) — either fixes it, but braces with no `return` is the trap."
+      revealLabel="Reveal what sum(2, 3) returns"
+    />
+
+    <p>
+      There is a second gap between these two spellings that has nothing to do with braces: <strong>when</strong> you're
+      allowed to call them.
+    </p>
+
+    <app-compare
+      leftTitle="Function declaration — hoisted whole"
+      rightTitle="Function expression — not hoisted"
+      leftTone="good"
+      rightTone="bad"
+      note="Both forms work perfectly once you're past their own definition line. The only difference is what happens if you jump the gun."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ declarationSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ expressionSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-quiz
+      question="Both `greet` forms above are defined lower in the file than their call. Why does only the arrow version throw?"
+      [options]="hoistingQuizOptions"
+      followUp="Try reordering a small file yourself: a function declaration called from line 1 always works; a const arrow function called from line 1 never does, no matter what's inside it."
+    />
+  </section>
+
+  <!-- ============ 9. FUNCTIONS ARE VALUES ============ -->
+  <section>
+    <p class="bf-eyebrow">The superpower</p>
+    <h2>Handing over a function is not the same as running it.</h2>
+
+    <p>
+      <code>const add2 = …</code> a few sections back already gave it away: a function can be stored in a variable.
+      Which means it can also be <em>passed to another function</em> — and that flips the relationship entirely. Instead
+      of you running it, you hand it over and <strong>someone else runs it later</strong>. A function passed around like
+      this is called a <strong>callback</strong>.
+    </p>
+
+    <app-code-lab
+      file="callbacks.ts"
+      [code]="callbackSample"
+      [notes]="callbackNotes"
+      notesLabel="Three callers, one rule, and the bug that catches everyone once"
+    />
+
+    <div class="warn">
+      <strong><code>shout</code> vs <code>shout()</code>.</strong> The name is the machine; the parentheses press its
+      button. When handing a callback over, you always pass the machine, unpressed —
+      <span class="bf-break">parentheses at the wrong moment call it right now</span> instead of later.
+    </div>
+
+    <p>
+      Angular runs on exactly this: <code>(click)="onSave()"</code> hands the framework a function to call on each
+      click; RxJS, effects and route guards are callbacks end to end. Get comfortable passing functions and half the
+      framework's API surface stops looking mysterious.
+    </p>
+
+    <p>
+      There's a quieter payoff too, easy to miss once you're chasing callbacks: a function lets you
+      <span class="key">name an idea</span>. <code>calculateTotal()</code>, <code>isLoggedIn()</code>,
+      <code>sendEmail()</code> read like sentences and hide their messy insides from whoever calls them. Most good
+      programs turn out to be a lot of small, well-named functions calling each other — Angular itself is thousands of
+      them.
+    </p>
+  </section>
+
+  <!-- ============ 10. PURE VS SIDE-EFFECTING ============ -->
+  <section>
+    <p class="bf-eyebrow">One more distinction</p>
+    <h2>Some functions promise to touch nothing outside themselves.</h2>
+
+    <p>
+      Every function you've written on this page so far computes something <em>from its arguments</em> and hands it back
+      — never touching anything outside itself. That's not an accident of the examples; it's a property worth naming,
+      because plenty of real code breaks it on purpose, and knowing which kind you're looking at is one of the fastest
+      ways to reason about a bug.
+    </p>
+
+    <app-compare
+      leftTitle="Pure — same input, same output"
+      rightTitle="Side-effecting — touches something outside"
+      leftTone="good"
+      rightTone="bad"
+      note="Neither is 'wrong' — a program that never touched anything outside itself couldn't save a file or update a screen. But a pure function is trivially safe to test, cache and call from anywhere; a side-effecting one depends on when and how often it's called, which is a much harder thing to reason about."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ pureSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ sideEffectSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      Here's the test, in one line: <strong>could you replace the call with its result and change nothing?</strong>
+      <code>withTax(100, 0.2)</code> can be swapped for the literal <code>120</code> anywhere it appears and the program
+      behaves identically — that's what "pure" buys you. <code>addToCart(20)</code> cannot be swapped for anything; its
+      entire job <em>is</em> the side effect.
+    </p>
+
+    <h3>The early-return shape you'll see everywhere</h3>
+
+    <p>
+      <code>return</code>'s second job from way back at the top of this page — ending the function immediately — is
+      exactly what makes this pattern work, called a <span class="term">guard clause</span>:
+    </p>
+
+    <div class="code">
+      <pre>{{ guardSample }}</pre>
+    </div>
+
+    <p>
+      The alternative is nesting the real work inside <code>if (user) &#123; ... &#125;</code>, which works but grows a
+      staircase of indentation with every extra guard you add. Bailing out early with a bare <code>return</code> keeps
+      the main path flat — one more reason "return ends the function" is worth having reflexes for.
+    </p>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A function = parameters in → body runs → <code>return</code> out. Defining it does <strong>nothing</strong>;
+        calling it (parentheses) runs it, and the call is <strong>replaced</strong> by whatever it returns.
+      </li>
+      <li>
+        A missing argument becomes <code>undefined</code> (often <code>NaN</code> downstream); extra ones are silently
+        dropped. <strong>Default parameters</strong> (<code>percent = 15</code>) and
+        <strong>rest parameters</strong> (<code>...args</code>) are how you take control of both.
+      </li>
+      <li>
+        Locals and parameters live only for one call and are invisible outside it — <em>except</em> when a returned
+        function keeps reading them. That's a <strong>closure</strong>: it remembers where it was born, never where it's
+        called.
+      </li>
+      <li>
+        A <strong>function declaration</strong> is hoisted whole and callable before its own line; a
+        <code>const</code> holding a function <strong>is not</strong> — order matters for one and not the other.
+      </li>
+      <li>
+        Functions are <strong>values</strong> — pass one <em>without</em> parentheses and you've handed over a callback
+        for someone else to run later. <code>map</code>, event handlers, timers and most of Angular run on exactly this.
+      </li>
+      <li>
+        A <strong>pure</strong> function (same input, same output, touches nothing outside) is the easiest kind to
+        reason about; a <strong>guard clause</strong> uses "return ends the function" to keep the main path flat.
+      </li>
+    </ul>
+
+    <p><a routerLink="/arrays-objects-basics">Next: Arrays &amp; Objects →</a></p>
+  </section>
 </article>

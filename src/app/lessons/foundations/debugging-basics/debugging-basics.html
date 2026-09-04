@@ -1,316 +1,556 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Your Dev Toolkit</span>
-  <h1>Debugging &amp; Reading Errors</h1>
-  <p class="lead">
-    Every programmer — beginner to expert — writes code that breaks. The difference is that experts have a
-    <em>method</em>: read the message, form a hypothesis, test it with evidence, fix, re-run. Errors aren't scary
-    failures; they're the computer telling you exactly what's wrong and where. This page teaches you to read every part
-    of one, and what to do when there's no error at all.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Foundations · Your Dev Toolkit"
+    title="Debugging &amp; Reading Errors"
+    hand="or, why that wall of red text is the nicest thing your code has said all day"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      Every programmer, beginner to expert, writes code that breaks — the only difference is what happens in the next
+      ten seconds. A beginner reads the first five words and starts guessing. An expert reads the <strong>whole</strong>
+      report: what kind of mistake it was, exactly what happened, and the trail of calls that led there — then tests a
+      hypothesis instead of poking randomly. This page teaches that report end to end, in an Angular project
+      specifically: the browser errors you already expect, the compiler errors Angular adds on top of them, and what to
+      do the moment there is no error at all.
+    </p>
+  </app-chapter>
 
-  <h2>Anatomy of an error — all three parts matter</h2>
-  <div class="code">
-    <pre>
-TypeError: Cannot read properties of undefined (reading 'name')
-└───┬───┘  └──────────────────────┬─────────────────────────┘
- ① TYPE      ② MESSAGE — what actually went wrong
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Something just broke. Now what?</h2>
 
-    at showUser (app.ts:42:18)     ┐ ③ STACK TRACE — the trail of calls,
-    at onClick (app.ts:30:5)       ┘   MOST RECENT FIRST: line 42, file app.ts,
-                                       column 18. onClick called showUser.</pre>
-  </div>
-  <p>How to read the stack trace — two directions, two questions:</p>
-  <ul>
-    <li>
-      <strong>Top line = where it exploded.</strong> Your first destination: <code>app.ts:42</code>. In an Angular app
-      many trace lines are framework internals — scan down to the first line that's <em>your</em> file and start there.
-    </li>
-    <li>
-      <strong>Reading downward = the story of how we got there.</strong> "onClick ran, which called showUser, which blew
-      up." When line 42 looks innocent, the bug is often upstream: someone passed bad data <em>into</em> the exploding
-      function. The trace is your list of suspects, in order.
-    </li>
-  </ul>
-  <p>
-    Picture a stack trace as a literal stack of sticky notes piling up on a desk, one per function call: each note says
-    "call the next thing, then wait for it to finish." The
-    <strong>top note is whatever was running the instant things broke</strong> — the most recent call, still waiting.
-    Peel it off and the note underneath is whoever made that call; peel again and you reach the note before that. Work
-    all the way down and you reach the very first note — the click that started the whole pile. That's why the trace
-    reads top-to-bottom as "most recent call first."
-  </p>
+    <p>
+      Here's the reflex almost everyone starts with: the screen turns red, the eyes skip straight to the first few
+      words, and the hands go back to poking at the code. That is not <em>reading</em> an error — that's reacting to
+      one, and it throws away nearly everything the error was trying to tell you.
+    </p>
 
-  <svg class="diagram" viewBox="0 0 760 210" role="img" aria-labelledby="db-t db-d">
-    <title id="db-t">A stack trace drawn as a literal stack of call frames</title>
-    <desc id="db-d">
-      Four frames are stacked vertically like sticky notes. The top frame, drawn in red, reads showUser, line 42 — where
-      it exploded. Below it, in order going down, are onClick line 30, handleSubmit line 18, and at the very bottom, the
-      oldest frame, the browser's own click event, labelled where the story started. An arrow along the left edge points
-      downward, labelled reading down tells the story of how we got here, and a second arrow at the top points to the
-      red frame, labelled reading the top line tells you where it broke.
-    </desc>
-    <rect x="260" y="20" width="240" height="34" rx="7" fill="var(--red)" opacity="0.22" />
-    <text x="380" y="42" font-size="11.5" text-anchor="middle" font-weight="700" fill="var(--red)">
-      showUser (app.ts:42) — exploded here
-    </text>
+    <p>
+      An error message in JavaScript is not a vague complaint. It is a precise,
+      <span class="key">three-part report</span>, generated the instant something the engine cannot proceed past
+      happens, and it always contains — in order — what <strong>kind</strong> of mistake this was, exactly
+      <strong>what</strong> went wrong, and the exact trail of function calls that led to it. Nothing about that report
+      is trying to be difficult. It is trying to save you time, and most of the frustration people feel while debugging
+      is really frustration at not having read the whole thing.
+    </p>
 
-    <rect x="260" y="66" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="380" y="88" font-size="11.5" text-anchor="middle" fill="var(--text-muted)">onClick (app.ts:30)</text>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's a real one, unedited: <code>TypeError: Cannot read properties of undefined (reading 'email')</code>, with a
+      trace ending <code>at showProfile (app.ts:51:24)</code>. Before you read a single word of the next section — can
+      you already say, in one sentence, roughly what went wrong and where you'd look first?
+      <strong>Hold that guess.</strong> You'll check it against the actual method in a moment.
+    </app-napkin>
+  </section>
 
-    <rect x="260" y="112" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="380" y="134" font-size="11.5" text-anchor="middle" fill="var(--text-muted)">handleSubmit (app.ts:18)</text>
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>The computer isn't attacking you. It's dictating a report.</h2>
 
-    <rect x="260" y="158" width="240" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="380" y="180" font-size="11.5" text-anchor="middle" fill="var(--text-muted)">
-      browser click event — where the story started
-    </text>
+    <p>
+      Picture a very literal-minded witness at the scene of a small accident — not hostile, not embarrassed, just
+      relentlessly precise. Ask what happened and they will not soften it, summarize it, or spare your feelings: they
+      will name the <em>category</em> of thing that went wrong, describe the exact moment in careful detail, and then
+      recite, from memory, every single step that led them to be standing there. That is a JavaScript error, almost
+      exactly. The "attitude" beginners read into red console text is entirely imagined — it is the most literal, least
+      judgmental record of a mistake you will ever get.
+    </p>
 
-    <text x="20" y="42" font-size="10.5" fill="var(--red)">↑ read this line first</text>
-    <line x1="120" y1="30" x2="255" y2="35" stroke="var(--red)" stroke-width="1.5" />
+    <app-remember variant="mnemonic">
+      <strong>Type, message, stack.</strong> WHAT kind of mistake, WHAT exactly happened, and HOW you got there. Every
+      JavaScript error is built from exactly these three pieces, in exactly this order, every single time.
+    </app-remember>
+  </section>
 
-    <text x="20" y="130" font-size="10.5" fill="var(--text-muted)">reading down = the</text>
-    <text x="20" y="144" font-size="10.5" fill="var(--text-muted)">story of how we got here</text>
-    <line
-      x1="140"
-      y1="70"
-      x2="140"
-      y2="170"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#db-arrow)"
+  <!-- ============ 3. COMPILE TIME VS RUNTIME ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you even open the console</p>
+    <h2>Errors show up in two different places.</h2>
+
+    <p>
+      Every example so far, and everything the field guide further down throws, happens after your code is already
+      running, in the browser. In an Angular project that is only half the story — and for a beginner, it usually isn't
+      even the half you meet first.
+    </p>
+
+    <app-compare
+      leftTitle="Compile time — before a single line runs"
+      rightTitle="Runtime — while your code is executing"
+      note="Angular's own compiler produces BOTH kinds — TypeScript errors about your class, and template errors about your HTML — and it produces them in the SAME place: your terminal and your editor, never the browser console."
+    >
+      <div left>
+        <p>
+          TypeScript and Angular's own template compiler check your code before any of it executes — a misspelled
+          property, the wrong argument type, a template binding to a field that doesn't exist. Fail one of these checks
+          and the browser doesn't receive new code at all: <code>ng serve</code> just keeps serving whatever last
+          compiled cleanly, so the page sits there looking <span class="bf-break">completely unchanged</span>.
+        </p>
+        <p>
+          You'll meet these two ways: as a red squiggle under the exact characters, right there in your editor, and —
+          the one beginners miss — as a block of text printed in the terminal window running <code>ng serve</code>,
+          which most people have minimized or covered up.
+        </p>
+      </div>
+      <div right>
+        <p>
+          Everything from the anatomy section below, and every case in the field guide further down, happens here: your
+          code compiled just fine and is now actually executing, one instruction at a time, and something it does —
+          reading a property, calling a function — fails partway through.
+        </p>
+        <p>
+          This is the console you already know to check. It's also the only half of the two that a beginner is usually
+          taught to look at at all.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      <strong>The single most disorienting bug of week one:</strong> you save a file, the browser doesn't change, and
+      the console is completely empty. That's not a broken app — it's a compile error, and the console was never going
+      to show it. Check the terminal running <code>ng serve</code> before you check anything else.
+    </div>
+
+    <app-code-lab
+      file="ng serve — terminal output"
+      [code]="terminalErrorSample"
+      [notes]="terminalErrorNotes"
+      notesLabel="Reading a compiler error the same way you'll read a stack trace"
     />
-    <defs>
-      <marker id="db-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
-  </svg>
 
-  <app-remember variant="rule" label="If you remember one thing about reading a trace">
-    <strong>The top line tells you WHERE. Reading down tells you HOW.</strong> The top line is your destination; every
-    line below it is a suspect that fed the crash, oldest call at the bottom.
-  </app-remember>
+    <p>
+      Angular's own template compiler produces the same kind of report for your HTML —
+      <code>NG9: Property 'titel' does not exist on type 'AppComponent'</code> means exactly what it looks like: a typo
+      in a binding, caught before the page ever loads.
+    </p>
 
-  <h2>Field guide — trigger each one, read it, fix it</h2>
-  <div class="demo">
-    <p class="demo__title">Live — four classic bugs</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (b of bugs; track b.label) {
-        <button [class.ghost]="bug() !== b" (click)="bug.set(b)">{{ b.label }}</button>
+    <app-quiz
+      question="You rename a component's `title` field to `heading` but forget to update the template, which still has `{{
+        '{{'
+      }} title {{ '}}' }}`. Where does the mistake surface?"
+      [options]="placeQuizOptions"
+      followUp="This is the trap the section above exists to prevent: not every 'error' in an Angular app shows up where you're taught to look first."
+    />
+  </section>
+
+  <!-- ============ 4. ANATOMY OF AN ERROR ============ -->
+  <section>
+    <p class="bf-eyebrow">Reading the report</p>
+    <h2>One error, three parts — read it line by line.</h2>
+
+    <p>Time to check the guess you made at the top of the page. Here's that exact error again, in full.</p>
+
+    <app-code-lab
+      file="console — uncaught error"
+      [code]="errorAnatomySample"
+      [notes]="errorAnatomyNotes"
+      notesLabel="What each line is actually saying"
+    />
+
+    <p>
+      Match that against your guess. If you said something like "some profile-related object is missing an email, and it
+      happened while <code>showProfile</code> was running, triggered from a click" — that's the whole method, and you
+      just did it without a diagram.
+    </p>
+  </section>
+
+  <!-- ============ 5. READING THE TRAIL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The trail</p>
+    <h2>Two directions through the same list.</h2>
+
+    <p>
+      "Read the stack trace" is really two different instructions wearing one name, and blurring them is why the advice
+      never quite lands. One direction is for <strong>triage</strong> — finding where to start. The other is for the
+      <strong>story</strong> — understanding how you got there at all.
+    </p>
+
+    <app-bubbles
+      [turns]="stackTalk"
+      caption="Notice it never says whose fault this is — only where it was standing when it happened. That's a different question, and it's exactly what the field guide further down makes you answer, case by case."
+    />
+
+    <p>Here's the same idea, drawn as what actually happened rather than as what got printed:</p>
+
+    <app-layers
+      [core]="{ label: 'reading .email', sub: 'off something undefined' }"
+      [rings]="[
+        { label: 'onClick', sub: 'where the click started' },
+        { label: 'showProfile', sub: 'running when it happened' },
+      ]"
+      arrow="the call travels inward, frame by frame"
+      caption="This is the same nesting the trace printed — just upside down. The trace lists the **innermost** frame first (closest to the crash, `showProfile`) and works outward to `onClick`; this diagram draws it the way the calls actually happened, outside in. Reading the trace top-down is for triage; reading this picture outside-in is for the story."
+    />
+  </section>
+
+  <!-- ============ 6. ANGULAR'S OWN ERROR CODES ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Angular's own errors</p>
+    <h2>Angular speaks in codes.</h2>
+
+    <p>
+      Two different families share that <code>NG</code>-prefixed style. One is the template diagnostic you just met —
+      <code>NG9</code>, checked at <strong>compile time</strong>, same idea as <code>TS2339</code> but for your HTML.
+      The other is a separate family of <strong>runtime</strong> errors — thrown while the app is actually running, same
+      moment as a <code>TypeError</code>, just Angular's own instead of the language's.
+    </p>
+
+    <p>
+      Every one of these carries a code like <code>NG0201</code> right there in the message. That code — not the
+      sentence around it — is the part to put in a search bar: paste <code>NG0201</code> into
+      <code>angular.dev/errors/NG0201</code> and you land on the official page explaining exactly what triggers it and
+      how to fix it. The sentence around the code has your own class and variable names baked into it, which nobody
+      else's search results will ever match.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        A short list of NG codes worth recognizing on sight
+      </caption>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>What it means</th>
+          <th>Typical cause</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>NG0100</code></td>
+          <td>ExpressionChangedAfterItHasBeenCheckedError</td>
+          <td>
+            State changed after Angular finished checking it this pass — e.g. writing to a bound value from
+            <code>ngOnInit</code>. The change-detection lesson takes this apart in full.
+          </td>
+        </tr>
+        <tr>
+          <td><code>NG0201</code></td>
+          <td>No provider found for <code>X</code></td>
+          <td>You're injecting a service nobody registered — check <code>providedIn</code>, or the providers array.</td>
+        </tr>
+        <tr>
+          <td><code>NG0200</code></td>
+          <td>Circular dependency detected</td>
+          <td>Two injectables depend on each other, directly or through a chain of other services.</td>
+        </tr>
+        <tr>
+          <td><code>NG0303</code></td>
+          <td>Can't bind to <code>X</code> since it isn't a known property</td>
+          <td>
+            Usually an ARIA attribute bound the wrong way — <code>[aria-expanded]</code> needs to be
+            <code>[attr.aria-expanded]</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>NG0912</code></td>
+          <td>Duplicate hydration id</td>
+          <td>Two elements ended up with the same server-rendering marker — a topic for the Rendering track.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      One more tool worth knowing exists, even though this lesson doesn't have room to tour it: the
+      <strong>Angular DevTools</strong> browser extension. Where the browser's own DevTools stop at the DOM and plain
+      JavaScript, Angular DevTools shows you the component tree with live <code>@Input</code> and signal values, the
+      injector tree — the fastest way to chase down an <code>NG0201</code> — and a profiler that attributes render time
+      to individual components. Worth ten minutes any time an NG error mentions a provider or a component you don't
+      recognize.
+    </p>
+  </section>
+
+  <!-- ============ 7. THE FIELD GUIDE ============ -->
+  <section>
+    <p class="bf-eyebrow">The field guide</p>
+    <h2>Five classic bugs. Trigger each one, read it, fix it.</h2>
+
+    <app-napkin lead="before you press anything —" label="Predict before triggering">
+      Five buttons below, five different kinds of broken. One of them is going to print the <strong>shortest</strong>
+      stack trace of all five, by a wide margin. Which one, and why?
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — five classic bugs</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (b of bugs; track b.label) {
+          <button [class.ghost]="bug() !== b" (click)="bug.set(b)">{{ b.label }}</button>
+        }
+      </div>
+      @if (bug(); as b) {
+        <p class="demo__note">The code:</p>
+        <div class="code">
+          <pre>{{ b.code }}</pre>
+        </div>
+        <p class="demo__note">What appears in the console:</p>
+        <div class="code">
+          <pre>{{ b.error }}</pre>
+        </div>
+        <p><strong>How to read it:</strong> {{ b.reading }}</p>
+        <p class="demo__note">The fix:</p>
+        <div class="code">
+          <pre>{{ b.fix }}</pre>
+        </div>
+      } @else {
+        <p class="demo__note">Pick a bug. Each shows the code, the console output, and how a practiced eye reads it.</p>
       }
     </div>
-    @if (bug(); as b) {
-      <p style="margin: 6px 0 4px; font-size: 0.85rem; color: var(--text-muted)">The code:</p>
-      <div class="code">
-        <pre>{{ b.code }}</pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Signal</th>
+          <th>What it means</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>TypeError</code></td>
+          <td>
+            A value was used the wrong way — overwhelmingly: reading a property of
+            <code>undefined</code>/<code>null</code>. Look <em>before</em> the last dot.
+          </td>
+        </tr>
+        <tr>
+          <td><code>ReferenceError</code></td>
+          <td>The name doesn't exist at all — typo, or a missing import.</td>
+        </tr>
+        <tr>
+          <td><code>SyntaxError</code></td>
+          <td>Malformed code; nothing ran. An unbalanced bracket or a stray comma — often above the reported line.</td>
+        </tr>
+        <tr>
+          <td><em>(silent)</em></td>
+          <td>
+            No error, wrong result. No trace to follow — switch to <strong>checking assumptions with logs</strong>.
+          </td>
+        </tr>
+        <tr>
+          <td><em>(unhandled rejection)</em></td>
+          <td>
+            A promise failed and nothing was listening — <span class="bf-break">quiet, and easy to miss entirely</span>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-quiz
+      question="`Cannot read properties of undefined (reading 'toFixed')` on the line `order.items[0].price.toFixed(2)`. Name the exact thing that was undefined."
+      [options]="readingQuizOptions"
+      followUp="Same rule as the anatomy section above: whatever sits immediately left of the named property is the thing that was missing."
+    />
+
+    <app-remember variant="rule">
+      Reading <code>Cannot read properties of undefined (reading 'x')</code>: the undefined thing is always
+      <strong>one hop to the LEFT</strong> of <code>'x'</code> — never <code>'x'</code> itself, never further left than
+      that.
+    </app-remember>
+  </section>
+
+  <!-- ============ 8. TOOL #1: THE CONSOLE ============ -->
+  <section>
+    <p class="bf-eyebrow">Tool #1</p>
+    <h2>The console is more than console.log.</h2>
+
+    <app-code-lab
+      file="debug-tools.ts"
+      [code]="consoleSample"
+      [notes]="consoleNotes"
+      notesLabel="Seven lines, seven different questions"
+    />
+
+    <p>
+      Half of all debugging is one sentence: <em>"I assumed this value was X; logging proved it was Y."</em> The log's
+      job is to test an assumption. Which means: before you log, say out loud what you <em>expect</em> to see — if you
+      can't, you're not debugging yet, you're staring.
+    </p>
+
+    <app-predict
+      prompt="You run `console.log(user)`, then on the very next line set `user.name = 'changed'`. You haven't touched the console at all. What does the *expanded* log entry show when you open it a moment later?"
+      [code]="livingRefSample"
+      answer="`'changed'` — not the name it had when you logged it. The console doesn't take a snapshot of an object; it keeps a **live reference** and only reads its properties when you actually expand the entry, by which point your next line already mutated it. Primitives don't have this problem because they're copied at the moment of the call. Three fixes: log a primitive directly (`console.log(user.name)`), snapshot it (`structuredClone(user)`), or reach for a breakpoint instead — it pauses the whole world, so nothing can change underneath you while you look."
+      revealLabel="Reveal what the console actually shows"
+    />
+  </section>
+
+  <!-- ============ 9. TRY IT END TO END ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Read an error end to end.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — trigger a real bug, then walk the checklist</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="triggerBug()">Run buggy code</button>
+        <button class="ghost" (click)="clear()">clear</button>
       </div>
-      <p style="margin: 10px 0 4px; font-size: 0.85rem; color: var(--text-muted)">What appears in the console:</p>
-      <div class="code">
-        <pre>{{ b.error }}</pre>
+      @if (log()) {
+        <div class="code">
+          <pre>{{ log() }}</pre>
+        </div>
+        <p class="demo__note">
+          Checklist: ① type = <code>TypeError</code> → a value misused. ② message names <code>'city'</code> → the thing
+          before <code>.city</code> was undefined — that's <code>user.address</code>. ③ top trace line = your file, line
+          42. Fix at the source (why is <code>address</code> missing?) or guard with <code>user.address?.city</code>.
+        </p>
+      }
+    </div>
+  </section>
+
+  <!-- ============ 10. TOOL #2: DEVTOOLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Tool #2</p>
+    <h2>DevTools is the cockpit. (F12)</h2>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Console" kicker="F12 → Console">
+        Every log you write, and every error nobody caught. The <code>file:line</code> on the right of an entry is a
+        real link — click it and jump straight to that exact line of source.
+      </app-tape-card>
+      <app-tape-card heading="Elements" kicker="F12 → Elements">
+        The live DOM — the current tree, not your HTML file. Click any element and see exactly which CSS rules apply,
+        and which are crossed out because something more specific won.
+      </app-tape-card>
+      <app-tape-card heading="Network" kicker="F12 → Network">
+        Every request the app makes: URL, status code, and the actual JSON that came back. "The data is wrong" always
+        starts here — was it the server's answer, or what your code did with it?
+      </app-tape-card>
+      <app-tape-card heading="Sources" kicker="F12 → Sources">
+        Where you set a breakpoint. Click a line number and execution genuinely pauses there next time it runs — hover
+        any variable to see its value, then step through line by line.
+      </app-tape-card>
+    </div>
+
+    <h3>Pausing the world, properly</h3>
+
+    <p>
+      A breakpoint earns its ten minutes because a <strong>paused</strong> program hands you more than any log ever
+      could. Four controls do almost everything: <strong>resume</strong> runs until the next breakpoint,
+      <strong>step over</strong> runs the current line without diving into functions it calls,
+      <strong>step into</strong> follows the call down into that function, and <strong>step out</strong> runs the rest
+      of the current function and pauses again right after it returns. While paused, the <strong>Scope</strong> pane
+      lists literally every variable visible at that exact instant, and the <strong>Call Stack</strong> pane is the
+      live, clickable version of the stack trace you've already learned to read — click any frame and the Scope pane
+      updates to show the world exactly as it looked at that caller's moment.
+    </p>
+
+    <div class="code">
+      <pre>
+if (total &lt; 0) {{ '{' }}
+  debugger;   // pauses right here, next time this line runs — never commit it
+{{ '}' }}</pre>
+    </div>
+
+    <ul>
+      <li>
+        <strong>Conditional breakpoint</strong> — right-click a line number, add an expression like
+        <code>id === 42</code>. Pauses only when it's true; essential inside a loop.
+      </li>
+      <li>
+        <strong>Logpoint</strong> — right-click → "Add logpoint". Prints a value on every hit, with zero code changes
+        and zero recompiles.
+      </li>
+      <li>
+        <strong>Add script to ignore list</strong> — right-click a framework frame in the Call Stack pane. Keeps
+        internals out of your step-through, so Step Into only ever lands in your own code.
+      </li>
+    </ul>
+
+    <app-compare
+      leftTitle="console.log — good at *change over time*"
+      rightTitle="Breakpoints — good at *one instant, in full*"
+      note="Beginners over-use logs because breakpoints feel advanced. They're the same four controls, forever — the ten minutes to learn them pays for itself the first week."
+    >
+      <div left>
+        <p>
+          Shines when you want to watch a value across many events — every click, every request, a loop running hundreds
+          of times. You decide in advance what to print, which means you already need a rough idea what's wrong.
+        </p>
       </div>
-      <p style="font-size: 0.92rem"><strong>How to read it:</strong> {{ b.reading }}</p>
-      <p style="margin: 10px 0 4px; font-size: 0.85rem; color: var(--text-muted)">The fix:</p>
-      <div class="code">
-        <pre>{{ b.fix }}</pre>
+      <div right>
+        <p>
+          Shines when you want the entire world at one paused moment — every variable in scope, not just the ones you
+          thought to log. You don't have to guess what matters beforehand; it's all just there.
+        </p>
       </div>
-    } @else {
-      <p style="color: var(--text-muted)">
-        Pick a bug. Each shows the code, the console output, and how a practiced eye reads it.
-      </p>
-    }
-  </div>
-  <table class="t">
-    <tr>
-      <td><code>TypeError</code></td>
-      <td>
-        A value was used the wrong way — overwhelmingly: reading a property of <code>undefined</code>/<code>null</code>.
-        Look <em>before the last dot</em>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>ReferenceError</code></td>
-      <td>The name doesn't exist at all — typo or missing import.</td>
-    </tr>
-    <tr>
-      <td><code>SyntaxError</code></td>
-      <td>
-        Malformed code; nothing ran. Unbalanced <code>) {{ '}' }} ]</code> or a stray comma — often above the reported
-        line.
-      </td>
-    </tr>
-    <tr>
-      <td><em>(silent)</em></td>
-      <td>
-        No error, wrong result. No trace to follow — switch from reading errors to
-        <strong>checking assumptions with logs</strong>.
-      </td>
-    </tr>
-  </table>
+    </app-compare>
 
-  <app-predict
-    prompt="tags is a real array, just empty — post.tags = []. What error (if any) does this line throw, and which name does it blame?"
-    [code]="outOfBoundsSample"
-    answer="TypeError: Cannot read properties of undefined (reading 'toUpperCase'). Reading post.tags[0] on an empty array does NOT throw — arrays don't have index bounds checking, so an out-of-range index just returns undefined, silently, same as a missing object property would. The crash happens one step later, when .toUpperCase() is called ON that undefined. That's why the message blames toUpperCase and not tags[0] — the error always names the property being read at the moment of the crash, and by then the array lookup is already history."
-  />
-
-  <h2>Tool #1: the console — more than console.log</h2>
-  <div class="code">
-    <pre>
-console.log('user is:', user);   // ← label + value. ALWAYS label your logs:
-                                 //   five bare numbers in a console are useless
-console.log({{ '{' }} user {{ '}' }});          // neat trick: braces log it AS "user: …" for free
-
-console.table(users);            // arrays of objects → a readable grid
-console.error('bad state');      // red + stack trace — visually loud
-console.count('render');         // "render: 1, 2, 3…" — how OFTEN does this line run?
-console.time('load');            // …
-console.timeEnd('load');         // "load: 231ms" — how LONG did this take?</pre>
-  </div>
-  <p>
-    Half of all debugging is one sentence: <em>"I assumed this value was X; logging proved it was Y."</em> The log's job
-    is to test an assumption. Which means: before you log, say out loud what you <em>expect</em> to see — if you can't,
-    you're not debugging yet, you're staring.
-  </p>
-
-  <h2>Try it — read an error end to end</h2>
-  <div class="demo">
-    <p class="demo__title">Live — trigger a real bug, then walk the checklist</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="triggerBug()">Run buggy code</button>
-      <button class="ghost" (click)="clear()">clear</button>
+    <div class="note">
+      <strong>Why a production error looks unreadable.</strong> The browser is genuinely running one giant minified file
+      in production — your TypeScript doesn't exist there anymore. A <code>.map</code> file is what lets DevTools show
+      you readable source anyway, which is exactly what you're seeing every time the Sources panel shows your actual
+      <code>.ts</code> during development. Angular can produce the same map for a production build (<code
+        >sourceMap: true</code
+      >), which is also why error-tracking services ask you to upload one — without it, a production stack trace is a
+      wall of single-letter names and no line numbers worth trusting.
     </div>
-    @if (log()) {
-      <div class="code">
-        <pre>{{ log() }}</pre>
-      </div>
-      <p style="color: var(--green)">
-        👆 Checklist: ① type = TypeError → a value misused. ② message names 'city' → so the thing before
-        <code>.city</code> was undefined — that's <code>user.address</code>. ③ top trace line = your file, line 42. Fix
-        at the source (why is address missing?) or guard with <code>user.address?.city</code>.
-      </p>
-    }
-  </div>
+  </section>
 
-  <h2>Tool #2: DevTools — the cockpit (F12)</h2>
-  <ul>
-    <li>
-      <strong>Console</strong> — your logs and every uncaught error. The file:line on the right of each entry is a
-      <em>link</em> — click it to jump straight to the code.
-    </li>
-    <li>
-      <strong>Elements</strong> — the live DOM (remember: the current tree, not your HTML file). Click an element and
-      see exactly which CSS rules apply and which are crossed out — this is how CSS mysteries get solved.
-    </li>
-    <li>
-      <strong>Network</strong> — every request the app makes: URL, status code, and the JSON that actually came back.
-      When "the data is wrong", look here first — was it the server's answer, or what your code did with it?
-    </li>
-    <li>
-      <strong>Sources</strong> — set a <strong>breakpoint</strong>: click a line number and the code
-      <em>pauses there</em> next time it runs. Hover any variable to see its value, then step line by line. It's
-      console.log on everything at once, without editing code.
-    </li>
-  </ul>
-  <div class="note">
-    <strong>Log or breakpoint?</strong> Logs shine for "how does this value change <em>over time / many events</em>"
-    (each click, each request). Breakpoints shine for "what is the <em>entire world</em> at this one moment". Beginners
-    over-use logs because breakpoints feel advanced — spend ten minutes learning them and you'll save hours per week.
-  </div>
+  <!-- ============ 11. THE METHOD ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The method</p>
+    <h2>Debugging is a science, not a vibe.</h2>
 
-  <h2>The method — debugging as science</h2>
-  <ol>
-    <li>
-      <strong>Read the whole error</strong> — type, message, first line of yours in the trace. (Not the first 5 words.
-      The whole thing.)
-    </li>
-    <li>
-      <strong>Reproduce it</strong> — find the exact steps that trigger it every time. A bug you can't reproduce is a
-      bug you can't verify you fixed.
-    </li>
-    <li>
-      <strong>Hypothesize</strong> — "I think <code>address</code> is undefined because the API omits it for new users."
-    </li>
-    <li><strong>Test the hypothesis</strong> — log it / breakpoint it / check the Network tab. Evidence, not vibes.</li>
-    <li>
-      <strong>Fix the cause, re-run the reproduction</strong> — and make sure you fixed the <em>reason</em>, not just
-      the symptom (a <code>?.</code> that hides missing data may be deferring the crash to someone else's screen).
-    </li>
-  </ol>
-  <div class="tip">
-    Two force-multipliers: <strong>search the exact error text</strong> (quotes around it, minus your variable names) —
-    someone has hit it before; and <strong>explain the bug out loud</strong> to a colleague, a duck, or an empty chair.
-    Verbalizing forces you through the evidence in order — the answer routinely arrives mid-sentence ("rubber-duck
-    debugging" is a real, named technique).
-  </div>
+    <p>
+      Every tool above is only as good as the method wrapped around it. Here is the one that actually works, every time,
+      regardless of which tool you reached for.
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      The console says "Cannot read properties of undefined (reading 'filter')" on the line
-      <code>items.filter(x =&gt; x.done)</code>. What exactly was undefined?
-    </summary>
-    <div>
-      <code>items</code>. The parenthetical names the property being <em>read</em> ('filter'), and the undefined thing
-      is whatever it was read <em>from</em> — one link to the left of the named property. So the question to chase is
-      "why hadn't items been assigned yet?" (Classic answer in Angular: the data hadn't arrived from the server when the
-      code ran — an async-timing bug from the Async lesson.)
+    <app-flow
+      [steps]="methodSteps"
+      caption="Skip a step under pressure and it's usually this one."
+      direction="vertical"
+    />
+
+    <div class="tip">
+      <strong>Two force-multipliers:</strong> <strong>search the exact error text</strong> (in quotes, minus your own
+      variable names) — someone has hit this exact message before. And <strong>explain the bug out loud</strong>, to a
+      colleague, a rubber duck, or an empty chair — verbalizing forces you through the evidence in order, and the answer
+      routinely arrives mid-sentence. This is a real, named technique: rubber-duck debugging.
     </div>
-  </details>
-  <details class="qa">
-    <summary>Your fix didn't work. What's the first thing to verify?</summary>
-    <div>
-      That the code you edited is the code that ran: is the dev server still running / did it recompile / did the
-      browser reload / are you editing the right file? "The fix changed nothing" is very often "the fix never executed".
-      Add an obvious log next to the fix to prove it runs.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>The page shows a wrong total but the console is clean. Outline your approach.</summary>
-    <div>
-      No error = assumption-checking mode. Follow the data: log the raw inputs (are they numbers or strings? Network tab
-      shows what the API truly sent), then the intermediate values, then the final calculation — and state your
-      expectation before each log. The bug lives at the first log that surprises you.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why is a SyntaxError's line number sometimes "wrong"?</summary>
-    <div>
-      The parser reports where it <em>gave up</em>, not where you erred. A brace unclosed on line 10 may only become
-      impossible at line 40 (or at end of file). When the reported line looks fine, scan upward for unbalanced brackets
-      — or let the editor's bracket-matching find it instantly.
-    </div>
-  </details>
+  </section>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="You console.log(user) right after starting a fetch, before the promise resolves. It prints an object that already has the real data — but you're SURE the fetch couldn't have finished that fast. What's going on?"
-    [options]="quizOptions"
-    followUp="The safe habit: if you need to see a value at the moment you logged it, not whatever it becomes later, log a copy — JSON.parse(JSON.stringify(value)) or structuredClone(value) — instead of the live reference."
-  />
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      An error = <strong>type + message + stack trace</strong>. Top of the trace = where; reading down = how it got
-      there; first line in <em>your</em> files = where to start.
-    </li>
-    <li>
-      For "reading 'x' of undefined": the undefined thing is one link <em>left</em> of 'x'. ReferenceError =
-      typo/import; SyntaxError = nothing ran, look above the reported line.
-    </li>
-    <li>
-      Silent bugs (wrong result, clean console) are found by
-      <strong>logging labelled values against stated expectations</strong> — the bug is at the first surprise.
-    </li>
-    <li>
-      DevTools: Console (logs), Elements (live DOM + applied CSS), Network (what the server really said), Sources
-      (breakpoints = inspect everything at a paused moment).
-    </li>
-    <li>
-      Debug scientifically: read → reproduce → hypothesize → test with evidence → fix the cause and re-run. Search exact
-      error text; explain it out loud.
-    </li>
-  </ul>
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-  <p><a routerLink="/why-typescript-angular">Next: Why TypeScript &amp; Angular? →</a></p>
+    <ul>
+      <li>
+        An error is a <strong>report, not a punishment</strong>: type (what kind), message (what exactly), stack (how
+        you got there) — and the stack prints newest-frame-first, the opposite order to how the calls happened.
+      </li>
+      <li>
+        Reading <code>Cannot read properties of undefined (reading 'x')</code>: the undefined thing is always
+        <strong>one hop to the left</strong> of <code>'x'</code>.
+      </li>
+      <li>
+        Angular errors show up in <strong>two different places</strong> — compile time (terminal + editor, before
+        anything runs) and runtime (the browser console, while it's running). When the browser doesn't update after a
+        save, check the terminal first.
+      </li>
+      <li>
+        Angular's own runtime errors carry <strong>NG codes</strong> (<code>NG0100</code>, <code>NG0201</code>…) —
+        searchable by the code alone, documented at <code>angular.dev/errors</code>, and distinct from plain
+        <code>TypeError</code>s and <code>ReferenceError</code>s.
+      </li>
+      <li>
+        Async stack traces are short because the caller already <span class="bf-break">left the stack</span> — chase
+        what <em>scheduled</em> the callback, not what "called" it.
+      </li>
+      <li>
+        Debug like a scientist:
+        <strong>read the whole error, reproduce it, hypothesize, test with evidence, fix the cause and re-run.</strong>
+      </li>
+    </ul>
+
+    <p><a routerLink="/why-typescript-angular">Next: Why TypeScript &amp; Angular? →</a></p>
+  </section>
 </article>

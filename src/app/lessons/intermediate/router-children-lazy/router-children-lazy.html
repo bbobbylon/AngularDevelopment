@@ -1,403 +1,594 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Routing</span>
-  <h1>Child Routes &amp; Lazy Loading</h1>
-  <p class="lead">
-    Real apps nest routes and split code so the browser only downloads a feature when the user visits it. Child routes
-    render into a nested
-    <code>&lt;router-outlet&gt;</code>; lazy loading defers the JavaScript until first navigation — the single biggest
-    lever on your initial bundle size.
-  </p>
-
-  <h2>First, a mental model: the library with closed stacks</h2>
-  <p>
-    Here's the analogy to carry through the whole lesson.
-    <span class="key">Your app is a library, and your bundle is the open shelving in the main hall.</span>
-    Every book on those shelves was carried in before the doors opened — that's your
-    <span class="term">initial bundle</span>, and every page of it is downloaded before the user sees anything.
-  </p>
-  <p>
-    A big library can't do that. So most titles live in the <span class="term">closed stacks</span> out back. You ask at
-    the desk, a runner goes and fetches your book, and you wait a moment. That's a
-    <span class="term">lazy chunk</span> — <code>loadComponent</code> or <code>loadChildren</code> is you writing down
-    the shelf number instead of the whole book. Once the runner brings it, the book sits on your desk: ask for it again
-    and there's no second trip. That's the browser cache, and it's why the demo above pauses only on the
-    <em>first</em> visit to each feature.
-  </p>
-  <p>
-    Hold on to that runner, because it's the thing the two guards disagree about. One librarian checks your reader's
-    card <strong>before</strong> sending the runner. The other lets the runner make the whole round trip, puts the book
-    on your desk, and <em>then</em> says you're not allowed to open it. Same refusal, very different amount of walking —
-    and in the second case, the book is already in your hands.
-  </p>
-
-  <h2>See it: on-demand chunks, cached after first load</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a mock router with lazy features</p>
-    <div class="row" style="margin-bottom: 12px">
-      @for (f of features; track f.id) {
-        <button [class.active]="active() === f.id" (click)="navTo(f)">
-          {{ f.label }}
-          @if (f.eager) {
-            <span class="tag">eager</span>
-          } @else if (loaded().includes(f.id)) {
-            <span class="tag ok">cached</span>
-          } @else {
-            <span class="tag">lazy</span>
-          }
-        </button>
-      }
-    </div>
-    <div class="screen">
-      @if (loadingId()) {
-        <div class="net">GET {{ chunkName(loadingId()!) }} <span class="spinner"></span> downloading…</div>
-      } @else {
-        <div class="net done">
-          {{
-            activeFeature().eager
-              ? 'in the initial bundle — no request'
-              : 'GET ' + chunkName(active()) + ' → 200 (cached)'
-          }}
-        </div>
-        <h3 style="margin: 0.4rem 0 0">{{ activeFeature().label }}</h3>
-        <p style="margin: 0.2rem 0; color: var(--text-muted)">rendered from its chunk ({{ activeFeature().size }})</p>
-      }
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      The first visit to a lazy feature downloads its chunk (~700 ms here); after that it's
-      <span class="ok">cached</span> and navigation is instant. The eager Dashboard ships in the initial bundle, so it
-      never makes a request.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Intermediate · Routing"
+    title="Child Routes & Lazy Loading"
+    hand="or, how to keep your bundle from turning into one enormous JavaScript brick"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Split your app wrong and every visitor downloads all of it, whether they'll ever see most of it or not. Split it
+      right and a route feels instant the first time someone visits it and instant every time after. This page takes
+      apart <strong>how routes nest</strong> — one shell, many rooms, one outlet — and <strong>how code splits</strong>
+      — a component, a whole feature, or a block within a page — with a live simulation proving each answer, not just
+      stating it.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>Child routes &amp; nested outlets</h2>
-  <div class="code">
-    <pre>{{ childrenSample }}</pre>
-  </div>
-  <p>
-    <code>SettingsShell</code>'s template places a second <code>&lt;router-outlet&gt;</code> where
-    <code>ProfileTab</code>/<code>SecurityTab</code>
-    render — that's the nested outlet. The empty-path child redirect needs
-    <code>pathMatch: 'full'</code>.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Everything, downloaded before anyone clicks anything.</h2>
 
-  <h2>Lazy: a component, or a whole route group</h2>
-  <div class="code">
-    <pre>{{ lazySample }}</pre>
-  </div>
-  <p>
-    <strong>This entire tutorial app uses <code>loadComponent</code></strong> — every lesson is its own lazy chunk,
-    which is why the initial bundle stays ~400 kB while the app has 100+ lessons.
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Tool</th>
-      <th>Splits</th>
-      <th>Use when</th>
-    </tr>
-    <tr>
-      <td><code>loadComponent</code></td>
-      <td>one standalone component into a chunk</td>
-      <td>a single lazy page</td>
-    </tr>
-    <tr>
-      <td><code>loadChildren</code></td>
-      <td>a <code>Routes</code> array (a whole feature) into a chunk</td>
-      <td>a feature area with several routes</td>
-    </tr>
-    <tr>
-      <td><code>&#64;defer</code></td>
-      <td>a block <em>within</em> a page</td>
-      <td>below-the-fold / heavy widgets, no URL of their own</td>
-    </tr>
-  </table>
+    <p>
+      Here's the default, if you do nothing special: every component your app can ever show, for every route, bundled
+      into one file, downloaded before the visitor has clicked a single thing. A hundred lessons' worth of JavaScript,
+      for someone who came to read one of them.
+    </p>
 
-  <h2>Guard the download: <code>canMatch</code> vs <code>canActivate</code></h2>
-  <p>
-    A subtle but important distinction. <code>canActivate</code> runs <em>after</em>
-    the lazy chunk is fetched — so an unauthorized user still pays the download.
-    <code>canMatch</code> runs <em>before</em> matching, so a failing guard skips the route entirely and the chunk is
-    never requested (and the router can fall through to another route):
-  </p>
-  <div class="code">
-    <pre>{{ canMatchSample }}</pre>
-  </div>
+    <p>
+      Two separate questions fix two separate parts of that — and people routinely answer the first while thinking about
+      the second, which is where most of this topic's bugs come from:
+    </p>
 
-  <svg class="diagram" viewBox="0 0 760 300" role="img" aria-labelledby="lazy-t lazy-d">
-    <title id="lazy-t">Where each guard runs relative to the chunk download</title>
-    <desc id="lazy-d">
-      Two pipelines for the same denied navigation to slash admin. In the first, guarded with canActivate, the router
-      matches the route, downloads the admin chunk over the network with a 200 response, then runs the guard, which
-      fails, and redirects to the login page — forty-two kilobytes of admin code were downloaded and thrown away, and
-      that code is now in the browser of a user who is not an admin. In the second, guarded with canMatch, the guard
-      runs during matching and fails immediately, so the route is skipped, no request is ever made, and the router falls
-      through to the next matching route. Zero bytes downloaded.
-    </desc>
-    <defs>
-      <marker id="lazy-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
+    <ul>
+      <li>Which outlet does a route's component render into? (<strong>nesting</strong>)</li>
+      <li>Has that component's code even arrived yet? (<strong>splitting</strong>)</li>
+      <li>Does code the visitor isn't allowed to see get downloaded anyway? (<strong>guarding</strong>)</li>
+    </ul>
 
-    <!-- lane 1: canActivate -->
-    <text x="10" y="22" font-size="12.5" font-weight="700" fill="var(--red)">
-      canActivate — the guard runs after the download
-    </text>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      There's a live version of this exact scene further down the page: three feature areas, one eager and two lazy.
+      Before you scroll to it — how many network requests fire before you click <em>anything at all</em>? And once
+      you've clicked into a lazy feature once, does clicking into it again ever cost a second request?
+    </app-napkin>
+  </section>
 
-    <rect x="10" y="40" width="96" height="40" rx="6" fill="var(--border)" opacity="0.5" />
-    <text x="58" y="65" font-size="11" text-anchor="middle" fill="var(--text-muted)">URL /admin</text>
-    <line
-      x1="110"
-      y1="60"
-      x2="128"
-      y2="60"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Your app is a building, not a room.</h2>
+
+    <p>
+      Picture the whole app as a building under construction. Each top-level route is a floor.
+      <code>&lt;router-outlet&gt;</code> is the doorway into whichever room on that floor is currently open — and a
+      route's <code>children</code> are the rooms sharing that one doorway, swapped in and out as you move around,
+      <strong>without the floor itself ever being torn down and rebuilt</strong>.
+    </p>
+
+    <p>
+      Lazy loading is the same building, on a stricter budget: the floors aren't all pre-built. The first time anyone
+      asks to go to floor nine, construction happens — that's the download — and then it stays built for the rest of the
+      visit. Ask again, and there's nothing left to build.
+    </p>
+
+    <p>
+      <code>canMatch</code> is a receptionist who won't even call the construction crew for a floor you're not cleared
+      for. <code>canActivate</code> is a guard standing at an <em>already-built</em> floor's door, checking your badge
+      after the elevator has already arrived.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>One doorway, many rooms.</strong> A component route builds one shell and one outlet; its children only
+      ever swap what's showing inside that same doorway. The shell goes up once and comes down only when you leave its
+      whole subtree — never when you move between the rooms inside it.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. CHILD ROUTES & NESTED OUTLETS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One shell. Many rooms. One doorway.</h2>
+
+    <p>
+      Angular compiles nested routing down to exactly what the building metaphor describes: one component owns an
+      outlet, and its children's routes are matched relative to it and rendered inside it.
+    </p>
+
+    <app-code-lab
+      file="app.routes.ts"
+      [code]="childrenSample"
+      [notes]="childrenNotes"
+      notesLabel="What each line does"
     />
 
-    <rect x="132" y="40" width="108" height="40" rx="6" fill="var(--border)" opacity="0.5" />
-    <text x="186" y="65" font-size="11" text-anchor="middle" fill="var(--text-muted)">route matches</text>
-    <line
-      x1="244"
-      y1="60"
-      x2="262"
-      y2="60"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
+    <p>
+      Every child route above shares one thing: their parent, <code>SettingsShell</code>, has a <code>component</code> —
+      which is the entire reason it gets an outlet to render them into. Drop that one line and the shape of the route
+      changes completely.
+    </p>
+
+    <app-compare
+      leftTitle="With a component"
+      rightTitle="Componentless"
+      leftTone="neutral"
+      rightTone="neutral"
+      note="Same guard, same providers, same children — the only real difference is whether there's a component to render into."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ componentRouteSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ componentlessRouteSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      A <span class="term">componentless route</span> is a pure grouping device. It never adds a ring to the diagram
+      below — its children render straight into whichever outlet was already there, one level up:
+    </p>
+
+    <app-layers
+      [core]="{ label: 'SecurityTab', sub: 'renders wherever the outlet is' }"
+      [rings]="[
+        { label: 'AppComponent', sub: 'root router-outlet' },
+        { label: 'SettingsShell', sub: 'its own outlet · /settings/**' },
+      ]"
+      arrow="navigating to /settings/security"
+      caption="Two rings, because there are two real outlets: the root one and `SettingsShell`'s own. A **componentless** parent route never gets a ring here at all — it adds a path segment and maybe a guard, but its children still render straight into whichever outlet was already there, one level up."
     />
 
-    <rect x="266" y="40" width="170" height="40" rx="6" fill="var(--red)" opacity="0.25" />
-    <text x="351" y="57" font-size="11" text-anchor="middle" font-weight="700" fill="var(--red)">
-      GET admin-a1b2c3.js
-    </text>
-    <text x="351" y="72" font-size="10" text-anchor="middle" fill="var(--red)">200 · 42 kB over the wire</text>
-    <line
-      x1="440"
-      y1="60"
-      x2="458"
-      y2="60"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
-    />
+    <p>What a componentless route buys you — everything a route can carry, except a place to render:</p>
 
-    <rect x="462" y="40" width="112" height="40" rx="6" fill="var(--red)" opacity="0.25" />
-    <text x="518" y="65" font-size="11" text-anchor="middle" font-weight="700" fill="var(--red)">canActivate ✗</text>
-    <line
-      x1="578"
-      y1="60"
-      x2="596"
-      y2="60"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
-    />
-
-    <rect x="600" y="40" width="140" height="40" rx="6" fill="var(--border)" opacity="0.5" />
-    <text x="670" y="65" font-size="11" text-anchor="middle" fill="var(--text-muted)">redirect to /login</text>
-
-    <text x="10" y="102" font-size="11" fill="var(--red)" font-weight="600">
-      42 kB downloaded and immediately discarded — and the admin code is now sitting in a non-admin's browser.
-    </text>
-
-    <line x1="10" y1="126" x2="750" y2="126" stroke="var(--border)" stroke-width="1" />
-
-    <!-- lane 2: canMatch -->
-    <text x="10" y="158" font-size="12.5" font-weight="700" fill="var(--green)">
-      canMatch — the guard runs during matching, before the loader is ever called
-    </text>
-
-    <rect x="10" y="176" width="96" height="40" rx="6" fill="var(--border)" opacity="0.5" />
-    <text x="58" y="201" font-size="11" text-anchor="middle" fill="var(--text-muted)">URL /admin</text>
-    <line
-      x1="110"
-      y1="196"
-      x2="128"
-      y2="196"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
-    />
-
-    <rect x="132" y="176" width="112" height="40" rx="6" fill="var(--green)" opacity="0.25" />
-    <text x="188" y="201" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">canMatch ✗</text>
-    <line
-      x1="248"
-      y1="196"
-      x2="266"
-      y2="196"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
-    />
-
-    <rect x="270" y="176" width="130" height="40" rx="6" fill="var(--green)" opacity="0.25" />
-    <text x="335" y="201" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">route skipped</text>
-    <line
-      x1="404"
-      y1="196"
-      x2="422"
-      y2="196"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#lazy-arrow)"
-    />
-
-    <rect x="426" y="176" width="200" height="40" rx="6" fill="var(--border)" opacity="0.5" />
-    <text x="526" y="201" font-size="11" text-anchor="middle" fill="var(--text-muted)">
-      router tries the next route
-    </text>
-
-    <!-- the loader box that never runs -->
-    <rect
-      x="270"
-      y="232"
-      width="170"
-      height="34"
-      rx="6"
-      fill="none"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      stroke-dasharray="5 4"
-      opacity="0.7"
-    />
-    <text x="355" y="253" font-size="10.5" text-anchor="middle" fill="var(--text-muted)">loader never called</text>
-    <text x="452" y="253" font-size="11" fill="var(--green)" font-weight="700">0 bytes requested</text>
-
-    <text x="10" y="288" font-size="11" fill="var(--text-muted)">
-      Both guards refuse the navigation. Only one of them refuses it before paying for it.
-    </text>
-  </svg>
-
-  <app-remember variant="rule" label="If you remember one thing about lazy guards">
-    <strong>canMatch guards the download; canActivate guards the door.</strong> If the thing you are protecting is the
-    <em>code itself</em>, you need the guard that runs before the runner leaves the desk.
-  </app-remember>
-
-  <h2>Route-scoped providers</h2>
-  <p>
-    A lazy route can declare <code>providers</code>. They create a child injector for that route subtree, so a service
-    can be scoped to one feature instead of the root — it's created when you enter the feature and shares one instance
-    across its routes:
-  </p>
-  <div class="code">
-    <pre>{{ providersSample }}</pre>
-  </div>
-
-  <app-predict
-    prompt="A user opens /shop/42 and adds three items to the cart. The header badge lives in the app shell, outside /shop. What number does the badge show — and does anything in the console warn you?"
-    [code]="doubleInstanceSample"
-    answer="The badge shows 0, and nothing warns you. `providedIn: 'root'` and the route's `providers` array are two separate registrations, so there are two `ShopApi` instances: the root one the header injects, and the child-injector one every component under /shop injects. `ProductPage` pushes into the child instance's cart; `HeaderBadge` reads the root instance's, which is still empty. The fix is to pick one home for the service — delete `providedIn: 'root'` if it really is feature-scoped, or delete the route `providers` entry if the whole app shares it. Having both is never what you meant."
-  />
-
-  <h2>Preloading strategies</h2>
-  <p>
-    Lazy chunks load on demand by default. A preloading strategy fetches them in the background <em>after</em> the app
-    boots, so later navigation feels instant without bloating the initial bundle:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Strategy</th>
-      <th>Behaviour</th>
-    </tr>
-    <tr>
-      <td><em>(none, default)</em></td>
-      <td>each chunk downloads on first navigation to it.</td>
-    </tr>
-    <tr>
-      <td><code>PreloadAllModules</code></td>
-      <td>after boot, background-fetch every lazy chunk.</td>
-    </tr>
-    <tr>
-      <td>custom strategy</td>
-      <td>preload only routes you flag, e.g. <code>data: &#123; preload: true &#125;</code>.</td>
-    </tr>
-    <tr>
-      <td><code>ngx-quicklink</code></td>
-      <td>community: preload chunks for the links currently in the viewport.</td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>{{ preloadSample }}</pre>
-  </div>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong><code>pathMatch: 'full'</code> on empty redirects.</strong> The default <code>'prefix'</code> matches
-      every URL, so an empty-path <code>redirectTo</code> creates a redirect loop.
-    </li>
-    <li>
-      <strong>Guarding lazy routes with <code>canActivate</code> only.</strong> The chunk still downloads before the
-      guard denies. Use <code>canMatch</code> to skip the download.
-    </li>
-    <li>
-      <strong><code>loadChildren</code> target shape.</strong> It must resolve to a <code>Routes</code> array — a named
-      export or the file's <strong>default export</strong>.
-    </li>
-    <li>
-      <strong>Preloading everything on a huge app.</strong> <code>PreloadAllModules</code> can flood the network on
-      boot; prefer a flag-based custom strategy at scale.
-    </li>
-    <li>
-      <strong>Feature service leaking to root.</strong> If it's <code>providedIn: 'root'</code>, route
-      <code>providers</code> won't scope it — drop the root registration to keep it feature-local.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Which guard prevents downloading a lazy chunk for an unauthorized user?</summary>
-    <div>
-      <code>canMatch</code>. It runs before the route matches, so the chunk is never fetched.
-      <code>canActivate</code> runs after the fetch.
+    <div class="bf-grid-3">
+      <app-tape-card heading="Guard" kicker="canActivate / canMatch" tone="accent">
+        Runs once for the whole group. A user who fails it never reaches any child underneath — no wrapper component
+        required to attach it to.
+      </app-tape-card>
+      <app-tape-card heading="Data" kicker="route.data" tone="gold">
+        Static config every child can read off its own <code>ActivatedRoute</code> — a flag, a title, a permission level
+        — without a component to hold it.
+      </app-tape-card>
+      <app-tape-card heading="Providers" kicker="DI scope" tone="olive">
+        A child injector for the whole subtree. One service instance, shared by every child route, torn down only when
+        the group is left entirely.
+      </app-tape-card>
+      <app-tape-card heading="Path prefix" kicker="URL segment" tone="blue">
+        Every child's path is written relative to this one, exactly as it would be under a component route — grouping
+        costs nothing here.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary><code>loadComponent</code> vs <code>loadChildren</code>?</summary>
-    <div>
-      <code>loadComponent</code> lazy-loads a single standalone component; <code>loadChildren</code> lazy-loads a whole
-      <code>Routes</code> array (a feature with several routes and its own child outlet).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Empty-path redirect causes an infinite loop. Fix?</summary>
-    <div>
-      Add <code>pathMatch: 'full'</code> so it matches only the exact empty URL instead of every path
-      (<code>'prefix'</code>).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you scope a service to one lazy feature?</summary>
-    <div>
-      Add it to that route's <code>providers</code> array (creating a child injector for the subtree) and don't also
-      register it <code>providedIn: 'root'</code>.
-    </div>
-  </details>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="You guard a lazy /admin route with canActivate: [adminGuard]. A signed-in but non-admin user types /admin into the address bar. You have the Network tab open. What do you see?"
-    [options]="quizOptions"
-    followUp="Swap that guard for canMatch and re-run it: the row disappears from the Network tab entirely. That single change is the difference between hiding a feature and not shipping it to people who cannot use it."
-  />
+    <div class="note">
+      Componentless parents are also where params/data inheritance to children is on by default (<code
+        >paramsInheritanceStrategy: 'emptyOnly'</code
+      >) — a child under a componentless parent can read the parent's resolved data and params as if they were its own,
+      because no component-with-its-own-scope sits between them.
+    </div>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>children</code> + a nested <code>&lt;router-outlet&gt;</code> build layered UIs.</li>
-    <li>
-      <code>loadComponent</code> lazy-loads one component; <code>loadChildren</code> a route group;
-      <code>&#64;defer</code> a block within a page.
-    </li>
-    <li>
-      Use <code>canMatch</code> to skip the download for forbidden routes; <code>canActivate</code> fetches first.
-    </li>
-    <li>
-      Route <code>providers</code> scope services to a feature; <code>withPreloading</code> warms chunks in the
-      background.
-    </li>
-  </ul>
+    <app-quiz
+      question="A route has `children` but no `component` of its own. Where do those children actually render?"
+      [options]="componentlessQuizOptions"
+      followUp="Look back at the Layers diagram above — the componentless route never earns a ring."
+    />
+  </section>
 
-  <p><a routerLink="/route-guards">Next: Functional Route Guards →</a></p>
+  <!-- ============ 4. THE SHELL DOES NOT RESTART ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The failure mode nobody warns you about</p>
+    <h2>Switch rooms, and the floor stays standing.</h2>
+
+    <p>
+      This is the direct, load-bearing consequence of "one shell, many rooms": when you navigate between sibling
+      children — <code>/settings/profile</code> → <code>/settings/security</code> — the router destroys only
+      <code>ProfileTab</code> and creates <code>SecurityTab</code>. <code>SettingsShell</code> keeps the exact same
+      instance. No <code>ngOnDestroy</code>, no <code>ngOnInit</code>, nothing re-runs on it at all.
+    </p>
+
+    <p>Three consequences fall straight out of that, and all three are things people get bitten by in production:</p>
+
+    <ul>
+      <li>
+        Data the shell loaded once — a user profile, a list of settings sections — <strong>stays loaded</strong>. It
+        does not refetch every time a tab changes, which is usually exactly what you want.
+      </li>
+      <li>
+        A guard on the shell's own <code>canActivate</code> runs <span class="bf-break">once</span>, on first entry, and
+        never again for a sibling switch. A session that expires mid-visit, or a permission that differs per tab, needs
+        <code>canActivateChild</code> instead — the one guard type that re-runs on every child activation.
+      </li>
+      <li>
+        A service in the shell's route <code>providers</code> lives for the whole subtree and is destroyed only when you
+        leave <code>/settings</code> entirely — not when you move between its tabs.
+      </li>
+    </ul>
+
+    <app-napkin lead="try it —" label="Predict before you click">
+      You load <code>/settings/profile</code>, click over to <code>/settings/security</code>, then back a couple of
+      times. Does <code>SettingsShell</code>'s constructor — the code that runs once per instance — fire again on any of
+      those clicks? The live counters below will tell you for certain.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — SettingsShell, watched from the outside</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button [class.active]="settingsTab() === 'profile'" (click)="switchTab('profile')">Profile tab</button>
+        <button [class.active]="settingsTab() === 'security'" (click)="switchTab('security')">Security tab</button>
+        <button class="ghost" (click)="leaveAndReturn()">Leave &amp; come back to /settings</button>
+      </div>
+      <div class="row">
+        <span class="pill">SettingsShell constructed: {{ shellVisits() }}×</span>
+        <span class="pill">ProfileTab entered: {{ tabVisits().profile }}×</span>
+        <span class="pill">SecurityTab entered: {{ tabVisits().security }}×</span>
+      </div>
+      <p class="demo__note">
+        Click the two tabs back and forth as much as you like — <strong>SettingsShell constructed</strong> never moves.
+        Only <strong>"Leave &amp; come back"</strong> — the equivalent of navigating away to <code>/dashboard</code> and
+        returning — increments it, and resets both tabs' counts, because that really is a fresh instance of everything
+        underneath.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. LAZY LOADING ============ -->
+  <section>
+    <p class="bf-eyebrow">Splitting the bundle</p>
+    <h2>The floor isn't built until someone asks for it.</h2>
+
+    <p>
+      <code>loadComponent</code> and <code>loadChildren</code> are how you tell Angular "don't build this floor yet."
+      Both take a function returning a dynamic <code>import()</code> — code the bundler cuts into its own chunk and the
+      browser fetches only when that function actually runs.
+    </p>
+
+    <app-code-lab file="app.routes.ts" [code]="lazySample" [notes]="lazyNotes" notesLabel="What each line does" />
+
+    <p>
+      <strong>This entire tutorial app uses <code>loadComponent</code></strong> — every lesson is its own lazy chunk,
+      which is why the initial bundle stays small while the app has 100+ lessons.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        Three ways to split — pick by how much you're splitting
+      </caption>
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th>Splits</th>
+          <th>Use when</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>loadComponent</code></td>
+          <td>one standalone component into a chunk</td>
+          <td>a single lazy page</td>
+        </tr>
+        <tr>
+          <td><code>loadChildren</code></td>
+          <td>a <code>Routes</code> array (a whole feature) into a chunk</td>
+          <td>a feature area with several routes</td>
+        </tr>
+        <tr>
+          <td><code>&#64;defer</code></td>
+          <td>a block <em>within</em> a page</td>
+          <td>below-the-fold / heavy widgets, no URL of their own</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="demo">
+      <p class="demo__title">Live — a mock router with lazy features</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        @for (f of features; track f.id) {
+          <button [class.active]="active() === f.id" (click)="navTo(f)">
+            {{ f.label }}
+            @if (f.eager) {
+              <span class="tag">eager</span>
+            } @else if (loaded().includes(f.id)) {
+              <span class="tag ok">cached</span>
+            } @else {
+              <span class="tag">lazy</span>
+            }
+          </button>
+        }
+      </div>
+      <div class="screen">
+        @if (loadingId()) {
+          <div class="net">GET {{ chunkName(loadingId()!) }} <span class="spinner"></span> downloading…</div>
+        } @else {
+          <div class="net done">
+            {{
+              activeFeature().eager
+                ? 'in the initial bundle — no request'
+                : 'GET ' + chunkName(active()) + ' → 200 (cached)'
+            }}
+          </div>
+          <h3 style="margin: 0.4rem 0 0">{{ activeFeature().label }}</h3>
+          <p style="margin: 0.2rem 0; color: var(--bf-ink-2)">rendered from its chunk ({{ activeFeature().size }})</p>
+        }
+      </div>
+      <p class="demo__note">
+        The first visit to a lazy feature downloads its chunk (~700 ms here); after that it's
+        <span class="ok">cached</span> and navigation is instant. The eager Dashboard ships in the initial bundle, so it
+        never makes a request at all — which is what you predicted (or didn't) back at the top of the page.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 6. THE CHUNK THAT DIDN'T SPLIT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Verify, don't assume</p>
+    <h2>Your bundle is still 900 kB. Why?</h2>
+
+    <p>
+      <code>loadComponent</code> being present in the route config is
+      <span class="key">necessary but not sufficient</span> — the bundler still has to agree that nothing outside the
+      dynamic <code>import()</code>
+      reaches into that folder. One stray import from the app's eager graph is enough to undo it, and the route config
+      keeps reading as if nothing were wrong.
+    </p>
+
+    <app-code-lab
+      file="app.ts + shared/route-icons.ts"
+      [code]="staleImportSample"
+      [notes]="staleImportNotes"
+      notesLabel="Follow the import chain"
+      prompt="Is `/admin` really a separate chunk after this — even though `loadComponent` is right there on the last line?"
+      output="No. `ng build` will still show `loadComponent` in the source, but the `admin-*.js` chunk row is gone from the output — the admin folder's code is now sitting inside `main.js`. Only *types* may be imported eagerly from a lazy feature (`import type { AdminIcon } from './admin/admin-icon'`); a value import never can be. Verify it stays split by reading the `ng build` chunk list, or run `ng build --stats-json` and open the result in source-map-explorer — never just trust that the syntax looks right."
+      revealLabel="Check the build output"
+    />
+
+    <div class="tip">
+      <strong>Rule to remember:</strong> only <em>types</em> may be imported eagerly from a lazy feature (<code
+        >import type</code
+      >), never a value. And set a bundle budget in <code>angular.json</code> so a build that quietly grows past it
+      fails loudly instead of shipping.
+    </div>
+  </section>
+
+  <!-- ============ 7. GUARD THE DOWNLOAD ============ -->
+  <section>
+    <p class="bf-eyebrow">Guard the download</p>
+    <h2><code>canMatch</code> stops the fetch. <code>canActivate</code> stops the render.</h2>
+
+    <p>
+      A subtle but genuinely important distinction. <code>canActivate</code> runs <em>after</em> the lazy chunk is
+      fetched — so an unauthorized user still pays for the download. <code>canMatch</code> runs
+      <em>before</em> matching, so a failing guard skips the route entirely and the chunk is never requested (and the
+      router can fall through to another route with the same path):
+    </p>
+
+    <app-code-lab
+      file="app.routes.ts"
+      [code]="canMatchSample"
+      [notes]="canMatchNotes"
+      notesLabel="What each line does"
+    />
+
+    <app-bubbles
+      [turns]="guardTalk"
+      caption="What actually happens when the click resolves — note who gets asked, and when."
+    />
+
+    <app-remember variant="rule">
+      <code>canMatch</code> decides whether to <strong>fetch</strong>. <code>canActivate</code> decides whether to
+      <strong>render</strong> what's already been fetched. Failing the second one never refunds the download.
+    </app-remember>
+
+    <app-predict
+      prompt="A route has both `canMatch` and `canActivate`. The user passes `canMatch` but fails `canActivate`. Did the chunk still download?"
+      answer="Yes. `canMatch` ran first and returned `true`, so the router treated this as a real match and fetched the lazy chunk. `canActivate` then ran afterward and denied entry. Passing `canMatch` — even if you go on to fail `canActivate` — is enough to pay for the download. The only guard that can prevent the fetch is `canMatch` itself, and only by returning `false`."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-quiz
+      question="A lazy `/admin` route is guarded only by `canActivate`, and the visitor isn't an admin. What actually happens?"
+      [options]="guardQuizOptions"
+      followUp="This is the single most common exam question about lazy routing — and the one code review misses most often."
+    />
+  </section>
+
+  <!-- ============ 8. ROUTE-SCOPED PROVIDERS ============ -->
+  <section>
+    <p class="bf-eyebrow">Scoping services to a feature</p>
+    <h2>A reception desk for one floor.</h2>
+
+    <p>
+      A route can declare <code>providers</code>. They create a child injector for that route's subtree, so a service
+      can be scoped to one feature instead of the whole app — created the moment you enter the feature, and shared by
+      one instance across every route inside it:
+    </p>
+
+    <app-code-lab
+      file="app.routes.ts"
+      [code]="providersSample"
+      [notes]="providersNotes"
+      notesLabel="What each line does"
+    />
+
+    <div class="warn">
+      <strong>Feature service leaking to root.</strong> If <code>ShopApi</code> is also registered
+      <code>providedIn: 'root'</code>, the route's <code>providers</code> entry doesn't scope it — the root registration
+      already satisfied the injection, so the route-level one never gets a chance to run. Drop the root registration to
+      actually keep it feature-local.
+    </div>
+  </section>
+
+  <!-- ============ 9. NAMED OUTLETS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">A second doorway</p>
+    <h2>One floor, two doors.</h2>
+
+    <p>
+      Every outlet so far has been the same one — the default, unnamed <code>primary</code> outlet. A
+      <span class="term">named outlet</span> is a second one, opened and closed with its own piece of the URL,
+      independent of whatever the primary outlet is showing:
+    </p>
+
+    <app-code-lab
+      file="dashboard.html + app.routes.ts"
+      [code]="namedOutletSample"
+      [notes]="namedOutletNotes"
+      notesLabel="What each line does"
+    />
+
+    <p>
+      A named-outlet route needs its <code>outlet</code> property set, or it silently targets
+      <code>primary</code> instead — and each named outlet gets its own independent <code>ActivatedRoute</code> tree, so
+      a guard or resolver on it never sees the primary route's params.
+    </p>
+  </section>
+
+  <!-- ============ 10. PRELOADING ============ -->
+  <section>
+    <p class="bf-eyebrow">Paying the cost early, on purpose</p>
+    <h2>Fetch it before anyone asks.</h2>
+
+    <p>
+      Lazy chunks load on demand by default. A preloading strategy fetches them in the background <em>after</em> the app
+      boots, so later navigation feels instant without bloating the initial bundle:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        How much of the building gets pre-built in the background
+      </caption>
+      <thead>
+        <tr>
+          <th>Strategy</th>
+          <th>Behaviour</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><em>(none, default)</em></td>
+          <td>each chunk downloads on first navigation to it.</td>
+        </tr>
+        <tr>
+          <td><code>PreloadAllModules</code></td>
+          <td>after boot, background-fetch every lazy chunk.</td>
+        </tr>
+        <tr>
+          <td>custom strategy</td>
+          <td>preload only routes you flag, e.g. <code>data: &#123; preload: true &#125;</code>.</td>
+        </tr>
+        <tr>
+          <td><code>ngx-quicklink</code></td>
+          <td>community: preload chunks for the links currently in the viewport.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-code-lab file="app.config.ts" [code]="preloadSample" [notes]="preloadNotes" notesLabel="What each line does" />
+  </section>
+
+  <!-- ============ 11. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls that show up in exams &amp; code review</p>
+    <h2>The traps, collected.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Seven traps, and the one-line fix for each
+      </caption>
+      <thead>
+        <tr>
+          <th>Pitfall</th>
+          <th>Why it bites</th>
+          <th>Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>pathMatch: 'full'</code> missing on an empty redirect</td>
+          <td>The default <code>'prefix'</code> matches every URL, so the redirect matches itself and loops.</td>
+          <td>Add <code>pathMatch: 'full'</code>.</td>
+        </tr>
+        <tr>
+          <td>Guarding a lazy route with <code>canActivate</code> only</td>
+          <td>The chunk still downloads before the guard denies entry.</td>
+          <td>Use <code>canMatch</code> to skip the download entirely.</td>
+        </tr>
+        <tr>
+          <td><code>loadChildren</code> resolves to the wrong shape</td>
+          <td>
+            It must resolve to a <code>Routes</code> array — a named export or the file's default export. A component
+            class, an <code>NgModule</code>, or a plain object breaks at navigation time, not at build time.
+          </td>
+          <td>Export a <code>Routes</code> array (named or default) from the target file.</td>
+        </tr>
+        <tr>
+          <td>A stray value import un-lazies a route</td>
+          <td>Bundler analysis sees the eager graph reaching into the "lazy" folder and inlines it.</td>
+          <td>
+            Only <code>import type</code> from a lazy feature, eagerly; verify with the <code>ng build</code> chunk
+            list.
+          </td>
+        </tr>
+        <tr>
+          <td>Feature service leaking to root</td>
+          <td>If it's <code>providedIn: 'root'</code>, route <code>providers</code> can't scope it.</td>
+          <td>Drop the root registration to keep it feature-local.</td>
+        </tr>
+        <tr>
+          <td>Preloading everything on a huge app</td>
+          <td><code>PreloadAllModules</code> can flood the network right after boot.</td>
+          <td>Prefer a flag-based custom strategy at scale.</td>
+        </tr>
+        <tr>
+          <td><code>ChunkLoadError</code> after a redeploy</td>
+          <td>A stale tab resolves a content-hashed chunk filename that no longer exists on the server.</td>
+          <td>Catch it globally and reload — see below.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="code">
+      <pre>{{ chunkLoadErrorSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A component route builds one shell with its own outlet; a <strong>componentless</strong> route (<code
+          >children</code
+        >
+        with no <code>component</code>) adds nothing to render — its children render into whichever outlet was already
+        there, one level up.
+      </li>
+      <li>
+        <strong>The shell isn't rebuilt</strong> when you move between its child routes. Data it loaded stays loaded,
+        its <code>canActivate</code> doesn't run again, and its <code>providers</code> stay alive — all correct, and all
+        reasons a per-tab guard needs <code>canActivateChild</code> instead.
+      </li>
+      <li>
+        <code>loadComponent</code> splits one component into a chunk; <code>loadChildren</code> splits a whole feature;
+        <code>&#64;defer</code> splits a block <em>within</em> a page that never gets its own URL.
+      </li>
+      <li>
+        A chunk being lazy in the route config doesn't make it lazy in the bundle.
+        <span class="bf-break">A stray value import from the eager graph silently un-lazies it</span> — verify with the
+        <code>ng build</code> chunk list, not by reading the syntax.
+      </li>
+      <li>
+        <code>canMatch</code> gates the <strong>download</strong>; <code>canActivate</code> gates the
+        <strong>render</strong>. Only <code>canMatch</code> returning false can stop the fetch from happening at all.
+      </li>
+      <li>
+        Route <code>providers</code> scope a service to one subtree with a child injector;
+        <code>withPreloading</code> fetches lazy chunks in the background so the <em>first</em> visit isn't the one that
+        pays.
+      </li>
+    </ul>
+
+    <p><a routerLink="/route-guards">Next: Functional Route Guards →</a></p>
+  </section>
 </article>

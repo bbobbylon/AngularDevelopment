@@ -1,410 +1,587 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Advanced Types</span>
-  <h1>Mapped &amp; Conditional Types</h1>
-  <p class="lead">
-    Here's the mental shift this lesson asks of you: TypeScript's type system is itself a
-    <span class="key">small programming language</span> that runs inside the compiler. It has loops over keys (<span
-      class="term"
-      >mapped types</span
-    >), if/else (<span class="term">conditional types</span>), pattern-matching variables (<code>infer</code>), and
-    string interpolation (<span class="term">template literal types</span>). Every utility type you used in the previous
-    lesson — <code>Partial</code>, <code>Pick</code>, <code>ReturnType</code> — is a short program in this language, and
-    by the end of this page you can write all of them from scratch.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="TypeScript · Advanced Types"
+    title="Mapped &amp; Conditional Types"
+    hand="or, the little language living inside your angle brackets"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      TypeScript's type system is a second, smaller programming language, hiding inside the one you already know — and
+      it runs at compile time, on types instead of values. It has <strong>loops over keys</strong> (mapped types),
+      <strong>if/else</strong> (conditional types), <strong>pattern-matching variables</strong> (<code>infer</code>),
+      and <strong>string interpolation</strong> (template literal types). Every utility type you leaned on in the last
+      lesson — <code>Partial</code>, <code>Pick</code>, <code>ReturnType</code> — is a short program written in exactly
+      that language, and by the end of this page you can read every one of them, write your own, and see coming the
+      handful of places this language stops behaving like the one you learned first.
+    </p>
+  </app-chapter>
 
-  <h2>Everything here has a runtime twin</h2>
-  <p>
-    Here's the mental model to carry through the whole lesson:
-    <span class="key">a type program is the ordinary program you'd write on values, moved up one floor.</span> Same
-    loops, same ternaries, same string templates — different operands. Type-level code looks alien only until you notice
-    it's the same six moves you already make every day. You aren't learning new ideas; you're learning where the
-    familiar ones moved to:
-  </p>
-  <table>
-    <caption>
-      Each row is one idea, written twice: once for values, once for types.
-    </caption>
-    <thead>
-      <tr>
-        <th scope="col">You already write this on values…</th>
-        <th scope="col">…and this is the same move on types</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>Object.fromEntries(entries.map(…))</code> — rebuild an object key by key</td>
-        <td><strong>Mapped type:</strong> <code>[K in keyof T]: …</code></td>
-      </tr>
-      <tr>
-        <td><code>cond ? a : b</code> — a ternary</td>
-        <td><strong>Conditional type:</strong> <code>T extends U ? X : Y</code></td>
-      </tr>
-      <tr>
-        <td>A regex <em>capture group</em> — match a shape and name a piece of it</td>
-        <td><code>infer U</code> — match a shape and name a piece of it</td>
-      </tr>
-      <tr>
-        <td>
-          <code>`get${{ '{' }}name{{ '}' }}`</code>
-          — a template string
-        </td>
-        <td>
-          <strong>Template literal type:</strong>
-          <code>`get${{ '{' }}Capitalize&lt;K&gt;{{ '}' }}`</code>
-        </td>
-      </tr>
-      <tr>
-        <td><code>delete obj[k]</code> — remove a property</td>
-        <td>Remap a key to <code>never</code> — the key vanishes</td>
-      </tr>
-      <tr>
-        <td><code>arr.filter(…)</code> — keep some, drop others</td>
-        <td>Mapped type + <code>never</code> remap, together</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>
-    <span class="key">Whenever a type program confuses you, ask what the runtime version would look like.</span> The
-    answer is almost always in that table, and the shapes line up more closely than the syntax suggests.
-  </p>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Every utility type you've used is a program someone else wrote.</h2>
 
-  <h2>Mapped types — a loop over keys</h2>
-  <p>The anatomy, one piece at a time:</p>
-  <div class="code">
-    <pre>
-type Optional&lt;T&gt; = {{ '{' }} [K in keyof T]?: T[K] {{ '}' }};
-                     │  │      │        │   └── value: look up K's original type
-                     │  │      │        └── the ? modifier: make each key optional
-                     │  │      └── keyof T = union of T's key names
-                     │  └── K takes each key in turn — the loop variable
-                     └── [K in …] is the mapped-type syntax itself</pre>
-  </div>
-  <p>
-    Read it aloud:
-    <em>"for every key K of T, produce an optional property K whose type is whatever T had at K."</em> That's
-    <code>Partial&lt;T&gt;</code>, the real one —
-    <span class="key">the standard library's version is literally this line.</span> The modifiers can also be
-    <em>removed</em> with a minus sign — which is the part people forget:
-  </p>
-  <div class="code">
-    <pre>
-type Required2&lt;T&gt; = {{ '{' }} [K in keyof T]-?: T[K] {{ '}' }};          // -? strips optionality
-type Mutable&lt;T&gt;   = {{ '{' }} -readonly [K in keyof T]: T[K] {{ '}' }};  // -readonly strips readonly
-type Frozen&lt;T&gt;    = {{ '{' }} readonly [K in keyof T]: T[K] {{ '}' }};   // ≈ Readonly&lt;T&gt;</pre>
-  </div>
+    <p>
+      You've reached for <code>Partial&lt;User&gt;</code>, <code>Pick&lt;User, 'id'&gt;</code>, maybe
+      <code>ReturnType&lt;typeof fetchUser&gt;</code> — and if you're honest, each one felt a little like magic. Type an
+      angle bracket, get a transformed type out, no idea how. Here's the whole secret: <code>Partial&lt;T&gt;</code> is
+      not a compiler built-in. It's defined, in TypeScript's own standard library, as
+      <span class="key">one line you could have written yourself</span>:
+    </p>
 
-  <h2>Key remapping — rename or drop keys with <code>as</code></h2>
-  <div class="code">
-    <pre>
-// rename: build getter names out of property names
-type Getters&lt;T&gt; = {{ '{' }}
-  [K in keyof T as `get${{ '{' }}Capitalize&lt;string &amp; K&gt;{{ '}' }}`]: () => T[K]
-{{ '}' }};
-// Getters<{{ '{' }}name: string{{ '}' }}>  →  {{ '{' }} getName: () => string {{ '}' }}
+    <div class="code">
+      <pre>{{ partialSourceSample }}</pre>
+    </div>
 
-// drop: remapping a key to never DELETES it — that's property filtering:
-type Methods&lt;T&gt; = {{ '{' }}
-  [K in keyof T as T[K] extends Function ? K : never]: T[K]
-{{ '}' }};
-// keeps only the keys whose VALUE type is a function</pre>
-  </div>
-  <ul>
-    <li>
-      <code>as</code> after the loop variable rewrites the key. The template literal builds the new name;
-      <code>string &amp; K</code> is a formality that drops rare symbol keys so Capitalize gets a string.
-    </li>
-    <li>
-      The <code>never</code>-drop idiom is the type-level <code>filter()</code> — it combines a mapped type (the loop)
-      with a conditional type (the test), which is your cue for the next section.
-    </li>
-  </ul>
+    <p>
+      That's it. No hidden compiler hook, no special-casing — just a loop, spelled with square brackets instead of
+      <code>for</code>. Once you can read that line, you can read (and write) every mapped and conditional type on this
+      page, including the ones the standard library doesn't happen to ship.
+    </p>
 
-  <h2>Conditional types — if/else in the compiler</h2>
-  <div class="code">
-    <pre>
-type IsString&lt;T&gt; = T extends string ? 'yes' : 'no';
-//                 └────── the test ──────┘  └ true ┘ └ false ┘
-type A = IsString<'hi'>;   // 'yes'
-type B = IsString<42>;     // 'no'</pre>
-  </div>
-  <p>
-    <code>extends</code> here means <span class="key">"is assignable to"</span> — the same compatibility question the
-    checker asks at every assignment, now used as a branch condition. And <code>infer</code> adds
-    <span class="term">pattern-matching</span>: name a part of the matched shape and reuse it in the true branch. Think
-    of <code>infer U</code> as a <strong>regex capture group</strong>. In <code>/^Promise&lt;(.+)&gt;$/</code> the
-    parentheses say <em>"match anything here, and remember what it was so I can use it"</em>;
-    <code>T extends Promise&lt;infer U&gt;</code> says exactly that about a type, and <code>U</code> is the captured
-    group:
-  </p>
-  <div class="code">
-    <pre>
-type ElementType&lt;T&gt; = T extends (infer U)[] ? U : T;
-//                              └── "if T matches the pattern something[],
-//                                   call that something U and return it"
-type C = ElementType&lt;number[]&gt;;    // number
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      That loop reads:
+      <em
+        >"for every key <code>K</code> of <code>T</code>, produce an optional property <code>K</code> whose type is
+        whatever <code>T</code> had at <code>K</code>."</em
+      >
+      Fine for an object. So what does <code>Partial&lt;string[]&gt;</code> become — an object with <code>0?</code>,
+      <code>length?</code>, <code>push?</code> and the rest of the array's methods, all optional? Or something else
+      entirely? Hold that guess. The answer, and why it fools almost everyone, is a few sections down.
+    </app-napkin>
+  </section>
 
-type Unwrap&lt;T&gt;     = T extends Promise&lt;infer V&gt; ? V : T;   // how Awaited works
-type MyReturn&lt;T&gt;   = T extends (...args: never[]) => infer R ? R : never;
-//                                                     └── how ReturnType works</pre>
-  </div>
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Four features. That's the whole language.</h2>
 
-  <h2>Step through real evaluations</h2>
-  <div class="demo">
-    <p class="demo__title">Live — watch the compiler "run" a type</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (c of cases; track c.label) {
-        <button [class.ghost]="active() !== c" (click)="select(c)">{{ c.label }}</button>
+    <p>
+      Everything below is built from four moves, each one a compile-time stand-in for something you already do at
+      runtime. Pin them down now and every later section is just one of these four, applied to a new problem.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Mapped type" kicker="[K in keyof T]" tone="gold">
+        Loops over every key of <code>T</code>, producing a new object type — one pass, one new property per key.
+      </app-tape-card>
+      <app-tape-card heading="Conditional type" kicker="T extends U ? X : Y" tone="accent">
+        An if/else the compiler evaluates. Fed a bare type parameter and a union, it can run once <em>per member</em>.
+      </app-tape-card>
+      <app-tape-card heading="infer" kicker="infer V" tone="olive">
+        Pattern-matching for types: name a piece of a matched shape, then reuse it in the branch that matched.
+      </app-tape-card>
+      <app-tape-card heading="Template literal type" [kicker]="templateLiteralSyntax" tone="blue">
+        String interpolation for types — and, matched the other way round, a way to <em>parse</em> a string apart.
+      </app-tape-card>
+    </div>
+
+    <app-remember>
+      Loop, test, capture, build. Every mapped type is a <strong>loop</strong>, every conditional type is a
+      <strong>test</strong>, every <code>infer</code> is a <strong>capture</strong>, and every template literal type
+      <strong>builds</strong> a new string. Whatever you're staring at below, it's one of these four.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. MAPPED TYPES — THE LOOP ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A mapped type is a loop, spelled with square brackets.</h2>
+
+    <p>The anatomy, one piece at a time:</p>
+
+    <div class="code">
+      <pre>{{ anatomySample }}</pre>
+    </div>
+
+    <p>
+      Read it aloud:
+      <em>"for every key K of T, produce an optional property K whose type is whatever T had at K."</em> The modifiers
+      can also be <span class="term">removed</span>, with a minus sign in front of them:
+    </p>
+
+    <app-code-lab
+      file="modifiers.ts"
+      [code]="modifiersSample"
+      [notes]="modifiersNotes"
+      notesLabel="Adding and stripping modifiers"
+    />
+  </section>
+
+  <!-- ============ 4. HOMOMORPHIC VS NON-HOMOMORPHIC ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam trap</p>
+    <h2>Some mapped types copy the shape you gave them. Most don't.</h2>
+
+    <p>
+      Every mapped type you've seen so far was written <code>[K in keyof T]</code>, with <code>T</code> sitting there
+      completely bare. That specific shape has a name — <span class="term">homomorphic</span> — and it isn't just
+      trivia: TypeScript special-cases it. A homomorphic mapped type <strong>copies the input's own structure</strong>
+      instead of building a fresh object from scratch. An array stays an array. A tuple stays a tuple, arity and all. A
+      plain object is the only input that still comes out as a plain object.
+    </p>
+
+    <p>
+      The moment the loop stops being exactly <code>[K in keyof T]</code> — a renamed key, a filtered key, a loop over
+      some other type parameter entirely — that special case switches off, and you get an ordinary object back, no
+      matter what went in.
+    </p>
+
+    <app-compare
+      leftTitle="Homomorphic — T is bare"
+      rightTitle="Non-homomorphic — a fresh key union"
+      note="Same word, `keyof`, doing two different jobs: on the left it's the trigger for the special case; on the right it never appears at all."
+    >
+      <div left>
+        <div class="code">
+          <pre>type Optional&lt;T&gt; = {{ '{' }} [K in keyof T]?: T[K] {{ '}' }};</pre>
+        </div>
+        <p><code>T</code> appears bare inside <code>keyof T</code>. Whatever shape you feed it comes back out.</p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>type Flagged&lt;K extends PropertyKey&gt; = {{ '{' }} [P in K]: boolean {{ '}' }};</pre>
+        </div>
+        <p><code>K</code> is its own type parameter — <code>T</code> is nowhere to be found. Always a plain object.</p>
+      </div>
+    </app-compare>
+
+    <p>Resolved against a tuple, the difference stops being abstract:</p>
+
+    <app-code-lab
+      file="homomorphic.ts"
+      [code]="homomorphicSample"
+      [notes]="homomorphicNotes"
+      notesLabel="Why the two results look nothing alike"
+    />
+
+    <app-quiz
+      [question]="homomorphicQuizQuestion"
+      [options]="homomorphicQuiz"
+      followUp="The live bench further down has this exact case — step through it there to watch the mechanism in slow motion."
+    />
+  </section>
+
+  <!-- ============ 5. KEY REMAPPING ============ -->
+  <section>
+    <p class="bf-eyebrow">Renaming and filtering keys</p>
+    <h2>The <code>as</code> clause: rename a key, or delete it entirely.</h2>
+
+    <p>
+      Adding <code>as</code> right after the loop variable lets you rewrite the key a mapped type produces — and
+      remapping a key to <code>never</code> is a two-line filter, because a property can't exist under a type with no
+      values:
+    </p>
+
+    <app-code-lab
+      file="key-remap.ts"
+      [code]="keyRemapSample"
+      [notes]="keyRemapNotes"
+      notesLabel="Rename, then filter"
+    />
+  </section>
+
+  <!-- ============ 6. CONDITIONAL TYPES ============ -->
+  <section>
+    <p class="bf-eyebrow">If/else, but in the compiler</p>
+    <h2>A conditional type is a ternary that runs on types.</h2>
+
+    <app-code-lab
+      file="is-string.ts"
+      [code]="conditionalBasicsSample"
+      [notes]="conditionalBasicsNotes"
+      notesLabel="What extends actually means"
+    />
+  </section>
+
+  <!-- ============ 7. INFER ============ -->
+  <section>
+    <p class="bf-eyebrow">Pattern matching</p>
+    <h2><code>infer</code> is destructuring, for types.</h2>
+
+    <p>
+      <code>extends</code> alone can only ask yes/no. Add <code>infer</code> inside the pattern and you can name a piece
+      of whatever matched, then reuse it in the true branch — which is exactly how the standard library's own
+      <code>Awaited</code> and <code>ReturnType</code> are built:
+    </p>
+
+    <app-code-lab file="infer.ts" [code]="inferSample" [notes]="inferNotes" notesLabel="Naming the part you matched" />
+
+    <p>
+      Because a conditional type can reference itself, <code>infer</code> and recursion combine to peel a nested
+      structure apart one layer at a time:
+    </p>
+
+    <div class="code">
+      <pre>{{ deepUnwrapSample }}</pre>
+    </div>
+
+    <app-layers
+      [core]="deepUnwrapCore"
+      [rings]="deepUnwrapRings"
+      arrow="DeepUnwrap<T> peels inward"
+      caption="Each call matches `Promise<infer V>`, discards one wrapper, and calls itself on `V`. Three calls in, the pattern stops matching a `Promise` at all — that's the **base case** — and `T` returns unchanged, straight back out through every layer it went in through."
+    />
+  </section>
+
+  <!-- ============ 8. DISTRIBUTION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The semantics nobody explains</p>
+    <h2>Feed a conditional a union, and it runs once per member.</h2>
+
+    <p>
+      When the checked type is a <strong>bare type parameter</strong> and you instantiate it with a union, the
+      conditional doesn't run once over the whole union — it runs once <em>per member</em>, and the results are
+      reassembled into a new union. That's the rule that makes a one-line filter over a union work at all:
+    </p>
+
+    <app-bubbles
+      [turns]="distributionTalk"
+      caption="`Exclude<'a' | 'b' | 'c', 'b'>`, run the way the compiler actually runs it — one member at a time."
+    />
+
+    <p>
+      Distribution runs <span class="term">however the union was spelled</span> — even when you didn't spell it as a
+      union yourself. <code>boolean</code> is secretly <code>true | false</code>, so
+      <code>Exclude&lt;boolean, true&gt;</code> distributes over both members and comes out as <code>false</code>, not
+      <code>never</code>. A tidy proof that distribution operates on the union's actual members, not on how confident
+      you feel that <code>T</code> "isn't really a union."
+    </p>
+
+    <p>
+      When you <em>don't</em> want that — when <code>T</code> should be treated as one whole union, not iterated — wrap
+      both sides in a one-element tuple. A tuple is no longer a bare type parameter, so the special case never fires:
+    </p>
+
+    <app-compare leftTitle="Distributive — T is bare" rightTitle="Non-distributive — T is wrapped">
+      <div left>
+        <div class="code">
+          <pre>{{ distributiveSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ nonDistributiveSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      <strong>Distribution's sharp edge:</strong> <code>never</code> is the empty union — zero members to iterate over —
+      so a distributive conditional fed <code>never</code> returns <code>never</code> itself, no matter what either
+      branch says. <code>IsNever&lt;T&gt; = T extends never ? true : false</code> famously evaluates to
+      <code>never</code>, not <code>true</code>. The fix is the same tuple wrap: <code>[T] extends [never]</code>.
+    </div>
+
+    <app-remember variant="rule">
+      A <strong>bare</strong> type parameter distributes over a union — the conditional runs once per member. Wrap both
+      sides in a one-element tuple, <code>[T] extends [U]</code>, and it runs once, on the union as a whole.
+    </app-remember>
+
+    <p>
+      <code>never</code> is the edge case where a distributive conditional sees <em>too little</em>. There's a mirror
+      trap on the other side, where it sees <span class="bf-break">too much</span>:
+    </p>
+
+    <app-predict
+      prompt="type Weird<T> = T extends string ? 1 : T extends number ? 2 : 3; — what is Weird<any>? (It isn't just one of 1, 2 or 3.)"
+      [code]="weirdAnySample"
+      answer="`1 | 2 | 3` — every branch, not just the outer two. `any` in the checked position makes the conditional return the union of its true and false branches instead of testing anything — and the false branch here is ANOTHER conditional, so the same rule fires one level down, adding the `2 | 3` from inside it. `any` doesn't pick a path through nested conditionals; it takes all of them."
+      revealLabel="Reveal what any actually does"
+    />
+
+    <p>
+      That's a trap when you stumble into it by accident. Aimed on purpose, the exact same behaviour becomes a detector
+      — the standard idiom for asking "is this type literally <code>any</code>?":
+    </p>
+
+    <app-code-lab
+      file="is-any.ts"
+      [code]="anyEdgeSample"
+      [notes]="anyEdgeNotes"
+      notesLabel="Why this one avoids the trap above"
+    />
+
+    <app-quiz
+      question="type OnlyString<T> = T extends string ? 'str' : 'not-str'; — what is OnlyString<any>?"
+      [options]="anyEdgeQuiz"
+    />
+  </section>
+
+  <!-- ============ 9. THE LIVE BENCH ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Now you try it</p>
+    <h2>Step through real evaluations.</h2>
+
+    <p>
+      Six cases, the same six ideas you just read about. The last two are the two "gotcha" results from this page — step
+      through them by hand before you scroll back up to check yourself.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — watch the compiler "run" a type</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (c of cases; track c.label) {
+          <button type="button" [class.ghost]="active() !== c" (click)="select(c)">{{ c.label }}</button>
+        }
+      </div>
+      @if (active(); as c) {
+        <div class="code">
+          <pre>{{ c.expr }}</pre>
+        </div>
+        <ol class="steps">
+          @for (s of c.steps; track $index; let i = $index) {
+            @if (i <= step()) {
+              <li [class.now]="i === step()">{{ s }}</li>
+            }
+          }
+        </ol>
+        <div class="row" style="margin: 8px 0">
+          <button type="button" (click)="nextStep()" [disabled]="step() >= c.steps.length - 1">Step →</button>
+          <button type="button" class="ghost" (click)="step.set(0)">Restart</button>
+        </div>
+        @if (step() >= c.steps.length - 1) {
+          <p style="color: var(--bf-olive)">
+            result: <code>{{ c.result }}</code>
+          </p>
+        }
       }
     </div>
-    @if (active(); as c) {
-      <div class="code">
-        <pre>{{ c.expr }}</pre>
-      </div>
-      <ol class="steps">
-        @for (s of c.steps; track $index; let i = $index) {
-          @if (i <= step()) {
-            <li [class.now]="i === step()">{{ s }}</li>
-          }
-        }
-      </ol>
-      <div class="row" style="margin: 8px 0">
-        <button (click)="nextStep()" [disabled]="step() >= c.steps.length - 1">Step →</button>
-        <button class="ghost" (click)="step.set(0)">Restart</button>
-      </div>
-      @if (step() >= c.steps.length - 1) {
-        <p style="color: var(--green)">
-          result: <code>{{ c.result }}</code>
+  </section>
+
+  <!-- ============ 10. TEMPLATE LITERAL TYPES — BUILDING ============ -->
+  <section>
+    <p class="bf-eyebrow">String-building for types</p>
+    <h2>Template literal types: string interpolation the compiler can see through.</h2>
+
+    <div class="code">
+      <pre>{{ templateBasicsSample }}</pre>
+    </div>
+
+    <p>Combine one with key remapping and you can type a whole API surface from a single object shape:</p>
+
+    <app-code-lab
+      file="handlers.ts"
+      [code]="handlersSample"
+      [notes]="handlersNotes"
+      notesLabel="Two earlier features, composed"
+    />
+  </section>
+
+  <!-- ============ 11. TEMPLATE LITERAL TYPES — PARSING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The half nobody shows you</p>
+    <h2>A template literal type can take a string apart, too.</h2>
+
+    <p>
+      Building a string is the easy half. The half that earns the feature — and the half interviews actually ask about —
+      is <span class="term">matching</span>: given a route like <code>'/users/:id/posts/:postId'</code>, pull every
+      <code>:param</code> segment out as a union of string literals, entirely at the type level.
+    </p>
+
+    <app-code-lab
+      file="params.ts"
+      [code]="paramsSample"
+      [notes]="paramsNotes"
+      notesLabel="Peeling one path segment at a time"
+    />
+
+    <p>
+      The same trick, walked over an object's own keys instead of a URL's segments, is how a type-safe deep getter —
+      <code>get(obj, 'address.city')</code> — infers what its own return type should be.
+    </p>
+
+    <p>
+      One more power move while <code>infer</code> is fresh: it can also capture from a
+      <span class="term">parameter position</span>, which — because parameters are checked contravariantly — turns a
+      union into an <strong>intersection</strong> instead of leaving it a union:
+    </p>
+
+    <app-code-lab
+      file="union-to-intersection.ts"
+      [code]="unionToIntersectionSample"
+      [notes]="unionToIntersectionNotes"
+      notesLabel="Distribute into functions, then let infer intersect them"
+    />
+  </section>
+
+  <!-- ============ 12. WHEN TYPE PROGRAMS GO WRONG ============ -->
+  <section>
+    <p class="bf-eyebrow">Failure modes</p>
+    <h2>Recursion has a depth limit, and one shape of it hits sooner.</h2>
+
+    <app-predict
+      prompt="type Naive<N extends number, R extends unknown[] = []> = R['length'] extends N ? R : [...Naive<N, [...R, unknown]>]; — will type Big = Naive<200>; compile?"
+      [code]="naiveRecursionSample"
+      answer="No — `error TS2589: Type instantiation is excessively deep and possibly infinite.` The recursive call isn't the direct result of a branch; it's wrapped inside a spread (`[...Naive<N, [...R, unknown]>]`), so the compiler has to keep every pending frame alive while it works through 200 levels, and gives up. Move the recursive call into tail position — make it the WHOLE branch, not part of one — and the identical-looking type sails through instead."
+      revealLabel="Reveal whether it compiles"
+    />
+
+    <p>
+      The only difference between the version that fails and the version that doesn't is where the recursive call sits:
+    </p>
+
+    <app-compare
+      leftTitle="Not tail-recursive"
+      leftTone="bad"
+      rightTitle="Tail-recursive"
+      rightTone="good"
+      note="TypeScript (since 4.5) recognises a recursive call that IS the branch's return value and reuses the frame instead of stacking it — so the right-hand version tolerates a far deeper count before it gives up."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ naiveRecursionSample }}</pre>
+        </div>
+        <p>
+          The recursive call is wrapped inside a spread before it's returned — every pending frame has to stay alive.
         </p>
-      }
-    }
-  </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ tailRecursionSample }}</pre>
+        </div>
+        <p>The recursive call <em>is</em> the branch — nothing wraps it, so the compiler can reuse the frame.</p>
+      </div>
+    </app-compare>
 
-  <h2>Distribution — the semantics that make Exclude work</h2>
-  <p>
-    The fourth case above hinges on a rule worth stating precisely: when the checked type is a
-    <span class="term">bare type parameter</span> and you instantiate it with a union, the conditional maps over each
-    member and unions the results. Here is that split-and-rejoin, drawn:
-  </p>
+    <p>
+      Deep type programs have a second, cosmetic failure mode: hover one and your editor shows an unreadable pile of
+      intersected utility types instead of the plain object you were expecting. One more mapped type fixes it:
+    </p>
 
-  <svg class="diagram" viewBox="0 0 760 250" role="img" aria-labelledby="dist-t dist-d">
-    <title id="dist-t">How a distributive conditional evaluates a union</title>
-    <desc id="dist-d">
-      The union 'a' | 'b' | 'c' splits into three separate evaluations of "extends 'b' ? never : T". The 'a' and 'c'
-      branches survive; the 'b' branch becomes never. The three results are unioned back together, and because never
-      contributes nothing, the final type is 'a' | 'c'.
-    </desc>
-    <defs>
-      <marker id="dist-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
+    <app-code-lab
+      file="prettify.ts"
+      [code]="prettifySample"
+      [notes]="prettifyNotes"
+      notesLabel="Forcing the compiler to flatten what it shows you"
+    />
+  </section>
 
-    <!-- the input union -->
-    <rect x="8" y="98" width="150" height="54" rx="8" fill="var(--bg-elevated)" stroke="var(--border)" />
-    <text x="83" y="120" text-anchor="middle" font-size="13" font-family="monospace" fill="var(--text)">
-      'a' | 'b' | 'c'
-    </text>
-    <text x="83" y="139" text-anchor="middle" font-size="11" fill="var(--text-muted)">the union goes in</text>
+  <!-- ============ 13. REBUILD THE STANDARD LIBRARY ============ -->
+  <section>
+    <p class="bf-eyebrow">The classic interview exercise</p>
+    <h2>Every utility type you've ever imported, derived from scratch.</h2>
 
-    <!-- split fan -->
-    <g fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#dist-arrow)">
-      <path d="M 162 118 C 200 118 200 45 236 45" />
-      <path d="M 162 125 L 236 125" />
-      <path d="M 162 132 C 200 132 200 205 236 205" />
-    </g>
-    <text x="199" y="94" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">split</text>
+    <app-code-lab
+      file="rebuild.ts"
+      [code]="rebuildStdlibSample"
+      [notes]="rebuildStdlibNotes"
+      notesLabel="Eight one-liners, eight ideas from this page"
+    />
 
-    <!-- three parallel evaluations -->
-    <g font-size="12" font-family="monospace">
-      <rect x="240" y="22" width="230" height="46" rx="8" fill="var(--bg-card)" stroke="var(--border)" />
-      <text x="255" y="50" fill="var(--text)">'a' extends 'b' ? never : 'a'</text>
+    <p>
+      Notice <code>MyOmit</code>: it's <code>Pick</code> of (<code>keyof T</code> minus <code>K</code>) — utility types
+      compose exactly like functions. Being able to derive these on a whiteboard is a common senior interview
+      checkpoint, and now each one is a line you understand rather than a line you memorised.
+    </p>
 
-      <rect x="240" y="102" width="230" height="46" rx="8" fill="var(--bg-card)" stroke="var(--border)" />
-      <text x="255" y="130" fill="var(--text)">'b' extends 'b' ? never : 'b'</text>
-
-      <rect x="240" y="182" width="230" height="46" rx="8" fill="var(--bg-card)" stroke="var(--border)" />
-      <text x="255" y="210" fill="var(--text)">'c' extends 'b' ? never : 'c'</text>
-    </g>
-
-    <!-- per-member results -->
-    <g stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#dist-arrow)">
-      <line x1="474" y1="45" x2="516" y2="45" />
-      <line x1="474" y1="125" x2="516" y2="125" />
-      <line x1="474" y1="205" x2="516" y2="205" />
-    </g>
-    <g font-size="14" font-family="monospace" font-weight="600">
-      <text x="524" y="50" fill="var(--green)">'a'</text>
-      <text x="524" y="130" fill="var(--red)">never</text>
-      <text x="524" y="210" fill="var(--green)">'c'</text>
-    </g>
-    <text x="570" y="130" font-size="11" fill="var(--text-muted)">← contributes nothing</text>
-
-    <!-- rejoin -->
-    <g fill="none" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#dist-arrow)">
-      <path d="M 556 45 C 620 45 620 108 664 108" />
-      <path d="M 596 205 C 640 205 640 152 664 152" />
-    </g>
-    <rect x="668" y="98" width="86" height="54" rx="8" fill="var(--bg-elevated)" stroke="var(--accent)" />
-    <text x="711" y="122" text-anchor="middle" font-size="13" font-family="monospace" fill="var(--text)">
-      'a' | 'c'
-    </text>
-    <text x="711" y="141" text-anchor="middle" font-size="11" fill="var(--accent)" font-weight="600">rejoin</text>
-  </svg>
-
-  <p>
-    That's why one-line filters over unions work at all. When you <em>don't</em> want the split, wrap both sides in a
-    one-element tuple — matching a non-bare pattern disables distribution:
-  </p>
-  <div class="code">
-    <pre>
-type ToArray&lt;T&gt;  = T extends unknown ? T[] : never;
-type ToArrayND&lt;T&gt; = [T] extends [unknown] ? T[] : never;   // ND = non-distributive
-
-ToArray&lt;string | number&gt;    // string[] | number[]   (per member)
-ToArrayND&lt;string | number&gt;  // (string | number)[]   (union kept whole)</pre>
-  </div>
-  <app-remember variant="rule" label="The distribution rule">
-    <strong>Bare distributes. Bracketed doesn't.</strong> If the thing on the left of <code>extends</code> is a
-    <em>naked</em> type parameter — just <code>T</code>, nothing around it — a union fed into it gets split, evaluated
-    member by member, and re-unioned. Put brackets round both sides (<code>[T] extends [U]</code>) and the union is
-    checked whole, in one pass.
-  </app-remember>
-
-  <p>
-    Now the edge case that catches everyone, including people who already know the rule above. Read this and commit to
-    an answer before you open it:
-  </p>
-
-  <app-predict
-    prompt="What is `B` — the type of `IsNever<never>`? It looks like it has to be `true`."
-    [code]="isNeverSample"
-    answer="`B` is **`never`**, not `true`. Distribution is defined as *iterating the members of the union*, and `never` is the **empty** union — the union with no members at all. So there is nothing to iterate: the conditional never runs, neither branch is taken, and the result is `never` by default. Your `true` and `false` branches are simply never reached. The fix is to stop the distribution so the type is checked whole: `type IsNever<T> = [T] extends [never] ? true : false`. Remember this shape — it is a classic interview question precisely because the intuitive answer is wrong."
-    revealLabel="Reveal what B actually is"
-  />
-
-  <div class="warn">
-    <span class="wrong">Distribution's sharp edge:</span> because <code>never</code> is the empty union,
-    <em>any</em> distributive conditional over <code>never</code> collapses to <code>never</code>, whatever your
-    branches say. The fix is always the same tuple wrap.
-    <span class="key">If a conditional type ever behaves "impossibly", suspect distribution first.</span>
-  </div>
-
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="Given `type ToArray<T> = T extends unknown ? T[] : never`, what is `ToArray<string | number>`?"
-    [options]="quizOptions"
-    followUp="The tell is the bare `T` on the left of `extends`. Cover the right-hand side of any conditional type and look only at what sits left of the keyword — that alone decides whether a union gets split."
-  />
-
-  <h2>Template literal types — string building for types</h2>
-  <div class="code">
-    <pre>
-type EventName = `on${{ '{' }}Capitalize&lt;'click' | 'hover'&gt;{{ '}' }}`;
-//   unions inside a template DISTRIBUTE combinatorially:
-//   → 'onClick' | 'onHover'
-
-type Px = `${{ '{' }}number{{ '}' }}px`;     // matches '4px', '12.5px' — any number then px
-type Route = `/users/${{ '{' }}string{{ '}' }}`;   // constrain string patterns
-
-// with key remapping, this types whole API surfaces from data:
-type Handlers&lt;T&gt; = {{ '{' }} [K in keyof T as `on${{ '{' }}Capitalize&lt;string &amp; K&gt;{{
-        '}'
-      }}Change`]: (v: T[K]) => void {{ '}' }};
-// Handlers&lt;{{ '{' }}name: string; age: number{{ '}' }}&gt;
-//   → {{ '{' }} onNameChange: (v: string) => void; onAgeChange: (v: number) => void {{ '}' }}</pre>
-  </div>
-
-  <h2>Rebuild the standard library (the classic interview exercise)</h2>
-  <div class="code">
-    <pre>
-type MyPartial&lt;T&gt;  = {{ '{' }} [K in keyof T]?: T[K] {{ '}' }};
-type MyRequired&lt;T&gt; = {{ '{' }} [K in keyof T]-?: T[K] {{ '}' }};
-type MyReadonly&lt;T&gt; = {{ '{' }} readonly [K in keyof T]: T[K] {{ '}' }};
-type MyPick&lt;T, K extends keyof T&gt; = {{ '{' }} [P in K]: T[P] {{ '}' }};   // loop over the CHOSEN keys
-type MyExclude&lt;T, U&gt; = T extends U ? never : T;              // distribution does the work
-type MyOmit&lt;T, K extends PropertyKey&gt; = MyPick&lt;T, MyExclude&lt;keyof T, K&gt;&gt;;  // compose!
-type MyRecord&lt;K extends PropertyKey, V&gt; = {{ '{' }} [P in K]: V {{ '}' }};
-type MyReturnType&lt;T&gt; = T extends (...a: never[]) => infer R ? R : never;</pre>
-  </div>
-  <p>
-    Notice <code>MyOmit</code>: it's <code>Pick</code> of (<code>keyof T</code> minus <code>K</code>) — utility types
-    compose like functions. Being able to derive these on a whiteboard is a common senior interview checkpoint, and now
-    each one is a one-liner you understand.
-  </p>
-
-  <div class="warn">
-    Power budget: in <em>app</em> code you should mostly consume the built-in utilities; write custom mapped/conditional
-    types when you're building <strong>reusable libraries or framework-level helpers</strong> (typed form builders, API
-    clients, event maps). A type that takes minutes to understand costs every reader those minutes forever — same
-    code-review rules as clever runtime code.
-  </div>
-
-  <app-faq [items]="questions" heading="There are no dumb questions" />
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Write <code>OptionalKeys&lt;T&gt;</code>: the union of T's optional key names.</summary>
-    <div>
+    <p>
+      One more idiom worth having ready: collecting a union of a type's own optional key <em>names</em>.
       <code
         >type OptionalKeys&lt;T&gt; = {{ '{' }} [K in keyof T]-?: undefined extends T[K] ? K : never {{ '}' }}[keyof
         T]</code
-      >. The mapped type writes each key's name (or never) as its value, and indexing by <code>[keyof T]</code> unions
-      the values — the standard "map keys to answers, then collect" idiom. (The <code>undefined extends T[K]</code> test
-      detects optionality.)
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>Exclude&lt;boolean, true&gt;</code> give <code>false</code>?</summary>
-    <div>
-      <code>boolean</code> is secretly the union <code>true | false</code>, so distribution runs the conditional per
-      member: <code>true</code> is excluded, <code>false</code> survives. A nice proof that distribution operates on the
-      union's members, however the union was spelled.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      What does <code>keyof T</code> return for <code>T = {{ '{' }} a: 1 {{ '}' }} | {{ '{' }} b: 2 {{ '}' }}</code
-      >, and why?
-    </summary>
-    <div>
-      <code>never</code> — keyof a union is the keys present on <em>every</em> member (a value of T might be either
-      shape, so only shared keys are safe), and these share none. Corollary: mapped types over unions of different
-      shapes don't do what people first expect; distribute first with a conditional if you need per-member mapping.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Implement <code>Awaited</code>-lite: unwrap nested promises (<code>Promise&lt;Promise&lt;T&gt;&gt;</code> →
-      <code>T</code>).
-    </summary>
-    <div>
-      Recursion — conditional types may reference themselves:
-      <code>type DeepUnwrap&lt;T&gt; = T extends Promise&lt;infer V&gt; ? DeepUnwrap&lt;V&gt; : T</code>. Each match
-      peels one Promise layer and recurses until the pattern stops matching. (The real <code>Awaited</code> adds
-      thenable handling, but this is its skeleton.)
-    </div>
-  </details>
+      >
+      — the mapped type writes each key's own name (or <code>never</code>) as its <strong>value</strong>, and indexing
+      the whole thing by <code>[keyof T]</code> unions every value together. Map to answers, then collect — the same
+      two-step shape shows up all over library-internals types.
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      The type system is a language: mapped types are loops over <code>keyof</code>, conditionals are if/else,
-      <code>infer</code> is pattern-match capture, template literals are string interpolation.
-    </li>
-    <li>
-      Mapped anatomy: <code>[K in keyof T](modifiers): T[K]</code>, with <code>?</code>/<code>readonly</code> addable or
-      strippable (<code>-</code>), and <code>as</code> to rename — or drop via <code>never</code>.
-    </li>
-    <li>
-      Bare-parameter conditionals <strong>distribute</strong> over unions (how <code>Exclude</code> works); wrap in
-      <code>[T]</code> tuples to opt out, and remember the <code>never</code> edge case.
-    </li>
-    <li>
-      Every built-in utility is a one-liner you can now derive —
-      <code>Omit = Pick&lt;T, Exclude&lt;keyof T, K&gt;&gt;</code>; they compose.
-    </li>
-    <li>Reach for hand-written type programs in libraries and helpers, not everyday app code.</li>
-  </ul>
+    <div class="tip">
+      <strong>Power budget:</strong> in <em>application</em> code you should mostly consume the built-in utilities;
+      write custom mapped/conditional types when you're building
+      <strong>reusable libraries or framework-level helpers</strong> (typed form builders, API clients, event maps). A
+      type that takes minutes to understand costs every reader those minutes forever — same code-review rules as clever
+      runtime code.
+    </div>
+  </section>
 
-  <p><a routerLink="/ts-decorators">Next: Decorators →</a></p>
+  <!-- ============ 14. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 15. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>One vocabulary, five words.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        The runtime idiom on the left; its compile-time twin on the right
+      </caption>
+      <thead>
+        <tr>
+          <th>In your code</th>
+          <th>In the type system</th>
+          <th>What it looks like</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>a <code>for...of</code> loop</td>
+          <td>a mapped type</td>
+          <td><code>[K in keyof T]</code></td>
+        </tr>
+        <tr>
+          <td>an <code>if</code>/<code>else</code></td>
+          <td>a conditional type</td>
+          <td><code>T extends U ? X : Y</code></td>
+        </tr>
+        <tr>
+          <td>destructuring assignment</td>
+          <td><code>infer</code></td>
+          <td><code>infer V</code></td>
+        </tr>
+        <tr>
+          <td>string interpolation</td>
+          <td>a template literal type</td>
+          <td>
+            <code>{{ templateLiteralSyntax }}</code>
+          </td>
+        </tr>
+        <tr>
+          <td>a function calling itself</td>
+          <td>a self-referencing conditional type</td>
+          <td><code>Params&lt;R&gt;</code> inside <code>Params&lt;S&gt;</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 16. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        The type system is a language: mapped types are loops over <code>keyof</code>, conditionals are if/else,
+        <code>infer</code> is pattern-match capture, template literals are string interpolation — and can parse a string
+        apart just as well as they build one.
+      </li>
+      <li>
+        <strong>Homomorphic mapped types copy structure.</strong> Only the exact shape <code>[K in keyof T]</code>, with
+        <code>T</code> bare, preserves arrays and tuples — every other mapped type produces a plain object, always.
+      </li>
+      <li>
+        Bare-parameter conditionals <strong>distribute</strong> over unions (how <code>Exclude</code> works); wrap in
+        <code>[T]</code> tuples to opt out. <code>never</code> distributes to nothing; <code>any</code> in the checked
+        position takes every branch at once.
+      </li>
+      <li>
+        A recursive conditional type has a depth limit — and hits it far sooner when the recursive call isn't the direct
+        result of a branch. Keep the call in tail position.
+      </li>
+      <li>
+        Every built-in utility is a one-liner you can now derive —
+        <code>Omit = Pick&lt;T, Exclude&lt;keyof T, K&gt;&gt;</code> — and they compose. Reach for hand-written type
+        programs in libraries and helpers, not everyday app code.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-decorators">Next: Decorators →</a></p>
+  </section>
 </article>

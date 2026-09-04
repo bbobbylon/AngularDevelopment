@@ -1,328 +1,525 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Components &amp; Templates</span>
-  <h1>View Queries</h1>
-  <p class="lead">
-    View queries give a component a typed handle to elements, directives or child components in
-    <em>its own</em> template. The modern signal queries — <code>viewChild()</code> and <code>viewChildren()</code> —
-    return signals that re-resolve as the view changes, so you read them like any other signal.
-  </p>
-
-  <h2>Signal queries</h2>
-  <div class="code">
-    <pre>{{ apiSample }}</pre>
-  </div>
-
-  <h2>Focus &amp; fill via viewChild()</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="field" style="margin-bottom: 12px">
-      <input
-        aria-label="I get focused & filled programmatically"
-        #box
-        placeholder="I get focused & filled programmatically"
-        style="width: 340px"
-      />
-    </div>
-    <div class="row" style="margin-bottom: 14px">
-      <button (click)="focusBox()">Focus via viewChild()</button>
-      <button class="ghost" (click)="fillBox()">Set value</button>
-    </div>
-
-    <p>Three queried rows:</p>
-    <p #item class="pill">Row A</p>
-    <p #item class="pill">Row B</p>
-    <p #item class="pill">Row C</p>
-    <div class="row" style="margin-top: 10px">
-      <span class="pill">viewChildren() sees: {{ rows().length }} rows</span>
-    </div>
-  </div>
-
-  <h2>Queries re-resolve reactively</h2>
-  <p>
-    This is the headline difference from the old decorator form. A signal query tracks the view: put the target inside
-    an <code>&#64;if</code> and the signal is <code>undefined</code> until it renders, then updates the moment it
-    appears or disappears. No <code>ngAfterViewInit</code>, no manual re-check:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — watch the signal flip</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="showTarget.update((v) => !v)">{{ showTarget() ? 'Remove' : 'Render' }} the target</button>
-      <span class="pill" [style.color]="target() ? 'var(--green)' : 'var(--text-muted)'">
-        target() = {{ target() ? 'ElementRef ✓' : 'undefined' }}
-      </span>
-    </div>
-    @if (showTarget()) {
-      <input aria-label="queried element" #target placeholder="queried element" style="width: 340px" />
-    }
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      The query result is driven by the view. An <code>effect()</code> logging <code>target()</code> would fire each
-      time it resolves or clears — reacting to view changes is a one-liner.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Intermediate · Components &amp; Templates"
+    title="View Queries"
+    hand="or, how a component reaches into a template it just handed to the browser"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      A view query is how a component reaches back into <em>its own</em> template from code — grabbing an element to
+      focus, a child component to call a method on, a list of rendered rows to count. The modern form,
+      <code>viewChild()</code>/<code>viewChildren()</code>, returns ordinary signals: they read
+      <code>undefined</code> (or <code>[]</code>) until the view resolves, then update live as the view changes. Three
+      questions answer almost everything about them — <strong>what</strong> a query can find, <strong>when</strong> it's
+      safe to read, and <strong>how far</strong> it reaches — and this page keeps coming back to the same three, with a
+      live demo proving each answer and the two runtime errors, <code>NG0951</code> and <code>NG0100</code>, shown for
+      what they actually are.
     </p>
-    <p class="pill">effect log: {{ effectLog() }}</p>
-  </div>
+  </app-chapter>
 
-  <p>
-    Think of a signal query as a <strong>security camera pointed at one spot in the template</strong>, not a photograph
-    taken once. Point the camera at a doorway that's currently empty and it reports "nothing there"; the moment someone
-    walks through, the live feed updates itself — nobody has to walk over and re-point the camera. That's
-    <code>viewChild()</code>. The old decorator query was a single photograph, snapped once after the view finished
-    building: accurate at that instant, frozen forever after, blind to anyone who walks in or out later.
-  </p>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Your template is data. Sometimes you need it to be a handle instead.</h2>
 
-  <svg class="diagram" viewBox="0 0 760 210" role="img" aria-labelledby="vq-t vq-d">
-    <title id="vq-t">A signal query's timeline: undefined, then resolved, then live</title>
-    <desc id="vq-d">
-      A horizontal timeline with five stops. First, the constructor runs and box of the query reads undefined, shown in
-      red, because the view has not been built yet. An arrow leads to Angular rendering the view. A second arrow leads
-      to the query resolving, shown in green, the point where box now returns an element reference — this is what
-      ngAfterViewInit was named for. A third arrow shows the user toggling an at-if to false, and the signal clearing
-      back to undefined, in red. A fourth arrow shows the at-if toggling back to true, and the signal resolving again,
-      in green, with no code re-run to make that happen — the same camera, still pointed at the same spot.
-    </desc>
-    <defs>
-      <marker id="vq-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
+    <p>
+      Binding only goes one direction. <code>[value]="x"</code> and interpolation push data <em>from</em> your class
+      <em>into</em> the DOM — Angular owns writing to the element, and most of the time that's the whole story. But
+      every so often you need the other direction: call <code>.focus()</code> on an input the user just revealed, call a
+      method a child component exposes, count how many rows an <code>&#64;for</code> actually rendered. None of that is
+      a binding. It's a <span class="term">handle</span> — a typed reference to something that already exists in your
+      own template — and <code>viewChild()</code>/<code>viewChildren()</code> are how you ask for one.
+    </p>
 
-    <rect x="10" y="20" width="130" height="46" rx="8" fill="var(--red)" opacity="0.18" />
-    <text x="75" y="40" font-size="11" text-anchor="middle" font-weight="700" fill="var(--red)">constructor</text>
-    <text x="75" y="56" font-size="11" text-anchor="middle" fill="var(--red)">box() = undefined</text>
+    <p>Three questions turn out to answer almost everything about them:</p>
+    <ul>
+      <li>
+        <strong>What</strong> can a query find? — a locator: a template reference, a component type, a directive type.
+      </li>
+      <li><strong>When</strong> is it safe to read one? — after the view exists. Never before.</li>
+      <li><strong>How far</strong> does it reach? — this template only, and not one tag further.</li>
+    </ul>
 
-    <line x1="140" y1="43" x2="182" y2="43" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#vq-arrow)" />
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's a field: <code>box = viewChild('box')</code>, and the template really does have
+      <code>&lt;input #box&gt;</code> in it — no <code>&#64;if</code> hiding it, nothing conditional at all. You read
+      <code>this.box()</code> from inside the constructor. What comes back, and why? Hold that answer; the mechanism
+      section proves it live.
+    </app-napkin>
+  </section>
 
-    <rect x="190" y="20" width="130" height="46" rx="8" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="255" y="40" font-size="11" text-anchor="middle" fill="var(--text-muted)">view renders</text>
-    <text x="255" y="56" font-size="10" text-anchor="middle" fill="var(--text-muted)">query pass runs</text>
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A view query is a claim ticket, not a delivery.</h2>
 
-    <line x1="320" y1="43" x2="362" y2="43" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#vq-arrow)" />
+    <p>
+      Picture a coat check. You hand over your coat and get a ticket back <em>immediately</em> — the ticket is real the
+      second it's in your hand. But redeem it before your coat has actually been hung up and you get a shrug, not a
+      coat: <span class="key">it isn't there yet</span>, not because anything went wrong, but because you asked too
+      soon. That's <code>viewChild('box')</code>. Declaring the field creates the ticket the instant the class is
+      constructed; the <code>&lt;input #box&gt;</code> it points at doesn't exist until Angular actually builds the view
+      — which happens strictly <em>after</em> the constructor runs.
+    </p>
 
-    <rect x="370" y="20" width="150" height="46" rx="8" fill="var(--green)" opacity="0.22" />
-    <text x="445" y="40" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">
-      ngAfterViewInit
-    </text>
-    <text x="445" y="56" font-size="11" text-anchor="middle" fill="var(--green)">box() = ElementRef ✓</text>
+    <p>
+      <code>.required()</code> is the same ticket at a stricter counter. Redeem it early and instead of a shrug you get
+      thrown out — <code>NG0951</code> — because this clerk doesn't do "not yet," only "yes" or "error."
+    </p>
 
-    <text x="380" y="95" font-size="10" fill="var(--text-muted)">↓ user toggles the &#64;if off</text>
-    <line
-      x1="445"
-      y1="66"
-      x2="445"
-      y2="115"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#vq-arrow)"
+    <app-remember variant="mnemonic">
+      <strong>Declare early, redeem late.</strong> The field exists the moment your class does. The thing it points at
+      doesn't exist until the view does. Read a query anywhere in between and you're early, no matter how the field was
+      declared.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="mentalModelTalk"
+      caption="What actually happens when you declare a query and then read it — twice."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One declaration becomes a live handle.</h2>
+
+    <app-code-lab
+      file="report.component.ts"
+      [code]="apiSample"
+      [notes]="apiNotes"
+      notesLabel="What each line actually returns"
     />
 
-    <rect x="370" y="120" width="150" height="46" rx="8" fill="var(--red)" opacity="0.18" />
-    <text x="445" y="140" font-size="11" text-anchor="middle" font-weight="700" fill="var(--red)">signal clears</text>
-    <text x="445" y="156" font-size="11" text-anchor="middle" fill="var(--red)">box() = undefined</text>
+    <div class="bf-grid-3">
+      <app-tape-card heading="viewChild()" kicker="Signal<T | undefined>">
+        One match, by template reference, component type, or directive type.
+        <code>undefined</code> until the view resolves it — and again the moment it leaves.
+      </app-tape-card>
+      <app-tape-card heading="viewChild.required()" kicker="Signal<T>" tone="gold">
+        The same match, minus the <code>undefined</code> in the type. Read it too early — or it never matches — and it
+        throws instead of waiting politely.
+      </app-tape-card>
+      <app-tape-card heading="viewChildren()" kicker="Signal<readonly T[]>" tone="accent">
+        Every match, live, as an array. Starts at <code>[]</code>, never <code>undefined</code> — "no matches yet" and
+        "nothing rendered yet" look identical to a list.
+      </app-tape-card>
+    </div>
 
-    <line
-      x1="520"
-      y1="143"
-      x2="640"
-      y2="143"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#vq-arrow)"
+    <app-predict
+      prompt="`rows = viewChildren('item')`, and you read `rows()` on the very first tick after construction — before the view exists at all. Does it come back `undefined`, the same as `viewChild` would?"
+      answer="No — `[]`. The plural form never reports `undefined`; it just starts empty and grows or shrinks as matches appear and disappear. Only the singular form has an `undefined` state to report in the first place."
+      revealLabel="Reveal the answer"
     />
-    <rect x="648" y="120" width="105" height="46" rx="8" fill="var(--green)" opacity="0.22" />
-    <text x="700" y="140" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">resolves</text>
-    <text x="700" y="156" font-size="11" text-anchor="middle" fill="var(--green)">again ✓</text>
 
-    <text x="370" y="190" font-size="10" fill="var(--text-muted)">
-      No code re-ran to make this happen — the camera never stopped watching.
-    </text>
-  </svg>
+    <div class="demo">
+      <p class="demo__title">Live — grab it, focus it, fill it</p>
+      <div class="row" style="margin-bottom: 12px">
+        <input
+          aria-label="I get focused &amp; filled programmatically"
+          #box
+          placeholder="I get focused &amp; filled programmatically"
+          style="width: 340px"
+        />
+      </div>
+      <div class="row" style="margin-bottom: 14px">
+        <button (click)="focusBox()">Focus via viewChild()</button>
+        <button class="ghost" (click)="fillBox()">Set value</button>
+      </div>
 
-  <app-remember variant="mnemonic" label="If you remember one thing about view queries">
-    <strong>A signal query is a camera, not a photograph.</strong> The decorator form snaps one photo, once, after the
-    view is built — frozen from then on. <code>viewChild()</code> keeps the camera running, so it sees the target
-    appear, disappear, and reappear without anyone re-pointing it.
-  </app-remember>
-
-  <h2>Resolve timing — don't read in the constructor</h2>
-  <div class="warn">
-    Queries resolve <strong>after</strong> the view renders, so in the constructor (and field initializers) the result
-    is <code>undefined</code>. Read them in an event handler, an <code>effect()</code>, or
-    <code>afterNextRender()</code> — never synchronously during construction. Signal queries make this safe by design:
-    the signal simply reads <code>undefined</code> until it's ready.
-  </div>
-
-  <app-predict
-    prompt="box matches an <input #box> that's unconditionally in the template — no @if hiding it. Three hooks each log box(). Which ones print undefined, and which print the ElementRef?"
-    [code]="resolveTimingSample"
-    answer="constructor and ngOnInit both print undefined; only ngAfterViewInit prints the ElementRef. The element being unconditionally present doesn't help — what matters is WHEN Angular runs its query-resolution pass, and that pass happens after the view has been built and checked once, which is strictly after the constructor and after ngOnInit both run. ngAfterViewInit is named for exactly this: it is the first hook that fires after that pass completes, which is why it's the conventional place to read a non-required view query for the first time."
-  />
-
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="&#64;ViewChild('el', { static: true }) el!: ElementRef; sits above a template where <div #el> is inside an *ngIf that starts false. What happens?"
-    [options]="quizOptions"
-    followUp="This is the sharpest edge of the legacy API, and it's exactly why signal queries don't offer a static option at all — there's no first-pass/after-pass distinction left to misconfigure."
-  />
-
-  <h2>Required queries, locators &amp; <code>read:</code></h2>
-  <div class="code">
-    <pre>{{ readSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Locator:</strong> a template reference (<code>'box'</code>), a component type
-      (<code>ChartComponent</code>), or a directive type.
-    </li>
-    <li>
-      <strong><code>.required()</code>:</strong> returns <code>Signal&lt;T&gt;</code> (never <code>undefined</code>);
-      throws if the target is missing at resolve time.
-    </li>
-    <li>
-      <strong><code>read:</code></strong> chooses which token to return from the matched node — e.g. the
-      <code>ElementRef</code>, a specific directive instance, or a <code>ViewContainerRef</code>.
-    </li>
-  </ul>
-
-  <h2>Decorator form ↔ signal form</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>signal query (modern)</th>
-      <th><code>&#64;ViewChild</code> (legacy)</th>
-    </tr>
-    <tr>
-      <td>Declaration</td>
-      <td><code>box = viewChild('box')</code></td>
-      <td><code>&#64;ViewChild('box') box!: ElementRef</code></td>
-    </tr>
-    <tr>
-      <td>Read where</td>
-      <td>anytime — it's a signal (<code>undefined</code> until ready)</td>
-      <td><code>ngAfterViewInit</code> (or <code>static: true</code> in the ctor)</td>
-    </tr>
-    <tr>
-      <td>Updates on view change</td>
-      <td class="ok">yes — re-resolves reactively</td>
-      <td>no — set once (or you re-read manually)</td>
-    </tr>
-    <tr>
-      <td>List type</td>
-      <td><code>Signal&lt;readonly T[]&gt;</code></td>
-      <td><code>QueryList&lt;T&gt;</code> (subscribe to <code>.changes</code>)</td>
-    </tr>
-    <tr>
-      <td>Works in <code>effect()</code></td>
-      <td class="ok">yes</td>
-      <td>no</td>
-    </tr>
-  </table>
-
-  <h2>View vs content</h2>
-  <div class="note">
-    <code>viewChild</code>/<code>viewChildren</code> see nodes in <em>this component's own template</em>. Nodes a parent
-    projects in via <code>&lt;ng-content&gt;</code> are <strong>not</strong> view children — query those with
-    <code>contentChild</code>/<code>contentChildren</code>. Mixing them up is the most common "my query is always
-    undefined" cause.
-  </div>
-
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>Queries resolve during a dedicated view-check pass.</strong> After Angular renders (or re-renders) a view,
-      it walks the query metadata compiled onto the component definition and populates results — that's why
-      <code>ngAfterViewInit</code> (and a signal re-read) see them, but the constructor and <code>ngOnInit</code> run
-      before that pass and see nothing.
-    </li>
-    <li>
-      <strong><code>static: true</code> opts into first-pass resolution — with a real constraint.</strong>
-      <code>&#64;ViewChild('ref', &#123; static: true &#125;)</code> tells Angular the target can never be removed by a
-      structural directive, so it's resolved once during the <em>first</em> change-detection pass and is already
-      readable in <code>ngOnInit</code>. Ask for <code>static: true</code> on something conditionally rendered and you
-      get a stale or <code>undefined</code> reference the moment it's absent.
-    </li>
-    <li>
-      <strong><code>static: false</code> (the decorator default) re-resolves after every check.</strong> This is the
-      behavior signal queries always use — necessary for anything inside
-      <code>&#64;if</code>/<code>*ngIf</code>/<code>&#64;for</code>/ <code>&#64;defer</code>, since the node may not
-      exist during the first pass at all.
-    </li>
-    <li>
-      <strong><code>read</code> changes which token the same match returns.</strong> The query engine matches a node by
-      template reference, directive type, or component type, then looks up whichever injectable token
-      <code>read</code> names on that node's injector — <code>ElementRef</code>, <code>ViewContainerRef</code>, a
-      directive instance — without changing what was matched.
-    </li>
-    <li>
-      <strong>Signal queries are a reactive wrapper over the same resolution pass.</strong>
-      <code>viewChild()</code> schedules its signal to update whenever that pass runs, which is why it "just works" for
-      conditional content with no <code>static</code> flag to choose — there's no first-pass/after-pass distinction left
-      to configure.
-    </li>
-  </ul>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Reading in the constructor.</strong> Undefined there — use a handler, <code>effect()</code>, or
-      <code>afterNextRender()</code>.
-    </li>
-    <li>
-      <strong>Target hidden by <code>&#64;if</code>/<code>&#64;defer</code>.</strong> The signal is
-      <code>undefined</code> until it renders. That's a feature — react to it — but <code>.required()</code> will throw
-      if it never appears.
-    </li>
-    <li>
-      <strong>Projected content queried with <code>viewChild</code>.</strong> Use <code>contentChild</code> for anything
-      arriving through <code>&lt;ng-content&gt;</code>.
-    </li>
-    <li>
-      <strong>Expecting <code>viewChildren()</code> to be a <code>QueryList</code>.</strong> Signal queries return a
-      plain reactive array; there's no <code>.changes</code> Observable — use the signal itself (or
-      <code>effect()</code>).
-    </li>
-    <li>
-      <strong>Forgetting <code>read:</code> when you need a different token.</strong> Querying a component's host
-      element? Ask for <code>read: ElementRef</code>.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why is my <code>viewChild()</code> <code>undefined</code> in the constructor?</summary>
-    <div>
-      Queries resolve after the view renders. Read the signal in an <code>effect()</code>,
-      <code>afterNextRender()</code>, or an event handler — it's <code>undefined</code> until then.
+      <p>Three queried rows:</p>
+      <p #item class="pill">Row A</p>
+      <p #item class="pill">Row B</p>
+      <p #item class="pill">Row C</p>
+      <div class="row" style="margin-top: 10px">
+        <span class="pill">viewChildren() sees: {{ rows().length }} rows</span>
+      </div>
+      <p class="demo__note">
+        That constructor read from the napkin above would have printed <code>undefined</code> — this button works only
+        because <code>focusBox()</code> runs from a click handler, long after the view exists.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>The element is inside an <code>&#64;if</code> that's false — what does the query return?</summary>
-    <div>
-      <code>undefined</code>, until the condition becomes true and it renders. A signal query updates automatically when
-      that happens.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do I query content projected by a parent?</summary>
-    <div>
-      Not with <code>viewChild</code> — use <code>contentChild</code>/<code>contentChildren</code>. View queries only
-      see this component's own template.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do I get the <code>ElementRef</code> of a matched component?</summary>
-    <div>Pass <code>read</code>: <code>viewChild(ChartComponent, &#123; read: ElementRef &#125;)</code>.</div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>viewChild()</code>/<code>viewChildren()</code> return reactive signals that re-resolve as the view changes.
-    </li>
-    <li>Use <code>.required()</code> when the target must exist; read queries after render, not in the constructor.</li>
-    <li>
-      Query by template reference, component type, or directive type; <code>read:</code> picks the returned token.
-    </li>
-    <li>View queries see this template only — projected content needs <code>contentChild</code>.</li>
-  </ul>
+  <!-- ============ 4. REACTIVE RE-RESOLUTION, LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">Same idea, proven live</p>
+    <h2>The signal tracks the view — literally, in real time.</h2>
 
-  <p><a routerLink="/ng-template-outlet">Next: ng-template &amp; ngTemplateOutlet →</a></p>
+    <p>
+      This is the headline difference from the decorator form, and it's exactly what the bubbles dialogue above just
+      narrated: put the target inside an <code>&#64;if</code> and the query is <code>undefined</code> until it renders,
+      then flips the moment it appears or disappears — with no <code>ngAfterViewInit</code> and no manual re-check. An
+      <code>effect()</code> reading the query re-runs on every one of those flips, automatically.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — watch the signal flip</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="showTarget.update((v) => !v)">{{ showTarget() ? 'Remove' : 'Render' }} the target</button>
+        <span class="pill" [style.color]="target() ? 'var(--bf-olive)' : 'var(--bf-ink-2)'">
+          target() = {{ target() ? 'ElementRef ✓' : 'undefined' }}
+        </span>
+      </div>
+      @if (showTarget()) {
+        <input aria-label="queried element" #target placeholder="queried element" style="width: 340px" />
+      }
+      <p class="pill" style="margin-top: 10px">effect log: {{ effectLog() }}</p>
+      <p class="demo__note">
+        Every click toggles the element in or out of the DOM. Nothing here calls
+        <code>markForCheck()</code> or subscribes to anything — the effect above is reading a signal, and the query is
+        the thing keeping that signal current.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. RESOLVE TIMING — REQUIRED, NG0951 ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Exam trap</p>
+    <h2>Required doesn't mean early. It means strict.</h2>
+
+    <p>
+      The optional form is forgiving about timing: read <code>box()</code> before the view exists and you get
+      <code>undefined</code>, no matter how you asked. <code>.required()</code> changes what "too early" looks like — it
+      still resolves at exactly the same moment, but reading it before that moment, or discovering it never matched
+      anything, both throw instead of returning a value. That's the trap: "required" reads as a promise about the
+      <em>element</em>, so it's easy to assume it only throws when something is genuinely missing. It doesn't.
+    </p>
+
+    <app-code-lab
+      file="report.component.ts"
+      [code]="requiredSample"
+      [notes]="requiredNotes"
+      notesLabel="Why 'unconditionally present' isn't enough"
+      prompt="Run this in dev mode. Does line 5 throw, given that the h2 is unconditionally in the template?"
+      output="Yes — `NG0951: Child query result is required but no value is available.` The message reads exactly like a genuinely-missing target, but nothing is missing here; `ngOnInit` simply runs before the query has resolved for the first time. Move the read to `ngAfterViewInit()`, an `effect()`, `afterNextRender()`, or any event handler and the identical line works."
+      revealLabel="Reveal what happens"
+    />
+
+    <app-remember variant="rule">
+      <code>.required()</code> is a promise about the <strong>template</strong>, not about <strong>timing</strong>. Read
+      it too early and it throws NG0951 — exactly like a genuinely-missing target would. The error text can't tell you
+      which one happened; only the moment you read it can.
+    </app-remember>
+  </section>
+
+  <!-- ============ 6. HOW FAR IT REACHES — THE CHILD-COMPONENT WALL ============ -->
+  <section>
+    <p class="bf-eyebrow">How far it reaches</p>
+    <h2>Your template stops at your children's front door.</h2>
+
+    <p>
+      A view query walks <em>this</em> component's own template, plus anything Angular builds on your behalf inside it —
+      the rows an <code>&#64;for</code> repeats, the branch an <code>&#64;if</code> renders, an
+      <code>ng-template</code> you instantiate. Visually all of that reads as "stuff on my page." A
+      <code>&lt;app-child&gt;</code> tag also reads as "stuff on my page" — but it isn't, not to a view query. Cross
+      that tag and you've left your own template and entered a completely separate one, compiled from a completely
+      separate file, that your query was never told to look inside.
+    </p>
+
+    <figure class="wall-fig">
+      <svg class="wall" viewBox="0 0 600 220" aria-hidden="true" focusable="false">
+        <rect class="wall__box" x="16" y="22" width="214" height="168" rx="14" />
+        <text class="wall__title" x="30" y="44">YOUR TEMPLATE</text>
+
+        <rect class="wall__chip" x="34" y="58" width="178" height="28" rx="8" />
+        <text class="wall__chip-label" x="123" y="76" text-anchor="middle">#box — reachable ✓</text>
+
+        <rect class="wall__chip wall__chip--dashed" x="34" y="96" width="178" height="78" rx="10" />
+        <text class="wall__sub" x="123" y="112" text-anchor="middle">&#64;if branch</text>
+        <rect class="wall__chip" x="40" y="122" width="166" height="28" rx="8" />
+        <text class="wall__chip-label" x="123" y="140" text-anchor="middle">#target — reachable ✓</text>
+
+        <rect class="wall__hatch" x="242" y="10" width="18" height="200" />
+        <text class="wall__hand" x="196" y="19" transform="rotate(-4 196 19)">the wall</text>
+
+        <rect class="wall__box wall__box--child" x="280" y="22" width="304" height="168" rx="14" />
+        <text class="wall__title" x="294" y="44">CHILD'S OWN TEMPLATE</text>
+
+        <rect class="wall__chip" x="280" y="58" width="180" height="30" rx="8" />
+        <text class="wall__chip-label" x="370" y="77" text-anchor="middle">host element ✓</text>
+        <text class="wall__sub" x="370" y="102" text-anchor="middle">(what read: ElementRef gives you)</text>
+
+        <rect class="wall__chip wall__chip--blocked" x="400" y="130" width="170" height="30" rx="8" />
+        <text class="wall__chip-label wall__chip-label--blocked" x="485" y="149" text-anchor="middle">#saveBtn ✕</text>
+        <text class="wall__sub" x="485" y="174" text-anchor="middle">(only inside the child's own file)</text>
+
+        <path class="wall__arrow" d="M214,78 L278,73" marker-end="url(#wallArrow)" />
+
+        <defs>
+          <marker
+            id="wallArrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 z" class="wall__arrowhead" />
+          </marker>
+        </defs>
+      </svg>
+      <figcaption>
+        Everything in your own template — including an <code>&#64;if</code>/<code>&#64;for</code> branch — is reachable.
+        Cross into <code>&lt;app-stat-card&gt;</code>'s own template and a view query only ever reaches the host tag,
+        even with <code>read: ElementRef</code>. <code>#saveBtn</code> — or anything else declared inside that separate
+        file — is never a valid target from out here.
+      </figcaption>
+    </figure>
+
+    <app-quiz
+      question="`<app-child>` renders in your template, and its own separate template has `<button #saveBtn>`. You write `saveBtn = viewChild('saveBtn')` in the **parent**. What does `saveBtn()` resolve to?"
+      [options]="boundaryQuizOptions"
+      followUp="The demo below shows the two ways that actually do get you across."
+    />
+
+    <p>
+      Once you accept the wall, exactly two ways are left to reach past it — never a locator string, never
+      <code>read:</code>:
+    </p>
+    <ol>
+      <li>
+        <strong>Call a method the child exposes.</strong> <code>viewChild(StatCard)</code> gets you the
+        <em>instance</em> — every public method and property on it is fair game, the same as calling a method on any
+        other object.
+      </li>
+      <li>
+        <strong>Have the child expose its own query.</strong> The child declares its own
+        <code>viewChild</code> internally and re-publishes the result as a <code>computed()</code> or a plain getter,
+        which the parent then reads like any other signal.
+      </li>
+    </ol>
+
+    <div class="demo">
+      <p class="demo__title">Live — the only door into a child component</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="card()?.flash()">card().flash() — way #1, the exposed method</button>
+        <button class="ghost" (click)="sessionCount.update((v) => v + 1)">+1 session</button>
+      </div>
+      <app-stat-card label="Sessions today" [value]="sessionCount()" />
+      <div class="row" style="margin-top: 12px">
+        <span class="pill">cardHost() tag name: {{ cardHostTag() }}</span>
+      </div>
+      <p class="demo__note">
+        <code>card()</code> is <code>viewChild(StatCard)</code> — the instance, so calling <code>.flash()</code> on it
+        is ordinary method-calling, nothing query-specific. <code>cardHost()</code> is the <em>same</em> match, asked
+        for <code>ElementRef</code> instead — and its tag name above reads <code>APP-STAT-CARD</code>, the host, never
+        the number inside it. Way #2 looks like this:
+      </p>
+      <app-code-lab file="stat-card.ts" [code]="boundarySample" />
+    </div>
+  </section>
+
+  <!-- ============ 7. read: — CHOOSING THE TOKEN ============ -->
+  <section>
+    <p class="bf-eyebrow">Locators and read:</p>
+    <h2>Same match. Different question about it.</h2>
+
+    <p>
+      A locator decides <em>what gets matched</em> — a template reference, a component type, a directive type.
+      <code>read:</code> is a completely separate decision, asked about that same match:
+      <em>which token comes back for it</em>. They compose, and mixing them up is the second-most common "my query gave
+      me the wrong thing" story, right behind the boundary above.
+    </p>
+
+    <app-code-lab
+      file="dashboard.component.ts"
+      [code]="readSample"
+      [notes]="readNotes"
+      notesLabel="What comes back, and why"
+    />
+  </section>
+
+  <!-- ============ 8. DECORATOR FORM ↔ SIGNAL FORM ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The old form, in depth</p>
+    <h2>Decorator queries still exist. Here's the one real gotcha.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Decorator query vs. signal query
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>signal query (modern)</th>
+          <th><code>&#64;ViewChild</code> (legacy)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Declaration</td>
+          <td><code>box = viewChild('box')</code></td>
+          <td><code>&#64;ViewChild('box') box!: ElementRef</code></td>
+        </tr>
+        <tr>
+          <td>Read where</td>
+          <td>anytime — it's a signal (<code>undefined</code> until ready)</td>
+          <td><code>ngAfterViewInit</code> (or first pass, with <code>static: true</code>)</td>
+        </tr>
+        <tr>
+          <td>Updates on view change</td>
+          <td>yes — re-resolves reactively</td>
+          <td>no — set once, unless you re-check manually</td>
+        </tr>
+        <tr>
+          <td>List type</td>
+          <td><code>Signal&lt;readonly T[]&gt;</code></td>
+          <td><code>QueryList&lt;T&gt;</code> — subscribe to <code>.changes</code></td>
+        </tr>
+        <tr>
+          <td>Works in <code>effect()</code></td>
+          <td>yes</td>
+          <td>no</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      <code>static: true</code> is the one decorator option with no signal-query equivalent, and it comes with a real
+      constraint: it tells Angular the target can never be removed by a structural directive, so it resolves once during
+      the <em>first</em> change-detection pass and is already readable in <code>ngOnInit</code>. Ask for it on anything
+      conditionally rendered and you get a stale or <code>undefined</code> reference the moment the condition is false —
+      signal queries sidestep the whole question by always re-resolving, so there's no flag to get wrong.
+    </p>
+
+    <app-code-lab
+      file="table.component.ts"
+      [code]="legacySample"
+      [notes]="legacyNotes"
+      notesLabel="The QueryList API, one line at a time"
+      prompt="What's the signal-query equivalent of this whole block?"
+      output="One field: `rows = viewChildren(RowComponent);`. Reading `rows()` anywhere after the view exists already gives you the live, current array — there's no separate 'read the initial state, then subscribe for updates' split to get wrong, and no subscription to remember to clean up."
+      revealLabel="Reveal the equivalent"
+    />
+
+    <app-quiz
+      question="You subscribe to `this.rows.changes` inside `ngAfterViewInit`, hoping to log the three rows already in the template. What actually gets logged from that subscription?"
+      [options]="changesQuizOptions"
+    />
+  </section>
+
+  <!-- ============ 9. THE OTHER FAMOUS ERROR — NG0100 VIA A QUERY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The other famous error</p>
+    <h2>A safe read can still set up an unsafe write.</h2>
+
+    <p>
+      Every rule so far has been about <em>reading</em> a query at the right moment. Reading at the right moment is
+      necessary — but it isn't sufficient, if what you do with the result is write to something the child's own template
+      depends on.
+    </p>
+
+    <app-code-lab
+      file="dashboard.component.ts"
+      [code]="chartSample"
+      [notes]="chartNotes"
+      notesLabel="The read is fine. Watch what happens next"
+      prompt="Run this in dev mode. What happens?"
+      output="`NG0100: ExpressionChangedAfterItHasBeenCheckedError`, thrown against `ChartComponent`'s own `title` binding — not because the query failed, but because a *write* landed on a view that had already been checked this pass. The read on line 1 was completely safe; it's what the code did with the result that broke the pass."
+      revealLabel="Reveal what happens"
+    />
+
+    <p>Fixes, best first:</p>
+    <ol>
+      <li>
+        <strong>Make the child's state a signal, and write it from an <code>effect()</code>.</strong> A signal write
+        during a pass schedules the <em>next</em> one instead of corrupting the current one.
+      </li>
+      <li>
+        <strong>Reach for <code>afterNextRender()</code> when this is really about measuring.</strong>
+        <code>getBoundingClientRect()</code> and friends belong here — read after the pass finishes, act on the result
+        outside it. This is the canonical reason to write to a queried child at all.
+      </li>
+      <li>
+        <strong>Flow it down as a binding instead.</strong> Give the child an <code>input()</code> for its own title and
+        let the parent's <em>template</em> set it, so the value moves the direction Angular already expects.
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ 10. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Three questions, three traps.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        The same three questions, answered as failure modes
+      </caption>
+      <thead>
+        <tr>
+          <th>Question</th>
+          <th>The trap</th>
+          <th>The fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>What can it find?</td>
+          <td>
+            A locator string with no matching <code>#ref</code> in <em>this</em> template — often because it's declared
+            inside a child's template instead
+          </td>
+          <td>Check it's declared here, not past a child's boundary</td>
+        </tr>
+        <tr>
+          <td>When is it safe to read?</td>
+          <td>
+            Constructor, a field initializer, or <code>ngOnInit</code> — <code>.required()</code> throws NG0951 there
+            even if the target is unconditional
+          </td>
+          <td>An effect, a handler, <code>afterNextRender()</code>, or <code>ngAfterViewInit</code></td>
+        </tr>
+        <tr>
+          <td>How far does it reach?</td>
+          <td><code>read: ElementRef</code> on a child, expecting something from inside it</td>
+          <td>You get the host tag; expose a method or a child query instead</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Things to remember.</h2>
+
+    <ul>
+      <li>
+        A view query is the deliberate act of reaching into your own template from code — for the things binding can't
+        do. <strong>Declare early, redeem late</strong>: the field exists the moment the class does, the thing it points
+        at doesn't exist until the view does.
+      </li>
+      <li>
+        <code>.required()</code> doesn't change <em>when</em> a query resolves — only what happens if you read it too
+        early or nothing ever matches: <strong>NG0951</strong> instead of <code>undefined</code>.
+      </li>
+      <li>
+        A view query <strong>never crosses into a child component's own template</strong>. Reach a child's internals
+        through a method it exposes, or a query it exposes itself — never through <code>read:</code>, which only ever
+        returns the host.
+      </li>
+      <li>
+        <code>viewChildren()</code> starts at <code>[]</code>, never <code>undefined</code> — and its legacy
+        <code>.changes</code> fires only on <em>later</em> re-matches, not the initial set.
+      </li>
+      <li>
+        Writing to a queried child after its view has been checked this pass is a second way to get
+        <strong>NG0100</strong>. Measure with <code>afterNextRender()</code>, or make the state a signal, instead of
+        assigning directly.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ng-template-outlet">Next: ng-template &amp; ngTemplateOutlet →</a></p>
+  </section>
 </article>

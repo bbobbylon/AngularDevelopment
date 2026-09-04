@@ -1,281 +1,602 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · RxJS</span>
-  <h1>Observables</h1>
-  <p class="lead">
-    An Observable is a <strong>lazy stream of values that arrive over time</strong>. RxJS is the library that creates
-    and transforms them, and Angular uses them everywhere — <code>HttpClient</code>, the router, a form's
-    <code>valueChanges</code>, and more. This is one of the most important ideas in the whole framework, so we'll build
-    the intuition carefully.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Intermediate · RxJS"
+    title="Observables"
+    hand="or, a recipe that cooks nothing until somebody actually follows it"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      An Observable is a <strong>lazy, cancellable stream of values that arrive over time</strong> — zero, one, or
+      thousands of them. RxJS is the library that builds and transforms streams like it, and Angular hands you one
+      almost everywhere: <code>HttpClient</code>, the router, a form's <code>valueChanges</code>. Nearly everything
+      confusing about it traces back to one property most people assume it doesn't have —
+      <span class="key">nothing runs until you subscribe</span> — so that's where this page starts.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: a newsletter</h2>
-  <p>
-    Think of an Observable as a <strong>newsletter you can subscribe to</strong>. Nothing is sent until you subscribe.
-    Once you do, you receive each new issue (a <em>value</em>) as it's published. The newsletter can eventually say
-    "that's the last issue" (it <em>completes</em>), or hit a problem and shut down (an <em>error</em>). And you can
-    <em>unsubscribe</em> at any time to stop receiving.
-  </p>
-  <p>
-    Compare that to a <strong>Promise</strong>, which is like ordering one package: it arrives exactly once (or fails
-    once), it already started before you "awaited" it, and you can't cancel it. An Observable is the more powerful, more
-    general tool.
-  </p>
-  <table class="t">
-    <tr>
-      <th></th>
-      <th>Promise</th>
-      <th>Observable</th>
-    </tr>
-    <tr>
-      <td>How many values</td>
-      <td>exactly one</td>
-      <td>zero, one, or many over time</td>
-    </tr>
-    <tr>
-      <td>Starts when</td>
-      <td>immediately (eager)</td>
-      <td>on <code>subscribe()</code> (lazy)</td>
-    </tr>
-    <tr>
-      <td>Cancellable</td>
-      <td>no</td>
-      <td>yes — <code>unsubscribe()</code></td>
-    </tr>
-    <tr>
-      <td>Transform with</td>
-      <td><code>.then()</code></td>
-      <td>100+ operators (map, filter, retry…)</td>
-    </tr>
-  </table>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You just asked for data. Did anything happen yet?</h2>
 
-  <h2>Reading a marble diagram</h2>
-  <p>
-    RxJS people draw streams as <strong>marble diagrams</strong>. Time flows left to right; each marble is an emitted
-    value; <code>|</code> means "completed" and <code>X</code> means "errored":
-  </p>
-  <div class="code">
-    <pre>
---1--2--3--4--|        a stream that emits 1,2,3,4 then completes
---a----b---c--|        values can arrive at any spacing
-----------X            a stream that errors (and stops)
---1--2--                an infinite stream (never completes — e.g. clicks)</pre>
-  </div>
-  <p>You'll use this notation to reason about operators in the next lessons.</p>
+    <p>
+      Here's a line of code: <code>const users$ = this.http.get&lt;User[]&gt;('/api/users');</code>. If you've written
+      any JavaScript with <code>fetch</code>, your instinct says the request is already on the wire —
+      <code>fetch</code> is <strong>eager</strong>, it starts the moment you call it, whether or not anything is
+      listening for the result.
+    </p>
 
-  <h2>The Observer: next, error, complete</h2>
-  <p>
-    When you subscribe, you provide an <strong>observer</strong> — up to three callbacks describing how to react. This
-    is the "contract" every Observable follows:
-  </p>
-  <div class="code">
-    <pre>
-const sub = source$.subscribe({{ '{' }}
-  next:     v =&gt; console.log('got a value:', v),   // 0..many times
-  error:    e =&gt; console.error('failed:', e),       // at most ONCE, then done
-  complete: () =&gt; console.log('no more values'),    // at most ONCE, then done
-{{ '}' }});
-sub.unsubscribe();   // stop early — you stop receiving values</pre>
-  </div>
-  <div class="note">
-    The contract: <strong>next</strong> can fire any number of times, but <strong>error</strong> and
-    <strong>complete</strong> are terminal — exactly one of them fires (or neither, for an infinite stream), and after
-    it nothing more is emitted. A passing shorthand: <code>source$.subscribe(v =&gt; ...)</code> is just the
-    <code>next</code> callback.
-  </div>
+    <p>
+      That instinct is wrong here, and it's wrong in a way that matters. Nothing has gone out. No socket opened, no
+      bytes sent. <code>users$</code> is sitting in a variable, inert, and it will stay that way forever unless
+      something calls <code>.subscribe()</code> on it. An Observable is <strong>lazy</strong> — it is a description of
+      work, not the work itself.
+    </p>
 
-  <h2>Creating an Observable</h2>
-  <div class="code">
-    <pre>
-// The $ suffix is a convention meaning "this is a stream". Not required,
-// but every RxJS codebase you meet will use it.
-// This function body does NOT run now. It runs once per SUBSCRIBER — which
-// is exactly what makes an Observable cold.
-const obs$ = new Observable&lt;number&gt;(subscriber =&gt; {{ '{' }}
-  // next() pushes a value. Call it as many times as you like, whenever you
-  // like — synchronously here, but it could be inside a setTimeout or a
-  // WebSocket handler.
-  subscriber.next(1);
-  subscriber.next(2);
-  subscriber.next(3);
-  // complete() ends the stream. Any next() after this is IGNORED, and the
-  // teardown below runs immediately.
-  subscriber.complete();
-  // optional teardown — runs on complete/error/unsubscribe:
-  // This is the Observable contract's cleanup slot: clear a timer, close a
-  // socket, remove a listener. Whatever you opened when the subscriber
-  // arrived, close it here. Skipping it is how RxJS memory leaks happen.
-  return () =&gt; console.log('cleaning up');
-{{ '}' }});
-// Nothing above has executed yet. Until something calls obs$.subscribe(),
-// this is just a recipe sitting in a variable.</pre>
-  </div>
-  <p>You rarely build one by hand though — RxJS ships creation helpers for the common cases:</p>
-  <div class="code">
-    <pre>
-of(1, 2, 3)            // emit fixed values, then complete
-from([1, 2, 3])        // from an array / iterable / Promise
-interval(1000)         // 0,1,2,… every second (infinite)
-timer(500, 1000)       // wait 500ms, then emit every 1s
-fromEvent(button, 'click')   // DOM events as a stream
-EMPTY  /  NEVER  /  throwError(() =&gt; err)   // edge cases</pre>
-  </div>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two variables: <code>const p = fetch('/api/users')</code> and
+      <code
+        >const o = new Observable(subscriber =&gt; {{ '{' }} console.log('running!'); subscriber.next(1);
+        {{ '}' }})</code
+      >. Neither line is followed by anything else — no <code>.then()</code>, no <code>.subscribe()</code>. Which one
+      prints something to the console, and which one prints nothing at all, ever? There's a live version of this exact
+      distinction further down the page.
+    </app-napkin>
 
-  <h2>Try it — subscribe / unsubscribe</h2>
-  <div class="demo">
-    <p class="demo__title">Live — interval(500) emits a counter while subscribed</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="start()" [disabled]="running()">Subscribe</button>
-      <button class="ghost" (click)="stop()" [disabled]="!running()">Unsubscribe</button>
-      <span class="pill">running: {{ running() }}</span>
+    <table>
+      <caption class="bf-table-caption">
+        The two questions that actually separate them
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Promise</th>
+          <th>Observable</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>How many values</td>
+          <td>exactly one, ever</td>
+          <td>zero, one, or many, over time</td>
+        </tr>
+        <tr>
+          <td>Starts when</td>
+          <td>immediately — <span class="term">eager</span></td>
+          <td>on <code>.subscribe()</code> — <span class="term">lazy</span></td>
+        </tr>
+        <tr>
+          <td>Stoppable</td>
+          <td>no</td>
+          <td>yes — <code>.unsubscribe()</code></td>
+        </tr>
+        <tr>
+          <td>Transform with</td>
+          <td><code>.then()</code></td>
+          <td>100+ operators — <code>map</code>, <code>filter</code>, <code>retry</code>, …</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An Observable is a recipe. Subscribing is cooking it.</h2>
+
+    <p>
+      A recipe card sitting in a drawer does nothing. Somebody has to <strong>follow it</strong> before a single
+      ingredient gets touched — and here's the part that matters later in this lesson: follow the same card
+      <em>twice</em>, and you cook it twice. Two separate pans, two separate meals, from the one card. Nobody would call
+      that surprising for a recipe. It is exactly how most Observables behave, and it is the single most common thing
+      learners get wrong about them.
+    </p>
+
+    <p>
+      A Promise is closer to a meal already on its way to your table the moment you order it — cooking whether you're
+      watching or not, arriving exactly once, impossible to wave off once it's plated.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>No subscribe, no run.</strong> And every subscribe runs it <em>again</em> — that second half is the one
+      people forget, and it's the whole reason two subscribers to one cold source can mean two HTTP requests.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="contractTalk"
+      caption="The deal you strike every time you call `subscribe()`. Note that only ONE of `error` and `complete` ever fires — never both, and after either, nothing else."
+    />
+
+    <app-code-lab
+      file="somewhere.ts — the contract, in real syntax"
+      [code]="observerContractSample"
+      [notes]="observerContractNotes"
+      notesLabel="What each part of the object is"
+    />
+
+    <p>
+      There's a shorthand for the common case: <code>source$.subscribe(v =&gt; …)</code> means exactly
+      <code>source$.subscribe({{ '{' }} next: v =&gt; … {{ '}' }})</code> — a bare function is still just the
+      <code>next</code> callback, and RxJS supports it today. What's deprecated is the <em>other</em> shorthand, three
+      separate positional arguments — <code>subscribe(next, error, complete)</code> — so reach for the object form the
+      moment you need more than <code>next</code>.
+    </p>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Building one is just wrapping a function.</h2>
+
+    <p>
+      You'll rarely build an Observable by hand — the next section covers the helpers that do it for you — but seeing
+      the raw shape once is what makes everything above stop being folklore and start being mechanism.
+    </p>
+
+    <app-code-lab
+      file="counter.ts — a hand-built Observable"
+      [code]="constructSample"
+      [notes]="constructNotes"
+      notesLabel="Line by line"
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Observable" kicker="the recipe">
+        The lazy description itself. Building one — even wiring up <code>new Observable(fn)</code> — runs nothing.
+      </app-tape-card>
+      <app-tape-card heading="Observer" kicker="the three callbacks" tone="accent">
+        The <code>{{ '{' }} next, error, complete {{ '}' }}</code> object you hand to <code>subscribe()</code> — how you
+        say what to do with each notification.
+      </app-tape-card>
+      <app-tape-card heading="Subscription" kicker="the handle" tone="olive">
+        What <code>subscribe()</code> returns. Call <code>.unsubscribe()</code> on it to stop early and run the
+        producer's teardown.
+      </app-tape-card>
+      <app-tape-card heading="Subscriber" kicker="the enforcer" tone="blue">
+        The guarded object your producer function actually receives. It wraps your Observer and enforces the contract —
+        a rogue <code>next()</code> after <code>complete()</code> is silently dropped, never delivered.
+      </app-tape-card>
+    </div>
+
+    <app-flow
+      caption="One subscription's whole life, start to end. There is no arrow back from the last step — a finished subscription stays finished."
+      [steps]="lifecycle"
+    />
+
+    <p>
+      RxJS people also draw this as a <strong>marble diagram</strong> — time left to right, one marble per value,
+      <code>|</code> for <em>completed</em>, <code>X</code> for <em>errored</em>. You'll see plenty of these in the next
+      lesson:
+    </p>
+    <div class="code">
+      <pre>
+--1--2--3--|        emits 1, 2, 3, then completes
+--a----b---c--|      spacing is never meaningful — marbles aren't a clock
+----------X          errors, and stops — nothing after the X
+--1--2--3--4--…      never completes (a click stream, interval())</pre>
+    </div>
+  </section>
+
+  <!-- ============ 4. TRY IT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Try it</p>
+    <h2>Subscribe starts it. Unsubscribe stops it — mostly.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — <code>interval(500)</code> emits a counter while subscribed</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="start()" [disabled]="running()">Subscribe</button>
+        <button class="ghost" (click)="stop()" [disabled]="!running()">Unsubscribe</button>
+        <span class="pill">running: {{ running() }}</span>
+      </div>
+      <p>
+        latest value: <strong style="font-size: 1.2rem">{{ value() }}</strong>
+      </p>
+      <p class="demo__note">
+        The stream runs only while subscribed — unsubscribe and it freezes exactly where it was. That's lazy,
+        cancellable execution: not paused by magic, just no longer being asked for values.
+        <code>interval()</code> isn't magic either — under the hood it schedules a repeating timer via RxJS's own
+        <code>asyncScheduler</code> and calls <code>next</code> from that callback, which is why unsubscribing genuinely
+        stops the timer rather than merely stopping you from hearing about it.
+      </p>
+    </div>
+
+    <app-predict
+      prompt="Suppose this component gets destroyed — the reader navigates elsewhere — while Subscribe is still running, and there were no `ngOnDestroy` cleanup anywhere. What happens to the timer underneath `interval(500)`?"
+      answer="It keeps ticking, forever, attached to a component that no longer exists on screen. `interval()` never completes on its own, so nothing tears it down except an explicit `unsubscribe()` — that's exactly what this lesson's own `ngOnDestroy` does for every subscription on this page. A source that `complete()`s cleans itself up; an infinite one only stops when you tell it to."
+    />
+  </section>
+
+  <!-- ============ 5. OPERATORS PREVIEW ============ -->
+  <section>
+    <p class="bf-eyebrow">A preview of the next lesson</p>
+    <h2>Chaining operators never touches the original.</h2>
+
+    <p>
+      <code>source$.pipe(map(fn1), filter(fn2))</code> looks like it edits <code>source$</code> in place. It doesn't.
+      Each operator returns a <strong>brand-new Observable</strong> whose own producer subscribes to the one before it
+      internally — so subscribing to the result is really subscribing through a stack of wrappers, inward, until it
+      reaches the real source.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'source$', sub: 'the original values, untouched' }"
+      [rings]="[
+        { label: 'filter(x => x > 2)', sub: 'applied LAST — closest to subscribe()' },
+        { label: 'map(x => x * 2)', sub: 'applied FIRST — closest to the source' },
+      ]"
+      arrow="subscribe() enters here"
+      caption="A `subscribe()` call travels inward — through `filter`, then `map` — until it reaches `source$` and starts it running. Each value then flows back out the way it came, transformed at every ring it crosses, and `source$` itself is never touched by any of it."
+    />
+
+    <div class="code">
+      <pre>{{ wrapSample }}</pre>
+    </div>
+
+    <app-predict [prompt]="wrapPrompt" [answer]="wrapAnswer" />
+  </section>
+
+  <!-- ============ 6. COLD VS HOT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The crucial distinction</p>
+    <h2>Subscribe twice, and you get two separate runs.</h2>
+
+    <app-compare
+      leftTitle="Cold — most Observables"
+      rightTitle="Hot — shared, multicast"
+      note="Cold isn't a bug to work around — it's the sensible default for anything with its own arguments, like a search query or a specific id. Reach for hot only when several places genuinely want the exact same run."
+    >
+      <div left>
+        <p>
+          The producer runs <strong>inside</strong> <code>subscribe()</code>. Two <code>subscribe()</code> calls run it
+          twice, from scratch, each getting its own private execution.
+        </p>
+        <p>
+          Cold by default: <code>http.get()</code>, <code>interval()</code>, anything built with
+          <code>new Observable(...)</code>. Two subscribers to the same <code>http.get()</code> really do mean two
+          separate HTTP requests.
+        </p>
+      </div>
+      <div right>
+        <p>
+          One producer runs once, and every subscriber is handed the same values as they go by —
+          <strong>multicast</strong>, not re-run from the top.
+        </p>
+        <p>
+          <code>Subject</code> (next-but-one lesson) is hot by construction. <code>shareReplay()</code> turns a cold
+          source hot on purpose, by putting a Subject in the middle for you.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="demo">
+      <p class="demo__title">Live — same source, two subscribers: cold vs shared</p>
+      <div class="row" style="margin-bottom: 10px">
+        <label class="row" style="gap: 6px">
+          <input type="checkbox" [checked]="shared()" (change)="toggleShared()" />
+          share this source (<code>shareReplay(1)</code>)
+        </label>
+        <button class="ghost" (click)="resetDemo()">Reset</button>
+      </div>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="subscribeA()">Subscribe A</button>
+        <button (click)="subscribeB()">Subscribe B</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>execution id it saw</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Subscriber A</td>
+            <td>
+              <strong>{{ execA() }}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td>Subscriber B</td>
+            <td>
+              <strong>{{ execB() }}</strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="demo__note">
+        Each id is generated fresh, once, inside the producer function. Unshared, A and B land on <em>different</em> ids
+        — each <code>subscribe()</code> reran the producer from scratch. Tick the checkbox, hit Reset, then subscribe A
+        and B again: now they match — one shared execution, multicast to both.
+      </p>
+    </div>
+
+    <app-quiz
+      question="Two components both inject the same service and both call `usersService.getUsers()`, a plain `http.get()` with no `shareReplay`. How many HTTP requests actually go out?"
+      [options]="coldQuiz"
+    />
+  </section>
+
+  <!-- ============ 7. SHAREREPLAY'S FINE PRINT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The catch</p>
+    <h2>Sharing one run can also mean it never stops.</h2>
+
+    <p>
+      <code>shareReplay()</code> is how you turn a cold source hot on purpose — but it has two signatures, and the short
+      one has a sharp edge nobody warns you about until it's already in production.
+    </p>
+
+    <app-code-lab
+      file="config.service.ts — the two forms"
+      [code]="shareReplaySample"
+      [notes]="shareReplayNotes"
+      notesLabel="Same operator, one word of config apart"
+    />
+
+    <div class="demo">
+      <p class="demo__title">
+        Live — same <code>interval(400)</code>, two <code>shareReplay</code> configs, capped at 50 ticks so this demo
+        can't actually outlive your tab
+      </p>
+      <div class="bf-grid-2">
+        <div class="bf-card bf-card--sunk">
+          <p class="bf-card__label">shareReplay(1) — leaky</p>
+          <div class="row" style="margin-bottom: 10px">
+            <span class="pill">ticks: {{ leakyTicks() }}</span>
+            <span class="pill">listening: {{ leakySubscribed() }}</span>
+          </div>
+          <button (click)="toggleLeaky()">{{ leakySubscribed() ? 'Unsubscribe' : 'Subscribe' }}</button>
+        </div>
+        <div class="bf-card bf-card--sunk">
+          <p class="bf-card__label">shareReplay(refCount: true) — guarded</p>
+          <div class="row" style="margin-bottom: 10px">
+            <span class="pill">ticks: {{ guardedTicks() }}</span>
+            <span class="pill">listening: {{ guardedSubscribed() }}</span>
+          </div>
+          <button (click)="toggleGuarded()">{{ guardedSubscribed() ? 'Unsubscribe' : 'Subscribe' }}</button>
+        </div>
+      </div>
+      <p class="demo__note">
+        Subscribe to both, watch the ticks climb, then unsubscribe from both.
+        <strong class="bf-break">The left counter keeps climbing</strong> — the underlying interval is still running
+        with nobody listening — while the right one freezes the instant you unsubscribe, because
+        <code>refCount</code> actually tore its source down.
+      </p>
+    </div>
+
+    <app-remember variant="rule">
+      <code>shareReplay(1)</code> remembers <strong>forever</strong>.
+      <code>shareReplay({{ '{' }} bufferSize: 1, refCount: true {{ '}' }})</code> forgets the moment nobody's listening.
+      Pick the second one unless you can name the reason you want the first.
+    </app-remember>
+  </section>
+
+  <!-- ============ 8. THE ASYNC PIPE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The modern default</p>
+    <h2>The async pipe subscribes for you. Once per place you write it.</h2>
+
+    <p>
+      <code>| async</code> is the recommended way to read an Observable straight from a template: it subscribes when the
+      binding is created, unwraps each value, calls <code>markForCheck()</code> on your view every time a new one
+      arrives — which is exactly why it renders correctly under <code>OnPush</code>, and under this whole app's zoneless
+      setup, with no extra work from you — and unsubscribes automatically when the binding is destroyed.
+    </p>
+
+    <p>
+      That sounds like it solves everything, and it very nearly does — except for the one thing its name doesn't warn
+      you about: it subscribes <span class="key">per binding site</span>, not per Observable.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the same cold source, bound with <code>| async</code> twice</p>
+      <div class="bf-grid-2">
+        <div class="bf-card bf-card--sunk">
+          <p class="bf-card__label">Binding A</p>
+          <p class="pill">{{ asyncDemoSource$ | async }}</p>
+        </div>
+        <div class="bf-card bf-card--sunk">
+          <p class="bf-card__label">Binding B</p>
+          <p class="pill">{{ asyncDemoSource$ | async }}</p>
+        </div>
+      </div>
+      <p class="demo__note">
+        Same source, two <code>| async</code> uses in the template —
+        <strong class="bf-break">two subscriptions, two producer runs, two different ids</strong>. For a real
+        <code>http.get()</code> that is two identical network requests for the exact same data.
+      </p>
+
+      @if (asyncDemoSource$ | async; as sharedId) {
+        <p>
+          Bound <strong>once</strong> and aliased with <code>as</code>: reading 1 shows <strong>{{ sharedId }}</strong
+          >, reading 2 shows <strong>{{ sharedId }}</strong> — identical, because there is now exactly one subscription
+          feeding both.
+        </p>
+      }
+
+      <button class="ghost" (click)="resetAsyncDemo()">Get a fresh source</button>
+    </div>
+
+    <app-quiz
+      question="A template writes `{{
+        '{{'
+      }} user$ | async {{ '}}' }}` twice, where `user$` is a cold `http.get()` with no `shareReplay`. How many HTTP requests fire?"
+      [options]="asyncQuiz"
+      followUp="Try it above — two bindings, two ids — then look at the `@if (...; as ...)` block underneath and notice both readings agree."
+    />
+  </section>
+
+  <!-- ============ 9. OBSERVABLE TO PROMISE ============ -->
+  <section>
+    <p class="bf-eyebrow">The escape hatch</p>
+    <h2>Sometimes you just want one value, once.</h2>
+
+    <p>
+      Not every call site wants to think in streams. If you genuinely want exactly one value and then you're done, RxJS
+      has a bridge straight back to plain <code>async</code>/<code>await</code> — but it has three ways to surprise you
+      if the source doesn't behave the way you assumed.
+    </p>
+
+    <app-code-lab
+      file="profile.service.ts"
+      [code]="promiseSample"
+      [notes]="promiseNotes"
+      notesLabel="Four lines, three different ways to get burned"
+    />
+
+    <p>
+      Notice the fix for the apparent contradiction with the <a routerLink="/http-crud">HTTP CRUD lesson</a>, which
+      teaches <code>subscribe({{ '{' }} error {{ '}' }})</code>: <code>await</code>ing throws the underlying error, so
+      here — unlike with <code>subscribe()</code> — a plain <code>try</code>/<code>catch</code> is exactly the right
+      tool.
+    </p>
+  </section>
+
+  <!-- ============ 10. WHERE THEY COME FROM ============ -->
+  <section>
+    <p class="bf-eyebrow">Where they come from</p>
+    <h2>You'll rarely build one by hand.</h2>
+
+    <p>RxJS ships creation helpers for the common cases, so <code>new Observable(...)</code> stays a rare sight:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Helper</th>
+          <th>What it gives you</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>of(1, 2, 3)</code></td>
+          <td>Fixed values, synchronously, then completes</td>
+        </tr>
+        <tr>
+          <td><code>from(promiseOrArray)</code></td>
+          <td>Wraps an array, an iterable, or a Promise</td>
+        </tr>
+        <tr>
+          <td><code>interval(1000)</code></td>
+          <td>0, 1, 2, … every second, forever — never completes</td>
+        </tr>
+        <tr>
+          <td><code>timer(500, 1000)</code></td>
+          <td>Waits 500ms, then emits every 1s after that</td>
+        </tr>
+        <tr>
+          <td><code>fromEvent(el, 'click')</code></td>
+          <td>DOM events as a stream — never completes on its own</td>
+        </tr>
+        <tr>
+          <td><code>EMPTY</code> / <code>NEVER</code> / <code>throwError(() =&gt; e)</code></td>
+          <td>The three edge cases, as values you can substitute in</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>And Angular hands you Observables built the same way, in most of the framework surface you'll touch:</p>
+    <div class="code">
+      <pre>
+this.http.get&lt;User[]&gt;('/api/users')      // HTTP responses
+this.route.paramMap                       // route parameters, as they change
+this.form.valueChanges                    // every edit to a reactive form
+this.form.statusChanges                   // VALID / INVALID / PENDING, over time
+fromEvent(window, 'resize')               // any DOM event stream</pre>
     </div>
     <p>
-      latest value: <strong style="font-size: 1.2rem">{{ value() }}</strong>
+      Because they're all Observables, the same operators and the same cleanup rules apply to every one of them — learn
+      the pattern once, use it everywhere.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The stream only runs while subscribed. Unsubscribe and the counter freezes — that's lazy, cancellable execution.
-      Forgetting to unsubscribe from an infinite stream is the classic memory leak.
-    </p>
-  </div>
 
-  <h2>Cold vs hot — a crucial distinction</h2>
-  <p>
-    Most Observables are <strong>cold &amp; unicast</strong>: the producer is created fresh <em>per subscriber</em>, so
-    each <code>subscribe()</code> re-runs the work from the start. Two subscribers to an <code>http.get()</code> means
-    <em>two</em>
-    HTTP requests.
-  </p>
-  <p>
-    <strong>Hot</strong> sources share one producer and <em>multicast</em> the same values to everyone — a
-    <code>Subject</code> (next lesson) or <code>fromEvent</code> on a real DOM element. The operator
-    <code>shareReplay()</code> turns a cold stream hot when you want many subscribers to share a single execution (e.g.
-    one cached HTTP call).
-  </p>
-
-  <div class="demo">
-    <p class="demo__title">Live — same source, two subscribers: cold vs shared</p>
-    <div class="row" style="margin-bottom: 10px">
-      <label class="row" style="gap: 6px">
-        <input type="checkbox" [checked]="shared()" (change)="toggleShared()" />
-        share this source (<code>shareReplay(1)</code>)
-      </label>
-      <button class="ghost" (click)="resetDemo()">Reset</button>
+    <div class="warn">
+      <strong>Always clean up an infinite subscription.</strong> Best options, in order: the <code>async</code> pipe
+      (auto-unsubscribes with the binding), <code>toSignal()</code> from
+      <a routerLink="/rxjs-interop">RxJS ↔ Signals interop</a>, or <code>takeUntilDestroyed()</code>. Manual
+      <code>unsubscribe()</code> in <code>ngOnDestroy</code> works too, and is exactly what this lesson's own demos do.
+      A source that <code>complete()</code>s or errors tears itself down — but an infinite one (<code>interval</code>,
+      <code>fromEvent</code>) leaks until you stop it yourself.
     </div>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="subscribeA()">Subscribe A</button>
-      <button (click)="subscribeB()">Subscribe B</button>
-    </div>
-    <table class="t">
-      <tr>
-        <th></th>
-        <th>execution id it saw</th>
-      </tr>
-      <tr>
-        <td>Subscriber A</td>
-        <td>
-          <strong>{{ execA() }}</strong>
-        </td>
-      </tr>
-      <tr>
-        <td>Subscriber B</td>
-        <td>
-          <strong>{{ execB() }}</strong>
-        </td>
-      </tr>
-    </table>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Each "execution id" is generated fresh, once, inside the producer function. Unshared, A and B almost always land
-      on <em>different</em> ids — each <code>subscribe()</code> re-runs the producer from scratch (cold). Tick the
-      checkbox, hit Reset, then subscribe A and B again: now they match — one shared execution, multicast to both (hot).
-    </p>
-  </div>
+  </section>
 
-  <h2>Where Angular hands you Observables</h2>
-  <div class="code">
-    <pre>
-this.http.get&lt;User[]&gt;('/api/users')      // HTTP responses
-this.route.paramMap                       // route parameters as they change
-this.form.valueChanges                    // every edit to a reactive form
-this.form.statusChanges                   // VALID / INVALID / PENDING over time
-fromEvent(window, 'resize')               // any DOM event stream</pre>
-  </div>
-  <p>
-    Because they're all Observables, the <em>same</em> operators and cleanup rules apply to every one of them — learn
-    the pattern once, use it everywhere.
-  </p>
+  <!-- ============ 11. EXAM PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Where this bites people</p>
+    <h2>Six ways this shows up on an exam.</h2>
 
-  <div class="warn">
-    <strong>Always clean up subscriptions</strong> to avoid memory leaks. Best options, in order: the
-    <code>async</code> pipe (auto-unsubscribes in the template), <code>toSignal()</code>, or
-    <code>takeUntilDestroyed()</code>. Manual <code>unsubscribe()</code> in <code>ngOnDestroy</code> works too. A stream
-    that <code>complete()</code>s or errors tears itself down — but an infinite one (<code>interval</code>,
-    <code>fromEvent</code>) leaks until you stop it.
-  </div>
+    <ul>
+      <li>
+        Assuming two <code>subscribe()</code> calls share one run — by default (cold), each subscribe
+        <span class="bf-break">re-executes the producer</span> — two identical HTTP requests, not one shared response.
+      </li>
+      <li>
+        Assuming <code>unsubscribe()</code> always cancels the underlying work — for <code>HttpClient</code> it does
+        abort the request, but a source built from a <code>Promise</code> can't be cancelled; unsubscribing just stops
+        you hearing about a result that still arrives.
+      </li>
+      <li>
+        Forgetting <code>error</code> and <code>complete</code> are mutually exclusive and terminal — code written to
+        expect more <code>next</code> calls after either one will simply never see them.
+      </li>
+      <li>
+        <code>shareReplay()</code> with no <code>refCount</code> config
+        <span class="bf-break">keeps the source subscribed forever</span>, even at zero active subscribers — a leak
+        hiding inside the fix for cold duplication.
+      </li>
+      <li>
+        Two <code>| async</code> bindings on the same cold source in one template are
+        <span class="bf-break">two independent subscriptions</span>, not one shared value — bind once with
+        <code>&#64;if (...; as x)</code> instead.
+      </li>
+      <li>
+        <code>firstValueFrom()</code> on a source that never emits and never completes — a <code>Subject</code> nobody
+        pushed to, say — <span class="bf-break">hangs forever</span>, silently: no error, no timeout.
+      </li>
+    </ul>
+  </section>
 
-  <h2>Under the hood</h2>
-  <p>
-    An Observable is really just a wrapped function: <code>new Observable(fn)</code> stores <code>fn</code> and does
-    nothing else. <strong>Nothing runs until <code>subscribe()</code> is called</strong> — that's what actually invokes
-    <code>fn</code>, handing it a <code>Subscriber</code> that wraps your <code>next</code>/<code>error</code>/<code
-      >complete</code
-    >
-    callbacks with guards (a misbehaving producer that calls <code>next</code> after <code>complete</code> is silently
-    ignored, not delivered). <code>interval(500)</code> isn't magic either — it schedules a repeating timer via RxJS's
-    <code>asyncScheduler</code> and calls <code>next</code> from that callback, which is why unsubscribing really does
-    stop the timer instead of just "stop listening."
-  </p>
-  <p>
-    Operators like <code>map</code>/<code>filter</code>/<code>take</code> never mutate the source — each one returns a
-    <strong>brand-new</strong> Observable whose producer function subscribes to the source internally and forwards
-    transformed values onward. That's why <code>const b$ = a$.pipe(map(fn))</code> leaves <code>a$</code> completely
-    untouched and reusable elsewhere.
-  </p>
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
 
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      Assuming two <code>subscribe()</code> calls share one run — by default (cold) each subscribe re-executes the
-      producer, e.g. two identical HTTP requests, not one shared response.
-    </li>
-    <li>
-      Assuming <code>unsubscribe()</code> always "cancels the work" — for <code>HttpClient</code> it does abort the
-      request, but a source built from a <code>Promise</code> can't be cancelled; unsubscribing just stops you from
-      hearing about a result that still arrives.
-    </li>
-    <li>
-      Forgetting <code>error</code> and <code>complete</code> are mutually exclusive and terminal — code written to
-      expect more <code>next</code> calls after an error will simply never see them.
-    </li>
-    <li>
-      <code>shareReplay()</code> without a <code>refCount</code> config can keep the source subscribed forever, even
-      with zero active subscribers — that's a leak hiding inside the "fix" for the cold-duplication problem.
-    </li>
-    <li>
-      Forgetting to tear down an <em>infinite</em> source (<code>interval</code>, <code>fromEvent</code>) — a source
-      that <code>complete()</code>s cleans itself up, but these don't, so skipping
-      <code>ngOnDestroy</code>/<code>async</code>/<code>takeUntilDestroyed()</code> leaks.
-    </li>
-  </ul>
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      An Observable is a <strong>lazy</strong>, <strong>multi-value</strong>, <strong>cancellable</strong> stream over
-      time — like a newsletter.
-    </li>
-    <li>
-      Subscribe with an observer: <code>next</code> (0..many), then a terminal <code>error</code> <em>or</em>
-      <code>complete</code>.
-    </li>
-    <li>
-      Create with <code>of</code>, <code>from</code>, <code>interval</code>, <code>timer</code>, <code>fromEvent</code>;
-      draw them as marble diagrams.
-    </li>
-    <li>Cold streams re-run per subscriber; hot streams multicast. <code>shareReplay</code> shares one run.</li>
-    <li>
-      Angular exposes HTTP, router, and forms as Observables — manage teardown with
-      <code>async</code>/<code>toSignal</code>/<code>takeUntilDestroyed</code>.
-    </li>
-  </ul>
+    <ul>
+      <li>
+        An Observable is a <strong>lazy</strong> recipe, not a running process.
+        <strong>Nothing happens until <code>subscribe()</code></strong
+        >, and a Promise you're used to comparing it against already started before you finished reading the line.
+      </li>
+      <li>
+        Most Observables are <strong>cold</strong>: the producer re-runs, from scratch, for every single subscriber. Two
+        subscribers to one <code>http.get()</code> is two HTTP requests, unless something makes it hot.
+      </li>
+      <li>
+        <code>next</code> can fire any number of times;
+        <strong><code>error</code> and <code>complete</code> are mutually exclusive and terminal</strong> — at most one
+        of them, ever, and nothing after it.
+      </li>
+      <li>
+        <code>.pipe()</code> never mutates the source — every operator hands back a <strong>brand-new</strong>
+        Observable that wraps the one before it.
+      </li>
+      <li>
+        <code>| async</code> subscribes <strong>per binding site</strong>, not per Observable. Two uses of the same cold
+        source is two runs — alias it with <code>as</code> to pay for one.
+      </li>
+      <li>
+        A source that <code>complete()</code>s cleans itself up. An infinite one doesn't — <strong>you</strong> stop it,
+        with the async pipe, <code>toSignal()</code>, <code>takeUntilDestroyed()</code>, or a manual
+        <code>unsubscribe()</code>.
+      </li>
+    </ul>
 
-  <p><a routerLink="/rxjs-operators">Next: Core Operators →</a></p>
+    <p><a routerLink="/rxjs-operators">Next: Core Operators →</a></p>
+  </section>
 </article>

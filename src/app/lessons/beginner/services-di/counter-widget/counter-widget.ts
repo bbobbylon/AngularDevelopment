@@ -20,4 +20,11 @@ export class CounterWidget {
    * Display name, so two widgets on the page can be told apart.
    */
   readonly label = input('Widget');
+  /**
+   * Shows {@link CounterService.heartbeat} next to the count. Off by default —
+   * the two-widget "independent instances" demo has nothing to do with
+   * lifecycles, and showing a ticking number there would be noise. The
+   * teardown demo turns it on so the heartbeat has something to watch stop.
+   */
+  readonly showHeartbeat = input(false);
 }

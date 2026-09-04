@@ -1,34 +1,24 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-mark {
-  background: rgba(250, 200, 60, 0.35);
-  border-radius: 2px;
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why the old `.t` block is gone — it
+   was a per-lesson copy of rules the theme now owns.
+
+   Anything left here has to be genuinely specific to this lesson: the
+   `<mark>` tags the highlight pipe injects via [innerHTML], and the layout
+   for the relative-time demo's post rows. */
+
+.lesson.bf mark {
+  background: color-mix(in srgb, var(--bf-gold) 35%, transparent);
+  color: var(--bf-ink);
+  border-radius: 3px;
   padding: 0 2px;
-  color: inherit;
 }
+
 .post-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--bf-rule);
   gap: 12px;
   font-size: 0.9rem;
 }

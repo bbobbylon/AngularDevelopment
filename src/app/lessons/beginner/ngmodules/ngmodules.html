@@ -1,325 +1,541 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · NgModules</span>
-  <h1>NgModules Explained</h1>
-  <p class="lead">
-    Angular is <strong>standalone-first</strong> today — you've been writing standalone components this whole
-    curriculum. But for ~8 years every Angular app was organised with <strong>NgModules</strong>, and the certification
-    exam still tests them. You'll meet them in almost any existing codebase, so you need to read and reason about them
-    confidently. Here's the whole model.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · NgModules"
+    title="NgModules Explained"
+    hand="or, the paperwork every component used to file before Angular would let it exist"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      You've never once written an <code>&#64;NgModule</code> in this app — every lesson before this one has been
+      standalone. But for roughly eight years, from Angular 2 to the version most production codebases were still
+      shipping in 2023, <code>&#64;NgModule</code> was <strong>the only way</strong> to wire an Angular app together,
+      and it's still what you'll read on the certification exam, in most existing jobs, and in every tutorial published
+      before 2023. This page is a translation guide: what an NgModule actually does,
+      <strong>the two entirely separate jobs</strong> it was quietly doing at once, and exactly how each piece maps onto
+      the standalone code you already know.
+    </p>
+  </app-chapter>
 
-  <h2>What an NgModule is</h2>
-  <p>
-    A class annotated with <code>&#64;NgModule</code> that groups related building blocks and tells Angular how they fit
-    together. It has five metadata buckets:
-  </p>
-  <div class="code">
-    <pre>
-&#64;NgModule({{ '{' }}
-  declarations: [HomeComponent, HighlightDirective, MoneyPipe], // OWNED by this module
-  imports:      [CommonModule, FormsModule, RouterModule],        // other modules you use
-  exports:      [HomeComponent],                                  // re-expose to importers
-  providers:    [UserService],                                    // services (DI)
-  bootstrap:    [AppComponent],                                   // root cmp — AppModule only
-{{ '}' }})
-export class AppModule {{ '{' }}{{ '}' }}</pre>
-  </div>
-  <table class="t">
-    <tr>
-      <td><code>declarations</code></td>
-      <td>
-        The components, directives &amp; pipes that <strong>belong to</strong> this module. Each declarable belongs to
-        <em>exactly one</em> module.
-      </td>
-    </tr>
-    <tr>
-      <td><code>imports</code></td>
-      <td>Other <em>modules</em> whose <strong>exported</strong> declarables/providers you want to use here.</td>
-    </tr>
-    <tr>
-      <td><code>exports</code></td>
-      <td>The subset of your declarables (and re-exported modules) that importers may use.</td>
-    </tr>
-    <tr>
-      <td><code>providers</code></td>
-      <td>Services registered for DI (module-level, or app-wide for the root module).</td>
-    </tr>
-    <tr>
-      <td><code>bootstrap</code></td>
-      <td>The root component Angular renders at startup. Only the root <code>AppModule</code> has this.</td>
-    </tr>
-  </table>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Nothing in this app has an &#64;NgModule. Something still had to do its job.</h2>
 
-  <h2>The mental model: passports and visas</h2>
-  <p>
-    Here's the analogy that makes every module error read as obvious.
-    <span class="key">A module is a country, and its declarables are citizens.</span>
-    A component <span class="term">declared</span> in <code>SharedModule</code> is a citizen of SharedModule — it can be
-    used freely by any other citizen of SharedModule, and by nobody else.
-  </p>
-  <p>
-    Two things have to happen before it travels. SharedModule has to
-    <span class="term">export</span> it — that's the passport, the owning module's permission for it to leave. And the
-    destination has to <span class="term">import</span> SharedModule — that's the visa, the consuming module's
-    permission for it to arrive. <span class="right">Both stamps, and the component renders.</span>
-    <span class="wrong">Either one missing, and you get "not a known element" at compile time.</span>
-    The live demo below is exactly those two switches.
-  </p>
+    <p>
+      Here's a rule that has never once changed, standalone or not: a template cannot use a component, directive or pipe
+      that hasn't been <span class="term">registered</span> somewhere. Angular's compiler checks every element and
+      attribute against a known list before it will let your app build at all. Today, a standalone component builds that
+      list itself — its own <code>imports</code> array on <code>&#64;Component</code>. Before 2023, a component couldn't
+      do that. Something else had to register it on the component's behalf.
+    </p>
 
-  <svg class="diagram" viewBox="0 0 760 340" role="img" aria-labelledby="mod-t mod-d">
-    <title id="mod-t">How exports and imports decide what a template can see</title>
-    <desc id="mod-d">
-      Two boxes. On the left, SharedModule declares three things: ButtonComponent, CardComponent and InternalSpinner.
-      ButtonComponent and CardComponent are listed in the module's exports, so green arrows carry them through the
-      exports gate to the right-hand box, FeatureModule, whose templates can now use app-button and app-card.
-      InternalSpinner is declared but never exported, so its arrow stops dead at the gate with a red cross, and a
-      template in FeatureModule that writes app-spinner fails to compile with "not a known element". FeatureModule can
-      only receive anything at all because it imports SharedModule; without that import, all three arrows would stop at
-      the gate.
-    </desc>
-    <defs>
-      <marker id="mod-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)" />
-      </marker>
-    </defs>
+    <p>
+      That something was the <code>NgModule</code>. And once you see it as a registration mechanism rather than a
+      mysterious wrapper, the two questions worth actually answering fall out on their own:
+    </p>
 
-    <text x="20" y="26" font-size="12.5" font-weight="700" fill="var(--text-muted)">
-      SharedModule — declarations: [ … ]
-    </text>
-    <text x="430" y="26" font-size="12.5" font-weight="700" fill="var(--text-muted)">
-      FeatureModule — imports: [SharedModule]
-    </text>
+    <ul>
+      <li>
+        What exactly counts as "registered", and who gets to decide? (<strong>declarations, exports, imports</strong>)
+      </li>
+      <li>
+        Registering a template is one thing — is that the <em>same</em> system that hands a component its services?
+      </li>
+    </ul>
 
-    <rect x="20" y="50" width="300" height="215" rx="10" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <rect x="430" y="50" width="310" height="215" rx="10" fill="none" stroke="var(--border)" stroke-width="1.5" />
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Every component, directive and pipe has to be registered somewhere before a template can use it —
+      <strong>always</strong> true, standalone or not. If a component genuinely isn't registered anywhere, what do you
+      think Angular does with a template that tries to use it: render it as a plain unrecognised tag, silently skip it,
+      or refuse to build the app at all?
+    </app-napkin>
+  </section>
 
-    <!-- the exports gate -->
-    <line x1="345" y1="44" x2="345" y2="272" stroke="var(--text-muted)" stroke-width="2" stroke-dasharray="6 5" />
-    <text x="345" y="292" font-size="11" text-anchor="middle" fill="var(--text-muted)">the exports gate</text>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An NgModule is a box with two separate doors.</h2>
 
-    <!-- exported declarables -->
-    <rect x="40" y="80" width="160" height="32" rx="6" fill="var(--green)" opacity="0.22" />
-    <text x="120" y="101" font-size="11" text-anchor="middle" fill="var(--green)" font-weight="700">
-      ButtonComponent
-    </text>
-    <text x="208" y="101" font-size="9.5" fill="var(--green)">exported ✓</text>
-    <line x1="204" y1="120" x2="424" y2="120" stroke="var(--green)" stroke-width="1.5" marker-end="url(#mod-arrow)" />
+    <p>
+      Picture every NgModule as a sealed box. Whatever a module <span class="term">declares</span> lives inside that
+      box, and it lives there permanently — <strong>exactly one</strong> box may declare any given class. From outside,
+      the box is opaque by default: nothing else in the app can see in.
+    </p>
 
-    <rect x="40" y="132" width="160" height="32" rx="6" fill="var(--green)" opacity="0.22" />
-    <text x="120" y="153" font-size="11" text-anchor="middle" fill="var(--green)" font-weight="700">CardComponent</text>
-    <text x="208" y="153" font-size="9.5" fill="var(--green)">exported ✓</text>
-    <line x1="204" y1="172" x2="424" y2="172" stroke="var(--green)" stroke-width="1.5" marker-end="url(#mod-arrow)" />
+    <p>
+      Two separate doors change that, and a component only crosses from one box to another if <strong>both</strong> are
+      open. The box that owns the component has to open an <span class="term">exports</span> door outward — "you may use
+      this." And the box that wants to borrow it has to open an <span class="term">imports</span> door inward — "give me
+      what you're offering." Open only one, and nothing moves. Nothing errors either — the component simply stays
+      invisible, which is exactly what makes the bug so hard to spot later.
+    </p>
 
-    <!-- declared but not exported -->
-    <rect x="40" y="196" width="160" height="32" rx="6" fill="var(--red)" opacity="0.22" />
-    <text x="120" y="217" font-size="11" text-anchor="middle" fill="var(--red)" font-weight="700">InternalSpinner</text>
-    <text x="208" y="217" font-size="9.5" fill="var(--red)">not exported</text>
-    <line x1="204" y1="234" x2="336" y2="234" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="5 4" />
-    <text x="342" y="239" font-size="14" fill="var(--red)" font-weight="700">✗</text>
+    <app-flow
+      [steps]="doorFlow"
+      caption="Four steps, and skipping any one of the last three leaves the component invisible somewhere — with no error to point at the gap."
+    />
 
-    <!-- what the feature module can see -->
-    <text x="452" y="116" font-size="11.5" fill="var(--green)">✓ &lt;app-button&gt; renders</text>
-    <text x="452" y="168" font-size="11.5" fill="var(--green)">✓ &lt;app-card&gt; renders</text>
-    <text x="452" y="220" font-size="11.5" fill="var(--red)">✗ &lt;app-spinner&gt; — not a known element</text>
-    <text x="452" y="240" font-size="10" fill="var(--text-muted)">(a compile-time error, not a runtime one)</text>
+    <app-remember variant="mnemonic">
+      <strong>Declare once. Export to share. Import to borrow.</strong> Every NgModule question about "why can't I see
+      this component" is really a question about which of those three steps got skipped.
+    </app-remember>
+  </section>
 
-    <text x="20" y="322" font-size="11" fill="var(--text-muted)">
-      Drop the import on the right and every arrow stops at the gate — exporting alone is never enough.
-    </text>
-  </svg>
+  <!-- ============ 3. THE DEMO PROVING THE ANALOGY ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Flip both doors and watch the verdict change.</h2>
 
-  <app-remember variant="mnemonic" label="The three verbs, in order">
-    <strong>Declare owns. Export shares. Import uses.</strong> Every NgModule error you will ever see is one of those
-    three verbs missing. Read the error, ask which verb is absent, fix that one line.
-  </app-remember>
+    <p>
+      <code>SharedModule</code> declares <code>ButtonComponent</code>. <code>FeatureModule</code> wants to use it. Two
+      switches, four combinations, exactly one of which works.
+    </p>
 
-  <h2>NgModule vs Standalone — same app, two wirings</h2>
-  <div class="row" style="margin-bottom: 10px">
-    <button [class.ghost]="mode() !== 'ngmodule'" (click)="mode.set('ngmodule')">NgModule way</button>
-    <button [class.ghost]="mode() !== 'standalone'" (click)="mode.set('standalone')">Standalone way (modern)</button>
-  </div>
-  <div class="code">
-    <pre>{{ sample() }}</pre>
-  </div>
-  <p>{{ explanation() }}</p>
-
-  <h2>Try it — export &amp; import decide visibility</h2>
-  <div class="demo">
-    <p class="demo__title">Live — can FeatureModule use ButtonComponent?</p>
-    <div class="row" style="margin-bottom: 10px">
-      <label class="row" style="gap: 6px">
-        <input type="checkbox" [checked]="exported()" (change)="toggleExported()" />
-        SharedModule exports ButtonComponent
-      </label>
-      <label class="row" style="gap: 6px">
-        <input type="checkbox" [checked]="imported()" (change)="toggleImported()" />
-        FeatureModule imports SharedModule
-      </label>
+    <div class="demo">
+      <p class="demo__title">Live — can FeatureModule use ButtonComponent?</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button [class.ghost]="!exported()" [attr.aria-pressed]="exported()" (click)="toggleExported()">
+          SharedModule exports ButtonComponent
+        </button>
+        <button [class.ghost]="!imported()" [attr.aria-pressed]="imported()" (click)="toggleImported()">
+          FeatureModule imports SharedModule
+        </button>
+      </div>
+      <div [class]="canUse() ? 'tip' : 'warn'">{{ verdict() }}</div>
+      <p class="demo__note">
+        Turn off the export and the import stays on — the button is still invisible. That's the two-door rule from
+        above, live: <strong>either door alone changes nothing.</strong>
+      </p>
     </div>
-    <div [class]="canUse() ? 'tip' : 'warn'">{{ verdict() }}</div>
-  </div>
+  </section>
 
-  <h2>Feature modules &amp; lazy loading</h2>
-  <p>
-    Big apps split into <strong>feature modules</strong>, each lazy-loaded by the router so its code only downloads when
-    the user visits it:
-  </p>
-  <div class="code">
-    <pre>
-// app.routes (or RouterModule.forRoot)
-{{ '{' }} path: 'admin',
-  loadChildren: () =&gt; import('./admin/admin.module').then(m =&gt; m.AdminModule) {{ '}' }}
+  <!-- ============ 4. THE SIX METADATA BUCKETS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One decorator, six buckets — memorise what goes where.</h2>
 
-// admin.module.ts
-&#64;NgModule({{ '{' }}
-  declarations: [AdminDashboard],
-  imports: [CommonModule, RouterModule.forChild(ADMIN_ROUTES)], // forChild in features!
-{{ '}' }})
-export class AdminModule {{ '{' }}{{ '}' }}</pre>
-  </div>
-  <div class="note">
-    <code>RouterModule.forRoot(routes)</code> is called <strong>once</strong> in the root module (it sets up the router
-    service). Feature modules use <code>RouterModule.forChild(routes)</code>, which only registers routes. Mixing them
-    up gives you duplicate router instances and broken navigation.
-  </div>
+    <p>Here's a module using every metadata key you'll meet, including the one most summaries leave out.</p>
 
-  <h2>The classic module trio</h2>
-  <table class="t">
-    <tr>
-      <td><code>AppModule</code></td>
-      <td>The root. <code>bootstrap</code>s the app, imports <code>BrowserModule</code>.</td>
-    </tr>
-    <tr>
-      <td><code>SharedModule</code></td>
-      <td>
-        Declares + <strong>exports</strong> reusable components/pipes/directives. Imported by many feature modules.
-        Never put singleton services here.
-      </td>
-    </tr>
-    <tr>
-      <td><code>CoreModule</code></td>
-      <td>
-        App-wide <em>singletons</em> (services, the nav bar) imported <strong>once</strong> by <code>AppModule</code>.
-      </td>
-    </tr>
-  </table>
+    <app-code-lab
+      file="app.module.ts"
+      [code]="metadataSample"
+      [notes]="metadataNotes"
+      notesLabel="What each bucket actually does"
+    />
 
-  <app-predict
-    prompt="The user logs in on the home page, then navigates to the lazy-loaded /admin route. AdminDashboard checks `auth.currentUser()` and finds it null — the user appears logged out, but only inside /admin, and only after a full page load. No error, no warning. Why?"
-    [code]="duplicateSingletonSample"
-    answer="There are two AuthService instances. Every lazy-loaded module gets its own injector, and `providers` on a module registers the service on whichever injector loads that module. AppModule's import put one AuthService on the root injector — that is the one the login page wrote to. AdminModule's import put a second one on the lazy injector, and that is the one AdminDashboard reads. Two objects, two sets of state, no complaint from anyone. The historical fix was a guard constructor using the Optional and SkipSelf decorators, which throws if CoreModule is imported twice. The modern fix is to delete the `providers` entry and write `providedIn: 'root'` on the service, which registers it exactly once no matter how many modules pull it in."
-  />
+    <p>
+      Two buckets get confused constantly: <code>imports</code> takes <strong>other modules</strong>, never a component
+      or a service directly, and <code>declarations</code> takes <strong>components, directives and pipes</strong> —
+      never a service (that's <code>providers</code>) and never another module (that's <code>imports</code>).
+    </p>
 
-  <h2>How they bootstrap</h2>
-  <div class="code">
-    <pre>
-// Legacy NgModule bootstrap (main.ts)
-platformBrowserDynamic().bootstrapModule(AppModule);
+    <app-compare
+      leftTitle="`CUSTOM_ELEMENTS_SCHEMA` — the narrow one"
+      leftTone="good"
+      rightTitle="`NO_ERRORS_SCHEMA` — the risky one"
+      rightTone="bad"
+      note="Both exist on standalone `@Component` too, not just `@NgModule` — this is one piece of NgModule knowledge that carries straight over to modern code unchanged."
+    >
+      <div left>
+        <p>
+          Relaxes validation only for tags containing a <strong>dash</strong> — the exact shape of a real custom element
+          (<code>&lt;mat-icon&gt;</code>, <code>&lt;ion-button&gt;</code>, a web component you didn't author).
+          Everything else Angular still checks exactly as before.
+        </p>
+      </div>
+      <div right>
+        <p>
+          Disables unknown-element <em>and</em> unknown-property checking for the entire module, permanently. Typo
+          <code>&lt;app-widgte&gt;</code> and it renders as a blank, unrecognised tag with
+          <span class="bf-break">zero warning</span> — you find out from a bug report, not a compiler.
+        </p>
+      </div>
+    </app-compare>
+  </section>
 
-// Modern standalone bootstrap (main.ts)
+  <!-- ============ 5. NGMODULE VS STANDALONE, SAME COMPONENT ============ -->
+  <section>
+    <p class="bf-eyebrow">Same component, two wirings</p>
+    <h2>The flag that flipped, and the error waiting for you.</h2>
+
+    <p>
+      <span class="key">The single most common way pre-2023 tutorial code fails to compile today</span> is this exact
+      component, wired the old way. Toggle between the two and read the annotation on the line that changed.
+    </p>
+
+    <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+      <button [class.ghost]="mode() !== 'ngmodule'" (click)="mode.set('ngmodule')">NgModule way</button>
+      <button [class.ghost]="mode() !== 'standalone'" (click)="mode.set('standalone')">Standalone way (modern)</button>
+    </div>
+
+    <p>{{ explanation() }}</p>
+
+    @if (mode() === 'ngmodule') {
+      <app-code-lab
+        file="greeting.component.ts + greeting.module.ts"
+        [code]="ngModuleSample"
+        [notes]="ngModuleNotes"
+        notesLabel="What changed, line by line"
+      />
+    } @else {
+      <app-code-lab
+        file="greeting.ts"
+        [code]="standaloneSample"
+        [notes]="standaloneNotes"
+        notesLabel="What changed, line by line"
+      />
+    }
+
+    <app-remember variant="rule">
+      Since Angular 19, <strong>standalone is the default</strong> — a plain <code>&#64;Component()</code> literally
+      cannot be declared in an NgModule. Add <code>standalone: false</code> to opt back in, and expect that exact flag
+      on any pre-v19 code you're asked to read.
+    </app-remember>
+  </section>
+
+  <!-- ============ 6. FORROOT / FORCHILD ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The pattern nobody shows you the inside of</p>
+    <h2>forRoot() isn't magic. It's a static method that returns providers.</h2>
+
+    <p>
+      You've probably been told to "call <code>forRoot()</code> once, in the root module" as a rule to obey. Here's what
+      it's actually doing — the whole implementation is four lines longer than the usage.
+    </p>
+
+    <app-code-lab
+      file="feature.module.ts"
+      [code]="forRootSample"
+      [notes]="forRootNotes"
+      notesLabel="forRoot and forChild, side by side"
+    />
+
+    <p>
+      That's why calling <code>forRoot()</code> from a lazy feature module — instead of <code>forChild()</code> —
+      duplicates services. Nothing enforces "call this once"; the method just does what a static method does: it runs,
+      and it returns a brand-new providers array, every single time it's called.
+    </p>
+
+    <app-compare
+      leftTitle="NgModule — call it once, in the root"
+      leftTone="neutral"
+      rightTitle="Standalone — a plain function"
+      rightTone="good"
+      note="Same shape, module dropped: `provideFeature()` is `forRoot()`'s providers array without a class wrapped around it — and there's no `forChild()` twin to remember, because there's nothing left to duplicate by calling it twice."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+// app.module.ts — root only
+imports: [FeatureModule.forRoot({{ '{' }} apiUrl {{ '}' }})]
+
+// feature.module.ts — everywhere else
+imports: [FeatureModule.forChild()]</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+// app.config.ts
+providers: [provideFeature({{ '{' }} apiUrl {{ '}' }})]
+
+// provideFeature() itself:
+export function provideFeature(config: FeatureConfig) {{ '{' }}
+  return makeEnvironmentProviders([
+    {{ '{' }} provide: FEATURE_CONFIG, useValue: config {{ '}' }},
+  ]);
+{{ '}' }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-quiz
+      question="Your app calls FeatureModule.forRoot() in both AppModule and a lazy-loaded feature module. What happens?"
+      [options]="forRootQuiz"
+      followUp="Reread the highlighted line in the code-lab above — this is exactly what it's warning about."
+    />
+  </section>
+
+  <!-- ============ 7. FEATURE MODULES, LAZY LOADING & THE CLASSIC TRIO ============ -->
+  <section>
+    <p class="bf-eyebrow">Scaling up</p>
+    <h2>Big apps split into feature modules. Three roles show up in almost every one.</h2>
+
+    <p>
+      Feature modules are lazy-loaded by the router, so their code downloads only when a user actually visits them.
+      <code>forChild</code>, not <code>forRoot</code>, is the tell that you're reading a feature module rather than the
+      root.
+    </p>
+
+    <app-code-lab
+      file="app.routes.ts + admin.module.ts"
+      [code]="lazySample"
+      [notes]="lazyNotes"
+      notesLabel="The lazy-loading pairing, line by line"
+    />
+
+    <p>
+      Once an app has more than a couple of feature modules, three roles appear on their own, whether or not anyone
+      planned them:
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="AppModule" kicker="the root" tone="gold">
+        Bootstraps the whole app — the only module with a <code>bootstrap</code> bucket — and imports
+        <code>BrowserModule</code>. Standalone's <code>bootstrapApplication</code> replaces both jobs at once.
+      </app-tape-card>
+      <app-tape-card heading="SharedModule" kicker="reusable pieces" tone="accent">
+        Declares and <strong>exports</strong> reusable components, pipes and directives so every feature module can
+        import it. Never put a singleton service here — five <strong>lazy-loaded</strong> importers means five
+        instances.
+      </app-tape-card>
+      <app-tape-card heading="CoreModule" kicker="app-wide singletons" tone="blue">
+        Services and one-off things (a nav bar) meant to exist exactly once, imported <strong>only</strong> by
+        <code>AppModule</code>. Protected by a runtime guard, since nothing else stops a second import.
+      </app-tape-card>
+    </div>
+
+    <p>
+      That guard is worth reading in full, because the two decorators in it show up nowhere else in this curriculum and
+      answer a real exam question on their own.
+    </p>
+
+    <app-code-lab
+      file="core.module.ts"
+      [code]="coreModuleSample"
+      [notes]="coreModuleNotes"
+      notesLabel="The import-once guard, line by line"
+    />
+
+    <p>
+      <code>providedIn: 'root'</code> on the individual services makes this entire guard unnecessary — which is exactly
+      why you'll only ever meet it in code written before that became the default recommendation.
+    </p>
+  </section>
+
+  <!-- ============ 8. UNDER THE HOOD: TWO JOBS AT ONCE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Under the hood</p>
+    <h2>An NgModule was quietly doing two people's jobs.</h2>
+
+    <p>
+      The compiler and the injector are separate systems inside Angular, checking separate things, and an
+      <code>&#64;NgModule</code> file was the one place that fed both of them at once — which is exactly why it felt
+      like one mechanism instead of two.
+    </p>
+
+    <app-bubbles
+      [turns]="compilerInjectorTalk"
+      caption="Two systems, two questions. Notice that neither one ever answers the other's question."
+    />
+
+    <p>
+      The compiler half you've basically already lived: every "is not a known element" you've fixed by importing
+      something IS this system, whether the class doing the importing was a module or a standalone component. Angular's
+      compiler resolves each component's <span class="term">compilation scope</span> — the set of directives, components
+      and pipes its template is allowed to reference — from the owning module's <code>declarations</code> plus whatever
+      its <code>imports</code> re-expose, entirely before the app runs. That's why an undeclared or unexported component
+      fails at <em>compile</em> time rather than at runtime: the compiler already knows exactly what's visible where,
+      before a single pixel is painted.
+    </p>
+
+    <p>
+      It's the injector half that hides a genuine surprise. An eagerly imported NgModule doesn't get an injector of its
+      own at all — its <code>providers</code> flatten straight into the same root injector as everything else, so
+      there's no surprise there. A <strong>lazy-loaded</strong> feature module is the exception: because the router
+      instantiates it separately, after the app is already running, it gets its own
+      <span class="term">environment injector</span>, entirely separate from the compilation-scope question above.
+    </p>
+
+    <app-predict
+      prompt="`FeatureModule` provides `FeatureService` in its own `providers` array — not `providedIn: 'root'`. Two different lazy-loaded routes both import `FeatureModule`. When each route's component calls `inject(FeatureService)`, do they get the same instance, or two separate ones?"
+      answer="Two separate ones. Every lazy-loaded module gets its own injector, created fresh each time that chunk is loaded — so a provider that isn't `providedIn: 'root'` is duplicated once per lazy chunk that imports it. Navigate to the first route, mutate the service's state, then navigate to the second, and the state is gone: you're looking at a different object. The diagram below is the mechanism that makes this true."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-layers
+      [core]="{ label: 'Root injector', sub: 'AppModule providers, the last resort' }"
+      [rings]="[
+        { label: 'Component injector', sub: 'component-level providers, if any' },
+        { label: 'FeatureModule injector', sub: 'providers local to this lazy chunk' },
+      ]"
+      arrow="inject(FeatureService) called"
+      caption="The lookup starts at the requesting component and works **inward**, checking each ring before the next. `FeatureService` provided inside `FeatureModule` itself answers from the middle ring — the search never has to reach the root core at all. Import that same lazy module from two different routes and each gets its own middle ring, which is why each holds its own separate instance."
+    />
+  </section>
+
+  <!-- ============ 9. BOOTSTRAPPING & INTEROP ============ -->
+  <section>
+    <p class="bf-eyebrow">Starting up, and mixing both worlds</p>
+    <h2>Two bootstraps, one running app.</h2>
+
+    <app-compare
+      leftTitle="Legacy — bootstrapModule()"
+      leftTone="bad"
+      rightTitle="Modern — bootstrapApplication()"
+      rightTone="good"
+      note="Interop runs in both directions — see below."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+// main.ts
+platformBrowserDynamic().bootstrapModule(AppModule);</pre>
+        </div>
+        <p>
+          Boots the whole app from one <code>NgModule</code>. <code>AppModule</code> pulls in
+          <code>BrowserModule</code>, which is where DOM support actually comes from — importing it a second time from
+          anywhere else throws at startup.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+// main.ts
 bootstrapApplication(App, {{ '{' }}
   providers: [provideRouter(routes), provideHttpClient()],
 {{ '}' }});</pre>
-  </div>
-  <p>
-    They interoperate: you can <code>import</code> a standalone component into an NgModule's <code>imports</code>, and
-    pull NgModule providers into a standalone app with <code>importProvidersFrom(SomeModule)</code>.
-  </p>
+        </div>
+        <p>
+          One function, one component, and a flat <code>providers</code> array instead of a chain of modules.
+          <code>BrowserModule</code>'s job now happens automatically — the browser platform is simply what
+          <code>bootstrapApplication</code> targets.
+        </p>
+      </div>
+    </app-compare>
 
-  <h2>Common mistakes</h2>
-  <table class="t">
-    <tr>
-      <td>Declaring a component in two modules</td>
-      <td>
-        "Type X is part of the declarations of 2 modules." Each declarable belongs to one module;
-        <strong>export</strong> it and import that module instead.
-      </td>
-    </tr>
-    <tr>
-      <td>Using a component but forgetting to export it</td>
-      <td>Importers can't see non-exported declarables. Add it to <code>exports</code>.</td>
-    </tr>
-    <tr>
-      <td><code>*ngIf</code> / pipes fail in a feature module</td>
-      <td>
-        You forgot to import <code>CommonModule</code> (only <code>BrowserModule</code> in the root re-exports it).
-      </td>
-    </tr>
-    <tr>
-      <td><code>forRoot()</code> in a feature module</td>
-      <td>Use <code>forChild()</code>. <code>forRoot</code> belongs only in the root module.</td>
-    </tr>
-    <tr>
-      <td>Providing a service in <code>SharedModule</code></td>
-      <td>
-        Lazy modules get their <em>own</em> instance — accidental duplicates. Prefer <code>providedIn: 'root'</code>.
-      </td>
-    </tr>
-  </table>
+    <p>
+      They interoperate, and it goes both ways: pull an old module's providers into a standalone app with
+      <code>importProvidersFrom(SomeModule)</code>, and drop a standalone component or directive straight into an
+      NgModule's <code>imports</code> array. The one direction that never works is a standalone component in
+      <code>declarations</code> — you'll see exactly why in the quiz below.
+    </p>
+  </section>
 
-  <h2>Under the hood</h2>
-  <p>
-    NgModules aren't just organizational — the Angular compiler (Ivy) uses them to build each component's
-    <strong>compilation scope</strong>: the set of directives, components, and pipes its template is allowed to use.
-    That scope is resolved from the owning module's <code>declarations</code> plus whatever its
-    <code>imports</code> re-expose. This is why using an undeclared/unexported component in a template fails at
-    <em>compile time</em> ("is not a known element") rather than at runtime — the compiler already knows, before the app
-    ever runs, exactly what's visible where.
-  </p>
-  <p>
-    Standalone components sidestep this by carrying their own scope: each one lists its own
-    <code>imports</code> directly on the <code>&#64;Component</code> decorator, so there's no module-level scope to
-    resolve. <code>NgModule</code> still exists under the hood for DI, though — every module (and every lazy-loaded
-    feature module) creates its own <strong>injector</strong>, which is why a service provided in a lazy feature module
-    ends up as a separate instance from one registered with <code>providedIn: 'root'</code>.
-  </p>
+  <!-- ============ 10. COMMON MISTAKES & EXAM PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Common mistakes</p>
+    <h2>Five ways an NgModule app breaks quietly.</h2>
 
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      <code>declarations</code> may only contain <strong>components, directives, and pipes</strong> — services and other
-      modules never go there (services go in <code>providers</code>, modules go in <code>imports</code>).
-    </li>
-    <li>
-      Importing the same feature module from two separately <strong>lazy-loaded</strong> routes creates two separate
-      injectors — any service not registered with <code>providedIn: 'root'</code> ends up duplicated, one instance per
-      lazy chunk.
-    </li>
-    <li>
-      A component declared in an NgModule can't be dropped straight into a standalone component's
-      <code>imports</code> array — only standalone components/directives/pipes (or whole NgModules) belong there.
-    </li>
-    <li>
-      <code>BrowserModule</code> may only be imported by the <strong>root</strong> module — importing it a second time
-      from a feature module throws at startup. Feature modules that need <code>*ngIf</code>/pipes import
-      <code>CommonModule</code> instead.
-    </li>
-  </ul>
+    <table>
+      <caption class="bf-table-caption">
+        what it looks like, and the fix
+      </caption>
+      <thead>
+        <tr>
+          <th>Mistake</th>
+          <th>What actually happens</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Declaring a component in two modules</td>
+          <td>
+            <code>Type X is part of the declarations of 2 modules.</code> Each declarable belongs to one module —
+            <strong>export</strong> it and import that module instead.
+          </td>
+        </tr>
+        <tr>
+          <td>Using a component but forgetting to export it</td>
+          <td>Importers can't see non-exported declarables. Add it to <code>exports</code>.</td>
+        </tr>
+        <tr>
+          <td><code>*ngIf</code> / pipes fail in a feature module</td>
+          <td>
+            You forgot to import <code>CommonModule</code> — only <code>BrowserModule</code> in the root re-exports it.
+          </td>
+        </tr>
+        <tr>
+          <td><code>forRoot()</code> called in a feature module</td>
+          <td>
+            Use <code>forChild()</code> instead. Every duplicate call adds a fresh providers array — see the quiz above.
+          </td>
+        </tr>
+        <tr>
+          <td>Providing a service in <code>SharedModule</code></td>
+          <td>
+            Every lazy module that imports it gets its <em>own</em> instance — accidental duplicates. Prefer
+            <code>providedIn: 'root'</code>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="AppModule imports SharedModule. SharedModule imports FormsModule so its own components can use ngModel, but SharedModule's exports array lists only ButtonComponent. Can a template declared in AppModule use ngModel?"
-    [options]="quizOptions"
-    followUp="The fix is one line: add FormsModule to SharedModule's exports. A SharedModule that re-exports CommonModule, FormsModule and its own components is the whole reason the pattern exists — it is a bundle of visas."
-  />
+    <p>Three more, specifically the ones written to catch you on an exam:</p>
 
-  <h2>No dumb questions</h2>
-  <app-faq [items]="questions" />
+    <ul>
+      <li>
+        <code>declarations</code> may only contain <strong>components, directives, and pipes</strong> — services and
+        other modules never go there (services go in <code>providers</code>, modules go in <code>imports</code>).
+      </li>
+      <li>
+        <code>BrowserModule</code> may only be imported by the <strong>root</strong> module — importing it a second time
+        from a feature module throws at startup. Feature modules that need <code>*ngIf</code>/pipes import
+        <code>CommonModule</code> instead.
+      </li>
+      <li>
+        A component declared in an NgModule can't be dropped straight into a standalone component's
+        <code>imports</code> array — only standalone components, directives, pipes, or whole NgModules belong there.
+      </li>
+    </ul>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>&#64;NgModule</code> = <code>declarations</code> (owns) + <code>imports</code> (uses) +
-      <code>exports</code> (shares) + <code>providers</code> + <code>bootstrap</code>.
-    </li>
-    <li>A declarable belongs to exactly one module; share by exporting and importing.</li>
-    <li>
-      <code>forRoot()</code> once in the root; <code>forChild()</code> in features; lazy-load with
-      <code>loadChildren</code>.
-    </li>
-    <li>Standalone is the modern default, but NgModules still appear everywhere and on the exam.</li>
-    <li>The two models interoperate via <code>imports</code> and <code>importProvidersFrom</code>.</li>
-  </ul>
+    <app-quiz
+      question="You try to add a plain `@Component()` — no `standalone` flag set at all — to `declarations: [...]` in an NgModule, on Angular 21. What happens?"
+      [options]="finalQuiz"
+      followUp="This is the exact line-4 correction from the code-lab in Section 5 — go back and reread it if any of this felt shaky."
+    />
+  </section>
 
-  <p><a routerLink="/reactive-forms">Next: Reactive Forms →</a></p>
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        An NgModule was always doing <strong>two separate jobs</strong> at once — deciding what a template may use
+        (compile-time) and deciding who provides a service (DI, at runtime). Standalone components split those apart:
+        <code>imports</code> on <code>&#64;Component</code> replaces the first, <code>providedIn</code> replaces the
+        second.
+      </li>
+      <li>
+        <strong>Declare once, export to share, import to borrow.</strong> A class belongs to exactly one module; being
+        usable elsewhere always needs both a door out and a door in — miss either and the class is invisible there, with
+        no error to point at the gap.
+      </li>
+      <li>
+        Since Angular 19, <strong>standalone is the default</strong> — a plain <code>&#64;Component()</code> cannot go
+        in <code>declarations</code> at all. Old-tutorial code needs <code>standalone: false</code> added by hand before
+        it compiles.
+      </li>
+      <li>
+        <code>forRoot()</code>/<code>forChild()</code> are just
+        <strong>static methods that return a providers array (or don't)</strong>. Nothing stops you calling
+        <code>forRoot()</code> twice except discipline — which is exactly why the <code>CoreModule</code> guard exists,
+        and exactly what <code>providedIn: 'root'</code> makes unnecessary.
+      </li>
+      <li>
+        A lazy-loaded module gets <strong>its own injector</strong>, so a provider registered there — not at the root —
+        is duplicated once per lazy chunk that imports it.
+      </li>
+      <li>
+        The two worlds interoperate: <code>importProvidersFrom()</code> pulls an old module's providers into a
+        standalone app, and a standalone component can be dropped into an NgModule's <code>imports</code> — never its
+        <code>declarations</code>.
+      </li>
+    </ul>
+
+    <p>
+      <a routerLink="/template-forms">← Template-Driven Forms</a> &nbsp;·&nbsp;
+      <a routerLink="/reactive-forms">Next: Reactive Forms →</a>
+    </p>
+  </section>
 </article>

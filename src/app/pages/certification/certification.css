@@ -1,3 +1,30 @@
+/* ============================================================
+   Certification — study map, tier syllabus and exam simulator.
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a study tool, not a lesson, so it does not opt into `.lesson.bf`
+   — no Chapter/CodeLab/annotated-code treatment here. It picks up the warm
+   palette and type for free from the app-wide remap in that file's §3; what
+   follows is (a) retinting every literal colour this page used to hard-code
+   against the old indigo/zinc theme, and (b) the room, radii and motion the
+   rest of the restyled app now has.
+
+   Colour roles below follow the same six-hue legend as everywhere else in
+   the app (see styles.css's own legend comment):
+     --accent  interactive — buttons, the thing you can press
+     --amber   commit to an answer — the option you have picked but not
+               yet checked (mirrors the teaching Quiz component's own
+               "gold = commit" convention)
+     --green   correct / passed
+     --red     wrong / failed / urgent
+   Tier badges (junior/mid/senior) are not a correctness signal, so they
+   reuse the tier colours the study map's own h2 headings already carry
+   rather than inventing a fourth meaning for green/amber/accent, and
+   deliberately avoid red — this page already spends red on "wrong answer"
+   a few pixels away in the exam view, and a senior badge that reads as an
+   error state would be actively confusing.
+   ============================================================ */
+
 :host {
   display: block;
   max-width: 1000px;
@@ -10,9 +37,16 @@
   padding: 24px 0 8px;
 }
 .hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: clamp(1.7rem, 4vw, 2.6rem);
+  letter-spacing: -0.01em;
   margin: 14px 0 8px;
-  background: linear-gradient(90deg, #fff, var(--accent));
+  /* Ink → accent, not the old white → accent: this reads on warm paper in
+     light mode and on lamplight-dark in dark mode, since both --text and
+     --accent are theme tokens rather than a literal white that only ever
+     worked against a near-black page. */
+  background: linear-gradient(100deg, var(--text), var(--accent));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -31,7 +65,7 @@
 
 /* ─── level sections (map view) ────────────── */
 .level {
-  margin: 40px 0;
+  margin: 48px 0;
 }
 .level__head {
   display: flex;
@@ -39,11 +73,14 @@
   justify-content: space-between;
   gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
+  padding-bottom: 10px;
 }
 .level__head h2 {
   margin: 0;
-  font-size: 1.45rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  letter-spacing: -0.005em;
 }
 h2[data-key="junior"] {
   color: var(--green);
@@ -61,20 +98,20 @@ h2[data-key="senior"] {
 }
 .blurb {
   color: var(--text-muted);
-  margin: 10px 0 2px;
+  margin: 12px 0 2px;
 }
 .count {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--text-muted);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
 }
 .topic {
   display: grid;
   grid-template-columns: 220px 1fr;
-  gap: 14px;
-  padding: 12px 0;
+  gap: 16px;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border);
 }
 .topic__name {
@@ -84,7 +121,7 @@ h2[data-key="senior"] {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 9px;
 }
 .chip {
   display: inline-block;
@@ -96,46 +133,63 @@ h2[data-key="senior"] {
   color: var(--text);
   text-decoration: none;
   transition:
-    border-color 0.12s,
-    transform 0.12s;
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .chip:hover {
   border-color: var(--accent);
+  box-shadow: var(--shadow);
   transform: translateY(-1px);
 }
 .chip--soon {
   opacity: 0.6;
 }
 
-/* ─── simulate button ──────────────────────── */
-.sim-bar {
+/* ─── the exam nudge, inside <app-napkin> ───────────────────
+   The one thing a reader should stop and do once they've read a tier's
+   syllabus — the exact job description of the Napkin device — rather than
+   another tinted rectangle among the several already on this page. */
+.exam-cta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 20px;
-  padding: 14px 18px;
-  border-radius: 12px;
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  gap: 16px;
+  flex-wrap: wrap;
 }
-.sim-bar p {
+.exam-cta__text {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   color: var(--text-muted);
 }
-.sim-btn {
-  padding: 9px 20px;
-  background: #6366f1;
-  color: #fff;
+.exam-cta__btn {
+  flex-shrink: 0;
+  padding: 10px 22px;
   border: none;
-  border-radius: 8px;
-  cursor: pointer;
+  border-radius: 999px;
+  background: var(--accent);
+  /* --bg rather than a literal white: it is cream-on-orange in light mode
+     and near-black-on-bright-orange in dark mode, the same pairing the
+     brain-friendly button already proved clears AA in both schemes. */
+  color: var(--bg);
+  font-family: var(--font-body);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
+  cursor: pointer;
   white-space: nowrap;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 }
-.sim-btn:hover {
-  background: #5558e3;
+.exam-cta__btn:hover {
+  background: var(--bf-accent-bright);
+  transform: translateY(-1px);
+  box-shadow: var(--bf-shadow-lift);
+}
+.exam-cta__btn:active {
+  transform: translateY(0) scale(0.975);
+  box-shadow: none;
 }
 
 /* ─── exam view ─────────────────────────────── */
@@ -154,20 +208,22 @@ h2[data-key="senior"] {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 4px 12px;
+  border-radius: 999px;
 }
+/* Same three tier colours as the study map's h2 headings above — see the
+   file banner for why this does not reach for red. */
 .exam-level-badge.junior {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--bf-olive-wash);
+  color: var(--green);
 }
 .exam-level-badge.mid {
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--bf-gold-wash);
+  color: var(--amber);
 }
 .exam-level-badge.senior {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bf-accent-wash);
+  color: var(--accent);
 }
 .exam-progress-bar-outer {
   flex: 1;
@@ -178,7 +234,7 @@ h2[data-key="senior"] {
 }
 .exam-progress-bar-inner {
   height: 100%;
-  background: #6366f1;
+  background: var(--accent);
   border-radius: 3px;
   transition: width 0.3s;
 }
@@ -197,28 +253,40 @@ h2[data-key="senior"] {
   border: 1px solid var(--border);
 }
 .timer.urgent {
-  color: #ef4444;
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
+  color: var(--red);
+  border-color: var(--red);
+  /* color-mix rather than a fixed rgba: the token itself is a different,
+     brighter red in dark mode, so mixing it live keeps the tint at the
+     same relative strength in both schemes instead of baking in a value
+     tuned only for light mode. */
+  background: color-mix(in srgb, var(--red) 12%, transparent);
 }
 .exit-btn {
   margin-left: auto;
   padding: 6px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
   cursor: pointer;
   color: var(--text-muted);
   font-size: 0.84rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.exit-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ─── question card ─────────────────────────── */
 .q-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 28px 28px 20px;
+  border-radius: var(--bf-r-lg);
+  padding: 32px 32px 24px;
   margin-bottom: 20px;
+  box-shadow: var(--shadow);
 }
 .q-text {
   font-size: 1.05rem;
@@ -229,39 +297,45 @@ h2[data-key="senior"] {
 .options {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .opt {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 14px;
   cursor: pointer;
   font-size: 0.92rem;
   background: transparent;
   text-align: left;
   color: var(--text);
   transition:
-    border-color 0.15s,
-    background 0.15s;
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+/* Plain hover (not yet chosen): accent, same "you can press this" hue as
+   every other interactive control on the page. */
 .opt:hover:not(:disabled) {
-  background: var(--surface);
-  border-color: #6366f1;
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  transform: translateX(2px);
 }
+/* Chosen but not yet checked: gold, this page's one use of the "commit to
+   an answer" hue the Predict/reveal affordances use elsewhere in the app. */
 .opt.selected {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.09);
+  border-color: var(--amber);
+  background: var(--bf-gold-wash);
 }
 .opt.correct {
-  border-color: #22c55e;
-  background: rgba(34, 197, 94, 0.1);
+  border-color: var(--green);
+  background: var(--bf-olive-wash);
 }
 .opt.wrong {
-  border-color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--red);
+  background: var(--bf-danger-wash);
 }
 .opt:disabled {
   cursor: default;
@@ -281,13 +355,25 @@ h2[data-key="senior"] {
 .check-btn {
   margin-top: 16px;
   padding: 10px 24px;
-  background: #6366f1;
-  color: #fff;
+  background: var(--accent);
+  color: var(--bg);
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.check-btn:hover:not(:disabled) {
+  background: var(--bf-accent-bright);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.check-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
 }
 .check-btn:disabled {
   opacity: 0.4;
@@ -296,17 +382,17 @@ h2[data-key="senior"] {
 .explanation {
   margin-top: 14px;
   padding: 14px 18px;
-  border-radius: 10px;
+  border-radius: 14px;
   font-size: 0.9rem;
   line-height: 1.55;
 }
 .explanation.correct {
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid #22c55e;
+  background: var(--bf-olive-wash);
+  border: 1px solid var(--green);
 }
 .explanation.wrong {
-  background: rgba(239, 68, 68, 0.06);
-  border: 1px solid #ef4444;
+  background: var(--bf-danger-wash);
+  border: 1px solid var(--red);
 }
 .explanation strong {
   display: block;
@@ -315,16 +401,21 @@ h2[data-key="senior"] {
 .next-btn {
   margin-top: 14px;
   padding: 9px 22px;
-  background: var(--surface);
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 0.9rem;
   color: var(--text);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 .next-btn:hover {
-  border-color: #6366f1;
-  color: #6366f1;
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 
 /* ─── results ───────────────────────────────── */
@@ -341,15 +432,16 @@ h2[data-key="senior"] {
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
-  border: 5px solid #6366f1;
+  border: 5px solid var(--accent);
 }
 .score-circle.passed {
-  border-color: #22c55e;
+  border-color: var(--green);
 }
 .score-circle.failed {
-  border-color: #ef4444;
+  border-color: var(--red);
 }
 .score-pct {
+  font-family: var(--font-display);
   font-size: 2.2rem;
   font-weight: 800;
   line-height: 1;
@@ -362,18 +454,18 @@ h2[data-key="senior"] {
 .pass-badge {
   display: inline-block;
   padding: 6px 18px;
-  border-radius: 20px;
+  border-radius: 999px;
   font-weight: 700;
   font-size: 0.9rem;
   margin-bottom: 16px;
 }
 .pass-badge.passed {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--bf-olive-wash);
+  color: var(--green);
 }
 .pass-badge.failed {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bf-danger-wash);
+  color: var(--red);
 }
 .result-msg {
   color: var(--text-muted);
@@ -389,29 +481,43 @@ h2[data-key="senior"] {
 }
 .btn-primary {
   padding: 10px 22px;
-  background: #6366f1;
-  color: #fff;
+  background: var(--accent);
+  color: var(--bg);
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 }
 .btn-primary:hover {
-  background: #5558e3;
+  background: var(--bf-accent-bright);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.975);
 }
 .btn-ghost {
   padding: 10px 22px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
   cursor: pointer;
   font-size: 0.95rem;
   color: var(--text);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 .btn-ghost:hover {
-  border-color: #6366f1;
-  color: #6366f1;
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 .review-list {
   max-width: 600px;
@@ -426,10 +532,10 @@ h2[data-key="senior"] {
   margin-bottom: 12px;
 }
 .review-item {
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid #ef4444;
-  background: rgba(239, 68, 68, 0.04);
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--red);
+  background: var(--bf-danger-wash);
   font-size: 0.88rem;
   margin-bottom: 8px;
   line-height: 1.4;
@@ -439,6 +545,13 @@ h2[data-key="senior"] {
   font-size: 0.82rem;
   color: var(--text-muted);
 }
+/* Was an inline style="color: #6366f1" on the element in the template —
+   moved here, and switched from indigo to green: this labels the *correct*
+   answer, so it should carry the same "right" hue the rest of the page
+   uses, not the unrelated interactive-accent one. */
+.review-exp__correct {
+  color: var(--green);
+}
 
 .back {
   margin: 32px 0 8px;
@@ -446,7 +559,7 @@ h2[data-key="senior"] {
 @media (max-width: 640px) {
   .topic {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 8px;
   }
   .exam-topbar {
     gap: 10px;

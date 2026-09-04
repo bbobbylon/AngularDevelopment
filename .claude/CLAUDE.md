@@ -414,11 +414,16 @@ strictly worse. `docs/CONTRIBUTING.md` §2A has the retention budgets and copy c
 lesson, and that long copy lives in the `.ts` — and §2B has the presentation budgets, the
 section rhythm, and the line-annotation rules.
 
-**Rollout state:** 33 of 100 lessons at 9/9 as of 2026-09-01 (see `docs/BACKLOG.md` §1.1).
-**The 3/9 band is empty — the floor is now 4/9**, where 50 lessons sit, nearly all missing
-the same five signals: Visual, Analogy, Memory hook, Ask before telling, Self-test. Continue
-worst-first, but work them in batches by section: the recipe is the same for all of them, so
-researching each one from scratch is wasted effort.
+**Rollout state (2026-09-04):** the brain-friendly palette and typography are now the
+app's ONE unconditional default theme — every page, migrated or not, chrome included,
+inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). On top of that: 37 of 100
+lessons are through the combined retention + brain-friendly pass, and 5 of 15 non-lesson
+pages (home, certification, practice, mock-exam, review) have had their own colour/motion
+restyle. See `docs/BACKLOG.md` §1.2, which also has the build-breaking traps found so far
+worth reading before the next batch. Nothing sits below 3/9 any more. Continue worst-first
+on both lessons and the remaining non-lesson pages — the non-lesson pages get a restyle
+pass (tokens, colour audit, motion), never the lesson component set (no Chapter/CodeLab/
+Quiz/Predict/Faq on a dashboard or practice engine).
 
 **The retention pass and the presentation pass are now one pass.** Since 2026-08-31,
 migrating a lesson to the brain-friendly layer means rewriting it against the nine-point

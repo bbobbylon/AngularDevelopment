@@ -1,87 +1,74 @@
-button.active {
-  background: var(--accent);
-  color: #fff;
+/* Table, callout and code-panel styling all come from the shared brain-friendly
+   layer (src/brain-friendly.css §9, §14, §15) — the `.cmp` / `.qa` blocks that
+   used to live here were per-lesson copies of rules the theme now owns.
+
+   Anything left here is genuinely specific to this lesson's two live demos:
+   the mock chunk-loading network panel, and the "which button is selected"
+   state that a plain `.demo button` cannot express on its own. */
+
+/* Highlights whichever feature/tab button is the one currently showing. */
+.lesson.bf button.active {
+  background: var(--bf-accent-bright);
+  box-shadow: var(--bf-shadow-lift);
 }
+
+/* Small uppercase badge on each feature button: eager / lazy / cached. */
 .tag {
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 1px 5px;
+  padding: 1px 6px;
   border-radius: 4px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--bf-rule);
   margin-left: 6px;
-  opacity: 0.8;
+  color: var(--bf-ink-2);
 }
 .tag.ok {
-  color: var(--green);
-  border-color: var(--green);
+  color: var(--bf-olive);
+  border-color: var(--bf-olive);
 }
+
+/* Used inline in prose to call out the "cached" state by name. */
+.lesson.bf .ok {
+  color: var(--bf-olive);
+  font-weight: 700;
+}
+
+/* The mock "browser" showing whichever feature is active. */
 .screen {
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--bf-rule);
+  border-radius: 12px;
   padding: 14px 16px;
-  background: var(--bg-elevated);
+  background: var(--bf-surface-2);
   min-height: 84px;
 }
 .net {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--bf-ink-2);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .net.done {
-  color: var(--green);
+  color: var(--bf-olive);
 }
 .spinner {
   display: inline-block;
   width: 13px;
   height: 13px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
+  border: 2px solid var(--bf-rule);
+  border-top-color: var(--bf-accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
-}
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.ok {
-  color: var(--green);
-  font-weight: 700;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }

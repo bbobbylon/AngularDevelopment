@@ -1,382 +1,561 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Signals</span>
-  <h1>The resource() API</h1>
-  <p class="lead">
-    <code>resource()</code> bridges async data and signals. You give it a reactive <code>params</code> and a
-    <code>loader</code>; it tracks loading/error state, re-fetches when the params change, and
-    <span class="key">cancels stale requests</span> via an <code>AbortSignal</code> — all exposed as signals.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Intermediate · Signals"
+    title="The resource() API"
+    hand="or, how to stop hand-rolling a loading boolean for the rest of your career"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      Every API call in every app you've ever built needs the same four things: somewhere to put the data, a flag for
+      "it hasn't arrived yet", a flag for "it broke", and a way to cancel a request that's been overtaken by a newer
+      one. <code>resource()</code> is Angular admitting that pattern is common enough to build once. This page proves it
+      with live network requests, not prose — including a distinction almost every explanation of
+      <code>resource()</code> gets backwards: <strong>changing what you're asking for</strong> and
+      <strong>asking for the same thing again</strong> are two different states, and they render completely differently.
+    </p>
+  </app-chapter>
 
-  <h2>Think of it as a standing order at a counter</h2>
-  <p>
-    You hand the kitchen a ticket that says <em>"whatever is on this card"</em> rather than calling out an order. Change
-    what's written on the card and the kitchen notices and starts over — you never place a second order, and you never
-    ask "is it ready yet?" because the counter display tells you.
-  </p>
-  <p>Three properties of that arrangement are the three things <code>resource()</code> gives you:</p>
-  <ul>
-    <li>
-      <span class="right">You describe <em>what you want</em>, not <em>when to fetch</em>.</span> That's
-      <code>params</code>: a function that reads signals. Change a signal it read, and the loader re-runs by itself.
-      There is no <code>refresh()</code> call anywhere in a well-written resource.
-    </li>
-    <li>
-      <span class="right">The counter display is always accurate.</span> That's
-      <code>status()</code>/<code>isLoading()</code>/<code>error()</code> — loading and error state are part of the
-      resource, not three booleans you maintain by hand and forget to reset.
-    </li>
-    <li>
-      <span class="right">Change your mind and they bin the half-made one.</span> That's <code>abortSignal</code>, and
-      it is the part people skip. <span class="wrong">Without it you get a race</span>, which is worth seeing drawn.
-    </li>
-  </ul>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Every async load turns into the same four fields.</h2>
 
-  <h2>The race this exists to kill</h2>
-  <p>
-    A user clicks <strong>Next</strong> twice, quickly. Two requests go out. Here is what happens when the
-    <em>first</em> one happens to be slower than the second — which is common, not rare, because response times vary:
-  </p>
-
-  <svg class="diagram" viewBox="0 0 760 280" role="img" aria-labelledby="res-t res-d">
-    <title id="res-t">A stale response overwriting a newer one, and how abortSignal prevents it</title>
-    <desc id="res-d">
-      Two timelines. In the first, labelled hand-rolled with no abort, the user requests user 1 and then quickly user 2.
-      The response for user 2 arrives first and renders correctly, but the slower response for user 1 arrives afterwards
-      and overwrites the screen, so the page shows user 1 while the id says 2. In the second timeline, using resource
-      with abortSignal, changing the params aborts the in-flight request for user 1 before starting user 2, so only the
-      correct response ever arrives and the screen matches the id.
-    </desc>
-    <defs>
-      <marker id="res-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
-
-    <text x="10" y="20" font-size="11" fill="var(--text-muted)">time →</text>
-
-    <!-- broken version -->
-    <text x="10" y="46" font-size="12.5" font-weight="700" fill="var(--red)">
-      Hand-rolled, no abort — the classic bug
-    </text>
-    <line x1="150" y1="72" x2="740" y2="72" stroke="var(--border)" stroke-width="1.5" />
-    <line x1="150" y1="104" x2="740" y2="104" stroke="var(--border)" stroke-width="1.5" />
-    <text x="10" y="76" font-size="10.5" fill="var(--text-muted)">GET /users/1</text>
-    <text x="10" y="108" font-size="10.5" fill="var(--text-muted)">GET /users/2</text>
-
-    <!-- request 1: long -->
-    <rect x="150" y="63" width="440" height="18" rx="4" fill="var(--red)" opacity="0.28" />
-    <circle cx="150" cy="72" r="4" fill="var(--red)" />
-    <circle cx="590" cy="72" r="5" fill="var(--red)" />
-    <text x="600" y="76" font-size="10" fill="var(--red)" font-weight="700">lands LAST → overwrites</text>
-
-    <!-- request 2: short -->
-    <rect x="200" y="95" width="180" height="18" rx="4" fill="var(--green)" opacity="0.3" />
-    <circle cx="200" cy="104" r="4" fill="var(--green)" />
-    <circle cx="380" cy="104" r="5" fill="var(--green)" />
-    <text x="392" y="108" font-size="10" fill="var(--green)" font-weight="700">lands first, renders correctly</text>
-
-    <text x="10" y="134" font-size="11" fill="var(--red)" font-weight="600">
-      Final screen: user 1's data, with the id showing 2. No error anywhere — the app is just quietly lying.
-    </text>
-
-    <line x1="10" y1="152" x2="750" y2="152" stroke="var(--border)" stroke-width="1" />
-
-    <!-- fixed version -->
-    <text x="10" y="180" font-size="12.5" font-weight="700" fill="var(--green)">
-      resource() with abortSignal wired into fetch
-    </text>
-    <line x1="150" y1="206" x2="740" y2="206" stroke="var(--border)" stroke-width="1.5" />
-    <line x1="150" y1="238" x2="740" y2="238" stroke="var(--border)" stroke-width="1.5" />
-    <text x="10" y="210" font-size="10.5" fill="var(--text-muted)">GET /users/1</text>
-    <text x="10" y="242" font-size="10.5" fill="var(--text-muted)">GET /users/2</text>
-
-    <rect x="150" y="197" width="50" height="18" rx="4" fill="var(--text-muted)" opacity="0.3" />
-    <circle cx="150" cy="206" r="4" fill="var(--text-muted)" />
-    <line x1="200" y1="192" x2="200" y2="220" stroke="var(--red)" stroke-width="2" />
-    <text x="210" y="210" font-size="10" fill="var(--red)" font-weight="700">
-      params changed → ABORTED before it can return
-    </text>
-
-    <rect x="200" y="229" width="180" height="18" rx="4" fill="var(--green)" opacity="0.3" />
-    <circle cx="200" cy="238" r="4" fill="var(--green)" />
-    <circle cx="380" cy="238" r="5" fill="var(--green)" />
-    <text x="392" y="242" font-size="10" fill="var(--green)" font-weight="700">
-      the only response that ever arrives
-    </text>
-
-    <text x="10" y="268" font-size="11" fill="var(--green)" font-weight="600">
-      Final screen: user 2's data, id 2. There is no stale response to arrive late, because it was cancelled.
-    </text>
-  </svg>
-
-  <app-remember variant="rule" label="The two lines that make or break a resource">
-    <strong
-      ><code>params</code> must <em>read</em> the signal, and the loader must <em>pass</em> the abortSignal.</strong
-    >
-    <code>params: () =&gt; this.userId()</code> — the call has to happen <em>inside</em> the callback, because that
-    callback is the reactive context; a signal read anywhere else is invisible to it and nothing will ever re-fetch. And
-    <code>fetch(url, &#123; signal: abortSignal &#125;)</code> is what turns "ignore the stale response" into "there is
-    no stale response". Miss the first and it never updates; miss the second and it updates to the wrong thing.
-  </app-remember>
-
-  <h2>Declaring a resource</h2>
-  <div class="code">
-    <pre>
-// The input that drives the fetch. Change it and everything below reacts.
-userId = signal(1);
-
-userResource = resource({{ '{' }}
-  // params is a FUNCTION, so reading userId() inside it registers a
-  // dependency. Set userId to 2 and the loader re-runs automatically —
-  // there is no refresh() call anywhere in this component.
-  params: () =&gt; this.userId(),                 // reactive — re-runs the loader
-  // The loader receives the resolved params plus an abortSignal.
-  loader: async ({{ '{' }} params, abortSignal {{ '}' }}) =&gt; {{ '{' }}
-    // Passing abortSignal is the line people skip, and it is the best part:
-    // if userId changes again mid-flight, Angular ABORTS this request before
-    // starting the next. No wasted bandwidth, and no race where a slow
-    // response for user 1 lands after user 2 and overwrites the screen.
-    const res = await fetch(`/users/${{ '{' }}params{{ '}' }}`, {{ '{' }} signal: abortSignal {{ '}' }});
-    // Note fetch does NOT reject on a 404 or 500 — res.ok is what you would
-    // check in production before parsing.
-    return (await res.json()) as User;
-  {{ '}' }},
-{{ '}' }});
-// What you get back: userResource.value(), .isLoading(), .error(), .status()
-// and .reload() — all signals, so the template needs no async pipe and no
-// subscription to clean up.</pre>
-  </div>
-
-  <h2>Try it — live fetch</h2>
-  <div class="demo">
-    <p class="demo__title">Live — real requests to jsonplaceholder</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="prev()" [disabled]="userId() <= 1">‹ Prev</button>
-      <span class="pill">userId = {{ userId() }}</span>
-      <button (click)="next()" [disabled]="userId() >= 10">Next ›</button>
-      <button class="ghost" (click)="userResource.reload()">Reload</button>
-    </div>
-
-    <p class="row">
-      <span class="pill">status: {{ userResource.status() }}</span>
-      <span class="pill">loading: {{ userResource.isLoading() }}</span>
+    <p>
+      Say you need to show a user's profile. The data doesn't just appear — you write a signal to hold it, a signal for
+      whether it's loading, a signal for whether it broke, and code to flip all three at the right moments. Here's that
+      pattern, done by hand, the way most people write it the first dozen times:
     </p>
 
-    @if (userResource.isLoading()) {
-      <p>⏳ Loading user…</p>
-    } @else if (userResource.error()) {
-      <p style="color: var(--accent)">⚠ {{ userResource.error() }}</p>
-    } @else if (userResource.hasValue()) {
-      <div class="code">
-        <pre>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two buttons below, further down the page: <strong>Next</strong> and <strong>Reload</strong>. Both cause a new
+      network request. Do you think the screen looks the <em>same</em> while each one is in flight, or different? Keep
+      the guess — there's a live version to check yourself against.
+    </app-napkin>
+
+    <app-code-lab
+      file="user.component.ts — the version everyone starts with"
+      [code]="naiveSample"
+      [notes]="naiveNotes"
+      notesLabel="What's missing, one line at a time"
+      prompt="If `userId` changes from `1` to `2` while the first request is still in flight, which response ends up in `user()` — always the one for `2`?"
+      output="Not necessarily. Whichever response **arrives last** wins, regardless of which `userId` it was for. A slow response for user 1 can land after a fast response for user 2 and silently overwrite the newer, correct data — this hand-rolled version has no way to tell an old response from a current one."
+      revealLabel="Reveal what actually happens"
+    />
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Changing your mind and asking again are not the same request.</h2>
+
+    <p>
+      Picture a restaurant table with a runner working it. Ask for a <strong>new dish</strong> — a burger instead of a
+      salad — and the runner clears your table right away and goes to fire the burger; you're looking at an empty table
+      until it lands. Ask for the <strong>same dish again</strong> — "actually, redo this one, I think it came out cold"
+      — and the runner leaves your current plate exactly where it is while a fresh one cooks, only swapping it in once
+      it's ready.
+    </p>
+
+    <p>
+      That's the exact difference between a resource's two "a request is happening" moments, and it's the trap most
+      write-ups of <code>resource()</code> get backwards: changing <code>params</code> is a new dish —
+      <code>status()</code> goes back to <span class="key">loading</span> and <code>value()</code> goes blank. Calling
+      <code>reload()</code> with the <em>same</em> params is asking for the same dish again —
+      <code>status()</code> becomes <span class="key">reloading</span> and <code>value()</code> keeps showing what you
+      already had.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>New order, empty table. Same order, old plate stays.</strong> Every time you're unsure whether a resource
+      will blank the screen or keep showing stale data, ask which one just happened — <em>params changed</em>, or
+      <em>the same params were asked for again</em>.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="resourceTalk"
+      caption="What `userId.set(2)` actually triggers — and why `reload()` behaves completely differently."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Declaring a resource is one function call.</h2>
+
+    <p>
+      Here's the fix for everything the hand-rolled version above was missing — reactive input, cancellation, and a real
+      check on the response — in one call.
+    </p>
+
+    <app-code-lab
+      file="user.component.ts — with resource()"
+      [code]="declareSample"
+      [notes]="declareNotes"
+      notesLabel="What each line buys you"
+    />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="value()" kicker="Signal<T>" tone="accent">
+        The last resolved value — or your <code>defaultValue</code>. Stays put through <code>reloading</code>;
+        <strong>throws</strong> during <code>error</code> — see "The trap" below.
+      </app-tape-card>
+      <app-tape-card heading="status()" kicker="ResourceStatus" tone="gold">
+        Which of six states you're in right now — the next section takes them all apart.
+      </app-tape-card>
+      <app-tape-card heading="isLoading()" kicker="Signal<boolean>">
+        True for <strong>both</strong> <code>loading</code> and <code>reloading</code> — a shortcut, not a full
+        discriminator between them.
+      </app-tape-card>
+      <app-tape-card heading="error()" kicker="Signal<Error | undefined>" tone="blue">
+        Set once the loader throws. <code>httpResource()</code> hands you an <code>HttpErrorResponse</code> here instead
+        — same slot, richer shape.
+      </app-tape-card>
+      <app-tape-card heading="reload()" kicker="(): boolean" tone="olive">
+        Re-runs the loader for the <em>current</em> params without waiting for them to change. Returns
+        <code>false</code> if there's nothing yet to reload.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 4. THE FULL STATUS BOARD ============ -->
+  <section>
+    <p class="bf-eyebrow">The full picture</p>
+    <h2>There are six states, not two.</h2>
+
+    <p>
+      Most explanations stop at "loading, then done, or error." The real type is six strings, and the two easiest to
+      confuse are the pair from the mental-model section above:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        ResourceStatus — the complete set
+      </caption>
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>When you're in it</th>
+          <th>What <code>value()</code> holds</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>idle</code></td>
+          <td>The <code>params</code> callback returned <code>undefined</code> — deliberately no request to make</td>
+          <td><code>undefined</code>, or your <code>defaultValue</code></td>
+        </tr>
+        <tr>
+          <td><code>loading</code></td>
+          <td>The first-ever request, or any request that follows a <strong>params change</strong></td>
+          <td><code>undefined</code>, or your <code>defaultValue</code> — nothing carries over</td>
+        </tr>
+        <tr>
+          <td><code>reloading</code></td>
+          <td>You called <code>reload()</code> while params are <strong>unchanged</strong> — same request, again</td>
+          <td>The previous resolved value, untouched, while the new one is in flight</td>
+        </tr>
+        <tr>
+          <td><code>resolved</code></td>
+          <td>The loader finished and returned normally</td>
+          <td>The fresh value it returned</td>
+        </tr>
+        <tr>
+          <td><code>local</code></td>
+          <td>You wrote it yourself via <code>value.set()</code>/<code>.update()</code></td>
+          <td>Whatever you wrote</td>
+        </tr>
+        <tr>
+          <td><code>error</code></td>
+          <td>The loader threw, or its promise rejected</td>
+          <td>
+            <strong>Throws</strong> if read directly — guard with <code>hasValue()</code> or <code>status()</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-flow
+      caption="What a **params change** does — contrast this with `reload()`, which skips step 3 entirely and leaves the old stream in place."
+      [steps]="abortSteps"
+    />
+
+    <app-quiz
+      question="You're viewing user 3 (status `'resolved'`). You click Next to load user 4. For the instant before user 4 arrives, what does the screen show?"
+      [options]="statusQuizOptions"
+      followUp="Try it below — click Next, then click Reload on the same user, and compare what happens to the old value each time."
+    />
+  </section>
+
+  <!-- ============ 5. TRY IT — LIVE FETCH ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Try it</p>
+    <h2>Watch loading and reloading actually differ.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — real requests to jsonplaceholder</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="prev()" [disabled]="userId() <= 1">‹ Prev</button>
+        <span class="pill">userId = {{ userId() }}</span>
+        <button (click)="next()" [disabled]="userId() >= 10">Next ›</button>
+        <button class="ghost" (click)="userResource.reload()">Reload (same id)</button>
+        <button class="ghost" (click)="breakIt()">Break it</button>
+        <button class="ghost" (click)="reset()">Reset</button>
+      </div>
+
+      <p class="row">
+        <span class="pill">status: {{ userResource.status() }}</span>
+        <span class="pill">isLoading: {{ userResource.isLoading() }}</span>
+      </p>
+
+      @if (userResource.status() === 'loading') {
+        <p>⏳ Loading user… (no previous value to show — this is a new request)</p>
+      } @else if (userResource.status() === 'error') {
+        <div class="warn">
+          <strong>{{ userResource.error()?.name }}:</strong> {{ userResource.error()?.message }}
+        </div>
+      } @else if (userResource.hasValue()) {
+        <div class="code" [class.stale]="userResource.status() === 'reloading'">
+          <pre>
 name:    {{ userResource.value().name }}
 email:   {{ userResource.value().email }}
 company: {{ userResource.value().company.name }}</pre>
-      </div>
-    }
-  </div>
+        </div>
+      }
 
-  <h2>What it exposes</h2>
-  <div class="code">
-    <pre>
-userResource.value()      // Signal&lt;User | undefined&gt;
-userResource.status()     // 'idle' | 'loading' | 'resolved' | 'error' | …
-userResource.isLoading()  // boolean signal
-userResource.error()      // unknown signal
-userResource.hasValue()   // type-guard signal
-userResource.reload()     // re-run the loader manually</pre>
-  </div>
-
-  <div class="tip">
-    Prefer <code>rxResource</code> (from <code>&#64;angular/core/rxjs-interop</code>) when your loader is an Observable
-    — pass a <code>stream</code> instead of a <code>loader</code>. Both re-run automatically when
-    <code>params</code> change and abort the in-flight request.
-  </div>
-  <div class="note">
-    The loader's <code>abortSignal</code> is wired to <code>fetch</code> so a stale request is genuinely cancelled when
-    <code>params</code> change. You can write the value locally — <code>userResource.value.set(edited)</code> — for
-    optimistic updates (the status becomes <code>'local'</code>) until the next reload. Returning
-    <code>undefined</code> from a param means "no request" (<code>idle</code>), which is how you defer loading until
-    inputs are ready.
-  </div>
-
-  <h2>Try it — optimistic local write</h2>
-  <div class="demo">
-    <p class="demo__title">Live — edit the cached value without a network call</p>
-    <div class="row" style="margin-bottom: 12px">
-      <input
-        aria-label="new name"
-        [value]="draftName()"
-        (input)="draftName.set($any($event.target).value)"
-        placeholder="new name"
-      />
-      <button (click)="saveLocal()" [disabled]="!userResource.hasValue()">Save locally</button>
-      <button class="ghost" (click)="userResource.reload()">Reload from server</button>
+      <p class="demo__note">
+        <strong>Next</strong>/<strong>Prev</strong> change <code>userId</code> — a new request, so the panel blanks to a
+        loading state every time, even though you'd already loaded a user a moment ago. <strong>Reload</strong> asks for
+        the <em>same</em> id again — the panel stays on screen, dimmed, while <code>status()</code> reads
+        <code>'reloading'</code> instead of <code>'loading'</code>. Press <strong>Break it</strong> to point
+        <code>userId</code> at an id jsonplaceholder doesn't have, and watch <code>status()</code> go to
+        <code>'error'</code> — <strong>Reset</strong> brings it back.
+      </p>
     </div>
-    <p class="row">
-      <span class="pill">status: {{ userResource.status() }}</span>
+  </section>
+
+  <!-- ============ 6. THE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap</p>
+    <h2>value() can be empty — or throw.</h2>
+
+    <app-predict [prompt]="valuePredictPrompt" [answer]="valuePredictAnswer" revealLabel="Reveal the answer" />
+
+    <p>
+      <code>defaultValue</code> is the fix for the empty half of that — but it only covers <code>idle</code> and
+      <code>loading</code>. It does <span class="bf-break">not</span> cover <code>error</code>.
     </p>
-    @if (userResource.hasValue()) {
-      <div class="code">
-        <pre>name: {{ userResource.value().name }}</pre>
+
+    <app-compare
+      leftTitle="Without defaultValue"
+      rightTitle="With defaultValue: 0"
+      leftTone="neutral"
+      rightTone="good"
+      note="`defaultValue` rescues `idle` and `loading` — it does NOT rescue `error`. Reading `value()` while `status()` is `'error'` **throws**, `defaultValue` or not; `hasValue()` (or `status()`) is the guard that actually works in every state, because it checks `status()` internally before ever calling the throwing getter."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+count = resource({{ '{' }} loader: … {{ '}' }});
+// value(): Signal&lt;number | undefined&gt;
+// every template read needs hasValue() first</pre>
+        </div>
       </div>
-    }
-  </div>
-  <div class="note">
-    <code>value</code> is a <strong>writable</strong> signal — <code>.set()</code>/<code>.update()</code>
-    it directly to patch the cache without re-running the loader. Status flips to
-    <code>'local'</code> and stays there until the next <code>reload()</code> or param change re-syncs from the network.
-  </div>
+      <div right>
+        <div class="code">
+          <pre>
+count = resource({{ '{' }} loader: …, defaultValue: 0 {{ '}' }});
+// value(): Signal&lt;number&gt;
+// reads directly — no guard for "nothing yet"</pre>
+        </div>
+      </div>
+    </app-compare>
 
-  <h2>resource() vs the alternatives</h2>
-  <table class="cmp">
-    <tr>
-      <th>Tool</th>
-      <th>Gives you</th>
-      <th>Reach for it when</th>
-    </tr>
-    <tr>
-      <td><code>resource()</code></td>
-      <td>value + status + error + isLoading signals, auto re-fetch, cancellation</td>
-      <td>reactive reads keyed off a signal (an id, a filter) with real loading/error UI</td>
-    </tr>
-    <tr>
-      <td><code>toSignal(http$)</code></td>
-      <td>a signal of the latest value</td>
-      <td>a one-shot fetch you just want as a signal; no built-in status/error</td>
-    </tr>
-    <tr>
-      <td>manual <code>subscribe()</code></td>
-      <td>full RxJS control</td>
-      <td>complex streams (debounce, combine, retry) — but you manage state + teardown</td>
-    </tr>
-    <tr>
-      <td>route <a routerLink="/resolvers">resolver</a></td>
-      <td>data before the route activates</td>
-      <td>small, critical data that must be present on first paint (blocks navigation)</td>
-    </tr>
-  </table>
-
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>The <code>params</code> callback runs in a reactive context.</strong> Angular tracks every signal it reads
-      while producing the request value — much like <code>effect()</code> — and reruns the loader whenever any of them
-      change, not on a timer or a manual trigger.
-    </li>
-    <li>
-      <strong>Stale loads are aborted, not just ignored.</strong> Each loader call gets its own
-      <code>abortSignal</code> tied to that request's generation; when a newer request supersedes it, that signal fires
-      so a well-behaved <code>fetch</code> actually cancels the network call instead of the response just being
-      discarded client-side.
-    </li>
-    <li>
-      <strong>Why it's still <code>&#64;experimental</code>.</strong> The shape is stable enough to use, but the
-      loader/stream split and how resources interact with SSR and hydration are still being finalized — the API surface
-      can still shift in a minor release.
-    </li>
-    <li>
-      <strong><code>rxResource</code> cancels by unsubscribing, not aborting.</strong> Instead of awaiting one Promise
-      per request, it resubscribes to a fresh Observable from <code>stream</code> on every params change and
-      unsubscribes the previous one — push-based cancellation that naturally supports operators like
-      <code>retry</code> or <code>debounceTime</code> that a raw <code>loader</code> can't.
-    </li>
-    <li>
-      <strong>Writing <code>value</code> doesn't touch the loader.</strong>
-      <code>userResource.value.set(...)</code> patches the cached signal in place; it's a pure local mutation, so it
-      can't re-trigger <code>params</code>/<code>loader</code> tracking.
-    </li>
-  </ul>
-
-  <h2>Predict the resource that never updates</h2>
-  <p>
-    This compiles, passes type-checking, and loads user 1 perfectly on first render. Then the
-    <strong>Next</strong> button appears to do nothing.
-    <span class="key">The bug is one pair of parentheses in the wrong place.</span> Find it before you open the answer:
-  </p>
-
-  <app-predict
-    prompt="The user clicks Next. `userId()` is now 2. What does the panel show, and why?"
-    [code]="deadParamsSample"
-    answer="**Still user 1, forever.** `userId` updates correctly — you can log it and watch it climb — but the resource never re-fetches.
-
-The line that kills it is `private readonly id = this.userId();`. That call runs **once**, during construction, outside any reactive context. It produces the plain number `1`, and `this.id` is that number from then on. The `params` callback returns it every time, Angular compares the new params to the old, sees `1 === 1`, and correctly concludes there is nothing to do.
-
-**The rule underneath:** a signal read only creates a dependency if it happens *while the reactive context is running*. `params` is that context. Reading the signal into a field first is exactly like emailing someone a photo of a thermometer — they get the temperature at the moment you took it, not a live reading.
-
-**The fix is to move the parentheses inside:**
-
-```
-params: () => this.userId(),   // read INSIDE the callback
-```
-
-Now every time the resource evaluates `params`, it reads `userId` in a tracked context, registers the dependency, and re-runs the loader whenever the signal changes.
-
-**Why it survives review:** the first load works. It always works. The component is correct on mount and wrong on every update, so it only fails when someone interacts with it — and a test that renders the component and asserts on the initial state passes cleanly. This is the same failure shape as reading a signal in a `constructor` and expecting it to stay current."
-    revealLabel="Reveal the broken line"
-  />
-
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="A resource's `params` callback returns `undefined` — say a route param hasn't arrived yet. What does the resource do?"
-    [options]="quizOptions"
-    followUp="This is the idiom for “don't fetch yet”: `params: () => this.id() ?? undefined`. Use it instead of wrapping the whole resource in an `@if`, which would destroy and rebuild it on every toggle."
-  />
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Reading params non-reactively.</strong> The <code>params</code> callback must read signals so the loader
-      re-runs — a plain variable won't trigger re-fetch.
-    </li>
-    <li>
-      <strong>Ignoring <code>abortSignal</code>.</strong> Wire it into <code>fetch</code> (or <code>rxResource</code>)
-      so stale requests are actually cancelled.
-    </li>
-    <li>
-      <strong>Expecting <code>value()</code> to always be set.</strong> It's <code>undefined</code> while loading/idle —
-      guard with <code>hasValue()</code> or <code>isLoading()</code>.
-    </li>
-    <li>
-      <strong>Observable loader in <code>resource()</code>.</strong> Use <code>rxResource</code> with a
-      <code>stream</code> for Observable sources.
-    </li>
-    <li>
-      <strong>Forgetting the "no request" signal.</strong> Return <code>undefined</code> from a param to stay
-      <code>idle</code> until inputs are ready.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>How does a resource know to re-fetch?</summary>
-    <div>
-      Its <code>params</code> callback reads signals; when any change, the loader re-runs and the previous request is
-      aborted.
+    <div class="warn">
+      <strong><code>value() ?? 'fallback'</code> does not catch this.</strong> Nullish coalescing only catches
+      <code>null</code>/<code>undefined</code> — a thrown error skips straight past it. <code>hasValue()</code> works
+      because it checks <code>status()</code> first and never calls the throwing getter while <code>status()</code> is
+      <code>'error'</code>.
     </div>
-  </details>
-  <details class="qa">
-    <summary><code>resource()</code> vs a route resolver?</summary>
-    <div>
-      <code>resource()</code> shows the route immediately and streams data in with loading/error signals. A resolver
-      blocks navigation until small, critical data is ready.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>My loader is an Observable — which API?</summary>
-    <div>
-      <code>rxResource</code> from <code>&#64;angular/core/rxjs-interop</code>; pass a <code>stream</code> instead of a
-      <code>loader</code>.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>resource()</code> turns async loads into reactive signal state.</li>
-    <li>A change to <code>params</code> re-runs the loader and cancels the old one.</li>
-    <li>Read <code>value</code>, <code>status</code>, <code>isLoading</code>, <code>error</code> as signals.</li>
-    <li>Use <code>rxResource</code> for Observable-based loaders.</li>
-  </ul>
+  <!-- ============ 7. TRY IT AGAIN — LOCAL WRITE ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it again</p>
+    <h2>The cache is yours to write, too.</h2>
 
-  <p><a routerLink="/testing-components">Next: Testing Components →</a></p>
+    <p>
+      <code>value</code> is a <strong>writable</strong> signal. <code>.set()</code>/<code>.update()</code> it directly
+      to patch the cache without a network call — status flips to <code>'local'</code> and stays there until the next
+      <code>reload()</code> or params change re-syncs from the server.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — edit the cached value without a network call</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <input
+          aria-label="new name"
+          [value]="draftName()"
+          (input)="draftName.set($any($event.target).value)"
+          placeholder="new name"
+        />
+        <button (click)="saveLocal()" [disabled]="!userResource.hasValue()">Save locally</button>
+        <button class="ghost" (click)="userResource.reload()">Reload from server</button>
+      </div>
+      <p class="row">
+        <span class="pill">status: {{ userResource.status() }}</span>
+      </p>
+      @if (userResource.hasValue()) {
+        <div class="code">
+          <pre>name: {{ userResource.value().name }}</pre>
+        </div>
+      }
+    </div>
+
+    <app-remember variant="rule">
+      <code>value.set()</code> patches the cache; it never re-runs <code>params</code> or <code>loader</code>. The next
+      <code>reload()</code> — or the next time <code>params</code> actually changes — is what syncs you back to the
+      server, and it will happily overwrite whatever you wrote locally.
+    </app-remember>
+  </section>
+
+  <!-- ============ 8. THE SHORTCUT — httpResource() ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The shortcut</p>
+    <h2>httpResource() is resource(), wired to HttpClient.</h2>
+
+    <p>
+      Everything in "Declaring a resource" above — the abort wiring, the <code>res.ok</code> check, the
+      <code>fetch</code> call itself — is boilerplate <code>httpResource()</code> removes, because it's built on
+      <code>HttpClient</code> instead of a hand-written loader.
+    </p>
+
+    <app-compare
+      leftTitle="Before — resource() + fetch"
+      rightTitle="Now — httpResource()"
+      leftTone="bad"
+      rightTone="good"
+      note="Same reactive params, same cancel-on-change behaviour, same value/status/isLoading/error signals — httpResource() just routes the request through HttpClient, so your app's interceptors run and a failure arrives as a structured HttpErrorResponse instead of an Error you had to throw yourself."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+resource({{ '{' }}
+  params: () =&gt; this.userId(),
+  loader: async ({{ '{' }} params, abortSignal {{ '}' }}) =&gt; {{ '{' }}
+    const res = await fetch(url, {{ '{' }} signal: abortSignal {{ '}' }});
+    if (!res.ok) throw new Error(…);
+    return res.json();
+  {{ '}' }},
+{{ '}' }})</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>httpResource&lt;User&gt;(() =&gt; url)</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      There's no third live panel for <code>httpResource()</code> on this page — not a simplification, a testing
+      constraint. <code>HttpResourceImpl</code> extends the exact same <code>ResourceImpl</code> traced above, so it
+      registers a pending task the same way; this app's automated tests intercept every HTTP call and never flush one
+      for an unvisited demo, which would leave that task open forever. <code>userResource</code>'s raw
+      <code>fetch()</code> above doesn't have that problem — it settles on its own. The code below is exactly what that
+      live panel would run.
+    </div>
+
+    <app-code-lab
+      file="search.component.ts — the full options form"
+      [code]="httpResourceSample"
+      [notes]="httpResourceNotes"
+      notesLabel="What each line buys you"
+    />
+
+    <p>
+      Typed variants exist for anything that isn't JSON: <code>httpResource.text()</code>,
+      <code>httpResource.blob()</code>, <code>httpResource.arrayBuffer()</code> — same shape, different parsing.
+      <code>HttpResourceRef</code> also adds three signals plain <code>resource()</code> doesn't have:
+      <code>headers()</code>, <code>statusCode()</code> and <code>progress()</code> (when the request opts in with
+      <code>reportProgress: true</code>).
+    </p>
+
+    <div class="warn">
+      <strong>The reactive-URL rule still applies.</strong> A signal has to be read <em>inside</em> the request
+      callback. Build the URL from a plain variable captured outside it and the resource fetches once, on creation, and
+      never again — no error, just silent staleness.
+    </div>
+
+    <app-quiz
+      question="You swap a raw resource() + fetch() loader for httpResource(). Which of these do you get for free?"
+      [options]="httpResourceQuizOptions"
+      followUp="Re-read the panel above line by line — the res.ok check, the abort wiring and the fetch call all disappear into one HttpClient call."
+    />
+  </section>
+
+  <!-- ============ 9. THE RXJS SIBLING ============ -->
+  <section>
+    <p class="bf-eyebrow">The RxJS sibling</p>
+    <h2>rxResource() swaps a Promise for an Observable.</h2>
+
+    <p>
+      Same <code>params</code>/<code>value</code>/<code>status</code> shape as <code>resource()</code> — the only thing
+      that changes is where the async work comes from, and the option name that carries it.
+    </p>
+
+    <app-code-lab
+      file="search.component.ts — rxResource() version"
+      [code]="rxResourceSample"
+      [notes]="rxResourceNotes"
+      notesLabel="What each line buys you"
+    />
+
+    <p>
+      The cancellation model is the real difference. <code>resource()</code> cancels by firing an
+      <code>AbortSignal</code> — built for a single Promise that either resolves or doesn't.
+      <code>rxResource()</code> cancels by <strong>unsubscribing</strong> from the previous Observable and subscribing
+      to a fresh one, which is exactly what lets operators like <code>debounceTime</code>, <code>retry</code> and
+      <code>switchMap</code>-shaped chains compose naturally — a raw Promise <code>loader</code> has nowhere to attach
+      them.
+    </p>
+  </section>
+
+  <!-- ============ 10. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>resource() and its five alternatives.</h2>
+
+    <table class="cmp">
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th>Gives you</th>
+          <th>Reach for it when</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>resource()</code></td>
+          <td>value + status + error + isLoading signals, auto re-fetch, cancellation</td>
+          <td>
+            your source is a Promise from something other than <code>HttpClient</code> — a custom SDK, IndexedDB, a
+            non-HTTP API
+          </td>
+        </tr>
+        <tr>
+          <td><code>httpResource()</code></td>
+          <td>the same shape, built on <code>HttpClient</code></td>
+          <td>fetching from a normal HTTP endpoint for display — interceptors and a testing backend need to apply</td>
+        </tr>
+        <tr>
+          <td><code>rxResource()</code></td>
+          <td>the same shape, Observable-driven</td>
+          <td>
+            your source is naturally a stream — RxJS operators, a WebSocket, a service that already returns Observables
+          </td>
+        </tr>
+        <tr>
+          <td><code>toSignal(http$)</code></td>
+          <td>a signal of the latest value only</td>
+          <td>a one-shot fetch you just want as a signal; no built-in status/error</td>
+        </tr>
+        <tr>
+          <td>manual <code>subscribe()</code></td>
+          <td>full RxJS control</td>
+          <td>complex streams (debounce, combine, retry) — but you manage state + teardown yourself</td>
+        </tr>
+        <tr>
+          <td>route <a routerLink="/resolvers">resolver</a></td>
+          <td>data before the route activates</td>
+          <td>small, critical data that must be present on first paint (blocks navigation)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 11. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What the options object doesn't show you.</h2>
+
+    <ul>
+      <li>
+        <strong>Why an injection context is required.</strong> <code>resource()</code> reads
+        <code>DestroyRef</code> from the current injector so it knows when to tear itself down. Call it somewhere with
+        no injector in scope — inside a plain method, say — and there's nothing to register that cleanup with, so
+        Angular throws immediately rather than leaking silently. Pass
+        <code>{{ '{' }} injector {{ '}' }}</code> explicitly to opt out of that check when you genuinely are creating
+        one later.
+      </li>
+      <li>
+        <strong>Stale results are discarded by resource() itself, not just by your fetch.</strong> Every load tracks
+        which request it belongs to; a result that resolves after a newer request has already started is thrown away the
+        moment it lands — whether or not your loader ever looked at <code>abortSignal</code>. Wiring the signal into
+        <code>fetch</code> stops the wasted network call; it isn't what stops the wrong data from appearing.
+      </li>
+      <li>
+        <strong>Writing <code>value</code> doesn't touch the loader.</strong>
+        <code>userResource.value.set(...)</code> replaces the resource's internal state directly with a
+        <code>'local'</code> entry — a pure local mutation that can't retrigger <code>params</code>/<code>loader</code>
+        tracking.
+      </li>
+      <li>
+        <strong>httpResource() automates what resource() makes you wire by hand.</strong> The abort signal, the
+        <code>res.ok</code> check, the <code>fetch</code> call itself — all internal to <code>HttpClient</code>, which
+        is also why interceptors run and <code>provideHttpClientTesting</code> can intercept the request in a test.
+      </li>
+      <li>
+        <strong>Still <code>&#64;experimental</code>, all three of them.</strong> In this Angular version,
+        <code>resource()</code>, <code>rxResource()</code> and <code>httpResource()</code> carry that label in their
+        type declarations — one step earlier than <code>&#64;developerPreview</code>. The core contract has held steady
+        across several releases, but the framework team hasn't ruled out changing its shape without a deprecation cycle.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Every async load needs the same four things — data, loading, error, cancellation.
+        <strong>resource() is Angular building that pattern once</strong> instead of everyone hand-rolling it forever.
+      </li>
+      <li>
+        A <strong>params change</strong> and a <strong>reload() of the same params</strong> are different requests with
+        different <code>status()</code> values — <code>loading</code> blanks the screen, <code>reloading</code> keeps
+        the old value visible while a new one is fetched.
+      </li>
+      <li>
+        <code>value()</code> <strong>throws</strong> when <code>status()</code> is <code>'error'</code> —
+        <code>defaultValue</code> does not protect you there. <code>hasValue()</code> is the guard that works in every
+        state, because it checks <code>status()</code> before ever touching <code>value()</code>.
+      </li>
+      <li>
+        <code>httpResource()</code> is <code>resource()</code> wired to <code>HttpClient</code> — same reactive-URL
+        rule, but interceptors run and a failure arrives as a real <code>HttpErrorResponse</code>.
+      </li>
+      <li>
+        <code>rxResource()</code> swaps the loader for a <code>stream</code> returning an Observable, cancelling by
+        <strong>unsubscription</strong> instead of <code>AbortSignal</code> — which is what lets
+        <code>debounceTime</code>/<code>retry</code> compose naturally.
+      </li>
+      <li>
+        <code>resource()</code>, <code>rxResource()</code> and <code>httpResource()</code> are all still
+        <code>&#64;experimental</code> in this Angular version — <strong>use them, but watch the changelog.</strong>
+      </li>
+    </ul>
+
+    <p><a routerLink="/testing-components">Next: Testing Components →</a></p>
+  </section>
 </article>

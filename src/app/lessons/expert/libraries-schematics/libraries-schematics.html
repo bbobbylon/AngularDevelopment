@@ -1,250 +1,555 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Tooling</span>
-  <h1>Libraries &amp; Schematics</h1>
-  <p class="lead">
-    Sharing Angular code across applications means packaging it as a
-    <strong>library</strong> in the Angular Package Format, and giving consumers a first-class experience with
-    <strong>schematics</strong> — the code-generation engine behind <code>ng generate</code>, <code>ng add</code> and
-    <code>ng update</code>. This page covers what actually ships to npm, the dependency rules that prevent
-    duplicate-Angular disasters, and how to author the automations.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Expert · Tooling"
+    title="Libraries & Schematics"
+    hand="or, how to ship code to strangers whose Angular version you don't control"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      Publishing a library is not "my code, but with an npm command in front of it." Everything hard about it comes down
+      to three questions most tutorials skip: what actually gets <strong>built and shipped</strong> when you run one CLI
+      command, what's the <strong>contract</strong> you're handing a stranger who will never read your source, and how
+      do they <strong>install and later upgrade</strong> it without you standing over their shoulder. This page takes
+      all three seriously — with a real config-API pattern, a real file-editing schematic, and the install task most
+      examples quietly leave out.
+    </p>
+  </app-chapter>
 
-  <h2>Do you even need a published library?</h2>
-  <table class="cmp">
-    <tr>
-      <th>Situation</th>
-      <th>Right tool</th>
-    </tr>
-    <tr>
-      <td>Several apps in ONE repo share UI/logic</td>
-      <td>a workspace library (path-mapped, built together) — no npm publishing ceremony</td>
-    </tr>
-    <tr>
-      <td>Separate repos / teams / release cadences consume it</td>
-      <td>a published APF library with semver, peer deps, and migration schematics</td>
-    </tr>
-    <tr>
-      <td>Two components share a helper</td>
-      <td>a folder and an import — don't build infrastructure for a utils file</td>
-    </tr>
-  </table>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Do you even need a published library?</h2>
 
-  <h2>Creating a library — and what APF really is</h2>
-  <div class="code">
-    <pre>{{ createSample }}</pre>
-  </div>
-  <p>
-    The build output is the <strong>Angular Package Format</strong>: FESM bundles, type definitions, and — the expert
-    detail — <strong>partially compiled</strong> templates. Libraries can't ship fully compiled code because Angular's
-    generated instructions aren't guaranteed stable across versions. So <code>ng-packagr</code> compiles to a stable
-    intermediate form (<code>compilationMode: "partial"</code>), and the <em>consumer's</em> build finishes the job with
-    its own Angular version via the linker. That handshake is why one published library version works across a range of
-    Angular majors.
-  </p>
-  <div class="warn">
-    <code>public-api.ts</code> is your contract. Everything exported there is public API forever — renaming an exported
-    symbol is a breaking change requiring a major version. Export deliberately, not <code>export *</code> from every
-    file.
-  </div>
+    <p>
+      Every Angular codebase eventually grows a <code>Button</code>, a <code>DataTable</code>, an
+      <code>auth</code> service that more than one team wants. The reflex is <code>ng generate library</code> — but that
+      command is the easy 5% of the job. The other 95% is everything this page is actually about: what ships, what's
+      public forever, and how consumers get it onto their machines and keep it there.
+    </p>
 
-  <p>
-    Picture your library as a guest staying in someone's house. A <code>peerDependency</code> says "I'll use the house's
-    own electricity" — plug into whatever the host app already has running, on the host's terms. A regular
-    <code>dependency</code> says "I brought my own generator." One generator is fine. Two generators wired into the same
-    house, both trying to power the same outlets? That's two competing power sources fighting for the same sockets —
-    which is exactly what two copies of <code>&#64;angular/core</code> loaded in one app looks like: two separate DI
-    systems, each unaware the other exists.
-  </p>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two apps in the same monorepo already share a <code>Button</code> today, through a plain workspace path. A third
+      team, in a different repo with its own release schedule, wants it too. Which of those two relationships needs the
+      full machinery this page is about — <code>npm publish</code>, <code>peerDependencies</code>, migration schematics
+      — and which needs nothing more than what already works? Decide before you scroll; the table below gives it away.
+    </app-napkin>
 
-  <svg class="diagram" viewBox="0 0 760 220" role="img" aria-labelledby="ls-t ls-d">
-    <title id="ls-t">peerDependency shares the host's Angular; dependency risks a second copy</title>
-    <desc id="ls-d">
-      Two scenarios side by side. On the left, labelled correct, peer dependency, a single Angular core box sits at the
-      base, with the host app and the library both drawn as arrows pointing down into that one shared box, labelled one
-      shared Angular instance. On the right, labelled wrong, regular dependency, there are two separate Angular core
-      boxes stacked with a jagged red divider between them, one used by the host app and one nested inside and used only
-      by the library, with a red label reading two DI systems, unaware of each other.
-    </desc>
-    <text x="20" y="24" font-size="12" font-weight="700" fill="var(--green)">correct — peerDependencies</text>
-    <rect x="20" y="40" width="90" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="65" y="61" font-size="11" text-anchor="middle" fill="var(--text-muted)">host app</text>
-    <rect x="120" y="40" width="90" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="165" y="61" font-size="11" text-anchor="middle" fill="var(--text-muted)">library</text>
-    <line x1="65" y1="74" x2="110" y2="112" stroke="var(--green)" stroke-width="1.5" />
-    <line x1="165" y1="74" x2="120" y2="112" stroke="var(--green)" stroke-width="1.5" />
-    <rect x="55" y="116" width="120" height="34" rx="7" fill="var(--green)" opacity="0.22" />
-    <text x="115" y="137" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">
-      &#64;angular/core
-    </text>
-    <text x="20" y="172" font-size="10.5" fill="var(--green)">one shared instance — one DI system</text>
+    <table>
+      <caption class="bf-table-caption">
+        Do you even need a published library?
+      </caption>
+      <thead>
+        <tr>
+          <th>Situation</th>
+          <th>Right tool</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Several apps in ONE repo share UI or logic</td>
+          <td>A workspace library — path-mapped, built together, no publishing ceremony</td>
+        </tr>
+        <tr>
+          <td>Separate repos, teams or release cadences consume it</td>
+          <td>A published APF library: semver, peer deps, migration schematics</td>
+        </tr>
+        <tr>
+          <td>Two components share one helper function</td>
+          <td>A folder and an import. Don't build infrastructure for a utils file</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 
-    <text x="410" y="24" font-size="12" font-weight="700" fill="var(--red)">wrong — dependencies</text>
-    <rect x="410" y="40" width="90" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="455" y="61" font-size="11" text-anchor="middle" fill="var(--text-muted)">host app</text>
-    <rect x="410" y="86" width="120" height="30" rx="6" fill="var(--green)" opacity="0.22" />
-    <text x="470" y="106" font-size="10.5" text-anchor="middle" font-weight="700" fill="var(--green)">
-      &#64;angular/core
-    </text>
-    <line x1="590" y1="96" x2="620" y2="96" stroke="var(--red)" stroke-width="2" stroke-dasharray="3 3" />
-    <rect x="560" y="130" width="150" height="34" rx="7" fill="none" stroke="var(--border)" stroke-width="1.5" />
-    <text x="635" y="151" font-size="11" text-anchor="middle" fill="var(--text-muted)">library ➜ node_modules</text>
-    <rect x="575" y="168" width="120" height="30" rx="6" fill="var(--red)" opacity="0.22" />
-    <text x="635" y="188" font-size="10.5" text-anchor="middle" font-weight="700" fill="var(--red)">
-      &#64;angular/core (2nd copy)
-    </text>
-    <text x="410" y="212" font-size="10.5" fill="var(--red)">two DI systems, unaware of each other</text>
-  </svg>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A library is a flat-pack, not a finished shelf.</h2>
 
-  <app-remember variant="mnemonic" label="If you remember one thing about dependency placement">
-    <strong>Peer says "use yours." Dependency says "I brought my own."</strong> Anything the consumer's app already
-    provides one copy of — the framework, a UI library you build on — is a peer. Bring your own generator only for
-    things the host genuinely doesn't have.
-  </app-remember>
+    <p>
+      Picture two ways to send someone a bookshelf. You could build it in your own workshop, glue it solid, and ship the
+      finished object — heavy, and it only ever fits the exact room you built it for. Or you could ship the
+      <strong>parts</strong>: pre-cut boards, an instructions card, and a note saying which screws you're including and
+      which ones you're assuming the buyer already owns from their own toolbox. The second one is a flat-pack, and it is
+      also, almost exactly, what <code>npm publish</code> does to an Angular library.
+    </p>
 
-  <h2>The dependency quiz — where does each package go?</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — pick a package your library uses</p>
-    <div class="chips">
-      @for (d of depChoices; track d.label) {
-        <button [class.on]="activeDep() === d" (click)="activeDep.set(d)">{{ d.label }}</button>
+    <p>
+      <strong>Partial compilation</strong> is the flat-pack boards. <code>ng-packagr</code> doesn't glue your templates
+      into one Angular version's exact internal instruction format, because that format isn't a stable, public contract
+      — it's allowed to change between versions. Instead it compiles to a stable, <em>declarative</em> intermediate form
+      — calls like <code>ɵɵngDeclareComponent(...)</code>, embedded right in the bundle — and the
+      <strong>consumer's own build</strong> finishes assembly, using their installed Angular version's linker to expand
+      those declare-calls into real instructions. That handshake, not luck, is why one published library version works
+      across a range of Angular majors.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Ship the parts, not the finished shelf.</strong> Partial compilation, <code>peerDependencies</code> and
+      <code>public-api.ts</code> are the same idea three times over: assume nothing about the workshop it gets assembled
+      in, bring only the parts the workshop won't already have, and hand over one sealed instructions card — reprint it
+      later and every shelf already assembled out there is now wrong.
+    </app-remember>
+
+    <p>
+      That "which tools do you already own" question is exactly what <code>peerDependencies</code> answers, and it's
+      worth hearing as the negotiation it actually is — npm deciding what to install against what your library's own
+      <code>package.json</code> asks for:
+    </p>
+
+    <app-bubbles
+      [turns]="depTalk"
+      caption="The same rule the picker demo and the quiz test later, from the installer's side of the conversation."
+    />
+  </section>
+
+  <!-- ============ 3. WHAT ACTUALLY SHIPS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>What actually ships when you run ng build.</h2>
+
+    <app-code-lab
+      file="ui-kit — from ng generate to dist/"
+      [code]="createSample"
+      [notes]="createNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="fesm2022/*.mjs" kicker="what bundlers import" tone="gold">
+        One flattened ES module per entry point — no <code>import</code> statements between your OWN library's internal
+        files. This is the file <code>import &#123; Button &#125; from 'ui-kit'</code> actually resolves to.
+      </app-tape-card>
+      <app-tape-card heading="esm2022/**" kicker="unflattened, per file" tone="accent">
+        The same code, NOT flattened — one file per source module. Mainly for tools that analyze or re-bundle your
+        library themselves; most app builds never read this folder directly.
+      </app-tape-card>
+      <app-tape-card heading="*.d.ts" kicker="the types" tone="olive">
+        Generated from your TypeScript, restricted to what <code>public-api.ts</code> exported. Consumers get
+        autocomplete for <code>Button</code>, nothing for <code>button.ts</code>'s private helpers.
+      </app-tape-card>
+      <app-tape-card heading="package.json" kicker="the map" tone="blue">
+        An <code>exports</code> field pointing each entry point at its own bundle, plus
+        <code>"sideEffects": false</code>
+        — permission for a bundler to delete an unused export entirely, not just leave it unreferenced.
+      </app-tape-card>
+    </div>
+
+    <div class="warn">
+      <strong><code>public-api.ts</code> is your contract, forever.</strong> Everything exported there is public API
+      forever — renaming an exported symbol is a breaking change requiring a major version. Export deliberately, not
+      <code>export *</code> from every file.
+    </div>
+  </section>
+
+  <!-- ============ 4. THE WORKSPACE-LIBRARY TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">A failure mode</p>
+    <h2>Editing dist/ is not editing your library.</h2>
+
+    <p>
+      That <code>dist/</code> folder isn't just where a <em>published</em> library ends up — a workspace library
+      generates a <code>tsconfig.json</code> path mapping that points the whole app at it too, even before anyone
+      publishes anything:
+    </p>
+
+    <div class="code">
+      <pre>{{ tsconfigSample }}</pre>
+    </div>
+
+    <p>
+      Which means the app imports <strong>compiled output</strong>, never your source. Two setups actually work: keep
+      <code>ng build ui-kit --watch</code> running in a second terminal so <code>dist/ui-kit</code> stays current as you
+      edit, or repoint <code>paths</code> at <code>projects/ui-kit/src/public-api.ts</code> for source-level development
+      — which costs you testing the real APF output, and needs its own path entry per secondary entry point. Either way,
+      <span class="bf-break">deleting dist/ to "start clean"</span> breaks the app's typecheck with a module-not-found
+      on your own library, because that mapping has nowhere else to point.
+    </p>
+
+    <app-quiz
+      question="You edit projects/ui-kit/src/lib/button/button.ts in a workspace library and refresh the consuming app. Nothing changes. What's going on?"
+      [options]="workspaceQuizOptions"
+      followUp="Either keep ng build ui-kit --watch running, or repoint paths at the library's own source — see the trade-off above."
+    />
+  </section>
+
+  <!-- ============ 5. SECONDARY ENTRY POINTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>One package, several front doors.</h2>
+
+    <div class="code">
+      <pre>{{ entryPointsSample }}</pre>
+    </div>
+
+    <p>
+      <code>my-lib/testing</code>, <code>my-lib/icons</code> — separate entry points keep optional heavyweight pieces
+      out of the main bundle and let consumers deep-import cleanly. Angular Material is the reference example: every
+      component is its own entry point, so importing a button never pays for the datepicker.
+    </p>
+  </section>
+
+  <!-- ============ 6. YOUR LIBRARY'S OWN CONFIG API ============ -->
+  <section>
+    <p class="bf-eyebrow">API design</p>
+    <h2>Your library needs its own config API too.</h2>
+
+    <p>
+      The <code>ng-add</code> sample later on this page calls <code>provideMyLib()</code> as if it fell from the sky.
+      For a standalone-era library, <strong>designing</strong> that function is the central API decision — and it's the
+      one thing about writing a library that "read the Angular docs" doesn't hand you, because you're the one building
+      the analogous API this time.
+    </p>
+
+    <app-code-lab
+      file="provide-my-lib.ts — the library's own public config API"
+      [code]="provideMyLibSample"
+      [notes]="provideMyLibNotes"
+      notesLabel="Line by line"
+    />
+
+    <p>Compare it with the pattern it replaces:</p>
+
+    <app-compare
+      leftTitle="Before — NgModule.forRoot()"
+      rightTitle="Now — provideMyLib()"
+      leftTone="bad"
+      rightTone="good"
+      note="Same capability, but forRoot() ships an NgModule wrapper for something that was never modular — and the real trap, importing it twice from two feature modules silently creates two provider registrations. provideMyLib() lives in providers, not imports; there's no imports array left to accidentally duplicate it into."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ forRootSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ provideCallSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 7. WHERE DOES EACH PACKAGE GO ============ -->
+  <section>
+    <p class="bf-eyebrow">The dependency contract</p>
+    <h2>Every dependency is a promise about whose copy you're using.</h2>
+
+    <p>
+      The dialogue above named the rule; this is you applying it. Pick a package your library uses and decide where it
+      belongs before you check:
+    </p>
+
+    <div class="bf-card">
+      <p class="demo__title">Live — where does each package go?</p>
+      <div class="row dep-picker">
+        @for (d of depChoices; track d.label) {
+          <button
+            type="button"
+            class="ghost dep-chip"
+            [class.dep-chip--on]="activeDep() === d"
+            [attr.aria-pressed]="activeDep() === d"
+            (click)="activeDep.set(d)"
+          >
+            {{ d.label }}
+          </button>
+        }
+      </div>
+      @if (activeDep(); as d) {
+        <p class="row" style="margin: 12px 0 4px">
+          <span class="pill">{{ d.field }}</span>
+        </p>
+        <p class="demo__note">{{ d.why }}</p>
+      } @else {
+        <p class="demo__note">
+          Get one of these wrong and consumers get duplicate Angular copies, version conflicts, or phantom installs.
+        </p>
       }
     </div>
-    @if (activeDep(); as d) {
-      <span class="field-pill">{{ d.field }}</span>
-      <p style="font-size: 0.9rem; margin: 6px 0 0">{{ d.why }}</p>
-    } @else {
-      <p style="color: var(--text-muted); font-size: 0.88rem">
-        Get one of these wrong and consumers get duplicate Angular copies, version conflicts, or phantom installs.
-      </p>
-    }
-  </div>
 
-  <h2>Secondary entry points</h2>
-  <div class="code">
-    <pre>{{ entryPointsSample }}</pre>
-  </div>
-  <p>
-    <code>my-lib/testing</code>, <code>my-lib/icons</code> — separate entry points keep optional heavyweight pieces out
-    of the main bundle and let consumers deep-import cleanly. Angular Material is the reference example: every component
-    is its own entry point, so importing a button never pays for the datepicker.
-  </p>
+    <app-quiz
+      question="You publish my-lib with &#64;angular/core listed under dependencies instead of peerDependencies. What actually goes wrong for a consumer?"
+      [options]="depQuizOptions"
+      followUp="Peer means 'use the host's copy' — the dialogue at the top of the page is this same rule from the package manager's side."
+    />
 
-  <h2>Schematics — code that writes code</h2>
-  <p>
-    A schematic is a function from options to a <code>Rule</code>: a transform over a virtual file <code>Tree</code>.
-    Nothing touches disk until the whole rule chain succeeds — changes are atomic, previewable with
-    <code>--dry-run</code>, and testable in memory:
-  </p>
-  <div class="code">
-    <pre>{{ schematicSample }}</pre>
-  </div>
-  <div class="code">
-    <pre>{{ testSample }}</pre>
-  </div>
+    <app-remember variant="rule">
+      <strong>Peer</strong> for anything the host app already owns a copy of. <strong>Dependency</strong> for anything
+      only your code uses. <strong>Dev</strong> for anything neither of you ships. Get the first one wrong and you've
+      shipped two Angulars.
+    </app-remember>
+  </section>
 
-  <app-predict
-    prompt="ng generate ui-kit:widget runs with no --name. The Rule creates two files, then throws on the missing name check before creating a third. What ends up on disk?"
-    [code]="midChainFailureSample"
-    answer="Nothing — not the two files created before the throw, not any partial trace of the run. A Tree is a purely in-memory staging area; the schematics engine only commits it to the real filesystem after the ENTIRE rule chain returns successfully. Throwing partway through means the engine never reaches that commit step at all, so the two tree.create() calls that already ran are simply discarded along with everything else. This is what 'atomic' means here in a very literal sense — there is no partial-write state to clean up, because disk was never touched in the first place."
-  />
+  <!-- ============ 8. SCHEMATICS ============ -->
+  <section>
+    <p class="bf-eyebrow">Code that writes code</p>
+    <h2>A schematic is a function from a Tree to a Tree.</h2>
 
-  <h2>ng add — the red-carpet install</h2>
-  <div class="code">
-    <pre>{{ ngAddSample }}</pre>
-  </div>
-  <p>
-    <code>ng add my-lib</code> installs the package, then runs its <code>ng-add</code> schematic — which is where you
-    wire providers into <code>app.config.ts</code>, add styles to <code>angular.json</code>, or create starter config.
-    The difference between "works after one command" and a five-step README is this schematic.
-  </p>
+    <p>
+      A schematic is a function from options to a <code>Rule</code>: a transform over a virtual file <code>Tree</code>.
+      Nothing touches disk until the whole rule chain succeeds — changes are atomic, previewable with
+      <code>--dry-run</code>, and testable entirely in memory:
+    </p>
 
-  <h2>ng update — migrations that fix breaking changes</h2>
-  <div class="code">
-    <pre>{{ ngUpdateSample }}</pre>
-  </div>
-  <p>
-    Migration schematics are keyed by version: updating from 2.x to 4.x runs every migration in between, in order. This
-    is exactly how
-    <code>ng update &#64;angular/core</code> rewrites your code across majors — the framework ships its own migrations.
-    Offering the same for your library is what keeps consumers upgrading instead of pinning old versions forever.
-  </p>
+    <app-code-lab
+      file="widget/index.ts — a generating schematic"
+      [code]="schematicSample"
+      [notes]="schematicNotes"
+      notesLabel="What each line is doing"
+    />
 
-  <h2>Pitfalls</h2>
-  <ul>
-    <li>
-      <strong>Angular as a regular dependency</strong> — the classic disaster: consumers get two Angular copies, DI
-      breaks in baffling ways. Framework and framework-adjacent packages are peers, always.
-    </li>
-    <li>
-      <strong>Untested against the supported range</strong> — peer range says <code>&gt;=19 &lt;22</code>? CI should
-      build a consumer on each major.
-    </li>
-    <li>
-      <strong>Leaking internals</strong> — a "temporary" export from public-api becomes load-bearing in someone's app;
-      deprecate before removing, with a migration schematic where feasible.
-    </li>
-    <li>
-      <strong>Testing schematics by publishing</strong> — <code>SchematicTestRunner</code> runs them in memory;
-      <code>npm pack</code> + a local install covers the integration path. Publishing to test is how broken versions
-      escape.
-    </li>
-    <li>
-      <strong>Forgetting <code>sideEffects: false</code></strong> — without it, bundlers can't tree-shake unused parts
-      of your library aggressively.
-    </li>
-  </ul>
+    <app-code-lab
+      file="widget.spec.ts — testing it without disk"
+      [code]="testSample"
+      [notes]="testNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why do libraries ship partially compiled code instead of fully compiled?</summary>
-    <div>
-      Angular's generated instruction code isn't stable API across versions. Partial compilation emits a stable
-      declaration format; the consumer's own compiler/linker finishes compilation — so one published artifact supports a
-      range of Angular versions.
+  <!-- ============ 9. THE HARD HALF ============ -->
+  <section>
+    <p class="bf-eyebrow">The hard half</p>
+    <h2>Creating a file is the easy half.</h2>
+
+    <p>
+      The <code>widget</code> schematic above only ever <em>creates</em> files —
+      <code>apply(url('./files'), […])</code> is the easy case. Every valuable schematic worth writing, and every
+      migration further down this page, edits a file that <strong>already exists</strong>: adding a provider to
+      <code>app.config.ts</code>, adding a style to <code>angular.json</code>, renaming an import across a codebase.
+      Here's the mechanism, end to end:
+    </p>
+
+    <app-code-lab
+      file="migrations/v3/rename-token/index.ts"
+      [code]="fileEditSample"
+      [notes]="fileEditNotes"
+      notesLabel="Line by line — this is the part most tutorials skip"
+    />
+
+    <p>
+      Angular ships ready-made rules for the common cases in <code>@schematics/angular/utility</code> —
+      <code>addRootProvider</code>, <code>addRootImport</code>, <code>updateWorkspace</code> — precisely so you reach
+      for a tested helper before hand-rolling AST surgery yourself, the way the <code>ng-add</code> sample below does.
+      Save the manual <code>ts.createSourceFile</code> route for the edit no helper covers.
+    </p>
+
+    <app-predict
+      prompt="Two rules in the same chain each call tree.beginUpdate('/app.config.ts'), make their own edit, and call tree.commitUpdate(). Both succeed with no error. What actually ends up in the file?"
+      answer="Whichever rule commits **last** wins outright — its recorder was opened against the file's **original** content, so its edit silently overwrites the first rule's change instead of merging with it. Each `UpdateRecorder` computes its insert and delete offsets against the text at the moment `beginUpdate` was called; a second recorder opened against that same original text has no idea the first one existed. The fix is one recorder per file per rule — chain the edits through a single `beginUpdate` / `commitUpdate` pair, or read the tree's current content again before opening a fresh recorder."
+    />
+  </section>
+
+  <!-- ============ 10. SCHEMA.JSON + NG ADD ============ -->
+  <section>
+    <p class="bf-eyebrow">The red-carpet install</p>
+    <h2>ng add is the difference between one command and a five-step README.</h2>
+
+    <p>
+      Before a schematic's factory ever runs, its options are validated against a <code>schema.json</code> — the file
+      the <code>widget</code> sample referenced earlier but never showed:
+    </p>
+
+    <app-code-lab file="widget/schema.json" [code]="schemaSample" [notes]="schemaNotes" notesLabel="Line by line" />
+
+    <app-napkin lead="before you scroll —" label="Predict before reading on">
+      An <code>ng-add</code> rule adds a brand-new entry to the consumer's <code>package.json</code> — a second package
+      your library now depends on — but the rule never calls <code>context.addTask(new NodePackageInstallTask())</code>.
+      The Tree commits fine; the new line really is in <code>package.json</code> now. Does <code>npm install</code> for
+      that new dependency run on its own?
+    </app-napkin>
+
+    <app-flow caption="ng add my-lib, from install to a working app" [steps]="ngAddFlow" />
+
+    <app-code-lab
+      file="schematics/ng-add/index.ts"
+      [code]="ngAddSample"
+      [notes]="ngAddNotes"
+      notesLabel="Line by line"
+    />
+
+    <p>
+      <code>ng add my-lib</code> installs the package, then runs its <code>ng-add</code> schematic — which is where you
+      wire providers into <code>app.config.ts</code>, add styles to <code>angular.json</code>, or queue the extra
+      install the napkin above just asked about. The difference between "works after one command" and a five-step README
+      is this schematic.
+    </p>
+
+    <p>
+      Need a follow-up schematic to run only once those newly installed packages actually exist on disk — say, detecting
+      which UI framework the consumer just pulled in and generating starter files for it? Pass the install task's own id
+      as a dependency:
+      <code>context.addTask(new RunSchematicTask('post-install', options), [installTaskId])</code>. The devkit won't
+      start that second task until the first one it depends on has finished, so you get a real two-step pipeline instead
+      of guessing that <code>npm install</code> is already done.
+    </p>
+  </section>
+
+  <!-- ============ 11. NG UPDATE ============ -->
+  <section>
+    <p class="bf-eyebrow">Upgrading consumers</p>
+    <h2>ng update is a codemod your library ships with itself.</h2>
+
+    <app-code-lab
+      file="schematics/migrations.json"
+      [code]="ngUpdateSample"
+      [notes]="ngUpdateNotes"
+      notesLabel="Line by line"
+      prompt="From 2.1.0, running ng update my-lib to 4.x — how many migrations run, and in what order?"
+      output="Both. `rename-config-token` (tagged `3.0.0`) runs first, then `signal-inputs` (tagged `4.0.0`) — version order, not the order they're listed in the file. A consumer who instead does a brand-new install straight at `4.0.0` triggers neither one — there's no earlier installed version for either tag to be greater than."
+      revealLabel="Reveal the answer"
+    />
+
+    <p>
+      This is exactly how <code>ng update &#64;angular/core</code> rewrites your code across majors — the framework
+      ships its own migrations, keyed the same way. Offering the same for your library is what keeps consumers upgrading
+      instead of pinning an old version forever out of fear.
+    </p>
+  </section>
+
+  <!-- ============ 12. BUILDERS & PACKAGING ============ -->
+  <section>
+    <p class="bf-eyebrow">The rest of tooling</p>
+    <h2>Builders run every build; schematics run once.</h2>
+
+    <p>
+      A builder is a function from options and a context to a <code>BuilderOutput</code> — registered the same way a
+      schematic is, in a JSON collection, then swapped into <code>angular.json</code>'s <code>architect</code> section
+      by name:
+    </p>
+
+    <div class="code">
+      <pre>{{ builderSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>What breaks if &#64;angular/core is in dependencies instead of peerDependencies?</summary>
-    <div>
-      Package managers may install a second Angular copy for the library. Two copies means two DI systems and two sets
-      of framework internals: injection fails oddly, <code>instanceof</code> checks break, bundles double. Peer declares
-      "use the host app's copy".
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What is the Tree in a schematic, and why does it matter?</summary>
-    <div>
-      A virtual, in-memory staging of the filesystem. Rules read and mutate the Tree; the engine commits to disk only
-      when every rule succeeds — atomic all-or-nothing generation, plus <code>--dry-run</code> previews and unit tests
-      without touching disk.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How does <code>ng update</code> know which migrations to run?</summary>
-    <div>
-      The package's <code>ng-update.migrations</code> collection lists schematics tagged with target versions; the CLI
-      runs every migration between the installed and target version, in version order.
-    </div>
-  </details>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="A library lists &#64;angular/core: ^17.0.0 under dependencies instead of peerDependencies. The host app is on Angular 19. What actually happens?"
-    [options]="quizOptions"
-    followUp="Nothing in the tooling stops you from getting this wrong — no install error, no build warning by default. The peerDependencies convention exists precisely because npm has no other way to express 'share the host's copy' for a package like a framework."
-  />
+    <p>
+      Reach for a schematic when something needs to happen <strong>once</strong>, at generate- or install-time, and then
+      leave behind ordinary files. Reach for a builder when it needs to happen on <strong>every build</strong>, the way
+      compilation itself does.
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>APF + partial compilation is why one library artifact serves multiple Angular versions.</li>
-    <li>
-      <code>public-api.ts</code> is a forever-contract; secondary entry points keep optional weight out of the main
-      bundle.
-    </li>
-    <li>Framework packages are peerDependencies — everything else you add is conflict surface.</li>
-    <li>Schematics transform an atomic virtual Tree; test with <code>SchematicTestRunner</code>.</li>
-    <li><code>ng add</code> = install experience; <code>ng update</code> migrations = upgrade loyalty.</li>
-  </ul>
+    <p>Packaging has its own small rules, easy to miss the first time:</p>
 
-  <p><a routerLink="/task-manager">Next: Project — Task Manager →</a></p>
+    <div class="code">
+      <pre>{{ packagingSample }}</pre>
+    </div>
+
+    <p>
+      A library's own component styles are inlined into the compiled JS at build time — there is no loose
+      <code>.css</code> file to ship for those. A theming partial meant for the <strong>consumer's own</strong> Sass
+      compilation is different: it has to ship as real source, listed under <code>assets</code>, because inlined
+      component CSS is already compiled and isolated, and nothing outside the component can <code>@use</code> it.
+    </p>
+  </section>
+
+  <!-- ============ 13. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls</p>
+    <h2>Where teams actually get burned.</h2>
+
+    <ul>
+      <li>
+        <strong>An untested peer range.</strong> Your <code>peerDependencies</code> claims <code>&gt;=19 &lt;22</code>?
+        <span class="bf-break">CI should build and test a consumer app on each major</span>
+        in that range — semver compliance is a promise, not a guarantee your code keeps it.
+      </li>
+      <li>
+        <strong>Leaking internals.</strong> A "temporary" export from <code>public-api.ts</code> becomes load-bearing in
+        someone's app within a week. Deprecate before removing, and ship a migration schematic when you can.
+      </li>
+      <li>
+        <strong>Testing schematics by publishing.</strong> <code>SchematicTestRunner</code> and <code>npm pack</code>
+        plus a local install cover this without ever touching the registry —
+        <span class="bf-break">publishing to test is how broken versions escape</span> into the wild.
+      </li>
+      <li>
+        <strong>Forgetting <code>sideEffects: false</code>.</strong> Without it, a bundler can't safely delete an unused
+        export from your library, even though ng-packagr already split everything into clean ES modules for it.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 14. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Three questions, three contracts.</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>The question it answers</th>
+          <th>Where the answer lives</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Packaging</td>
+          <td>What ships, and in what shape?</td>
+          <td>Angular Package Format + partial compilation, via <code>ng-packagr</code></td>
+        </tr>
+        <tr>
+          <td>Contract</td>
+          <td>What can consumers depend on?</td>
+          <td><code>public-api.ts</code> (forever) + <code>peerDependencies</code> (borrowed, not owned)</td>
+        </tr>
+        <tr>
+          <td>Automation</td>
+          <td>How do they install and upgrade?</td>
+          <td><code>ng-add</code> schematic (install) + <code>ng-update</code> migrations (upgrade)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      <strong>Every layer here composes with the others.</strong> A well-designed <code>provideMyLib()</code> is what an
+      <code>ng-add</code> schematic wires up; a well-scoped <code>public-api.ts</code> is what an
+      <code>ng-update</code> migration can rewrite cleanly, because there's a small, named surface to target instead of
+      "anything a consumer might have imported."
+    </div>
+  </section>
+
+  <!-- ============ 15. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 16. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        Partial compilation is why one published artifact serves a whole range of Angular majors —
+        <strong>the consumer's own compiler finishes the job</strong>, not yours.
+      </li>
+      <li>
+        <code>public-api.ts</code> is forever; <strong><code>peerDependencies</code> borrow</strong>, they don't own —
+        put anything framework-shaped there or you risk shipping two copies of it.
+      </li>
+      <li>
+        <code>provideX()</code> + <code>makeEnvironmentProviders()</code> + a discriminated <code>withXyz()</code> union
+        is how you design a library's own config surface —
+        <strong>the modern replacement for <code>forRoot()</code></strong
+        >.
+      </li>
+      <li>
+        A schematic <code>Rule</code> transforms an atomic, in-memory Tree.
+        <strong>Editing an existing file needs its own recorder discipline</strong> — one <code>beginUpdate</code>/<code
+          >commitUpdate</code
+        >
+        pair per file, or the second write silently clobbers the first.
+      </li>
+      <li>
+        <code>ng-add</code> is the install experience, <code>NodePackageInstallTask</code> included;
+        <strong><code>ng-update</code> runs every migration</strong> between the installed and target version, in
+        version order.
+      </li>
+    </ul>
+
+    <p><a routerLink="/task-manager">Next: Project — Task Manager →</a></p>
+  </section>
 </article>

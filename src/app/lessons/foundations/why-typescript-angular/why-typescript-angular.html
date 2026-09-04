@@ -1,308 +1,569 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Web Basics</span>
-  <h1>Why TypeScript &amp; Angular?</h1>
-  <p class="lead">
-    You now know the building blocks: values, variables, functions, arrays, objects, decisions, loops, async, the DOM
-    and events. This closing Foundations lesson connects them to the two tools the rest of the curriculum is about — not
-    as a sales pitch, but so you understand <em>the specific problems each one exists to solve</em>. Tools make sense
-    when their problems do.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Foundations · Web Basics"
+    title="Why TypeScript &amp; Angular?"
+    hand="or, why the rest of this app double-majors in a type checker and a framework"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      You've now got the raw material: values, functions, arrays and objects, decisions and loops, async code, and a
+      page that reacts to clicks. This closing Foundations lesson connects all of it to the two tools the rest of this
+      app is built on — not as a sales pitch, but so each tool answers a problem you've already felt.
+      <strong>TypeScript</strong> answers "when do I find out I made a mistake?" <strong>Angular</strong> answers "who
+      keeps hundreds of moving parts in sync?" You're about to spend the rest of this curriculum using both at once, so
+      it's worth seeing exactly what each one is actually for.
+    </p>
+  </app-chapter>
 
-  <h2>The core idea: move errors earlier</h2>
-  <p>
-    Before any of the tooling, here's the idea underneath all of it.
-    <span class="key">Think of your program as a book going to print.</span>
-    A typo spotted while you're still typing costs you two seconds. Spotted by an editor before the print run, it costs
-    an afternoon. Spotted by a reader in a copy already sitting in 50,000 homes, it costs a reprint — and every single
-    reader saw it first.
-  </p>
-  <p>
-    Software has the same four stations, and the price goes up the same way. Every bug you will ever write gets caught
-    at one of them:
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Every bug gets caught somewhere. The timing is the whole story.</h2>
 
-  <svg class="diagram" viewBox="0 0 760 300" role="img" aria-labelledby="cost-t cost-d">
-    <title id="cost-t">What a bug costs depending on how late it is caught</title>
-    <desc id="cost-d">
-      A bar chart along a timeline running left to right, from as-you-type through the build, then runtime while you are
-      testing, and finally production. The bars grow dramatically taller from left to right: catching a bug as you type
-      is free, at build time it is cheap, at runtime while developing it is annoying, and in production it is expensive
-      — a user hits it first and you debug blind, without the code in front of you. A long arrow across the top points
-      back to the left, labelled as TypeScript's entire job: dragging bugs from the expensive end of the timeline to the
-      free end.
-    </desc>
-    <defs>
-      <marker id="cost-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--green)" />
-      </marker>
-      <marker id="cost-axis" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-    </defs>
+    <p>
+      Here's an uncomfortable fact about writing code: you are going to make mistakes. Not might — will, today, more
+      than once. That isn't a confession, it's a property of typing at a keyboard faster than you can think through
+      every consequence. The only real variable is <span class="key">when the mistake gets caught</span> — and that
+      timing matters more than almost anything else you'll learn this year.
+    </p>
 
-    <text x="385" y="22" font-size="12.5" font-weight="700" text-anchor="middle" fill="var(--green)">
-      TypeScript's entire job: drag bugs this way
-    </text>
-    <line x1="680" y1="40" x2="86" y2="40" stroke="var(--green)" stroke-width="2" marker-end="url(#cost-arrow)" />
+    <figure class="dia">
+      <svg
+        viewBox="0 0 760 280"
+        role="img"
+        aria-label="Bar chart of four moments a bug can be caught, in increasing order of cost. As you type: free, shortest bar, a red squiggle. At build: cheap, short bar, the build fails. At runtime while testing: annoying, medium bar, you crash while at the keyboard. In production: expensive, tallest bar, a user just hit it."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="wta-cost-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
 
-    <!-- bars -->
-    <rect x="75" y="213" width="70" height="12" rx="3" fill="var(--green)" opacity="0.55" />
-    <text x="110" y="205" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">free</text>
+        <!-- baseline -->
+        <line x1="60" y1="205" x2="710" y2="205" class="dia-rule" stroke-width="1.5" opacity="0.5" />
 
-    <rect x="255" y="191" width="70" height="34" rx="3" fill="var(--green)" opacity="0.4" />
-    <text x="290" y="183" font-size="11" text-anchor="middle" font-weight="700" fill="var(--green)">cheap</text>
+        <!-- bar 1: as you type -->
+        <rect x="75" y="170" width="130" height="35" rx="10" class="dia-bar dia-bar--good" />
+        <text x="140" y="150" text-anchor="middle" class="dia-bar-label">As you type</text>
+        <text x="140" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--good">free</text>
+        <text x="140" y="248" text-anchor="middle" class="dia-bar-detail">a red squiggle</text>
 
-    <rect x="435" y="147" width="70" height="78" rx="3" fill="var(--red)" opacity="0.35" />
-    <text x="470" y="139" font-size="11" text-anchor="middle" font-weight="700" fill="var(--red)">annoying</text>
+        <!-- bar 2: at build -->
+        <rect x="235" y="140" width="130" height="65" rx="10" class="dia-bar dia-bar--good" />
+        <text x="300" y="120" text-anchor="middle" class="dia-bar-label">At build</text>
+        <text x="300" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--good">cheap</text>
+        <text x="300" y="248" text-anchor="middle" class="dia-bar-detail">the build fails</text>
 
-    <rect x="615" y="75" width="70" height="150" rx="3" fill="var(--red)" opacity="0.7" />
-    <text x="650" y="67" font-size="11" text-anchor="middle" font-weight="700" fill="var(--red)">expensive</text>
+        <!-- bar 3: at runtime, testing -->
+        <rect x="395" y="100" width="130" height="105" rx="10" class="dia-bar dia-bar--warn" />
+        <text x="460" y="80" text-anchor="middle" class="dia-bar-label">At runtime</text>
+        <text x="460" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--warn">annoying</text>
+        <text x="460" y="248" text-anchor="middle" class="dia-bar-detail">you're testing it live</text>
 
-    <!-- axis -->
-    <line
-      x1="40"
-      y1="228"
-      x2="736"
-      y2="228"
-      stroke="var(--text-muted)"
-      stroke-width="1.5"
-      marker-end="url(#cost-axis)"
+        <!-- bar 4: in production -->
+        <rect x="555" y="50" width="130" height="155" rx="10" class="dia-bar dia-bar--bad" />
+        <text x="620" y="30" text-anchor="middle" class="dia-bar-label">In production</text>
+        <text x="620" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--bad">expensive</text>
+        <text x="620" y="248" text-anchor="middle" class="dia-bar-detail">a user just hit it</text>
+
+        <!-- hand-drawn cost arrow -->
+        <path d="M 90 265 C 300 278, 480 278, 690 265" class="dia-rule" fill="none" marker-end="url(#wta-cost-arrow)" />
+        <text x="390" y="277" text-anchor="middle" class="dia-hand" dy="-6">cost climbs the whole way →</text>
+      </svg>
+      <figcaption>
+        Four moments the exact same typo can be caught, read left to right. Every step to the right costs more — and
+        JavaScript, on its own, defers almost everything all the way to the last bar.
+      </figcaption>
+    </figure>
+
+    <p>
+      The debugging lesson's entire field guide — TypeErrors, ReferenceErrors, the silent string-math bug — is a
+      catalogue of JavaScript letting mistakes through until the moment they explode, or worse, the moment they
+      <span class="bf-break">quietly don't</span>.
+      <strong>TypeScript's one job is to drag those errors to the far left of that chart.</strong> Nothing else it does
+      matters as much as that sentence.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's a function with a real bug:
+      <code>function greet(name) &#123; return 'Hi ' + name.toUpperCase(); &#125;</code> called as
+      <code>greet(42)</code>. In plain JavaScript, when does this actually fail — as you type it, when the file loads,
+      or only once that exact line runs? And here's the sharper question: what changes the moment you rename the file
+      from <code>.js</code> to <code>.ts</code>, with nothing else edited? Hold both answers in your head — there's a
+      live version of exactly this bug two sections down, and the second question has a real sting in it.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>TypeScript is a bouncer with a strict guest list.</h2>
+
+    <p>
+      Picture a club with a bouncer at the door, clipboard in hand. Nobody gets in unless their name's on the list, and
+      it's checked exactly once — right there, at the threshold. Once you're inside, nobody checks again. The bouncer
+      doesn't follow you around the dance floor; their entire job happens at the door.
+    </p>
+
+    <p>
+      That's <span class="term">compile-time</span> checking, and it's the shape of everything TypeScript does. The
+      "list" is the type you promised — <code>amount: number</code> means only numbers are on the guest list for that
+      parameter. The checking happens once, before your code ever runs (the door), and once it's through, the checks are
+      gone: nobody re-verifies types while a program is actually executing.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Checked at the door, invisible on the dance floor.</strong> Every question about TypeScript resolves to
+      one thing: did this happen before the code ran (free, thorough, the bouncer) or while it ran (JavaScript,
+      expensive, and often silent)?
+    </app-remember>
+
+    <p>
+      Take "invisible on the dance floor" literally for a second, because it explains something that trips people up the
+      first time they see it happen.
+    </p>
+
+    <app-compare
+      leftTitle="Written — TypeScript"
+      rightTitle="Shipped — plain JavaScript"
+      leftTone="neutral"
+      rightTone="good"
+      note="Nothing about **how** the code runs changed. Only the parts the compiler used to check you with — and had no further use for — are gone. That's erasure: types are a favour TypeScript does you before your code ships, never a cost the browser pays."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ erasureTsSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ erasureJsSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>
+      Which answers half of the napkin question from the top of the page: renaming <code>greet.js</code> to
+      <code>greet.ts</code> and changing nothing else buys you <strong>exactly nothing</strong>. There's no bouncer
+      without a guest list — <code>function greet(name)</code> with no annotation still lets anything through, because
+      there's nothing written down to check it against.
+      <span class="bf-break">The file extension isn't the safety. The annotations are.</span> Keep that in your pocket —
+      it's the whole subject of the honest counterweight two sections from now.
+    </p>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM, IN SEVERAL MODES ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Give the bouncer an actual list, and watch it work.</h2>
+
+    <p>
+      Function parameters get their types the same way any value does: a colon, then the type. And a
+      <span class="term">literal union type</span> lets you say "only these exact values", which is stricter than just
+      <code>string</code>.
+    </p>
+
+    <app-code-lab
+      file="pay.ts"
+      [code]="paySample"
+      [notes]="payNotes"
+      notesLabel="What every symbol in these six lines is doing"
     />
 
-    <text x="110" y="248" font-size="11" text-anchor="middle" fill="var(--text-muted)">as you type</text>
-    <text x="110" y="263" font-size="10" text-anchor="middle" fill="var(--text-muted)">a red squiggle</text>
+    <app-predict
+      prompt="The `pay` function above is fully typed. What will TypeScript say, word for word, about the second call — `pay('42', 'USD')`?"
+      answer="Something close to: `Argument of type 'string' is not assignable to parameter of type 'number'.` It names the type you gave it (`'string'`) and the type it expected (`'number'`), and stops there — it never runs `pay` to find out what would actually happen, because compile-time checking never runs anything at all."
+      revealLabel="Reveal the exact message"
+    />
 
-    <text x="290" y="248" font-size="11" text-anchor="middle" fill="var(--text-muted)">at build</text>
-    <text x="290" y="263" font-size="10" text-anchor="middle" fill="var(--text-muted)">the build fails</text>
+    <app-bubbles
+      [turns]="compilerTalk"
+      caption="What actually happens when the compiler meets that second call. Nobody runs anything yet — nobody ever does, at this stage."
+    />
 
-    <text x="470" y="248" font-size="11" text-anchor="middle" fill="var(--text-muted)">runtime, you testing</text>
-    <text x="470" y="263" font-size="10" text-anchor="middle" fill="var(--text-muted)">it crashes on you</text>
+    <p>
+      That was one made-up example. Here are three real ones — the exact bugs earlier lessons warned you about — with
+      both languages' fate laid out side by side. Click through all three, and watch the annotated breakdown change with
+      them.
+    </p>
 
-    <text x="650" y="248" font-size="11" text-anchor="middle" fill="var(--red)" font-weight="700">in production</text>
-    <text x="650" y="263" font-size="10" text-anchor="middle" fill="var(--red)">a user hits it first</text>
-
-    <text x="40" y="290" font-size="11" fill="var(--text-muted)">
-      Same bug at every station. The only thing that changes is who finds it, and what it costs to fix.
-    </text>
-  </svg>
-
-  <app-remember variant="hook" label="If you remember one thing from Foundations">
-    <strong>Shift left.</strong> The further right a bug is caught, the more it costs — so every tool in this
-    curriculum, from types to tests to the compiler, is trying to move your bugs one station to the left.
-  </app-remember>
-
-  <p>
-    JavaScript, by design, defers almost everything to runtime — the debugging lesson's whole field guide (TypeErrors,
-    silent string-math) is JavaScript letting mistakes through until execution.
-    <strong>TypeScript's one job is to drag those errors to the far left of the timeline.</strong>
-  </p>
-
-  <h2>Why TypeScript — see it catch real bugs</h2>
-  <p>
-    TypeScript = JavaScript + <strong>type annotations</strong>: you (or inference) declare what kind of value each
-    thing holds, and a checker verifies every usage <em>before the code ever runs</em>. Each of these bugs appeared in
-    earlier lessons — compare their fate in each language:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — same bug, two timelines</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (h of hunts; track h.id) {
-        <button [class.ghost]="hunt().id !== h.id" (click)="huntId.set(h.id)">Bug #{{ h.id }}</button>
-      }
-    </div>
-    <div class="code">
-      <pre>{{ hunt().code }}</pre>
-    </div>
-    <div class="vs">
-      <div class="vs-col js">
-        <h4>Plain JavaScript</h4>
-        <p>{{ hunt().jsOutcome }}</p>
+    <div class="demo">
+      <p class="demo__title">Live — same bug, two timelines</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 14px">
+        @for (h of hunts; track h.id) {
+          <button [class.ghost]="hunt().id !== h.id" (click)="huntId.set(h.id)">Bug #{{ h.id }}</button>
+        }
       </div>
-      <div class="vs-col ts">
-        <h4>TypeScript</h4>
-        <p>{{ hunt().tsOutcome }}</p>
+
+      <app-code-lab
+        [file]="hunt().file"
+        [code]="hunt().code"
+        [notes]="hunt().notes"
+        notesLabel="What each line is promising, or failing to"
+      />
+
+      <div class="vs">
+        <div class="vs-col js">
+          <h4>Plain JavaScript</h4>
+          <p><app-rich-text [text]="hunt().jsOutcome" /></p>
+        </div>
+        <div class="vs-col ts">
+          <h4>TypeScript</h4>
+          <p><app-rich-text [text]="hunt().tsOutcome" /></p>
+        </div>
       </div>
     </div>
-  </div>
-  <app-predict
-    prompt="Three prices come out of three form inputs and get added up. What does the console print — and would you notice this bug in a code review?"
-    [code]="stringMathSample"
-    answer="It prints `0102030`, as text. On the first pass `total` is the number 0 and `p` is the string '10', and JavaScript's `+` sees a string on one side, so it switches from addition to joining-text-together: 0 becomes '0', then '010', then '01020', then '0102030'. No crash, no warning, no red anything — just an invoice total that is nonsense. This is the whole argument for types in one screen: with `prices: number[]`, or even just `total += Number(p)`, the mistake either cannot be written or is impossible to miss. TypeScript rejects `number += string` outright, and you would have seen a red squiggle before you ever ran it."
-  />
 
-  <p>Three things follow from types that beginners don't expect:</p>
-  <ul>
-    <li>
-      <strong>Autocomplete gets superpowers.</strong> The editor knows <code>user</code> has exactly
-      <code>name</code> and <code>age</code>, so it can list them, catch typos, and rename a property across 200 files
-      safely. Types aren't just checks — they're what makes the editor <em>understand</em> your code.
-    </li>
-    <li>
-      <strong>Types are documentation that can't go stale.</strong>
-      <code>function pay(amount: number, currency: 'USD' | 'EUR')</code> tells the next reader (you, next month)
-      precisely what's allowed — and the compiler enforces that the docs stay true.
-    </li>
-    <li>
-      <strong>Types vanish at runtime.</strong> The TypeScript compiler checks your code, then strips the annotations,
-      emitting plain JavaScript for the browser. Zero performance cost — the safety all happens before shipping.
-    </li>
-  </ul>
-  <div class="note">
-    The trade-off is honest: more to write up front, and the compiler will sometimes refuse code you "know" is fine
-    until you express <em>why</em> it's fine. That friction is the feature — the entire TypeScript track (next!) teaches
-    you to say things precisely enough that the machine can defend them.
-  </div>
+    <p>
+      Notice the three JavaScript outcomes are not the same kind of bad. Bug #1
+      <strong>crashes loudly</strong> — unpleasant, but at least it announces itself. Bug #2 is
+      <span class="bf-break">worse: it fails silently</span>, and a silent failure can ship to production and sit there
+      for weeks with nobody noticing anything is wrong. Bug #3 is worse again — it's <em>intermittent</em>, working fine
+      for every tester who happens to type clean numbers, and only breaking for the one customer who pastes "10,50" from
+      a spreadsheet. TypeScript catches all three at the exact same moment: while you're typing the call, before any of
+      them get the chance to be a crash, a silence, or a Tuesday-afternoon surprise.
+    </p>
 
-  <h2>Why Angular — structure for real apps</h2>
-  <p>
-    The DOM lesson ended with the "line 6 problem": keeping the screen in sync with data <em>by hand</em>, times
-    hundreds of connections. That's the first problem Angular solves — but a real app has a dozen more (navigation,
-    forms, server data, testing…), and solving each by hand means inventing your own conventions for all of them. A
-    <strong>framework</strong> is a complete, opinionated system that solves the standard problems one consistent way:
-  </p>
-  <table class="t">
-    <tr>
-      <th>Need</th>
-      <th>Hand-rolled JS</th>
-      <th>Angular gives you</th>
-    </tr>
-    <tr>
-      <td>UI in sync with data</td>
-      <td>querySelector + manual updates everywhere</td>
-      <td><strong>Templates + signals</strong> — declare what the screen should show; it syncs</td>
-    </tr>
-    <tr>
-      <td>Reusable UI pieces</td>
-      <td>copy-pasted HTML + wiring code</td>
-      <td><strong>Components</strong> — self-contained template + logic + styles, composed like Lego</td>
-    </tr>
-    <tr>
-      <td>"Pages" without reloads</td>
-      <td>hand-managed history + element swapping</td>
-      <td><strong>Router</strong> — URLs mapped to components (the SPA machinery from lesson one)</td>
-    </tr>
-    <tr>
-      <td>Forms with validation</td>
-      <td>per-field event listeners and flag juggling</td>
-      <td><strong>Forms module</strong> — value + validity tracked as one model</td>
-    </tr>
-    <tr>
-      <td>Server data</td>
-      <td>raw fetch, repeated error handling</td>
-      <td><strong>HttpClient</strong> — typed requests, interceptors, testability</td>
-    </tr>
-    <tr>
-      <td>Confidence to change code</td>
-      <td>click around and pray</td>
-      <td><strong>Testing tools</strong> — components and services testable in isolation</td>
-    </tr>
-  </table>
-  <p>One more distinction that will orient you in every Angular discussion online:</p>
-  <div class="note">
-    <strong>Library vs framework = who calls whom.</strong> With a library, <em>you</em> run the show and call its
-    functions when you want. With a framework, <em>it</em> runs the show — you fill in components, and Angular decides
-    when to create them, re-render them, and destroy them. (You've seen this shape before: callbacks. A framework is
-    inversion of control at app scale.) That's also why frameworks feel "magical" at first — the control flow starts in
-    code you didn't write. The expert tier de-magics all of it.
-  </div>
-  <p>
-    Where Angular sits in the ecosystem: <strong>React</strong> is a UI library (you assemble routing/forms/HTTP from
-    third-party pieces), <strong>Vue</strong> sits in between, and <strong>Angular</strong> is the batteries-included
-    end of the spectrum — one vendor, one coherent toolset, TypeScript-first since day one. That's why it's especially
-    common in large companies and long-lived codebases, where consistency across dozens of developers outweighs
-    flexibility.
-  </p>
+    <app-quiz
+      question="`function shipOrder(id) { return id.trim(); }` lives in a `.ts` file with no other changes — no annotations added anywhere. It's called as `shipOrder(1024)`. What happens?"
+      [options]="implicitAnyQuizOptions"
+      followUp="This is exactly why the migration ladder further down ends with `noImplicitAny` — it's the one flag that closes precisely this gap."
+    />
 
-  <h2>How the two fit together</h2>
-  <p>
-    Angular isn't just <em>compatible</em> with TypeScript — it's designed around it. Your components declare typed
-    inputs; templates are type-checked against your classes (a typo in
-    <code>{{ '{{' }} user.nmae {{ '}}' }}</code> fails the <em>build</em>, thanks to <code>strictTemplates</code>);
-    services are wired together using type information. The payoff compounds: framework structure plus compile-time
-    checking is what lets a 100-developer codebase change daily without collapsing.
-  </p>
+    <p>Two things follow from all this that beginners don't expect:</p>
+    <ul>
+      <li>
+        <strong>Autocomplete gets superpowers.</strong> The editor knows <code>user</code> has exactly
+        <code>name</code> and <code>age</code>, so it can list them, catch typos as you type, and rename a property
+        across 200 files safely. Types aren't just checks — they're what makes the editor <em>understand</em> your code.
+      </li>
+      <li>
+        <strong>Types are documentation that can't go stale.</strong>
+        <code>function pay(amount: number, currency: 'USD' | 'EUR')</code> tells the next reader — you, next month —
+        precisely what's allowed, and the compiler enforces that the documentation stays true. A comment can lie. A type
+        that mismatches the code simply fails to compile.
+      </li>
+    </ul>
 
-  <h2>How to use this curriculum</h2>
-  <ol>
-    <li><strong>Foundations</strong> (✅ you just finished it!) — coding and the web from zero.</li>
-    <li><strong>TypeScript Essentials</strong> — the language, from annotations to generics.</li>
-    <li><strong>Beginner</strong> — core Angular: components, templates, binding, signals.</li>
-    <li><strong>Intermediate</strong> — forms, routing, HTTP, RxJS, directives, testing.</li>
-    <li><strong>Expert</strong> — change detection, performance, SSR, security, architecture.</li>
-  </ol>
-  <p>
-    Every lesson has live demos. Don't just read — change the inputs, click the buttons, predict before you click, and
-    check the source when curious (this entire app is an Angular codebase you can learn from). Prediction + surprise is
-    how ideas stick.
-  </p>
-  <div class="tip">
-    You don't need to memorise anything. Understand each lesson's <em>idea</em>, and know it's here to look up. The
-    practice/exam tools in the navbar turn the same material into recall training when you're ready.
-  </div>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>"TypeScript prevents runtime errors" — what's the accurate version of that claim?</summary>
-    <div>
-      It prevents the <em>type-shaped class</em> of runtime errors (wrong property names, wrong argument types,
-      string/number mix-ups) by catching them at compile time. Logic bugs, bad data from a server at runtime, and
-      off-by-ones still get through — types check <em>shape</em>, not <em>correctness</em>. And it only checks what
-      crosses the compiler: a JSON response is trusted to match the type you claimed for it.
+    <div class="note">
+      The trade-off is honest: more to write up front, and the compiler will sometimes refuse code you "know" is fine
+      until you express <em>why</em> it's fine. That friction is the feature — the whole TypeScript track, next, teaches
+      you to say things precisely enough that the machine can defend them.
     </div>
-  </details>
-  <details class="qa">
-    <summary>Does shipping TypeScript slow the app down?</summary>
-    <div>
-      No — the browser never sees TypeScript. The compiler type-checks, then erases annotations and emits plain
-      JavaScript. All the cost is at build time; the shipped code is the same JS you'd have written by hand (usually
-      better organized).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What does "the framework calls your code" concretely mean in Angular?</summary>
-    <div>
-      You never write "create the component now, put it in the DOM here." You define the component; Angular instantiates
-      it when the router (or a parent template) needs it, calls your lifecycle hooks at defined moments, re-renders when
-      your data changes, and destroys it on navigation. Your code fills in the blanks of a control flow the framework
-      owns — inversion of control.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>When would plain JavaScript (no framework) actually be the right choice?</summary>
-    <div>
-      Small, mostly-static pages with a sprinkle of interactivity — a marketing site with one form, a simple widget.
-      Frameworks earn their weight when state, screens and team size grow; for a 50-line enhancement, the framework's
-      bundle and build pipeline are overhead. Engineering judgment is matching tool weight to problem weight.
-    </div>
-  </details>
+  </section>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="You write `const user = await res.json() as User;` — a promise that the response has a `name` and an `age`. The server has a bug and sends back an empty object instead. What does TypeScript do?"
-    [options]="quizOptions"
-    followUp="This is the boundary of the whole idea. Types check the code you wrote against itself, before it runs; they cannot check data that arrives after it starts. Anything crossing a network boundary needs a real runtime check — which is a separate tool, and a separate habit."
-  />
+  <!-- ============ 4. THE HONEST PART: SUPERSET, NOT REPLACEMENT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The honest part</p>
+    <h2>TypeScript doesn't replace JavaScript. It sits on top of it.</h2>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      The whole game is <strong>moving errors earlier</strong>: production → runtime → compile time → as-you-type.
-      TypeScript exists to do exactly that.
-    </li>
-    <li>
-      Types also power <strong>autocomplete, safe refactoring and never-stale documentation</strong> — then vanish at
-      runtime (zero shipping cost, checks shape not logic).
-    </li>
-    <li>
-      <strong>Angular</strong> is a batteries-included framework: components, templates-in-sync-with-data, router,
-      forms, HttpClient, testing — one coherent, TypeScript-first system that scales to big teams.
-    </li>
-    <li>
-      <strong>Framework = inversion of control</strong>: it calls your code (like a callback, app-sized). Library = you
-      call it. React is a library; Angular is the full workshop.
-    </li>
-    <li>Follow the tracks in order; interact with every demo; predict before you click.</li>
-  </ul>
+    <p>
+      Every example above was still, underneath, completely ordinary JavaScript — the <code>+</code>, the
+      <code>.toUpperCase()</code>, the function syntax. TypeScript never invented a new language to write logic in. What
+      it added lives entirely in the parts you've just been reading for the first time: the colons, the union types, the
+      annotations. Formally: <span class="term">TypeScript is a superset of JavaScript</span> — every valid
+      <code>.js</code> file is already a valid <code>.ts</code> file, completely unchanged.
+    </p>
 
-  <p><a routerLink="/ts-types">Next: start TypeScript → Types, Annotations &amp; Inference →</a></p>
+    <figure class="dia">
+      <svg
+        viewBox="0 0 460 320"
+        role="img"
+        aria-label="Venn diagram: a large circle labelled TypeScript, which adds type annotations, interfaces and generics, fully contains a smaller circle labelled JavaScript, which you already know. Every valid JavaScript file is already a valid TypeScript file."
+        class="dia__svg"
+      >
+        <circle cx="230" cy="160" r="150" class="dia-venn-outer" />
+        <circle cx="160" cy="160" r="65" class="dia-venn-inner" />
+
+        <text x="160" y="152" text-anchor="middle" class="dia-venn-title dia-venn-title--inner">JavaScript</text>
+        <text x="160" y="174" text-anchor="middle" class="dia-venn-sub">you already know this</text>
+
+        <text x="305" y="88" text-anchor="middle" class="dia-venn-title dia-venn-title--outer">TypeScript</text>
+        <text x="305" y="110" text-anchor="middle" class="dia-venn-sub">adds annotations,</text>
+        <text x="305" y="126" text-anchor="middle" class="dia-venn-sub">interfaces, generics…</text>
+
+        <text x="230" y="292" text-anchor="middle" class="dia-hand">every valid .js file lands in here too</text>
+        <path d="M 230 278 C 210 258, 200 240, 192 224" class="dia-rule" fill="none" />
+      </svg>
+      <figcaption>
+        TypeScript doesn't sit <em>beside</em> JavaScript — it sits <strong>around</strong> it. Every
+        <code>.js</code> file you've written this whole Foundations track is already a valid <code>.ts</code> file.
+        Everything new is stuff TypeScript adds on top, never something it takes away.
+      </figcaption>
+    </figure>
+
+    <p>
+      Which is also why you could read every code sample earlier on this page without knowing a lick of TypeScript
+      syntax — most of what you were looking at genuinely <em>is</em> the JavaScript you already know. In fact, most
+      values need <strong>no annotation at all</strong>: write <code>const n = 5</code> and TypeScript already knows
+      <code>n</code> is a <code>number</code>, with no <code>: number</code> written anywhere. That's
+      <span class="term">inference</span>, and it's why real TypeScript code has far fewer colons in it than a first
+      glance suggests.
+    </p>
+
+    <p>Adopting it, then, is a ladder — not a rewrite:</p>
+
+    <app-flow
+      [steps]="migrationLadder"
+      caption="The order most real codebases actually follow. Nobody flips every strict flag on day one."
+    />
+
+    <app-remember variant="rule">
+      <strong><code>any</code> and <code>as</code> both turn checking off — on purpose.</strong>
+      <code>any</code> says "stop checking this value"; <code>as</code> says "trust me, I know the real type better than
+      you inferred." Neither is a bug by itself. But a codebase's real safety was never "is this a
+      <code>.ts</code> file" — it's how much of it is quietly opted out with one of those two.
+    </app-remember>
+
+    <div class="warn">
+      <strong>None of this checking is free at runtime — because none of it happens at runtime.</strong> If nothing in
+      your build actually runs the TypeScript compiler, a <code>.ts</code> file with real annotations in it isn't
+      "extra-safe JavaScript" — most JavaScript runtimes will simply refuse to execute it, because
+      <code>: number</code> is not valid JS syntax. The checking is a <strong>build-time</strong> service. No compiler
+      in the pipeline, no bouncer, no door, nobody gets checked at all.
+    </div>
+  </section>
+
+  <!-- ============ 5. WHY ANGULAR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Why Angular</p>
+    <h2>A framework solves the standard problems once, instead of badly, a dozen times.</h2>
+
+    <p>
+      The DOM lesson ended on what it called the line 6 problem: keeping the screen in sync with data
+      <em>by hand</em>, times every place your data can change. That's the first problem a framework solves — but a real
+      app has a dozen more of these standard problems: navigation without full page reloads, forms with validation,
+      talking to a server, testing your own code. Solving each one yourself means inventing your own bespoke convention
+      for all of them, one app at a time. A <strong>framework</strong> is a complete, opinionated system that has
+      already made those decisions, consistently, so you don't re-litigate them on every project.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        What Angular decided for you, so you never had to
+      </caption>
+      <thead>
+        <tr>
+          <th>Need</th>
+          <th>Hand-rolled JS</th>
+          <th>Angular gives you</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>UI in sync with data</td>
+          <td><code>querySelector</code> + manual updates, everywhere</td>
+          <td><strong>Templates + signals</strong> — declare what the screen should show; it stays in sync</td>
+        </tr>
+        <tr>
+          <td>Reusable UI pieces</td>
+          <td>copy-pasted HTML plus wiring code</td>
+          <td><strong>Components</strong> — self-contained template, logic and styles, composed like Lego</td>
+        </tr>
+        <tr>
+          <td>"Pages" without reloads</td>
+          <td>hand-managed history plus element swapping</td>
+          <td><strong>Router</strong> — URLs mapped to components (the SPA machinery lesson one described)</td>
+        </tr>
+        <tr>
+          <td>Forms with validation</td>
+          <td>per-field event listeners and flag juggling</td>
+          <td><strong>Forms module</strong> — value and validity tracked as one model</td>
+        </tr>
+        <tr>
+          <td>Server data</td>
+          <td>raw <code>fetch</code>, error handling rewritten every time</td>
+          <td><strong>HttpClient</strong> — typed requests, interceptors, testability</td>
+        </tr>
+        <tr>
+          <td>Confidence to change code</td>
+          <td>click around and hope</td>
+          <td><strong>Testing tools</strong> — components and services testable in isolation</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 6. WHO CALLS WHOM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism, again</p>
+    <h2>Who calls whom?</h2>
+
+    <p>
+      One distinction explains almost every "why does this feel magical" moment you'll have with Angular:
+      <span class="term">who is in charge of the call</span>.
+    </p>
+
+    <app-layers
+      [core]="ioc.core"
+      [rings]="ioc.rings"
+      arrow="control enters here"
+      caption="A library waits for **you** to call it. A framework inverts that: control starts outside your code entirely, and your method only runs once Angular decides the moment has come. You never write the call — you only write what happens once it arrives."
+    />
+
+    <p>
+      With a <strong>library</strong> — an array's <code>.map</code>, a date-formatting package — you're always the one
+      calling. You decide the moment, you hold the result, you're in charge start to finish. With a
+      <strong>framework</strong>, it's inverted: you hand Angular your component class, and <em>Angular</em> decides
+      when to construct it, when to call your lifecycle hooks, when to re-render it, when to tear it down. You've
+      actually met this exact shape before, at a much smaller scale — a callback passed to
+      <code>addEventListener</code> is a tiny piece of code someone else calls, on their schedule, not yours. A
+      framework is that same idea, running an entire application.
+    </p>
+
+    <app-quiz
+      question="Which of these is something **you** call, on your own schedule — making it library behaviour rather than framework behaviour?"
+      [options]="iocQuizOptions"
+      followUp="Look back at the diagram above — in every wrong answer here, control started outside your code. That's the signature of a framework."
+    />
+
+    <p>
+      This is also the entire reason frameworks feel unpredictable the first week and obvious by the third — the control
+      flow doesn't start in code you wrote, so you have to learn where it actually <em>does</em> start before any of it
+      stops feeling like magic. That's most of what the Expert track exists to de-magic.
+    </p>
+  </section>
+
+  <!-- ============ 7. THE ECOSYSTEM ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The ecosystem</p>
+    <h2>Where Angular sits next to React and Vue.</h2>
+
+    <p>
+      The same "who calls whom" question, applied to the whole ecosystem, is also how the big three UI tools actually
+      differ — not by which one is "better", but by how much of the framework decision has already been made for you.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="React" kicker="a library" tone="accent">
+        You assemble the rest yourself — routing, forms, HTTP, state — usually from separate third-party packages that
+        don't always agree with each other about how things should be done.
+      </app-tape-card>
+      <app-tape-card heading="Vue" kicker="a progressive framework" tone="gold">
+        Starts small like a library, but has official first-party routing, state management and build tooling you can
+        opt into as the app grows.
+      </app-tape-card>
+      <app-tape-card heading="Angular" kicker="a batteries-included framework" tone="olive">
+        One vendor, one coherent toolset — router, forms, <code>HttpClient</code>, testing, TypeScript — all built to
+        work together from day one.
+      </app-tape-card>
+    </div>
+
+    <p>
+      None of these are wrong choices. Angular tends to win out in large, long-lived codebases and big teams, where
+      <strong>consistency</strong> across dozens of developers who've never met each other matters more than any one
+      developer's freedom to pick their own router. That happens to be exactly the kind of codebase where TypeScript's
+      checks pay for themselves many times over — which is not a coincidence, and is the entire subject of the next
+      section.
+    </p>
+  </section>
+
+  <!-- ============ 8. HOW THE TWO CONNECT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">How the two connect</p>
+    <h2>Angular is built around TypeScript, not just compatible with it.</h2>
+
+    <p>
+      Angular could, in principle, be written entirely in plain JavaScript. Nobody does, and the reason isn't taste —
+      it's that Angular's own machinery leans on types to do real work: a component's <code>@Input()</code> is typed, a
+      service's constructor parameters are matched up by their <em>type</em> during dependency injection, and — the part
+      that surprises people — your <strong>templates get type-checked too</strong>.
+    </p>
+
+    <app-predict
+      [prompt]="templateTypoPrompt"
+      [code]="templateTypoSample"
+      answer="Yes — at **build time**, not runtime. Angular's `strictTemplates` compiler option type-checks every binding against your component class, the same way `tsc` checks a function call. `nmae` isn't a key on `{ name: string }`, so the build fails with essentially the same message you'd get from any other typo'd property access in TypeScript. The moment Angular started checking templates against real types, a template stopped being 'just HTML.'"
+      revealLabel="Reveal when it's caught"
+    />
+
+    <p>
+      That's the payoff compounding: a framework that already decided the standard problems for you, plus a compiler
+      that checks the code you write to solve the problems specific to your app — together they're what lets a
+      hundred-person team change the same codebase every single day without it quietly rotting underneath them.
+    </p>
+  </section>
+
+  <!-- ============ 9. USING THIS CURRICULUM ============ -->
+  <section>
+    <p class="bf-eyebrow">Using this app</p>
+    <h2>How to actually get through the rest of this.</h2>
+
+    <ol>
+      <li><strong>Foundations</strong> (✅ you just finished it!) — coding and the web, from zero.</li>
+      <li><strong>TypeScript Essentials</strong> — the language, from annotations to generics.</li>
+      <li><strong>Beginner</strong> — core Angular: components, templates, binding, signals.</li>
+      <li><strong>Intermediate</strong> — forms, routing, HTTP, RxJS, directives, testing.</li>
+      <li><strong>Expert</strong> — change detection, performance, SSR, security, architecture.</li>
+    </ol>
+
+    <p>
+      Every lesson from here on has live demos. Don't just read — change the inputs, click the buttons, predict before
+      you click, and check the source when curious. This entire app is an Angular codebase you can learn from.
+      Prediction plus surprise is how ideas actually stick, not a slogan — it's the exact mechanism every napkin and
+      quiz on this page just used on you.
+    </p>
+
+    <app-napkin lead="try this —" label="Before you move on">
+      Open this very lesson's source on GitHub, or just poke at any demo above until something breaks. Every lesson from
+      here on is a real, typed, compiled Angular component — exactly the thing the DOM &amp; Events lesson said you'd
+      eventually need a framework for. You're not about to <em>read</em> about these two tools for ninety-something more
+      lessons. You're about to spend that time <em>inside</em> them.
+    </app-napkin>
+
+    <div class="tip">
+      You don't need to memorise anything. Understand each lesson's idea, and know it's here to look up later. The
+      practice and exam tools in the navbar turn the same material into recall training when you're ready for that.
+    </div>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        The whole game is <strong>moving errors earlier</strong> — production → runtime → build → as-you-type.
+        TypeScript exists to do exactly that, and nothing else it does matters as much.
+      </li>
+      <li>
+        Checking happens <strong>once, at compile time</strong>, then vanishes — types are erased before your code
+        ships, at zero runtime cost. But an unannotated value is silently <code>any</code>, which TypeScript never
+        checks: the file extension isn't the safety, the annotations are.
+      </li>
+      <li>
+        <strong>TypeScript is a superset</strong>, not a rewrite — every <code>.js</code> file is already valid
+        <code>.ts</code>, inference covers most values for free, and <code>any</code>/<code>as</code> are the honest
+        (and honestly abusable) escape hatches.
+      </li>
+      <li>
+        <strong>Angular</strong> is a batteries-included framework: components, templates-in-sync-with-data, router,
+        forms, <code>HttpClient</code>, testing — one coherent, TypeScript-first system built to scale to big teams.
+      </li>
+      <li>
+        <strong>Framework means inversion of control</strong>: Angular calls your code, not the other way round — like a
+        callback, at application scale. React stays closer to a library; Angular is the full workshop.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-types">Next: start TypeScript → Types, Annotations &amp; Inference →</a></p>
+  </section>
 </article>

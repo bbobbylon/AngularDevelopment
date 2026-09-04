@@ -1,3 +1,6 @@
+/* Styling for the "live bench" step-through list — the only demo-specific
+   markup this lesson still hand-rolls. Everything else (cards, callouts,
+   tables, the quiz/FAQ/predict set) comes from the brain-friendly layer. */
 .steps {
   padding-left: 20px;
 }
@@ -6,27 +9,9 @@
   font-size: 0.92rem;
 }
 .steps li.now {
-  color: var(--text);
-  font-weight: 500;
+  color: var(--bf-ink);
+  font-weight: 600;
 }
 .steps li:not(.now) {
-  color: var(--text-muted);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  color: var(--bf-ink-2);
 }

@@ -6,9 +6,13 @@
 .hero {
   position: relative;
   text-align: center;
-  padding: 32px 0 16px;
+  padding: 40px 0 16px;
 }
-/* Soft ambient glow behind the hero — the modern "aurora" backdrop */
+/* Soft ambient glow behind the hero — the "lamplight" backdrop.
+   Two warm radials (accent + gold) rather than accent + violet: the base
+   theme's --violet is now an alias for --bf-accent (see brain-friendly.css
+   §3), so pairing it with itself here would have painted one flat blob
+   instead of a two-tone glow. */
 .hero::before {
   content: "";
   position: absolute;
@@ -17,106 +21,156 @@
   background:
     radial-gradient(
       520px 240px at 30% 10%,
-      color-mix(in srgb, var(--accent) 16%, transparent),
+      color-mix(in srgb, var(--bf-accent) 16%, transparent),
       transparent 70%
     ),
     radial-gradient(
       520px 240px at 70% 0%,
-      color-mix(in srgb, var(--violet) 12%, transparent),
+      color-mix(in srgb, var(--bf-gold) 14%, transparent),
       transparent 70%
     );
   pointer-events: none;
   z-index: -1;
 }
+/* The one headline on the page set in the display serif — "the big idea"
+   per Bar 3. Everything else (tool titles, level headings) stays in the
+   reading face on purpose; see docs/CONTRIBUTING.md §2B on spending it
+   sparingly. */
 .hero h1 {
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  margin: 14px 0 8px;
-  background: linear-gradient(135deg, var(--accent-2), var(--blue));
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4.4vw, 3.1rem);
+  line-height: 1.12;
+  margin: 16px 0 10px;
+  letter-spacing: -0.005em;
+  background: linear-gradient(135deg, var(--bf-accent), var(--bf-gold-bright));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+.hero .pill {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  /* Plain --bf-accent on --bf-accent-wash measures ~3.9:1 by hand at this
+     size — under the 4.5:1 AA-normal-text line even though it clears the
+     3:1 large-text one. Nudged toward ink for a safer ~5:1. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
+  background: var(--bf-accent-wash);
+  border-color: color-mix(in srgb, var(--bf-accent) 30%, transparent);
 }
 .hero .lead {
   max-width: 680px;
   margin: 0 auto;
 }
+
+/* ---- Hero stats — tape-pinned cards ----
+   app-tape-card supplies the tape/pin/card chrome; everything inside is
+   content projected from THIS template, so it keeps this file's own
+   scoped styles (Angular emulated encapsulation follows content to its
+   origin template, not its host — see brain-friendly.css §14's note on
+   the same mechanism). That is what lets a big serif number live inside a
+   component whose own heading is sized for a short label. */
 .stats {
-  display: flex;
-  justify-content: center;
-  gap: 32px;
-  margin: 28px 0 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 18px;
+  margin: 40px 0 8px;
 }
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+@media (max-width: 780px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-.stat {
-  padding: 10px 18px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--bg-card) 65%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  backdrop-filter: blur(6px);
+@media (max-width: 480px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
 }
-.stat strong {
-  font-size: 1.8rem;
-  background: linear-gradient(135deg, var(--accent), var(--violet));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.stats app-tape-card {
+  text-align: left;
 }
-.stat span {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.stat-num {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.15rem;
+  line-height: 1.1;
+  color: var(--bf-ink);
+}
+.stat-num__denom {
+  font-size: 0.55em;
+  font-weight: 600;
+  opacity: 0.62;
+}
+.stat-label {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--bf-ink-2);
 }
 
 /* ---- Tools Section ---- */
 .tools-section {
-  margin: 40px 0 8px;
+  margin: 48px 0 8px;
 }
 .tools-heading {
   text-align: center;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  /* Same hand-measured contrast note as .hero .pill above: plain
+     --bf-accent on the page background lands close to but under 4.5:1 at
+     this weight/size, so it's nudged toward ink for a safer margin. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 0 0 16px;
+  letter-spacing: 0.14em;
+  margin: 0 0 20px;
 }
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 12px;
 }
-/* Per-card accent — one variable drives the top bar, icon tile,
-   CTA color, hover border and tinted hover shadow. */
+/* Per-card accent — one variable drives the top bar, icon tile, border-hover
+   and tinted hover shadow (never the CTA's own text — see .tool-card__cta).
+   8 categories need 8 distinguishable hues; the bf palette defines 6
+   (accent/gold/olive/danger/blue/clay), so --progress and --cert extend it
+   with two new warm-adjacent hues, each with its own dark-mode step since,
+   unlike the bf-* tokens, they don't auto-adapt. */
 .tool-card--practice {
-  --card-accent: #f59e0b;
+  --card-accent: var(--bf-gold-bright);
 }
 .tool-card--interview {
-  --card-accent: #6366f1;
+  --card-accent: var(--bf-accent-bright);
 }
 .tool-card--projects {
-  --card-accent: #22c55e;
+  --card-accent: var(--bf-olive);
 }
 .tool-card--tasks {
-  --card-accent: #0ea5e9;
+  --card-accent: var(--bf-clay);
 }
 .tool-card--api {
-  --card-accent: #14b8a6;
+  /* The one cool hue kept on purpose: blue is this app's "asking something"
+     colour everywhere else, and the API Playground is literally where you
+     send a request and watch the answer come back. */
+  --card-accent: var(--bf-blue);
 }
 .tool-card--examday {
-  --card-accent: #ef4444;
+  --card-accent: var(--bf-danger);
 }
 .tool-card--progress {
-  --card-accent: #a855f7;
+  --card-accent: #9c4f68; /* warm plum — 7th category, beyond the 6 bf hues */
+}
+[data-theme="dark"] .tool-card--progress {
+  --card-accent: #d98fa6;
 }
 .tool-card--cert {
-  --card-accent: #e74694;
+  --card-accent: #8a6428; /* warm bronze — 8th category, beyond the 6 bf hues */
+}
+[data-theme="dark"] .tool-card--cert {
+  --card-accent: #d9ae5e;
 }
 
 .tool-card {
@@ -124,7 +178,7 @@
   display: flex;
   gap: 14px;
   padding: 22px 20px 18px;
-  border-radius: 20px;
+  border-radius: var(--bf-r-lg);
   border: 1px solid var(--border);
   background: var(--bg-card);
   text-decoration: none;
@@ -185,7 +239,7 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--bf-r);
   font-size: 1.45rem;
   line-height: 1;
   flex-shrink: 0;
@@ -205,6 +259,7 @@
   font-size: 1rem;
   font-weight: 650;
   letter-spacing: -0.01em;
+  color: var(--text);
 }
 .tool-card__body p {
   margin: 0 0 10px;
@@ -212,14 +267,21 @@
   color: var(--text-muted);
   line-height: 1.5;
 }
+/* CTA text stays full ink rather than --card-accent: several of the bright
+   card hues (gold-bright, accent-bright) read under 3:1 against the warm
+   card surface at this weight/size, which is fine for a decorative icon
+   tile or a 4px top bar but not for text meant to be read. The category
+   colour still shows up on hover, on the underline only. */
 .tool-card__cta {
   font-size: 0.8rem;
   font-weight: 650;
-  color: var(--card-accent);
+  color: var(--text);
   transition: gap 0.15s ease;
 }
 .tool-card:hover .tool-card__cta {
   text-decoration: underline;
+  text-decoration-color: var(--card-accent);
+  text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
 
@@ -235,16 +297,6 @@
   background: var(--bg);
   z-index: 5;
 }
-.filters button {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-}
-.filters button.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
 .level {
   margin: 40px 0;
 }
@@ -258,23 +310,35 @@
   font-size: 1.5rem;
   margin: 0;
 }
+/* Six tracks, six colours — reusing the bf teaching palette decoratively
+   rather than inventing a second set. This is a browsing index, not lesson
+   prose, so the "one hue, one job" discipline that rule applies to a lesson's
+   reading experience doesn't carry over here; a rough difficulty gradient
+   (olive → gold → clay-red as the tracks get harder) is what's aimed for
+   instead. --bf-clay itself reads too light for text at this size/weight
+   (~2.5:1 on the warm page), so Foundations gets one small new hue instead —
+   a dark "bedrock" brown, with its own dark-mode step since it isn't a
+   bf-* token. */
 h2[data-level="foundations"] {
-  color: #7c3aed;
+  color: #6b4226;
+}
+[data-theme="dark"] h2[data-level="foundations"] {
+  color: #d3aa7c;
 }
 h2[data-level="typescript"] {
-  color: #0ea5e9;
+  color: var(--bf-blue);
 }
 h2[data-level="beginner"] {
-  color: #059669;
+  color: var(--bf-olive);
 }
 h2[data-level="intermediate"] {
-  color: #d97706;
+  color: var(--bf-gold);
 }
 h2[data-level="expert"] {
-  color: #4f46e5;
+  color: var(--bf-danger);
 }
 h2[data-level="projects"] {
-  color: #14b8a6;
+  color: var(--bf-accent);
 }
 .progress {
   font-size: 0.8rem;
@@ -305,15 +369,16 @@ h2[data-level="projects"] {
   font-size: 0.67rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
+  /* No opacity dimming — dimming a colour already this close to the AA line
+     for 0.67rem text just pushes it under. Full-strength --accent instead. */
   color: var(--accent);
-  opacity: 0.75;
   margin-bottom: 5px;
 }
 .card {
   display: block;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--bf-r);
   padding: 16px;
   text-decoration: none;
   color: var(--text);
@@ -355,16 +420,18 @@ h2[data-level="projects"] {
   color: var(--text-muted);
   white-space: nowrap;
 }
+/* Both badges' backgrounds are derived from the SAME token their border and
+   text use, via color-mix, rather than a hand-picked rgb() triplet. The
+   previous rgba()s were literally the old cool green/blue — once the bf
+   palette repointed --green to olive and --accent to orange, the badges
+   were rendering a tint that no longer matched their own border/text
+   colour at all. (`.badge--visited` was also defined twice here with two
+   different colour stories, a leftover — the second, kept below, is the
+   one that was actually winning the cascade.) */
 .badge--ready {
-  background: rgba(46, 193, 107, 0.15);
+  background: color-mix(in srgb, var(--green) 16%, transparent);
   border-color: var(--green);
   color: var(--green);
-}
-.badge--visited {
-  background: rgba(5, 150, 105, 0.12);
-  border-color: var(--green);
-  color: var(--green);
-  font-weight: 700;
 }
 .card__badges {
   display: flex;
@@ -376,20 +443,10 @@ h2[data-level="projects"] {
   border-left: 3px solid var(--green);
 }
 .badge--visited {
-  background: rgba(2, 132, 199, 0.15);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 600;
-}
-
-/* ---- Visited stat ---- */
-.stat--progress strong {
-  color: var(--green);
-}
-.stat__denom {
-  font-size: 0.7em;
-  opacity: 0.6;
-  font-weight: 400;
 }
 
 /* ---- Search input ---- */
@@ -402,7 +459,7 @@ h2[data-level="projects"] {
   width: 100%;
   max-width: 280px;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg-card);
   color: var(--text);
@@ -413,13 +470,24 @@ h2[data-level="projects"] {
   outline-offset: 1px;
 }
 
-/* ---- Skeleton cards (@defer placeholder) ---- */
-@keyframes shimmer {
-  0% {
-    background-position: -400px 0;
+/* ---- Skeleton cards (@defer placeholder) ----
+   The shimmer sweep is a continuous, infinite background-position loop —
+   exactly the kind of motion prefers-reduced-motion exists for, so unlike
+   this file's transform/opacity hover effects it needs the explicit guard
+   rather than relying on being "trivially skippable". Reduced-motion users
+   get a flat, static well instead. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes shimmer {
+    0% {
+      background-position: -400px 0;
+    }
+    100% {
+      background-position: 400px 0;
+    }
   }
-  100% {
-    background-position: 400px 0;
+  .skeleton-card {
+    background-size: 800px 100%;
+    animation: shimmer 1.4s infinite linear;
   }
 }
 .skeleton-card {
@@ -431,8 +499,6 @@ h2[data-level="projects"] {
     var(--border) 50%,
     var(--bg-elevated) 75%
   );
-  background-size: 800px 100%;
-  animation: shimmer 1.4s infinite linear;
 }
 
 /* ---- Empty search state ---- */
@@ -441,16 +507,21 @@ h2[data-level="projects"] {
   padding: 48px 24px;
   color: var(--text-muted);
 }
+.empty-state__hand {
+  display: block;
+  font-size: 1.7rem;
+  margin-bottom: 4px;
+}
 .empty-state p {
   margin: 0 0 16px;
 }
 
 /* ---- About / Project Overview ---- */
 .about {
-  margin: 40px 0 8px;
+  margin: 48px 0 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--bf-r-lg);
   padding: 32px;
   box-shadow: var(--shadow);
 }
@@ -511,7 +582,7 @@ h2[data-level="projects"] {
 .about__block {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--bf-r);
   padding: 16px 18px;
 }
 .about__block h4 {
@@ -533,30 +604,35 @@ h2[data-level="projects"] {
   border-radius: 999px;
   border: 1px solid transparent;
 }
+/* Reassigned from the original cool crayon-box (indigo/teal/violet/green/
+   amber) to five of the bf hues. Two of the originals — --bf-clay and the
+   "bright" accent/gold steps — read under AA as small text at this size
+   against the warm card, so they're left out of this set on purpose; what's
+   below all clears 4.5:1+ on --bg-elevated. */
 .chip--blue {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.3);
-  color: #6366f1;
+  background: color-mix(in srgb, var(--bf-blue) 14%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--bf-blue) 32%, transparent);
+  color: var(--bf-blue);
 }
 .chip--teal {
-  background: rgba(20, 184, 166, 0.12);
-  border-color: rgba(20, 184, 166, 0.3);
-  color: #0d9488;
+  background: color-mix(in srgb, var(--bf-olive) 14%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--bf-olive) 32%, transparent);
+  color: var(--bf-olive);
 }
 .chip--violet {
-  background: rgba(124, 58, 237, 0.12);
-  border-color: rgba(124, 58, 237, 0.3);
-  color: #7c3aed;
+  background: color-mix(in srgb, var(--bf-gold) 14%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--bf-gold) 32%, transparent);
+  color: var(--bf-gold);
 }
 .chip--green {
-  background: rgba(5, 150, 105, 0.12);
-  border-color: rgba(5, 150, 105, 0.3);
-  color: #059669;
+  background: color-mix(in srgb, var(--bf-accent) 14%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--bf-accent) 32%, transparent);
+  color: var(--bf-accent);
 }
 .chip--amber {
-  background: rgba(217, 119, 6, 0.12);
-  border-color: rgba(217, 119, 6, 0.3);
-  color: #d97706;
+  background: color-mix(in srgb, var(--bf-danger) 14%, var(--bg-elevated));
+  border-color: color-mix(in srgb, var(--bf-danger) 32%, transparent);
+  color: var(--bf-danger);
 }
 .kpi-grid {
   display: grid;
@@ -569,11 +645,12 @@ h2[data-level="projects"] {
   align-items: center;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 10px 8px;
   text-align: center;
 }
 .kpi strong {
+  font-family: var(--font-display);
   font-size: 1.4rem;
   color: var(--accent);
   line-height: 1.1;

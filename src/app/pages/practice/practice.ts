@@ -16,6 +16,8 @@ import { downloadTextFile } from '../../shared/download-file';
 import { BookmarksService } from '../../core/bookmarks.service';
 import { ToastService } from '../../core/toast.service';
 import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Bubbles, Napkin, TapeCard, type BubbleTurn } from '../../shared/brain';
 
 /** Per-challenge progress, keyed by challenge id so it survives the per-session shuffle. */
 type PracticeStates = Record<
@@ -98,7 +100,7 @@ function loadAdaptive(): AdaptiveState {
  */
 @Component({
   selector: 'app-practice',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, TapeCard, Napkin, Bubbles],
   styleUrl: './practice.css',
   templateUrl: './practice.html',
 })
@@ -263,6 +265,27 @@ export class Practice {
 
   /** Difficulty chips, likewise shared. */
   readonly diffFilters = DIFF_FILTERS;
+
+  /**
+   * The empty-filter state, staged as a two-line exchange instead of a flat
+   * "no results" sentence — it names the filters actually in effect, so the
+   * reader sees what to loosen rather than reading a generic message that
+   * doesn't reflect what they picked.
+   *
+   * Purely presentational: derived from the same filter signals the list
+   * itself reads ({@link visibleChallenges}), and changes nothing about how
+   * filtering works.
+   */
+  readonly emptyStateTurns = computed<BubbleTurn[]>(() => {
+    const catLabel =
+      this.categoryFilters.find((c) => c.id === this.activeCategory())?.label ?? 'All';
+    const diffId = this.adaptiveEnabled() ? this.adaptiveLevel() : this.activeDiff();
+    const diffLabel = this.diffFilters.find((d) => d.id === diffId)?.label ?? 'All levels';
+    return [
+      { who: 'You', says: `Show me **${catLabel}** · **${diffLabel}**.` },
+      { who: 'Practice', says: 'Nothing back there — try `Shuffle`, or widen a filter.' },
+    ];
+  });
 
   /**
    * Get shuffled options for a challenge

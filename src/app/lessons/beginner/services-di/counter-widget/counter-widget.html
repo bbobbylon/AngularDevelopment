@@ -1,5 +1,8 @@
 <div class="row">
   <span class="pill">{{ label() }} → count: {{ counter.count() }}</span>
+  @if (showHeartbeat()) {
+    <span class="pill">heartbeat: {{ counter.heartbeat() }}</span>
+  }
   <button class="ghost" (click)="counter.increment()">+1</button>
   <button class="ghost" (click)="counter.reset()">reset</button>
 </div>

@@ -1,405 +1,662 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Control Flow</span>
-  <h1>Control Flow: &#64;switch</h1>
-  <p class="lead">
-    <code>&#64;switch</code> renders exactly one branch based on a single value — ideal for
-    <span class="term">state machines</span> like <em>idle / loading / success / error</em>. It is the template
-    equivalent of a <code>switch</code> statement, but with
-    <span class="key">no <code>break</code> and no fall-through</span>: the matched <code>&#64;case</code> is the only
-    one that renders.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Beginner · Control Flow"
+    title="Control Flow: &#64;switch"
+    hand="or, how one value learns to pick exactly one door"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      <code>&#64;switch</code> renders exactly one branch out of several, chosen by testing a single value against a
+      list of exact matches — the template's version of a <code>switch</code> statement, but with no
+      <code>break</code> and no fall-through to manage. That one sentence hides real rules worth getting precise about:
+      <strong>how the match is judged</strong>, <strong>what happens when nothing matches</strong>,
+      <strong>how far a case's type narrowing reaches</strong>, and — new in this version of Angular —
+      <strong>what the compiler can now prove for you before you ship</strong>. This page takes each one with a live
+      demo, not just a claim.
+    </p>
+  </app-chapter>
 
-  <h2>Think of it as railway points</h2>
-  <p>
-    The word <em>switch</em> is not a metaphor here — it's the original meaning. A railway switch (the points) is the
-    mechanism that decides which of several tracks a train takes. One train arrives, the points are set one way, the
-    train goes down exactly one track. Everything about <code>&#64;switch</code> follows from that picture:
-  </p>
-  <ul>
-    <li>
-      <span class="right">One value, one track.</span> The expression is evaluated <strong>once</strong>, then compared
-      to each case. The train doesn't get re-weighed at every junction — that's what a chain of
-      <code>&#64;if</code> does.
-    </li>
-    <li>
-      <span class="right">No fall-through, because there's nowhere to fall.</span> A train can't continue onto the next
-      track after reaching the end of one. This is why there's no <code>break</code>: JavaScript's
-      <code>switch</code> needs it precisely <em>because</em> it does keep going, and Angular's doesn't.
-    </li>
-    <li>
-      <span class="wrong">The other tracks aren't just empty — they were never laid.</span> This is the part people miss
-      and it matters far more than it sounds. A non-matching branch is not hidden; it is
-      <strong>never constructed at all</strong>. No component instance, no DOM, nothing in change detection.
-    </li>
-  </ul>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>One value. Four screens. Which one shows?</h2>
 
-  <h2>What actually gets built</h2>
-  <p>
-    Here is the difference between <code>&#64;switch</code> and the CSS-based hiding people often reach for first. It's
-    the single most consequential thing on this page:
-  </p>
+    <p>
+      Say your component tracks one thing — a request's <code>status</code> — and it is always exactly one of four
+      strings: <code>idle</code>, <code>loading</code>, <code>success</code>, <code>error</code>. You already know how
+      to render that with a chain of <code>&#64;if</code> / <code>&#64;else if</code>: one comparison per state, in
+      order, with an <code>&#64;else</code> at the end to catch whatever is left.
+    </p>
 
-  <svg class="diagram" viewBox="0 0 760 260" role="img" aria-labelledby="sw-t sw-d">
-    <title id="sw-t">
-      The switch block instantiates only the matching branch, unlike CSS hiding which builds all of them
-    </title>
-    <desc id="sw-d">
-      Two rows compare approaches for a four-state view. In the top row, using a switch block with the value 'loading',
-      only the loading branch is instantiated as a live component; idle, success and error are drawn as dashed outlines
-      labelled never built. In the bottom row, using hidden or display none, all four components are constructed and
-      live in the DOM, with three of them merely invisible — so all four run change detection and all four hold state.
-    </desc>
-
-    <!-- switch row -->
-    <text x="10" y="24" font-size="12.5" font-weight="700" fill="var(--green)">
-      &#64;switch (status()) — status is 'loading'
-    </text>
-    <g>
-      <rect
-        x="10"
-        y="38"
-        width="170"
-        height="52"
-        rx="8"
-        fill="none"
-        stroke="var(--text-muted)"
-        stroke-width="1.3"
-        stroke-dasharray="5 4"
-        opacity="0.55"
-      />
-      <text x="95" y="60" text-anchor="middle" font-size="11" fill="var(--text-muted)">idle</text>
-      <text x="95" y="77" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">never built</text>
-
-      <rect
-        x="196"
-        y="38"
-        width="170"
-        height="52"
-        rx="8"
-        fill="var(--bg-card)"
-        stroke="var(--green)"
-        stroke-width="2"
-      />
-      <text x="281" y="60" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--green)">loading</text>
-      <text x="281" y="77" text-anchor="middle" font-size="9.5" fill="var(--text)">live component · in the DOM</text>
-
-      <rect
-        x="382"
-        y="38"
-        width="170"
-        height="52"
-        rx="8"
-        fill="none"
-        stroke="var(--text-muted)"
-        stroke-width="1.3"
-        stroke-dasharray="5 4"
-        opacity="0.55"
-      />
-      <text x="467" y="60" text-anchor="middle" font-size="11" fill="var(--text-muted)">success</text>
-      <text x="467" y="77" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">never built</text>
-
-      <rect
-        x="568"
-        y="38"
-        width="170"
-        height="52"
-        rx="8"
-        fill="none"
-        stroke="var(--text-muted)"
-        stroke-width="1.3"
-        stroke-dasharray="5 4"
-        opacity="0.55"
-      />
-      <text x="653" y="60" text-anchor="middle" font-size="11" fill="var(--text-muted)">error</text>
-      <text x="653" y="77" text-anchor="middle" font-size="9.5" fill="var(--text-muted)">never built</text>
-    </g>
-    <text x="10" y="110" font-size="11" fill="var(--green)" font-weight="600">
-      1 component checked · 1 in the DOM · switching away runs ngOnDestroy and the state is gone
-    </text>
-
-    <line x1="10" y1="130" x2="750" y2="130" stroke="var(--border)" stroke-width="1" />
-
-    <!-- hidden row -->
-    <text x="10" y="158" font-size="12.5" font-weight="700" fill="var(--red)">
-      [hidden] / display: none — the same four states
-    </text>
-    <g>
-      <rect x="10" y="172" width="170" height="52" rx="8" fill="var(--bg-card)" stroke="var(--red)" opacity="0.75" />
-      <text x="95" y="194" text-anchor="middle" font-size="11" fill="var(--text)">idle</text>
-      <text x="95" y="211" text-anchor="middle" font-size="9.5" fill="var(--red)">built · invisible</text>
-
-      <rect
-        x="196"
-        y="172"
-        width="170"
-        height="52"
-        rx="8"
-        fill="var(--bg-card)"
-        stroke="var(--green)"
-        stroke-width="2"
-      />
-      <text x="281" y="194" text-anchor="middle" font-size="11.5" font-weight="700" fill="var(--green)">loading</text>
-      <text x="281" y="211" text-anchor="middle" font-size="9.5" fill="var(--text)">built · visible</text>
-
-      <rect x="382" y="172" width="170" height="52" rx="8" fill="var(--bg-card)" stroke="var(--red)" opacity="0.75" />
-      <text x="467" y="194" text-anchor="middle" font-size="11" fill="var(--text)">success</text>
-      <text x="467" y="211" text-anchor="middle" font-size="9.5" fill="var(--red)">built · invisible</text>
-
-      <rect x="568" y="172" width="170" height="52" rx="8" fill="var(--bg-card)" stroke="var(--red)" opacity="0.75" />
-      <text x="653" y="194" text-anchor="middle" font-size="11" fill="var(--text)">error</text>
-      <text x="653" y="211" text-anchor="middle" font-size="9.5" fill="var(--red)">built · invisible</text>
-    </g>
-    <text x="10" y="244" font-size="11" fill="var(--red)" font-weight="600">
-      4 components checked every tick · 4 in the DOM · all four fired their HTTP calls on init
-    </text>
-  </svg>
-
-  <app-remember variant="rule" label="The two rules that cover every @switch question">
-    <strong>Strict, and destructive.</strong> <em>Strict:</em> <code>&#64;case</code> compares with <code>===</code>,
-    always — <code>1</code> will never match <code>'1'</code>, and no case matching just renders nothing at all,
-    silently. <em>Destructive:</em> the branch you leave is destroyed, not hidden, so its component state does not
-    survive a round trip.
-  </app-remember>
-
-  <h2>&#64;switch / &#64;case / &#64;default</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 16px">
-      <button (click)="status.set('idle')">idle</button>
-      <button (click)="status.set('loading')">loading</button>
-      <button (click)="status.set('success')">success</button>
-      <button (click)="status.set('error')">error</button>
+    <div class="code">
+      <pre>{{ chainedIfSample }}</pre>
     </div>
 
-    <div class="panel">
+    <p>
+      It works. It also gets uglier every time a fifth state shows up, because now you are maintaining
+      <span class="key">N almost-identical comparisons against the same variable</span>, and nothing stops you from
+      typing <code>status() === 'sucess'</code> and having the whole branch quietly never run.
+      <code>&#64;switch</code> is Angular's answer to that specific shape — one value, several exact possibilities. You
+      write the value once and list the values it might equal.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here is the question the rest of this page turns on. <code>status</code> is holding the <em>string</em>
+      <code>'1'</code>. Somewhere in a switch there is a <code>&#64;case (1)</code> — the <em>number</em> one. Does that
+      case match? Hold your answer — there is a live version further down that will settle it either way, and the reason
+      behind whichever answer you gave is worth understanding before you read on.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>&#64;switch is a bouncer holding a guest list.</h2>
+
+    <p>
+      Picture a bouncer at the door of a club, holding a clipboard. One person arrives — that is your switch expression,
+      checked exactly once at the door, not re-checked every few seconds while they wait in line. The bouncer reads the
+      guest list top to bottom, comparing the name in front of them against each entry, and the moment a name matches
+      <em>exactly</em>, that guest is let in — and the bouncer stops reading. Nobody further down the list even gets
+      glanced at, because the search is already over.
+    </p>
+
+    <p>
+      "Exactly" is doing real work in that sentence. This bouncer does not do "close enough" — a photocopy of your ID is
+      not your ID, even if every word on it is identical, and it turns out
+      <span class="bf-break">type matters too</span>, which is exactly what the napkin question above is really asking.
+      Hold that thought; the live demo a few scrolls down settles it for good.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="@switch" kicker="the one value" tone="accent">
+        Evaluated exactly once per check — the ID at the door, not re-scanned every time someone glances at it.
+      </app-tape-card>
+      <app-tape-card heading="@case" kicker="one accepted value" tone="olive">
+        Compared against the switch value with strict <code>===</code>. Order matters — first match wins, and the search
+        stops there.
+      </app-tape-card>
+      <app-tape-card heading="@default" kicker="general admission" tone="gold">
+        Optional. Runs when nothing else matched. Skip it, and an unmatched value renders nothing at all.
+      </app-tape-card>
+    </div>
+
+    <app-remember variant="mnemonic">
+      <strong>One value, checked once, matched top to bottom.</strong> <code>&#64;switch</code> reads its expression a
+      single time per check, then walks its <code>&#64;case</code> list from the top and stops at the very first exact
+      match — everything after that point, including an identical case further down, is never reached.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE BASIC MECHANICS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Exactly once, then compared top to bottom.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — one value, four exact possibilities</p>
+      <div class="row" style="margin-bottom: 14px">
+        <button (click)="status.set('idle')">idle</button>
+        <button (click)="status.set('loading')">loading</button>
+        <button (click)="status.set('success')">success</button>
+        <button (click)="status.set('error')">error</button>
+      </div>
       @switch (status()) {
         @case ('idle') {
-          <p>💤 Nothing happening yet.</p>
+          <p class="readout-line">💤 Nothing happening yet.</p>
         }
         @case ('loading') {
-          <p>⏳ Loading your data…</p>
+          <p class="readout-line">⏳ Loading your data…</p>
         }
         @case ('success') {
-          <p>✅ Loaded successfully!</p>
+          <p class="readout-line">✅ Loaded successfully!</p>
         }
         @default {
-          <p>❌ Something went wrong.</p>
+          <p class="readout-line">❌ Something went wrong.</p>
         }
       }
+      <p class="demo__note">
+        Four buttons, one rendered paragraph at a time. Switching states does not toggle a hidden element — the previous
+        branch is destroyed and the new one is built, which the <em>Under the hood</em> section below proves with a real
+        lifecycle hook.
+      </p>
     </div>
-  </div>
-  <div class="code">
-    <pre>{{ basicSample }}</pre>
-  </div>
-  <div class="note">
-    Matching is strict equality (<code>===</code>). <code>&#64;default</code> is optional — if nothing matches and
-    there's no default, the block renders nothing. The switch expression is evaluated <strong>once</strong> per change
-    detection, then compared to each case; a chained <code>&#64;if</code> re-evaluates a fresh boolean at every rung.
-  </div>
 
-  <h2>Per-case type narrowing (the real superpower)</h2>
-  <p>
-    Switch on the discriminant of a tagged union and Angular narrows the type inside each <code>&#64;case</code> — so
-    branch-specific fields are available and type-checked. Pair it with <code>&#64;let</code> to name the value once:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — one union, three shapes</p>
-    <div class="row" style="margin-bottom: 14px">
-      <button (click)="shape.set({ kind: 'circle', radius: 5 })">circle</button>
-      <button (click)="shape.set({ kind: 'square', side: 4 })">square</button>
-      <button (click)="shape.set({ kind: 'triangle', base: 6, height: 3 })">triangle</button>
+    <app-code-lab
+      file="status-panel.html"
+      [code]="basicSwitchSample"
+      [notes]="basicSwitchNotes"
+      notesLabel="Line by line"
+      prompt="Back to the napkin at the top — is `status()` holding the string `'1'` ever going to match a `@case (1)` block?"
+      output="No — never. `@switch` compares with strict `===`: same type AND same value. The number `1` and the string `'1'` fail the type half immediately, no matter how many times you check. This is the single most common reason a switch renders nothing when you're sure it should match — see **Number vs string cases** in the pitfalls table further down."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 4. GROUPING CASES WITHOUT FALL-THROUGH ============ -->
+  <section>
+    <p class="bf-eyebrow">No fall-through, but you can still group</p>
+    <h2>Every case is exact — but several can share one body.</h2>
+
+    <p>
+      "No fall-through" used to come with an asterisk: you could not stack values either, so five fruits that all render
+      the same markup meant five copies of that markup. That changed. A <code>&#64;case</code> left with
+      <strong>no body</strong> now folds into whichever <code>&#64;case</code> comes directly after it that
+      <em>does</em> have one — so several values can share a single block, with no cascading and nothing to remember
+      about ordering beyond "put the shared body last."
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — six fruits, three bodies</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="fruit.set('apple')">apple</button>
+        <button (click)="fruit.set('pear')">pear</button>
+        <button (click)="fruit.set('cherry')">cherry</button>
+        <button (click)="fruit.set('peach')">peach</button>
+        <button (click)="fruit.set('banana')">banana</button>
+        <button class="ghost" (click)="fruit.set('kiwi')">kiwi 🥝 (not in any case)</button>
+      </div>
+      @switch (fruit()) {
+        @case ('apple') {}
+        @case ('pear') {
+          <p class="readout-line">🍎🍐 Pome family — a core full of seeds.</p>
+        }
+        @case ('cherry') {}
+        @case ('peach') {
+          <p class="readout-line">🍒🍑 Drupe family — one big stone in the middle.</p>
+        }
+        @case ('banana') {
+          <p class="readout-line">🍌 Its own case — nothing else here looks like it.</p>
+        }
+        @default {
+          <p class="readout-line">🤷 Not on the list — the general-admission line.</p>
+        }
+      }
+      <p class="demo__note">
+        Apple and pear render the identical paragraph; so do cherry and peach. Press <strong>kiwi</strong> and watch
+        <code>&#64;default</code> catch it — grouping cases did not change that rule at all.
+      </p>
     </div>
-    <div class="panel">
+
+    <app-code-lab
+      file="fruit-family.html"
+      [code]="groupedCaseSample"
+      [notes]="groupedCaseNotes"
+      notesLabel="Line by line — how the grouping actually works"
+    />
+
+    <div class="warn">
+      <strong>What still does not work:</strong> <code>{{ multiValueCaseSample }}</code> — a
+      <code>&#64;case</code> block accepts <strong>exactly one</strong> parameter. Try to comma-stack values inside one
+      case and the compiler stops you outright, in its own words:
+      <em>"&#64;case block must have exactly one parameter."</em> Stack separate cases instead, the way the demo above
+      does.
+    </div>
+
+    <app-predict
+      prompt="Two `@case ('loading')` blocks sit in the same switch, with different bodies, and `status()` is `'loading'`. Which one renders — and does Angular warn you either way?"
+      [code]="duplicateCaseSample"
+      answer="The first one — always. `@switch` walks its cases top to bottom and stops at the first exact match, so the second `@case ('loading')` never runs, and Angular raises no warning about it. It compiles cleanly and just sits there. The same top-to-bottom rule that lets you group cases above is exactly what makes an accidental duplicate silently unreachable."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-quiz
+      question="`status` holds the number `2`. The switch has `@case ('2')` first, then `@case (2)`, then `@default`. Which block renders?"
+      [options]="orderQuizOptions"
+      followUp="This is the napkin question from the top of the page, generalised — strict equality plus top-to-bottom order is the whole rule."
+    />
+  </section>
+
+  <!-- ============ 5. PER-CASE NARROWING AND @let ============ -->
+  <section>
+    <p class="bf-eyebrow">The real superpower</p>
+    <h2>Match the tag, and the rest of the shape unlocks.</h2>
+
+    <p>
+      Switch on the discriminant of a tagged union and Angular narrows the type inside each
+      <code>&#64;case</code> — so branch-specific fields are readable and type-checked, the same way a TypeScript
+      <code>switch (s.kind)</code> narrows in a <code>.ts</code> file. There is one requirement that is easy to miss the
+      first time, and it is worth seeing fail before it is explained.
+    </p>
+
+    <app-compare
+      leftTitle="Fails to type-check — a direct call"
+      leftTone="bad"
+      rightTitle="Narrows — a stable reference"
+      rightTone="good"
+      note="A signal read is a call, and TypeScript only narrows plain references — never a call expression, however predictable it looks."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ shapeDirectCallSample }}</pre>
+        </div>
+        <p>
+          This fails to compile. <code>shape()</code> is a <strong>function call</strong>, and TypeScript never narrows
+          through one — the second <code>shape()</code> on line 3 is a completely different expression from the one the
+          switch checked, so it is still typed as the full <code>Shape</code> union, and <code>radius</code> does not
+          exist on two of its three arms.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ shapeLetSample }}</pre>
+        </div>
+        <p>
+          <code>s</code> is a <strong>stable reference</strong> — a plain identifier, not a call — so it narrows exactly
+          like a discriminated-union <code>switch</code> does in TypeScript. This is the same rule
+          <code>&#64;if (user(); as u)</code> exists for; <code>&#64;switch</code> just spells it
+          <code>&#64;let</code> instead.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="demo">
+      <p class="demo__title">Live — one union, three shapes, one compiler-checked switch</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="shape.set({ kind: 'circle', radius: 5 })">circle</button>
+        <button (click)="shape.set({ kind: 'square', side: 4 })">square</button>
+        <button (click)="shape.set({ kind: 'triangle', base: 6, height: 3 })">triangle</button>
+      </div>
       @let s = shape();
       @switch (s.kind) {
         @case ('circle') {
-          <p>
+          <p class="readout-line">
             ⬤ Circle · radius <strong>{{ s.radius }}</strong> → area = π·r² = <strong>{{ area() }}</strong>
           </p>
         }
         @case ('square') {
-          <p>
+          <p class="readout-line">
             ◼ Square · side <strong>{{ s.side }}</strong> → area = s² = <strong>{{ area() }}</strong>
           </p>
         }
         @case ('triangle') {
-          <p>
+          <p class="readout-line">
             ▲ Triangle · {{ s.base }}×{{ s.height }} → area = ½·b·h = <strong>{{ area() }}</strong>
           </p>
         }
       }
+      <p class="demo__note">
+        Inside <code>&#64;case ('circle')</code>, <code>s.radius</code> compiles; <code>s.side</code> would
+        <em>not</em> — the compiler knows <code>s</code> is the circle variant there. All three
+        <code>Shape</code> variants are covered above, so there is nothing left for a <code>&#64;default</code> to catch
+        — the next section turns that into a promise the compiler will actually check.
+      </p>
     </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Inside <code>&#64;case ('circle')</code>, <code>s.radius</code> compiles; <code>s.side</code> would <em>not</em> —
-      the compiler knows <code>s</code> is the circle variant there. That's the same narrowing a TypeScript
-      <code>switch (s.kind)</code> gives you, now in the template.
+
+    <app-code-lab
+      file="shape-panel.html"
+      [code]="shapeNarrowingSample"
+      [notes]="shapeNarrowingNotes"
+      notesLabel="Line by line — narrowing"
+    />
+  </section>
+
+  <!-- ============ 6. COMPILER-ENFORCED EXHAUSTIVENESS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">New in this version of Angular</p>
+    <h2>Add a fourth shape, and the build breaks — on purpose.</h2>
+
+    <p>
+      <code>&#64;default never;</code> replaces a normal <code>&#64;default</code> block with a promise: "these cases
+      are the whole story." The compiler checks that promise the same way TypeScript checks an
+      <code>assertNever(x: never)</code> call — by proving that after every <code>&#64;case</code> above has been
+      subtracted, nothing is left. If nothing is left, the line compiles and does nothing further at runtime. If
+      something <em>is</em> left, the build fails, pointing at that exact line.
     </p>
-  </div>
 
-  <h2>When to use &#64;switch vs a chain of &#64;if</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th><code>&#64;switch</code></th>
-      <th>chained <code>&#64;if / &#64;else if</code></th>
-    </tr>
-    <tr>
-      <td>Shape of the test</td>
-      <td>one value vs several constants</td>
-      <td>unrelated boolean expressions</td>
-    </tr>
-    <tr>
-      <td>Evaluation</td>
-      <td>expression once, then <code>===</code> per case</td>
-      <td>a new condition evaluated per rung</td>
-    </tr>
-    <tr>
-      <td>Type narrowing</td>
-      <td class="ok">narrows the discriminant per case</td>
-      <td>narrows only what each condition proves</td>
-    </tr>
-    <tr>
-      <td>Reads best for</td>
-      <td>state machines, enums, union tags</td>
-      <td>ranges, combined conditions, feature flags</td>
-    </tr>
-  </table>
-
-  <h2>Coming from <code>*ngSwitch</code></h2>
-  <p>
-    <code>&#64;switch</code> replaces the three-directive combo <code>*ngSwitch</code> / <code>*ngSwitchCase</code> /
-    <code>*ngSwitchDefault</code> — and fixes a notorious footgun: the old <code>*ngSwitchCase</code> used
-    <em>loose</em> equality via attribute binding, so numbers-as-strings quietly matched. The block form is strict and
-    needs no import:
-  </p>
-  <div class="code">
-    <pre>{{ migrationSample }}</pre>
-  </div>
-
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>One embedded view per branch.</strong> <code>&#64;switch</code> compiles the same way as an
-      <code>&#64;if</code>/<code>&#64;else if</code> chain: each <code>&#64;case</code>/<code>&#64;default</code>
-      becomes its own conditional template function, and only the matching branch is ever instantiated as an embedded
-      view — its component tree is the only one created and the only one that enters change detection.
-    </li>
-    <li>
-      <strong>Not a jump table — a sequence of <code>===</code> checks.</strong> The switch expression is evaluated
-      once, then compared top-to-bottom against each <code>&#64;case</code> literal by strict equality until one matches
-      (or <code>&#64;default</code> catches the rest). There's no compiled lookup table like a low-level switch
-      statement might use.
-    </li>
-    <li>
-      <strong>Switching away destroys, it doesn't hide.</strong> Because non-matching branches are never instantiated,
-      moving from <code>'loading'</code> to <code>'success'</code> runs the spinner component's
-      <code>ngOnDestroy</code> and constructs the results component fresh — unlike <code>[hidden]</code>, which never
-      removes anything from the DOM.
-    </li>
-    <li>
-      <strong>No directive instance at runtime.</strong> Legacy <code>*ngSwitch</code>/ <code>*ngSwitchCase</code> are
-      real directives holding a <code>ViewContainerRef</code> and toggling embedded views imperatively.
-      <code>&#64;switch</code> is compiled directly into conditional instructions by the template compiler — there's no
-      <code>NgSwitch</code> object to inject or override.
-    </li>
-    <li>
-      <strong><code>&#64;default</code> is just another branch.</strong> It has no special runtime behavior beyond being
-      the branch selected when no <code>&#64;case</code> strictly matches — it's compiled the same way as every other
-      branch.
-    </li>
-  </ul>
-
-  <h2>Predict the blank page</h2>
-  <p>
-    A pricing page renders a plan name from the route. It works locally, it passes review, and in production the panel
-    is <span class="wrong">completely empty</span> — no error, no warning, no red in the console.
-    <span class="key">Find the bug before you open the answer.</span>
-  </p>
-
-  <app-predict
-    prompt="The user is on /plan/2. Nothing renders. Why — and what are the two ways to fix it?"
-    [code]="strictEqualitySample"
-    answer="**`tier()` is the string `'2'`. The cases are the numbers `1`, `2`, `3`. `'2' === 2` is false, so no case matches — and with no `@default`, `@switch` renders nothing at all.**
-
-Two things conspire here, and both are worth internalising:
-
-1. **Route params are always strings.** `paramMap.get('tier')` returns `string | null`, never a number. The URL is text; nothing in the router parses it for you. Same for query params, and same for `FormData`.
-2. **`@case` uses `===`, with no coercion whatsoever.** This is deliberate — the old `*ngSwitchCase` used loose equality through attribute binding, `'2'` matched `2`, and that produced a different class of bug that was even harder to find. Strict is the fix, not the problem.
-
-And the reason it survives review is the third fact: **an unmatched `@switch` with no `@default` renders silently.** Not an error, not a warning — just nothing. It looks like a CSS problem or a failed request.
-
-**Two fixes, and you want both:**
-
-- Coerce at the boundary, where the string becomes data: `map(p => Number(p.get('tier')))`. Parse once, at the edge, rather than sprinkling `+` through the template.
-- **Always write a `@default`**, even if it only renders “Unknown plan”. A silent blank is the worst possible failure mode; a visible fallback turns this bug into a five-second diagnosis instead of an afternoon."
-    revealLabel="Reveal why nothing renders"
-  />
-
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="A `@case ('editing')` branch contains a component with a text input. The user types “hello” into it, switches the state to `'preview'`, then switches straight back to `'editing'`. What is in the input?"
-    [options]="quizOptions"
-    followUp="If state has to survive the round trip, it cannot live inside the branch. Lift it into the parent component or a service — the branch renders it, but does not own it."
-  />
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Strict <code>===</code>, including for objects.</strong> <code>&#64;case (someObj)</code> matches only the
-      <em>same reference</em>, never a structurally-equal one. Switch on a primitive discriminant (a string/number tag),
-      not an object.
-    </li>
-    <li>
-      <strong>No multi-value case.</strong> You can't write <code>&#64;case ('a', 'b')</code> or stack labels. Give each
-      value its own <code>&#64;case</code>, or fold the rest into <code>&#64;default</code>.
-    </li>
-    <li>
-      <strong>No fall-through.</strong> Exactly one branch runs — there's no <code>break</code> and no cascading, unlike
-      a JS <code>switch</code>.
-    </li>
-    <li>
-      <strong>Silent empty render.</strong> No matching case and no <code>&#64;default</code> = nothing shown. Add a
-      <code>&#64;default</code> if "unknown state" should be visible.
-    </li>
-    <li>
-      <strong>Number vs string cases.</strong> <code>&#64;case (1)</code> won't match the string <code>'1'</code>. Keep
-      the switch value and the case literals the same type.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Does a <code>&#64;case</code> need a <code>break</code>?</summary>
-    <div>No. There's no fall-through, so no <code>break</code>. Only the first strictly matching case renders.</div>
-  </details>
-  <details class="qa">
-    <summary>Nothing renders and there's no error — why?</summary>
-    <div>
-      No case matched and there's no <code>&#64;default</code>. Either the value's type/spelling differs from the case
-      literals, or you need a default branch.
+    <div class="demo">
+      <p class="demo__title">Live — the same shapes, now a compiler-checked promise</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="shape.set({ kind: 'circle', radius: 5 })">circle</button>
+        <button (click)="shape.set({ kind: 'square', side: 4 })">square</button>
+        <button (click)="shape.set({ kind: 'triangle', base: 6, height: 3 })">triangle</button>
+      </div>
+      @let kind = shape().kind;
+      @switch (kind) {
+        @case ('circle') {
+          <p class="readout-line">⬤ <code>'circle'</code> — one of three, accounted for.</p>
+        }
+        @case ('square') {
+          <p class="readout-line">◼ <code>'square'</code> — one of three, accounted for.</p>
+        }
+        @case ('triangle') {
+          <p class="readout-line">▲ <code>'triangle'</code> — one of three, accounted for.</p>
+        }
+        @default never;
+      }
+      <p class="demo__note">
+        Every value <code>shape().kind</code> can hold is handled above, so <code>&#64;default never;</code> compiles
+        clean. Notice this panel captures its own <code>kind</code> with a fresh <code>&#64;let</code>, rather than
+        reusing <code>s</code> from the narrowing panel above — the code lab below explains why that is not just habit.
+      </p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>How do I access variant-specific fields safely inside a case?</summary>
-    <div>
-      Switch on the union's discriminant (<code>&#64;switch (s.kind)</code>). Angular narrows <code>s</code> to that
-      variant inside each <code>&#64;case</code>, so the branch's fields type-check.
+
+    <app-code-lab
+      file="shape-exhaustive.html"
+      [code]="exhaustiveShapeSample"
+      [notes]="exhaustiveShapeNotes"
+      notesLabel="Line by line — why this @let is a second one"
+    />
+
+    <app-bubbles
+      [turns]="exhaustivenessTalk"
+      caption="What `@default never;` is actually promising — and what it needs from you to keep that promise."
+    />
+
+    <app-predict
+      prompt="A teammate adds a fourth arm to `Shape` next sprint and never touches this switch. What happens?"
+      [code]="hexagonSample"
+      answer="The build breaks, right on the `@default never;` line in the demo above. With a fourth arm now possible, `kind` inside `@default` is `'hexagon'` — not `never` — and that type is not assignable to the `never` parameter the block demands. Swap `@default never;` for an ordinary `@default { … }` on the same switch and the identical missing case compiles cleanly instead, quietly rendering nothing for a hexagon. That is the whole trade `never` makes: a build failure today instead of a blank panel in production."
+      revealLabel="Reveal the answer"
+    />
+
+    <app-remember variant="rule">
+      The exhaustiveness check is only as strong as the reference underneath it. Switch on a
+      <strong>stable value</strong> — <code>&#64;let</code> the discriminant itself, not just the object it lives on —
+      give every arm its own <code>&#64;case</code>, and <code>&#64;default never;</code> turns a forgotten variant into
+      a build failure instead of a blank panel.
+    </app-remember>
+
+    <app-quiz
+      question="You swap `@default never;` for a plain `@default { <p>Unknown</p> }` on the same exhaustive kind switch. A teammate then adds a fourth variant and forgets to add a case for it. What happens now?"
+      [options]="exhaustivenessQuizOptions"
+      followUp="The rules the compiler actually enforces on `@default never;`: it must be the last block in the switch, it cannot have a body, and it cannot follow a bodyless case."
+    />
+  </section>
+
+  <!-- ============ 7. THE ENUM / CONSTANT CASE ============ -->
+  <section>
+    <p class="bf-eyebrow">A case most people trip on</p>
+    <h2>An enum member has to be reachable from the template.</h2>
+
+    <p>
+      <code>&#64;case</code> can reference any member on the component instance, not only literals — including an
+      imported <code>enum</code>. The trap is that a template can only read the <strong>class</strong>, never a
+      module-level import directly, so <code>&#64;case (RequestStatus.Loading)</code> compiles only if
+      <code>RequestStatus</code> is <em>also</em> exposed as a field on the class — the same
+      <code>protected readonly X = X;</code> pattern the enums lesson teaches for exactly this reason.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — switching on a string enum</p>
+      <div class="row" style="margin-bottom: 14px">
+        <button (click)="requestStatus.set(RequestStatus.Loading)">Loading</button>
+        <button (click)="requestStatus.set(RequestStatus.Success)">Success</button>
+        <button (click)="requestStatus.set(RequestStatus.Failed)">Failed</button>
+      </div>
+      @switch (requestStatus()) {
+        @case (RequestStatus.Loading) {
+          <p class="readout-line">⏳ Working on it…</p>
+        }
+        @case (RequestStatus.Success) {
+          <p class="readout-line">✅ Done.</p>
+        }
+        @case (RequestStatus.Failed) {
+          <p class="readout-line">❌ It broke.</p>
+        }
+      }
+      <p class="demo__note">
+        This compiles because the class also declares
+        <code>protected readonly RequestStatus = RequestStatus;</code>. Delete that one line and every
+        <code>&#64;case</code> below fails with
+        <em>"Property 'RequestStatus' does not exist on type 'ControlFlowSwitch'"</em> — even though the enum is
+        imported right at the top of the file.
+      </p>
     </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>&#64;switch (value)</code> picks one <code>&#64;case</code> by strict equality; <code>&#64;default</code> is
-      the optional fallback.
-    </li>
-    <li>No <code>break</code>, no fall-through, no multi-value case — one branch renders.</li>
-    <li>Switching on a union discriminant narrows the type inside each case.</li>
-    <li>
-      Reach for <code>&#64;switch</code> for one-value-many-states; use a <code>&#64;if</code> chain for unrelated
-      booleans.
-    </li>
-  </ul>
+    <app-code-lab
+      file="request-status.html"
+      [code]="enumCaseSample"
+      [notes]="enumCaseNotes"
+      notesLabel="Line by line"
+    />
+  </section>
 
-  <p><a routerLink="/let-block">Next: Local Template Variables — &#64;let →</a></p>
+  <!-- ============ 8. @switch VS CHAINED @if ============ -->
+  <section>
+    <p class="bf-eyebrow">Choosing between them</p>
+    <h2>Same job, two different shapes of test.</h2>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        When each one reads better
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th><code>&#64;switch</code></th>
+          <th>chained <code>&#64;if</code> / <code>&#64;else if</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Shape of the test</td>
+          <td>one value vs several exact constants</td>
+          <td>unrelated boolean expressions</td>
+        </tr>
+        <tr>
+          <td>Evaluation</td>
+          <td>expression once, then <code>===</code> per case</td>
+          <td>a fresh condition evaluated at every rung</td>
+        </tr>
+        <tr>
+          <td>Type narrowing</td>
+          <td><strong>narrows</strong> the discriminant inside each case</td>
+          <td>narrows only what each condition itself proves</td>
+        </tr>
+        <tr>
+          <td>Compiler exhaustiveness</td>
+          <td><code>&#64;default never;</code> <strong>catches</strong> a forgotten case</td>
+          <td>no equivalent — there is no fixed set of "cases" to check</td>
+        </tr>
+        <tr>
+          <td>Reads best for</td>
+          <td>state machines, enums, union tags</td>
+          <td>ranges, combined conditions, feature flags</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 9. MIGRATING FROM *ngSwitch ============ -->
+  <section>
+    <p class="bf-eyebrow">Coming from *ngSwitch</p>
+    <h2>One block replaces three cooperating directives.</h2>
+
+    <app-compare
+      leftTitle="Before — *ngSwitch, needs CommonModule"
+      leftTone="bad"
+      rightTitle="Now — one block, strict, no import"
+      rightTone="good"
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ legacySwitchSample }}</pre>
+        </div>
+        <p>
+          Three cooperating directives — <code>NgSwitch</code>, <code>NgSwitchCase</code>,
+          <code>NgSwitchDefault</code> — imported from <code>CommonModule</code>, each holding its own
+          <code>ViewContainerRef</code> behind the scenes. The classic footgun lived in the asterisk:
+          <code>*ngSwitchCase="'loading'"</code> desugars to a <strong>property binding</strong>,
+          <code>[ngSwitchCase]="'loading'"</code>, so the value is always an <em>expression</em>. Drop the star and
+          write the attribute bare — <code>ngSwitchCase="1"</code> — and it is read as a plain HTML attribute, the
+          <em>string</em> <code>'1'</code>, not the number. Same characters on the screen, two different values, and
+          nothing warns you which one you wrote.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ blockSwitchSample }}</pre>
+        </div>
+        <p>
+          One built-in block, nothing to import, and no attribute-vs-binding ambiguity to trip over — every
+          <code>&#64;case</code> value is always an expression, always compared with <code>===</code>. Structurally
+          identical to the version on the left; the loose-equality trap is simply gone, because there is no longer a
+          bare-attribute spelling to fall into.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 10. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Not a jump table — a sequence of checks.</h2>
+
+    <app-flow
+      [steps]="mechanismSteps"
+      caption="One value, checked once, walked in order, exactly one branch built. Switching to a new match tears the old branch down instead of hiding it."
+    />
+
+    <ul>
+      <li>
+        <strong>Shares its engine with <code>&#64;if</code>.</strong> Under the hood, <code>&#64;switch</code> and a
+        chained <code>&#64;if</code>/<code>&#64;else if</code> compile through the exact same conditional-branch
+        instruction — the compiler works out which index should be active and swaps in that branch's view.
+        <code>&#64;switch</code> is <code>&#64;if</code>/<code>&#64;else if</code> with tidier syntax for one specific
+        shape of test, not a different mechanism underneath.
+      </li>
+      <li>
+        <strong>Not a jump table — a sequence of <code>===</code> checks.</strong> The switch expression is evaluated
+        once, then compared top to bottom against each <code>&#64;case</code> literal by strict equality until one
+        matches, or <code>&#64;default</code> catches the rest. There is no compiled lookup table the way a low-level
+        switch statement might use.
+      </li>
+      <li>
+        <strong>Switching away destroys, it does not hide.</strong> Because a non-matching branch is never instantiated,
+        moving from <code>'loading'</code> to <code>'success'</code> runs the spinner component's
+        <code>ngOnDestroy</code> and constructs the results component fresh — unlike <code>[hidden]</code>, which never
+        removes anything from the DOM.
+      </li>
+      <li>
+        <strong>No directive instance at runtime.</strong> Legacy <code>*ngSwitch</code>/<code>*ngSwitchCase</code> are
+        real directives holding a <code>ViewContainerRef</code> and toggling embedded views imperatively.
+        <code>&#64;switch</code> is compiled directly into conditional instructions by the template compiler — there is
+        no <code>NgSwitch</code> object to inject or override.
+      </li>
+      <li>
+        <strong><code>&#64;default</code> — and <code>&#64;default never;</code> — are just other branches.</strong>
+        Neither has special runtime behaviour beyond being selected (or, for <code>never</code>, proven unreachable) —
+        compiled the same way as every other branch.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls that show up in exams &amp; code review</p>
+    <h2>Seven ways to get bitten.</h2>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        every one of these compiles cleanly and misbehaves silently
+      </caption>
+      <thead>
+        <tr>
+          <th>The mistake</th>
+          <th>What actually happens</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Strict <code>===</code>, including for objects</td>
+          <td>
+            <code>&#64;case (someObj)</code> matches only the <em>same reference</em>, never a structurally-equal one.
+            Switch on a primitive discriminant, not an object.
+          </td>
+        </tr>
+        <tr>
+          <td>No multi-value case</td>
+          <td>
+            <code>&#64;case ('a', 'b')</code> fails to compile — a case accepts exactly one parameter. Stack bodyless
+            cases instead (see <em>Grouping cases</em> above).
+          </td>
+        </tr>
+        <tr>
+          <td>No fall-through — but a duplicate case still compiles</td>
+          <td>
+            Exactly one branch runs. A second <code>&#64;case</code> for a value already matched above compiles cleanly
+            and simply never fires — nothing warns you.
+          </td>
+        </tr>
+        <tr>
+          <td>Silent empty render</td>
+          <td>
+            No matching case and no <code>&#64;default</code> renders nothing, with no error. Add a
+            <code>&#64;default</code> — or <code>&#64;default never;</code> if the switch is meant to be exhaustive — so
+            a missing case is visible one way or another.
+          </td>
+        </tr>
+        <tr>
+          <td>Number vs string cases</td>
+          <td>
+            <code>&#64;case (1)</code> never matches the string <code>'1'</code>. Keep the switch value and every case
+            literal the same type.
+          </td>
+        </tr>
+        <tr>
+          <td>Enum or constant case needs the symbol on the class</td>
+          <td>
+            <code>&#64;case (Status.Loading)</code> only compiles if <code>Status</code> is also a class member — a
+            template can read the instance, never a module-level import directly.
+          </td>
+        </tr>
+        <tr>
+          <td>Narrowing needs a stable reference</td>
+          <td>
+            <code>&#64;switch (shape().kind)</code> renders correctly but narrows nothing inside each case, because a
+            function call cannot be narrowed. <code>&#64;let s = shape(); &#64;switch (s.kind)</code> is the fix.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>&#64;switch (value)</code> is evaluated <strong>once</strong> per check, then compared top to bottom
+        against each <code>&#64;case</code> with strict <code>===</code> — no coercion, and the first exact match wins.
+      </li>
+      <li>
+        No <code>break</code>, no fall-through — but bodyless cases <strong>stack</strong> to share one body. A
+        <code>&#64;case</code> that matches a value already handled above is legal and silently dead.
+      </li>
+      <li>
+        Switching on a union's discriminant narrows the type inside each case — but only when the switch value is a
+        <strong>stable reference</strong>. A bare function call, like a signal read, narrows nothing; name it once with
+        <code>&#64;let</code> first.
+      </li>
+      <li>
+        <code>&#64;default never;</code> turns an exhaustive switch into a compiler-checked one: add a union member
+        without a matching case, and the <strong>build</strong> fails instead of the screen going quietly blank.
+      </li>
+      <li>
+        An enum or constant used in a <code>&#64;case</code> has to be re-exposed as a field on the class — a template
+        never sees a bare module-level import.
+      </li>
+      <li>
+        Reach for <code>&#64;switch</code> for one-value-many-states; use an <code>&#64;if</code> chain for unrelated
+        booleans. Under the hood they compile through the same mechanism, so the choice is about readability, not
+        performance.
+      </li>
+    </ul>
+
+    <p>
+      <a routerLink="/control-flow-for">← &#64;for</a> &nbsp;·&nbsp;
+      <a routerLink="/let-block">Next: Local Template Variables — &#64;let →</a>
+    </p>
+  </section>
 </article>

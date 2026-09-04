@@ -1,0 +1,8 @@
+<td><code>&lt;child&gt;</code> (no provider — probe nested one level inside)</td>
+<td appDiHostProbe #probe="appDiHostProbe">
+  <code>inject(Beacon)</code> → <strong>#{{ probe.viaChain?.id }}</strong> (the lesson's)
+</td>
+<td>
+  <code>host + optional</code> → <strong>{{ probe.viaHost ? '#' + probe.viaHost.id : 'null' }}</strong>
+  (walled off — nothing in its own view)
+</td>

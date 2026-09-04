@@ -1,216 +1,484 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Architecture</span>
-  <h1>Directive Composition API</h1>
-  <p class="lead">
-    <code>hostDirectives</code> lets a component (or directive) apply other directives to its own host element —
-    composing reusable behavior without inheritance, wrapper elements, or asking consumers to remember extra attributes.
-    It is Angular's answer to "favor composition over inheritance," and it happens entirely at
-    <strong>compile time</strong>: zero extra DOM, no runtime registration.
-  </p>
-
-  <h2>The problem it solves</h2>
-  <table class="cmp">
-    <tr>
-      <th>Approach</th>
-      <th>How it reuses behavior</th>
-      <th>What goes wrong</th>
-    </tr>
-    <tr>
-      <td><strong>Inheritance</strong> (<code>class Card extends Hoverable</code>)</td>
-      <td>base class carries bindings/hooks</td>
-      <td>
-        single base class only; metadata isn't inherited cleanly; base-class constructor DI leaks into every subclass;
-        behaviors can't be mixed per-component
-      </td>
-    </tr>
-    <tr>
-      <td><strong>Wrapper component</strong></td>
-      <td><code>&lt;app-hoverable&gt;&lt;app-card/&gt;&lt;/app-hoverable&gt;</code></td>
-      <td>
-        extra DOM breaks CSS (flex/grid parent-child), bloats the tree, and the wrapper can't reach the real host
-        element's events cleanly
-      </td>
-    </tr>
-    <tr>
-      <td><strong>Consumer-applied directive</strong></td>
-      <td><code>&lt;app-card appElevate&gt;</code></td>
-      <td>
-        every consumer must remember it — forget once and the card silently loses behavior; the card can't guarantee its
-        own invariants
-      </td>
-    </tr>
-    <tr>
-      <td><strong>hostDirectives</strong></td>
-      <td>the component declares its behaviors itself</td>
-      <td>— (limitations: directives must be standalone and can't be dynamic)</td>
-    </tr>
-  </table>
-
-  <h2>Compose behavior in</h2>
-  <div class="code">
-    <pre>{{ composeSample }}</pre>
-  </div>
-
-  <h2>Live — hover the cards</h2>
-  <div class="demo">
-    <p class="demo__title">Live — Elevate is composed into the card host (and the card injects it)</p>
-    <div style="display: grid; gap: 12px; max-width: 460px">
-      <app-fancy-card>Hover me — I lift, and I never imported any hover logic.</app-fancy-card>
-      <app-fancy-card>Same behavior, composed once and reused.</app-fancy-card>
-    </div>
-    <p style="margin-top: 14px" appElevate>
-      The bare <code>appElevate</code> directive also works directly on any element — hover this paragraph.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Expert · Architecture"
+    title="Directive Composition API"
+    hand="or, how to give a component behavior without a family tree"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      <code>hostDirectives</code> lets a component — or another directive — put someone else's behavior directly onto
+      its own host element: no base class, no wrapper element, no consumer who has to remember an attribute. It happens
+      entirely at <strong>compile time</strong>, and almost every rule about what is and isn't allowed is enforced by
+      the compiler, not by convention. This lesson builds one card from a hover behavior and a colour behavior, live,
+      then takes apart every rule the compiler is quietly checking on your behalf — including the one people still get
+      wrong three directives deep.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Each card prints <code>lifted</code>/<code>lifts</code> straight from its <em>own Elevate instance</em> via
-      <code>inject(Elevate)</code> — a host directive is a normal element-injector provider, so the host component can
-      read (and drive) its state.
-    </p>
-  </div>
+  </app-chapter>
 
-  <h2>Exposing inputs &amp; outputs — private by default</h2>
-  <p>
-    A host directive's inputs and outputs are <em>not</em> part of the host component's API unless you re-export them
-    explicitly (optionally under an alias). This is deliberate: composition shouldn't leak implementation details.
-  </p>
-  <div class="code">
-    <pre>{{ reexportSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — Accent's input re-exported as <code>tone</code></p>
-    <div style="display: grid; gap: 10px; max-width: 460px">
-      <app-status-card [tone]="tone()">
-        This card's <code>tone</code> input is really <code>Accent.accent</code>, aliased.
-      </app-status-card>
-    </div>
-    <div class="row" style="margin-top: 12px">
-      <button (click)="tone.set('var(--green)')">tone = green</button>
-      <button (click)="tone.set('var(--amber)')">tone = amber</button>
-      <button class="ghost" (click)="tone.set('var(--violet)')">tone = violet</button>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Binding <code>[accent]</code> on <code>&lt;app-status-card&gt;</code> would be a compile error — the un-exported
-      name simply doesn't exist on the host.
-    </p>
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Two behaviors, one component. Now what?</h2>
 
-  <h2>Precedence — who wins a host-binding conflict?</h2>
-  <p>
-    Both <code>ToneRed</code> and <code>ToneBlue</code> bind <code>style.background</code> on their host. Compose them
-    and the rules are:
-    <strong
-      >later host directives override earlier ones, and the component's own host bindings override them all.</strong
+    <p>
+      Say you want a card that lifts a little on hover. Fine — write a directive, <code>Elevate</code>, that holds the
+      host bindings for that. Now say you also want a card with a coloured accent stripe. Also fine — write
+      <code>Accent</code>. Now you want <strong>one card with both</strong>, and TypeScript answers the question before
+      Angular ever gets a say: <span class="key">a class can only extend one base class</span>.
+    </p>
+
+    <app-napkin lead="wait —" label="Predict before reading on">
+      If <code>Hoverable</code> and <code>Accentable</code> were both base classes, how would <code>FancyCard</code>
+      extend both at once? There's no good answer — and that gap is the entire reason this API exists.
+    </app-napkin>
+
+    <table>
+      <caption class="bf-table-caption">
+        Four ways to reuse a UI behavior — and what breaks in three of them
+      </caption>
+      <thead>
+        <tr>
+          <th>Approach</th>
+          <th>How it reuses behavior</th>
+          <th>What goes wrong</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Inheritance</strong><br /><code>class Card extends Hoverable</code></td>
+          <td>the base class carries the bindings</td>
+          <td>
+            one base class only; DI on the base constructor leaks into every subclass; two behaviors can't be mixed
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong>Wrapper component</strong><br /><code
+              >&lt;app-hoverable&gt;&lt;app-card/&gt;&lt;/app-hoverable&gt;</code
+            >
+          </td>
+          <td>a parent element supplies it</td>
+          <td>
+            extra DOM breaks flex/grid parent-child CSS, bloats the tree, and can't reach the real host's events cleanly
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Consumer-applied directive</strong><br /><code>&lt;app-card appElevate&gt;</code></td>
+          <td>whoever uses the card remembers to add it</td>
+          <td>forget it once and the card silently loses the behavior — it can't guarantee its own invariants</td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>hostDirectives</code></strong>
+          </td>
+          <td>the component declares its own behaviors</td>
+          <td>— (must be standalone; static, not conditional — more on both below)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-compare
+      leftTitle="The old ways, in code"
+      rightTitle="`hostDirectives`"
+      leftTone="bad"
+      rightTone="good"
+      note="Same table, different mode — the failure that mattered most in each row, as the code that actually writes it."
     >
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — same two conflicting directives, with and without an own binding</p>
-    <div style="display: grid; gap: 10px; max-width: 460px">
-      <app-tone-card-bare>
-        <code>hostDirectives: [ToneRed, ToneBlue]</code> → blue (listed later) wins
-      </app-tone-card-bare>
-      <app-tone-card-own>
-        same + the component's own <code>host</code> background → green (host) wins
-      </app-tone-card-own>
-    </div>
-  </div>
-  <div class="code">
-    <pre>{{ precedenceSample }}</pre>
-  </div>
+      <div left>
+        <div class="code">
+          <pre>{{ wrongApproachesSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ rightApproachSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
 
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>Compile-time feature:</strong> the compiler bakes the host directives into the component's definition. You
-      cannot add them conditionally or at runtime — the array must be statically analyzable.
-    </li>
-    <li>
-      <strong>Instantiation order:</strong> host directives are instantiated <em>before</em> the host component, in
-      array order. Their lifecycle hooks all run (<code>ngOnInit</code>, <code>ngOnDestroy</code>, …), interleaved by
-      that same ordering.
-    </li>
-    <li>
-      <strong>DI:</strong> each host directive is registered on the element injector — the host component can
-      <code>inject(TheDirective)</code>, and the directive can inject anything visible at that element (including the
-      host component via <code>forwardRef</code> if needed).
-    </li>
-    <li>
-      <strong>No extra DOM:</strong> unlike a wrapper component, the composed behavior attaches to the existing host
-      element — CSS layout, a11y tree and querying are untouched.
-    </li>
-    <li>
-      <strong>Transitivity:</strong> a directive can itself declare <code>hostDirectives</code> — behaviors compose
-      recursively (the CDK does this, e.g. menu items composing focus + dispatch behaviors).
-    </li>
-  </ul>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A host directive is a costume, not your DNA.</h2>
 
-  <h2>Where you've already used it</h2>
-  <div class="code">
-    <pre>{{ realWorldSample }}</pre>
-  </div>
-  <p>
-    The Angular CDK and Material lean on this API heavily: <code>CdkMenuItem</code>
-    composes focus and typeahead behaviors, Material buttons compose ripple and interactivity directives. The pattern to
-    copy: keep each behavior a small, independently testable directive, then assemble components from them.
-  </p>
+    <p>
+      Inheritance writes behavior into a class's DNA — every instance is born with it, and there's exactly one bloodline
+      to be born into. A host directive is closer to a costume: you can put more than one on at once, you can put it on
+      something that was never designed to wear it, and taking it off doesn't require rewriting who the wearer
+      fundamentally is. <code>hostDirectives</code> doesn't change what class <code>FancyCard</code> is — it changes
+      what's attached to <code>FancyCard</code>'s own host element, the very tag the component already renders.
+    </p>
 
-  <h2>Wrong way vs right way</h2>
-  <div class="code">
-    <pre>{{ wrongRightSample }}</pre>
-  </div>
+    <app-remember variant="mnemonic">
+      <strong>Costume, not DNA.</strong> Inheritance bakes behavior in, once, at birth, from one bloodline.
+      <code>hostDirectives</code> puts it on, as many times as you like, from the outside.
+    </app-remember>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why must host directives be standalone?</summary>
-    <div>
-      The compiler inlines them into the host's definition at compile time — there is no NgModule context to resolve
-      them through. A non-standalone directive in <code>hostDirectives</code> is a compile error.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>You composed a Tooltip host directive but <code>[tooltipText]</code> doesn't bind. Why?</summary>
-    <div>
-      Inputs/outputs of host directives are private by default. Re-export it:
-      <code>hostDirectives: [&#123; directive: Tooltip, inputs: ['tooltipText'] &#125;]</code>
-      (optionally with an <code>'tooltipText: hint'</code> alias).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Two host directives and the component all bind <code>class.active</code>. Which value renders?</summary>
-    <div>
-      The component's own binding wins; among the host directives, the one listed later in the array overrides the
-      earlier one. (Proven live above with <code>style.background</code>.)
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Can a host directive and the host component see each other via DI?</summary>
-    <div>
-      Yes — both live on the same element injector. The component can <code>inject(TheDirective)</code> to read/drive
-      its state; the directive can inject the component (use <code>forwardRef</code> for the circular reference) or,
-      more loosely, a shared token both provide/consume.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>When is inheritance still the better call?</summary>
-    <div>
-      When you're sharing <em>class logic</em> (methods, injected services) rather than
-      <em>host behavior</em> (bindings/listeners). hostDirectives can't share template or component internals — an
-      abstract base class with no metadata is still fine for that.
-    </div>
-  </details>
+    <app-bubbles
+      [turns]="costumeTalk"
+      caption="What a `hostDirectives` composition actually negotiates — and why 'private by default' isn't an accident."
+    />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>hostDirectives</code> applies standalone directives to a component's host — composition without inheritance
-      or wrapper DOM.
-    </li>
-    <li>
-      It's compile-time and static: no conditional composition; directives instantiate before the host, in array order.
-    </li>
-    <li>Inputs/outputs stay private unless re-exported (with optional aliases) — deliberate encapsulation.</li>
-    <li>Binding conflicts: later directive beats earlier, host component beats all.</li>
-    <li>Host directive instances are element-injector providers — the host can inject and drive them.</li>
-  </ul>
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Composing behavior in, one line at a time.</h2>
 
-  <p><a routerLink="/control-value-accessor">Next: Custom Form Controls (CVA) →</a></p>
+    <p>
+      Here's the entire <code>Elevate</code> / <code>FancyCard</code> pair from the live demo below, nothing hidden.
+    </p>
+
+    <app-code-lab
+      file="elevate.ts + fancy-card.ts"
+      [code]="composeSample"
+      [notes]="composeNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>Five separate facts are hiding in those twenty lines. Pin them down explicitly:</p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Compile-time" kicker="baked in, not registered">
+        The compiler inlines <code>hostDirectives</code> into the component's own definition. The array has to be
+        statically analyzable — no ternaries, no pushing to it later.
+      </app-tape-card>
+      <app-tape-card heading="Instantiation order" kicker="directives first" tone="accent">
+        Every host directive is constructed <em>before</em> the host component, in array order. Their
+        <code>ngOnInit</code>/<code>ngOnDestroy</code> all run, interleaved by that same order.
+      </app-tape-card>
+      <app-tape-card heading="DI" kicker="same element, same injector" tone="olive">
+        A host directive is a normal provider on the element injector. The host can <code>inject()</code> it; it can
+        <code>inject()</code> the host back with <code>forwardRef</code>.
+      </app-tape-card>
+      <app-tape-card heading="No extra DOM" kicker="attaches, doesn't wrap" tone="blue">
+        The composed behavior lands on the <em>existing</em> host element. CSS layout, the a11y tree and any
+        <code>querySelector</code> see nothing different.
+      </app-tape-card>
+      <app-tape-card heading="Transitive" kicker="directives can compose directives">
+        A directive can declare its own <code>hostDirectives</code>. Behavior nests arbitrarily deep — exactly how the
+        CDK builds its menu and button primitives. There's a whole section on this below.
+      </app-tape-card>
+    </div>
+
+    <div class="warn">
+      <strong>The array must be statically analyzable.</strong> No ternary, no <code>[...conditional]</code>, no pushing
+      to it at runtime — the compiler reads it once, at build time. Need to choose directives at runtime instead? That's
+      a different API, and it's a few sections away.
+    </div>
+  </section>
+
+  <!-- ============ 4. SEE IT WORKING ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Hover a card. FancyCard never wrote a line of this.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — Elevate is composed into the card host, and the card injects it back</p>
+      <div class="bf-grid-2">
+        <app-fancy-card (lifted)="liftCount.update((n) => n + 1)">
+          Hover me — I lift, and I never imported any hover logic.
+        </app-fancy-card>
+        <app-fancy-card (lifted)="liftCount.update((n) => n + 1)">
+          Same behavior, composed once and reused.
+        </app-fancy-card>
+      </div>
+      <p style="margin-top: 14px" appElevate>
+        The bare <code>appElevate</code> directive also works directly on any element — hover this paragraph. Nobody
+        composed it here; it's applied the old-fashioned way, with an attribute.
+      </p>
+      <div class="row" style="margin-top: 14px">
+        <span class="pill">cards lifted so far: {{ liftCount() }}</span>
+      </div>
+      <p class="demo__note">
+        Each card prints <code>lifted</code>/<code>lifts</code> straight from its <em>own</em>
+        <code>Elevate</code> instance via <code>inject(Elevate)</code> — a host directive is a normal element-injector
+        provider, so the host component can read it. The counter above is different: it's driven by
+        <code>(lifted)</code>, an event binding written on <code>&lt;app-fancy-card&gt;</code> from <em>outside</em> the
+        component, in this very page's own template. More on how that's legal in a moment.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. EXPOSING INPUTS & OUTPUTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Private by default</p>
+    <h2>Composed behavior doesn't leak out on its own.</h2>
+
+    <p>
+      <code>Elevate</code>'s <code>lifted</code> signal and its <code>liftedChange</code> output exist whether or not
+      <code>FancyCard</code> does anything about them. But bind <code>(liftedChange)</code> directly on
+      <code>&lt;app-fancy-card&gt;</code> in a consumer template, without changing <code>FancyCard</code> itself, and it
+      won't compile. Composed behavior is <span class="term">private by default</span> — the host has to deliberately
+      hand each piece of it back out, optionally under a new name.
+    </p>
+
+    <app-code-lab
+      file="fancy-card.ts + status-card.ts"
+      [code]="reexportSample"
+      [notes]="reexportNotes"
+      notesLabel="Two re-exports, one syntax"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — Accent's input re-exported as <code>tone</code></p>
+      <div class="bf-grid-2">
+        <app-status-card [tone]="tone()">
+          This card's <code>tone</code> input is really <code>Accent.accent</code>, aliased.
+        </app-status-card>
+      </div>
+      <div class="row" style="margin-top: 12px; flex-wrap: wrap">
+        <button (click)="tone.set('var(--green)')">tone = green</button>
+        <button (click)="tone.set('var(--amber)')">tone = amber</button>
+        <button class="ghost" (click)="tone.set('var(--violet)')">tone = violet</button>
+      </div>
+      <p class="demo__note">
+        Binding <code>[accent]</code> on <code>&lt;app-status-card&gt;</code> would be a compile error — the un-exported
+        name simply doesn't exist on this host. And the counter you watched climb in the section above is this exact
+        mechanism, run in the other direction: an <em>output</em>, re-exported under the alias <code>lifted</code>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 6. PRECEDENCE ============ -->
+  <section>
+    <p class="bf-eyebrow">A binding conflict</p>
+    <h2>Two directives bind the same property. Who wins?</h2>
+
+    <p>
+      <code>ToneRed</code> and <code>ToneBlue</code> both bind <code>style.background</code> on whatever host composes
+      them. Put both on the same card and something has to give — there's only one <code>background</code>
+      to paint.
+    </p>
+
+    <app-predict
+      prompt="`hostDirectives: [ToneRed, ToneBlue]`, and the component adds no host binding of its own. Which colour paints the card?"
+      answer="Blue — the later entry in the array. Swap their order and red wins instead; it's position in the array, not import order or anything about the colors themselves, that decides it."
+      revealLabel="Reveal the rule"
+    />
+
+    <app-flow
+      caption="Three sources binding `style.background` on the same element, in the order that decides the outcome"
+      [steps]="precedenceFlow"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — same two conflicting directives, with and without an own binding</p>
+      <div class="bf-grid-2">
+        <app-tone-card-bare>
+          <code>hostDirectives: [ToneRed, ToneBlue]</code> — blue (listed later) wins
+        </app-tone-card-bare>
+        <app-tone-card-own>
+          same, plus the component's own <code>host</code> background — green (the host) wins
+        </app-tone-card-own>
+      </div>
+    </div>
+
+    <div class="code">
+      <pre>{{ precedenceSample }}</pre>
+    </div>
+
+    <app-remember variant="rule">
+      Private until re-exported. Later host directive beats earlier. The host's own binding beats them all. Three rules
+      cover every precedence question this API can ask.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. THE COMPILE-TIME GUARDRAILS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Exam corner</p>
+    <h2>Five compile-time guardrails, not five conventions.</h2>
+
+    <p>
+      Everything so far has been about what <code>hostDirectives</code> lets you do. The compiler also enforces a short
+      list of things it will not let you do — silently, at build time, long before a user could ever see a broken card.
+    </p>
+
+    <app-predict
+      prompt="Before scrolling: can you list `MyComponent` — a `@Component`, not a `@Directive` — inside another component's `hostDirectives`?"
+      answer="No — and it isn't a style preference, it's a hard compile error, NG2015. A component needs its own template and its own host element; `hostDirectives` has no slot for either, only for behavior."
+      revealLabel="Reveal the answer"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The five diagnostics guarding `hostDirectives`
+      </caption>
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Fires when…</th>
+          <th>The fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>NG2014</code></td>
+          <td>the listed directive isn't <code>standalone</code></td>
+          <td>
+            every host directive must compile standalone — there's no <code>NgModule</code> context left to resolve one
+            through
+          </td>
+        </tr>
+        <tr>
+          <td><code>NG2015</code></td>
+          <td>you listed a <code>@Component</code>, not a <code>@Directive</code></td>
+          <td>only directives compose this way — a component needs its own template and host element</td>
+        </tr>
+        <tr>
+          <td><code>NG2017</code></td>
+          <td>you re-exported an input/output name the directive doesn't declare</td>
+          <td>check the spelling against the directive's own <code>input()</code>/<code>output()</code> names</td>
+        </tr>
+        <tr>
+          <td><code>NG2018</code></td>
+          <td>your alias collides with a name the host already has</td>
+          <td>two bindings can't answer to one name — rename the alias or the host's own field</td>
+        </tr>
+        <tr>
+          <td><code>NG2019</code></td>
+          <td>the directive has an <code>input.required()</code> you never exposed</td>
+          <td>expose it — there is otherwise no way for any consumer to ever set it</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-code-lab
+      file="tooltip.ts — one required input, exposed and unexposed"
+      [code]="guardrailSample"
+      [notes]="guardrailNotes"
+      notesLabel="Why the unexposed version can't ship"
+    />
+  </section>
+
+  <!-- ============ 8. TRANSITIVITY ============ -->
+  <section>
+    <p class="bf-eyebrow">Three levels deep</p>
+    <h2>Composing a composition? Exposure doesn't skip a level.</h2>
+
+    <p>
+      A directive can list its own <code>hostDirectives</code>, and a component can compose a directive that does that.
+      Nothing stops the chain going three, four, five levels — but exposure is decided fresh at
+      <strong>every single hop</strong>, and nothing carries through automatically.
+    </p>
+
+    <app-layers
+      [core]="transitivityCore"
+      [rings]="transitivityRings"
+      arrow="the value has to be relayed out through here"
+      caption="`Ripple` defines `pressed` and knows nothing above it. `Interactive` composes `Ripple` and chooses to re-export `pressed` under that same name. `ds-button` composes `Interactive` — not `Ripple` — and chooses to re-export **that** input again, this time renamed to `dsPressed`. Each ring makes its own, independent choice."
+    />
+
+    <app-code-lab
+      file="ripple.ts + interactive.ts + ds-button.ts"
+      [code]="transitivitySample"
+      [notes]="transitivityNotes"
+      notesLabel="Two relays, two independent aliases"
+    />
+
+    <app-quiz
+      [question]="transitivityQuizQuestion"
+      [options]="transitivityQuizOptions"
+      followUp="Trace it against the diagram above: which ring actually declared the name `pressed`, and does `ds-button` sit inside that ring or outside it?"
+    />
+  </section>
+
+  <!-- ============ 9. STATIC VS DYNAMIC ============ -->
+  <section>
+    <p class="bf-eyebrow">The one exception</p>
+    <h2>It's compile-time — mostly.</h2>
+
+    <p>
+      The intro table called <code>hostDirectives</code> static, and within its own metadata it still is: no
+      conditionals, no runtime pushes. But if you're already creating a component dynamically —
+      <a routerLink="/dynamic-components">the Dynamic Components lesson</a> covers
+      <code>ViewContainerRef.createComponent()</code> in full — you can choose <em>its</em> directives at that same
+      moment, complete with a live signal binding.
+    </p>
+
+    <app-compare
+      leftTitle="Static — `hostDirectives` metadata"
+      rightTitle="Runtime — `createComponent()`'s `directives`"
+      leftTone="neutral"
+      rightTone="neutral"
+      note="Both are real composition. The static form is cheaper and type-checked at build time; the dynamic form exists for the (much rarer) case where you don't know which behaviors you need until the component is actually being created."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ staticComposeSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ dynamicComposeSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 10. REAL-WORLD USE ============ -->
+  <section>
+    <p class="bf-eyebrow">Where you've already used it</p>
+    <h2>The CDK is built out of exactly this.</h2>
+
+    <p>
+      <code>CdkMenuItem</code> composes focus and typeahead behavior into every menu item; Material buttons compose
+      ripple and interactivity directives the same way. The pattern to copy: keep each behavior a small, independently
+      testable directive, then assemble components — and other directives — from them.
+    </p>
+
+    <app-code-lab
+      file="real-world composition"
+      [code]="realWorldSample"
+      [notes]="realWorldNotes"
+      notesLabel="Real API, familiar shape"
+    />
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Nothing gives a class more than one base class.
+        <strong>hostDirectives is composition, not inheritance</strong> — behavior goes ON the host; it isn't inherited
+        into it.
+      </li>
+      <li>
+        Inputs and outputs are <strong>private until re-exported</strong>, optionally under a new alias. That isn't an
+        oversight — it's the API boundary composition is built on.
+      </li>
+      <li>
+        Same host property, two directives? <strong>Later in the array wins.</strong> The component's own host binding
+        beats every host directive, always.
+      </li>
+      <li>
+        Five compiler diagnostics guard this at compile time —
+        <strong>NG2014</strong> (not standalone), <strong>NG2015</strong> (not a directive),
+        <strong>NG2017</strong> (unexported name), <strong>NG2018</strong> (alias collision),
+        <strong>NG2019</strong> (unexposed required input). None of them are runtime surprises.
+      </li>
+      <li>
+        <strong>Exposure doesn't skip a level.</strong> A three-hop composition needs the input relayed — and possibly
+        renamed — at every single hop, independently.
+      </li>
+      <li>
+        <code>hostDirectives</code> is compile-time and static. Need to choose directives at runtime instead? That's
+        <code>createComponent()</code>'s <code>directives</code> array, not this.
+      </li>
+    </ul>
+
+    <p><a routerLink="/control-value-accessor">Next: Custom Form Controls (CVA) →</a></p>
+  </section>
 </article>

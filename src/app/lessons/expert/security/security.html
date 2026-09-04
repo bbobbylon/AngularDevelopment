@@ -1,177 +1,120 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Cross-Cutting</span>
-  <h1>Security &amp; Sanitization</h1>
-  <p class="lead">
-    Angular is secure by default — but
-    <span class="key">"by default" only covers what goes through a template binding.</span> A senior dev understands
-    <em>why</em> it's secure, exactly where the coverage stops, and how to defend the rest of the stack: XSS, CSRF, auth
-    token handling, secrets, and HTTP headers.
-  </p>
-
-  <h2>Think of it as airport security</h2>
-  <p>
-    Every value you bind into the DOM is treated like a passenger with luggage: <span class="term">untrusted</span>
-    until screened. Three things about the airport carry straight over, and if you hold them you can reason about almost
-    any sanitizer question without memorising a table:
-  </p>
-  <ul>
-    <li>
-      <strong>The screening depends on the destination, not the bag.</strong> Liquids are fine in checked baggage and
-      confiscated at the gate. Identically, <code>&lt;b&gt;</code> is fine in an <code>[innerHTML]</code> and
-      meaningless in an <code>[href]</code> — Angular picks the check from
-      <span class="key">where the value is going</span>, which is why it's called a
-      <span class="term">security context</span>.
-    </li>
-    <li>
-      <strong>Screening removes items; it doesn't reject people.</strong> The passenger still boards without the
-      lighter. This is the detail that surprises everyone: Angular doesn't throw away your whole string when it finds
-      something dangerous — it strips the dangerous <em>part</em> and renders the rest.
-    </li>
-    <li>
-      <strong><code>bypassSecurityTrust*</code> is the diplomatic pouch.</strong> It goes through unopened, by
-      agreement, because someone signed for the contents.
-      <span class="wrong">If you let a stranger pack it, the agreement is worthless</span> — which is the entire reason
-      "never call it on user data" is the loudest rule in this lesson.
-    </li>
-  </ul>
-
-  <h2>The four lanes</h2>
-  <p>
-    Here is the same value arriving at four different bindings, and the four different screenings it gets. Note the
-    dashed red line dropping out of the bottom — that's the bypass, and it goes around all four.
-  </p>
-
-  <svg class="diagram" viewBox="0 0 760 330" role="img" aria-labelledby="sec-t sec-d">
-    <title id="sec-t">Angular's four sanitization contexts, and the bypass that skips them</title>
-    <desc id="sec-d">
-      An untrusted value enters and is routed by binding type into one of four security contexts. HTML, used by
-      innerHTML, strips script tags and event handler attributes. STYLE, used by style bindings, strips expressions and
-      URL-based CSS. URL, used by href and img src, neutralises javascript: schemes by prefixing them with unsafe:.
-      RESOURCE_URL, used by iframe and script src, cannot be sanitized at all and is rejected unless explicitly trusted.
-      A separate path on the right shows bypassSecurityTrust methods routing the value directly to the DOM with no
-      checks.
-    </desc>
-    <defs>
-      <marker id="sec-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
-      </marker>
-      <marker id="sec-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--red)" />
-      </marker>
-    </defs>
-
-    <!-- the untrusted value -->
-    <rect x="8" y="128" width="126" height="56" rx="8" fill="var(--bg-elevated)" stroke="var(--red)" />
-    <text x="71" y="152" text-anchor="middle" font-size="12" font-weight="700" fill="var(--red)">untrusted</text>
-    <text x="71" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="var(--red)">value</text>
-
-    <!-- fan into four lanes -->
-    <g fill="none" stroke="var(--text-muted)" stroke-width="1.5" marker-end="url(#sec-arrow)">
-      <path d="M 138 146 C 178 146 178 42 218 42" />
-      <path d="M 138 152 C 178 152 178 112 218 112" />
-      <path d="M 138 160 C 178 160 178 182 218 182" />
-      <path d="M 138 166 C 178 166 178 252 218 252" />
-    </g>
-
-    <!-- lane boxes -->
-    <g font-family="monospace" font-size="11.5">
-      <rect x="222" y="20" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--border)" />
-      <text x="286" y="40" text-anchor="middle" fill="var(--violet)" font-weight="700">HTML</text>
-      <text x="286" y="56" text-anchor="middle" fill="var(--text-muted)" font-size="10">[innerHTML]</text>
-
-      <rect x="222" y="90" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--border)" />
-      <text x="286" y="110" text-anchor="middle" fill="var(--violet)" font-weight="700">STYLE</text>
-      <text x="286" y="126" text-anchor="middle" fill="var(--text-muted)" font-size="10">[style.x]</text>
-
-      <rect x="222" y="160" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--border)" />
-      <text x="286" y="180" text-anchor="middle" fill="var(--violet)" font-weight="700">URL</text>
-      <text x="286" y="196" text-anchor="middle" fill="var(--text-muted)" font-size="10">[href] [img src]</text>
-
-      <rect x="222" y="230" width="128" height="44" rx="7" fill="var(--bg-card)" stroke="var(--amber)" />
-      <text x="286" y="250" text-anchor="middle" fill="var(--amber)" font-weight="700">RESOURCE_URL</text>
-      <text x="286" y="266" text-anchor="middle" fill="var(--text-muted)" font-size="10">[iframe src]</text>
-    </g>
-
-    <!-- what each lane does -->
-    <g stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#sec-arrow)">
-      <line x1="354" y1="42" x2="392" y2="42" />
-      <line x1="354" y1="112" x2="392" y2="112" />
-      <line x1="354" y1="182" x2="392" y2="182" />
-      <line x1="354" y1="252" x2="392" y2="252" />
-    </g>
-    <g font-size="11">
-      <text x="398" y="38" fill="var(--green)" font-weight="600">strips &lt;script&gt; + on* handlers</text>
-      <text x="398" y="54" fill="var(--text-muted)" font-size="10">the rest of your markup survives</text>
-
-      <text x="398" y="108" fill="var(--green)" font-weight="600">strips expressions and url()</text>
-      <text x="398" y="124" fill="var(--text-muted)" font-size="10">plain declarations pass</text>
-
-      <text x="398" y="178" fill="var(--green)" font-weight="600">javascript: → unsafe:javascript:</text>
-      <text x="398" y="194" fill="var(--text-muted)" font-size="10">the link renders; the browser refuses it</text>
-
-      <text x="398" y="248" fill="var(--red)" font-weight="600">cannot be sanitized — blocked outright</text>
-      <text x="398" y="264" fill="var(--text-muted)" font-size="10">a whole document runs; nothing to strip</text>
-    </g>
-
-    <!-- the bypass door -->
-    <line
-      x1="71"
-      y1="190"
-      x2="71"
-      y2="300"
-      stroke="var(--red)"
-      stroke-width="1.6"
-      stroke-dasharray="5 4"
-      marker-end="url(#sec-arrow-red)"
-    />
-    <text x="88" y="300" font-size="11.5" fill="var(--red)" font-weight="700">bypassSecurityTrust*</text>
-    <text x="88" y="316" font-size="10.5" fill="var(--text-muted)">
-      skips every lane above — nothing is checked, escaped, or validated
-    </text>
-  </svg>
-
-  <app-remember variant="rule" label="If you remember one thing">
-    <strong>Angular asks "where is this going?" before "what is it?"</strong> The screening is chosen by the
-    <em>binding</em>, not the content — which explains why the same string is safe in one place and blocked in another,
-    why <code>RESOURCE_URL</code> has no sanitizer at all (there is nothing to strip inside a whole document), and why
-    the bypass methods come in one flavour per context.
-  </app-remember>
-
-  <div class="tab-row">
-    @for (t of tabs; track t.id) {
-      <button [class.active]="activeTab() === t.id" (click)="activeTab.set(t.id)">
-        {{ t.label }}
-      </button>
-    }
-  </div>
-
-  @if (activeTab() === 'xss') {
-    <h2>XSS — Angular's built-in defenses</h2>
-    <p>
-      Cross-Site Scripting (XSS) is the #1 web vulnerability. Angular neutralizes it by treating every value bound into
-      the DOM as <strong>untrusted</strong> and sanitizing by context before rendering.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Expert · Cross-Cutting"
+    title="Security &amp; Sanitization"
+    hand='or, why "Angular handles it" stops being true the moment you touch the DOM yourself'
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      Angular sanitizes automatically, and that fact makes people stop thinking about security entirely — which is
+      exactly the gap this page exists to close. You'll watch the sanitizer work on a real attack payload, watch it get
+      <strong>bypassed</strong> two different ways — one on purpose, one by accident — and then work outward through
+      CSRF, token storage, secrets and the headers only your server can set. Angular's protection stops precisely at the
+      edge of the template, and knowing where that edge is is the whole subject.
     </p>
-    <div class="code">
-      <pre>
-// Interpolation always HTML-escapes — script tags become literal text:
-&lt;p&gt;{{ '{{' }} userInput {{ '}}' }}&lt;/p&gt;
-// userInput = "&lt;script&gt;alert(1)&lt;/script&gt;" → renders as TEXT, never runs
+  </app-chapter>
 
-// [innerHTML] sanitizes — strips event handlers and script tags:
-&lt;div [innerHTML]="richText"&gt;&lt;/div&gt;
-// richText = '&lt;b&gt;Hi&lt;/b&gt;&lt;script&gt;evil()&lt;/script&gt;' → only &lt;b&gt;Hi&lt;/b&gt; survives
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Every text box is a stranger typing directly into your DOM.</h2>
 
-// [href] blocks javascript: URLs automatically
-&lt;a [href]="url"&gt;link&lt;/a&gt;
-// url = "javascript:steal()" → blocked by URL-context sanitizer
+    <p>
+      A comment field, a display name, a search box, a URL query param — every one of them is a channel an attacker can
+      type into, and every one of them eventually reaches your page as a <span class="key">string</span>. The browser
+      does not know or care where that string came from. If it looks like HTML by the time it lands in the DOM, the
+      browser will happily parse it as HTML — <code>&lt;script&gt;</code> tags, <code>onerror</code>
+      handlers and all.
+    </p>
 
-// [src] on &lt;iframe&gt; / &lt;script&gt; is a RESOURCE_URL — must use DomSanitizer
-&lt;iframe [src]="safeSrc"&gt;&lt;/iframe&gt;</pre>
+    <p>
+      That is the entire premise of Cross-Site Scripting, and it is also the entire reason Angular exists to stand in
+      the way: <strong>every value your template binds is treated as untrusted</strong>, sanitized by context, before it
+      ever touches the DOM. The catch — the one this whole lesson is really about — is that "every value your template
+      binds" is a narrower promise than it sounds like.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two identical attacker strings — <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> — go into two different
+      bindings on the same page: one is <code>{{ '{{' }} payload {{ '}}' }}</code>, the other is
+      <code>[innerHTML]="payload"</code>. Does either one execute? Do they even look different once rendered? There's a
+      live version further down to check yourself against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular is a customs officer, not a wall.</h2>
+
+    <p>
+      A firewall blocks or allows — one rule, everywhere. Angular's sanitizer behaves more like a customs officer
+      standing at four different doors, applying a <em>different</em> rulebook depending on which door you walked
+      through. The same suitcase gets searched differently at the "text" door than at the "loadable code" door — not
+      because the officer is inconsistent, but because each door leads somewhere with different rules about what's
+      dangerous there.
+    </p>
+
+    <p>
+      Those four doors have names — Angular calls them <span class="term">security contexts</span> — and which one
+      applies is decided entirely by <em>where</em> a value is bound, never by what the value contains.
+    </p>
+
+    <app-remember variant="mnemonic">
+      One officer, four rulebooks. <strong>Interpolation never even asks</strong> — there's no HTML parser in that path
+      at all. <strong>[innerHTML] asks "is this a script?"</strong> and keeps the rest.
+      <strong>[href]/[src] ask "is this scheme executable?"</strong> and neuter the ones that are.
+      <strong>RESOURCE_URL doesn't ask — it refuses by default</strong> until you personally vouch for the value.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="sanitizerTalk"
+      caption="The same string, asked about through three different doors. Notice the sanitizer never once looks at the string's CONTENT first — context comes first, every time."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — FOUR CONTEXTS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Every binding has a context, and every context has its own rules.</h2>
+
+    <p>
+      Here are the four doors, with the exact syntax that walks a value through each one. Angular decides the context
+      from the <em>binding itself</em> at compile time — <code>SecurityContext.HTML</code>,
+      <code>SecurityContext.URL</code>, <code>SecurityContext.RESOURCE_URL</code> and so on are the enum values
+      <code>DomSanitizer</code> uses internally to remember which rulebook applies where.
+    </p>
+
+    <app-code-lab
+      file="four-contexts.html"
+      [code]="contextsSample"
+      [notes]="contextsNotes"
+      notesLabel="What each door actually checks"
+    />
+
+    <div class="tip">
+      <strong>The safest binding is the one that never asks a question.</strong> Interpolation doesn't pass through an
+      HTML parser at all — it writes to <code>textContent</code>. If you only ever need to <em>display</em> text, not
+      render markup, interpolation isn't just simpler than <code>[innerHTML]</code>, it's a strictly smaller attack
+      surface.
     </div>
+  </section>
 
-    <h2>Live — the sanitizer, opened up</h2>
+  <!-- ============ 4. THE LIVE LAB ============ -->
+  <section>
+    <p class="bf-eyebrow">See it for yourself</p>
+    <h2>Watch one string take four different paths.</h2>
+
+    <p>
+      Below is the load-bearing demo. Type your own payload, or load one of five ready-made attack shapes. You'll see
+      the <em>exact</em> string Angular's sanitizer produces, and the actual rendered result — so "sanitized" stops
+      being a claim in a paragraph and becomes something you can read for yourself.
+    </p>
+
     <div class="demo">
-      <p class="demo__title">XSS lab — edit the payload or load a preset attack</p>
+      <p class="demo__title">XSS lab — edit the payload, or load a preset attack</p>
       <div class="row" style="margin-bottom: 10px">
         @for (p of presets; track p.label) {
           <button class="ghost" (click)="payload.set(p.html)">{{ p.label }}</button>
@@ -180,7 +123,6 @@
       <textarea
         aria-label="XSS payload HTML"
         rows="3"
-        style="width: 100%; font-family: monospace; font-size: 0.82rem"
         [ngModel]="payload()"
         (ngModelChange)="payload.set($event)"
       ></textarea>
@@ -188,444 +130,523 @@
       <p style="margin: 12px 0 4px">
         What the sanitizer lets through — the <em>exact</em> HTML Angular writes to the DOM:
       </p>
-      <div class="code" style="font-size: 0.82rem">
+      <div class="code">
         <pre>{{ sanitized() }}</pre>
       </div>
 
-      <p style="margin: 12px 0 4px">Rendered result:</p>
-      <div
-        [innerHTML]="payload()"
-        style="padding: 10px 14px; border: 1px dashed var(--border); border-radius: 8px; min-height: 2.4em"
-      ></div>
+      <p style="margin: 12px 0 4px">Rendered result, via <code>[innerHTML]</code>:</p>
+      <div class="xss-preview" [innerHTML]="payload()"></div>
 
-      <p class="note" style="margin-top: 10px">
+      <p class="demo__note">
         Formatting tags (<code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, lists, links) survive.
         <code>&lt;script&gt;</code> is removed entirely, event handlers like <code>onerror</code> are stripped off their
-        elements, and <code>javascript:</code> URLs are neutered to <code>unsafe:javascript:…</code> — the link renders
-        but the browser refuses the scheme. No payload here can execute. Open the console: Angular even warns you that
-        it sanitized something.
+        elements, and <code>javascript:</code> URLs are neutered to <code>unsafe:javascript:…</code> — the link still
+        renders, the browser just refuses the scheme. Nothing here can execute. Open the console: Angular even logs a
+        warning every time it had to sanitize something.
       </p>
     </div>
 
-    <h2>Bypassing — the last resort</h2>
-    <div class="code">
-      <pre>
-import {{ '{' }} DomSanitizer {{ '}' }} from '&#64;angular/platform-browser';
+    <app-quiz
+      question="You need to render a user's bio, which might legitimately contain bold and italic markup they typed in a rich-text box. What's the correct choice?"
+      [options]="contextQuizOptions"
+      followUp="This is exactly the shape of value the harmless-rich-text preset above simulates — try it in the live lab."
+    />
+  </section>
 
-&#64;Component({{ '{' }}...{{ '}' }})
-export class VideoPlayer {{ '{' }}
-  private san = inject(DomSanitizer);
+  <!-- ============ 5. ESCAPING THE SANITIZER ENTIRELY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The gap nobody warns you about</p>
+    <h2>Leave the template layer, and the sanitizer doesn't follow you.</h2>
 
-  // ONLY for URLs you fully control (e.g., a fixed CDN domain):
-  trustedSrc = this.san.bypassSecurityTrustResourceUrl('https://cdn.example.com/video.mp4');
-{{ '}' }}
-
-// In template:
-&lt;iframe [src]="trustedSrc"&gt;&lt;/iframe&gt;</pre>
-    </div>
-    <div class="warn">
-      <strong>Never</strong> call <code>bypassSecurityTrust*</code> on user-supplied data or anything that can contain
-      attacker-controlled values. Every call should be code-reviewed. Use Trusted Types (CSP header) to enforce this at
-      the browser level.
-    </div>
-
-    <h2>DomSanitizer context methods</h2>
-    <table class="sec-table">
-      <tr>
-        <th>Method</th>
-        <th>Use for</th>
-      </tr>
-      <tr>
-        <td><code>bypassSecurityTrustHtml</code></td>
-        <td>[innerHTML] — rich HTML you own</td>
-      </tr>
-      <tr>
-        <td><code>bypassSecurityTrustStyle</code></td>
-        <td>[style] — dynamic CSS you control</td>
-      </tr>
-      <tr>
-        <td><code>bypassSecurityTrustUrl</code></td>
-        <td>[href] / [src] — regular URLs</td>
-      </tr>
-      <tr>
-        <td><code>bypassSecurityTrustResourceUrl</code></td>
-        <td>[src] on iframe/script/video</td>
-      </tr>
-      <tr>
-        <td><code>bypassSecurityTrustScript</code></td>
-        <td>Injected script content (almost never)</td>
-      </tr>
-    </table>
-  }
-
-  @if (activeTab() === 'csrf') {
-    <h2>CSRF — Angular's automatic protection</h2>
     <p>
-      Cross-Site Request Forgery tricks a logged-in user's browser into sending a forged request to your API. Angular's
-      <code>HttpClient</code> defends against it automatically using the <strong>double-submit cookie</strong> pattern.
+      Everything above proves Angular's <em>bindings</em> are safe. It teaches the wrong lesson by omission, because the
+      XSS bugs that actually ship in production Angular apps almost never come from a binding — they come from code that
+      reaches the DOM some other way: <code>ElementRef.nativeElement.innerHTML</code>,
+      <code>Renderer2.setProperty(el, 'innerHTML', …)</code>, <code>document.write</code>, or a jQuery/third-party
+      widget doing its own thing to the page. None of those go through Angular's compiler, so
+      <span class="bf-break">none of them are sanitized</span> — not because Angular forgot, but because it never gets
+      the chance.
     </p>
-    <div class="code">
-      <pre>
-// app.config.ts — enable XSRF protection (Angular reads the cookie
-// and mirrors it in the X-XSRF-TOKEN request header automatically):
-export const appConfig: ApplicationConfig = {{ '{' }}
-  providers: [
-    provideHttpClient(
-      withXsrfConfiguration({{ '{' }}
-        cookieName: 'XSRF-TOKEN',      // your server sets this cookie
-        headerName: 'X-XSRF-TOKEN',    // Angular sends this header
-      {{ '}' }})
-    ),
-  ],
-{{ '}' }};</pre>
-    </div>
-    <div class="note">
-      Your server must: (1) set the <code>XSRF-TOKEN</code> cookie (readable by JS, not HttpOnly), and (2) verify the
-      <code>X-XSRF-TOKEN</code> request header matches. Angular handles step 2 client-side; your backend handles
-      verification. Spring Security and Express both have built-in CSRF middleware that works with this header
-      convention.
-    </div>
 
-    <h2>What protects you vs. what doesn't</h2>
-    <table class="sec-table">
-      <tr>
-        <th>Scenario</th>
-        <th>CSRF risk?</th>
-      </tr>
-      <tr>
-        <td>Traditional cookie-based session, mutating POST</td>
-        <td class="bad">Yes — need CSRF token</td>
-      </tr>
-      <tr>
-        <td>JWT in Authorization header (not cookie)</td>
-        <td class="good">No — browsers won't auto-attach headers</td>
-      </tr>
-      <tr>
-        <td>GET requests (read-only)</td>
-        <td class="good">No — should never mutate state</td>
-      </tr>
-      <tr>
-        <td>Cookie with SameSite=Strict/Lax</td>
-        <td class="good">Mitigated for most cases</td>
-      </tr>
-      <tr>
-        <td>withCredentials: true + JWT-in-cookie</td>
-        <td class="bad">Yes — still need CSRF token</td>
-      </tr>
-    </table>
-  }
+    <app-napkin lead="one more guess —" label="Predict before you click">
+      The exact same kind of attacker string renders through <code>[innerHTML]</code> below, completely inert. Right
+      next to it is a button that writes an equivalent string straight into the DOM through
+      <code>ElementRef.nativeElement.innerHTML</code> instead. Same page, one line of code different. Guess what happens
+      before you press it.
+    </app-napkin>
 
-  @if (activeTab() === 'auth') {
-    <h2>Auth token handling — JWT dos and don'ts</h2>
-    <p>Where you store a JWT matters enormously. Each option trades off between XSS risk and CSRF risk.</p>
-    <table class="sec-table">
-      <tr>
-        <th>Storage</th>
-        <th>XSS risk</th>
-        <th>CSRF risk</th>
-        <th>Verdict</th>
-      </tr>
-      <tr>
-        <td><code>localStorage</code></td>
-        <td class="bad">High — any JS can read it</td>
-        <td class="good">None</td>
-        <td class="bad">Avoid for session tokens</td>
-      </tr>
-      <tr>
-        <td>JS memory (signal/service)</td>
-        <td>Medium — lost on refresh</td>
-        <td class="good">None</td>
-        <td>OK for short-lived access tokens</td>
-      </tr>
-      <tr>
-        <td>HttpOnly cookie (server-set)</td>
-        <td class="good">None — JS can't read it</td>
-        <td class="bad">Present — need CSRF token</td>
-        <td class="good">Best for refresh tokens</td>
-      </tr>
-    </table>
+    <app-compare
+      leftTitle="Through `[innerHTML]` — a binding"
+      leftTone="good"
+      rightTitle="Through `nativeElement.innerHTML` — raw DOM"
+      rightTone="bad"
+      note="Both panels start from an attacker string shaped exactly like the img-onerror preset above. Only the path to the DOM changes."
+    >
+      <div left>
+        <p>Bound the normal way, so Angular's sanitizer gets a chance to run first:</p>
+        <div class="xss-preview" [innerHTML]="unsafePayload"></div>
+        <p class="demo__note">
+          The <code>onerror</code> attribute never made it into the DOM at all — sanitized away before render. What's
+          left is a broken image with nothing to trigger.
+        </p>
+      </div>
+      <div right>
+        <p>Written directly to a real DOM node, with no binding in the way:</p>
+        <div class="xss-preview" #unsafeSink></div>
+        <div class="row" style="margin-top: 10px">
+          <button (click)="runUnsafe()" [disabled]="unsafeRan()">Run it via nativeElement.innerHTML</button>
+          <button class="ghost" (click)="resetUnsafe()" [disabled]="!unsafeRan()">Reset</button>
+        </div>
+        <p class="demo__note">
+          @if (unsafeRan()) {
+            That red sentence is not a screenshot — the browser just parsed attacker-shaped HTML, found the broken
+            image, fired its <code>onerror</code>, and ran the JavaScript inside it. Angular never saw any of this.
+          } @else {
+            Press the button. Nothing about this page's template changes — the write happens entirely outside Angular's
+            view.
+          }
+        </p>
+      </div>
+    </app-compare>
 
-    <h2>Auth guard pattern</h2>
-    <div class="code">
-      <pre>
-// Functional route guard — no class needed
-// `route` is the route being entered; `state` carries the full target URL.
-export const authGuard: CanActivateFn = (route, state) =&gt; {{ '{' }}
-  // inject() is legal here: Angular runs guards in an injection context.
-  const auth = inject(AuthService);
-  const router = inject(Router);
+    <app-remember variant="rule">
+      Sanitization is a property of the <strong>binding</strong>, not the DOM. <code>nativeElement.innerHTML</code>,
+      <code>Renderer2.setProperty(…, 'innerHTML', …)</code> and <code>document.write</code> all reach the exact same DOM
+      Angular's own bindings do — and none of them ask the sanitizer first, because none of them are bindings.
+    </app-remember>
 
-  // true = let the navigation proceed unchanged.
-  if (auth.isLoggedIn()) return true;
+    <app-code-lab
+      file="comment.component.ts"
+      [code]="nativeElementSample"
+      [notes]="nativeElementNotes"
+      notesLabel="Same operation, one line apart — the difference is which one runs the sanitizer"
+    />
 
-  // Save where they were going; redirect after login
-  // Returning a UrlTree cancels this navigation and starts the redirect as
-  // one atomic decision. Calling router.navigate() here instead would return
-  // a Promise — which is truthy, so the guard would ALLOW the navigation and
-  // the user would flash the protected page before being bounced.
-  return router.createUrlTree(['/login'], {{ '{' }}
-    queryParams: {{ '{' }} returnUrl: state.url {{ '}' }}
-  {{ '}' }});
-{{ '}' }};
+    <app-quiz
+      question="You just watched the exact same shape of attacker payload render as an inert broken-image icon through [innerHTML], then actually execute through nativeElement.innerHTML on the same page. What changed between the two?"
+      [options]="escapeQuizOptions"
+    />
+  </section>
 
-// In routes:
-{{ '{' }}
-  path: 'dashboard',
-  loadComponent: () =&gt; import('./dashboard').then(m =&gt; m.Dashboard),
-  // Runs BEFORE loadComponent, so the protected chunk is never even
-  // downloaded by an anonymous visitor.
-  canActivate: [authGuard],
-{{ '}' }}
-// Security note: this is a UX control, not a security boundary. The guard
-// runs in the browser, where the user can edit it. Every protected API call
-// must independently verify the token server-side.</pre>
-    </div>
+  <!-- ============ 6. BYPASSING ON PURPOSE ============ -->
+  <section>
+    <p class="bf-eyebrow">The deliberate escape hatch</p>
+    <h2>Sometimes you have to bypass the sanitizer — and then you own the risk.</h2>
 
-    <h2>HTTP interceptor for token attachment</h2>
-    <div class="code">
-      <pre>
-export const authInterceptor: HttpInterceptorFn = (req, next) =&gt; {{ '{' }}
-  const auth = inject(AuthService);
-  const token = auth.accessToken();   // signal or method
-
-  if (!token) return next(req);       // skip if not logged in
-
-  const authed = req.clone({{ '{' }}
-    headers: req.headers.set('Authorization', 'Bearer ' + token)
-  {{ '}' }});
-  return next(authed);
-{{ '}' }};
-
-// Handle 401 → refresh token flow:
-export const refreshInterceptor: HttpInterceptorFn = (req, next) =&gt; {{ '{' }}
-  const auth = inject(AuthService);
-  // Note this pipes the RESPONSE, not the request — everything above ran on
-  // the way out, this runs on the way back.
-  return next(req).pipe(
-    catchError(err =&gt; {{ '{' }}
-      // Re-throw anything that isn't an expired token. A 403 or a 500 must
-      // reach the caller untouched; only 401 means "try refreshing".
-      if (err.status !== 401) throw err;
-      // Get a new access token. The refresh token itself normally lives in
-      // an HttpOnly cookie the browser attaches automatically, so it never
-      // passes through JavaScript and XSS cannot steal it.
-      return auth.refreshToken().pipe(
-        // switchMap swaps the refresh stream for a RETRY of the original
-        // request, so the caller receives the real data and never learns
-        // that a refresh happened at all.
-        switchMap(() =&gt; next(req.clone({{ '{' }}
-          // Re-read the token — auth.accessToken() now returns the NEW one.
-          headers: req.headers.set('Authorization', 'Bearer ' + auth.accessToken())
-        {{ '}' }})))
-      );
-    {{ '}' }})
-  );
-{{ '}' }};
-// PRODUCTION GAP worth knowing: as written, ten parallel requests that all
-// 401 will fire ten refresh calls. Real implementations gate this behind a
-// shared in-flight subject so only the first request refreshes and the rest
-// queue behind it.</pre>
-    </div>
-  }
-
-  @if (activeTab() === 'secrets') {
-    <h2>Secrets — everything in the bundle is public</h2>
-    <div class="warn">
-      <strong>Rule:</strong> if it's in your Angular bundle, it is public. Do not put API keys, DB credentials, private
-      tokens, or encryption secrets in your frontend code — not in environment files, not in TypeScript constants, not
-      anywhere. A simple <code>strings ./main.js</code> or DevTools → Sources will reveal them.
-    </div>
-
-    <h2>What to put in environment files vs. server</h2>
-    <table class="sec-table">
-      <tr>
-        <th>Value</th>
-        <th>Where it lives</th>
-      </tr>
-      <tr>
-        <td>Public API base URL (your own backend)</td>
-        <td class="good">environment.ts — fine</td>
-      </tr>
-      <tr>
-        <td>Google Analytics measurement ID (public by design)</td>
-        <td class="good">environment.ts — fine</td>
-      </tr>
-      <tr>
-        <td>Third-party API key that has rate-limit/billing</td>
-        <td class="bad">Backend proxy only</td>
-      </tr>
-      <tr>
-        <td>Stripe secret key, database password, JWT secret</td>
-        <td class="bad">Server env vars only — never in the bundle</td>
-      </tr>
-      <tr>
-        <td>OpenAI / LLM API keys</td>
-        <td class="bad">Backend proxy — never in the browser</td>
-      </tr>
-    </table>
-
-    <h2>Pattern: backend proxy for third-party APIs</h2>
-    <div class="code">
-      <pre>
-// Angular makes requests to YOUR backend:
-this.http.post('/api/chat', {{ '{' }} message {{ '}' }})
-
-// Your server (Node/Spring/etc.) calls the third party with the secret:
-// server.ts
-const res = await openai.createCompletion({{ '{' }}
-  apiKey: process.env.OPENAI_KEY,   // env var — never in the client
-  ...
-{{ '}' }});</pre>
-    </div>
-
-    <h2>Angular environment files</h2>
-    <div class="code">
-      <pre>
-// src/environments/environment.ts (committed to git — public)
-export const environment = {{ '{' }}
-  production: false,
-  apiUrl: 'http://localhost:8080',      // OK
-  gaId: 'G-XXXXXXX',                   // OK — public
-  // stripeSecretKey: '...'            // NEVER put this here
-{{ '}' }};
-
-// environment.prod.ts gets swapped in at build time via angular.json fileReplacements</pre>
-    </div>
-  }
-
-  @if (activeTab() === 'headers') {
-    <h2>Security headers &amp; Content-Security-Policy</h2>
     <p>
-      HTTP response headers are your last line of defense — they tell the browser what it's allowed to execute.
-      Configure them on your web server or CDN.
+      A legitimate video embed, a PDF preview, a trusted CMS's rich HTML — sometimes you genuinely need to render
+      something the automatic sanitizer would strip. <code>DomSanitizer</code> exposes five methods for exactly this,
+      one per security context. Calling any of them means one thing and only one thing:
+      <strong>"I, the developer, personally vouch that nothing in this value is attacker-controlled."</strong>
     </p>
-    <table class="sec-table">
-      <tr>
-        <th>Header</th>
-        <th>What it does</th>
-      </tr>
-      <tr>
-        <td><code>Content-Security-Policy</code></td>
-        <td>Whitelist allowed script/style sources. Blocks inline XSS and data exfiltration.</td>
-      </tr>
-      <tr>
-        <td><code>X-Content-Type-Options: nosniff</code></td>
-        <td>Prevents browser from MIME-sniffing a response (stops polyglot file attacks).</td>
-      </tr>
-      <tr>
-        <td><code>Strict-Transport-Security</code></td>
-        <td>Forces HTTPS for the specified duration. Add after you know HTTPS works.</td>
-      </tr>
-      <tr>
-        <td><code>X-Frame-Options: DENY</code></td>
-        <td>Prevents your app from being embedded in an iframe (clickjacking defense).</td>
-      </tr>
-      <tr>
-        <td><code>Referrer-Policy: strict-origin-when-cross-origin</code></td>
-        <td>Limits how much of the URL is sent as Referer header to other origins.</td>
-      </tr>
-      <tr>
-        <td><code>Permissions-Policy</code></td>
-        <td>Disable features you don't use: camera, microphone, geolocation.</td>
-      </tr>
+
+    <div class="bf-grid-3">
+      @for (m of bypassMethods; track m.heading) {
+        <app-tape-card [heading]="m.heading" [kicker]="m.kicker" tone="accent">{{ m.body }}</app-tape-card>
+      }
+    </div>
+
+    <app-code-lab
+      file="video-player.component.ts"
+      [code]="bypassSample"
+      [notes]="bypassNotes"
+      notesLabel="The one shape of bypass that's actually defensible"
+    />
+
+    <div class="warn">
+      <strong>Never</strong> call <code>bypassSecurityTrust*</code> on user-supplied data, a query param, or an API
+      response — anything that could carry a value you don't fully control. Every call should be code-reviewed on sight,
+      because from that line on, nothing downstream will catch a mistake.
+    </div>
+  </section>
+
+  <!-- ============ 7. DEFENSE IN DEPTH ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Defense in depth</p>
+    <h2>CSP and Trusted Types back up the sanitizer. They don't replace it.</h2>
+
+    <p>
+      Code review catches most bad <code>bypassSecurityTrust*</code> calls. It doesn't catch all of them — a tired
+      reviewer, a large diff, a dependency that adds one deep in a library. Two browser-enforced backstops exist for
+      exactly that gap, and each one closes off a different way the sanitizer could be skipped.
+    </p>
+
+    <app-layers
+      [core]="defenseCore"
+      [rings]="defenseRings"
+      arrow="an attacker payload enters here"
+      caption="A payload has to clear all three rings to become code that runs. CSP can block the script's origin outright; Trusted Types blocks the raw sink assignment even if CSP allows the script; Angular's sanitizer strips it from every template binding even if you forgot the other two. None of the three substitutes for the others — that's what defense in depth means in practice, not just as a phrase."
+    />
+
+    <h3>A strict CSP has no unsafe-inline.</h3>
+    <p>
+      Most Angular CSP examples you'll find online — including, until this pass, this one — ship
+      <code>style-src 'self' 'unsafe-inline'</code> with a shrug: <em>"Angular inlines some styles."</em> That's exactly
+      the hole a real CSP exists to close. Angular has had a first-class answer since v16: a nonce.
+    </p>
+
+    <app-compare
+      leftTitle="Before — `unsafe-inline`"
+      leftTone="bad"
+      rightTitle="After — nonce-based, no unsafe-inline"
+      rightTone="good"
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ cspBeforeSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ cspAfterSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-code-lab
+      file="wiring the nonce"
+      [code]="cspNonceSample"
+      [notes]="cspNonceNotes"
+      notesLabel="Two ways to thread the nonce through, plus the zero-config option"
+    />
+
+    <h3>Trusted Types makes bypasses auditable by the browser, not just by eye.</h3>
+    <p>
+      Look at the last two lines of the "after" policy above:
+      <code>require-trusted-types-for 'script'</code> tells the browser that <em>no</em> string may be assigned to a
+      script-executing sink — <code>innerHTML</code>, <code>eval</code>, a <code>&lt;script&gt;</code>'s
+      <code>src</code> — unless it came from an approved policy. <code>angular</code> is the policy name Angular's own
+      sanitizer registers automatically; anything that went through a normal binding already satisfies it.
+      <code>angular#unsafe-bypass</code> is a <em>second</em> name, and it exists for one reason:
+      <span class="key">it is the only thing that makes a bypassSecurityTrust* call legal under this header</span>. List
+      it, and a bypass call works as before. Leave it off, and every single <code>bypassSecurityTrust*</code> call in
+      your codebase becomes a runtime <code>TypeError</code> in the browser — even the ones your own code review
+      approved. That's the enforcement the old warning box on this page used to gesture at without ever explaining: your
+      CSP header becomes the actual allow-list of who may bypass, not just a comment in a pull request.
+    </p>
+
+    <div class="note">
+      Roll it out safely: ship <code>Content-Security-Policy-Report-Only</code> first and watch the browser console for
+      violations from code you didn't know was touching an unsafe sink, then switch to the enforcing header once the
+      reports go quiet.
+    </div>
+  </section>
+
+  <!-- ============ 8. CSRF ============ -->
+  <section>
+    <p class="bf-eyebrow">Cross-site request forgery</p>
+    <h2>A tab you never opened can still spend your session.</h2>
+
+    <p>
+      You're logged into your bank in one tab. In another, you're reading a meme site with a hidden, auto-submitting
+      form pointed at your bank's "transfer funds" endpoint. Your browser doesn't know or care which tab initiated the
+      request — it attaches your bank's session cookie to <em>any</em> request headed for your bank's domain, from any
+      tab, automatically. That's CSRF, and it works entirely without stealing anything: the forged request rides on a
+      cookie you already had.
+    </p>
+
+    <app-flow
+      caption="Angular's HttpClient defends this with the double-submit cookie pattern: a value only the real page could have read defeats a request that only has the cookie."
+      [steps]="csrfFlow"
+    />
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="xsrfConfigSample"
+      [notes]="xsrfConfigNotes"
+      notesLabel="Turning it on is one function call"
+    />
+
+    <div class="note">
+      Your server owns half of this contract: it must set the <code>XSRF-TOKEN</code> cookie (readable by JavaScript,
+      <em>not</em> <code>HttpOnly</code>) and verify the <code>X-XSRF-TOKEN</code> header matches on every mutating
+      request. Angular only ever handles its half — reading the cookie and mirroring it into the header. Spring Security
+      and Express both ship CSRF middleware that speaks this exact convention.
+    </div>
+
+    <table>
+      <caption class="bf-table-caption">
+        What actually stops a forged request
+      </caption>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>CSRF risk?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Traditional cookie-based session, mutating POST</td>
+          <td class="bad">Yes — needs a CSRF token</td>
+        </tr>
+        <tr>
+          <td>JWT in an <code>Authorization</code> header (not a cookie)</td>
+          <td class="good">No — browsers never auto-attach headers</td>
+        </tr>
+        <tr>
+          <td>GET requests (read-only)</td>
+          <td class="good">No — should never mutate state in the first place</td>
+        </tr>
+        <tr>
+          <td>Cookie with <code>SameSite=Strict</code> / <code>Lax</code></td>
+          <td class="good">Mitigated for most real-world cases</td>
+        </tr>
+        <tr>
+          <td><code>withCredentials: true</code> + JWT stored in a cookie</td>
+          <td class="bad">Yes — still needs a CSRF token</td>
+        </tr>
+      </tbody>
     </table>
 
-    <h2>Minimal Angular CSP</h2>
+    <p>
+      There's a quieter gap even in a correctly configured app: the interceptor doesn't attach the header to every
+      request, on purpose.
+    </p>
+
+    <app-predict
+      prompt="Your Angular app calls `this.http.post('/api/transfer', body)` against its own origin, and elsewhere calls `this.http.post('https://payments.example.com/transfer', body)` against a separate API domain — both are POSTs, from the same logged-in session, both mutate state. Does Angular attach the X-XSRF-TOKEN header to both?"
+      [answer]="xsrfPredictAnswer"
+    />
+  </section>
+
+  <!-- ============ 9. AUTH & TOKENS ============ -->
+  <section>
+    <p class="bf-eyebrow">Auth &amp; tokens</p>
+    <h2>Where you store a token decides which attack you're trading for which.</h2>
+
+    <p>
+      There is no storage option with zero risk — only different tradeoffs between an XSS bug reading your token and a
+      CSRF attack forging a request with it.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        JWT storage, three ways
+      </caption>
+      <thead>
+        <tr>
+          <th>Storage</th>
+          <th>XSS risk</th>
+          <th>CSRF risk</th>
+          <th>Verdict</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of storageOptions; track row.storage) {
+          <tr>
+            <td>
+              <code>{{ row.storage }}</code>
+            </td>
+            <td>{{ row.xss }}</td>
+            <td>{{ row.csrf }}</td>
+            <td>{{ row.verdict }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <p>
+      Wherever the <em>access</em> token lives, a <strong>route guard</strong> is the front door — and it is worth being
+      precise about what kind of door it is.
+    </p>
+
+    <app-code-lab
+      file="auth.guard.ts"
+      [code]="authGuardSample"
+      [notes]="authGuardNotes"
+      notesLabel="A redirect built as data, not fired as a side effect"
+    />
+
+    <div class="warn">
+      <strong><code>returnUrl</code> is attacker-controllable.</strong> A link crafted as
+      <code>/login?returnUrl=https://evil.example</code> would send this exact guard straight there after a successful
+      login. Validate before you navigate: accept only relative, same-origin paths, and reject anything starting with
+      <code>//</code> or carrying its own scheme — or the "convenience" query param becomes an
+      <span class="bf-break">open-redirect phishing vector</span>.
+    </div>
+
+    <p>
+      The token still has to reach every request somehow, and eventually expire and refresh without ever bothering the
+      user. That's two interceptors' worth of work.
+    </p>
+
+    <app-code-lab
+      file="auth.interceptor.ts"
+      [code]="interceptorSample"
+      [notes]="interceptorNotes"
+      notesLabel="Attaching the token, then transparently recovering from a 401"
+    />
+  </section>
+
+  <!-- ============ 10. SECRETS ============ -->
+  <section>
+    <p class="bf-eyebrow">Secrets</p>
+    <h2>If it shipped to the browser, it was never a secret.</h2>
+
+    <div class="warn">
+      <strong>Rule:</strong> if it's in your Angular bundle, it is public — full stop. No API keys, database
+      credentials, private tokens or encryption secrets in frontend code: not in environment files, not in TypeScript
+      constants, not anywhere. A plain <code>strings ./main.js</code> or DevTools → Sources reveals every one of them in
+      seconds.
+    </div>
+
+    <table>
+      <caption class="bf-table-caption">
+        What belongs where
+      </caption>
+      <thead>
+        <tr>
+          <th>Value</th>
+          <th>Where it lives</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Public API base URL (your own backend)</td>
+          <td class="good">environment.ts — fine</td>
+        </tr>
+        <tr>
+          <td>Analytics measurement ID (public by design)</td>
+          <td class="good">environment.ts — fine</td>
+        </tr>
+        <tr>
+          <td>A third-party API key with rate limits or billing attached</td>
+          <td class="bad">Backend proxy only</td>
+        </tr>
+        <tr>
+          <td>Stripe secret key, database password, JWT signing secret</td>
+          <td class="bad">Server env vars only — never in the bundle</td>
+        </tr>
+        <tr>
+          <td>An LLM provider's API key</td>
+          <td class="bad">Backend proxy — never in the browser</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Pattern: proxy the secret through your own backend.</h3>
     <div class="code">
-      <pre>
-Content-Security-Policy:
-  default-src 'self';
-  script-src  'self';          // Angular bundle only — no inline scripts
-  style-src   'self' 'unsafe-inline';  // Angular inlines some styles
-  img-src     'self' data: https:;
-  connect-src 'self' https://api.example.com;
-  font-src    'self';
-  frame-ancestors 'none';      // equivalent to X-Frame-Options: DENY</pre>
-    </div>
-    <div class="note">
-      Angular's CLI build with hashing (<code>--output-hashing=all</code>) makes nonces/hashes easier to manage. Use
-      <a href="https://securityheaders.com" target="_blank" rel="noopener">securityheaders.com</a>
-      to scan your deployed app.
+      <pre>{{ backendProxySample }}</pre>
     </div>
 
-    <h2>OWASP Top 10 — Angular relevance</h2>
-    <div class="owasp-grid">
-      <div class="owasp-card severity-high">
-        <h4>A01 Broken Access Control</h4>
-        <p>Route guards prevent UI access but backend must still authorize every request.</p>
-      </div>
-      <div class="owasp-card severity-high">
-        <h4>A02 Crypto Failures</h4>
-        <p>Never store secrets client-side. Use HTTPS. Proxy secrets through backend.</p>
-      </div>
-      <div class="owasp-card severity-high">
-        <h4>A03 Injection / XSS</h4>
-        <p>Angular sanitizes by default. Avoid bypassSecurityTrust* and ElementRef.innerHTML.</p>
-      </div>
-      <div class="owasp-card severity-med">
-        <h4>A05 Security Misconfiguration</h4>
-        <p>Add CSP, HSTS, X-Content-Type-Options headers. Disable debug endpoints in prod.</p>
-      </div>
-      <div class="owasp-card severity-med">
-        <h4>A07 Auth Failures</h4>
-        <p>Store tokens safely (HttpOnly cookies &gt; memory &gt; localStorage). Expire tokens. Refresh securely.</p>
-      </div>
-      <div class="owasp-card severity-low">
-        <h4>A08 Software/Data Integrity</h4>
-        <p>Use integrity hashes on CDN scripts (SRI). Audit npm dependencies regularly.</p>
-      </div>
+    <h3>What actually goes in an environment file.</h3>
+    <div class="code">
+      <pre>{{ environmentFilesSample }}</pre>
     </div>
-  }
+  </section>
 
-  <h2>Predict what renders</h2>
-  <p>
-    A profile page renders a user's bio with <code>[innerHTML]</code> so people can bold things. Someone submits a bio
-    designed to steal cookies. Decide what ends up on screen — <span class="key">be specific about the img tag</span> —
-    before you open the answer:
-  </p>
+  <!-- ============ 11. HEADERS ============ -->
+  <section>
+    <p class="bf-eyebrow">The last line</p>
+    <h2>Some defenses only your server can set.</h2>
 
-  <app-predict
-    prompt="What appears in the DOM, and does the fetch to evil.com fire?"
-    [code]="sanitizerSample"
-    answer="**The `<img>` element survives. The `onerror` attribute does not. Nothing is sent to evil.com.**
+    <p>
+      Response headers tell the browser what it is and isn't allowed to do with your page. None of them live in Angular
+      code — they belong on your web server or CDN, configured once for the whole app.
+    </p>
 
-The rendered DOM is `<img src='x'> <b>Hi!</b>` — you get a broken-image icon next to the word Hi. Almost everyone predicts one of two wrong answers here, and both are instructive:
+    <table>
+      <caption class="bf-table-caption">
+        Headers worth setting on every response
+      </caption>
+      <thead>
+        <tr>
+          <th>Header</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>X-Content-Type-Options: nosniff</code></td>
+          <td>Stops the browser guessing a response's type, closing off polyglot-file attacks.</td>
+        </tr>
+        <tr>
+          <td><code>Strict-Transport-Security</code></td>
+          <td>Forces HTTPS for the given duration. Add it once you know HTTPS works everywhere.</td>
+        </tr>
+        <tr>
+          <td><code>X-Frame-Options: DENY</code></td>
+          <td>Stops your app being embedded in someone else's iframe (clickjacking).</td>
+        </tr>
+        <tr>
+          <td><code>Referrer-Policy: strict-origin-when-cross-origin</code></td>
+          <td>Limits how much of your URL is leaked as a Referer header to other origins.</td>
+        </tr>
+        <tr>
+          <td><code>Permissions-Policy</code></td>
+          <td>Turns off browser features you never use — camera, microphone, geolocation.</td>
+        </tr>
+      </tbody>
+    </table>
 
-- *'The whole img tag is removed.'* No. `<img>` is on the allow-list — it is a legitimate formatting element and the sanitizer has no reason to delete it. Only the **attribute** is dangerous.
-- *'The whole string is rejected and the div is empty.'* No. The sanitizer is a filter, not a gate. It removes what is not allowed and renders everything that is left, which is why `<b>Hi!</b>` comes through untouched.
+    <p class="demo__note">
+      <a href="https://securityheaders.com" target="_blank" rel="noopener">securityheaders.com</a> scans a deployed site
+      and grades exactly this list, including the CSP from the section above.
+    </p>
+  </section>
 
-That is the airport model exactly: they take the lighter, they do not cancel your ticket.
+  <!-- ============ 12. OWASP RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>The same list, from an interviewer's checklist.</h2>
 
-**But notice what this does *not* protect.** Change one line — `bio = this.san.bypassSecurityTrustHtml(user.bio)` — and the identical payload executes, because you signed for the pouch. And if any part of that bio is written into the page by something other than an Angular binding (a server-rendered string, `nativeElement.innerHTML`, a third-party widget), the sanitizer never runs at all. Angular defends its own bindings. Everything else is yours to defend."
-    revealLabel="Reveal the rendered DOM"
-  />
+    <p>
+      OWASP's Top 10 is the industry's shared vocabulary for this material. Here's where each risk this page covered
+      shows up on that list — a quick-reference grid back onto everything above, not new material.
+    </p>
 
-  <h2>Check yourself</h2>
-  <app-quiz
-    question="You add `canActivate: [authGuard]` to the `/admin` route, and the guard correctly checks that the user is logged in with an admin role. Is `/admin` now secure?"
-    [options]="quizOptions"
-    followUp="Say it as a rule and it stops being a trick question: **guards decide what to render; servers decide what to allow.** Anything the browser enforces is advice, because the browser belongs to the attacker."
-  />
+    <div class="bf-grid-3">
+      @for (item of owaspItems; track item.code) {
+        <div class="bf-card">
+          <p class="bf-card__label">{{ item.code }} · {{ item.title }}</p>
+          <p>{{ item.body }}</p>
+        </div>
+      }
+    </div>
+  </section>
 
-  <app-faq [items]="questions" heading="There are no dumb questions" />
+  <!-- ============ 13. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Sanitization is chosen by <strong>context</strong> (HTML / STYLE / URL / RESOURCE_URL) — by where the value is
-      bound, not by what it contains.
-    </li>
-    <li>
-      The sanitizer <strong>filters, it doesn't reject</strong>: dangerous attributes are stripped and the surrounding
-      markup still renders.
-    </li>
-    <li>Angular escapes interpolation and sanitizes [innerHTML] — XSS-safe by default.</li>
-    <li><code>bypassSecurityTrust*</code> is a deliberate, code-reviewed escape hatch — never on user data.</li>
-    <li>Angular auto-sends XSRF tokens; your backend must verify them for cookie-based auth.</li>
-    <li>Keep secrets server-side — everything in the Angular bundle is public.</li>
-    <li>Route guards protect the UI; the backend must still authorize every API call.</li>
-    <li>Add CSP, HSTS and the other security headers on your server or CDN.</li>
-  </ul>
+  <!-- ============ 14. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Seven things worth carrying into the exam.</h2>
 
-  <p><a routerLink="/i18n">Next: Internationalization (i18n) →</a></p>
+    <ul>
+      <li>
+        Sanitization is a property of the <strong>binding</strong>, not the DOM — leave the template layer
+        (<code>nativeElement</code>, raw <code>Renderer2</code> HTML, <code>document.write</code>) and nothing protects
+        you any more.
+      </li>
+      <li>
+        Four contexts, four rulebooks: interpolation never parses HTML at all; <code>[innerHTML]</code> strips scripts
+        and handlers; <code>[href]</code>/<code>[src]</code> block executable URL schemes;
+        <code>RESOURCE_URL</code> refuses by default and needs an explicit bypass.
+      </li>
+      <li>
+        <code>bypassSecurityTrust*</code> means <strong>you</strong> vouch for the string. Never call it on anything
+        that contains user input, a query param, or an API response you don't fully control.
+      </li>
+      <li>
+        CSP and Trusted Types don't replace the sanitizer — they're the next two rings out.
+        <code>angular#unsafe-bypass</code> in a Trusted Types policy is what makes every
+        <code>bypassSecurityTrust*</code> call in your codebase auditable by the browser, not just by a reviewer's eyes.
+      </li>
+      <li>
+        The XSRF interceptor is quieter than it looks: it skips <code>GET</code>/<code>HEAD</code> and skips
+        <strong>absolute URLs</strong> on purpose. A third-party API call needs its own plan.
+      </li>
+      <li>
+        Store a token in memory or an <code>HttpOnly</code> cookie, not <code>localStorage</code> — and remember a route
+        guard is a UX nicety, not a security boundary. The backend authorizes every request regardless.
+      </li>
+      <li>Everything in your Angular bundle is public. If it's a real secret, it lives on your server.</li>
+    </ul>
+
+    <p><a routerLink="/i18n">Next: Internationalization (i18n) →</a></p>
+  </section>
 </article>
