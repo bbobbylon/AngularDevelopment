@@ -1,353 +1,588 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Runtime &amp; Performance</span>
-  <h1>Zoneless Angular</h1>
-  <p class="lead">
-    Zoneless Angular drops <code>Zone.js</code> entirely. Instead of monkey-patching every async API to guess when state
-    <em>might</em> have changed, Angular runs change detection only when something explicitly tells the scheduler — a
-    signal write, a template event, a <code>markForCheck()</code>. <strong>This app itself runs zoneless</strong> (no
-    <code>zone.js</code> in its dependencies), so every demo below shows the real behavior, live.
-  </p>
-
-  <h2>Zone.js — what it was doing</h2>
-  <p>
-    Zone.js wraps every browser async API (<code>setTimeout</code>,
-    <code>Promise</code>, <code>addEventListener</code>, XHR, fetch…) so Angular could be told "some async work just
-    finished." Angular subscribed to the zone's <code>onMicrotaskEmpty</code> and called
-    <code>ApplicationRef.tick()</code> — re-checking <em>from the root</em> — after every such moment. It works, but the
-    costs are structural:
-  </p>
-  <table class="t">
-    <thead>
-      <tr>
-        <th>Problem</th>
-        <th>Why it hurts</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><strong>~77 kB minified / ~25 kB gzipped</strong> polyfill in every bundle</td>
-        <td>Shipped on every page load, forever</td>
-      </tr>
-      <tr>
-        <td>Ticks the <em>whole tree</em> after <em>any</em> async</td>
-        <td>Fires on third-party timers, analytics pings, WebSocket heartbeats, mousemove-driven promises…</td>
-      </tr>
-      <tr>
-        <td>Monkey-patches 20+ global APIs at startup</td>
-        <td>
-          Slower boot, polluted stack traces, subtle breakage with native <code>async/await</code> and some libraries
-        </td>
-      </tr>
-      <tr>
-        <td>Implicit — no way to see or opt out per callback</td>
-        <td>Performance work degenerates into <code>runOutsideAngular()</code> whack-a-mole</td>
-      </tr>
-    </tbody>
-  </table>
-  <div class="code">
-    <pre>{{ zoneEraSample }}</pre>
-  </div>
-
-  <h2>Enabling zoneless</h2>
-  <div class="code">
-    <pre>{{ enableSample }}</pre>
-  </div>
-  <p>
-    New Angular apps are generated zoneless — there is nothing to enable; the absence of the zone provider (and of
-    <code>zone.js</code> in <code>polyfills</code>) <em>is</em> the configuration. Existing zone apps opt in with
-    <code>provideZonelessChangeDetection()</code>, which swaps <code>NgZone</code> for a no-op implementation and
-    installs the notification scheduler.
-  </p>
-
-  <h2>What schedules change detection now — the complete list</h2>
-  <table class="cmp">
-    <tr>
-      <th>Notification</th>
-      <th>Example</th>
-    </tr>
-    <tr>
-      <td><strong>Signal write</strong> (read somewhere reactive)</td>
-      <td><code>count.set(1)</code> — marks consumer views dirty + schedules a tick</td>
-    </tr>
-    <tr>
-      <td><strong>Template / host event listener</strong></td>
-      <td>any <code>(click)</code> handler — the view is marked dirty before your code runs</td>
-    </tr>
-    <tr>
-      <td>
-        <strong><code>markForCheck()</code></strong> (directly or via <code>async</code> pipe)
-      </td>
-      <td>observable emission through <code>| async</code></td>
-    </tr>
-    <tr>
-      <td><strong>Input set by the framework</strong></td>
-      <td>parent binding wrote a new value, <code>setInput()</code> on a component ref</td>
-    </tr>
-    <tr>
-      <td><strong>Structural operations</strong></td>
-      <td>attaching/detaching views, <code>createComponent()</code></td>
-    </tr>
-    <tr>
-      <td><strong>Explicit tick</strong></td>
-      <td><code>ApplicationRef.tick()</code> — the manual crank</td>
-    </tr>
-  </table>
-  <p>
-    Everything else — <code>setTimeout</code>, promise chains, fetch callbacks, WebSocket messages, DOM listeners
-    registered with <code>addEventListener</code> by hand — updates your data and tells no one.
-  </p>
-
-  <h2>Live proof #1 — async mutation is invisible, signals aren't</h2>
-  <div class="demo">
-    <p class="demo__title">Live — two timeouts, one difference (this app really is zoneless)</p>
-    <p class="row">
-      <span class="pill">plain field: {{ plainValue }}</span>
-      <span class="pill" style="color: var(--green)">signal: {{ signalValue() }}</span>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Expert · Runtime & Performance"
+    title="Zoneless Angular"
+    hand="or, teaching Angular to stop eavesdropping on every setTimeout in the building"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      Zoneless Angular drops <code>Zone.js</code> completely — no monkey-patched <code>setTimeout</code>, no wrapped
+      <code>Promise</code>, no automatic full-tree tick after every async completion. Instead, a pass runs only when
+      something <strong>explicitly</strong> says so: a signal write, a template event, an input the framework itself
+      wrote. <strong>This very app runs zoneless</strong> — there is no <code>zone.js</code> in its dependencies — so
+      every proof on this page is the real thing, not a simulation.
     </p>
-    <div class="row">
-      <button class="ghost" (click)="timeoutPlain()">setTimeout → plain field ✗</button>
-      <button (click)="timeoutSignal()">setTimeout → signal ✓</button>
-    </div>
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px">
-      Both timers fire after 300ms and both really do assign. Under Zone.js the patched <code>setTimeout</code> would
-      trigger a tick and you'd see both. Here the plain-field write renders <em>nothing</em> — until you click the
-      signal button and the resulting pass re-reads the stale field too. That "ghost update appearing late" is the
-      classic symptom of missing notifications.
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>How did Angular ever know to check — before you told it to?</h2>
+
+    <p>
+      Every other lesson in this track can quietly assume a change-detection pass happens and ask what it does once it
+      starts. This one has to answer the question they all skip: <span class="key">what actually causes one</span>? For
+      Angular's first eight years the answer was blunt — assume <em>any</em> async completion, anywhere, might matter,
+      and check <strong>everything</strong> to find out.
     </p>
-  </div>
 
-  <h2>Live proof #2 — template events still "just work"</h2>
-  <div class="demo">
-    <p class="demo__title">Live — plain field mutated in a click handler</p>
-    <p class="row">
-      <span class="pill">clicks (plain field, no signal): {{ plainClicks }}</span>
+    <p>
+      That blunt answer had a name: <code>Zone.js</code>. It is gone from this app, and the rest of this lesson is about
+      what replaced it, what that replacement quietly does <em>not</em> cover, and the one gap the framework's own
+      marketing copy tends to skip over.
     </p>
-    <div class="row">
-      <button (click)="plainClicks = plainClicks + 1">Mutate plain field in (click) ✓</button>
-    </div>
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px">
-      Surprised? Zoneless doesn't mean "signals only": Angular wraps every
-      <em>template</em> event listener, marks the view dirty and schedules a tick before your handler runs. The rule of
-      thumb: synchronous work in template handlers renders fine; it's the <strong>async continuation</strong> that needs
-      a signal or <code>markForCheck()</code>.
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two values, both written from a <code>setTimeout</code> firing 300ms from now. One is a plain field (<code
+        >this.value = …</code
+      >); the other is a <code>signal</code> you call <code>.set()</code> on.
+      <strong>Both really change in memory, at the same moment.</strong> Which one do you think shows up on screen — and
+      can you say why, before you scroll down to the live version and check yourself?
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Zone.js was a concierge who patrols every hallway. Zoneless hands out room-service buttons.</h2>
+
+    <p>
+      Picture a hotel with one overworked concierge. They cannot tell which room actually needs something, so they
+      compensate by walking a full circuit of every hallway and knocking on every door — the instant <em>any</em>
+      guest event happens anywhere in the building: a phone call ends, a delivery arrives, a shower shuts off. Most
+      knocks get "we're fine, thanks." The concierge has no way to know that in advance, so the walk happens anyway,
+      every time.
     </p>
-  </div>
 
-  <h2>Live proof #3 — writes coalesce into one render pass</h2>
-  <div class="demo">
-    <p class="demo__title">Live — three signal writes, one tick</p>
-    <p class="row">
-      <span class="pill">a: {{ a() }}</span>
-      <span class="pill">b: {{ b() }}</span>
-      <span class="pill">c: {{ c() }}</span>
-      <span class="pill" style="color: var(--violet)">render passes over this view: {{ renderCount() }}</span>
+    <p>
+      Zoneless is the same hotel with a call button in every room. Nothing happens until a guest actually presses one —
+      and the concierge visits <em>only</em> the rooms whose buttons lit up. Fewer walks, and every walk means
+      something. The trade a room makes for a button, though, is that
+      <span class="bf-break">a guest who never presses it never gets visited</span> — which is exactly the shape of the
+      bug this lesson spends most of its time on.
     </p>
-    <div class="row">
-      <button (click)="writeAllThree()">a.set / b.set / c.set — in one handler</button>
-    </div>
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px">
-      The render counter (a getter that increments per check of this view) goes up by <strong>one</strong> per click,
-      not three: notifications are coalesced — any number of synchronous writes produce a single change-detection pass.
+
+    <app-remember variant="mnemonic">
+      Zone-era Angular is <strong>guess, then check everything.</strong> Zoneless Angular is
+      <strong>tell me, then I'll check exactly that.</strong> Every scheduling question on this page is really asking
+      which of those two sentences describes the code you're looking at.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="schedulingTalk"
+      caption="What a stray `setTimeout` in a third-party widget actually sets off, in each era."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — WHAT ZONE.JS ACTUALLY DID ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One monkey-patch, twenty places to be wrong.</h2>
+
+    <p>
+      "Zone.js watches for changes" undersells what it did. It does not read your component state at all — it
+      <span class="term">monkey-patches</span> the browser's own async surface, once, at startup, so that anything
+      completing later runs inside code Angular can observe.
     </p>
-  </div>
 
-  <h2>Under the hood — the notification scheduler</h2>
-  <div class="code">
-    <pre>{{ schedulerSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Producers notify, the scheduler coalesces:</strong> every trigger in the table above funnels into one
-      <code>ChangeDetectionScheduler</code>. The first notification schedules a tick; further notifications before it
-      runs are absorbed into the same pass.
-    </li>
-    <li>
-      <strong>The tick is still top-down:</strong> zoneless didn't change <em>how</em> checking works (root → leaves,
-      OnPush pruning, signal-marked views refreshed) — it changed <em>when</em> a pass is scheduled. OnPush + signals
-      decide the <em>where</em>; zoneless decides the <em>when</em>.
-    </li>
-    <li>
-      <strong><code>NgZone</code> becomes a no-op:</strong> injected <code>NgZone.run()</code> /
-      <code>runOutsideAngular()</code> still execute your callback — they just no longer control change detection. Code
-      that <em>listens</em> to <code>NgZone.onStable</code> / <code>onMicrotaskEmpty</code>
-      is the real migration risk.
-    </li>
-  </ul>
+    <app-code-lab
+      file="zone.js — the shape of the patch (illustrative)"
+      [code]="zoneEraSample"
+      [notes]="zoneEraNotes"
+      notesLabel="What each line is doing"
+    />
 
-  <h2>Migration checklist (zone app → zoneless)</h2>
-  <ol>
-    <li>
-      Go <strong>OnPush-first</strong>: enable <code>ChangeDetectionStrategy.OnPush</code> across the app. It enforces
-      the identical discipline (explicit notifications) while Zone.js is still there to catch you — see the
-      <a routerLink="/onpush">OnPush lesson</a>.
-    </li>
-    <li>
-      Hunt mutable fields assigned in async callbacks (<code>subscribe</code>, <code>then</code>, timers, sockets) —
-      convert to <code>signal()</code> / <code>toSignal()</code>, or add <code>markForCheck()</code>.
-    </li>
-    <li>
-      Search for <code>NgZone.onStable</code>, <code>onMicrotaskEmpty</code>, <code>zone.run</code> in your code
-      <em>and your dependencies</em> — replace with <code>afterNextRender()</code> or explicit notifications.
-    </li>
-    <li>
-      Add <code>provideZonelessChangeDetection()</code> in a branch and run the full test suite — failures map 1:1 to
-      missing notifications.
-    </li>
-    <li>
-      Remove <code>"zone.js"</code> from <code>polyfills</code> in <code>angular.json</code> (this is the bundle-size
-      payoff — the provider alone doesn't remove the polyfill).
-    </li>
-    <li>
-      For imperative third-party widgets (charts, maps, jQuery-era plugins), wrap their callbacks: write results into
-      signals, or call <code>markForCheck()</code> after mutating bound state.
-    </li>
-  </ol>
-
-  <h2>Testing without the zone</h2>
-  <div class="code">
-    <pre>{{ testingSample }}</pre>
-  </div>
-  <p>
-    <code>fakeAsync</code>/<code>tick()</code> are zone features — zoneless tests use real async:
-    <code>await fixture.whenStable()</code> and <code>fixture.detectChanges()</code> driven by the same notification
-    rules as production. That's a feature: a test that fails zoneless is showing you a component that would render stale
-    in production.
-  </p>
-
-  <h2>Zone vs Zoneless — at a glance</h2>
-  <table class="t">
-    <thead>
-      <tr>
-        <th></th>
-        <th>Zone.js</th>
-        <th>Zoneless</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Bundle size</td>
-        <td>+25 kB gzip</td>
-        <td>0</td>
-      </tr>
-      <tr>
-        <td>CD trigger</td>
-        <td>any patched async completing (implicit)</td>
-        <td>signal / event / markForCheck / input (explicit)</td>
-      </tr>
-      <tr>
-        <td>Wasted passes</td>
-        <td>constant — every timer &amp; ping ticks the app</td>
-        <td>none — no notification, no pass</td>
-      </tr>
-      <tr>
-        <td>Stack traces</td>
-        <td>polluted by zone wrapper frames</td>
-        <td>clean native frames</td>
-      </tr>
-      <tr>
-        <td>Third-party interop</td>
-        <td>usually transparent</td>
-        <td>manual <code>markForCheck</code>/signal bridge for imperative libs</td>
-      </tr>
-      <tr>
-        <td>Native async/await</td>
-        <td>downleveled to promises so the patch sees it</td>
-        <td>runs native</td>
-      </tr>
-      <tr>
-        <td>SSR &amp; tests</td>
-        <td>zone-specific machinery (<code>fakeAsync</code>)</td>
-        <td>plain promises, <code>whenStable()</code></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h2>Pitfalls</h2>
-  <ul>
-    <li>
-      <strong>"It worked before"</strong> — code assigning fields in <code>subscribe()</code> rendered fine under zone.
-      Zoneless makes the missing notification visible. The fix is signals/async pipe, not sprinkling
-      <code>tick()</code>.
-    </li>
-    <li>
-      <strong>Removing the provider isn't enough backwards:</strong> forgetting to delete <code>zone.js</code> from
-      polyfills keeps shipping 25 kB for nothing.
-    </li>
-    <li>
-      <strong>Libraries that require the zone</strong> (rare now): anything awaiting <code>onStable</code> for overlay
-      positioning, e.g. very old CDK versions — upgrade them; modern CDK/Material are zoneless-ready.
-    </li>
-    <li>
-      <strong><code>requestAnimationFrame</code> loops</strong> for canvas/WebGL never needed CD — keep them plain,
-      write summarized state into a signal only when the UI must reflect it.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Exactly which mechanisms schedule a CD pass in a zoneless app?</summary>
-    <div>
-      Signal writes with reactive consumers, template/host event listeners, <code>markForCheck()</code> (including via
-      the async pipe), framework input writes (<code>setInput</code>), view attach/detach, and explicit
-      <code>ApplicationRef.tick()</code>. Raw async APIs schedule nothing.
+    <div class="bf-grid-2">
+      <app-tape-card heading="Zone" kicker="the thing being patched around" tone="gold">
+        A execution context zone.js ran your whole app inside. Every async callback executed inside it, so the zone
+        could see it both start and finish.
+      </app-tape-card>
+      <app-tape-card heading="Monkey-patch" kicker="how it hooked in" tone="accent">
+        Swapping a global function — <code>setTimeout</code>, <code>Promise</code>, <code>addEventListener</code> — for
+        a version that does the original job <em>and</em> tells the zone about it.
+      </app-tape-card>
+      <app-tape-card heading="Microtask queue" kicker="when it decided to check" tone="olive">
+        The browser's queue of pending <code>.then()</code> callbacks. "Drained" means everything currently queued has
+        run — zone.js's signal that a burst of async work has settled.
+      </app-tape-card>
+      <app-tape-card heading="Root tick" kicker="what it triggered" tone="blue">
+        <code>ApplicationRef.tick()</code> from the very top of the component tree. Not the component that changed —
+        every component, every time.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Why is OnPush described as "zoneless training wheels"?</summary>
-    <div>
-      OnPush already ignores un-notified changes <em>for that component</em> — stale views surface immediately while
-      Zone.js still guarantees passes happen. An app that is fully OnPush-clean has, by definition, adopted the explicit
-      notification discipline zoneless requires globally.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A WebSocket handler updates a field and the UI freezes at the old value — but only in production. Diagnose.
-    </summary>
-    <div>
-      Production is zoneless (or the component OnPush): the socket callback is unpatched async — no notification, no
-      pass. Convert the field to a signal (or route the stream through <code>toSignal</code>/async pipe). The dev/prod
-      difference usually means dev still had zone.js loaded.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What happens to <code>NgZone.runOutsideAngular()</code> calls after going zoneless?</summary>
-    <div>
-      They still run the callback, but they're inert — there's no zone to step out of, and change detection wasn't
-      listening anyway. Safe to leave during migration, ripe for deletion after. Code <em>listening</em> to
-      <code>onStable</code>/<code>onMicrotaskEmpty</code>, by contrast, must be rewritten (e.g.
-      <code>afterNextRender()</code>).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Three signals are set in one click handler. How many renders? Why?</summary>
-    <div>
-      One. Each write notifies the scheduler, but a tick is already pending after the first — notifications coalesce
-      into a single top-down pass (proven live above). Consistency bonus: the template can never observe a half-applied
-      state.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Zoneless = explicit scheduling: signals, template events, <code>markForCheck</code>, input writes. Unpatched async
-      renders nothing.
-    </li>
-    <li>
-      It changes <em>when</em> passes run; OnPush/signals still decide <em>which views</em> refresh. The three features
-      compose.
-    </li>
-    <li>
-      Migrate OnPush-first, convert async-assigned fields to signals, audit <code>onStable</code> listeners, then drop
-      the polyfill (that's the −25 kB).
-    </li>
-    <li>Writes coalesce — any burst of synchronous updates is one render pass.</li>
-    <li>
-      Zoneless failures are honest: they expose updates that were always un-notified, previously papered over by zone
-      ticks.
-    </li>
-  </ul>
+    <p>
+      That bluntness is the entire cost story: a ~25&nbsp;kB gzipped polyfill shipped on every page load forever,
+      twenty-plus patched globals slowing down boot and polluting stack traces, and a full tree walk triggered by things
+      with nothing to do with your app — a third-party analytics ping, a chat widget's heartbeat, a WebSocket keepalive.
+      The only lever teams had was <code>NgZone.runOutsideAngular()</code>, wrapping hot code so its async completions
+      stayed invisible to the zone on purpose.
+    </p>
 
-  <p><a routerLink="/deferrable-views">Next: Deferrable Views (&#64;defer) →</a></p>
+    <div class="note">
+      <strong>The stepping stone most teams pass through first:</strong>
+      <code>provideZoneChangeDetection({{ '{' }} eventCoalescing: true, runCoalescing: true {{ '}' }})</code> — on by
+      default in modern Angular even with the zone still installed. <code>eventCoalescing</code> collapses one physical
+      DOM event into a single tick even when it bubbles through several <code>(click)</code> listeners on its way up the
+      tree — without it, one click three parents all listen for ticked the app three times.
+      <code>runCoalescing</code> does the same across separate <code>NgZone.run()</code> calls made in the same
+      synchronous stretch of code. Neither one changes <em>what</em> triggers a tick, only how many ticks one physical
+      event produces — it's real progress, and still fundamentally the concierge's full walk, just a shorter one. The
+      comparison table near the end of this lesson lines all three eras up side by side.
+    </div>
+  </section>
+
+  <!-- ============ 4. THE EXPLICIT REPLACEMENT LIST ============ -->
+  <section>
+    <p class="bf-eyebrow">The replacement</p>
+    <h2>Six things, and only six things, schedule a pass now.</h2>
+
+    <p>
+      No zone, no patched globals, no guessing. A zoneless app keeps one small, closed list of triggers, and every one
+      of them calls the exact same <code>notify()</code> — there is no separate "urgent" path.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        The complete list — nothing outside it schedules anything
+      </caption>
+      <thead>
+        <tr>
+          <th>Trigger</th>
+          <th>What that looks like</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Signal write</strong>, read somewhere reactive</td>
+          <td><code>count.set(1)</code> — marks its consuming views dirty and notifies</td>
+        </tr>
+        <tr>
+          <td><strong>Template or host event listener</strong></td>
+          <td>any <code>(click)</code>, <code>(input)</code>, <code>(mousemove)</code> — Angular wraps every one</td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>markForCheck()</code></strong
+            >, directly or via the <code>async</code> pipe
+          </td>
+          <td>an observable emission flowing through <code>| async</code></td>
+        </tr>
+        <tr>
+          <td><strong>Input written by the framework</strong></td>
+          <td>a parent binding wrote a new value, or <code>setInput()</code> on a component ref</td>
+        </tr>
+        <tr>
+          <td><strong>Structural operations</strong></td>
+          <td>attaching or detaching a view, <code>createComponent()</code></td>
+        </tr>
+        <tr>
+          <td><strong>Explicit tick</strong></td>
+          <td><code>ApplicationRef.tick()</code> — the manual crank, rarely the right tool</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Everything <em>outside</em> this list — a raw <code>setTimeout</code>, a promise chain, a
+      <code>fetch</code> callback, a WebSocket message, a listener attached by hand with <code>addEventListener</code> —
+      updates your data and tells absolutely no one.
+    </p>
+
+    <app-predict
+      prompt="A component registers a raw `addEventListener('mousemove', …)` on its own element inside `ngOnInit`, completely outside any template binding. Does moving the mouse over it schedule a render pass?"
+      answer="No — not on its own. That listener never went through Angular's template-event wrapping, so it is exactly as invisible to the scheduler as a `setTimeout`. If the handler writes to a plain field, the field changes and nothing renders. The only way it participates is if the handler itself writes to a signal, calls `markForCheck()`, or otherwise appears on the list above."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 5. LIVE PROOF #1 — ASYNC MUTATION VS SIGNAL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Live proof · scheduling</p>
+    <h2>Both really change. Only one gets seen.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — two timeouts, one difference (this app really is zoneless)</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <span class="pill">plain field: {{ plainValue }}</span>
+        <span class="pill">signal: {{ signalValue() }}</span>
+      </div>
+      <div class="row" style="flex-wrap: wrap">
+        <button class="ghost" (click)="timeoutPlain()">setTimeout → plain field</button>
+        <button (click)="timeoutSignal()">setTimeout → signal</button>
+      </div>
+      <p class="demo__note">
+        Both timers fire 300ms after you click and both really do assign. Under <code>Zone.js</code> the patched
+        <code>setTimeout</code> would trigger a tick and you'd see both update. Here, the plain-field write renders
+        <em>nothing</em> — until something else (the signal button, say) causes a pass, and that pass re-reads the
+        now-stale field too. A value that "appears late" the moment something unrelated happens is the classic symptom
+        of a missing notification.
+      </p>
+    </div>
+
+    <app-quiz
+      question="You click “setTimeout → plain field” once and then wait, touching nothing else. What does the screen show?"
+      [options]="setTimeoutQuizOptions"
+      followUp="Try it above — then click the signal button afterwards and watch the plain-field pill catch up in the same pass."
+    />
+  </section>
+
+  <!-- ============ 6. LIVE PROOF #2 — TEMPLATE EVENTS STILL SCHEDULE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Live proof · template events</p>
+    <h2>Clicks still "just work" — that part never changed.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — a plain field, mutated inside a <code>(click)</code> handler</p>
+      <div class="row" style="margin-bottom: 10px">
+        <span class="pill">clicks (plain field, no signal): {{ plainClicks }}</span>
+      </div>
+      <div class="row">
+        <button (click)="bumpPlainClicks()">Mutate a plain field in (click)</button>
+      </div>
+      <p class="demo__note">
+        Surprised it renders at all? Zoneless does not mean "signals only": Angular wraps every
+        <strong>template</strong> event listener, marks the view dirty and notifies the scheduler
+        <em>before your handler body even runs</em>. Synchronous work inside a template handler always renders fine —
+        it's the <em>async continuation</em> that needs a signal or <code>markForCheck()</code>.
+      </p>
+    </div>
+
+    <p>
+      That guarantee is broader than it sounds, and this is the gap a lot of "zoneless removes wasted passes"
+      explanations skip: it applies to <strong>every</strong> template event, at whatever frequency it fires.
+    </p>
+  </section>
+
+  <!-- ============ 7. THE HIGH-FREQUENCY-EVENT TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">The gap the marketing copy skips</p>
+    <h2>Sixty small events a second is sixty full passes a second.</h2>
+
+    <p>
+      A <code>(click)</code> firing a handful of times a session is free. A <code>(mousemove)</code> binding on a
+      draggable panel, or a <code>(scroll)</code> binding on a long list, fires up to sixty times a second while the
+      pointer moves — and every single firing is a template event, which means every single firing marks the view and
+      schedules a pass, whether or not the handler changes anything at all. That is
+      <span class="bf-break">precisely the problem <code>runOutsideAngular()</code> used to solve</span>, and it has not
+      gone away just because the zone that made it necessary has.
+    </p>
+
+    <app-napkin lead="stop and predict —" label="Before the live numbers">
+      Twelve simulated events fire down two paths below: one writes a signal on <em>every</em> event, the other writes a
+      signal only on every <strong>fourth</strong> event. Both paths see the same twelve events. Guess the render-pass
+      count for each path before you press the buttons.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — twelve events, two strategies</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="simulateBoundBurst()">Fire 12 events — bound to a signal every time</button>
+        <button class="ghost" (click)="simulateSmartBurst()">Fire 12 events — signal every 4th, summarized</button>
+      </div>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        <span class="pill">passes from the bound path: {{ boundPasses() }}</span>
+        <span class="pill">passes from the summarized path: {{ throttledPasses() }}</span>
+      </div>
+      <div class="row">
+        <button class="ghost" (click)="peekRawEvents()">
+          Peek the summarized path's raw event count (doesn't render)
+        </button>
+        <span class="pill">raw events counted: {{ rawPeek() }}</span>
+      </div>
+      <p class="demo__note">
+        Each button schedules twelve genuinely separate <code>setTimeout</code> callbacks — real, individually scheduled
+        tasks, standing in for twelve real <code>(mousemove)</code> firings, which cannot coalesce into one pass the way
+        several writes inside <em>one</em> synchronous handler do. Fire both and compare: the first path costs one pass
+        per event, twelve total. The second path counts every event in a plain field that renders nothing on its own —
+        proven by the "peek" button, which reveals the count without itself having caused any of the passes above it —
+        and writes to a signal only on every fourth one, roughly a quarter of the passes for the identical twelve
+        inputs.
+      </p>
+    </div>
+
+    <app-remember variant="rule">
+      A template event listener schedules a pass <strong>every time it fires</strong>, no matter what its body does. For
+      anything above a few events a second — <code>mousemove</code>, <code>scroll</code>, a drag, a resize — handle the
+      raw event outside a template binding and write only a <em>summarized</em> value into a signal. It is the modern,
+      explicit replacement for <code>runOutsideAngular()</code> + manual <code>markForCheck()</code>.
+    </app-remember>
+  </section>
+
+  <!-- ============ 8. UNDER THE HOOD — THE SCHEDULER ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>One flag is the entire coalescing mechanism.</h2>
+
+    <p>
+      Every trigger from the table above — a signal write, a template event, <code>markForCheck()</code>, a framework
+      input write — funnels into one scheduler, and that scheduler's whole job is deciding whether a new notification
+      needs a new pass or can ride along on one already coming.
+    </p>
+
+    <app-code-lab
+      file="scheduler.ts — simplified, but honest about the mechanism"
+      [code]="schedulerSample"
+      [notes]="schedulerNotes"
+      notesLabel="Where the coalescing actually happens"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — three signal writes, one click, one pass</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <span class="pill">a: {{ a() }}</span>
+        <span class="pill">b: {{ b() }}</span>
+        <span class="pill">c: {{ c() }}</span>
+        <span class="pill" style="color: var(--bf-accent)">passes over this view: {{ passes() }}</span>
+      </div>
+      <div class="row">
+        <button (click)="writeAllThree()">a.set / b.set / c.set — all inside one handler</button>
+      </div>
+      <p class="demo__note">
+        The pass counter climbs by <strong>one</strong> per click, not three: all three writes happen synchronously, so
+        the second and third calls to <code>notify()</code> find <code>pending</code> already <code>true</code> and do
+        nothing further. This is the flag from the sample above, proven live.
+      </p>
+    </div>
+
+    <p>
+      Zoneless changed <em>when</em> a pass gets scheduled. It did not touch what a pass does once it starts — root to
+      leaves, OnPush pruning entire subtrees, <code>===</code> per binding slot. Scheduling and strategy are still two
+      separate questions; this lesson only answers the first one.
+    </p>
+  </section>
+
+  <!-- ============ 9. PENDINGTASKS — THE HALF NOBODY EXPLAINS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The half nobody explains</p>
+    <h2>What actually decides the app is "stable"?</h2>
+
+    <p>
+      <code>Zone.js</code> did not just trigger renders — it also gave Angular a free way to know when the app had gone
+      quiet: "the microtask queue drained" doubled as "nothing is happening right now." Take the zone away and that free
+      signal disappears too, yet <code>ApplicationRef.isStable</code> and <code>fixture.whenStable()</code>
+      still exist and still work. What drives them now is a separate, easy-to-miss service:
+      <span class="term">PendingTasks</span>.
+    </p>
+
+    <app-code-lab
+      file="widget.service.ts"
+      [code]="pendingTasksSample"
+      [notes]="pendingTasksNotes"
+      notesLabel="The two shapes PendingTasks work comes in"
+    />
+
+    <p>
+      <code>HttpClient</code> registers a pending task for every request it makes, automatically — which is the entire
+      reason <code>whenStable()</code> and SSR already correctly wait for your HTTP calls without a single line of code
+      from you. The moment data arrives from anywhere else —
+      <span class="bf-break">a raw WebSocket, a third-party SDK's callback, a bare <code>setTimeout</code></span> — that
+      automatic coverage stops, silently, with no error to point at the gap.
+    </p>
+
+    <div class="warn">
+      <strong>Two concrete failure modes, same root cause.</strong> On the server: a zoneless SSR page waiting on a
+      third-party analytics SDK for its data serializes an <em>empty</em> list, because nothing told
+      <code>PendingTasks</code> to wait — the HTML goes out before the data ever arrives. In a test: your own
+      recommended pattern, <code>await fixture.whenStable()</code>, resolves correctly when the component's data comes
+      from <code>HttpClient</code> and resolves <strong>too early</strong> — a green test asserting against stale state
+      — the moment it comes from anything that never registered.
+    </div>
+
+    <app-napkin lead="psst —" label="Audit your own app">
+      Walk one screen of a real project in your head. Which of its data sources are <code>HttpClient</code> calls, and
+      which are something else — a socket, a third-party widget, a polling library? The ones in the second group are the
+      ones that need an explicit <code>PendingTasks</code> call if SSR or a test ever has to wait for them.
+    </app-napkin>
+
+    <app-quiz
+      question="A component's `load()` method both fires an `HttpClient` GET and starts a raw, un-registered `setTimeout`. A test does `await component.load(); await fixture.whenStable();` and then asserts on the timer's result. What happens?"
+      [options]="pendingTasksQuizOptions"
+      followUp="The fix is the `add()`/`run()` pattern from the sample above — wrap the timer's span with PendingTasks so whenStable() actually waits for it too."
+    />
+  </section>
+
+  <!-- ============ 10. MIGRATION, AS A SEQUENCE ============ -->
+  <section>
+    <p class="bf-eyebrow">Getting there</p>
+    <h2>Six steps, each one unlocked by the last.</h2>
+
+    <p>
+      Migrating a real zone app is not a single flag flip — it's mostly a hunt for code that was quietly relying on the
+      concierge's full walk. Doing the steps out of order tends to surface every failure at once, with no way to tell
+      which change caused which break.
+    </p>
+
+    <app-flow
+      caption="Each step assumes the ones above it are already clean — flipping the provider before auditing PendingTasks just moves the failure from 'obvious' to 'a flaky test three weeks later.'"
+      direction="vertical"
+      [steps]="migrationSteps"
+    />
+  </section>
+
+  <!-- ============ 11. TESTING WITHOUT THE ZONE ============ -->
+  <section>
+    <p class="bf-eyebrow">Testing</p>
+    <h2><code>fakeAsync</code> retires. <code>whenStable()</code> takes over.</h2>
+
+    <app-code-lab
+      file="widget.spec.ts"
+      [code]="testingSample"
+      [notes]="testingNotes"
+      notesLabel="What changed, and why the second version is more honest"
+    />
+
+    <p>
+      <code>fakeAsync</code> and <code>tick()</code> are zone features — they fast-forward a clock that only exists
+      because the zone patched time itself. Zoneless tests use real async instead, driven by the exact same notification
+      rules production runs on. That is a feature, not a downgrade: a test that fails under <code>whenStable()</code> is
+      showing you a component that would render stale in production, not a quirk of the test harness.
+    </p>
+  </section>
+
+  <!-- ============ 12. PULLING IT TOGETHER — THREE ERAS, SIDE BY SIDE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>The same questions, three different eras.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Zone (naive) → Zone + coalescing → Zoneless
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Zone.js (naive)</th>
+          <th>Zone.js + coalescing</th>
+          <th>Zoneless</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Bundle size</td>
+          <td>+25&nbsp;kB gzip</td>
+          <td>+25&nbsp;kB gzip</td>
+          <td>0</td>
+        </tr>
+        <tr>
+          <td>CD trigger</td>
+          <td>any patched async completing</td>
+          <td>any patched async completing</td>
+          <td>signal / event / <code>markForCheck</code> / input (explicit)</td>
+        </tr>
+        <tr>
+          <td>Ticks per click bubbling through 3 listeners</td>
+          <td>3 — one per listener</td>
+          <td>1 — <code>eventCoalescing</code></td>
+          <td>1 — each notify absorbed into the same pending pass</td>
+        </tr>
+        <tr>
+          <td>Ticks across 3 synchronous <code>NgZone.run()</code> calls</td>
+          <td>3</td>
+          <td>1 — <code>runCoalescing</code></td>
+          <td>1 — no <code>run()</code> needed at all</td>
+        </tr>
+        <tr>
+          <td>Wasted passes</td>
+          <td>constant — every timer &amp; ping ticks the app</td>
+          <td>fewer, still one per macrotask boundary</td>
+          <td>none from unnotified async — but every template event still costs one, at native frequency</td>
+        </tr>
+        <tr>
+          <td>Stack traces</td>
+          <td>polluted by zone wrapper frames</td>
+          <td>polluted by zone wrapper frames</td>
+          <td>clean native frames</td>
+        </tr>
+        <tr>
+          <td>SSR &amp; tests</td>
+          <td>zone-specific machinery (<code>fakeAsync</code>)</td>
+          <td>zone-specific machinery (<code>fakeAsync</code>)</td>
+          <td>plain promises, <code>PendingTasks</code>-driven <code>whenStable()</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      <strong>The middle column is not a dead end.</strong> It is the safest first move for a large app: same behaviour,
+      fewer wasted ticks, zero code changes beyond the provider config — and every later migration step still has to
+      happen before the last column is true.
+    </div>
+  </section>
+
+  <!-- ============ 13. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls</p>
+    <h2>The ways this bites in a real codebase.</h2>
+
+    <ul>
+      <li>
+        <strong>"It worked before."</strong> Code assigning fields inside <code>subscribe()</code> rendered fine under
+        the zone — the fix once it stops is <strong>signals or the async pipe</strong>, never sprinkling manual
+        <code>tick()</code> calls to paper over the gap.
+      </li>
+      <li>
+        <strong>Removing the provider is not the whole job.</strong> <code>provideZonelessChangeDetection()</code> alone
+        does not remove the polyfill — forgetting to delete <code>"zone.js"</code> from <code>angular.json</code>'s
+        <code>polyfills</code> keeps shipping the 25&nbsp;kB you migrated to save.
+      </li>
+      <li>
+        <strong>A rare library still expects the zone.</strong> Anything awaiting <code>onStable</code> for overlay
+        positioning — very old CDK versions, mainly — needs an upgrade; modern Angular Material and CDK are
+        zoneless-ready.
+      </li>
+      <li>
+        <strong><code>requestAnimationFrame</code> loops</strong> for canvas or WebGL never needed change detection in
+        the first place — keep them completely plain, and write only summarized state into a signal on the rare frame
+        the UI actually needs to reflect it.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 14. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 15. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Zone-era Angular <strong>guessed</strong> — any patched async completing anywhere ticked the whole tree.
+        Zoneless Angular is <strong>told</strong>: only the six triggers in the table above schedule anything.
+      </li>
+      <li>
+        A plain mutation still happens in memory; it just <strong>notifies no one</strong>. The fix is always a signal
+        write, <code>markForCheck()</code>, or another trigger from that same list — never a manual <code>tick()</code>.
+      </li>
+      <li>
+        Every template event listener schedules a pass <strong>on every firing</strong>, whether or not its body changes
+        anything. <span class="key">High-frequency events need summarizing</span>, not direct binding — the replacement
+        for <code>runOutsideAngular()</code>.
+      </li>
+      <li>
+        The scheduler's whole coalescing trick is <strong>one flag</strong>: a pass already pending absorbs every
+        further notification until it actually runs.
+      </li>
+      <li>
+        Stability now runs on <code>PendingTasks</code>, not the zone. <code>HttpClient</code> registers it for you;
+        <strong
+          >anything else async — sockets, third-party SDKs, raw timers — is invisible to <code>whenStable()</code> until
+          you register it yourself.</strong
+        >
+      </li>
+      <li>
+        Migrate in order: OnPush first, then async-assigned fields, then a <code>PendingTasks</code> audit, then the
+        provider flip — reversing the order turns one clear failure into several confusing ones.
+      </li>
+    </ul>
+
+    <p><a routerLink="/deferrable-views">Next: Deferrable Views (&#64;defer) →</a></p>
+  </section>
 </article>
