@@ -1,211 +1,312 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Rendering &amp; Delivery</span>
-  <h1>PWA &amp; Service Worker</h1>
-  <p class="lead">
-    A Progressive Web App installs to the home screen, works offline, and loads instantly on repeat visits. Angular
-    ships a <em>generated, declarative</em>
-    service worker — you write JSON config, not worker code — with atomic versioned updates and a small runtime API
-    (<code>SwUpdate</code>/<code>SwPush</code>). This page covers the engine, the caching strategies, the update
-    lifecycle, and the production gotchas.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Expert · Rendering"
+    title="PWA & Service Worker"
+    hand="or, how to renovate a hotel while every room stays occupied"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      A Progressive Web App installs to the home screen, works offline, and loads instantly on repeat visits. Angular
+      runs the whole thing like
+      <strong>hotel management renovating the building while every room stays occupied</strong>
+      — nobody gets moved mid-stay, and the new wing only opens once every last fixture has been checked. This page
+      covers the engine behind that guarantee, the caching strategies, the update lifecycle, and the production gotchas.
+    </p>
+  </app-chapter>
 
-  <h2>What makes a PWA — and what ng add scaffolds</h2>
-  <ul>
-    <li><strong>HTTPS</strong> — service workers refuse to register on insecure origins (localhost excepted).</li>
-    <li>
-      <strong>A web app manifest</strong> — <code>manifest.webmanifest</code>: name, icons, <code>theme_color</code>,
-      <code>display: "standalone"</code>. This is what makes the browser offer "install".
-    </li>
-    <li><strong>A service worker</strong> — the offline/caching engine.</li>
-  </ul>
-  <div class="code">
-    <pre>{{ setupSample }}</pre>
-  </div>
-  <div class="warn">
-    The worker is <strong>disabled in ng serve</strong> and only activates in a production build served over
-    HTTPS/localhost. Test with <code>ng build</code> + any static server. Caching bugs that "survive" your fixes are
-    usually a stale worker — unregister it in DevTools → Application → Service Workers, or bump the version.
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>
+    <h2>A tab has been open since 9am. You deploy a fix at 2pm.</h2>
 
-  <h2>How the engine works (this is the exam-worthy part)</h2>
-  <p>
-    <code>ng build</code> generates <code>ngsw.json</code> — a manifest listing every cacheable file
-    <em>with its content hash</em>. The generic <code>ngsw-worker.js</code> engine reads it and treats each manifest as
-    an immutable <strong>app version</strong>:
-  </p>
-  <ul>
-    <li>
-      <strong>Atomic updates</strong> — the worker serves the current version in full while downloading the next one in
-      the background. Users never get v1's HTML with v2's JS (the classic broken-deploy bug ngsw exists to solve).
-    </li>
-    <li>
-      <strong>Hash-verified</strong> — if a cached file's hash doesn't match the manifest (a CDN served a stale file),
-      the worker treats the version as broken and falls back to the network.
-    </li>
-    <li>
-      <strong>One tab, one version</strong> — a running tab keeps its version until reload; the new version activates on
-      the next load or when you call <code>activateUpdate()</code>.
-    </li>
-  </ul>
+    <p>The service worker downloads and verifies the new version in the background almost immediately. So:</p>
 
-  <h2>Caching strategy decision lab</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — pick a resource type, get the config + reasoning</p>
-    <div class="chips">
-      @for (r of resources; track r.label) {
-        <button [class.on]="activeResource() === r" (click)="activeResource.set(r)">{{ r.label }}</button>
-      }
+    <app-predict
+      prompt="A user opened the app at 9:00am and has never reloaded, navigated, or closed the tab. You ship a critical fix at 2:00pm. When does their tab get it?"
+      answer="Not automatically — possibly never, for that tab. The worker downloads and hash-verifies v2 in the background, but the OPEN tab keeps running v1's already-loaded JavaScript until the tab reloads or navigates, even long after v2 is fully `ready`. If nothing ever triggers a check and nothing polls, a dashboard like this could run v1 indefinitely. That's exactly why long-lived tabs need an explicit `checkForUpdate()` poll, and why `VERSION_READY` exists as a safe moment to *prompt* rather than a moment to *switch*."
+    />
+  </section>
+
+  <!-- ============ 2. THE ANALOGY ============ -->
+  <section>
+    <p class="bf-eyebrow">The mental model</p>
+    <h2>A hotel that renovates without ever closing a room.</h2>
+
+    <p>
+      Picture hotel management upgrading the building one version at a time, guests still checked in throughout. They
+      don't touch a single occupied room. Instead they build an <strong>entire new wing off to the side</strong> — every
+      fixture, every file — and don't open it to anyone until
+      <strong>every last item has been checked against the blueprint</strong>. Guests already checked in keep their
+      current room for the rest of their stay; only new check-ins, or guests who choose to move, ever set foot in the
+      new wing.
+    </p>
+    <p>
+      That's the whole engine. The "blueprint" is <code>ngsw.json</code>, a manifest listing every cacheable file with
+      its exact content hash. "Building the new wing" is the worker downloading v2 in the background. "Checking it
+      against the blueprint" is hash verification — if one cached file doesn't match, the worker treats that whole
+      version as unsafe and falls back to the network rather than serving a half-broken room. And "guests keep their
+      room until checkout" is the one-tab-one-version rule: nothing moves your already-open tab until it reloads.
+    </p>
+
+    <app-remember variant="mnemonic">
+      New wing, same guests. The worker never touches a room while someone's in it — it finishes and inspects the
+      <em>entire</em> new version off to the side first, and existing tabs don't move until they check out (reload).
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. WHAT NG ADD SCAFFOLDS ============ -->
+  <section>
+    <p class="bf-eyebrow">In practice</p>
+    <h2>What makes a PWA — and what <code>ng add</code> scaffolds.</h2>
+
+    <ul>
+      <li><strong>HTTPS</strong> — service workers refuse to register on insecure origins (localhost excepted).</li>
+      <li>
+        <strong>A web app manifest</strong> — <code>manifest.webmanifest</code>: name, icons, <code>theme_color</code>,
+        <code>display: "standalone"</code>. This is what makes the browser offer "install".
+      </li>
+      <li><strong>A service worker</strong> — the offline/caching engine.</li>
+    </ul>
+
+    <app-code-lab
+      file="terminal + app.config.ts"
+      [code]="setupSample"
+      [notes]="setupNotes"
+      notesLabel="One command, one provider"
+    />
+
+    <div class="warn">
+      The worker is <strong>disabled in ng serve</strong> and only activates in a production build served over
+      HTTPS/localhost. Test with <code>ng build</code> + any static server. Caching bugs that "survive" your fixes are
+      usually a stale worker — unregister it in DevTools → Application → Service Workers, or bump the version.
     </div>
-    @if (activeResource(); as r) {
-      <span class="strat-pill">{{ r.group }} · {{ r.strategy }}</span>
-      <p style="font-size: 0.9rem; margin: 6px 0 10px">{{ r.why }}</p>
-      <div class="code" style="font-size: 0.82rem">
-        <pre>{{ r.snippet }}</pre>
+  </section>
+
+  <!-- ============ 4. HOW THE ENGINE WORKS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>How the engine works — this is the exam-worthy part.</h2>
+
+    <p>
+      <code>ng build</code> generates <code>ngsw.json</code> — the blueprint from the analogy above, an immutable
+      manifest listing every cacheable file with its content hash. The generic <code>ngsw-worker.js</code> engine reads
+      it and treats each manifest as one <strong>app version</strong>:
+    </p>
+
+    <app-flow caption="A deploy, from the worker's point of view" [steps]="engineFlow" />
+
+    <ul>
+      <li>
+        <strong>Atomic updates</strong> — the worker serves the current version in full while downloading the next one
+        in the background. Users never get v1's HTML with v2's JS (the classic broken-deploy bug ngsw exists to solve).
+      </li>
+      <li>
+        <strong>Hash-verified</strong> — if a cached file's hash doesn't match the manifest (a CDN served a stale file),
+        the worker treats the version as broken and falls back to the network.
+      </li>
+      <li>
+        <strong>One tab, one version</strong> — a running tab keeps its version until reload; the new version activates
+        on the next load or when you call <code>activateUpdate()</code>.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 5. CACHING STRATEGY DECISION LAB ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">In practice</p>
+    <h2>Two shelves: the hotel's own furniture, and room service.</h2>
+
+    <p>
+      <strong>assetGroups</strong> are the building's own fixtures — versioned with the app, tracked by hash.
+      <strong>dataGroups</strong> are room service — live API responses with their own freshness policy, entirely
+      independent of which app version is running.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Interactive — pick a resource type, get the config + reasoning</p>
+      <div class="chips">
+        @for (r of resources; track r.label) {
+          <button [class.on]="activeResource() === r" (click)="activeResource.set(r)">{{ r.label }}</button>
+        }
       </div>
-    } @else {
-      <p style="color: var(--text-muted); font-size: 0.88rem">
-        The core distinction: <strong>assetGroups</strong> = versioned files that ship with the app;
-        <strong>dataGroups</strong> = runtime API responses with independent lifetimes.
-      </p>
-    }
-  </div>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>assetGroups</th>
-      <th>dataGroups</th>
-    </tr>
-    <tr>
-      <td>For</td>
-      <td>files of the app itself (JS, CSS, images, fonts)</td>
-      <td>API responses at runtime</td>
-    </tr>
-    <tr>
-      <td>Updated</td>
-      <td>with each app version (hash-tracked)</td>
-      <td>by its own <code>maxAge</code>/policy, independent of versions</td>
-    </tr>
-    <tr>
-      <td>Knobs</td>
-      <td><code>installMode</code>/<code>updateMode</code>: prefetch | lazy</td>
-      <td>
-        <code>strategy</code>: freshness (network-first) | performance (cache-first), plus <code>timeout</code>,
-        <code>maxAge</code>, <code>maxSize</code>
-      </td>
-    </tr>
-  </table>
-
-  <h2>The update lifecycle, simulated</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — walk a deploy through SwUpdate</p>
-    <div class="sim">
-      @for (s of stages; track s.id) {
-        <span class="stage" [class.hit]="reached(s.id)">{{ s.label }}</span>
+      @if (activeResource(); as r) {
+        <span class="strat-pill">{{ r.group }} · {{ r.strategy }}</span>
+        <p style="font-size: 0.9rem; margin: 6px 0 10px">{{ r.why }}</p>
+        <div class="code" style="font-size: 0.82rem">
+          <pre>{{ r.snippet }}</pre>
+        </div>
+      } @else {
+        <p style="color: var(--text-muted); font-size: 0.88rem">
+          The core distinction: <strong>assetGroups</strong> = versioned files that ship with the app;
+          <strong>dataGroups</strong> = runtime API responses with independent lifetimes.
+        </p>
       }
     </div>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="advance()" [disabled]="state().id === 'activated'">{{ nextAction() }}</button>
-      <button class="ghost" (click)="resetSim()">Reset</button>
-    </div>
-    <div class="sim-log">
-      @for (line of state().log; track $index) {
-        <p>{{ line }}</p>
-      }
-    </div>
-  </div>
-  <div class="code">
-    <pre>{{ updateSample }}</pre>
-  </div>
-  <div class="note">
-    <code>versionUpdates</code> emits <code>VERSION_DETECTED</code> (download starting),
-    <code>VERSION_READY</code> (installed — safe to prompt), <code>VERSION_INSTALLATION_FAILED</code>, and
-    <code>NO_NEW_VERSION_DETECTED</code>. The worker checks for updates on registration and navigation — for long-lived
-    tabs (dashboards people keep open for days) poll with <code>checkForUpdate()</code> on an interval. Handle
-    <code>unrecoverable</code> too: it fires when the cached version is broken and the only fix is a reload.
-  </div>
 
-  <h2>Push notifications — SwPush in one glance</h2>
-  <div class="code">
-    <pre>{{ pushSample }}</pre>
-  </div>
-  <p>
-    <code>requestSubscription</code> needs your VAPID public key and user permission; the resulting subscription goes to
-    your backend, which sends pushes through the browser's push service. Messages arrive on
-    <code>swPush.messages</code>; clicks on <code>notificationClicks</code>. The heavy lifting is the backend
-    integration — treat it as a real feature, not a checkbox.
-  </p>
+    <table class="cmp">
+      <tr>
+        <th></th>
+        <th>assetGroups</th>
+        <th>dataGroups</th>
+      </tr>
+      <tr>
+        <td>For</td>
+        <td>files of the app itself (JS, CSS, images, fonts)</td>
+        <td>API responses at runtime</td>
+      </tr>
+      <tr>
+        <td>Updated</td>
+        <td>with each app version (hash-tracked)</td>
+        <td>by its own <code>maxAge</code>/policy, independent of versions</td>
+      </tr>
+      <tr>
+        <td>Knobs</td>
+        <td><code>installMode</code>/<code>updateMode</code>: prefetch | lazy</td>
+        <td>
+          <code>strategy</code>: freshness (network-first) | performance (cache-first), plus <code>timeout</code>,
+          <code>maxAge</code>, <code>maxSize</code>
+        </td>
+      </tr>
+    </table>
+  </section>
 
-  <h2>Production gotchas &amp; debugging</h2>
-  <ul>
-    <li>
-      <strong>ngsw/state</strong> — visit <code>/ngsw/state</code> in the app: the worker reports its current versions,
-      clients, and update status. First stop for "why is it serving old code".
-    </li>
-    <li>
-      <strong>ngsw-bypass</strong> — add the <code>ngsw-bypass</code> header (or query param) to any request and the
-      worker steps aside — essential when debugging API calls you suspect are cached.
-    </li>
-    <li>
-      <strong>The safety worker</strong> — shipping a broken worker can pin users to a bad version. Angular provides
-      <code>safety-worker.js</code>: deploy it at the same URL to unregister the worker and clear its caches for
-      everyone.
-    </li>
-    <li>
-      <strong>Never cache what you can't hash</strong> — external CDN scripts in assetGroups (via <code>urls</code>) are
-      cached but not hash-verified; prefer bundling or dataGroups with a short maxAge.
-    </li>
-    <li>
-      <strong>index.html must not be aggressively CDN-cached</strong> — the worker bootstraps from it; an edge cache
-      serving week-old HTML defeats the whole update mechanism.
-    </li>
-  </ul>
+  <!-- ============ 6. THE UPDATE LIFECYCLE, SIMULATED ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>The update lifecycle, simulated.</h2>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>freshness vs performance — which for a stock ticker, which for a country list?</summary>
-    <div>
-      Ticker: <strong>freshness</strong> (network-first with timeout — stale prices are harmful). Country list:
-      <strong>performance</strong> (cache-first — instant, and staleness for 7 days is irrelevant).
+    <div class="demo">
+      <p class="demo__title">Interactive — walk a deploy through SwUpdate</p>
+      <div class="sim">
+        @for (s of stages; track s.id) {
+          <span class="stage" [class.hit]="reached(s.id)">{{ s.label }}</span>
+        }
+      </div>
+      <div class="row" style="margin-bottom: 10px">
+        <button class="bf-btn" (click)="advance()" [disabled]="state().id === 'activated'">
+          {{ nextAction() }}
+        </button>
+        <button class="bf-btn bf-btn--ghost" (click)="resetSim()">Reset</button>
+      </div>
+      <div class="sim-log">
+        @for (line of state().log; track $index) {
+          <p>{{ line }}</p>
+        }
+      </div>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Why don't users see a half-updated app during deploys?</summary>
-    <div>
-      Updates are atomic: the worker serves the complete current version while the new manifest's files download; only
-      when every hash-verified file is cached does the new version become activatable — on next load or explicit
-      <code>activateUpdate()</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>A user reports week-old code. Diagnosis path?</summary>
-    <div>
-      Check <code>/ngsw/state</code> for the served version; verify index.html isn't edge-cached with a long TTL;
-      confirm the tab isn't simply long-lived without a <code>checkForUpdate()</code> poll; worst case, the deployed
-      worker is broken — ship the safety worker to unregister it.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why is the service worker off during <code>ng serve</code>?</summary>
-    <div>
-      Dev rebuilds constantly change file hashes — the worker would thrash caching stale bundles and mask live-reload.
-      It's enabled only for production builds (<code>enabled: !isDevMode()</code>), served over HTTPS or localhost.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>PWA = HTTPS + manifest + service worker; <code>ng add &#64;angular/pwa</code> scaffolds all three.</li>
-    <li>The generated engine versions the app via hashed manifests — updates are atomic and verified.</li>
-    <li>assetGroups cache the app (prefetch/lazy); dataGroups cache APIs (freshness/performance + maxAge/timeout).</li>
-    <li>
-      Drive updates with <code>SwUpdate.versionUpdates</code> (<code>VERSION_READY</code> → prompt →
-      <code>activateUpdate()</code> → reload); poll long-lived tabs.
-    </li>
-    <li>
-      Debug with <code>/ngsw/state</code> and <code>ngsw-bypass</code>; keep <code>safety-worker.js</code> in your back
-      pocket.
-    </li>
-  </ul>
+    <app-code-lab
+      file="update.service.ts"
+      [code]="updateSample"
+      [notes]="updateNotes"
+      notesLabel="Three concerns, one constructor"
+    />
 
-  <p><a routerLink="/state-management">Next: State Management →</a></p>
+    <app-quiz
+      question="`versionUpdates` just emitted `VERSION_READY`. What's actually true right now?"
+      [options]="quizOptions"
+      followUp="Run the simulator above again and watch: the READY stage lights up a full step before ACTIVATED."
+    />
+
+    <app-remember variant="rule">
+      Never reload out from under someone. <code>activateUpdate()</code> swaps the worker over, but the reload that
+      actually matters is yours to trigger — and only after they've said yes.
+    </app-remember>
+
+    <div class="note">
+      <code>versionUpdates</code> also emits <code>VERSION_INSTALLATION_FAILED</code> and
+      <code>NO_NEW_VERSION_DETECTED</code>. The worker checks for updates on registration and navigation — for
+      long-lived tabs (dashboards people keep open for days) poll with <code>checkForUpdate()</code> on an interval.
+      Handle <code>unrecoverable</code> too: it fires when the cached version is broken and the only fix is a reload.
+    </div>
+  </section>
+
+  <!-- ============ 7. PUSH NOTIFICATIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">In practice</p>
+    <h2>Push notifications — <code>SwPush</code> in one glance.</h2>
+
+    <app-code-lab
+      file="push.service.ts"
+      [code]="pushSample"
+      [notes]="pushNotes"
+      notesLabel="Subscribe, receive, route"
+    />
+
+    <p>
+      <code>requestSubscription</code> needs your VAPID public key and user permission; the resulting subscription goes
+      to your backend, which sends pushes through the browser's push service. Messages arrive on
+      <code>swPush.messages</code>; clicks on <code>notificationClicks</code>. The heavy lifting is the backend
+      integration — treat it as a real feature, not a checkbox.
+    </p>
+  </section>
+
+  <!-- ============ 8. PRODUCTION GOTCHAS ============ -->
+  <section>
+    <p class="bf-eyebrow">Debugging</p>
+    <h2>Production gotchas.</h2>
+
+    <ul>
+      <li>
+        <strong>ngsw/state</strong> — visit <code>/ngsw/state</code> in the app: the worker reports its current
+        versions, clients, and update status. First stop for "why is it serving old code".
+      </li>
+      <li>
+        <strong>ngsw-bypass</strong> — add the <code>ngsw-bypass</code> header (or query param) to any request and the
+        worker steps aside — essential when debugging API calls you suspect are cached.
+      </li>
+      <li>
+        <strong>The safety worker</strong> — shipping a broken worker can pin users to a bad version. Angular provides
+        <code>safety-worker.js</code>: deploy it at the same URL to unregister the worker and clear its caches for
+        everyone.
+      </li>
+      <li>
+        <strong>Never cache what you can't hash</strong> — external CDN scripts in assetGroups (via <code>urls</code>)
+        are cached but not hash-verified; prefer bundling or dataGroups with a short maxAge.
+      </li>
+      <li>
+        <strong>index.html must not be aggressively CDN-cached</strong> — the worker bootstraps from it; an edge cache
+        serving week-old HTML defeats the whole update mechanism.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Recap — five things to remember.</h2>
+
+    <ul>
+      <li>
+        PWA = HTTPS + manifest + service worker; <code>ng add &#64;angular/pwa</code> scaffolds all three. The engine
+        runs your app like <span class="key">a hotel renovating without ever closing a room</span>.
+      </li>
+      <li>
+        The generated engine versions the app via hashed manifests — updates are atomic and verified, and a running tab
+        never moves to the new wing until it checks out (reloads).
+      </li>
+      <li>
+        assetGroups cache the app (prefetch/lazy); dataGroups cache APIs (freshness/performance + maxAge/timeout).
+      </li>
+      <li>
+        Drive updates with <code>SwUpdate.versionUpdates</code> — <code>VERSION_READY</code> means built and inspected,
+        <span class="bf-break">not occupied</span> — prompt, then <code>activateUpdate()</code>, then reload; poll
+        long-lived tabs.
+      </li>
+      <li>
+        Debug with <code>/ngsw/state</code> and <code>ngsw-bypass</code>; keep <code>safety-worker.js</code> in your
+        back pocket.
+      </li>
+    </ul>
+
+    <p><a routerLink="/state-management">Next: State Management →</a></p>
+  </section>
 </article>
