@@ -1,264 +1,374 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Forms</span>
-  <h1>Custom Form Controls (CVA)</h1>
-  <p class="lead">
-    <code>ControlValueAccessor</code> is the bridge that lets your own component behave like a native
-    <code>&lt;input&gt;</code> inside Angular forms — usable with <code>formControlName</code>,
-    <code>[(ngModel)]</code>, validation, statuses and disabled state. It's a four-method contract plus one provider
-    registration — and it is <em>the same mechanism</em> Angular uses for native inputs:
-    <code>DefaultValueAccessor</code>, <code>CheckboxControlValueAccessor</code>
-    and friends are just built-in CVAs.
-  </p>
-
-  <h2>The two directions of data flow</h2>
-  <div class="code">
-    <pre>{{ flowSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Method</th>
-      <th>Direction</th>
-      <th>When the form calls it / you call it</th>
-    </tr>
-    <tr>
-      <td><code>writeValue(v)</code></td>
-      <td>model → view</td>
-      <td>
-        <code>setValue()</code>, <code>patchValue()</code>, <code>reset()</code>, initial value — render <code>v</code>,
-        and expect <code>null</code> on reset
-      </td>
-    </tr>
-    <tr>
-      <td><code>registerOnChange(fn)</code></td>
-      <td>view → model</td>
-      <td>the form hands you its callback once at setup; you call <code>fn(value)</code> on every user edit</td>
-    </tr>
-    <tr>
-      <td><code>registerOnTouched(fn)</code></td>
-      <td>view → model</td>
-      <td>
-        call <code>fn()</code> when the user "leaves" the control (blur) — drives <code>touched</code> and error-display
-        logic
-      </td>
-    </tr>
-    <tr>
-      <td><code>setDisabledState(b)</code></td>
-      <td>model → view</td>
-      <td><code>control.disable()/enable()</code> — reflect it or the API silently doesn't work</td>
-    </tr>
-  </table>
-  <div class="warn">
-    The subtle rule: user edits go through <code>onChange</code> <em>only</em>; programmatic writes arrive via
-    <code>writeValue</code> <em>only</em>. Never call <code>onChange</code> from inside <code>writeValue</code> — that
-    echoes model writes back at the form, re-triggering <code>valueChanges</code> and, with two bound controls, an
-    infinite ping-pong.
-  </div>
-
-  <h2>Registering as a value accessor</h2>
-  <div class="code">
-    <pre>{{ registerSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>multi: true</code></strong> — <code>NG_VALUE_ACCESSOR</code> is a multi-token; without it you'd blow
-      away other registrations instead of contributing.
-    </li>
-    <li>
-      <strong><code>forwardRef</code></strong> — the provider references the class before its declaration completes
-      (decorators evaluate at class-definition time).
-    </li>
-    <li>
-      <strong><code>useExisting</code></strong> — reuse the component instance itself; <code>useClass</code> would
-      create a <em>second</em>, disconnected instance.
-    </li>
-  </ul>
-
-  <h2>Live #1 — a star rating in a reactive form</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <app-star-rating [formControl]="rating" />
-    <p class="row" style="margin-top: 10px">
-      <span class="pill">value: {{ rating.value }}</span>
-      <span class="pill">touched: {{ rating.touched }}</span>
-      <span class="pill">dirty: {{ rating.dirty }}</span>
-      <span class="pill">disabled: {{ rating.disabled }}</span>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="Angular Expert · Forms"
+    title="Custom Form Controls (CVA)"
+    hand="or, how your component learns to speak formControlName"
+    [stops]="stops"
+    [current]="4"
+  >
+    <p class="lead">
+      <code>ControlValueAccessor</code> is the bridge that lets your own component behave like a native
+      <code>&lt;input&gt;</code> inside Angular forms — usable with <code>formControlName</code>,
+      <code>[(ngModel)]</code>, validation, statuses and disabled state. It's
+      <strong>the same mechanism</strong> Angular uses for native inputs: <code>DefaultValueAccessor</code>,
+      <code>CheckboxControlValueAccessor</code>
+      and friends are just built-in CVAs, and by the end of this page yours will be built the same way.
     </p>
-    <div class="row">
-      <button (click)="rating.setValue(0)">setValue(0) → writeValue</button>
-      <button (click)="rating.reset()">reset() → writeValue(null)</button>
-      <button class="ghost" (click)="toggleDisabled()">
-        {{ rating.disabled ? 'enable()' : 'disable()' }} → setDisabledState
-      </button>
-    </div>
-    <p class="lead" style="font-size: 0.95rem">
-      The component knows nothing about <em>this</em> form — it just speaks the CVA contract, so the same control works
-      with any <code>FormControl</code>, <code>formControlName</code> or <code>[(ngModel)]</code>. Note
-      <code>dirty</code> flips only on star clicks (user edits via <code>onChange</code>), never on the buttons
-      (programmatic writes via <code>writeValue</code>) — the two directions really are separate.
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Your component doesn't speak forms.</h2>
+
+    <p>
+      Drop <code>formControlName="rating"</code> onto a native <code>&lt;input&gt;</code> and it just works. Drop the
+      exact same attribute onto your own <code>&lt;app-star-rating&gt;</code> and Angular throws, instantly:
+      <span class="bf-break">"No value accessor for form control name: 'rating'."</span> Both are components under the
+      hood — <code>&lt;input&gt;</code> is just one Angular already knows how to talk to.
     </p>
-  </div>
 
-  <h2>Live #2 — a control that validates itself (CVA + Validator)</h2>
-  <p>
-    Register the same class under <code>NG_VALIDATORS</code> too and the control contributes its own errors — consumers
-    get validation for free, no matter which form they embed it in:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — quantity stepper, allowed range 1–5 (goes out of range on purpose)</p>
-    <app-qty-stepper [formControl]="qty" [min]="1" [max]="5" />
-    <p class="row" style="margin-top: 10px">
-      <span class="pill">value: {{ qty.value }}</span>
-      <span class="pill" [style.color]="qty.valid ? 'var(--green)' : 'var(--amber)'">status: {{ qty.status }}</span>
+    <p>
+      So the real question isn't "why does this fail" — it's
+      <span class="key">what does an input have that your component doesn't, yet</span>?
     </p>
-    @if (qty.errors; as errs) {
-      <p class="err">errors: {{ errs | json }}</p>
-    }
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Step past 5 (or below 1) and the <em>form control</em> turns INVALID with the component's own error object — the
-      parent form wrote zero validation code.
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      A native <code>&lt;input&gt;</code> does two jobs for the forms system: it <strong>renders</strong> a value it's
+      given, and it <strong>reports</strong> a value the user typed. Before you scroll — how many separate methods do
+      you think Angular needs from a component to cover both jobs, plus the "leave me alone, I'm disabled" case? Try to
+      name them, not just the count.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A translator who must never talk to themselves.</h2>
+
+    <p>
+      Picture two diplomats at a summit who share no language. One — <code>FormControl</code> — only speaks
+      <code>setValue</code> and reads <code>valueChanges</code>. The other — your component — only understands its own
+      clicks and its own state. <code>ControlValueAccessor</code> is the interpreter standing between them. Diplomat A
+      speaks; the interpreter renders it for diplomat B. Diplomat B reacts; the interpreter reports it back to diplomat
+      A.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ validatorSample }}</pre>
-  </div>
 
-  <h2>Under the hood — how formControl finds your CVA</h2>
-  <div class="code">
-    <pre>{{ underHoodSample }}</pre>
-  </div>
-  <ol>
-    <li>
-      The <code>formControl</code>/<code>formControlName</code>/<code>ngModel</code> directive injects
-      <code>NG_VALUE_ACCESSOR</code> <strong>from its own element</strong> (<code>&#64;Self()</code>) — which is why the
-      provider must sit on your component, and why putting <code>formControlName</code> on an element with no accessor
-      throws <em>"No value accessor for form control"</em>.
-    </li>
-    <li>
-      If several accessors match, Angular picks by precedence: your <strong>custom</strong> accessor wins over built-in
-      ones (checkbox/select/etc.), which win over <code>DefaultValueAccessor</code>.
-    </li>
-    <li>
-      <code>setUpControl()</code> then wires both directions: it calls your <code>registerOnChange</code>/<code
-        >registerOnTouched</code
-      >
-      with the form's callbacks, and hooks the model so <code>setValue</code> flows into your <code>writeValue</code>.
-    </li>
-    <li>
-      Validators from <code>NG_VALIDATORS</code> on the same element are composed with any validators passed to the
-      <code>FormControl</code> itself.
-    </li>
-  </ol>
+    <p>
+      There is exactly one rule every interpreter follows, and it's the rule this whole lesson exists to enforce:
+      <span class="key">never repeat a diplomat's own sentence back to them.</span> Break it, and you get two people
+      frantically re-translating each other's words forever — which is precisely the
+      <span class="bf-break">echo loop</span> that follows from calling <code>onChange</code> from inside
+      <code>writeValue</code>.
+    </p>
 
-  <h2>CVA vs plain &#64;Input/&#64;Output</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>value <code>input</code> + <code>output</code></th>
-      <th>ControlValueAccessor</th>
-    </tr>
-    <tr>
-      <td>Works with <code>formControlName</code>/<code>ngModel</code></td>
-      <td>no</td>
-      <td>yes — both, unchanged</td>
-    </tr>
-    <tr>
-      <td>touched / dirty / statuses</td>
-      <td>reimplement by hand</td>
-      <td>free</td>
-    </tr>
-    <tr>
-      <td>Validation integration</td>
-      <td>manual wiring per consumer</td>
-      <td><code>NG_VALIDATORS</code>, composed automatically</td>
-    </tr>
-    <tr>
-      <td><code>form.disable()</code></td>
-      <td>ignored</td>
-      <td><code>setDisabledState</code></td>
-    </tr>
-    <tr>
-      <td>Best for</td>
-      <td>non-form widgets (toolbars, toggles outside forms)</td>
-      <td>anything a user "fills in"</td>
-    </tr>
-  </table>
+    <app-remember variant="mnemonic">
+      <strong>IN never calls OUT.</strong> <code>writeValue</code> and <code>setDisabledState</code> are IN (model →
+      view) — they only render. <code>onChange</code> and <code>onTouched</code> are OUT (view → model) — they only
+      report. An interpreter who repeats a diplomat's own words back to them isn't translating any more; that's the echo
+      loop.
+    </app-remember>
 
-  <h2>Wrong way vs right way</h2>
-  <div class="code">
-    <pre>{{ wrongRightSample }}</pre>
-  </div>
+    <app-bubbles [turns]="bridgeTalk" caption="The exchange behind one click and one setValue() call." />
+  </section>
 
-  <div class="tip">
-    Under <strong>OnPush</strong>, remember that <code>writeValue</code> is a plain method call from the forms runtime —
-    not an input binding — so setting a plain field there won't mark the view dirty. Store the value in a
-    <strong>signal</strong> (as both demos here do) and the problem disappears.
-  </div>
+  <!-- ============ 3. THE MECHANISM — FOUR METHODS, TWO DIRECTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Four methods. Only two directions.</h2>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>"No value accessor for form control name: 'rating'" — what's wrong?</summary>
-    <div>
-      The element carrying <code>formControlName</code> provides no <code>NG_VALUE_ACCESSOR</code>: either the custom
-      control forgot the provider (or the <code>multi: true</code>), or the directive was put on a plain
-      <code>&lt;div&gt;</code>. The directive looks for the accessor with <code>&#64;Self()</code> — it must be on the
-      same element.
+    <p>
+      Strip away the ceremony and a <code>ControlValueAccessor</code> is four methods sorted into two directions. Here
+      is one full round trip — a programmatic write, then a user edit — as a single sequence, because the two directions
+      aren't separate features, they're two halves of the same bridge.
+    </p>
+
+    <app-flow
+      direction="vertical"
+      caption="One star rating, one setValue() call, one click. Watch the direction flip at the click."
+      [steps]="flowSteps"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The four methods — and which direction each one belongs to
+      </caption>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Direction</th>
+          <th>When it fires</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>writeValue(v)</code></td>
+          <td>model → view</td>
+          <td>
+            <code>setValue()</code>, <code>patchValue()</code>, <code>reset()</code>, the initial value — render
+            <code>v</code>, and expect <code>null</code> on reset
+          </td>
+        </tr>
+        <tr>
+          <td><code>registerOnChange(fn)</code></td>
+          <td>view → model</td>
+          <td>the form hands you its callback once at setup; you call <code>fn(value)</code> on every user edit</td>
+        </tr>
+        <tr>
+          <td><code>registerOnTouched(fn)</code></td>
+          <td>view → model</td>
+          <td>
+            call <code>fn()</code> when the user "leaves" the control (blur) — drives <code>touched</code> and
+            error-display logic
+          </td>
+        </tr>
+        <tr>
+          <td><code>setDisabledState(b)</code></td>
+          <td>model → view</td>
+          <td><code>control.disable()</code> / <code>enable()</code> — reflect it or the API silently doesn't work</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      <strong>Touched belongs to blur, not to every keystroke.</strong> Call <code>onChange</code> on every edit; save
+      <code>onTouched</code> for the moment the user leaves. Call it on every keystroke instead and validation errors
+      flash while they're still typing.
     </div>
-  </details>
-  <details class="qa">
-    <summary>The form stays pristine no matter what the user does. Which method is broken?</summary>
-    <div>
-      The control never calls the function from <code>registerOnChange</code>. User edits must be pushed via
-      <code>onChange(value)</code> — that call is what updates the model AND flips <code>dirty</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>form.reset()</code> crash your CVA, and what's the fix?</summary>
-    <div>
-      <code>reset()</code> calls <code>writeValue(null)</code>. A <code>writeValue</code> that assumes a real value
-      (<code>v.toString()</code>, <code>v.length</code>…) throws. Always normalize:
-      <code>this.value.set(v ?? defaultValue)</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      setValue() on control A causes valueChanges storms on control B bound to the same model. Root cause?
-    </summary>
-    <div>
-      A CVA calling <code>onChange</code> inside <code>writeValue</code>: programmatic write → writeValue → onChange →
-      model update → writeValue on the other control → … Keep the directions strictly separate; writeValue only renders.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How would you add a required-style validation that lives inside the custom control?</summary>
-    <div>
-      Implement <code>Validator</code> (<code>validate(control)</code> returning <code>ValidationErrors | null</code>)
-      and register the class under <code>NG_VALIDATORS</code> with <code>multi: true, useExisting: forwardRef(…)</code>
-      — exactly like the stepper demo. For async rules, it's
-      <code>AsyncValidator</code> + <code>NG_ASYNC_VALIDATORS</code>.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      CVA is the same contract native inputs use — implement it and every form API (reactive + template-driven) works
-      with your component.
-    </li>
-    <li>
-      Four methods, two directions: <code>writeValue</code> renders model writes; <code>onChange</code>/<code
-        >onTouched</code
-      >
-      report user interaction. Never cross them.
-    </li>
-    <li>
-      Provider must be <code>NG_VALUE_ACCESSOR</code> + <code>multi: true</code> + <code>forwardRef</code> +
-      <code>useExisting</code>, on the component itself (<code>&#64;Self</code> lookup).
-    </li>
-    <li>Handle <code>null</code> in <code>writeValue</code> (reset) and honor <code>setDisabledState</code>.</li>
-    <li>
-      Add <code>NG_VALIDATORS</code> to ship self-validating controls; store view state in signals so OnPush just works.
-    </li>
-  </ul>
+  <!-- ============ 4. REGISTERING ============ -->
+  <section>
+    <p class="bf-eyebrow">Becoming a control</p>
+    <h2>The entire act is one provider.</h2>
 
-  <p><a routerLink="/di-advanced">Next: Advanced DI →</a></p>
+    <p>
+      Implementing the four methods makes a class capable of the job. What actually gets you into
+      <code>formControlName</code>'s address book is a single entry in <code>providers</code> — everything else in this
+      lesson is what happens once that entry exists.
+    </p>
+
+    <app-code-lab
+      file="star-rating.component.ts"
+      [code]="registerSample"
+      [notes]="registerNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-predict
+      prompt="You copy this provider but forget multi: true. What actually breaks — and when?"
+      answer="Nothing breaks at compile time, and often nothing breaks at first run either. NG_VALUE_ACCESSOR is a multi-token: without multi: true, your provider REPLACES whatever else was registered against that token on the element instead of adding to it. On a component with only your own accessor, you may never notice. Combine your control with a directive that also registers against the token, and one of the two silently vanishes — the classic 'works alone, breaks combined' bug."
+    />
+  </section>
+
+  <!-- ============ 5. LIVE #1 — REACTIVE FORM ============ -->
+  <section>
+    <p class="bf-eyebrow">Live #1</p>
+    <h2>A star rating, in a real reactive form.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <app-star-rating [formControl]="rating" />
+      <p class="row" style="margin-top: 10px">
+        <span class="pill">value: {{ rating.value }}</span>
+        <span class="pill">touched: {{ rating.touched }}</span>
+        <span class="pill">dirty: {{ rating.dirty }}</span>
+        <span class="pill">disabled: {{ rating.disabled }}</span>
+      </p>
+      <div class="row">
+        <button (click)="rating.setValue(0)">setValue(0) → writeValue</button>
+        <button (click)="rating.reset()">reset() → writeValue(null)</button>
+        <button class="ghost" (click)="toggleDisabled()">
+          {{ rating.disabled ? 'enable()' : 'disable()' }} → setDisabledState
+        </button>
+      </div>
+      <p class="demo__note">
+        The component knows nothing about <em>this</em> form — it just speaks the CVA contract, so the same control
+        works with any <code>FormControl</code>, <code>formControlName</code> or <code>[(ngModel)]</code>. Watch
+        <code>dirty</code>: it flips only on star clicks (user edits, via <code>onChange</code>), never on the buttons
+        (programmatic writes, via <code>writeValue</code>) — the two directions really are kept separate.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 6. LIVE #2 — SELF-VALIDATING CONTROL ============ -->
+  <section>
+    <p class="bf-eyebrow">Live #2</p>
+    <h2>A control that validates itself.</h2>
+
+    <p>
+      Register the same class under <code>NG_VALIDATORS</code> too and the control contributes its own errors — every
+      consumer gets validation for free, no matter which form embeds it.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — quantity stepper, allowed range 1–5 (goes out of range on purpose)</p>
+      <app-qty-stepper [formControl]="qty" [min]="1" [max]="5" />
+      <p class="row" style="margin-top: 10px">
+        <span class="pill">value: {{ qty.value }}</span>
+        <span class="pill" [style.color]="qty.valid ? 'var(--green)' : 'var(--amber)'">status: {{ qty.status }}</span>
+      </p>
+      @if (qty.errors; as errs) {
+        <p class="err">errors: {{ errs | json }}</p>
+      }
+      <p class="demo__note">
+        Step past 5 (or below 1) and the <em>form control</em> turns invalid with the component's own error object — the
+        parent form wrote zero validation code.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="qty-stepper.component.ts"
+      [code]="validatorSample"
+      [notes]="validatorNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 7. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>How formControlName actually finds you.</h2>
+
+    <app-code-lab
+      file="reactive_directives.ts (simplified)"
+      [code]="underHoodSample"
+      [notes]="underHoodNotes"
+      notesLabel="What the directive does with your accessor"
+    />
+  </section>
+
+  <!-- ============ 8. THE ECHO LOOP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The classic mistake</p>
+    <h2>writeValue only renders. It never reports.</h2>
+
+    <p>
+      Back to the interpreter. The single most common CVA bug is a <code>writeValue</code> that also calls
+      <code>onChange</code> — reporting the write straight back to the form that just made it, as if the user had typed
+      it themselves.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — writeValue calls onChange"
+      rightTitle="Right — writeValue only renders"
+      leftTone="bad"
+      rightTone="good"
+      note="**writeValue only renders.** Save `onChange` for the view → model direction — the star click, the keystroke, the thing the FORM does not already know about."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+writeValue(v: number) {{ '{' }}
+  this.value.set(v);
+  this.onChange(v);   // ✗ echoes the write straight back to the form
+{{ '}' }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+writeValue(v: number) {{ '{' }}
+  this.value.set(v);
+  // writeValue only renders. The form already knows this value —
+  // it just told you. Reporting it back teaches the form nothing
+  // and risks a feedback loop.
+{{ '}' }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-predict
+      prompt="Your writeValue(v) does this.text = v.trim(). A consumer calls form.reset(). What breaks?"
+      answer="reset() calls writeValue(null), and null.trim() throws — a TypeError the moment someone resets a form that worked fine until then. Always normalize first: this.text = (v ?? '').trim()."
+    />
+
+    <app-quiz
+      question="Your control calls this.onChange(v) from inside writeValue(v). What's the actual symptom?"
+      [options]="quizOptions"
+      followUp="This is exactly why writeValue only renders — never repeat a diplomat's own sentence back to them."
+    />
+  </section>
+
+  <!-- ============ 9. CVA VS PLAIN INPUT/OUTPUT ============ -->
+  <section>
+    <p class="bf-eyebrow">Choosing between them</p>
+    <h2>CVA vs plain input/output.</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>value <code>input</code> + <code>output</code></th>
+          <th>ControlValueAccessor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Works with <code>formControlName</code> / <code>ngModel</code></td>
+          <td>no</td>
+          <td>yes — both, unchanged</td>
+        </tr>
+        <tr>
+          <td><code>touched</code> / <code>dirty</code> / statuses</td>
+          <td>reimplement by hand</td>
+          <td>free</td>
+        </tr>
+        <tr>
+          <td>Validation integration</td>
+          <td>manual wiring per consumer</td>
+          <td><code>NG_VALIDATORS</code>, composed automatically</td>
+        </tr>
+        <tr>
+          <td><code>form.disable()</code></td>
+          <td>ignored</td>
+          <td><code>setDisabledState</code></td>
+        </tr>
+        <tr>
+          <td>Best for</td>
+          <td>non-form widgets (toolbars, toggles outside forms)</td>
+          <td>anything a user "fills in"</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        CVA is <strong>the same contract native inputs use</strong> — implement it and every form API (reactive and
+        template-driven) works with your component, unchanged.
+      </li>
+      <li>
+        Four methods, two directions: <code>writeValue</code> / <code>setDisabledState</code> are IN (model → view);
+        <code>onChange</code> / <code>onTouched</code> are OUT (view → model).
+        <strong>Never let one call the other.</strong>
+      </li>
+      <li>
+        The provider is what actually registers you: <code>NG_VALUE_ACCESSOR</code> + <code>multi: true</code> +
+        <code>forwardRef</code> + <code>useExisting</code>, on the component itself (<code>&#64;Self()</code> lookup).
+      </li>
+      <li>
+        Handle <code>null</code> in <code>writeValue</code> — that's what <code>reset()</code> sends — and honour
+        <code>setDisabledState</code> or disabling the form silently does nothing to your control.
+      </li>
+      <li>
+        Add <code>NG_VALIDATORS</code> to ship a self-validating control, and store view state in signals so
+        <strong>OnPush</strong> just works.
+      </li>
+    </ul>
+
+    <p><a routerLink="/di-advanced">Next: Advanced DI →</a></p>
+  </section>
 </article>
