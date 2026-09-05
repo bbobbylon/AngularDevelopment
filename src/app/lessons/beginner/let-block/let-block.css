@@ -1,3 +1,9 @@
+/* Table, .qa and callout styling now come from the shared brain-friendly layer
+   (src/brain-friendly.css §15) — see expert/change-detection/change-detection.css
+   for the same note. .bill is this lesson's own live-demo table, and .ok/.bad
+   are used inside the @let vs computed() comparison table's cells — neither has
+   a global equivalent, so both stay. */
+
 .bill {
   width: 100%;
   max-width: 320px;
@@ -15,43 +21,6 @@
   border-bottom: none;
   color: var(--accent);
 }
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 7px 10px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.ll {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 10px 0 20px;
-}
-table.ll th,
-table.ll td {
-  border: 1px solid var(--border);
-  padding: 8px 10px;
-  text-align: left;
-  vertical-align: top;
-}
-table.ll th {
-  background: var(--bg-elevated);
-}
-table.ll td:first-child {
-  white-space: pre-wrap;
-  color: var(--accent);
-  width: 34%;
-}
 .ok {
   color: var(--green);
   font-weight: 700;
@@ -59,21 +28,4 @@ table.ll td:first-child {
 .bad {
   color: #ef4444;
   font-weight: 700;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }
