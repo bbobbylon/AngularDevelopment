@@ -1,421 +1,337 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Data Binding</span>
-  <h1>Event Binding</h1>
-  <p class="lead">
-    Event binding — <code>(event)="statement"</code> — runs a template <strong>statement</strong> when a DOM event (or a
-    component's custom <code>output()</code>) fires. It is the view-to-class direction of data flow: the user does
-    something, and your class finds out.
-  </p>
-
-  <div class="note">
-    <strong>Syntax cue.</strong> Square brackets <code>[prop]="expr"</code> flow data <em>into</em> the DOM (property
-    binding — read <code>expr</code>, never assign). Parentheses <code>(event)="stmt"</code> flow data <em>out</em> to
-    your class (event binding — may assign, may run several statements). The combined <code>[(ngModel)]</code> "banana
-    in a box" does both at once — that's next lesson's topic.
-  </div>
-
-  <h2>Clicks &amp; the $event object</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row">
-      <button (click)="clicks.set(clicks() + 1)">Clicked {{ clicks() }} times</button>
-      <button class="ghost" (click)="clicks.set(0)">Reset</button>
-    </div>
-    <p style="margin-top: 14px">Move your mouse over the box:</p>
-    <div
-      (mousemove)="track($event)"
-      style="height: 90px; border: 1px dashed var(--border); border-radius: 8px; display: grid; place-items: center"
-    >
-      x: {{ pos().x }}, y: {{ pos().y }}
-    </div>
-  </div>
-
-  <div class="code">
-    <pre>{{ clickMousemoveSample }}</pre>
-  </div>
-
-  <h3>Line-by-line</h3>
-  <table class="ll">
-    <tr>
-      <th>Code</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>(click)="clicks.set(...)"</td>
-      <td>
-        <code>(click)</code> attaches Angular's binding to the native <code>click</code> DOM event. Unlike an
-        interpolation expression (which must be a pure, repeatable read), the right-hand side is a
-        <strong>template statement</strong> — it is allowed to have side effects. Here it reads the signal by calling
-        <code>clicks()</code>, adds 1, and writes the new value with <code>.set()</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>(click)="clicks.set(0)"</td>
-      <td>
-        Same mechanism as above, just with a literal replacement value instead of one derived from the current signal —
-        resets the counter outright.
-      </td>
-    </tr>
-    <tr>
-      <td>(mousemove)="track($event)"</td>
-      <td>
-        Binds to the native <code>mousemove</code> event, which the browser fires continuously — potentially dozens of
-        times per second — while the pointer moves inside the element. <code>$event</code> is passed positionally as the
-        sole argument to <code>track</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>track(e: MouseEvent) {{ '{' }} … {{ '}' }}</td>
-      <td>
-        For a <em>native DOM</em> event binding, <code>$event</code> is typed as the real DOM interface — here a
-        <code>MouseEvent</code> — so TypeScript can check that <code>e.offsetX</code>/<code>e.offsetY</code> actually
-        exist. It is not <code>any</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>this.pos.set({{ '{' }} x: …, y: … {{ '}' }})</td>
-      <td>
-        Builds a brand-new object literal and swaps it in wholesale rather than mutating the previous one in place. This
-        is the signal convention: consumers (here, the template reading <code>pos().x</code> / <code>pos().y</code>) are
-        notified by a fresh value, and it plays safely with <code>OnPush</code>
-        children if this state were ever passed down as an input.
-      </td>
-    </tr>
-  </table>
-
-  <p>
-    <code>$event</code> is the native DOM event (here a <code>MouseEvent</code>). For component outputs,
-    <code>$event</code> is the emitted value instead — see "preventDefault &amp; component outputs" below.
-  </p>
-
-  <h2>Key &amp; event modifiers</h2>
-  <p>
-    Angular supports pseudo-events for keys so you do not have to inspect
-    <code>event.key</code> manually inside every handler. You can also chain modifiers with dots.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — press Enter to add</p>
-    <div class="row">
-      <input
-        aria-label="type then press Enter"
-        #box
-        placeholder="type then press Enter"
-        (keyup.enter)="add(box.value); box.value = ''"
-        style="flex: 1"
-      />
-      <button (click)="add(box.value); box.value = ''">Add</button>
-    </div>
-    @if (items().length) {
-      <ul>
-        @for (item of items(); track $index) {
-          <li>{{ item }}</li>
-        }
-      </ul>
-    } @else {
-      <p style="color: var(--text-muted)">No items yet.</p>
-    }
-  </div>
-
-  <div class="code">
-    <pre>{{ keyupEnterSample }}</pre>
-  </div>
-
-  <h3>Line-by-line</h3>
-  <table class="ll">
-    <tr>
-      <th>Code</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>#box</td>
-      <td>
-        A <strong>template reference variable</strong> pointing at the native <code>&lt;input&gt;</code> element itself
-        (no directive is applied here, so it's the raw <code>HTMLInputElement</code>). This gives the template direct
-        DOM access via <code>box.value</code> without wiring up <code>ngModel</code>
-        or a signal for this simple case.
-      </td>
-    </tr>
-    <tr>
-      <td>(keyup.enter)="…"</td>
-      <td>
-        A <strong>key-modifier pseudo-event</strong>. Angular still listens for the real <code>keyup</code> DOM event,
-        but the compiler inserts a guard so your statement only runs when <code>event.key</code>, lower-cased, equals
-        <code>'enter'</code>. Every other keyup is filtered out before your code sees it.
-      </td>
-    </tr>
-    <tr>
-      <td>add(box.value); box.value = ''</td>
-      <td>
-        Two statements chained with <code>;</code>. First, call the component method with the input's current value;
-        then assign back to the element's <code>.value</code> property directly, which mutates the real DOM node and
-        visually clears the field. Interpolation cannot assign — only an event binding's statement context can.
-      </td>
-    </tr>
-    <tr>
-      <td>(click)="add(box.value); box.value=''"</td>
-      <td>
-        The exact same two-statement pattern, reused verbatim on a different triggering event (a button click instead of
-        Enter) — proof the logic lives in the statement, not the event name.
-      </td>
-    </tr>
-  </table>
-
-  <h2>Key modifier combinations</h2>
-  <p>
-    Angular matches modifiers against the real <code>KeyboardEvent</code>: the key name is a case-insensitive word
-    (<code>enter</code>, <code>escape</code>, <code>arrowleft</code>), and you can chain multiple modifier words with
-    dots — Angular checks that <em>all</em> of them are true (e.g. both <code>ctrlKey</code> and
-    <code>key === 's'</code>).
-  </p>
-  <table class="ll">
-    <tr>
-      <th>Binding</th>
-      <th>Fires when…</th>
-      <th>Notes</th>
-    </tr>
-    <tr>
-      <td>(keyup.enter)</td>
-      <td><code>keyup</code> and <code>event.key === 'Enter'</code></td>
-      <td>The classic "submit on Enter" pattern used above.</td>
-    </tr>
-    <tr>
-      <td>(keyup.escape)</td>
-      <td><code>keyup</code> and key is Escape</td>
-      <td>Common for closing dialogs/menus without a Cancel click.</td>
-    </tr>
-    <tr>
-      <td>(keydown.arrowup)</td>
-      <td><code>keydown</code> and key is ArrowUp</td>
-      <td>
-        <code>keydown</code> fires immediately on press and repeats while held — unlike <code>keyup</code>, which fires
-        once on release. Pick the one your interaction actually needs.
-      </td>
-    </tr>
-    <tr>
-      <td>(keydown.control.s)</td>
-      <td><code>keydown</code>, key <code>'s'</code>, <strong>and</strong> <code>ctrlKey</code> true</td>
-      <td>Modifiers chain left-to-right with dots; Angular requires every listed modifier to be pressed.</td>
-    </tr>
-    <tr>
-      <td>(keydown.shift.enter)</td>
-      <td><code>keydown</code>, Enter, <strong>and</strong> <code>shiftKey</code></td>
-      <td>
-        Pairs naturally with plain <code>(keydown.enter)</code> for a "Enter submits, Shift+Enter adds a newline"
-        text-box pattern.
-      </td>
-    </tr>
-    <tr>
-      <td>(keydown.meta.k)</td>
-      <td><code>keydown</code>, key <code>'k'</code>, <strong>and</strong> <code>metaKey</code></td>
-      <td>
-        <code>meta</code> is ⌘ on macOS and the Windows key on Windows — it is <em>not</em> the same as
-        <code>control</code>, so a Ctrl+K press will not match this binding.
-      </td>
-    </tr>
-  </table>
-
-  <h2>preventDefault &amp; component outputs</h2>
-  <p>
-    Angular has <strong>no</strong> built-in <code>.prevent</code>/<code>.stop</code> modifiers, and returning
-    <code>false</code> from a handler does nothing — you call the DOM methods yourself. For a component's
-    <code>output()</code>, <code>$event</code> is the <em>emitted value</em>, not a DOM event at all:
-  </p>
-  <div class="code">
-    <pre>{{ outputSample }}</pre>
-  </div>
-
-  <h3>Line-by-line</h3>
-  <table class="ll">
-    <tr>
-      <th>Code</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>(submit)="save($event)"</td>
-      <td>
-        Binds the native <code>submit</code> event fired by the <code>&lt;form&gt;</code>; <code>$event</code> is
-        explicitly threaded through as a <code>SubmitEvent</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>e.preventDefault()</td>
-      <td>
-        There is no <code>.prevent</code> modifier in Angular (unlike, say, a <code>@submit.prevent</code> in some other
-        frameworks) — you must call the real browser API yourself, before the browser performs its default full-page
-        navigation/reload on submit.
-      </td>
-    </tr>
-    <tr>
-      <td>&lt;app-star-rating (rated)="onRated($event)" /&gt;</td>
-      <td>
-        <code>rated</code> is <em>not</em> a DOM event — it is a custom <code>output&lt;number&gt;()</code> property
-        declared on the <code>StarRating</code> child. Binding <code>(rated)="…"</code> subscribes to that output using
-        the exact same parenthesis syntax as a native event.
-      </td>
-    </tr>
-    <tr>
-      <td>onRated(n: number) {{ '{' }} … {{ '}' }}</td>
-      <td>
-        <code>$event</code> resolves to whatever the child passed to <code>.emit(...)</code> — here a plain
-        <code>number</code>. Calling <code>$event.preventDefault()</code> in this handler would fail at runtime: there
-        is no DOM event to prevent, only a value that already happened.
-      </td>
-    </tr>
-  </table>
-
-  <div class="demo">
-    <p class="demo__title">Live — $event for a custom output()</p>
-    <app-star-rating (rated)="onRated($event)" />
-    <p style="margin-top: 12px">
-      Parent received via <code>$event</code>:
-      <strong>{{ lastRating() }} ★</strong>
-      <span class="pill" style="margin-left: 8px">emitted {{ ratingEvents() }} time(s)</span>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Beginner · Data Binding"
+    title="Event Binding"
+    hand="or, how the DOM finally gets a word in"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Event binding — <code>(event)="statement"</code> — is the other half of data binding: where
+      <code>[prop]="expr"</code> only ever renders, <code>(event)="stmt"</code> runs a template
+      <strong>statement</strong> when a DOM event (or a component's own <code>output()</code>) fires. The user does
+      something; your class finds out.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Hovering only updates the child's own local <code>hover</code> signal — nothing is emitted. A click calls
-      <code>rate()</code>, which both commits the child's <code>value</code> signal <em>and</em> calls
-      <code>this.rated.emit(star)</code>. That emission is what this lesson's <code>onRated($event)</code> receives —
-      same binding syntax as a click, completely different kind of payload.
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Data only went one way. Where's the other half?</h2>
+
+    <p>
+      Property binding renders a value into the DOM — <code>[value]="text"</code>, <code>[disabled]="busy"</code> — and
+      it does that beautifully. But it is <strong>read-only by design</strong>: the expression on the right may never
+      assign, never mutate, never have a side effect, because Angular is free to re-run it as often as it likes. So the
+      moment a page needs to react to something the <em>user</em> does — a click, a keystroke, a value the user typed —
+      property binding has nothing to offer. Something else has to carry information back <span class="key">out</span>
+      of the DOM and into your class.
     </p>
-  </div>
 
-  <h2>Statements vs. expressions</h2>
-  <p>
-    Interpolation (<code>{{ '{{' }} … {{ '}}' }}</code>) and property bindings (<code>[prop]="expr"</code>) must be
-    pure, side-effect-free <strong>expressions</strong> — Angular is free to re-evaluate them any number of times per
-    check, so they must never assign or mutate. Event bindings are the one place a template runs
-    <strong>statements</strong>: you can assign (<code>box.value = ''</code> above), and chain several statements with
-    <code>;</code>. Angular still recommends keeping the statement short — real logic belongs in a method — because a
-    long inline statement is hard to read in a diff and impossible to unit test directly.
-  </p>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Bind <code>[value]="text"</code> onto a native <code>&lt;input&gt;</code>, where <code>text</code> is a plain
+      signal. Type into that box. Does <code>text()</code> change? Before you scroll: what would actually have to exist,
+      wired to what, for a keystroke to update <code>text</code>?
+    </app-napkin>
+  </section>
 
-  <h2>Under the hood — what a listener binding actually does</h2>
-  <p>
-    <code>(click)="doThing()"</code> does not simply become
-    <code>element.addEventListener('click', () =&gt; this.doThing())</code> in some loose sense — the template compiler
-    generates a listener <em>instruction</em> that Angular runs once per component instance to register a real DOM
-    listener via <code>Renderer2</code>. Crucially, it wraps your statement in its own function first:
-  </p>
-  <div class="code">
-    <pre>{{ underTheHoodSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Your statement runs first,</strong> with <code>$event</code> supplied as an argument and
-      <code>this</code> bound to the component instance.
-    </li>
-    <li>
-      <strong>Then Angular marks the view dirty</strong> — this component's view
-      <em>and every ancestor up to the root</em>. This is exactly one of the five official triggers that re-check an
-      <code>OnPush</code> view (see the <a routerLink="/onpush">OnPush lesson</a>): "an event bound in its own
-      template." It is why a click handler always re-renders its own component, no matter what change-detection strategy
-      is in play.
-    </li>
-    <li>
-      <strong>Marking is not the same as rendering.</strong> The dirty flag is set synchronously inside the handler, but
-      the actual re-render pass is scheduled — in this zoneless app, Angular's scheduler coalesces it into a microtask
-      so that several events firing back-to-back still produce one pass, not one per event. Code that runs immediately
-      after your statement, in the same handler, will not see the DOM already reflecting the new state.
-    </li>
-    <li>
-      <strong>One real listener, not one per row.</strong> Angular registers a single native listener per templated
-      binding at creation time; it does not call <code>addEventListener</code> again on every change-detection pass.
-    </li>
-  </ul>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>One conversation, not two syntaxes.</h2>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>No <code>.prevent</code>/<code>.stop</code> modifiers.</strong> Call
-      <code>$event.preventDefault()</code> / <code>stopPropagation()</code> in a handler; returning
-      <code>false</code> does nothing.
-    </li>
-    <li>
-      <strong>A bare identifier never calls the method.</strong> <code>(click)="save"</code> evaluates the identifier
-      <code>save</code> as a statement and discards the result — it never invokes anything. It must be
-      <code>(click)="save()"</code> (or <code>save($event)</code>).
-    </li>
-    <li>
-      <strong>Brackets vs. parentheses.</strong> <code>[click]="…"</code> is property-binding syntax and
-      <code>click</code> isn't a DOM property, so it either does nothing useful or errors — event listeners always need
-      <code>(click)</code>.
-    </li>
-    <li>
-      <strong>Heavy work in <code>(mousemove)</code>/<code>(scroll)</code>.</strong> They fire constantly, and each
-      firing marks the view dirty and can trigger a render pass — throttle, or move the work off the hot path.
-    </li>
-    <li>
-      <strong><code>$event</code> is the emitted value for outputs.</strong> For a component <code>output()</code> it's
-      <em>not</em> a DOM event — don't call <code>preventDefault()</code> on it, as the line-by-line breakdown above
-      shows.
-    </li>
-    <li>
-      <strong>Complex logic inline.</strong> Statements can assign and chain with <code>;</code>, but keep them short —
-      real logic belongs in a method.
-    </li>
-    <li>
-      <strong>Key name casing.</strong> Pseudo-events match <code>event.key</code> as lowercase words:
-      <code>(keyup.enter)</code>, <code>(keydown.arrowup)</code>, not <code>Enter</code>/<code>ArrowUp</code>.
-    </li>
-    <li>
-      <strong><code>meta</code> vs <code>control</code>.</strong> <code>(keydown.meta.k)</code> only matches ⌘/Win-key
-      combos — a Ctrl+K press will not trigger it; you'd need a separate <code>(keydown.control.k)</code> binding.
-    </li>
-  </ul>
+    <p>
+      Picture <code>[prop]="expr"</code> and <code>(event)="stmt"</code> not as two unrelated features to memorise, but
+      as the two directions of one conversation. Square brackets are <strong>you talking</strong>: you hand the DOM a
+      value, it renders it, end of exchange — the DOM never gets to interrupt. Parentheses are
+      <strong>the DOM talking back</strong>: something happened over there, and it genuinely interrupts your code to
+      tell you, handing over a statement that is allowed to do something about it.
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>How do you stop a form from reloading the page on submit?</summary>
-    <div>
-      There's no <code>.prevent</code> modifier — bind <code>(submit)="save($event)"</code> and call
-      <code>$event.preventDefault()</code> inside <code>save</code>.
+    <p>
+      That asymmetry is the whole reason two syntaxes exist instead of one. A statement may assign, mutate, chain with
+      <code>;</code> — because it is reacting to a fact that already happened, not predicting a value that must stay
+      reproducible.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Brackets IN, parens OUT.</strong> <code>[prop]</code> only ever reads and renders — a one-way,
+      side-effect-free expression. <code>(event)</code> only ever fires in response to something that already happened —
+      a statement, free to assign and chain. Confuse the two and you either try to assign inside an interpolation, or
+      wonder why <code>$event</code> isn't always the same type.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="bridgeTalk"
+      caption="The exchange behind [value]='text' rendering once, then (click) firing and getting a real answer back."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — STATEMENTS, THEN THE FIVE STEPS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>A statement, then five steps to a repaint.</h2>
+
+    <p>
+      Interpolation (<code>{{ '{{' }} … {{ '}}' }}</code>) and property bindings must be pure
+      <strong>expressions</strong> — Angular is free to re-evaluate them any number of times per check, so they can
+      never assign or mutate. Event bindings are the one place a template runs <strong>statements</strong>: you can
+      assign (<code>box.value = ''</code>, below), and chain several with <code>;</code>. Keep the statement itself
+      short, though — real logic belongs in a method, because a long inline statement is hard to read in a diff and
+      impossible to unit test directly.
+    </p>
+
+    <app-flow
+      direction="vertical"
+      caption="What (click)='doThing($event)' actually sets off, from DOM event to scheduled repaint."
+      [steps]="listenerFlow"
+    />
+
+    <div class="tip">
+      <strong>Marking dirty and rendering are two different moments.</strong> The view is flagged synchronously inside
+      the handler, but the actual repaint is scheduled — in this zoneless app it's coalesced into a microtask, so
+      several events firing back to back still produce one pass, not one per event.
     </div>
-  </details>
-  <details class="qa">
-    <summary>What is <code>$event</code> for <code>(click)</code> vs a component output?</summary>
-    <div>
-      For DOM events it's the native event (e.g. <code>MouseEvent</code>). For an <code>output()</code> it's the emitted
-      value — a plain <code>number</code>, <code>string</code>, object, etc., depending on how the output was typed.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you run something on Ctrl/⌘+S?</summary>
-    <div>
-      Pseudo-event combos: <code>(keydown.control.s)</code> or <code>(keydown.meta.s)</code> — and
-      <code>preventDefault()</code> to stop the browser save dialog.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>You bind <code>(click)="save"</code> (no parentheses) and nothing happens on click. Why?</summary>
-    <div>
-      Without <code>()</code>, the statement just evaluates the bare identifier <code>save</code> — a reference to the
-      method — and discards the result; it never calls it. It must be <code>(click)="save()"</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Does firing an event handler re-render the component immediately, in the same call?</summary>
-    <div>
-      The handler runs, then Angular marks the view (and its ancestors) dirty — synchronously. But the actual refresh is
-      <em>scheduled</em>, not run inline; in this zoneless app it's coalesced into a microtask so several events firing
-      in a row still produce a single render pass, not one per event.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>(event)="stmt"</code> reacts to DOM events and component outputs, and runs a <strong>statement</strong> —
-      not a pure expression like interpolation.
-    </li>
-    <li><code>$event</code> is the payload — a DOM event, or the emitted value for outputs.</li>
-    <li>Use pseudo-events like <code>(keyup.enter)</code> and combos like <code>(keydown.control.s)</code>.</li>
-    <li>No <code>.prevent</code> modifier — call <code>preventDefault()</code> in your handler.</li>
-    <li>Statements may assign and chain with <code>;</code>, unlike interpolation or property bindings.</li>
-    <li>
-      Angular wraps every template listener so that, after your statement runs, it marks the view and its ancestors
-      dirty — one of the five official <code>OnPush</code> re-check triggers.
-    </li>
-  </ul>
+  <!-- ============ 4. CLICKS & $EVENT ============ -->
+  <section>
+    <p class="bf-eyebrow">Clicks &amp; the $event object</p>
+    <h2>$event is typed by where it came from.</h2>
 
-  <p><a routerLink="/two-way-binding">Next: Two-Way Binding →</a></p>
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row">
+        <button (click)="clicks.set(clicks() + 1)">Clicked {{ clicks() }} times</button>
+        <button class="ghost" (click)="clicks.set(0)">Reset</button>
+      </div>
+      <p style="margin-top: 14px">Move your mouse over the box:</p>
+      <div
+        (mousemove)="track($event)"
+        style="height: 90px; border: 1px dashed var(--border); border-radius: 8px; display: grid; place-items: center"
+      >
+        x: {{ pos().x }}, y: {{ pos().y }}
+      </div>
+    </div>
+
+    <app-code-lab
+      file="event-binding.component.ts"
+      [code]="clickMousemoveSample"
+      [notes]="clickMousemoveNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-predict
+      prompt="A template binds (click)='clicks++'. clicks is a plain component field, not a signal. You click the button five times. What shows on screen?"
+      answer="Nothing changes on screen — even though clicks really is 5 in memory. A template statement is allowed to mutate, but mutating a plain field doesn't ANNOUNCE the change to anything: no signal was written, so nothing was ever marked dirty or scheduled. The event itself still does one thing for free — the (click) binding marks this view dirty just by firing — so on the very next unrelated render for another reason, the number would suddenly jump to 5 in one go. That's a strong hint you needed a signal, not a plain field, from the start."
+    />
+  </section>
+
+  <!-- ============ 5. KEY MODIFIERS ============ -->
+  <section>
+    <p class="bf-eyebrow">Key &amp; event modifiers</p>
+    <h2>Pseudo-events so you never touch event.key by hand.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — press Enter to add</p>
+      <div class="row">
+        <input
+          aria-label="type then press Enter"
+          #box
+          placeholder="type then press Enter"
+          (keyup.enter)="add(box.value); box.value = ''"
+          style="flex: 1"
+        />
+        <button (click)="add(box.value); box.value = ''">Add</button>
+      </div>
+      @if (items().length) {
+        <ul>
+          @for (item of items(); track $index) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      } @else {
+        <p style="color: var(--text-muted)">No items yet.</p>
+      }
+    </div>
+
+    <app-code-lab
+      file="event-binding.component.ts"
+      [code]="keyupEnterSample"
+      [notes]="keyupEnterNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        Modifiers chain with dots — Angular requires every one of them to be true
+      </caption>
+      <thead>
+        <tr>
+          <th>Binding</th>
+          <th>Fires when…</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>(keyup.enter)</code></td>
+          <td><code>keyup</code> and <code>event.key === 'Enter'</code></td>
+          <td>The classic "submit on Enter" pattern used above.</td>
+        </tr>
+        <tr>
+          <td><code>(keyup.escape)</code></td>
+          <td><code>keyup</code> and key is Escape</td>
+          <td>Common for closing dialogs/menus without a Cancel click.</td>
+        </tr>
+        <tr>
+          <td><code>(keydown.arrowup)</code></td>
+          <td><code>keydown</code> and key is ArrowUp</td>
+          <td>
+            <code>keydown</code> fires immediately and repeats while held — <code>keyup</code> fires once on release.
+          </td>
+        </tr>
+        <tr>
+          <td><code>(keydown.control.s)</code></td>
+          <td><code>keydown</code>, key <code>'s'</code>, <strong>and</strong> <code>ctrlKey</code></td>
+          <td>Every listed modifier must be pressed at once.</td>
+        </tr>
+        <tr>
+          <td><code>(keydown.meta.k)</code></td>
+          <td><code>keydown</code>, key <code>'k'</code>, <strong>and</strong> <code>metaKey</code></td>
+          <td><code>meta</code> is ⌘/Win — a Ctrl+K press will not match it.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 6. PREVENTDEFAULT & COMPONENT OUTPUTS ============ -->
+  <section>
+    <p class="bf-eyebrow">The other kind of $event</p>
+    <h2>Same syntax, a completely different payload.</h2>
+
+    <p>
+      Angular has <strong>no</strong> built-in <code>.prevent</code>/<code>.stop</code> modifiers, and returning
+      <code>false</code> from a handler does nothing — you call the DOM methods yourself. And for a component's own
+      <code>output()</code>, <code>$event</code> is not a DOM event at all: it's the <em>emitted value</em>.
+    </p>
+
+    <app-code-lab
+      file="event-binding.component.ts"
+      [code]="outputSample"
+      [notes]="outputNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — $event for a custom output()</p>
+      <app-star-rating (rated)="onRated($event)" />
+      <p style="margin-top: 12px">
+        Parent received via <code>$event</code>:
+        <strong>{{ lastRating() }} ★</strong>
+        <span class="pill" style="margin-left: 8px">emitted {{ ratingEvents() }} time(s)</span>
+      </p>
+      <p class="demo__note">
+        Hovering only updates the child's own local <code>hover</code> signal — nothing is emitted. A click calls
+        <code>rate()</code>, which commits the child's own <code>value</code> signal <em>and</em> calls
+        <code>this.rated.emit(star)</code>. That emission is what <code>onRated($event)</code> receives here — same
+        binding syntax as a click, a completely different kind of payload.
+      </p>
+    </div>
+
+    <app-quiz
+      question="You bind (rated)='onRated($event)' on &lt;app-star-rating&gt;. What type is $event inside onRated?"
+      [options]="quizOptions"
+      followUp="This is the split the whole section is about: the parentheses syntax is shared, the payload type never is."
+    />
+  </section>
+
+  <!-- ============ 7. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What a listener binding actually compiles to.</h2>
+
+    <p>
+      <code>(click)="doThing()"</code> is not simply
+      <code>element.addEventListener('click', () =&gt; this.doThing())</code>. The template compiler generates a
+      listener <em>instruction</em> that runs once per component instance to register a real DOM listener via
+      <code>Renderer2</code> — and it wraps your statement in its own function first.
+    </p>
+
+    <app-code-lab
+      file="what (click) compiles to"
+      [code]="underTheHoodSample"
+      [notes]="underTheHoodNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 8. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The classic mistake</p>
+    <h2>A bare identifier never calls anything.</h2>
+
+    <app-predict
+      prompt="You write (click)='save' — no parentheses — expecting a click to call save(). Nothing happens when you click. Why?"
+      answer="Without (), the statement just evaluates the bare identifier save — a reference to the method itself — and discards the result. It never invokes anything. It has to be (click)='save()', or (click)='save($event)' if the method needs the event."
+    />
+
+    <p>Other pitfalls that show up in exams and code review:</p>
+    <ul>
+      <li>
+        <strong>Brackets vs. parentheses.</strong> <code>[click]="…"</code> is property-binding syntax and
+        <code>click</code> isn't a DOM property, so it either does nothing useful or errors — event listeners always
+        need <code>(click)</code>.
+      </li>
+      <li>
+        <strong>Heavy work in <code>(mousemove)</code>/<code>(scroll)</code>.</strong> They fire constantly, and each
+        firing marks the view dirty and can trigger a render pass — throttle, or move the work off the hot path.
+      </li>
+      <li>
+        <strong><code>$event</code> is the emitted value for outputs.</strong> For a component
+        <code>output()</code> it's <em>not</em> a DOM event — don't call <code>preventDefault()</code> on it.
+      </li>
+      <li>
+        <strong>Key name casing.</strong> Pseudo-events match <code>event.key</code> as lowercase words:
+        <code>(keyup.enter)</code>, <code>(keydown.arrowup)</code>, not <code>Enter</code>/<code>ArrowUp</code>.
+      </li>
+      <li>
+        <strong><code>meta</code> vs <code>control</code>.</strong> <code>(keydown.meta.k)</code> only matches ⌘/Win-key
+        combos — a Ctrl+K press needs a separate <code>(keydown.control.k)</code> binding.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>(event)="stmt"</code> reacts to DOM events and component outputs, and runs a <strong>statement</strong> —
+        not a pure expression like interpolation or a property binding.
+      </li>
+      <li><code>$event</code> is the payload — a DOM event for a native event, the emitted value for an output.</li>
+      <li>Use pseudo-events like <code>(keyup.enter)</code> and combos like <code>(keydown.control.s)</code>.</li>
+      <li>No <code>.prevent</code> modifier — call <code>preventDefault()</code> yourself, inside the handler.</li>
+      <li>
+        Every template listener marks its view <strong>and every ancestor</strong> dirty and schedules a pass — one of
+        the five official <code>OnPush</code> re-check triggers — before your statement's own effect on the DOM is even
+        considered.
+      </li>
+      <li>
+        <code>(click)="save"</code> (no parens) never calls anything — it just references the method and discards it.
+      </li>
+    </ul>
+
+    <p><a routerLink="/two-way-binding">Next: Two-Way Binding →</a></p>
+  </section>
 </article>
