@@ -1,326 +1,638 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Language Features</span>
-  <h1>Decorators</h1>
-  <p class="lead">
-    A decorator is a function prefixed with <code>&#64;</code> that attaches metadata or behavior to a class, method,
-    accessor, property or parameter. Angular is built on them — and understanding what they really are (plain functions
-    with a calling convention) demystifies half the framework, including why <code>&#64;Component</code> never even runs
-    in a production build.
-  </p>
-
-  <h2>The five targets — as Angular uses them</h2>
-  <div class="code">
-    <pre>{{ fiveTargetsSample }}</pre>
-  </div>
-  <p>
-    Each decorator kind receives different arguments. That signature difference is why you can't put
-    <code>&#64;Component</code> on a method or <code>&#64;Input</code> on a class — the function would be called with
-    arguments it doesn't expect.
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Kind</th>
-      <th>Receives (legacy dialect)</th>
-      <th>Angular examples</th>
-    </tr>
-    <tr>
-      <td>Class</td>
-      <td>the constructor function; may return a replacement class</td>
-      <td>
-        <code>&#64;Component</code>, <code>&#64;Directive</code>, <code>&#64;Injectable</code>, <code>&#64;Pipe</code>
-      </td>
-    </tr>
-    <tr>
-      <td>Method</td>
-      <td>prototype, method name, <code>PropertyDescriptor</code></td>
-      <td><code>&#64;HostListener</code></td>
-    </tr>
-    <tr>
-      <td>Property</td>
-      <td>prototype, property name — <em>no descriptor</em></td>
-      <td>
-        <code>&#64;Input</code>, <code>&#64;Output</code>, <code>&#64;ViewChild</code>, <code>&#64;HostBinding</code>
-      </td>
-    </tr>
-    <tr>
-      <td>Accessor</td>
-      <td>prototype, name, descriptor (get/set)</td>
-      <td><code>&#64;Input</code> on a setter</td>
-    </tr>
-    <tr>
-      <td>Parameter</td>
-      <td>target, method name, parameter index</td>
-      <td>
-        <code>&#64;Inject</code>, <code>&#64;Optional</code>, <code>&#64;Self</code>, <code>&#64;SkipSelf</code>,
-        <code>&#64;Host</code>
-      </td>
-    </tr>
-  </table>
-
-  <h2>A decorator is just a function</h2>
-  <p>
-    A method decorator receives the prototype, the member name and the property descriptor — mutate or replace
-    <code>descriptor.value</code> and you've wrapped the method for <em>every instance of the class, forever</em>. This
-    is the whole trick behind logging, memoization, debouncing and deprecation decorators:
-  </p>
-  <div class="code">
-    <pre>{{ loggedSample }}</pre>
-  </div>
-  <div class="warn">
-    Decorators run <strong>once, at class-definition time</strong> — when the module is first imported — not per
-    instance and not per call. State captured in the decorator's closure (like a cache) is therefore shared across all
-    instances. Design for that or key the state per-instance (e.g. a <code>WeakMap</code>).
-  </div>
-
-  <h2>Factories, and the two orderings everyone mixes up</h2>
-  <p>
-    A factory is a function that <em>returns</em> a decorator — that is why Angular's decorators take arguments:
-    <code>&#64;Component(&#123;...&#125;)</code> calls <code>Component</code> with your metadata, and the returned
-    function decorates the class. With multiple decorators on one member there are two distinct orders:
-    <strong>factories evaluate top-down</strong> (they're just expressions), then
-    <strong>the returned decorators apply bottom-up</strong>
-    (composition, like nested function calls). The log below was produced for real when this page's module loaded:
-  </p>
-  <div class="code">
-    <pre>{{ orderSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — actual execution order, captured at module load</p>
-    <div class="order-log">
-      @for (line of orderLog; track $index) {
-        <p>{{ line }}</p>
-      }
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Bottom-up application means the decorator <em>closest to the method</em> wraps it first, and the one above wraps
-      that wrapper — exactly like <code>First(Second(method))</code>.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="TypeScript · Language Features"
+    title="Decorators"
+    hand="or, the little @ that turned out to do far less than you assumed"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      You've typed <code>&#64;Component</code>, <code>&#64;Input</code> and <code>&#64;Injectable</code> thousands of
+      times without asking what the <code>&#64;</code> actually does. This page answers three questions in order —
+      <strong>what a decorator IS</strong> underneath the syntax, <strong>when it runs</strong> (and how rarely), and
+      <strong>what Angular's own compiler does</strong> with the ones you write for it — with real decorators, compiled
+      by this project's own config and executed live on this page, not simulated.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>A real custom decorator, benchmarked live</h2>
-  <p>
-    <code>&#64;Memoize</code> below is a genuine legacy decorator compiled by this project (our tsconfig sets
-    <code>experimentalDecorators: true</code>). It swaps the method for a caching wrapper. <code>fib(32)</code> naive
-    recursion makes ~7 million calls; memoized, recursive calls dispatch through the wrapper so it does ~33:
-  </p>
-  <div class="code">
-    <pre>{{ memoizeSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — run both implementations</p>
-    <button (click)="runBench()">Compute fib(32) both ways</button>
-    @if (benchPlain() !== null) {
-      <div class="bench">
-        <div class="card">
-          <h4>plain fib(32)</h4>
-          <strong>{{ benchPlain() }} ms</strong>
+  <!-- ============ A. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>It's just a function. So why does it feel like magic?</h2>
+
+    <p>
+      Strip away the <code>&#64;</code> syntax and a decorator is
+      <span class="key">an ordinary function, called for you</span>, at a moment and with a signature that TypeScript
+      picks based on what you stuck it on. That's the entire mechanism. Everything that feels mysterious about
+      decorators — why <code>&#64;Component</code> takes an object but <code>&#64;HostListener</code> takes a string,
+      why a memoized method's cache is shared by every instance, why <code>&#64;Component</code> can vanish completely
+      in production — is a consequence of <em>when</em> that call happens and <em>what</em> it's called with, not of any
+      special power decorators have that functions don't.
+    </p>
+
+    <p>The three questions worth actually answering, in the order this page answers them:</p>
+    <ul>
+      <li>What gets called, with what, and <strong>how many times</strong>? (mechanism)</li>
+      <li>In what <strong>order</strong>, when more than one decorator stacks on the same thing?</li>
+      <li>What does Angular's own compiler do with the ones <em>it</em> ships? (and what happens to yours, nearby)</li>
+    </ul>
+
+    <app-napkin lead="hang on —" label="Two guesses before you read on">
+      You'll meet a real <code>&#64;Memoize</code> decorator further down, applied to a class you can construct as many
+      times as you like. Guess: does its caching <code>Map</code> get built once for the whole class, or once per
+      instance? And separately — you already know <code>&#64;Component</code> decorates a class. Guess whether it
+      actually <strong>executes</strong> when your built app runs in someone's browser. Hold both guesses; this page
+      proves both, live, before it's done.
+    </app-napkin>
+  </section>
+
+  <!-- ============ B. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A decorator is an inspector who visits your blueprint exactly once.</h2>
+
+    <p>
+      Picture a class not as an object, but as a <strong>factory blueprint</strong>. A decorator is an inspector who
+      walks onto the factory floor, reads or restamps a specific part of that blueprint, and leaves —
+      <em>before a single unit is ever built</em>. Every unit that later comes off the line already carries whatever the
+      inspector did. The inspector never comes back for unit #47; by then there's nothing left for them to do.
+    </p>
+
+    <p>
+      That single picture explains most of what confuses people. A memoized method's cache is shared by every instance
+      because there's only ever <em>one</em> stamp on the blueprint, not one per unit. A decorator can't see a field's
+      initial value because the blueprint doesn't have "values" yet — only shapes. And Angular's AOT compiler doesn't
+      need to run <code>&#64;Component</code> at all, because it can read what's stamped on the blueprint without ever
+      switching the factory on.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Stamped once, on the blueprint, before a single unit is built.</strong> Every decorator question is really
+      asking what got stamped — and what a unit built from that blueprint inherits from the stamp.
+    </app-remember>
+  </section>
+
+  <!-- ============ C. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Five targets, one calling convention each.</h2>
+
+    <p>
+      A decorator's signature is decided entirely by <em>what kind of thing</em> it decorates — that's the whole reason
+      you can't put <code>&#64;Component</code> on a method or <code>&#64;Input</code> on a class: the function would be
+      called with arguments it isn't shaped to receive.
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Class" kicker="the constructor itself" tone="accent">
+        <code>&#64;Component</code>, <code>&#64;Directive</code>, <code>&#64;Injectable</code>, <code>&#64;Pipe</code>.
+        Receives the class itself, and may return a replacement for it — that's Flavour B, two sections down.
+      </app-tape-card>
+      <app-tape-card heading="Method" kicker="prototype, name, descriptor" tone="gold">
+        <code>&#64;HostListener</code>. The only kind with a real <code>PropertyDescriptor</code> to rewrite — which is
+        why every wrapping decorator on this page (<code>&#64;Logged</code>, <code>&#64;Memoize</code>,
+        <code>&#64;Debounce</code>) is a method decorator.
+      </app-tape-card>
+      <app-tape-card heading="Property" kicker="prototype, name — no descriptor" tone="olive">
+        <code>&#64;Input</code>, <code>&#64;Output</code>, <code>&#64;ViewChild</code>, <code>&#64;HostBinding</code>.
+        No descriptor means it can only <em>install</em> something new — never wrap an existing value. See the exam trap
+        this causes, further down.
+      </app-tape-card>
+      <app-tape-card heading="Accessor" kicker="prototype, name, descriptor (get/set)" tone="blue">
+        <code>&#64;Input</code> on a setter. Same shape as a method decorator, aimed at a <code>get</code>/
+        <code>set</code> pair instead of a function.
+      </app-tape-card>
+      <app-tape-card heading="Parameter" kicker="target, method name, index" tone="accent">
+        <code>&#64;Inject</code>, <code>&#64;Optional</code>, <code>&#64;Self</code>, <code>&#64;SkipSelf</code>,
+        <code>&#64;Host</code>. No TC39 stage-3 equivalent at all — one whole reason <code>inject()</code> exists.
+      </app-tape-card>
+    </div>
+
+    <p>All five, on one class Angular actually ships:</p>
+    <div class="code">
+      <pre>{{ fiveTargetsSample }}</pre>
+    </div>
+
+    <p>
+      Strip Angular's own decorators away and the underlying shape is a generic one: a method decorator receives the
+      prototype, the member name and the descriptor — mutate <code>descriptor.value</code> and you've wrapped the method
+      for <em>every instance of the class, forever</em>. This is the whole trick behind logging, memoization, debouncing
+      and deprecation decorators alike:
+    </p>
+
+    <app-code-lab
+      file="api.service.ts"
+      [code]="loggedSample"
+      [notes]="loggedNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ D. ORDER OF OPERATIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">Order of operations</p>
+    <h2>Read the factories top to bottom. Read the wrapping inside out.</h2>
+
+    <p>
+      Stack two decorators on one member and there are <strong>two separate orderings</strong>, and mixing them up is
+      the single most common decorator mistake:
+    </p>
+
+    <app-layers
+      [core]="{ label: 'method()', sub: 'the real implementation' }"
+      [rings]="[
+        { label: '@First()', sub: 'applied LAST — outermost' },
+        { label: '@Second()', sub: 'applied FIRST — innermost' },
+      ]"
+      arrow="a call enters here"
+      caption="`@First()` sits above `@Second()` in the source — and ends up wrapping it, because whichever decorator applies LAST becomes the outermost layer. A call to `method()` starts at the outside and works in: First's wrapper runs first, then Second's, then the real method — the same shape as `First(Second(method))`."
+    />
+
+    <p>
+      The factory calls themselves — the parenthesised part, <code>First()</code> — run in the opposite order:
+      <strong>top to bottom</strong>, as plain expressions, while the class is still being parsed. Here's the exact demo
+      that produced the log below, captured for real when this page's module first loaded:
+    </p>
+
+    <app-code-lab
+      file="order-demo.ts"
+      [code]="orderSample"
+      [notes]="orderNotes"
+      notesLabel="Two different orderings, two different moments"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — actual execution order, captured at module load</p>
+      <div class="order-log">
+        @for (line of orderLog; track $index) {
+          <p>{{ line }}</p>
+        }
+      </div>
+      <p class="demo__note">
+        Read the numbers, not the source order. <strong>1</strong> and <strong>2</strong> are the factories, top-down.
+        <strong>3</strong> and <strong>4</strong> are the decorators they returned, applying bottom-up —
+        <code>Second</code> first (closest to the method), then <code>First</code> wrapping around it.
+      </p>
+    </div>
+
+    <app-quiz
+      question="You stack `@First() @Second() method() {}` on one method. When you actually CALL `method()`, whose wrapper code runs first?"
+      [options]="orderQuizOptions"
+      followUp="Trace it against the diagram above: outside is exactly where a call starts."
+    />
+  </section>
+
+  <!-- ============ E. A REAL DECORATOR, BENCHMARKED ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">A real decorator</p>
+    <h2>One real decorator, benchmarked against itself.</h2>
+
+    <p>
+      <code>&#64;Memoize</code> below is genuine legacy-dialect TypeScript, compiled by this project's own
+      <code>experimentalDecorators: true</code> — it swaps a method for a caching wrapper. Naive recursive
+      <code>fib(32)</code> makes roughly 7 million calls; memoized, the recursive calls dispatch through the wrapper
+      too, so it makes about 33:
+    </p>
+
+    <app-code-lab
+      file="fib.ts"
+      [code]="memoizeSample"
+      [notes]="memoizeNotes"
+      notesLabel="Where the caching actually happens"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — run both implementations</p>
+      <button (click)="runBench()">Compute fib(32) both ways</button>
+      @if (benchPlain() !== null) {
+        <div class="bench">
+          <div class="card">
+            <h4>plain fib(32)</h4>
+            <strong>{{ benchPlain() }} ms</strong>
+          </div>
+          <div class="card">
+            <h4>&#64;Memoize fib(32)</h4>
+            <strong>{{ benchMemo() }} ms</strong>
+          </div>
+          <div class="card">
+            <h4>&#64;Memoize again (cache hit)</h4>
+            <strong>{{ benchMemoAgain() }} ms</strong>
+          </div>
         </div>
-        <div class="card">
-          <h4>&#64;Memoize fib(32)</h4>
-          <strong>{{ benchMemo() }} ms</strong>
+      }
+      <p class="demo__note">
+        That third column answers the napkin's first guess: build one <code>FibMemo</code>, and its cache — one
+        <code>Map</code>, stamped onto the blueprint once — is shared by every call any instance makes to it.
+      </p>
+    </div>
+
+    <h3>More decorators, same shape</h3>
+    <p>
+      Once you've built one wrapping decorator you've built the shape of all of them — configuration becomes a factory
+      argument, and per-decorated-method state lives in the closure, same as <code>&#64;Memoize</code>'s cache:
+    </p>
+    <div class="code">
+      <pre>{{ toolboxSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ F. TWO FLAVOURS OF CLASS DECORATOR ============ -->
+  <section>
+    <p class="bf-eyebrow">Two flavours</p>
+    <h2>A class decorator can patch your class, or replace it outright.</h2>
+
+    <p>
+      Every method decorator on this page returns nothing — it mutates <code>descriptor.value</code> in place. A
+      <strong>class</strong> decorator has a second option a method decorator doesn't: it can <code>return</code> a
+      brand-new class, and whatever binds to your class name afterwards is that new class instead.
+    </p>
+
+    <app-code-lab
+      file="widget.ts"
+      [code]="classDecoSample"
+      [notes]="classDecoNotes"
+      notesLabel="Mutating vs. replacing"
+    />
+
+    <app-napkin lead="try it —" label="Guess before you click">
+      <code>&#64;Sealed</code> returns <code>class extends Point &#123; ... &#125;</code> — a brand-new, unnamed class
+      expression. Before you press the button below: do you think <code>Point.name</code> still reads
+      <code>"Point"</code> afterwards, or something else entirely?
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Live — both flavours, read back after the fact</p>
+      <button (click)="runClassDecoDemo()">Run both decorators and inspect the results</button>
+      @if (widgetVersion() !== null) {
+        <div class="row" style="flex-wrap: wrap; margin-top: 10px">
+          <span class="pill">Widget.version → {{ widgetVersion() }}</span>
+          <span class="pill">Point.name → "{{ pointName() }}"</span>
+          <span class="pill">p instanceof Point → {{ pointIsInstance() }}</span>
+          <span class="pill">Object.isSealed(p) → {{ pointSealed() }}</span>
         </div>
-        <div class="card">
-          <h4>&#64;Memoize again (cache hit)</h4>
-          <strong>{{ benchMemoAgain() }} ms</strong>
+      }
+      <p class="demo__note">
+        <code>Widget.version</code> proves the mutating flavour patched the real class — nothing was replaced.
+        <code>Point.name</code> is the caveat the napkin asked about: the class expression
+        <code>&#64;Sealed</code> returns has no name of its own, and nothing in the decorator's own assignment gives it
+        one back, so the binding you write code against can end up nameless even though <code>instanceof</code> still
+        works exactly as you'd expect.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ G. THE INHERITANCE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The inheritance trap</p>
+    <h2>Metadata doesn't inherit. Your fields do.</h2>
+
+    <p>
+      Subclass a decorated Angular class and it's easy to assume the decorator comes along for the ride. It doesn't —
+      and the failure mode is a real, everyday one: an <code>abstract</code> base class holding an
+      <code>&#64;Input()</code> or an <code>inject()</code> call, with no decorator of its own, fails to build.
+    </p>
+
+    <app-code-lab
+      file="base-list.ts"
+      [code]="baseListSample"
+      [notes]="baseListNotes"
+      notesLabel="NG2007, and the one-line fix"
+    />
+
+    <p>
+      What <em>does</em> carry across <code>extends</code>, with no help needed: ordinary class members. A subclass of a
+      decorated <code>&#64;Component</code> still has every <code>&#64;Input()</code>, every
+      <code>&#64;HostListener</code>, every <code>inject()</code>-ed dependency its parent declared — those are just
+      fields and methods, and fields and methods are exactly what <code>extends</code> copies forward. What a subclass
+      does <strong>not</strong> get is the parent's own <code>&#64;Component</code> metadata: no template, no selector,
+      nothing. A component subclassing another component needs its <em>own</em>
+      <code>&#64;Component(&#123; ... &#125;)</code>, in full.
+    </p>
+
+    <app-remember variant="rule">
+      <code>&#64;Component</code> doesn't inherit. Your fields, your <code>&#64;Input()</code>s and your
+      <code>inject()</code> calls do — because those live on the class itself, and the class itself is exactly what
+      <code>extends</code> copies forward.
+    </app-remember>
+  </section>
+
+  <!-- ============ H. WHAT ANGULAR ACTUALLY DOES ============ -->
+  <section>
+    <p class="bf-eyebrow">What Angular actually does</p>
+    <h2>In production, <code>&#64;Component</code> never runs at all.</h2>
+
+    <p>
+      Here's the part that separates "knows the syntax" from "knows the system": in a production (AOT) build,
+      <strong><code>&#64;Component</code> never executes.</strong> The compiler (<code>ngtsc</code>) statically reads
+      the decorator's metadata at build time, compiles your template into instructions, and replaces the decorator with
+      generated static fields on the class. It's a compile-time <em>marker</em>, not a runtime mechanism:
+    </p>
+
+    <app-bubbles
+      [turns]="aotTalk"
+      caption="What actually happens to your `@Component` call between source and a running app."
+    />
+
+    <app-code-lab
+      file="hello.component.ts"
+      [code]="aotSample"
+      [notes]="aotNotes"
+      notesLabel="What survives the compiler, and what doesn't"
+    />
+
+    <p>
+      Two consequences fall straight out of this: decorator metadata has to be
+      <span class="bf-break">statically analyzable</span> — <code>template: someRuntimeString()</code> breaks AOT
+      because the compiler can't evaluate a function call at build time — and you can't apply
+      <code>&#64;Component</code> conditionally, because by the time your code runs, the decorator is already gone. JIT
+      mode (rare today — some tests, dynamic compilation) is the one place Angular decorators genuinely execute, which
+      is why <code>experimentalDecorators</code> stays switched on in CLI projects at all.
+    </p>
+
+    <app-quiz
+      question="In a production Angular build compiled with AOT, how many times does your @Component decorator FUNCTION actually execute?"
+      [options]="aotQuizOptions"
+      followUp="This is the napkin's second guess, paid off — the same erasure the FAQ below points to for @Input()."
+    />
+  </section>
+
+  <!-- ============ I. A LITTLE HISTORY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">A little history</p>
+    <h2>How constructor injection worked before it needed none of this.</h2>
+
+    <p>
+      Before <code>inject()</code>, Angular's JIT-era DI had to know a constructor parameter's <em>type</em> at runtime,
+      and TypeScript itself doesn't keep types around after compiling — so it needed help:
+    </p>
+
+    <app-code-lab
+      file="report.service.ts"
+      [code]="reflectSample"
+      [notes]="reflectNotes"
+      notesLabel="Where the parameter types actually go"
+    />
+
+    <app-predict
+      prompt="You write `constructor(private cfg: AppConfig)` where `AppConfig` is a TypeScript interface, and you skip `@Inject` because the type looks like enough information. What does Angular's DI actually receive as the token — and what happens when you run it?"
+      answer="Interfaces are compile-time-only — they're erased before anything runs, so there is no `AppConfig` value to put in `design:paramtypes` (Ivy's generated factories hit the same wall). What actually gets recorded is `Object`, the only honest thing TypeScript can say about an erased type. Angular then looks for a provider registered under the token `Object`, finds nothing, and throws `NullInjectorError: No provider for Object!` — confusing, because nothing in your code ever mentions `Object`. The fix is `InjectionToken<AppConfig>`, a real runtime value standing in for the interface, injected explicitly with `inject(APP_CONFIG)`."
+      revealLabel="Reveal what actually goes wrong"
+    />
+  </section>
+
+  <!-- ============ J. THE EXAM TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam trap</p>
+    <h2>Give the field an initializer, and the decorator goes silent.</h2>
+
+    <p>
+      Here's a genuine trap, and it's a favourite in interviews precisely because it looks like it shouldn't matter. A
+      property decorator can only <em>install</em> an accessor on the prototype — no descriptor, remember, nothing to
+      wrap. Whether that accessor ever actually fires depends on something that has nothing to do with the decorator at
+      all: whether the field that carries it has an initializer.
+    </p>
+
+    <app-code-lab
+      file="loud.ts"
+      [code]="fieldSample"
+      [notes]="fieldNotes"
+      notesLabel="Same decorator, two very different outcomes"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — construct both, see which setter actually fires</p>
+      <button (click)="runFieldDemo()">Construct Announced and AnnouncedLate</button>
+      @if (loudLog().length) {
+        <div class="order-log">
+          @for (line of loudLog(); track $index) {
+            <p>{{ line }}</p>
+          }
+        </div>
+      } @else {
+        <p class="demo__note">Not run yet — click the button. Guess first: how many log lines do you expect?</p>
+      }
+      <p class="demo__note">
+        Exactly one line, from <code>AnnouncedLate</code>. <code>Announced</code>'s
+        <code>name = 'Ada'</code> initializer creates its own instance property before <code>&#64;Loud</code>'s accessor
+        ever gets a chance — this repo compiles at <code>target: ES2022</code>, where a class field with an initializer
+        uses native <code>[[Define]]</code> semantics. State it as a rule:
+        <strong>property decorators observe, they cannot intercept the initializer.</strong> It's a real part of why
+        Angular moved <code>&#64;Input()</code> to the <code>input()</code> signal function — a signal input needs no
+        prototype accessor to be shadowed in the first place.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ K. THE OTHER DIALECT ============ -->
+  <section>
+    <p class="bf-eyebrow">The other dialect</p>
+    <h2>TypeScript speaks two decorator dialects. Angular only understands one.</h2>
+
+    <p>
+      TypeScript 5 ships the standardized (TC39 stage-3) decorator proposal <em>alongside</em> the legacy dialect every
+      sample on this page has used so far. They're genuinely different languages with different signatures — Angular
+      still targets the legacy one, which is exactly why this repo's <code>tsconfig.json</code> sets
+      <code>experimentalDecorators: true</code>. Remove that flag and the compiler switches to stage-3 semantics, and
+      every Angular decorator on the page breaks.
+    </p>
+
+    <app-compare
+      leftTitle="Legacy — what this page has run so far"
+      rightTitle="Stage-3 — TypeScript 5's default"
+      note="Same job — wrap a method, cache its results — genuinely incompatible shapes. Neither can call the other."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ legacyShapeSample }}</pre>
         </div>
       </div>
-    }
-  </div>
-  <p>Other decorators worth having in your toolbox — same anatomy, different wrapper:</p>
-  <div class="code">
-    <pre>{{ toolboxSample }}</pre>
-  </div>
+      <div right>
+        <div class="code">
+          <pre>{{ stage3ShapeSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
 
-  <h2>What Angular actually does with them (AOT)</h2>
-  <p>
-    Here is the part that separates "knows the syntax" from "knows the system": in a production (AOT) build,
-    <strong><code>&#64;Component</code> never executes</strong>. The Angular compiler (<code>ngtsc</code>) statically
-    reads the decorator's metadata at build time, compiles your template into instructions, and replaces the decorator
-    with generated static fields (<code>ɵcmp</code>, <code>ɵfac</code>) on the class. The decorator is a compile-time
-    <em>marker</em>, not a runtime mechanism:
-  </p>
-  <div class="code">
-    <pre>{{ aotSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>JIT mode</strong> (rare today: some tests, dynamic compilation) is the only place Angular decorators
-      genuinely run at runtime — which is why <code>experimentalDecorators</code> is still switched on in CLI projects.
-    </li>
-    <li>
-      This is also why decorator metadata must be <strong>statically analyzable</strong>:
-      <code>template: someRuntimeString()</code> breaks AOT because the compiler can't evaluate it at build time.
-    </li>
-    <li>
-      And why you can't apply <code>&#64;Component</code> conditionally or at runtime — by the time your code runs, the
-      decorator is gone.
-    </li>
-  </ul>
+    <p>
+      Rewritten in full, the same <code>&#64;Memoize</code> from earlier looks like this. This sample is illustrative
+      only — this project's <code>experimentalDecorators: true</code> compiles the legacy dialect, not this one, so it
+      can't run on this page the way the others do:
+    </p>
 
-  <h2>emitDecoratorMetadata — how constructor injection used to work</h2>
-  <p>
-    With <code>emitDecoratorMetadata</code>, TypeScript emits each constructor's parameter <em>types</em> as runtime
-    metadata. Angular's JIT DI read that to know what to inject — it's why
-    <code>constructor(private http: HttpClient)</code> worked with no token in sight. AOT replaced this with generated
-    factories, and the modern <code>inject(HttpClient)</code> function needs no reflection at all — one reason the
-    framework is migrating away from parameter decorators entirely (the TC39 standard doesn't even support them).
-  </p>
-  <div class="code">
-    <pre>{{ diSample }}</pre>
-  </div>
+    <app-code-lab
+      file="fib.stage3.ts"
+      [code]="stage3Sample"
+      [notes]="stage3Notes"
+      notesLabel="What context gives you that the old signature didn't"
+    />
 
-  <h2>Legacy vs TC39 stage-3 decorators</h2>
-  <p>
-    TypeScript 5 ships the standardized decorator proposal alongside the legacy dialect. They are
-    <em>different languages</em> with different signatures — Angular still uses the legacy dialect (hence
-    <code>"experimentalDecorators": true</code> in this repo's tsconfig; remove it and the compiler switches to stage-3
-    semantics and Angular's decorators break):
-  </p>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>Legacy (Angular today)</th>
-      <th>TC39 stage-3 (TS 5+ default)</th>
-    </tr>
-    <tr>
-      <td>Enabled by</td>
-      <td><code>experimentalDecorators: true</code></td>
-      <td>default when the flag is absent</td>
-    </tr>
-    <tr>
-      <td>Method signature</td>
-      <td><code>(target, key, descriptor)</code></td>
-      <td><code>(value, context)</code> — context has kind, name, <code>addInitializer</code></td>
-    </tr>
-    <tr>
-      <td>Parameter decorators</td>
-      <td>supported (<code>&#64;Inject</code>)</td>
-      <td><strong>not in the standard</strong></td>
-    </tr>
-    <tr>
-      <td>Metadata emit</td>
-      <td><code>emitDecoratorMetadata</code></td>
-      <td>separate metadata proposal</td>
-    </tr>
-    <tr>
-      <td>Replace a class/method</td>
-      <td>mutate descriptor / return class</td>
-      <td>return the replacement from the decorator</td>
-    </tr>
-  </table>
-
-  <h2>The signal era — the migration map</h2>
-  <p>
-    Modern Angular replaces most <em>member</em> decorators with plain functions that create signals — no reflection,
-    better types, works with the new compilation model. The <em>class</em> decorators remain (they're the compiler's
-    entry points):
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Decorator era</th>
-      <th>Signal era</th>
-      <th>Gained</th>
-    </tr>
-    <tr>
-      <td><code>&#64;Input() x = 0</code></td>
-      <td><code>x = input(0)</code></td>
-      <td>read-only signal, required inputs, transforms</td>
-    </tr>
-    <tr>
-      <td><code>&#64;Output() e = new EventEmitter()</code></td>
-      <td><code>e = output()</code></td>
-      <td>no RxJS coupling, cleaner types</td>
-    </tr>
-    <tr>
-      <td><code>&#64;Input</code> + <code>&#64;Output</code> pair</td>
-      <td><code>x = model(0)</code></td>
-      <td>two-way binding in one line</td>
-    </tr>
-    <tr>
-      <td><code>&#64;ViewChild('ref')</code></td>
-      <td><code>viewChild('ref')</code></td>
-      <td>signal, timing-safe, required variant</td>
-    </tr>
-    <tr>
-      <td><code>&#64;ContentChildren(Tab)</code></td>
-      <td><code>contentChildren(Tab)</code></td>
-      <td>signal of readonly array</td>
-    </tr>
-    <tr>
-      <td><code>constructor(&#64;Inject(TOKEN) t)</code></td>
-      <td><code>t = inject(TOKEN)</code></td>
-      <td>works in field initializers &amp; functions, inheritance-friendly</td>
-    </tr>
-    <tr>
-      <td><code>&#64;HostListener</code> / <code>&#64;HostBinding</code></td>
-      <td><code>host: &#123;...&#125;</code> metadata</td>
-      <td>statically analyzable, the style guide's preference</td>
-    </tr>
-    <tr>
-      <td>
-        <code>&#64;Component</code>, <code>&#64;Directive</code>, <code>&#64;Injectable</code>, <code>&#64;Pipe</code>
-      </td>
-      <td colspan="2">stay — they are how the compiler finds Angular classes</td>
-    </tr>
-  </table>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>In what order do <code>&#64;A() &#64;B() method()</code> run?</summary>
-    <div>
-      Factories evaluate top-down (A's factory, then B's), the returned decorators apply bottom-up (B decorates the
-      method, A decorates the result) — function composition, <code>A(B(method))</code>.
+    <p>
+      Stage-3 also introduces syntax with <strong>no legacy equivalent at all</strong> — an auto-accessor, which exists
+      mainly to give a decorator something to intercept:
+    </p>
+    <div class="code">
+      <pre>{{ accessorSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Does <code>&#64;Component</code> execute in a production build?</summary>
-    <div>
-      No. AOT compilation reads it statically, generates <code>ɵcmp</code>/<code>ɵfac</code> static fields, and drops
-      the decorator. It only executes under JIT compilation.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How many times does a method decorator run for 100 instances?</summary>
-    <div>
-      Once — at class-definition time, when the module first loads. The rewritten descriptor (and any closure state,
-      like a memo cache) is shared by all 100 instances.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why can't Angular adopt TC39 decorators for <code>&#64;Inject</code>?</summary>
-    <div>
-      The stage-3 standard has no parameter decorators. That's one driver behind <code>inject()</code> — it moves DI out
-      of constructor parameters entirely, so no parameter decoration (or reflection metadata) is needed.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why must <code>&#64;Component</code> metadata be statically analyzable?</summary>
-    <div>
-      Because the AOT compiler evaluates it at build time to generate template instructions. A template or selector
-      computed at runtime can't be compiled ahead of time — the build fails.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A decorator is a plain function called with a target-kind-specific signature at class-definition time — once, not
-      per instance.
-    </li>
-    <li>Factories evaluate top-down; decorators apply bottom-up (composition).</li>
-    <li>
-      In AOT builds Angular decorators are compile-time markers — <code>&#64;Component</code> never runs; JIT is the
-      exception that keeps <code>experimentalDecorators</code> alive.
-    </li>
-    <li>Angular uses the legacy dialect; TC39 stage-3 has different signatures and no parameter decorators.</li>
-    <li>
-      Member decorators are migrating to signal functions (<code>input()</code>, <code>output()</code>,
-      <code>viewChild()</code>, <code>inject()</code>); class decorators stay.
-    </li>
-  </ul>
+    <table>
+      <caption class="bf-table-caption">
+        The two dialects, side by side
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Legacy (Angular today)</th>
+          <th>TC39 stage-3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Enabled by</td>
+          <td><code>experimentalDecorators: true</code></td>
+          <td>default when that flag is absent</td>
+        </tr>
+        <tr>
+          <td>Method signature</td>
+          <td><code>(target, key, descriptor)</code></td>
+          <td><code>(value, context)</code></td>
+        </tr>
+        <tr>
+          <td>Property signature</td>
+          <td><code>(target, key)</code> — no descriptor</td>
+          <td><code>(value, context)</code> — value is the initializer</td>
+        </tr>
+        <tr>
+          <td>Parameter decorators</td>
+          <td>supported (<code>&#64;Inject</code>)</td>
+          <td><strong>not in the standard</strong></td>
+        </tr>
+        <tr>
+          <td>Metadata emit</td>
+          <td><code>emitDecoratorMetadata</code></td>
+          <td>a separate metadata proposal</td>
+        </tr>
+        <tr>
+          <td>Replace a class/method</td>
+          <td>mutate the descriptor / return a class</td>
+          <td>return the replacement from the decorator</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 
-  <p>
-    Drill this with the <a routerLink="/practice">TypeScript challenges</a>, then continue to
-    <a routerLink="/ts-modules">Modules, Imports &amp; Exports →</a>
-  </p>
+  <!-- ============ L. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Where each decorator lands in the signal era.</h2>
+
+    <p>
+      Modern Angular replaces most <em>member</em> decorators with plain functions that create signals — no reflection,
+      better types, and none of the field-initializer trap above, because there's no prototype accessor left for an
+      initializer to shadow. The <em>class</em> decorators stay — they're still the compiler's entry points.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        Decorator era → signal era
+      </caption>
+      <thead>
+        <tr>
+          <th>Decorator era</th>
+          <th>Signal era</th>
+          <th>Gained</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&#64;Input() x = 0</code></td>
+          <td><code>x = input(0)</code></td>
+          <td>read-only signal, required inputs, transforms — no accessor to shadow</td>
+        </tr>
+        <tr>
+          <td><code>&#64;Output() e = new EventEmitter()</code></td>
+          <td><code>e = output()</code></td>
+          <td>no RxJS coupling, cleaner types</td>
+        </tr>
+        <tr>
+          <td><code>&#64;Input</code> + <code>&#64;Output</code> pair</td>
+          <td><code>x = model(0)</code></td>
+          <td>two-way binding in one line</td>
+        </tr>
+        <tr>
+          <td><code>&#64;ViewChild('ref')</code></td>
+          <td><code>viewChild('ref')</code></td>
+          <td>signal, timing-safe, required variant</td>
+        </tr>
+        <tr>
+          <td><code>&#64;ContentChildren(Tab)</code></td>
+          <td><code>contentChildren(Tab)</code></td>
+          <td>signal of a readonly array</td>
+        </tr>
+        <tr>
+          <td><code>constructor(&#64;Inject(TOKEN) t)</code></td>
+          <td><code>t = inject(TOKEN)</code></td>
+          <td>works in field initializers &amp; functions, inheritance-friendly, needs no reflection</td>
+        </tr>
+        <tr>
+          <td><code>&#64;HostListener</code> / <code>&#64;HostBinding</code></td>
+          <td><code>host: &#123;...&#125;</code> metadata</td>
+          <td>statically analyzable, the style guide's preference</td>
+        </tr>
+        <tr>
+          <td>
+            <code>&#64;Component</code>, <code>&#64;Directive</code>, <code>&#64;Injectable</code>,
+            <code>&#64;Pipe</code>
+          </td>
+          <td colspan="2">stay — they're how the compiler finds Angular classes at all</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ M. QUESTIONS FROM THE BACK ROW ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ N. BEFORE YOU GO ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A decorator is a <strong>plain function</strong>, called once at class-definition time with a signature that
+        depends on what it's attached to — never once per instance, never once per call.
+      </li>
+      <li>
+        Stack several: <strong>factories evaluate top-down</strong>; the decorators they return
+        <strong>apply bottom-up</strong>, so the one closest to the member wraps first and ends up innermost.
+      </li>
+      <li>
+        A class decorator can <strong>mutate</strong> the class you wrote (add statics, freeze it) or
+        <strong>replace</strong> it outright by returning a new one — and a replaced class can lose its own
+        <code>.name</code>.
+      </li>
+      <li>
+        Metadata doesn't inherit through <code>extends</code>; fields, <code>&#64;Input()</code>s and
+        <code>inject()</code> calls do. An undecorated abstract base using Angular features fails to compile
+        (<strong>NG2007</strong>) until it gets a bare <code>&#64;Directive()</code>.
+      </li>
+      <li>
+        In an AOT build, <code>&#64;Component</code> and friends <strong>never execute</strong> —
+        <code>ngtsc</code> reads their metadata statically and replaces them with <code>ɵcmp</code>/<code>ɵfac</code>.
+        That's also why the metadata has to be statically analyzable.
+      </li>
+      <li>
+        A property decorator can only <strong>install</strong> an accessor; a class field
+        <em>with an initializer</em> creates its own instance property first and silently shadows it. Signal functions
+        like <code>input()</code>
+        exist partly to sidestep this exact trap.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-modules">Next: Modules, Imports &amp; Exports →</a></p>
+  </section>
 </article>

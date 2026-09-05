@@ -1,19 +1,10 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
+/* Tables, callouts, code panels, chips and the whole teaching set come from
+   the brain-friendly layer now (src/brain-friendly.css §8–15), so the old
+   `table.cmp` and `.qa` blocks are gone — the tables are bare <table>s and the
+   exam Q&A is an <app-faq>. What is left is genuinely bespoke: the two log
+   readouts (decorator evaluation order, and which setter actually fired) and
+   the memoize benchmark's result cards — none of them map onto a shared
+   component. */
 
 .order-log {
   background: var(--bg-elevated);
@@ -49,22 +40,4 @@ table.cmp th {
 .bench .card strong {
   font-size: 1.15rem;
   font-family: monospace;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }
