@@ -11,7 +11,7 @@ import { ToastService } from './core/toast.service';
 import { StreakService } from './core/streak.service';
 import { BookmarksService } from './core/bookmarks.service';
 import { CURRICULUM } from './core/curriculum';
-import { highlight } from './shared/highlighter';
+import { highlight, type HighlightLang } from './shared/highlighter';
 import { ToastsComponent } from './shared/toasts.component';
 import { STORAGE_KEYS, readRaw, writeRaw } from './core/storage';
 
@@ -129,12 +129,16 @@ export class App {
         setTimeout(() => {
           // `.code pre` is the overwhelmingly common shape, but a handful of
           // lessons use a bare `<pre class="code-block">`; both are code the
-          // learner is meant to read closely, so both get tokenised.
+          // learner is meant to read closely, so both get tokenised. A block
+          // opts into a non-TS language with `data-lang` (the cheat sheets are
+          // the main user of this); anything without it keeps defaulting to
+          // `ts`, so no existing lesson markup needs to change.
           doc.querySelectorAll('.code pre, pre.code-block').forEach((pre) => {
             if (pre.closest('.demo')) return;
             const text = pre.textContent ?? '';
             if (!text.trim()) return;
-            pre.innerHTML = highlight(text);
+            const lang = (pre.getAttribute('data-lang') as HighlightLang | null) ?? 'ts';
+            pre.innerHTML = highlight(text, lang);
           });
         }, 0);
       });

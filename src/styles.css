@@ -451,6 +451,19 @@ samp {
 .hl-punct {
   color: #8792a8;
 }
+/* Shell flags (`-x`, `--verbose`) — bash only. */
+.hl-flag {
+  color: #f07178;
+}
+/* Shell variables (`$VAR`, `${VAR}`) — bash only. */
+.hl-var {
+  color: #7fdbca;
+}
+/* The key half of `key: value` — yaml/json only. */
+.hl-key {
+  color: #82aaff;
+  font-weight: 600;
+}
 
 /* Callouts */
 .note,
@@ -472,6 +485,20 @@ samp {
 .warn {
   border-color: var(--amber);
   background: rgba(245, 166, 35, 0.08);
+}
+
+/* A surprising trap, distinct from "good practice" (.tip) and "risk of real
+   loss" (.warn) — cheat sheets are the main user of this tone. Uses
+   color-mix() rather than a hardcoded rgba() (unlike its older siblings
+   above) so the wash tracks whatever --violet actually resolves to under
+   the brain-friendly remap, in both colour schemes. */
+.gotcha {
+  border-left: 3px solid var(--violet);
+  background: color-mix(in srgb, var(--violet) 8%, transparent);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 16px 0;
+  font-size: 0.95rem;
 }
 
 /* Generic controls used in demos */
