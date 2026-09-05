@@ -3,6 +3,27 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, catchError, of } from 'rxjs';
+import {
+  BfPage,
+  Bubbles,
+  type BubbleTurn,
+  Chapter,
+  type ChapterStop,
+  CodeLab,
+  type CodeNote,
+  Napkin,
+} from '../../../shared/brain';
+import {
+  Compare,
+  Faq,
+  type FaqItem,
+  Flow,
+  type FlowStep,
+  Predict,
+  Quiz,
+  type QuizOption,
+  Remember,
+} from '../../../shared/teaching';
 
 /**
  * A post from the demo API. `id` is optional because a POST body does not carry
@@ -25,7 +46,21 @@ const API = 'https://jsonplaceholder.typicode.com/posts';
  */
 @Component({
   selector: 'app-lesson-http-crud',
-  imports: [RouterLink, JsonPipe],
+  imports: [
+    RouterLink,
+    JsonPipe,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    Compare,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './http-crud.css',
   templateUrl: './http-crud.html',
 })
@@ -240,4 +275,234 @@ http.get(url, { responseType: 'text' });
 
 // the two options combine freely:
 http.get(url, { observe: 'response', responseType: 'text' });`;
+
+  /**
+   * Compare panel: PUT's full-replacement body.
+   */
+  readonly putBodySample = `http.put(url, {
+  id: 1,
+  title: 'New title',
+  body: 'body',
+  userId: 1,
+});
+// every field must be resent`;
+
+  /**
+   * Compare panel: PATCH's partial body.
+   */
+  readonly patchBodySample = `http.patch(url, {
+  title: 'New title',
+});
+// only the changed field`;
+
+  // ── brain-friendly content ──
+
+  /**
+   * Chapter rail: this lesson's HTTP track. Only one same-level sibling exists
+   * in the curriculum, so the rail is thin — but `Chapter.showRail` only needs
+   * more than one stop, and two clears that.
+   */
+  readonly stops: ChapterStop[] = [
+    { label: 'HttpClient CRUD' },
+    { label: 'HTTP Interceptors', id: 'http-interceptors' },
+  ];
+
+  /**
+   * Bridge dialogue: why the "wrong way" button in the params demo does
+   * nothing, tied to the same immutability rule as a JS string.
+   */
+  readonly bridgeTalk: BubbleTurn[] = [
+    {
+      who: 'You',
+      says: "I called `demoParams().set('sort', 'desc')` right before rendering. Why didn't the URL change?",
+    },
+    {
+      who: 'HttpParams',
+      says: "I didn't change. `.set()` never mutates me — it always hands back a *new* `HttpParams` and leaves the original exactly as it was.",
+    },
+    { who: 'You', says: 'So the new one I just built… vanished?' },
+    {
+      who: 'HttpParams',
+      says: "Since nothing captured it, yes. Same rule as a string — `'abc'.toUpperCase()` doesn't touch `'abc'`, it hands you back `'ABC'` to keep.",
+    },
+    { who: 'You', says: 'So I need to write the result back somewhere.' },
+    {
+      who: 'HttpParams',
+      says: "Exactly — `signal.update(p => p.set(...))` takes whatever I return and stores it. That's the entire fix.",
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `verbsSample`.
+   */
+  readonly verbsNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'POST creates a new resource. body is a plain positional arg (Angular JSON-serializes it), and <Post> types what the server returns — not what you sent.',
+    },
+    {
+      line: 2,
+      text: 'PUT replaces the whole resource. The id lives in the URL, never the body — omit a field here and the server can wipe it.',
+    },
+    {
+      line: 3,
+      text: 'PATCH sends only the changed fields; the server merges them in. The safe choice for "update one field."',
+    },
+    { line: 4, text: 'DELETE takes no body at all — the URL alone identifies what to remove.' },
+    {
+      line: 6,
+      text: 'GET (and DELETE) have no body argument, so options slides into the 2nd parameter slot instead of the 3rd.',
+    },
+    {
+      line: 7,
+      text: 'HttpParams builds the query string for you. Its immutability gotcha gets a live demo — and its own bug — two sections down.',
+    },
+    {
+      line: 8,
+      text: 'A header set here applies to this call only. One every request needs belongs in an interceptor, not here.',
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `demoSourceSample`.
+   */
+  readonly demoSourceNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'One helper takes any verb’s Observable as a parameter — the loading/error bookkeeping only has to be written once.',
+    },
+    {
+      line: 4,
+      text: "Resetting isError up front means a fresh request doesn't still show the previous request's failure pill while this one's in flight.",
+    },
+    {
+      line: 8,
+      text: 'catchError intercepts the error channel — the only place a non-2xx response shows up, since HttpClient never throws synchronously.',
+    },
+    {
+      line: 10,
+      text: 'of({ ... }) returns a replacement Observable, so the pipeline completes normally with a fallback value instead of propagating the error and killing the subscription.',
+    },
+    {
+      line: 13,
+      text: "One subscribe callback handles both the real success value and catchError's fallback — both now arrive on the same next channel.",
+    },
+    {
+      line: 20,
+      text: "A caller method's whole job: build the request, hand it to run() with a label. No per-verb loading/error logic.",
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `paramsImmutableSample`.
+   */
+  readonly paramsImmutableNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'demoParams() reads the current value and calls .set() on it — but .set() returns a new HttpParams instead of mutating, and nothing catches it here.',
+    },
+    {
+      line: 5,
+      text: 'update() calls the callback with the current value and stores whatever it returns — precisely the "build new, then store" step .set() needs.',
+    },
+    {
+      line: 8,
+      text: 'The same fix by hand, no sugar: read the params, .set() to get a new instance, then signal.set() that instance back in.',
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `typedOptionsSample`.
+   */
+  readonly typedOptionsNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "observe: 'response' changes what the Observable emits — a full HttpResponse wrapper instead of the bare decoded body.",
+    },
+    {
+      line: 3,
+      text: 'res.body is now the parsed JSON that get<Post>() used to hand you directly; res.status and res.headers ride along beside it.',
+    },
+    {
+      line: 6,
+      text: "responseType tells HttpClient how to parse the wire. 'text' skips JSON.parse entirely — needed for non-JSON payloads.",
+    },
+    {
+      line: 9,
+      text: 'The two options are independent and compose freely: full envelope and raw text body in one call.',
+    },
+  ];
+
+  /**
+   * The request pipeline, as a visual flow — matches "Under the hood" below.
+   */
+  readonly requestFlow: FlowStep[] = [
+    {
+      label: 'http.get(...) is called',
+      detail: 'Nothing is sent yet — this only builds a description of the request',
+      tone: 'default',
+    },
+    {
+      label: '.subscribe()',
+      detail: 'This is what actually fires the network call',
+      tone: 'accent',
+    },
+    {
+      label: 'Interceptor chain',
+      detail: 'Auth headers, logging, retries — in registration order',
+      tone: 'default',
+    },
+    { label: 'Real backend', detail: 'jsonplaceholder.typicode.com', tone: 'default' },
+    {
+      label: 'One value, then complete — or an error',
+      detail:
+        'Success emits once and closes; failure arrives on the error channel, never a thrown exception',
+      tone: 'warn',
+    },
+  ];
+
+  /**
+   * Self-test: PUT vs PATCH.
+   */
+  readonly verbQuizOptions: QuizOption[] = [
+    {
+      text: 'PUT, sending just the one field that changed',
+      why: 'PUT means "replace the whole resource." Sending only one field can wipe out every field you omitted, server-side.',
+    },
+    {
+      text: 'PATCH, sending only the field(s) that changed',
+      correct: true,
+      why: 'PATCH means "apply a partial update" — the server merges what you send into the record that already exists.',
+    },
+    {
+      text: 'Either verb — HttpClient normalizes the request either way',
+      why: 'HttpClient never rewrites your verb or your body. You choose PUT or PATCH; the server trusts whichever semantics you claim.',
+    },
+  ];
+
+  /**
+   * Exam-corner questions, ported from the original detail/summary blocks.
+   */
+  readonly questions: FaqItem[] = [
+    {
+      q: "Why did params.set('page', 2) not change the URL?",
+      a: 'HttpParams is immutable — set() returns a new instance you must assign or pass on. The original is unchanged. (This is the exact bug the live demo above walks through.)',
+    },
+    {
+      q: 'PUT or PATCH to change one field?',
+      a: 'PATCH — it sends only that field. PUT replaces the entire resource, so any field you omit may be cleared.',
+    },
+    {
+      q: 'How do you read response headers or status, not just the body?',
+      a: "Pass { observe: 'response' } — you get the full HttpResponse, with status, headers and body all together.",
+    },
+    {
+      q: 'A component throws "NullInjectorError: No provider for HttpClient" at startup. What’s missing, and why doesn’t it show up as a network error instead?',
+      a: 'provideHttpClient() was never added to the app’s providers. Dependency injection resolves at construction time — before any request is ever made — so the failure is a wiring error, not a runtime network failure.',
+    },
+    {
+      q: 'Why does a failed HTTP call need catchError instead of a try/catch around subscribe()?',
+      a: 'HttpClient methods never throw synchronously — a non-2xx response is delivered as an error notification on the Observable, not a thrown exception. A try/catch around .subscribe(...) would never see it; you need catchError in the pipe, or the error callback passed to subscribe.',
+    },
+  ];
 }
