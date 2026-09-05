@@ -1,320 +1,436 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · RxJS</span>
-  <h1>Advanced RxJS</h1>
-  <p class="lead">
-    Once observables underpin your data flow, two skills separate senior code from junior code:
-    <strong>combining streams</strong> declaratively, and choosing the right <strong>flattening strategy</strong> for
-    nested async work. This page has live laboratories for both, then covers subjects, hot/cold sharing, error recovery,
-    custom operators, and where signals take over.
-  </p>
-
-  <h2>Combining streams</h2>
-  <div class="code">
-    <pre>{{ combineSample }}</pre>
-  </div>
-
-  <h2>The difference in one picture</h2>
-  <p>Given the same two inputs, each operator produces a different output:</p>
-  <div class="code">
-    <pre>{{ marbleSample }}</pre>
-  </div>
-
-  <h2>Live #1 — combineLatest</h2>
-  <div class="demo">
-    <p class="demo__title">Live — two streams joined into a greeting</p>
-    <div class="field">
-      <label>First name</label>
-      <input aria-label="First name" [value]="first()" (input)="setFirst($any($event.target).value)" />
-    </div>
-    <div class="field">
-      <label>Last name</label>
-      <input aria-label="Last name" [value]="last()" (input)="setLast($any($event.target).value)" />
-    </div>
-    <p class="row">
-      <span class="pill" style="color: var(--green)">combined: {{ full() }}</span>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="Angular Expert · RxJS"
+    title="Advanced RxJS"
+    hand="or, what happens once more than one stream is live at the same time"
+    [stops]="stops"
+    [current]="4"
+  >
+    <p class="lead">
+      Once observables underpin your data flow, two skills separate senior code from junior code:
+      <strong>combining streams</strong> declaratively, and choosing the right <strong>flattening strategy</strong> for
+      nested async work. This page has live laboratories for both, then covers subjects, hot/cold sharing, error
+      recovery, custom operators, and where signals take over.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>Higher-order observables — the flattening four</h2>
-  <p>
-    A <code>map</code> that returns an observable gives you an observable <em>of observables</em>. The flattening
-    operators subscribe to those inner streams for you — and differ only in their <strong>concurrency policy</strong>:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Operator</th>
-      <th>When a new outer value arrives while an inner is running…</th>
-      <th>Canonical use</th>
-    </tr>
-    <tr>
-      <td><code>switchMap</code></td>
-      <td><strong>cancel</strong> the running inner, switch to the new one</td>
-      <td>typeahead search, route param → detail fetch (only the latest matters)</td>
-    </tr>
-    <tr>
-      <td><code>mergeMap</code></td>
-      <td>run them <strong>in parallel</strong> (optional concurrency cap)</td>
-      <td>independent side-by-side requests, fire-and-forget logging</td>
-    </tr>
-    <tr>
-      <td><code>concatMap</code></td>
-      <td><strong>queue</strong> it — strict order, one at a time</td>
-      <td>writes that must not interleave (audit trails, sequential saves)</td>
-    </tr>
-    <tr>
-      <td><code>exhaustMap</code></td>
-      <td><strong>ignore</strong> it until the running inner completes</td>
-      <td>submit buttons, login — swallow double-clicks</td>
-    </tr>
-  </table>
-
-  <h2>Live #2 — the flattening lab</h2>
-  <p>
-    Pick a strategy, then hammer "fire request" a few times fast. Every request is a real 1.5-second timer; the log
-    shows what each policy does with the overlap:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — same clicks, four different concurrency policies</p>
-    <div class="row strat">
-      @for (s of strategies; track s) {
-        <button [class.on]="strategy() === s" (click)="setStrategy(s)">{{ s }}</button>
-      }
-    </div>
-    <div class="row" style="margin-top: 10px">
-      <button (click)="fire()">fire request (takes 1.5s)</button>
-      <button class="ghost" (click)="log.set([])">clear log</button>
-    </div>
-    <div class="lab-log">
-      @if (!log().length) {
-        <div style="opacity: 0.6">— click "fire request" a few times quickly —</div>
-      }
-      @for (line of log(); track $index) {
-        <div>{{ line }}</div>
-      }
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px">
-      <strong>switchMap</strong>: earlier requests report "cancelled" — only the last response lands.
-      <strong>mergeMap</strong>: all responses land, ordered by <em>completion</em>. <strong>concatMap</strong>: all
-      land, in click order, 1.5s apart — later ones wait in the queue. <strong>exhaustMap</strong>: clicks during a
-      flight are ignored so those requests never even start.
+  <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>
+    <h2>A save button gets double-clicked. Predict what should happen.</h2>
+    <p>
+      A <code>save()</code> call hits your API. The button is wired to <code>(click)</code> → an RxJS pipeline →
+      <code>http.post(...)</code>. Someone double-clicks it fast, the way people actually do on slow wifi.
     </p>
-  </div>
-  <div class="code">
-    <pre>{{ labSample }}</pre>
-  </div>
 
-  <h2>Subject varieties</h2>
-  <table class="cmp">
-    <tr>
-      <th>Type</th>
-      <th>What a NEW subscriber receives</th>
-      <th>Typical job</th>
-    </tr>
-    <tr>
-      <td><code>Subject</code></td>
-      <td>only values emitted after subscribing</td>
-      <td>event bus, imperative → reactive bridge</td>
-    </tr>
-    <tr>
-      <td><code>BehaviorSubject(seed)</code></td>
-      <td>the current value immediately, then updates</td>
-      <td>state holders (pre-signals); requires an initial value; has <code>.value</code></td>
-    </tr>
-    <tr>
-      <td><code>ReplaySubject(n)</code></td>
-      <td>the last <code>n</code> values, even from before subscribing</td>
-      <td>late subscribers needing history (e.g. last route event)</td>
-    </tr>
-    <tr>
-      <td><code>AsyncSubject</code></td>
-      <td>only the final value, only on complete</td>
-      <td>rare — "result of a computation" semantics</td>
-    </tr>
-  </table>
+    <app-predict
+      prompt="Which of the four flattening operators — `switchMap`, `mergeMap`, `concatMap`, `exhaustMap` — belongs on a save button, and what would `switchMap` specifically do if you reached for it out of habit?"
+      answer="**`exhaustMap`** belongs here: it ignores new clicks entirely while a save is already in flight, so the second click simply does nothing. `switchMap` — the operator most people reach for out of habit, because it's the one used for search-as-you-type — would make this **worse**: it CANCELS the in-flight save and starts a new one, which on a real API can mean the first write never completes, or the two land out of order. Try all four in the lab below and watch the log; the `finalize` line proves exactly when a request is really cancelled versus merely queued."
+    />
+  </section>
 
-  <h2>Hot vs cold — and shareReplay</h2>
-  <div class="code">
-    <pre>{{ shareSample }}</pre>
-  </div>
-  <p>
-    A cold observable (like every <code>HttpClient</code> call) runs its producer <em>per subscriber</em> — two
-    <code>async</code> pipes on the same stream means two HTTP requests.
-    <code>shareReplay(&#123; bufferSize: 1, refCount: true &#125;)</code> multicasts one execution to all subscribers
-    and replays the latest value to late arrivals; <code>refCount: true</code> tears the source down when the last
-    subscriber leaves (without it, the subscription — and a socket or timer behind it — leaks forever).
-  </p>
+  <!-- ============ 2. THE ANALOGY ============ -->
+  <section>
+    <p class="bf-eyebrow">The mental model</p>
+    <h2>A stream is a camera feed. This lesson is the control room.</h2>
+    <p>
+      Every observable so far in this course has been one camera pointed at one thing. Advanced RxJS is what happens
+      once there is <strong>more than one feed running at the same time</strong>, and you need a control room to make
+      sense of them: several feeds coming in, monitors that hold onto old frames or don't, one shared recording so you
+      aren't paying for four cameras pointed at the same shot, and a video wall that has to decide, moment by moment,
+      what the audience actually sees.
+    </p>
+    <p>
+      The <span class="term">Subject</span> variants below are just different kinds of monitor — the question is always
+      "does it remember anything from before I tuned in, and how much?" <span class="term">Hot vs cold</span> is whether
+      turning a monitor on <strong>starts</strong> a private screening or <strong>joins</strong> a broadcast already
+      running, and <code>shareReplay</code> is the building's shared antenna: one dish instead of one private screening
+      per apartment. The <strong>combination operators</strong> are the video-wall director, choosing what the wall
+      shows once several feeds are live together.
+    </p>
 
-  <h2>Error handling &amp; retries</h2>
-  <div class="code">
-    <pre>{{ errorSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Errors travel the pipe like values</strong> — the first operator that handles one decides the stream's
-      fate. Order matters: <code>retry</code> must sit <em>before</em> <code>catchError</code>, or there is nothing left
-      to retry.
-    </li>
-    <li>
-      <strong>An error unsubscribes the source.</strong> The classic bug: <code>catchError</code> on the
-      <em>outer</em> typeahead stream kills the whole search after one failed request. Handle errors on the
-      <strong>inner</strong> stream (inside the <code>switchMap</code>).
-    </li>
-    <li>
-      <code>finalize</code> runs on complete, error <em>and</em> unsubscribe — the right home for "loading = false".
-    </li>
-  </ul>
+    <app-remember variant="mnemonic">
+      <strong>Subject variant</strong> = which kind of monitor. <strong>Hot vs cold</strong> = does subscribing START
+      the show or JOIN it. <strong><code>shareReplay</code></strong> = one shared antenna instead of N private
+      screenings of the same broadcast.
+    </app-remember>
+  </section>
 
-  <h2>Custom operators</h2>
-  <p>An operator is just a function from <code>Observable</code> to <code>Observable</code>:</p>
-  <div class="code">
-    <pre>{{ customOpSample }}</pre>
-  </div>
+  <!-- ============ 3. COMBINING STREAMS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The video wall</p>
+    <h2>Combining multiple feeds into one.</h2>
+    <p>
+      A <code>map</code> that returns an observable gives you an observable <em>of observables</em>; that's next
+      section. This one is simpler: several <em>independent</em> feeds, combined into one output by rules that differ in
+      exactly what each operator is willing to wait for.
+    </p>
 
-  <h2>Where signals take over</h2>
-  <table class="cmp">
-    <tr>
-      <th>Concern</th>
-      <th>Reach for</th>
-    </tr>
-    <tr>
-      <td>synchronous state + derivations</td>
-      <td>signals: <code>signal</code>/<code>computed</code> — no subscription management at all</td>
-    </tr>
-    <tr>
-      <td>events over time: debounce, cancellation, races, retries</td>
-      <td>RxJS — signals have no time axis</td>
-    </tr>
-    <tr>
-      <td>observable → template</td>
-      <td><code>toSignal(obs$, &#123; initialValue &#125;)</code> (or the <code>async</code> pipe)</td>
-    </tr>
-    <tr>
-      <td>signal → observable world (e.g. debounce a signal)</td>
-      <td><code>toObservable(sig)</code>, pipe, then <code>toSignal</code> back</td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>{{ interopSample }}</pre>
-  </div>
+    <app-code-lab
+      file="combine-operators.ts"
+      [code]="combineSample"
+      [notes]="combineNotes"
+      notesLabel="Four operators, four different waiting policies"
+    />
 
-  <h2>Common mistakes</h2>
-  <table class="t">
-    <tr>
-      <td><code>combineLatest</code> seems silent</td>
-      <td>
-        It emits nothing until <em>every</em> source has emitted once. Seed slow inputs with
-        <code>startWith(initial)</code>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>forkJoin</code> never fires</td>
-      <td>
-        It needs every source to <strong>complete</strong>. HTTP calls complete; <code>interval</code>/<code
-          >fromEvent</code
-        >
-        don't — cap them with <code>take(n)</code> or use <code>combineLatest</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>One failed request kills <code>forkJoin</code></td>
-      <td>
-        A single error rejects the whole join. <code>catchError(() =&gt; of(null))</code> per inner stream to keep the
-        others.
-      </td>
-    </tr>
-    <tr>
-      <td>Re-running an HTTP call per subscriber</td>
-      <td>
-        Each <code>subscribe</code> re-fires a cold stream. Share with
-        <code>shareReplay({{ '{' }} bufferSize: 1, refCount: true {{ '}' }})</code>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>catchError</code> after <code>retry</code> but expecting more retries</td>
-      <td>
-        Once <code>catchError</code> swaps in a fallback the stream completes — order operators as <code>retry</code> →
-        <code>catchError</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>Nesting <code>subscribe</code> inside <code>subscribe</code></td>
-      <td>
-        Use a flattening operator (<code>switchMap</code>/<code>mergeMap</code>/…) instead — it manages the inner
-        subscription for you.
-      </td>
-    </tr>
-    <tr>
-      <td>Search dies after one HTTP error</td>
-      <td>
-        <code>catchError</code> sat on the outer stream, so the error completed the whole pipeline. Catch inside the
-        flattening operator's inner observable.
-      </td>
-    </tr>
-  </table>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>A save button double-submits under fast clicks. Which operator, and why not switchMap?</summary>
-    <div>
-      <code>exhaustMap</code>: it ignores new outer values while the inner request is in flight, so the duplicate click
-      does nothing. <code>switchMap</code> would <em>cancel the in-flight save</em> and fire a second one — worse than
-      the bug you started with.
+    <p>Given the same two inputs, each operator produces a genuinely different output — the same idea, as marbles:</p>
+    <div class="code">
+      <pre>{{ marbleSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Typeahead returns results for an OLD query after fast typing. Diagnose.</summary>
-    <div>
-      Requests were flattened with <code>mergeMap</code> (or nested subscribes), so responses land in completion order
-      and a slow early request overwrites a fast later one. <code>switchMap</code> cancels the stale request the moment
-      a new query arrives — proven in the lab above.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>shareReplay(1)</code> without <code>refCount</code> leak?</summary>
-    <div>
-      The internal <code>ReplaySubject</code> stays subscribed to the source after the last consumer unsubscribes,
-      keeping the producer (socket, timer, HTTP-polling chain) alive forever.
-      <code>&#123; bufferSize: 1, refCount: true &#125;</code> disconnects when the subscriber count hits zero.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Difference between <code>combineLatest</code> and <code>withLatestFrom</code> in one sentence each?
-    </summary>
-    <div>
-      <code>combineLatest</code> emits when <em>any</em> source emits (all sources are triggers).
-      <code>withLatestFrom</code> emits only when the <em>source</em> stream emits, snapshotting the other streams'
-      latest values (they're passengers, not triggers).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>When would you still choose a BehaviorSubject over a signal?</summary>
-    <div>
-      When consumers need the <em>stream</em> API: piping through time-based operators, combining with other
-      observables, or interop with RxJS-first libraries. For plain synchronous state read by templates, the signal wins
-      — less ceremony, no subscription lifecycle, and glitch-free <code>computed</code> derivations.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>combineLatest</code>/<code>forkJoin</code>/<code>withLatestFrom</code> compose streams — know which ones
-      trigger and which need completion.
-    </li>
-    <li>
-      The flattening four differ only in concurrency policy: cancel (<code>switchMap</code>), parallel
-      (<code>mergeMap</code>), queue (<code>concatMap</code>), ignore (<code>exhaustMap</code>).
-    </li>
-    <li>
-      Handle errors on the inner stream; order <code>retry</code> before <code>catchError</code>;
-      <code>finalize</code> for cleanup.
-    </li>
-    <li>Share cold streams with <code>shareReplay(&#123; bufferSize: 1, refCount: true &#125;)</code>.</li>
-    <li>
-      Signals own synchronous state; RxJS owns time. <code>toSignal</code>/<code>toObservable</code> are the bridge.
-    </li>
-  </ul>
+    <div class="demo">
+      <p class="demo__title">Live — two streams joined into a greeting</p>
+      <div class="field-grid">
+        <div>
+          <label>First name</label>
+          <input aria-label="First name" [value]="first()" (input)="setFirst($any($event.target).value)" />
+        </div>
+        <div>
+          <label>Last name</label>
+          <input aria-label="Last name" [value]="last()" (input)="setLast($any($event.target).value)" />
+        </div>
+      </div>
+      <p class="row" style="margin-top: 12px">
+        <span class="pill" style="color: var(--green)">combined: {{ full() }}</span>
+      </p>
+    </div>
 
-  <p><a routerLink="/security">Next: Security &amp; Sanitization →</a></p>
+    <app-flow
+      caption="Why `combineLatest` looks silent at first, then fires — and keeps firing. Seed slow inputs with `startWith` so there's no silent gap."
+      [steps]="combineFlow"
+    />
+
+    <app-quiz
+      question="`first$` and `last$` are both plain `Subject`s — no seed value. You call `first$.next('Ada')`. Right now, what does `combineLatest([first$, last$])` do?"
+      [options]="quizOptions"
+      followUp="This is exactly why the live demo above seeds both names in `BehaviorSubject`s instead of plain `Subject`s — a `BehaviorSubject` always has a value, so `combineLatest` never has to wait on it."
+    />
+  </section>
+
+  <!-- ============ 4. THE FLATTENING FOUR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The video wall, nested</p>
+    <h2>Higher-order observables — the flattening four.</h2>
+    <p>
+      A <code>map</code> that returns an observable gives you an observable <em>of</em> observables — the flattening
+      operators subscribe to those inner streams for you, and differ only in their <strong>concurrency policy</strong>.
+      If the four-receptionists picture from <em>RxJS: Core Operators</em> is fresh, this is the same four policies;
+      this lab is where you watch them fight over real timers instead of imagining them.
+    </p>
+    <table class="cmp">
+      <tr>
+        <th>Operator</th>
+        <th>When a new outer value arrives while an inner is running…</th>
+        <th>Canonical use</th>
+      </tr>
+      <tr>
+        <td><code>switchMap</code></td>
+        <td><strong>cancel</strong> the running inner, switch to the new one</td>
+        <td>typeahead search, route param → detail fetch (only the latest matters)</td>
+      </tr>
+      <tr>
+        <td><code>mergeMap</code></td>
+        <td>run them <strong>in parallel</strong> (optional concurrency cap)</td>
+        <td>independent side-by-side requests, fire-and-forget logging</td>
+      </tr>
+      <tr>
+        <td><code>concatMap</code></td>
+        <td><strong>queue</strong> it — strict order, one at a time</td>
+        <td>writes that must not interleave (audit trails, sequential saves)</td>
+      </tr>
+      <tr>
+        <td><code>exhaustMap</code></td>
+        <td><strong>ignore</strong> it until the running inner completes</td>
+        <td>submit buttons, login — swallow double-clicks</td>
+      </tr>
+    </table>
+
+    <p>
+      Pick a strategy, then hammer "fire request" a few times fast. Every request is a real 1.5-second timer; the log
+      shows what each policy does with the overlap:
+    </p>
+    <div class="demo">
+      <p class="demo__title">Live — same clicks, four different concurrency policies</p>
+      <div class="row">
+        @for (s of strategies; track s) {
+          <button class="bf-btn" [attr.aria-pressed]="strategy() === s" (click)="setStrategy(s)">{{ s }}</button>
+        }
+      </div>
+      <div class="row" style="margin-top: 10px">
+        <button class="bf-btn" (click)="fire()">fire request (takes 1.5s)</button>
+        <button class="bf-btn bf-btn--ghost" (click)="log.set([])">clear log</button>
+      </div>
+      <div class="lab-log">
+        @if (!log().length) {
+          <div style="opacity: 0.6">— click "fire request" a few times quickly —</div>
+        }
+        @for (line of log(); track $index) {
+          <div>{{ line }}</div>
+        }
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 6px">
+        <strong>switchMap</strong>: earlier requests report "cancelled" — only the last response lands.
+        <strong>mergeMap</strong>: all responses land, ordered by <em>completion</em>. <strong>concatMap</strong>: all
+        land, in click order, 1.5s apart — later ones wait in the queue. <strong>exhaustMap</strong>: clicks during a
+        flight are ignored so those requests never even start.
+      </p>
+    </div>
+
+    <app-napkin lead="try this —">
+      Set the lab to <code>switchMap</code>, fire twice within a second, and watch for the
+      <code>✗ cancelled mid-flight</code> line. That line is <code>finalize</code> proving the first request's
+      subscription really was torn down — not just a log message pretending it was.
+    </app-napkin>
+
+    <app-code-lab
+      file="flattening-lab.ts"
+      [code]="labSample"
+      [notes]="labNotes"
+      notesLabel="One swapped operator, four different outcomes"
+      prompt="Set the lab to mergeMap and click fire 3 times within a second. All three requests are identical 1.5s timers. What order do the ✓ responses land in?"
+      output="**All three land, in the SAME order they fired** — but only because the timers are identical. mergeMap makes no ordering promise at all; it runs every inner observable in parallel and reports each one the instant IT finishes. Give request #2 a shorter delay than #1 and #2 lands first, out of order, and that isn't a bug."
+    />
+  </section>
+
+  <!-- ============ 5. SUBJECT VARIETIES ============ -->
+  <section>
+    <p class="bf-eyebrow">Different kinds of monitor</p>
+    <h2>Subject varieties — what a late arrival gets to see.</h2>
+    <p>
+      Back to the control room: every <code>Subject</code> variant answers one question differently — what does a
+      monitor show the instant someone turns it on?
+    </p>
+    <table class="cmp">
+      <tr>
+        <th>Type</th>
+        <th>What a NEW subscriber receives</th>
+        <th>Typical job</th>
+      </tr>
+      <tr>
+        <td><code>Subject</code></td>
+        <td>only values emitted after subscribing</td>
+        <td>event bus, imperative → reactive bridge</td>
+      </tr>
+      <tr>
+        <td><code>BehaviorSubject(seed)</code></td>
+        <td>the current value immediately, then updates</td>
+        <td>state holders (pre-signals); requires an initial value; has <code>.value</code></td>
+      </tr>
+      <tr>
+        <td><code>ReplaySubject(n)</code></td>
+        <td>the last <code>n</code> values, even from before subscribing</td>
+        <td>late subscribers needing history (e.g. last route event)</td>
+      </tr>
+      <tr>
+        <td><code>AsyncSubject</code></td>
+        <td>only the final value, only on complete</td>
+        <td>rare — "result of a computation" semantics</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ============ 6. HOT VS COLD + SHAREREPLAY ============ -->
+  <section>
+    <p class="bf-eyebrow">One antenna, not one dish per apartment</p>
+    <h2>Hot vs cold — and sharing one execution with <code>shareReplay</code>.</h2>
+    <p>
+      A cold observable (like every <code>HttpClient</code> call) runs its producer <em>per subscriber</em> — a private
+      screening each time, projector and all. Two <code>async</code> pipes on the same stream means two HTTP requests,
+      in parallel, for identical data.
+    </p>
+
+    <app-code-lab
+      file="share-replay.ts"
+      [code]="shareSample"
+      [notes]="shareNotes"
+      notesLabel="Wrapping the cold source once, before anyone subscribes"
+      prompt="Delete `refCount: true`, leaving just `shareReplay({ bufferSize: 1 })`. Every component using `user$` gets destroyed and unsubscribes. Does the original HTTP subscription ever shut down?"
+      output="**No — it leaks for the lifetime of the app.** Without `refCount`, the internal `ReplaySubject` stays permanently subscribed to the source no matter how many consumers leave, because nothing is watching the subscriber count to decide when to disconnect. This is exactly the bug the second FAQ question below is about."
+    />
+
+    <app-layers
+      [core]="shareCore"
+      [rings]="shareRings"
+      arrow="second async pipe subscribes"
+      caption="The **second** subscriber's call never reaches the cold source at all — it's answered from the replay buffer wrapped around it. Only the very first subscription ever travels all the way in."
+    />
+  </section>
+
+  <!-- ============ 7. ERROR HANDLING ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">When a feed cuts out</p>
+    <h2>Error handling &amp; retries — and where you catch matters.</h2>
+
+    <app-code-lab
+      file="error-handling.ts"
+      [code]="errorSample"
+      [notes]="errorNotes"
+      notesLabel="Order is the whole lesson here"
+    />
+
+    <p>
+      The typeahead example above hides a mistake nearly everyone makes once: putting <code>catchError</code> on the
+      wrong stream. Same error, two placements, two completely different outcomes:
+    </p>
+    <app-bubbles [turns]="errorTalk" caption="The outer one never recovers. The inner one never even notices." />
+
+    <app-remember variant="rule">
+      <code>retry</code> before <code>catchError</code>, always. Swap the order and there is nothing left for
+      <code>retry</code> to retry — <code>catchError</code> will already have ended the stream with its fallback.
+    </app-remember>
+
+    <ul>
+      <li>
+        <strong>Errors travel the pipe like values</strong> — the first operator that handles one decides the stream's
+        fate.
+      </li>
+      <li>
+        <strong>An error unsubscribes the source.</strong> Handle errors on the <span class="key">inner</span>
+        stream (inside the flattening operator) — catch on the outer stream instead, and one bad response ends
+        everything downstream.
+      </li>
+      <li>
+        <code>finalize</code> runs on complete, error <em>and</em> unsubscribe — the right home for "loading = false".
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 8. CUSTOM OPERATORS ============ -->
+  <section>
+    <p class="bf-eyebrow">Building your own</p>
+    <h2>Custom operators are just functions.</h2>
+    <p>An operator is nothing more than a function from <code>Observable</code> to <code>Observable</code>:</p>
+    <app-code-lab
+      file="custom-operator.ts"
+      [code]="customOpSample"
+      [notes]="customOpNotes"
+      notesLabel="Observable in, Observable out — the entire contract"
+    />
+  </section>
+
+  <!-- ============ 9. SIGNALS INTEROP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Leaving the control room</p>
+    <h2>Where signals take over.</h2>
+    <table class="cmp">
+      <tr>
+        <th>Concern</th>
+        <th>Reach for</th>
+      </tr>
+      <tr>
+        <td>synchronous state + derivations</td>
+        <td>signals: <code>signal</code>/<code>computed</code> — no subscription management at all</td>
+      </tr>
+      <tr>
+        <td>events over time: debounce, cancellation, races, retries</td>
+        <td>RxJS — signals have no time axis</td>
+      </tr>
+      <tr>
+        <td>observable → template</td>
+        <td><code>toSignal(obs$, &#123; initialValue &#125;)</code> (or the <code>async</code> pipe)</td>
+      </tr>
+      <tr>
+        <td>signal → observable world (e.g. debounce a signal)</td>
+        <td><code>toObservable(sig)</code>, pipe, then <code>toSignal</code> back</td>
+      </tr>
+    </table>
+    <app-code-lab
+      file="signals-interop.ts"
+      [code]="interopSample"
+      [notes]="interopNotes"
+      notesLabel="A pipeline sandwiched between two signal reads"
+    />
+  </section>
+
+  <!-- ============ 10. COMMON MISTAKES ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Where this bites in code review</p>
+    <h2>Common mistakes.</h2>
+    <table class="t">
+      <tr>
+        <td><code>combineLatest</code> seems silent</td>
+        <td>
+          It emits nothing until <em>every</em> source has emitted once. Seed slow inputs with
+          <code>startWith(initial)</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>forkJoin</code> never fires</td>
+        <td>
+          It needs every source to <strong>complete</strong>. HTTP calls complete; <code>interval</code>/<code
+            >fromEvent</code
+          >
+          don't — cap them with <code>take(n)</code> or use <code>combineLatest</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>One failed request kills <code>forkJoin</code></td>
+        <td>
+          A single error rejects the whole join. <code>catchError(() =&gt; of(null))</code> per inner stream to keep the
+          others.
+        </td>
+      </tr>
+      <tr>
+        <td>Re-running an HTTP call per subscriber</td>
+        <td>
+          Each <code>subscribe</code> re-fires a cold stream. Share with
+          <code>shareReplay({{ '{' }} bufferSize: 1, refCount: true {{ '}' }})</code>.
+        </td>
+      </tr>
+      <tr>
+        <td><code>catchError</code> after <code>retry</code> but expecting more retries</td>
+        <td>
+          Once <code>catchError</code> swaps in a fallback the stream completes — order operators as
+          <code>retry</code> → <code>catchError</code>.
+        </td>
+      </tr>
+      <tr>
+        <td>Nesting <code>subscribe</code> inside <code>subscribe</code></td>
+        <td>
+          Use a flattening operator (<code>switchMap</code>/<code>mergeMap</code>/…) instead — it manages the inner
+          subscription for you.
+        </td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Recap — what to carry out of the control room.</h2>
+    <ul>
+      <li>
+        <span class="key">A Subject variant is a kind of monitor</span> — what does it show a subscriber who just tuned
+        in? <code>combineLatest</code>/<code>forkJoin</code>/<code>withLatestFrom</code> differ in exactly what they
+        wait for before they'll show anything at all.
+      </li>
+      <li>
+        The flattening four differ only in concurrency policy: cancel (<code>switchMap</code>), parallel
+        (<code>mergeMap</code>), queue (<code>concatMap</code>), ignore (<code>exhaustMap</code>) — reads want
+        <code>switchMap</code>, writes want <code>exhaustMap</code>.
+      </li>
+      <li>
+        Handle errors on the inner stream, not the <span class="bf-break">outer</span> one — an error there unsubscribes
+        everything downstream; order <code>retry</code> before <code>catchError</code>; <code>finalize</code> for
+        cleanup that must always run.
+      </li>
+      <li>
+        Share cold streams with <code>shareReplay({{ '{' }} bufferSize: 1, refCount: true {{ '}' }})</code> — one
+        antenna, not one dish per subscriber.
+      </li>
+      <li>
+        Signals own synchronous state; RxJS owns time. <code>toSignal</code>/<code>toObservable</code> are the bridge
+        between them.
+      </li>
+    </ul>
+
+    <p><a routerLink="/security">Next: Security &amp; Sanitization →</a></p>
+  </section>
 </article>
