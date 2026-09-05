@@ -1,60 +1,12 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-  margin: 12px 0;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) — `.t` and `table.cmp` both matched the
+   theme's plain `.lesson.bf table` element selector and are gone; the exam
+   questions moved into `<app-faq>`, so `.qa` is gone too. `button.active`
+   has no global equivalent (nothing in the theme styles a plain `.active`
+   class), so it stays — Demo 1's Info/Warning/Success toggle needs it. */
+
 button.active {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
-}
-
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }

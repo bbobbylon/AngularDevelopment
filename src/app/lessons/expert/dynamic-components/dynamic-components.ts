@@ -9,6 +9,27 @@ import {
   signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import {
+  BfPage,
+  Bubbles,
+  Chapter,
+  type BubbleTurn,
+  type ChapterStop,
+  CodeLab,
+  type CodeNote,
+  Napkin,
+} from '../../../shared/brain';
+import {
+  Compare,
+  Faq,
+  type FaqItem,
+  Flow,
+  type FlowStep,
+  Predict,
+  Quiz,
+  type QuizOption,
+  Remember,
+} from '../../../shared/teaching';
 import { InfoPanel } from './info-panel/info-panel';
 import { WarningPanel } from './warning-panel/warning-panel';
 import { SuccessPanel } from './success-panel/success-panel';
@@ -27,7 +48,21 @@ import { ConfirmPanel } from './confirm-panel/confirm-panel';
   selector: 'app-lesson-dynamic-components',
   // Panels are instantiated via NgComponentOutlet / createComponent (runtime
   // class references), so they do not belong in template imports.
-  imports: [RouterLink, NgComponentOutlet],
+  imports: [
+    RouterLink,
+    NgComponentOutlet,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    Compare,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './dynamic-components.css',
   templateUrl: './dynamic-components.html',
 })
@@ -276,4 +311,207 @@ const ref = this.vcr.createComponent(ToastShell, {
     [footerElement],    // → second <ng-content>
   ],
 });`;
+
+  // ── brain-friendly content ──────────────────────────────────────────────
+
+  /** The "you are here" rail — neighbouring Architecture-track lessons. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'State Management', id: 'state-management' },
+    { label: 'Dynamic Components' },
+    { label: 'Directive Composition', id: 'host-directives' },
+    { label: 'NgModules Migration', id: 'ngmodules-migration' },
+  ];
+
+  /** The two APIs arguing about who owns what they create. */
+  protected readonly bridgeTalk: BubbleTurn[] = [
+    {
+      who: 'NgComponentOutlet',
+      says: "Bind me a class — I'll mount it, swap it, tear down the old one. You never touch a `ComponentRef`.",
+    },
+    {
+      who: 'createComponent()',
+      says: "That's the trade. I hand you a real `ComponentRef` — but now *you* own the thing I made.",
+    },
+    { who: 'NgComponentOutlet', says: 'Owning it sounds like work.' },
+    {
+      who: 'createComponent()',
+      says: "It is. Call its methods, subscribe to its outputs, and when you're done — `ref.destroy()`. Skip that and you've leaked a whole subtree.",
+    },
+    {
+      who: 'NgComponentOutlet',
+      says: 'I can\'t give you outputs at all — no `(confirmed)="…"` on a class that only exists at runtime.',
+    },
+    {
+      who: 'createComponent()',
+      says: 'Which is exactly why every dialog service reaches for me instead of you.',
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link outletSample}, paired with Demo 1. */
+  protected readonly outletNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "A signal holding a component **class** — a constructor, not an instance. `Type<unknown>` is TypeScript's type for 'a class reference'.",
+    },
+    {
+      line: 6,
+      text: 'Bind the class straight from the signal. Angular creates, mounts, and will destroy this for you — no `ComponentRef` in sight.',
+    },
+    {
+      line: 7,
+      text: "One object carries every input; keys must match the target's `input()`/`@Input()` names exactly. There's no per-input binding syntax here.",
+    },
+    {
+      line: 11,
+      text: 'Setting a genuinely **different** class is what triggers destroy-then-recreate. Setting the same class again is a no-op — see the Predict below.',
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link imperativeSample}, paired with Demo 2. */
+  protected readonly imperativeNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: "`ViewContainerRef` is injected as a handle on a place in the DOM — not an `ElementRef`. The template version gets this same handle from `@ViewChild('anchor', { read: ViewContainerRef })` instead of `inject()`.",
+    },
+    {
+      line: 7,
+      text: "Typed with the component class up front, so every `setInput` call below is checked against `InfoPanel`'s real inputs.",
+    },
+    {
+      line: 12,
+      text: 'Clears anything already created here. Skip this and a second mount() call stacks a second panel — see the Quiz below.',
+    },
+    {
+      line: 15,
+      text: 'The class itself, not a factory. Ivy compiles everything `createComponent` needs directly onto the class.',
+    },
+    {
+      line: 18,
+      text: '`setInput`, never `ref.instance.message = …` — direct assignment skips dirty-marking entirely.',
+    },
+    {
+      line: 25,
+      text: '`?.` matters here: calling `update()` before `mount()` should do nothing, not throw.',
+    },
+    {
+      line: 31,
+      text: '`destroy()` runs `ngOnDestroy`, removes the DOM node, and tears down anything subscribed on the ref.',
+    },
+    {
+      line: 34,
+      text: 'Nulling the field is easy to forget — without it, the next `update()` silently targets a dead reference.',
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link outputsSample}, paired with Demo 3. */
+  protected readonly outputsNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'Same `createComponent` call as before — the only new thing here is what happens next.',
+    },
+    {
+      line: 5,
+      text: 'No `(confirmed)="…"` exists for a component created at runtime, so you subscribe directly on `ref.instance` — the imperative twin of an event binding.',
+    },
+    {
+      line: 7,
+      text: 'Destroying inside the callback is deliberate: a one-shot dialog answers once, then removes itself.',
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link injectorSample} — the dialog-data pattern. */
+  protected readonly injectorNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: 'A *scoped* injector — its providers exist only for whatever gets created with it, not app-wide.',
+    },
+    {
+      line: 4,
+      text: 'This is the entire mechanism behind `MAT_DIALOG_DATA`: a token, a value, and nothing more magical than that.',
+    },
+    {
+      line: 5,
+      text: "Parented to the app's `EnvironmentInjector` so the dialog can still resolve ordinary app-wide services alongside its scoped data.",
+    },
+    {
+      line: 8,
+      text: 'This is the standalone `createComponent()` *function*, not a `ViewContainerRef` method — that distinction is exactly why line 12 is needed.',
+    },
+    {
+      line: 10,
+      text: 'The element injector layers on top of the environment injector — per-instance tokens win over app-wide ones.',
+    },
+    {
+      line: 12,
+      text: 'Skip this and the dialog renders once, then never again — no `ViewContainerRef` is watching this view, so nothing schedules it for checking.',
+    },
+    {
+      line: 13,
+      text: 'Manual DOM insertion too — `document.body` is outside any Angular-managed container, so nothing places this element for you either.',
+    },
+  ];
+
+  /** What always happens under the hood, and the one optional step that is easy to skip. */
+  protected readonly attachmentFlow: FlowStep[] = [
+    {
+      label: 'createComponent(Cmp)',
+      detail: 'Reads the compiled definition off the class — no factory lookup, no registration',
+    },
+    {
+      label: 'Host element',
+      detail: '`ref.location.nativeElement` — a real DOM node, not yet meaningfully placed',
+    },
+    { label: 'View created', detail: '`ref.hostView` — what change detection actually walks' },
+    {
+      label: 'Attached to CD tree?',
+      detail: 'A `ViewContainerRef` does this automatically; the bare function does not',
+      tone: 'warn',
+    },
+    {
+      label: 'Renders & updates',
+      detail: 'Only reachable once attached — otherwise: one paint, then silence',
+      tone: 'good',
+    },
+  ];
+
+  /** Self-test: whether a swap or a no-op input change triggers destroy+recreate. */
+  protected readonly quizOptions: QuizOption[] = [
+    {
+      text: 'The second call throws — the container already has a view',
+      why: "`ViewContainerRef` happily holds any number of views; there's no uniqueness constraint to violate.",
+    },
+    {
+      text: 'Two toast instances now render, stacked in the container',
+      correct: true,
+      why: "`createComponent()` always appends — it never checks for or replaces an existing view. That's exactly why `imperativeMount()` in Demo 2 calls `this.anchor?.clear()` first.",
+    },
+    {
+      text: 'The first instance is destroyed and replaced automatically',
+      why: "That's `NgComponentOutlet`'s behavior when its bound class changes — not `createComponent()`'s. The imperative API never destroys anything for you.",
+    },
+  ];
+
+  /** The small doubts this lesson tends to leave behind. */
+  protected readonly questions: FaqItem[] = [
+    {
+      q: "Why `ref.setInput('x', v)` instead of `ref.instance.x = v`?",
+      a: "Direct assignment bypasses the framework entirely: no dirty marking (so an OnPush component won't re-render), no `ngOnChanges`, and it breaks completely for signal inputs, which are read-only `InputSignal`s under the hood. `setInput` goes through the same path a template binding would.",
+    },
+    {
+      q: 'Your body-appended toast renders once and never updates. What did you forget?',
+      a: 'Attaching its view to a change-detection tree. The standalone `createComponent()` function creates the component but does not attach it — you need `appRef.attachView(ref.hostView)` yourself. A `ViewContainerRef` would have done this automatically.',
+    },
+    {
+      q: 'How does a dialog service pass data into the dialog component it opens?',
+      a: 'A custom element injector: `Injector.create({ providers: [{ provide: DIALOG_DATA, useValue: data }] })`, passed at creation. The dialog component then does `inject(DIALOG_DATA)`. Results flow back the other way via an output or subject the service subscribes to before returning its `afterClosed()` observable.',
+    },
+    {
+      q: 'NgComponentOutlet re-created your component and lost its state — you only wanted new inputs. Why?',
+      a: "The class binding's *identity* changed (or you genuinely passed a new class) — and a class change is defined as destroy-then-recreate, full stop. To update state instead, keep the class reference stable and change only the `ngComponentOutletInputs` object.",
+    },
+    {
+      q: 'What replaced ComponentFactoryResolver and entryComponents, and why could they be deleted?',
+      a: "Ivy's locality: every compiled class carries its own definition (`ɵcmp`), so the class reference alone is directly instantiable — `vcr.createComponent(MyCmp)`, no lookup required. There's nothing left to resolve and nothing to pre-register.",
+    },
+  ];
 }

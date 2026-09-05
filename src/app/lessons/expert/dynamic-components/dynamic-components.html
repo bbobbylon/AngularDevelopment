@@ -1,22 +1,55 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Architecture</span>
-  <h1>Dynamic Components</h1>
-  <p class="lead">
-    Dynamic components let you decide <em>which component to render at runtime</em>
-    — not at write time. Angular provides two APIs: the declarative
-    <code>NgComponentOutlet</code> directive (template-driven) and the imperative
-    <code>ViewContainerRef.createComponent()</code> (TypeScript-driven). They power dashboards, CMS block renderers,
-    modal systems, and toast overlays.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="6"
+    kicker="Angular Expert · Architecture"
+    title="Dynamic Components"
+    hand="or, how to render a component you didn't know the name of until now"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Dynamic components let you decide <em>which component to render at runtime</em> — not at write time. Angular gives
+      you two APIs: the declarative <code>NgComponentOutlet</code> directive (template-driven) and the imperative
+      <code>ViewContainerRef.createComponent()</code> (TypeScript-driven). They power dashboards, CMS block renderers,
+      modal systems, and toast overlays.
+    </p>
+  </app-chapter>
 
+  <!-- === 1. THE PROBLEM === -->
+  <p>
+    Most of the time a template already knows what it's showing — a <code>&lt;user-card&gt;</code>, a
+    <code>&lt;price-tag&gt;</code>, written by hand, once. But sometimes the component itself is a piece of
+    <strong>data</strong>: a CMS returns a block type string, a notification carries a severity, a plugin registers a
+    widget your app has never heard of at build time. You can't write an <code>&#64;if</code>/<code>&#64;else if</code>
+    chain for components that don't exist yet.
+  </p>
+  <app-napkin lead="try this —">
+    Scroll down to <strong>Demo 1</strong> and swap between Info, Warning and Success a few times before reading on.
+    Notice: nothing in Angular's template says <em>which</em> component renders — that decision is made by a plain
+    value, at runtime, and the template just points at it.
+  </app-napkin>
+
+  <!-- === 2. ANALOGY === -->
+  <p>
+    Think of <code>NgComponentOutlet</code> as a furnished rental: you tell the leasing office who's moving in, and they
+    handle move-in, move-out, and cleanup automatically — you never get a key of your own.
+    <code>createComponent()</code> is building your own house instead — put it in any container, even
+    <code>document.body</code> — but nobody manages it for you. You wire the utilities (inputs) yourself, you answer the
+    door yourself (subscribe to outputs), and you're the one who has to remember to lock up (<code>destroy()</code>)
+    when you leave, or the bills — leaked subscriptions, a DOM node nobody's tracking — keep running.
+  </p>
+  <app-remember variant="mnemonic">
+    Bind the class, own nothing. Call <code>createComponent()</code>, own everything — cleanup included.
+  </app-remember>
+  <app-bubbles [turns]="bridgeTalk" caption="The trade both APIs are making, in their own words" />
+
+  <!-- === 3. DECLARATIVE: NgComponentOutlet === -->
   <h2>1 — Declarative: NgComponentOutlet</h2>
   <p>
     Bind a component <em>class</em> to <code>[ngComponentOutlet]</code>. Angular instantiates, mounts, and destroys it
     as the binding changes — fully lifecycle-aware. Pass inputs via <code>[ngComponentOutletInputs]</code>.
   </p>
-  <div class="code">
-    <pre>{{ outletSample }}</pre>
-  </div>
+  <app-code-lab file="dynamic-components.ts + .html" [code]="outletSample" [notes]="outletNotes" />
 
   <h2>Demo 1 — NgComponentOutlet swap</h2>
   <div class="demo">
@@ -47,15 +80,18 @@
       the inputs object updates the same instance in place.
     </p>
   </div>
+  <app-predict
+    prompt="Warning is already selected. You click **Warning** again — same button, same class. Does `NgComponentOutlet` destroy and recreate the panel?"
+    answer="No. `current.set(WarningPanel)` compares with `Object.is`, and setting an already-equal value is a no-op — the signal never notifies, so the outlet never sees a 'new' input. Only a genuine class *change* triggers destroy-then-create."
+  />
 
+  <!-- === 4. IMPERATIVE: createComponent() === -->
   <h2>2 — Imperative: ViewContainerRef.createComponent()</h2>
   <p>
     When you need a <code>ComponentRef</code> — to call methods, subscribe to outputs, control position, or destroy it
     from TypeScript — use <code>ViewContainerRef.createComponent()</code>.
   </p>
-  <div class="code">
-    <pre>{{ imperativeSample }}</pre>
-  </div>
+  <app-code-lab file="createComponent() imperatively" [code]="imperativeSample" [notes]="imperativeNotes" />
 
   <h2>Demo 2 — createComponent() imperatively</h2>
   <div class="demo">
@@ -73,7 +109,37 @@
       <code>ngOnChanges</code>/signal inputs correctly.
     </p>
   </div>
+  <app-compare
+    leftTitle="ref.instance.message = v"
+    rightTitle="ref.setInput('message', v)"
+    leftTone="bad"
+    rightTone="good"
+    note="Same field, two very different outcomes under OnPush."
+  >
+    <div left>
+      <div class="code">
+        <pre>
+this.ref.instance.message = 'Updated!';
+// field changes, but OnPush never re-renders —
+// nothing marked this view dirty</pre>
+      </div>
+    </div>
+    <div right>
+      <div class="code">
+        <pre>
+this.ref.setInput('message', 'Updated!');
+// validates the input name, marks the view dirty,
+// runs the input's transform — actually re-renders</pre>
+      </div>
+    </div>
+  </app-compare>
+  <app-quiz
+    question="You call `this.vcr.createComponent(ToastCmp)` twice in a row, with no `clear()` between the calls. What renders?"
+    [options]="quizOptions"
+    followUp="This is the other half of the `vcr.clear()` habit: call it before creating, not just when destroying."
+  />
 
+  <!-- === 5. OUTPUTS === -->
   <h2>Demo 3 — wiring OUTPUTS of a dynamic component</h2>
   <p>
     The template can't bind <code>(confirmed)="…"</code> on a component that only exists at runtime — you subscribe on
@@ -89,10 +155,9 @@
       Last answer: <code>{{ confirmResult() }}</code>
     </p>
   </div>
-  <div class="code">
-    <pre>{{ outputsSample }}</pre>
-  </div>
+  <app-code-lab file="wiring an output imperatively" [code]="outputsSample" [notes]="outputsNotes" />
 
+  <!-- === 6. LAZY LOADING === -->
   <h2>3 — Lazy loading with dynamic import()</h2>
   <p>
     Pass the class through a <code>dynamic import()</code> so the component's JS is only downloaded when it's actually
@@ -108,16 +173,16 @@
     nothing, then mounts.
   </div>
 
+  <!-- === 7. CUSTOM INJECTOR === -->
   <h2>4 — Custom injector for scoped DI (the dialog pattern)</h2>
   <p>
     Pass an <code>Injector</code> to scope the dynamic component's DI context — this is how Material's
     <code>MatDialog</code> hands <code>MAT_DIALOG_DATA</code>
     to your dialog component:
   </p>
-  <div class="code">
-    <pre>{{ injectorSample }}</pre>
-  </div>
+  <app-code-lab file="dialog-data injector" [code]="injectorSample" [notes]="injectorNotes" />
 
+  <!-- === 8. CONTENT PROJECTION === -->
   <h2>5 — Projecting content into dynamic components</h2>
   <div class="code">
     <pre>{{ projectionSample }}</pre>
@@ -128,7 +193,12 @@
     supply arbitrary body content.
   </p>
 
+  <!-- === 9. UNDER THE HOOD === -->
   <h2>Under the hood — views, hosts and attachment</h2>
+  <app-flow
+    caption="Two things are always created — a host element and a view. Only the view's attachment is optional, and skipping it is the single most common dynamic-component bug."
+    [steps]="attachmentFlow"
+  />
   <ul>
     <li>
       <strong>No factories anymore:</strong> since Ivy, the component class <em>is</em> the factory —
@@ -137,19 +207,13 @@
       reference works.
     </li>
     <li>
-      <strong>Two things always get created:</strong> a host DOM element (<code>ref.location</code>) and a view
-      (<code>ref.hostView</code>). The view must be part of a change-detection tree to update: a
-      <code>ViewContainerRef</code> attaches it automatically; the low-level <code>createComponent()</code> function
-      does <em>not</em> — you must call <code>appRef.attachView(ref.hostView)</code> yourself (forget it and the
-      component renders once, then never updates).
-    </li>
-    <li>
       <strong>Environment vs element injector:</strong> <code>environmentInjector</code> supplies app/route-level
       services; the optional <code>elementInjector</code> layers per-instance tokens (dialog data) on top — the
       resolution walk from the <a routerLink="/di-advanced">DI lesson</a> applies unchanged.
     </li>
   </ul>
 
+  <!-- === 10. COMPARISON TABLES === -->
   <h2>NgComponentOutlet vs createComponent()</h2>
   <table class="cmp">
     <tr>
@@ -248,51 +312,10 @@
     you need the final event.
   </div>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why <code>ref.setInput('x', v)</code> instead of <code>ref.instance.x = v</code>?</summary>
-    <div>
-      Direct assignment bypasses the framework: no dirty marking (OnPush components won't re-render), no
-      <code>ngOnChanges</code>, and it breaks entirely for signal inputs (they're read-only <code>InputSignal</code>s).
-      <code>setInput</code> goes through the same path as a template binding.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Your body-appended toast renders once and never updates. What was forgotten?</summary>
-    <div>
-      The view isn't in any CD tree. <code>createComponent()</code> (the standalone function) creates but doesn't attach
-      — <code>appRef.attachView(ref.hostView)</code> is required; a <code>ViewContainerRef</code> would have done it for
-      you.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How does a dialog service pass data to the dialog component it opens?</summary>
-    <div>
-      A custom element injector:
-      <code>Injector.create(&#123; providers: [&#123; provide: DIALOG_DATA, useValue: data &#125;] &#125;)</code> passed
-      at creation; the dialog does <code>inject(DIALOG_DATA)</code>. Results flow back via an output/subject the service
-      subscribes to before returning its <code>afterClosed()</code> observable.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>NgComponentOutlet re-created your component and lost its state — you only wanted new inputs. Why?</summary>
-    <div>
-      The <em>class binding</em> changed identity (or you passed a new class), which is defined as destroy + recreate.
-      To update state, keep the class reference stable and change only <code>ngComponentOutletInputs</code> values.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      What replaced <code>ComponentFactoryResolver</code> and <code>entryComponents</code>, and why could they be
-      deleted?
-    </summary>
-    <div>
-      Ivy's locality: each compiled class carries its own definition, so the class reference is directly instantiable —
-      <code>vcr.createComponent(MyCmp)</code>. No factory lookup, no need to pre-register dynamic components in a
-      module.
-    </div>
-  </details>
+  <!-- === 11. QUESTIONS === -->
+  <app-faq [items]="questions" />
 
+  <!-- === 12. RECAP === -->
   <h2>Key takeaways</h2>
   <ul>
     <li>
