@@ -1,13 +1,39 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Language Features</span>
-  <h1>Decorators</h1>
-  <p class="lead">
-    A decorator is a function prefixed with <code>&#64;</code> that attaches metadata or behavior to a class, method,
-    accessor, property or parameter. Angular is built on them — and understanding what they really are (plain functions
-    with a calling convention) demystifies half the framework, including why <code>&#64;Component</code> never even runs
-    in a production build.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="TypeScript · Language Features"
+    title="Decorators"
+    hand="or, the plain functions with a calling convention that unlock half of Angular"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      A decorator is a function prefixed with <code>&#64;</code> that attaches metadata or behavior to a class, method,
+      accessor, property or parameter. Angular is built on them — and understanding what they really are (plain
+      functions with a calling convention) demystifies half the framework, including why <code>&#64;Component</code>
+      never even runs in a production build.
+    </p>
+  </app-chapter>
 
+  <!-- === 1. ASK BEFORE TELLING === -->
+  <app-napkin lead="guess —">
+    Does <code>&#64;Component(&#123;...&#125;)</code> actually <em>run</em> when your app boots in production? Hold that
+    answer — the "What Angular actually does" section below settles it for good.
+  </app-napkin>
+
+  <!-- === 2. ANALOGY === -->
+  <p>
+    Think of a decorator as a gift-wrapping counter: the box (your method) goes in, wrapping paper (extra behavior) goes
+    on <strong>once</strong>, and what comes back out looks the same from outside but does something extra when it's
+    opened — called. Wrap the same box twice, <code>&#64;First() &#64;Second()</code>, and you get two layers of paper,
+    applied closest-first and opened from the outside in.
+  </p>
+  <app-remember variant="hook">
+    A decorator isn't special syntax — it's a plain function, called once at class-definition time, with a
+    target-specific signature.
+  </app-remember>
+
+  <!-- === 3. THE FIVE TARGETS === -->
   <h2>The five targets — as Angular uses them</h2>
   <div class="code">
     <pre>{{ fiveTargetsSample }}</pre>
@@ -57,6 +83,7 @@
     </tr>
   </table>
 
+  <!-- === 4. JUST A FUNCTION === -->
   <h2>A decorator is just a function</h2>
   <p>
     A method decorator receives the prototype, the member name and the property descriptor — mutate or replace
@@ -72,6 +99,7 @@
     instances. Design for that or key the state per-instance (e.g. a <code>WeakMap</code>).
   </div>
 
+  <!-- === 5. FACTORIES AND ORDER === -->
   <h2>Factories, and the two orderings everyone mixes up</h2>
   <p>
     A factory is a function that <em>returns</em> a decorator — that is why Angular's decorators take arguments:
@@ -79,11 +107,21 @@
     function decorates the class. With multiple decorators on one member there are two distinct orders:
     <strong>factories evaluate top-down</strong> (they're just expressions), then
     <strong>the returned decorators apply bottom-up</strong>
-    (composition, like nested function calls). The log below was produced for real when this page's module loaded:
+    (composition, like nested function calls).
   </p>
-  <div class="code">
-    <pre>{{ orderSample }}</pre>
-  </div>
+  <app-bubbles [turns]="bridgeTalk" caption="Two passes, staged as an argument" />
+  <app-code-lab file="order.ts" [code]="orderSample" [notes]="orderNotes" />
+  <app-flow
+    caption="Factories evaluate top-down (1, 2); the decorators they returned apply bottom-up (3, 4)."
+    [steps]="orderFlow"
+  />
+  <app-remember variant="rule">
+    Factories run top-down. Decorators apply bottom-up. Read the numbers in the log, not the source order.
+  </app-remember>
+  <app-predict
+    prompt="Given `@First() @Second() method() {}`, which factory's log line appears first — First's or Second's?"
+    answer="First's. Factories are just function calls, evaluated top-down as the class body is parsed — before either decorator is applied. The log below was produced for real when this page's module loaded."
+  />
   <div class="demo">
     <p class="demo__title">Live — actual execution order, captured at module load</p>
     <div class="order-log">
@@ -97,15 +135,14 @@
     </p>
   </div>
 
+  <!-- === 6. A REAL CUSTOM DECORATOR === -->
   <h2>A real custom decorator, benchmarked live</h2>
   <p>
     <code>&#64;Memoize</code> below is a genuine legacy decorator compiled by this project (our tsconfig sets
     <code>experimentalDecorators: true</code>). It swaps the method for a caching wrapper. <code>fib(32)</code> naive
     recursion makes ~7 million calls; memoized, recursive calls dispatch through the wrapper so it does ~33:
   </p>
-  <div class="code">
-    <pre>{{ memoizeSample }}</pre>
-  </div>
+  <app-code-lab file="memoize.ts" [code]="memoizeSample" [notes]="memoizeNotes" />
   <div class="demo">
     <p class="demo__title">Live — run both implementations</p>
     <button (click)="runBench()">Compute fib(32) both ways</button>
@@ -131,6 +168,7 @@
     <pre>{{ toolboxSample }}</pre>
   </div>
 
+  <!-- === 7. AOT === -->
   <h2>What Angular actually does with them (AOT)</h2>
   <p>
     Here is the part that separates "knows the syntax" from "knows the system": in a production (AOT) build,
@@ -139,9 +177,7 @@
     with generated static fields (<code>ɵcmp</code>, <code>ɵfac</code>) on the class. The decorator is a compile-time
     <em>marker</em>, not a runtime mechanism:
   </p>
-  <div class="code">
-    <pre>{{ aotSample }}</pre>
-  </div>
+  <app-code-lab file="AOT — before and after" [code]="aotSample" [notes]="aotNotes" />
   <ul>
     <li>
       <strong>JIT mode</strong> (rare today: some tests, dynamic compilation) is the only place Angular decorators
@@ -156,7 +192,13 @@
       decorator is gone.
     </li>
   </ul>
+  <app-quiz
+    question="You write `@Component({ template: someRuntimeString() })`. What happens in a normal production build?"
+    [options]="aotQuizOptions"
+    followUp="This is exactly the second bullet above, tested — the compiler needs to read metadata at build time, and a runtime call has nothing to read yet."
+  />
 
+  <!-- === 8. EMITDECORATORMETADATA === -->
   <h2>emitDecoratorMetadata — how constructor injection used to work</h2>
   <p>
     With <code>emitDecoratorMetadata</code>, TypeScript emits each constructor's parameter <em>types</em> as runtime
@@ -169,6 +211,7 @@
     <pre>{{ diSample }}</pre>
   </div>
 
+  <!-- === 9. LEGACY VS TC39 === -->
   <h2>Legacy vs TC39 stage-3 decorators</h2>
   <p>
     TypeScript 5 ships the standardized decorator proposal alongside the legacy dialect. They are
@@ -209,6 +252,7 @@
     </tr>
   </table>
 
+  <!-- === 10. SIGNAL ERA MIGRATION === -->
   <h2>The signal era — the migration map</h2>
   <p>
     Modern Angular replaces most <em>member</em> decorators with plain functions that create signals — no reflection,
@@ -264,43 +308,10 @@
     </tr>
   </table>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>In what order do <code>&#64;A() &#64;B() method()</code> run?</summary>
-    <div>
-      Factories evaluate top-down (A's factory, then B's), the returned decorators apply bottom-up (B decorates the
-      method, A decorates the result) — function composition, <code>A(B(method))</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Does <code>&#64;Component</code> execute in a production build?</summary>
-    <div>
-      No. AOT compilation reads it statically, generates <code>ɵcmp</code>/<code>ɵfac</code> static fields, and drops
-      the decorator. It only executes under JIT compilation.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How many times does a method decorator run for 100 instances?</summary>
-    <div>
-      Once — at class-definition time, when the module first loads. The rewritten descriptor (and any closure state,
-      like a memo cache) is shared by all 100 instances.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why can't Angular adopt TC39 decorators for <code>&#64;Inject</code>?</summary>
-    <div>
-      The stage-3 standard has no parameter decorators. That's one driver behind <code>inject()</code> — it moves DI out
-      of constructor parameters entirely, so no parameter decoration (or reflection metadata) is needed.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why must <code>&#64;Component</code> metadata be statically analyzable?</summary>
-    <div>
-      Because the AOT compiler evaluates it at build time to generate template instructions. A template or selector
-      computed at runtime can't be compiled ahead of time — the build fails.
-    </div>
-  </details>
+  <!-- === 11. QUESTIONS === -->
+  <app-faq [items]="questions" />
 
+  <!-- === 12. RECAP === -->
   <h2>Key takeaways</h2>
   <ul>
     <li>

@@ -1,19 +1,8 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) — `table.cmp` matched the theme's plain
+   `.lesson.bf table` element selector and is gone; the exam questions moved
+   into `<app-faq>`, so `.qa` is gone too. `.order-log` and `.bench`/`.card`
+   have no global equivalent — they're this lesson's own live-demo styling. */
 
 .order-log {
   background: var(--bg-elevated);
@@ -49,22 +38,4 @@ table.cmp th {
 .bench .card strong {
   font-size: 1.15rem;
   font-family: monospace;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }

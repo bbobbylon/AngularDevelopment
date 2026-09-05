@@ -1,5 +1,25 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import {
+  BfPage,
+  Bubbles,
+  type BubbleTurn,
+  Chapter,
+  type ChapterStop,
+  CodeLab,
+  type CodeNote,
+  Napkin,
+} from '../../../shared/brain';
+import {
+  Faq,
+  type FaqItem,
+  Flow,
+  type FlowStep,
+  Predict,
+  Quiz,
+  type QuizOption,
+  Remember,
+} from '../../../shared/teaching';
 
 // ---- Live demo 1: evaluation vs application order ------------------------
 // Factories run top-down as expressions; the decorators they return apply
@@ -108,7 +128,19 @@ class FibMemo {
  */
 @Component({
   selector: 'app-lesson-ts-decorators',
-  imports: [RouterLink],
+  imports: [
+    RouterLink,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './decorators.css',
   templateUrl: './decorators.html',
 })
@@ -331,4 +363,164 @@ constructor(private http: HttpClient,
 // context exists (field initializers, factory functions, guards):
 private http = inject(HttpClient);
 private url  = inject(API_URL);`;
+
+  // ── brain-friendly content ──────────────────────────────────────────────
+
+  /** The "you are here" rail — neighbouring Language Features lessons. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Decorators' },
+    { label: 'Modules & Exports', id: 'ts-modules' },
+    { label: 'Promises & Async', id: 'ts-async' },
+    { label: 'Optional Chaining', id: 'ts-nullish' },
+  ];
+
+  /** Factory vs decorator, arguing about who ran when. */
+  protected readonly bridgeTalk: BubbleTurn[] = [
+    {
+      who: 'Factory',
+      says: "I'm just a function call — `First()`. I run the moment the class body is being defined, top to bottom.",
+    },
+    {
+      who: 'Decorator',
+      says: "I'm what you *return*. I don't run until every factory above me already has.",
+    },
+    { who: 'Factory', says: "So by the time you exist, I've already logged myself." },
+    {
+      who: 'Decorator',
+      says: 'Right — but we decorators apply bottom-up. The one written closest to the method wraps first.',
+    },
+    {
+      who: 'Factory',
+      says: 'Which means the one written on top ends up wrapping everything underneath.',
+    },
+    {
+      who: 'Decorator',
+      says: 'Same rule as `f(g(x))` — read us from the outside in to know who wraps whom.',
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link orderSample}. */
+  protected readonly orderNotes: CodeNote[] = [
+    {
+      line: 6,
+      text: 'This runs the instant `First()` is evaluated — before Angular, or anything, has applied a single decorator.',
+    },
+    {
+      line: 7,
+      text: "The returned function IS the decorator. It hasn't run yet — only handed back, ready to be applied.",
+    },
+    {
+      line: 21,
+      text: '`@First()` calls the factory immediately (step 1 in the log), then holds onto whatever it returned.',
+    },
+    {
+      line: 22,
+      text: '`@Second()`, closer to the method, is evaluated second (step 2) — but applies **first** (step 3), because decorators wrap from the inside out.',
+    },
+  ];
+
+  /** The two passes, drawn as a diagram — the same idea the live log proves. */
+  protected readonly orderFlow: FlowStep[] = [
+    { label: 'First() called', detail: 'Factory runs immediately — just a function call' },
+    { label: 'Second() called', detail: 'Factories evaluate top-down, left to right' },
+    {
+      label: "Second's decorator applied",
+      detail: 'Closest to the method wraps first',
+      tone: 'accent',
+    },
+    {
+      label: "First's decorator applied",
+      detail: 'Then wraps that — like `First(Second(method))`',
+      tone: 'accent',
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link memoizeSample}. */
+  protected readonly memoizeNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: 'Three parameters, always in this order for a method decorator — no configuration possible without wrapping this in a factory.',
+    },
+    {
+      line: 8,
+      text: "Saved before it's overwritten. Skip this and the replacement would call *itself* — infinite recursion.",
+    },
+    {
+      line: 12,
+      text: 'One `Map`, created once, when the class is defined — not once per instance.',
+    },
+    {
+      line: 15,
+      text: '`function`, deliberately not an arrow — an arrow here would capture the wrong `this`.',
+    },
+    {
+      line: 21,
+      text: 'The cache key is the stringified argument list. First call for a given `n` computes and stores; every later call for that same `n` is a lookup.',
+    },
+    {
+      line: 28,
+      text: "No `()` — a plain reference, not a call. Add parentheses and this breaks: `Memoize` isn't a factory, it IS the decorator.",
+    },
+    {
+      line: 34,
+      text: "Recursion goes through `this.fib` — the *decorated* method — so every intermediate subproblem is cached too. That's what turns exponential into linear.",
+    },
+  ];
+
+  /** Line-by-line walkthrough of {@link aotSample}. */
+  protected readonly aotNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'This decorator is read once, at build time — and then thrown away. It never appears in the compiled output below.',
+    },
+    {
+      line: 8,
+      text: '`ɵfac` — the factory the framework calls to construct your component. Generated, not written by you.',
+    },
+    {
+      line: 9,
+      text: '`ɵcmp` — the compiled component definition: your template turned into instructions, your metadata turned into static config. This is what Angular actually runs.',
+    },
+  ];
+
+  /** Self-test: whether AOT tolerates metadata computed at runtime. */
+  protected readonly aotQuizOptions: QuizOption[] = [
+    {
+      text: 'It works fine — decorators run at runtime anyway',
+      why: 'Only true under JIT, which almost nothing uses today. AOT — the default production build — never executes `@Component` at all.',
+    },
+    {
+      text: "The build fails: the compiler can't statically evaluate the template at build time",
+      correct: true,
+      why: 'ngtsc reads decorator metadata at compile time to generate `ɵcmp`. A value only known at runtime has nothing for it to read yet.',
+    },
+    {
+      text: 'Angular falls back to JIT automatically for that one component',
+      why: 'There is no per-component fallback — a build is AOT or JIT for the whole app, decided ahead of time, not component by component.',
+    },
+  ];
+
+  /** The small doubts this lesson tends to leave behind. */
+  protected readonly questions: FaqItem[] = [
+    {
+      q: 'In what order do `@A() @B() method()` run?',
+      a: "Factories evaluate top-down (A's factory, then B's), then the returned decorators apply bottom-up (B decorates the method, A decorates the result) — function composition, `A(B(method))`.",
+    },
+    {
+      q: 'Does @Component execute in a production build?',
+      a: 'No. AOT compilation reads it statically, generates `ɵcmp`/`ɵfac` static fields, and drops the decorator. It only executes under JIT compilation.',
+    },
+    {
+      q: 'How many times does a method decorator run for 100 instances?',
+      a: 'Once — at class-definition time, when the module first loads. The rewritten descriptor (and any closure state, like a memo cache) is shared by all 100 instances.',
+    },
+    {
+      q: "Why can't Angular adopt TC39 decorators for @Inject?",
+      a: "The stage-3 standard has no parameter decorators. That's one driver behind `inject()` — it moves DI out of constructor parameters entirely, so no parameter decoration or reflection metadata is needed.",
+    },
+    {
+      q: 'Why must @Component metadata be statically analyzable?',
+      a: "Because the AOT compiler evaluates it at build time to generate template instructions. A template or selector computed at runtime can't be compiled ahead of time — the build fails.",
+    },
+  ];
 }
