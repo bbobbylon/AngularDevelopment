@@ -1,6 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
+import type { ChapterStop, CodeNote } from '../../../shared/brain';
+import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { Stepper } from './stepper/stepper';
 
 /**
@@ -13,10 +17,37 @@ import { Stepper } from './stepper/stepper';
  * pitfalls that show up in exams and code review.
  *
  * The Stepper below is a real child component used by several live demos.
+ *
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer. One analogy replaces "it's like a
+ * mirror" (the intuitive but WRONG mental model, since a mirror updates both
+ * ways symmetrically): **two pipes, glued together.** `[(x)]` looks like one
+ * wire, but it is an inbound pipe (`[x]`, parent → child) and an outbound
+ * pipe (`(xChange)`, child → parent) fused by syntax, not by behaviour.
+ * Water only leaves the outbound pipe when the CHILD pours something in —
+ * the inbound pipe filling up never spills into it. That single image pays
+ * for the lesson's two hardest facts: why a parent's write never fires
+ * `valueChange` (it only ever uses the inbound pipe — see the opening
+ * Predict and the two Flow diagrams), and what "splitting the banana"
+ * literally means (unglue the two pipes and put a valve on the outbound
+ * one, which is exactly the clamping demo).
  */
 @Component({
   selector: 'app-lesson-two-way-binding',
-  imports: [RouterLink, FormsModule, Stepper],
+  imports: [
+    RouterLink,
+    FormsModule,
+    Stepper,
+    BfPage,
+    Chapter,
+    CodeLab,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './two-way-binding.css',
   templateUrl: './two-way-binding.html',
 })
@@ -92,6 +123,88 @@ export class TwoWayBinding {
    */
   protected readonly agree = signal(false);
 
+  // ── Presentation data ──────────────────────────────────────────────────────
+
+  /** The Data Binding track, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Property & Attribute', id: 'property-binding' },
+    { label: 'Event Binding', id: 'event-binding' },
+    { label: 'Two-Way Binding' },
+    { label: 'Class & Style', id: 'class-style-binding' },
+  ];
+
+  /** Code for the opening predict — a parent writing the signal directly. */
+  readonly predictCode = `setFromParent() {
+  this.logged.set(42);   // writes the signal directly
+}`;
+
+  /** The child-originated write path — the only one that emits. */
+  protected readonly childWriteFlow: FlowStep[] = [
+    { label: 'Child calls .set() / .update()', detail: 'e.g. inc(), from inside the component' },
+    { label: 'valueChange emits', detail: "the model()'s output fires", tone: 'accent' },
+    {
+      label: "Parent's (valueChange) handler runs",
+      detail: 'state updates, log entry added',
+      tone: 'good',
+    },
+  ];
+
+  /** The parent-originated write path — silent by design. */
+  protected readonly parentWriteFlow: FlowStep[] = [
+    { label: 'Parent writes the signal', detail: 'e.g. logged.set(42)' },
+    { label: 'Input value updates', detail: 'the child re-renders with the new value' },
+    {
+      label: 'valueChange does NOT emit',
+      detail: 'otherwise this would loop forever',
+      tone: 'warn',
+    },
+  ];
+
+  /** Options for the naming-contract self-test. */
+  protected readonly quizOptions: QuizOption[] = [
+    {
+      text: '`sizeChange`',
+      correct: true,
+      why: "model() always generates the output by appending the literal suffix Change to the input's name — no exceptions, no configuration.",
+    },
+    {
+      text: '`sizeChanged`',
+      why: 'Close, but wrong — the suffix is exactly Change, not Changed. This is the single most common typo in the entire naming contract.',
+    },
+    {
+      text: '`onSizeChange`',
+      why: "A familiar pattern from event-handler naming elsewhere, but Angular's two-way binding sugar has one fixed rule: input name + Change, with no onX prefix.",
+    },
+    {
+      text: "Whatever name you configure in model()'s options",
+      why: "model() does let you alias the INPUT name via { alias: 'x' } — but the paired output name is always derived automatically as inputName + Change; there is no separate output alias option.",
+    },
+  ];
+
+  /** The "no dumb questions" block. */
+  protected readonly questions: FaqItem[] = [
+    {
+      q: 'What does `[(visible)]="show"` expand to, exactly?',
+      a: '`[visible]="show" (visibleChange)="show = $event"` — and if `show` is a writable signal, the write is `show.set($event)`. The output name is always input-name + Change.',
+    },
+    {
+      q: 'Can I two-way-bind to a plain getter/setter pair instead of a signal?',
+      a: 'Yes — `[(x)]="expr"` only needs `expr` to be assignable, the same rule the assignability table below is built around. A plain property with a getter and setter works exactly like the `user.name` row: Angular calls the setter with `$event`, no signal required.',
+    },
+    {
+      q: 'Why does `[(value)]="count()"` fail to compile?',
+      a: '`count()` is a call expression — there is nothing to assign back into. Bind the signal itself: `[(value)]="count"`; Angular detects the WritableSignal and writes via `.set()`.',
+    },
+    {
+      q: "You see NG8002: Can't bind to 'ngModel'. First thing to check?",
+      a: "Whether FormsModule is in the component's imports array. Without it, the NgModel directive isn't in template scope, so ngModel looks like an unknown property of <input>.",
+    },
+    {
+      q: "How do you validate a child's value before accepting it?",
+      a: 'Split the banana: `[value]="v()" (valueChange)="accept($event)"` and put the policy (clamp, validate, confirm, dispatch) in `accept()`. Two-way binding is sugar, so the explicit pair is always available.',
+    },
+  ];
+
   // --- code samples (kept as properties so braces/backticks need no template escaping) ---
   /**
    * Sample: `[(value)]` desugared into its `[value]` + `(valueChange)` pair.
@@ -103,6 +216,22 @@ export class TwoWayBinding {
 
 <!-- and when count is a WritableSignal, the write-back becomes -->
 <app-stepper [value]="count()" (valueChange)="count.set($event)" />`;
+
+  /** Line-by-line notes for {@link desugarSample}. */
+  protected readonly desugarNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: "The banana-in-a-box: brackets (property binding) inside parentheses (event binding), fused into one piece of syntax. Nothing here is special — it's a compiler-level find-and-replace.",
+    },
+    {
+      line: 4,
+      text: "The literal expansion: an ordinary property binding plus an ordinary event binding. valueChange isn't a magic name Angular invented for this component specifically — it's value (the input's name) with the literal suffix Change glued on.",
+    },
+    {
+      line: 7,
+      text: 'count is read with count() on the way in (a plain value, not the signal object) and written with count.set($event) on the way out. This is the one place the compiler special-cases signals — plain properties instead get a bare count = $event assignment, as shown above.',
+    },
+  ];
 
   /**
    * Sample: the `model()` API, including `model.required()`.
@@ -120,6 +249,30 @@ export class TwoWayBinding {
 // inside the child, value is a full signal:
 doubled = computed(() => this.value() * 2); // reacts to parent AND child writes`;
 
+  /** Line-by-line notes for {@link modelApiSample}. */
+  protected readonly modelApiNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'model(0) in one line generates BOTH halves — an input named value (default 0) and an output named valueChange — matching exactly the naming contract from the previous sample.',
+    },
+    {
+      line: 3,
+      text: "model.required() has no default; if the parent's template doesn't bind size, Angular's template type checker reports it at build time (NG8008), not at runtime.",
+    },
+    {
+      line: 4,
+      text: 'alias only renames the INPUT half. The output is still derived automatically from the ORIGINAL name plus Change — so the paired output here is widthChange, not dimensionChange, and the parent still writes [(dimension)].',
+    },
+    {
+      line: 7,
+      text: '.update() (or .set()) from inside the child is the ONLY thing that fires valueChange. This single line is the entire emission rule — the next section shows what happens when the write comes from the parent instead.',
+    },
+    {
+      line: 12,
+      text: "Because value is a genuine signal on the child's side, not just a plain field, it composes with computed() exactly like any other signal — and this one reacts to writes from either side, parent or child.",
+    },
+  ];
+
   /**
    * Sample: splitting the banana-in-a-box to intercept a change before it lands.
    */
@@ -128,6 +281,18 @@ doubled = computed(() => this.value() * 2); // reacts to parent AND child writes
 
 <!-- explicit pair: the parent owns the policy -->
 <app-stepper [value]="clamped()" (valueChange)="setClamped($event)" />`;
+
+  /** Line-by-line notes for {@link splitBananaSample}. */
+  protected readonly splitBananaNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'The fused form: convenient, but every emission lands directly in clamped with no chance to inspect or reject it first.',
+    },
+    {
+      line: 5,
+      text: 'Unglue the two pipes: the inbound one ([value]) is untouched, but the outbound one now routes through setClamped() instead of writing state directly — the valve-on-the-outbound-pipe move from the analogy above.',
+    },
+  ];
 
   /**
    * Sample: `[(ngModel)]` and the `FormsModule` import it needs.
@@ -148,6 +313,30 @@ doubled = computed(() => this.value() * 2); // reacts to parent AND child writes
   <input [(ngModel)]="scratch" [ngModelOptions]="{ standalone: true }" />
 </form>`;
 
+  /** Line-by-line notes for {@link ngModelSample}. */
+  protected readonly ngModelNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: "Nothing works without this import — NgModel isn't a core directive, it lives in FormsModule and must be added to the component's own imports array.",
+    },
+    {
+      line: 4,
+      text: 'Same [(x)] syntax, same desugaring rule as a component: this is [ngModel] + (ngModelChange) under the hood — Angular treats a native form control exactly like any other two-way-bindable child.',
+    },
+    {
+      line: 9,
+      text: "updateOn: 'blur' changes WHEN the write-back fires, not whether it fires — the value still round-trips through the same [(ngModel)] pair, just on leaving the field instead of every keystroke.",
+    },
+    {
+      line: 13,
+      text: 'Inside a real <form>, NgModel registers itself with the parent NgForm under this name — required so the form can track and validate it as a named control.',
+    },
+    {
+      line: 14,
+      text: "standalone: true opts a control out of that registration — for a field that doesn't belong to the form's own validity/value, without needing to move it outside the <form> tag.",
+    },
+  ];
+
   /**
    * Sample: the legacy `@Input()` + `@Output() xChange` pair, and the naming rule
    * that made the sugar work.
@@ -161,4 +350,20 @@ doubled = computed(() => this.value() * 2); // reacts to parent AND child writes
     this.valueChange.emit(this.value);  // forget this line → parent silently desyncs
   }
 }`;
+
+  /** Line-by-line notes for {@link legacySample}. */
+  protected readonly legacyNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'Half of the pair, built by hand — this is the exact input model(0) would have generated for you.',
+    },
+    {
+      line: 3,
+      text: 'The other half, ALSO built by hand — and this is where the naming contract stops being automatic and starts being your responsibility to get exactly right.',
+    },
+    {
+      line: 7,
+      text: "Nothing connects this.value++ to the output automatically. model()'s entire value proposition is that this line — the one people forget — simply can't be forgotten, because there's no separate line to write.",
+    },
+  ];
 }
