@@ -8,6 +8,27 @@ import {
   Validators,
 } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import {
+  BfPage,
+  Bubbles,
+  type BubbleTurn,
+  Chapter,
+  type ChapterStop,
+  CodeLab,
+  type CodeNote,
+  Napkin,
+} from '../../../shared/brain';
+import {
+  Compare,
+  Faq,
+  type FaqItem,
+  Flow,
+  type FlowStep,
+  Predict,
+  Quiz,
+  type QuizOption,
+  Remember,
+} from '../../../shared/teaching';
 
 /**
  * Lesson: FormArray — a dynamic, ordered list of controls (or groups) whose
@@ -18,7 +39,22 @@ import { RouterLink } from '@angular/router';
  */
 @Component({
   selector: 'app-lesson-form-arrays',
-  imports: [RouterLink, ReactiveFormsModule, JsonPipe],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    JsonPipe,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    Compare,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   templateUrl: './form-arrays.html',
   styleUrl: './form-arrays.css',
 })
@@ -247,4 +283,217 @@ this.form.setControl('items', new FormArray([
 // RIGHT — mutate the SAME FormArray instance
 this.items.clear();                                             // detach every control, keep the array
 rows.forEach((r) => this.items.push(this.newItem(r.name, r.qty))); // repopulate it`;
+
+  /**
+   * Compare panel: template wiring for an array of groups.
+   */
+  readonly groupBindingSample = `<div formArrayName="items">
+  @for (item of items.controls; track item; let i = $index) {
+    <div [formGroupName]="i">
+      <input formControlName="name" />
+      <input formControlName="qty" />
+    </div>
+  }
+</div>`;
+
+  /**
+   * Compare panel: template wiring for an array of plain controls.
+   */
+  readonly plainBindingSample = `<div formArrayName="tags">
+  @for (tag of tags.controls; track tag; let i = $index) {
+    <input [formControlName]="i" />
+  }
+</div>`;
+
+  // ── brain-friendly content ──
+
+  /**
+   * Chapter rail: this lesson's Forms track (intermediate level only —
+   * template-forms is beginner, control-value-accessor is expert).
+   */
+  readonly stops: ChapterStop[] = [
+    { label: 'Reactive Forms', id: 'reactive-forms' },
+    { label: 'Form Validation', id: 'form-validation' },
+    { label: 'Async Validators', id: 'async-validators' },
+    { label: 'FormArray' },
+  ];
+
+  /**
+   * Bridge dialogue: FormArray mutates in place — which sounds wrong right
+   * after a lesson (HttpClient CRUD) that spent a whole section insisting
+   * HttpParams must never be mutated. This resolves that apparent conflict.
+   */
+  readonly bridgeTalk: BubbleTurn[] = [
+    {
+      who: 'You',
+      says: 'Wait — the HttpParams lesson said always copy, never mutate. But items.push() mutates the array directly. Which rule is right?',
+    },
+    {
+      who: 'FormArray',
+      says: "Both, for different reasons. HttpParams is meant to look immutable — it's a value. I'm a mutable node in the form's control tree; my whole job is to notify my parent when I change.",
+    },
+    { who: 'You', says: 'So push() is fine because you’re not a signal or a value type.' },
+    {
+      who: 'FormArray',
+      says: "Right. I call updateValueAndValidity() on myself, then on my parent, all the way up. That's my version of a signal write — it's just a convention, not something the framework forces on me.",
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `setupSample`.
+   */
+  readonly setupNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'this.fb.group({ … }) is FormBuilder shorthand for new FormGroup({ … }) — each property becomes a control.',
+    },
+    {
+      line: 4,
+      text: 'A plain top-level control with a starting value and one synchronous validator — nothing FormArray-specific yet.',
+    },
+    {
+      line: 6,
+      text: 'The important line: fb.array(...) creates a FormArray seeded with one FormGroup. That FormArray is itself just a control nested under "items".',
+    },
+    {
+      line: 12,
+      text: 'A GETTER, not a field — always reads the live array, and keeps the AbstractControl → FormArray cast in exactly one place.',
+    },
+    {
+      line: 15,
+      text: 'The cast is required: get() returns AbstractControl | null, and only FormArray has .push()/.removeAt().',
+    },
+    {
+      line: 21,
+      text: 'A FACTORY, not a stored instance — reusing one FormGroup object across rows would bind every row’s inputs to the same control.',
+    },
+    {
+      line: 26,
+      text: 'The array-of-validators form, used once a control needs more than one synchronous validator.',
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `addRemoveSample`.
+   */
+  readonly addRemoveNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: 'push() appends to the end of the internal controls list and immediately recomputes value/validity — no separate "refresh the form" step.',
+    },
+    {
+      line: 12,
+      text: 'removeAt(i) detaches the control (setParent(null)) then splices it out — every later control shifts DOWN one index. That shift is exactly why tracking matters, below.',
+    },
+    { line: 14, text: 'Also on FormArray: insert(i, ctrl), clear(), at(i), and .length.' },
+  ];
+
+  /**
+   * Line-by-line notes for `primitiveArraySample`.
+   */
+  readonly primitiveArrayNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'The initial items are plain strings, auto-boxed to FormControl<string>. The 2nd argument is a validator on the ARRAY control itself, not on any item.',
+    },
+    {
+      line: 8,
+      text: 'Typed reactive forms: cast to the precise generic, so .controls gives FormControl<string>[] instead of AbstractControl[].',
+    },
+    {
+      line: 15,
+      text: 'A SEPARATE control outside the array — the input box is UI state, not form data.',
+    },
+    {
+      line: 21,
+      text: 'fb.nonNullable keeps the type string, not string | null — required here since the array itself is typed string.',
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `wrongRightSample`.
+   */
+  readonly wrongRightNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'setControl swaps in a brand-new FormArray instance. Any binding or subscription still pointing at the OLD one goes stale — silently, no error.',
+    },
+    {
+      line: 7,
+      text: 'clear() empties the SAME array instance — every control gets setParent(null), then the list empties. Bindings to the array itself stay valid.',
+    },
+    {
+      line: 8,
+      text: 'Repopulates the same array by pushing fresh rows — exactly the pattern add() already uses, one row at a time.',
+    },
+  ];
+
+  /**
+   * The push()/removeAt() lifecycle, as a visual flow — matches "Under the
+   * hood" below.
+   */
+  readonly pushRemoveFlow: FlowStep[] = [
+    { label: 'push(control)', detail: 'Appends to the plain controls array', tone: 'default' },
+    {
+      label: 'control.setParent(this)',
+      detail: 'Wires the new control into the tree',
+      tone: 'default',
+    },
+    {
+      label: 'updateValueAndValidity()',
+      detail: 'Recomputes this control, then bubbles to every ancestor',
+      tone: 'accent',
+    },
+    {
+      label: 'removeAt(i)',
+      detail: 'Detaches control i, then splices — every LATER control shifts down one index',
+      tone: 'warn',
+    },
+    {
+      label: 'form.value / form.valid update',
+      detail: 'Reflects the new shape immediately — no manual refresh',
+      tone: 'good',
+    },
+  ];
+
+  /**
+   * Self-test: where an array-level validator belongs.
+   */
+  readonly minLengthQuizOptions: QuizOption[] = [
+    {
+      text: "On each tag's own FormControl, e.g. fb.control(value, Validators.required)",
+      why: "That only checks each tag's own text isn't blank — it says nothing about how many tags exist.",
+    },
+    {
+      text: 'As the second argument to fb.array(controls, Validators.minLength(1))',
+      correct: true,
+      why: "This attaches the validator to the FormArray control itself, which checks the length of the array's OWN value — independent of any one item.",
+    },
+    {
+      text: 'On the parent FormGroup that contains the array',
+      why: 'The parent group only knows about controls named by key (title, tags, …) — it has no way to see "how many items are inside tags" from there.',
+    },
+  ];
+
+  /**
+   * Exam-corner questions, ported from the original detail/summary blocks.
+   */
+  readonly questions: FaqItem[] = [
+    {
+      q: 'Why track by the control instance, not $index?',
+      a: 'Indices shift when you remove a row, so track $index re-associates controls with the wrong DOM and values appear to jump. The control instance is stable.',
+    },
+    {
+      q: 'Array of groups vs array of controls — how does binding differ?',
+      a: 'Groups: [formGroupName]="i" then formControlName inside. Simple controls: [formControlName]="i" directly on the array item.',
+    },
+    {
+      q: 'How do you clear every row at once?',
+      a: "this.items.clear() — then push fresh ones if needed. It's cheaper and safer than removeAt in a loop, and it keeps the same FormArray instance alive so existing bindings and subscriptions stay valid.",
+    },
+    {
+      q: 'How do you validate "the list must have at least one item", as opposed to validating each item?',
+      a: "Pass the validator as the SECOND argument to fb.array(controls, Validators.minLength(1)). That attaches it to the FormArray control itself, which checks the length of the array's own value — independent of whether each individual item control is valid.",
+    },
+  ];
 }

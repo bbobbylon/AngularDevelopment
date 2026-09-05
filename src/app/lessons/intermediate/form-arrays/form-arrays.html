@@ -1,83 +1,58 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Forms</span>
-  <h1>Dynamic Forms &amp; FormArray</h1>
-  <p class="lead">
-    A <code>FormArray</code> holds a variable-length, <strong>ordered</strong> list of controls — and unlike a
-    <code>FormGroup</code>, that list has no fixed set of named keys. Reach for it whenever the number of fields is
-    decided at runtime: invoice line items, phone numbers, tags, anything a user can add or remove. The items can be
-    whole <code>FormGroup</code>s (a name + a quantity, say) or plain single controls (just a string). Both patterns are
-    demoed below, along with how to validate the array <em>itself</em> — e.g. "must have at least one row" — separately
-    from validating each item inside it.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Angular Intermediate · Forms"
+    title="Dynamic Forms &amp; FormArray"
+    hand="or, a numbered list of controls instead of a filing cabinet of named ones"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      A <code>FormArray</code> holds a variable-length, <strong>ordered</strong> list of controls — and unlike a
+      <code>FormGroup</code>, that list has no fixed set of named keys. Reach for it whenever the number of fields is
+      decided at runtime: invoice line items, phone numbers, tags, anything a user can add or remove. The items can be
+      whole <code>FormGroup</code>s (a name + a quantity, say) or plain single controls (just a string). Both patterns
+      are demoed below, along with how to validate the array <em>itself</em> — e.g. "must have at least one row" —
+      separately from validating each item inside it.
+    </p>
+  </app-chapter>
 
+  <!-- === 1. THE PROBLEM === -->
+  <app-napkin lead="notice —">
+    Every invoice line item below is a whole <code>FormGroup</code>; every tag is a single plain control. Neither array
+    has a fixed number of slots — that number is decided the moment you click "+ Add", which is exactly what a
+    <code>FormGroup</code>'s named keys can't do.
+  </app-napkin>
+
+  <!-- === 2. ANALOGY === -->
+  <p>
+    Think of a <code>FormGroup</code> as a filing cabinet with labeled drawers — <code>title</code>, <code>email</code>,
+    <code>address</code> — you always reach in by name. A <code>FormArray</code> is more like a numbered coat-check
+    rack: items go in by <strong>position</strong>, not by name, and that position can shift every time someone drops
+    off or picks up a coat. Hook #1 always exists, but which coat is hanging on it changes — and that one fact explains
+    almost every FormArray bug in this lesson.
+  </p>
+  <app-remember variant="rule" label="If you remember one thing">
+    A <code>FormArray</code> is the <strong>same instance</strong> for its whole lifetime. Mutate it —
+    <code>push</code>, <code>removeAt</code>, <code>insert</code>, <code>clear</code> — never replace it with
+    <code>setControl('items', new FormArray([...]))</code>. Existing bindings only stay alive if the object they point
+    at stays the same.
+  </app-remember>
+
+  <!-- === 3. SETUP === -->
   <h2>Setup — building a FormArray of groups</h2>
   <p>
     This is the exact code behind the invoice demo further down. <code>fb.array(...)</code> builds the
-    <code>FormArray</code>; each entry inside it is a whole <code>FormGroup</code>
-    produced by a small factory function so every row gets its own independent controls:
+    <code>FormArray</code>; each entry inside it is a whole <code>FormGroup</code> produced by a small factory function
+    so every row gets its own independent controls:
   </p>
-  <div class="code">
-    <pre>{{ setupSample }}</pre>
-  </div>
-  <p class="lbl">Line-by-line</p>
-  <ul class="lbl-list">
-    <li>
-      <code>this.fb.group({{ '{' }} … {{ '}' }})</code> — <code>FormBuilder</code> shorthand for
-      <code>new FormGroup({{ '{' }} … {{ '}' }})</code>. Each property becomes a control; an array value like
-      <code>[initial, validators]</code> is sugar for <code>new FormControl(initial, validators)</code>.
-    </li>
-    <li>
-      <code>title: ['Office supplies', Validators.required]</code> — a plain top-level control with a starting value and
-      one synchronous validator. Nothing FormArray-specific yet, just an ordinary reactive-forms control.
-    </li>
-    <li>
-      <code>items: this.fb.array([this.newItem('Notebook', 3)])</code> — the important line.
-      <code>fb.array(...)</code> creates a <code>FormArray</code> whose initial contents are one
-      <code>FormGroup</code> (built by <code>newItem</code>). Crucially, that <code>FormArray</code> is itself just a
-      <strong>control</strong> nested under the key <code>items</code> — it plugs into the same value/validity tree as
-      <code>title</code>, it just happens to hold a list instead of a scalar.
-    </li>
-    <li>
-      <code>this.form.get('items') as FormArray</code> — <code>get()</code> is typed to return
-      <code>AbstractControl | null</code> because Angular can't statically know what you named your controls. You must
-      cast to <code>FormArray</code> before <code>.controls</code>, <code>.push()</code> or
-      <code>.removeAt()</code> exist on the type; skip the cast and TypeScript refuses to compile the call.
-    </li>
-    <li>
-      <code>private newItem(name = '', qty = 1) {{ '{' }} return this.fb.group({{ '{' }} … {{ '}' }}); {{ '}' }}</code>
-      — a <strong>factory</strong>, not a stored instance. It returns a brand-new <code>FormGroup</code> every time it's
-      called. If you instead built one group and reused that same object reference for multiple rows, every row's inputs
-      would be bound to the identical control — typing in one would change them all.
-    </li>
-    <li>
-      <code>qty: [qty, [Validators.min(1)]]</code> — the array-of-validators form, used the moment a control needs more
-      than one synchronous validator.
-    </li>
-  </ul>
+  <app-code-lab file="form-arrays.ts — setup" [code]="setupSample" [notes]="setupNotes" />
 
+  <!-- === 4. ADD & REMOVE === -->
   <h2>Add &amp; remove at runtime</h2>
-  <div class="code">
-    <pre>{{ addRemoveSample }}</pre>
-  </div>
-  <p class="lbl">Line-by-line</p>
-  <ul class="lbl-list">
-    <li>
-      <code>this.items.push(this.newItem())</code> — <code>push</code> appends a fresh control to the
-      <strong>end</strong> of the array's internal <code>controls</code> list and immediately recomputes the array's
-      (and every ancestor's) value and validity. There is no separate "refresh the form" step to remember.
-    </li>
-    <li>
-      <code>this.newItem()</code> with no arguments — reuses the exact same factory as setup, so a row added by clicking
-      "+ Add line" is validated identically to the seeded row (<code>name</code> required, <code>qty</code> ≥ 1).
-    </li>
-    <li>
-      <code>this.items.removeAt(i)</code> — detaches the control that currently sits at index
-      <code>i</code> (internally: <code>control.setParent(null)</code>) and splices it out of the array. Every control
-      that was after it shifts down one index. That index shift is exactly why the template below tracks the
-      <em>control instance</em>, not the index — see "Under the hood".
-    </li>
-  </ul>
+  <app-code-lab file="form-arrays.ts — add() / remove()" [code]="addRemoveSample" [notes]="addRemoveNotes" />
 
+  <!-- === 5. DEMO 1 === -->
   <h2>Try it — a tiny invoice (array of groups)</h2>
   <div class="demo">
     <p class="demo__title">Live</p>
@@ -116,42 +91,20 @@
     </p>
   </div>
 
+  <!-- === 6. ARRAY OF PLAIN CONTROLS === -->
   <h2>FormArray of plain controls — tags (no groups)</h2>
   <p>
-    Not every array needs groups. When each item is a single value, skip the wrapper
-    <code>FormGroup</code> entirely and put controls straight into the array. This demo also shows an
-    <strong>array-level validator</strong> — one that checks the list as a whole (its length), completely separate from
-    validating each tag's own text:
+    Not every array needs groups. When each item is a single value, skip the wrapper <code>FormGroup</code> entirely and
+    put controls straight into the array. This demo also shows an <strong>array-level validator</strong> — one that
+    checks the list as a whole (its length), completely separate from validating each tag's own text:
   </p>
-  <div class="code">
-    <pre>{{ primitiveArraySample }}</pre>
-  </div>
-  <p class="lbl">Line-by-line</p>
-  <ul class="lbl-list">
-    <li>
-      <code>this.fb.array&lt;string&gt;(['angular', 'forms'], Validators.minLength(2))</code> — the array's initial
-      items are plain strings (each becomes a <code>FormControl&lt;string&gt;</code> automatically), and the
-      <strong>second argument</strong> is a validator attached to the <em>array control itself</em>. Because the array's
-      own <code>.value</code> is the string array, <code>Validators.minLength(2)</code> checks
-      <code>value.length &lt; 2</code> — i.e. "at least two tags" — not the length of any individual tag's text.
-    </li>
-    <li>
-      <code>this.tagsForm.get('tags') as FormArray&lt;FormControl&lt;string&gt;&gt;</code> — with typed reactive forms
-      you cast to the precise generic, not just bare <code>FormArray</code>, so <code>.controls</code> gives you
-      <code>FormControl&lt;string&gt;[]</code> instead of <code>AbstractControl[]</code>.
-    </li>
-    <li>
-      <code>this.tags.push(this.fb.nonNullable.control(value))</code> — <code>fb.nonNullable</code> returns a builder
-      whose controls' values can never become <code>null</code> (e.g. after <code>reset()</code>), which matters here
-      because the array is typed <code>string</code>, not <code>string | null</code>.
-    </li>
-    <li>
-      <code>[formArrayName]="tags"</code> / <code>[formControlName]="i"</code> in the template — for an array of
-      <em>groups</em> you bind <code>[formGroupName]="i"</code> per item; for an array of <em>plain controls</em> you
-      bind <code>[formControlName]="i"</code> directly on the input, with no group wrapper element in between.
-    </li>
-  </ul>
+  <app-code-lab
+    file="form-arrays.ts — array of plain controls"
+    [code]="primitiveArraySample"
+    [notes]="primitiveArrayNotes"
+  />
 
+  <!-- === 7. DEMO 2 === -->
   <div class="demo">
     <p class="demo__title">Live — array-level validator: needs at least 2 tags</p>
     <div [formGroup]="tagsForm">
@@ -180,6 +133,7 @@
     </div>
   </div>
 
+  <!-- === 8. TEMPLATE WIRING, COMPARED === -->
   <h2>Template wiring — the two binding shapes</h2>
   <ul>
     <li>
@@ -190,15 +144,25 @@
       Iterate <code>items.controls</code> with <code>&#64;for</code> — never iterate the array's raw <em>value</em>,
       since that's just data with no control identity attached.
     </li>
-    <li>
-      <strong>Array of groups:</strong> each item binds via <code>[formGroupName]="i"</code> (the index), with
-      <code>formControlName</code> for the fields inside it.
-    </li>
-    <li>
-      <strong>Array of plain controls:</strong> use <code>[formControlName]="i"</code> directly on the input — there's
-      no group wrapper to open.
-    </li>
   </ul>
+  <app-compare
+    leftTitle="Array of GROUPS"
+    rightTitle="Array of PLAIN controls"
+    leftTone="neutral"
+    rightTone="neutral"
+    note="Groups open a [formGroupName] wrapper per item; plain controls skip straight to [formControlName]."
+  >
+    <div left>
+      <div class="code">
+        <pre>{{ groupBindingSample }}</pre>
+      </div>
+    </div>
+    <div right>
+      <div class="code">
+        <pre>{{ plainBindingSample }}</pre>
+      </div>
+    </div>
+  </app-compare>
 
   <div class="tip">
     Track by the control instance (<code>track item</code> / <code>track tag</code>) so Angular reuses rows correctly as
@@ -214,6 +178,7 @@
     <code>fb.nonNullable</code> keeps values from resetting to <code>null</code>.
   </div>
 
+  <!-- === 9. UNDER THE HOOD === -->
   <h2>Under the hood — what push()/removeAt() actually do</h2>
   <p>
     A <code>FormArray</code> is not magic list-diffing; it's a thin wrapper around a plain JavaScript array of controls,
@@ -224,6 +189,14 @@
   <div class="code">
     <pre>{{ underTheHoodSample }}</pre>
   </div>
+  <app-flow [steps]="pushRemoveFlow" caption="mutate the plain array, then notify the tree — that's the whole trick" />
+
+  <app-predict
+    prompt="You have 3 tags — angular, forms, signals — tracked with `track $index`. You delete `angular` (index 0). What does the now-first input box show?"
+    answer="`forms` — but rendered inside the SAME <input> DOM node that used to hold `angular`, focus and cursor included. Angular assumed index 0 is still `the same row` it was before, and reused the node; only the data underneath it shifted."
+    revealLabel="Reveal what actually happens"
+  />
+
   <ul>
     <li>
       <strong><code>controls</code> is the array.</strong> There is no hidden diffing engine —
@@ -234,12 +207,6 @@
       <strong><code>setParent()</code> wires the tree.</strong> Every control added to the array gets a reference to it
       as its parent; every control removed has that reference cleared. This parent chain is how a keystroke in one leaf
       control eventually recomputes <code>form.valid</code> at the root.
-    </li>
-    <li>
-      <strong><code>updateValueAndValidity()</code> is the "notify" step.</strong> It recalculates this control's own
-      value/status from its children, then calls the same method on its parent — the change
-      <em>bubbles upward</em> through the whole ancestor chain, which is why the top-level
-      <code>form.valid</code> updates the instant a nested <code>qty</code> field goes invalid.
     </li>
     <li>
       <strong><code>value</code> vs <code>getRawValue()</code>.</strong> The plain <code>.value</code> getter filters
@@ -257,31 +224,19 @@
     </li>
   </ul>
 
+  <!-- === 10. REBUILDING VS MUTATING === -->
   <h2>Rebuilding the array vs mutating it</h2>
-  <div class="code">
-    <pre>{{ wrongRightSample }}</pre>
-  </div>
-  <p class="lbl">Line-by-line</p>
-  <ul class="lbl-list">
-    <li>
-      <code>this.form.setControl('items', new FormArray([...]))</code> — replaces the <code>items</code> control with a
-      brand-new <code>FormArray</code> instance. Any template binding, subscription, or reference that pointed at the
-      <em>old</em> <code>FormArray</code> (including anything mid-flight in <code>valueChanges</code>) is now stale —
-      the form re-renders around a different object than the one your code, and possibly a parent component, still holds
-      a reference to.
-    </li>
-    <li>
-      <code>this.items.clear()</code> — removes every control from the <strong>same</strong> array instance (each gets
-      <code>setParent(null)</code>, then the internal list is emptied) and recomputes validity once. Existing bindings
-      to the array itself stay valid.
-    </li>
-    <li>
-      <code>rows.forEach(r =&gt; this.items.push(this.newItem(r.name, r.qty)))</code> — repopulates the same array by
-      pushing fresh rows, which is exactly the pattern the invoice demo's <code>add()</code> already uses one row at a
-      time.
-    </li>
-  </ul>
+  <app-code-lab file="form-arrays.ts — wrong vs right" [code]="wrongRightSample" [notes]="wrongRightNotes" />
 
+  <app-bubbles [turns]="bridgeTalk" caption="why push() mutating in place isn't the same mistake as HttpParams" />
+
+  <!-- === 11. SELF-TEST === -->
+  <app-quiz
+    question="You want to require 'at least one tag' — not that each tag's text passes some rule, but that the LIST itself isn't empty. Where does that validator go?"
+    [options]="minLengthQuizOptions"
+  />
+
+  <!-- === 12. PITFALLS === -->
   <h2>Pitfalls that show up in exams &amp; code review</h2>
   <ul>
     <li>
@@ -306,13 +261,9 @@
       <code>getRawValue()</code> includes disabled controls; <code>value</code> omits them.
     </li>
     <li>
-      <strong>Rebuilding instead of mutating.</strong> Reach for <code>push</code>/<code>removeAt</code>/
-      <code>clear</code>; reassigning a brand-new array breaks existing bindings and validity state.
-    </li>
-    <li>
-      <strong>Array-level validator on the wrong thing.</strong> "At least one item" belongs on the array —
-      <code>fb.array(controls, Validators.minLength(1))</code> — not copy-pasted onto each item's own control, which
-      only validates that one item's value.
+      <strong>Rebuilding instead of mutating.</strong> Reach for
+      <code>push</code>/<code>removeAt</code>/<code>clear</code>; reassigning a brand-new array breaks existing bindings
+      and validity state.
     </li>
     <li>
       <strong>Iterating <code>.value</code> instead of <code>.controls</code>.</strong> The array's value is plain data
@@ -321,38 +272,10 @@
     </li>
   </ul>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why track by the control instance, not <code>$index</code>?</summary>
-    <div>
-      Indices shift when you remove a row, so <code>track $index</code> re-associates controls with the wrong DOM and
-      values appear to jump. The control instance is stable.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Array of groups vs array of controls — how does binding differ?</summary>
-    <div>
-      Groups: <code>[formGroupName]="i"</code> then <code>formControlName</code> inside. Simple controls:
-      <code>[formControlName]="i"</code> directly on the array item.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you clear every row at once?</summary>
-    <div>
-      <code>this.items.clear()</code> — then <code>push</code> fresh ones if needed. It's cheaper and safer than
-      <code>removeAt</code> in a loop, and it keeps the same <code>FormArray</code> instance alive so existing bindings
-      and subscriptions stay valid.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you validate "the list must have at least one item", as opposed to validating each item?</summary>
-    <div>
-      Pass the validator as the <em>second argument</em> to <code>fb.array(controls, Validators.minLength(1))</code>.
-      That attaches it to the <code>FormArray</code> control itself, which checks the length of the array's own value —
-      independent of whether each individual item control is valid.
-    </div>
-  </details>
+  <!-- === 13. QUESTIONS === -->
+  <app-faq [items]="questions" />
 
+  <!-- === 14. RECAP === -->
   <h2>Key takeaways</h2>
   <ul>
     <li><code>FormArray</code> = a dynamic, ordered list of controls or groups, indexed by position.</li>
@@ -369,8 +292,8 @@
       argument — separate from validating each item.
     </li>
     <li>
-      Track by the control instance so rows survive add/remove correctly; <code>updateValueAndValidity()</code> bubbles
-      every change up the parent chain automatically.
+      Track by the control instance so rows survive add/remove correctly; <code>updateValueAndValidity()</code>
+      bubbles every change up the parent chain automatically.
     </li>
   </ul>
 

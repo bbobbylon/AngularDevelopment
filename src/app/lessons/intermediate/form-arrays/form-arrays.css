@@ -1,3 +1,8 @@
+/* The hand-rolled "Line-by-line" lists (.lbl/.lbl-list) were replaced by
+   <app-code-lab>'s [notes], and the exam-corner <details class="qa"> blocks
+   were replaced by <app-faq> — both classes are gone. .field/.line/.tagpill
+   style the two live demos and have no global equivalent. */
+
 .field {
   display: flex;
   flex-direction: column;
@@ -9,33 +14,6 @@
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
-.lbl {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 10px 0 6px;
-}
-.lbl-list {
-  margin-top: 0;
 }
 .tagpill {
   display: inline-flex;
