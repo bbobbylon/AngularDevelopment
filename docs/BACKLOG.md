@@ -217,7 +217,28 @@ summaries, silent NG0100/build-break regressions, a real doc/code mismatch in th
 `Layers` component a batch-4 reviewer caught) that trusting them without re-checking would
 have shipped bugs.
 
-**Lessons — remaining: 63.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Batches 5–7 — 17 more lessons landed 2026-09-05, rollout now 54 of 100.** Batch 5 was a
+single lesson, `zoneless`, manually verified after the rewrite agent produced complete,
+well-formed work but errored at the final report-submission call — the same failure
+pattern hit again in batch 6 (below) and once more in batch 7's coordinating session, so
+treat it as a known, recoverable failure mode rather than a reason to distrust the work:
+verify by hand (`tsc --noEmit`, `prettier --check`, a headless load, `audit-retention.mjs`)
+rather than re-running the agent. Batch 6: `deferrable-views`, `typescript/classes`,
+`animations`, `pwa-service-worker`, `view-transitions`, `beginner/two-way-binding`,
+`beginner/property-binding`, `expert/rxjs-advanced`, plus `ts-decorators` migrated outside
+the 1–8 numbering (same failed-report-call pattern, landed at 8/9 on manual verification).
+Batch 7: `expert/control-value-accessor`, `beginner/event-binding`, `expert/onpush`,
+`beginner/let-block`, `expert/dynamic-components`, `typescript/decorators`,
+`intermediate/http-crud`, `intermediate/form-arrays` — run by a second, concurrent session
+that also verified every lesson individually (`prettier`, `tsc --noEmit`,
+`audit-retention.mjs` to 9/9, a polled `ng build`) before committing each one.
+**`typescript/decorators` is the same file as batch 6's `ts-decorators`** — a second,
+unrelated session picked it as worst-scoring because this section hadn't been updated to
+reflect batch 6 yet (see the trap below). Its batch-7 pass fully superseded the batch-6
+one and reached 9/9, so nothing needs redoing, but batch 7 therefore added 7 _new_ lessons,
+not 8. Net new since the 37-of-100 count above: 10 (batches 5–6) + 7 (batch 7) = 17.
+
+**Lessons — remaining: 46.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
 means rewriting it against the nine-point bar anyway. Six lessons already have a solid
 retention pass from an earlier (pre-brain-friendly) session and just need the presentation
@@ -256,6 +277,13 @@ Remaining 10: `progress`, `coding-tasks`, `api-playground`, `exam-day`, `flashca
   single lesson's demo CSS. `angular.json`'s `anyComponentStyle` budget was raised from
   10kB/14kB to 16kB/20kB after `home.css`/`mock-exam.css` tripped the old warning threshold
   — no lesson currently exceeds 8.4kB, so this only gives headroom to full-page CSS.
+- **Log a landed batch here immediately, not at the next session boundary.** Two
+  concurrent sessions both independently picked `ts-decorators`/`typescript/decorators` as
+  a worst-scoring lesson on 2026-09-05, because this section still said "37 of 100" while
+  batches 5–6 (which already included it) were committed but not yet recorded here. The
+  second pass fully overwrote the first; both reached the brain-friendly bar so no harm
+  was done, but it was a wasted full rewrite. If two batches can run concurrently, this
+  file is the shared source of truth for what is already spoken for — keep it current.
 
 **Open questions the author should settle:**
 
