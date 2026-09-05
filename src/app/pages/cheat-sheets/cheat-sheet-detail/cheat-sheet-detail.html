@@ -1,0 +1,110 @@
+@if (sheet(); as sheet) {
+  <article class="cs-detail">
+    <div class="cs-toolbar-row">
+      <a class="cs-back" routerLink="/cheat-sheets">← All cheat sheets</a>
+      <button class="print-btn" (click)="print()">🖨 Print</button>
+    </div>
+
+    <header class="cs-header">
+      <span class="cs-header__icon" aria-hidden="true">{{ sheet.icon }}</span>
+      <div>
+        <h1>{{ sheet.title }}</h1>
+        <p class="cs-tagline">{{ sheet.tagline }}</p>
+      </div>
+      <span class="cs-cat-badge">{{ sheet.category }}</span>
+    </header>
+
+    <p class="cs-intro">{{ sheet.intro }}</p>
+
+    <nav class="cs-toc" aria-label="Sections in this sheet">
+      @for (section of sheet.sections; track section.title; let i = $index) {
+        <a [href]="'#section-' + i">{{ section.title }}</a>
+      }
+    </nav>
+
+    @for (section of sheet.sections; track section.title; let si = $index) {
+      <section class="cs-section" [id]="'section-' + si">
+        <h2>{{ section.title }}</h2>
+        @if (section.intro) {
+          <p class="cs-section__intro">{{ section.intro }}</p>
+        }
+
+        @for (block of section.blocks; track $index; let bi = $index) {
+          @switch (block.kind) {
+            @case ('commands') {
+              @if (block.title) {
+                <h3 class="cs-block-title">{{ block.title }}</h3>
+              }
+              <div class="cmd-list">
+                @for (row of block.rows; track row.code; let ri = $index) {
+                  <div class="cmd-row">
+                    <div class="code cmd-row__code">
+                      <pre [attr.data-lang]="block.lang">{{ row.code }}</pre>
+                      <button
+                        class="copy-btn"
+                        (click)="copy(si + '-' + bi + '-' + ri, row.code)"
+                        [attr.aria-label]="'Copy: ' + row.code"
+                      >
+                        {{ copiedKey() === si + '-' + bi + '-' + ri ? '✓ Copied' : 'Copy' }}
+                      </button>
+                    </div>
+                    <p class="cmd-row__note">{{ row.note }}</p>
+                  </div>
+                }
+              </div>
+            }
+            @case ('code') {
+              @if (block.title) {
+                <h3 class="cs-block-title">{{ block.title }}</h3>
+              }
+              <div class="code cs-code-block">
+                <pre [attr.data-lang]="block.lang">{{ block.code }}</pre>
+                <button class="copy-btn" (click)="copy(si + '-' + bi, block.code)" aria-label="Copy this code block">
+                  {{ copiedKey() === si + '-' + bi ? '✓ Copied' : 'Copy' }}
+                </button>
+              </div>
+              @if (block.note) {
+                <p class="cs-code-note">{{ block.note }}</p>
+              }
+            }
+            @case ('tip') {
+              <div [class]="block.tone === 'tip' ? 'tip' : block.tone === 'warn' ? 'warn' : 'gotcha'">
+                {{ block.text }}
+              </div>
+            }
+            @case ('table') {
+              @if (block.title) {
+                <h3 class="cs-block-title">{{ block.title }}</h3>
+              }
+              <div class="cs-table-wrap">
+                <table class="cs-table">
+                  <thead>
+                    <tr>
+                      @for (h of block.headers; track h) {
+                        <th>{{ h }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of block.rows; track $index) {
+                      <tr>
+                        @for (cell of row; track $index) {
+                          <td>{{ cell }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          }
+        }
+      </section>
+    }
+  </article>
+} @else {
+  <div class="cs-not-found">
+    <h1>Cheat sheet not found</h1>
+    <a routerLink="/cheat-sheets">← Back to all cheat sheets</a>
+  </div>
+}

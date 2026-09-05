@@ -1,0 +1,44 @@
+<section class="cs-hero">
+  <h1>📋 Cheat Sheets</h1>
+  <p>
+    Zero-to-running references for the tools and languages around this curriculum — install, the commands you'll
+    actually run, and the traps that cost people real time.
+  </p>
+</section>
+
+<div class="cs-toolbar">
+  <input
+    aria-label="Search cheat sheets"
+    class="cs-search"
+    type="search"
+    placeholder="Search cheat sheets…"
+    [value]="query()"
+    (input)="query.set($any($event.target).value)"
+  />
+  <div class="cs-tabs">
+    @for (cat of categories; track cat.value) {
+      <button type="button" [class.active]="activeCategory() === cat.value" (click)="setCategory(cat.value)">
+        {{ cat.label }}
+      </button>
+    }
+  </div>
+</div>
+
+@if (filtered().length === 0) {
+  <p class="cs-empty">No cheat sheets match "{{ query() }}".</p>
+} @else {
+  <div class="cs-grid">
+    @for (sheet of filtered(); track sheet.id) {
+      <a class="cs-card" [routerLink]="['/cheat-sheets', sheet.id]">
+        <span class="cs-card__icon" aria-hidden="true">{{ sheet.icon }}</span>
+        <span class="cs-card__body">
+          <span class="cs-card__title">{{ sheet.title }}</span>
+          <span class="cs-card__tagline">{{ sheet.tagline }}</span>
+        </span>
+        <span class="cs-card__cat">{{ sheet.category }}</span>
+      </a>
+    }
+  </div>
+}
+
+<p class="cs-count">{{ filtered().length }} of {{ totalCount }} sheets</p>

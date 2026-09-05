@@ -1,0 +1,248 @@
+/* ============================================================
+   Cheat sheet detail — renders one CheatSheet's sections/blocks generically.
+
+   Hand-rolled onto the brain-friendly tokens, same rationale as the hub
+   (cheat-sheets.css): a reference tool, not a lesson, so no `.lesson.bf`
+   scope and no Chapter/CodeLab. Code panels reuse the app-wide `.code`
+   class (see styles.css) so the app.ts highlight sweep picks them up —
+   this component supplies only layout around that shared shell.
+   ============================================================ */
+
+.cs-detail {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+
+.cs-toolbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.cs-back {
+  font-size: 0.88rem;
+  color: var(--blue);
+  text-decoration: underline;
+}
+.print-btn {
+  padding: 8px 16px;
+  border-radius: var(--bf-r-pill, 999px);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.84rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+.print-btn:hover {
+  border-color: var(--accent);
+  background: var(--bf-accent-wash);
+  color: var(--accent);
+}
+
+.cs-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.cs-header__icon {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+.cs-header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  margin: 0;
+}
+.cs-tagline {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 0.98rem;
+}
+.cs-cat-badge {
+  margin-left: auto;
+  align-self: flex-start;
+  font-size: 0.74rem;
+  padding: 4px 11px;
+  border-radius: var(--bf-r-pill, 999px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.cs-intro {
+  color: var(--text);
+  line-height: 1.65;
+  margin: 0 0 24px;
+  max-width: var(--bf-measure, 66ch);
+}
+
+.cs-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 14px 18px;
+  margin-bottom: 32px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--bf-r-lg);
+}
+.cs-toc a {
+  font-size: 0.86rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+.cs-toc a:hover {
+  text-decoration: underline;
+}
+
+.cs-section {
+  margin-bottom: 40px;
+  scroll-margin-top: 90px;
+}
+.cs-section h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  margin: 0 0 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.cs-section__intro {
+  color: var(--text-muted);
+  margin: 0 0 14px;
+  line-height: 1.55;
+}
+.cs-block-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  color: var(--text);
+}
+
+/* ---- Command rows — "annotated terminal session": one command, one note ---- */
+.cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cmd-row__code {
+  position: relative;
+  padding-right: 84px;
+  margin: 0 0 6px;
+}
+.cmd-row__note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.cs-code-block {
+  position: relative;
+  padding-right: 84px;
+}
+.cs-code-note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 5px 12px;
+  border-radius: var(--bf-r-pill, 999px);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.74rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.copy-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.copy-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+/* ---- Reference tables ---- */
+.cs-table-wrap {
+  overflow-x: auto;
+  margin: 8px 0 4px;
+}
+.cs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.cs-table th,
+.cs-table td {
+  text-align: left;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.cs-table th {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cs-table td:first-child {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.cs-not-found {
+  text-align: center;
+  padding: 100px 24px;
+}
+.cs-not-found a {
+  color: var(--blue);
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .print-btn,
+  .copy-btn {
+    transition: none;
+  }
+}
+
+@media print {
+  .cs-toolbar-row,
+  .cs-toc,
+  .copy-btn {
+    display: none !important;
+  }
+  .cs-detail {
+    max-width: none;
+    padding: 0;
+  }
+  .cs-section {
+    break-inside: avoid;
+  }
+  .cmd-row__code,
+  .cs-code-block {
+    padding-right: 0;
+  }
+}

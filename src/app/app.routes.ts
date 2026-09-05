@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { CHEAT_SHEETS } from './core/cheat-sheets';
 import { CURRICULUM } from './core/curriculum';
 
 /**
@@ -69,6 +70,20 @@ export const routes: Routes = [
     title: 'Glossary & Cheat Sheet · Angular Concepts',
     loadComponent: () => import('./pages/glossary/glossary').then((m) => m.Glossary),
   },
+  {
+    path: 'cheat-sheets',
+    title: 'Cheat Sheets · Angular Concepts',
+    loadComponent: () => import('./pages/cheat-sheets/cheat-sheets').then((m) => m.CheatSheets),
+  },
+  ...CHEAT_SHEETS.map((sheet) => ({
+    path: `cheat-sheets/${sheet.id}`,
+    title: `${sheet.title} Cheat Sheet · Angular Concepts`,
+    loadComponent: () =>
+      import('./pages/cheat-sheets/cheat-sheet-detail/cheat-sheet-detail').then(
+        (m) => m.CheatSheetDetail,
+      ),
+    data: { sheetId: sheet.id },
+  })),
   {
     path: 'bookmarks',
     title: 'Bookmarks & Notes · Angular Concepts',
