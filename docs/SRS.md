@@ -73,6 +73,8 @@ things it does not provide:
 - Flashcards, coding tasks, an exam-day readiness check
 - Progress dashboard, streak tracking, achievements
 - Glossary, bookmarks with notes, HTTP API playground, interview drill
+- Cheat sheets: printable, searchable "zero to running" references for tools around the
+  curriculum (databases, cloud, languages, frameworks, deployment)
 
 ---
 
@@ -144,6 +146,10 @@ things it does not provide:
 - **FR-5.8 Achievements** — 13 badges with defined unlock rules.
 - **FR-5.9 API playground** — a step-by-step visualisation of an HTTP request lifecycle.
 - **FR-5.10 Interview drill** — interview-style questions with model answers.
+- **FR-5.11 Cheat sheets** — printable, searchable "zero to running" references for tools
+  and languages around the curriculum, filterable by category (database, cloud, language,
+  framework, deployment), each command/snippet copyable and syntax-highlighted in its own
+  language.
 
 ### FR-6 Content integrity
 

@@ -111,6 +111,7 @@ src/
     │   ├── bookmarks.service.ts starred lessons/questions + notes
     │   ├── achievements.ts      badge definitions and unlock rules
     │   ├── glossary-data.ts     65 terms, each with a topicPath
+    │   ├── cheat-sheets/        CHEAT_SHEETS — one file per tool/language, aggregated by index.ts
     │   ├── toast.service.ts     transient notifications
     │   └── app-config.token.ts  injection token for app-level config
     │
@@ -136,6 +137,10 @@ src/
     │   ├── home/  practice/  mock-exam/  review/  progress/  flashcards/
     │   ├── coding-tasks/  exam-day/  glossary/  bookmarks/
     │   ├── api-playground/  interview/  certification/  not-found/
+    │   │
+    │   ├── cheat-sheets/        hub (list/search/filter) + one shared detail
+    │   │   └── cheat-sheet-detail/  renders any CheatSheet generically —
+    │   │                           one route per sheet, all pointing here
     │   │
     │   └── practice/            (the content hub other features build on)
     │       ├── practice-data.ts     CHALLENGES — 424 questions
@@ -256,6 +261,17 @@ and the glossary.
 ### `GlossaryTerm` (`core/glossary-data.ts`)
 
 65 terms: `term`, `definition`, and a `topicPath` under the same rule.
+
+### `CheatSheet` (`core/cheat-sheets/cheat-sheet.model.ts`)
+
+One tool/language, id/title/icon/tagline/category/intro plus an ordered list of
+`CheatSection`s. Each section holds `CheatBlock`s — a discriminated union of
+`commands` (a table of code+note rows, the "annotated terminal session" workhorse),
+`code` (one titled multi-line sample), `tip` (tone `tip`/`warn`/`gotcha`), and `table`
+(a plain headers/rows reference). Everything is data, not markup: both
+`pages/cheat-sheets/*` render the model generically with the shared multi-language
+highlighter (`shared/highlighter.ts`), so a new sheet needs no new template — only a
+new file in `core/cheat-sheets/` added to that directory's `index.ts`.
 
 ### `ReviewItem` (`pages/practice/review-queue.ts`)
 

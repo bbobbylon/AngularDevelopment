@@ -117,26 +117,32 @@ class would not change what a skimmer takes away, it should not be there.
 > component styles — a global rule of the same name out-specifies them (`.lesson .good` beats
 > `.good`) and would stamp ✓/✗ into all of them. Grep before you name.
 
-**Syntax highlighting** (`shared/highlighter.ts` emits these classes). Eleven token roles,
-not five: a snippet where only keywords and strings differ still reads as a grey wall,
-which is the failure this palette exists to fix. Weight and italics carry meaning the way
-a real IDE uses them, and the palette is fixed rather than themed — the code panel is a
-terminal in both modes.
+**Syntax highlighting** (`shared/highlighter.ts` emits these classes). Fourteen token
+roles, not five: a snippet where only keywords and strings differ still reads as a grey
+wall, which is the failure this palette exists to fix. Weight and italics carry meaning
+the way a real IDE uses them, and the palette is fixed rather than themed — the code
+panel is a terminal in both modes. The tokenizer is a single parametrized scanner
+(`LangConfig`) driven by the `data-lang` attribute a `<pre>` carries — `ts` (default),
+`java`, `python`, `sql`, `bash`, `yaml`, `json`, `text` — so every language reuses this
+one palette rather than getting its own.
 
-| Class         | Colour    | Role                                             |
-| ------------- | --------- | ------------------------------------------------ |
-| `.hl-kw`      | `#c792ea` | Keyword — _italic_, as Darcula does              |
-| `.hl-str`     | `#c3e88d` | String                                           |
-| `.hl-cmt`     | `#6b7a8f` | Comment — italic                                 |
-| `.hl-num`     | `#f78c6c` | Number                                           |
-| `.hl-dec`     | `#ffcb6b` | Decorator — semibold                             |
-| `.hl-fn`      | `#82aaff` | Free function call — **bold**, it's the _doing_  |
-| `.hl-method`  | `#82aaff` | Method call on a receiver — same hue, unbolded   |
-| `.hl-prop`    | `#b2ccd6` | Property read — quieter still                    |
-| `.hl-type`    | `#ffcb6b` | Class, interface, enum, type name                |
-| `.hl-builtin` | `#89ddff` | Resolved globals: `console`, `signal`, `inject`  |
-| `.hl-op`      | `#89ddff` | Operators                                        |
-| `.hl-punct`   | `#8792a8` | Braces, semicolons, commas — dimmed so names pop |
+| Class         | Colour    | Role                                                             |
+| ------------- | --------- | ---------------------------------------------------------------- |
+| `.hl-kw`      | `#c792ea` | Keyword — _italic_, as Darcula does                              |
+| `.hl-str`     | `#c3e88d` | String                                                           |
+| `.hl-cmt`     | `#6b7a8f` | Comment — italic                                                 |
+| `.hl-num`     | `#f78c6c` | Number                                                           |
+| `.hl-dec`     | `#ffcb6b` | Decorator — semibold                                             |
+| `.hl-fn`      | `#82aaff` | Free function call — **bold**, it's the _doing_                  |
+| `.hl-method`  | `#82aaff` | Method call on a receiver — same hue, unbolded                   |
+| `.hl-prop`    | `#b2ccd6` | Property read — quieter still                                    |
+| `.hl-type`    | `#ffcb6b` | Class, interface, enum, type name                                |
+| `.hl-builtin` | `#89ddff` | Resolved globals: `console`, `signal`, `inject`                  |
+| `.hl-op`      | `#89ddff` | Operators                                                        |
+| `.hl-punct`   | `#8792a8` | Braces, semicolons, commas — dimmed so names pop                 |
+| `.hl-flag`    | `#f07178` | Shell flags (`--watch`) and SQL/bash options                     |
+| `.hl-var`     | `#7fdbca` | Shell `$VARS` and bash substitutions                             |
+| `.hl-key`     | `#82aaff` | YAML/JSON object keys — **bold**, so structure reads at a glance |
 
 ### Typography
 
@@ -167,16 +173,17 @@ components, larger between sections.
 
 Shared UI lives in `src/app/shared/`:
 
-| Component / directive     | Selector              | Purpose                                             |
-| ------------------------- | --------------------- | --------------------------------------------------- |
-| `TooltipDirective`        | `[appTooltip]`        | Hover/focus tooltip, positioned against the host    |
-| `RevealOnScrollDirective` | `[appRevealOnScroll]` | Fade-and-rise as an element enters the viewport     |
-| `FilterLessonsPipe`       | `filterLessons`       | Text filter over curriculum cards                   |
-| `FilterTabsComponent`     | `<app-filter-tabs>`   | The pill row used by Practice, Flashcards, Glossary |
-| `ToastsComponent`         | `<app-toasts>`        | Transient notifications, rendered by the root shell |
-| `highlighter.ts`          | —                     | Tokenises code samples into `.hl-*` spans           |
-| `download-file.ts`        | —                     | Blob + object-URL download (results export)         |
-| `ComingSoon`              | route target          | Fallback for a lesson without a component           |
+| Component / directive     | Selector              | Purpose                                                                                                        |
+| ------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `TooltipDirective`        | `[appTooltip]`        | Hover/focus tooltip, positioned against the host                                                               |
+| `RevealOnScrollDirective` | `[appRevealOnScroll]` | Fade-and-rise as an element enters the viewport                                                                |
+| `FilterLessonsPipe`       | `filterLessons`       | Text filter over curriculum cards                                                                              |
+| `FilterTabsComponent`     | `<app-filter-tabs>`   | The pill row used by Practice, Flashcards, Glossary                                                            |
+| `ToastsComponent`         | `<app-toasts>`        | Transient notifications, rendered by the root shell                                                            |
+| `highlighter.ts`          | —                     | Tokenises code samples into `.hl-*` spans, per `data-lang` (ts/java/python/sql/bash/yaml/json/text)            |
+| `download-file.ts`        | —                     | Blob + object-URL download (results export)                                                                    |
+| `ComingSoon`              | route target          | Fallback for a lesson without a component                                                                      |
+| `CheatSheetDetail`        | route target          | One component rendering any `CheatSheet` by route data, same one-component-many-routes pattern as `ComingSoon` |
 
 Native elements are styled globally rather than wrapped:
 
@@ -254,8 +261,21 @@ all 100:
 callouts share a shape and differ only in accent colour, so their meaning is learnable at
 a glance.
 
-Study-tool pages (Practice, Mock Exam, Progress) do not use `.lesson`; they are
-card-grid layouts with their own component-scoped styles over the same tokens.
+Study-tool pages (Practice, Mock Exam, Progress, Cheat Sheets) do not use `.lesson`;
+they are card-grid layouts with their own component-scoped styles over the same tokens.
+
+### Cheat sheets (hub + detail)
+
+Same non-lesson pattern as Review/Certification — page-owned CSS, transform-only
+motion, `color-mix()` washes, pill buttons — never the `.lesson.bf` teaching set. The
+hub (`/cheat-sheets`) is a search box plus category-tab row over a card grid, mirroring
+Practice's `[class.active]` tab convention (no ARIA-tabs pattern). Selecting a card
+routes to `/cheat-sheets/:id`, all of which resolve to one `CheatSheetDetail` component
+that reads the sheet from `route.snapshot.data` and renders its `CheatSection[]`
+generically: `commands` blocks (a copy-able command with a note, the "annotated
+terminal session"), `code` blocks, `tip`/`warn`/`gotcha` callouts, and plain `table`
+blocks. Code blocks carry `[attr.data-lang]` so the global post-navigation highlighter
+sweep in `app.ts` tokenises them correctly instead of defaulting to TypeScript.
 
 ---
 
