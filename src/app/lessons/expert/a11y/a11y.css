@@ -1,96 +1,171 @@
-.fake-btn {
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why this file is much smaller than it
+   used to be — the `table.cmp` rules that lived here were a per-lesson copy of
+   rules the theme now owns, and the `.qa` accordion is gone for good: the exam
+   questions on this page are an `<app-faq>` now, keyboard-accessible and
+   consistent with every other migrated lesson.
+
+   Anything left here is either genuinely specific to this lesson's demos
+   (the contrast checker, the accessible-form demo, the disclosure panel) or
+   the one deliberately-broken element the lesson teaches from directly. */
+
+/* The DOM-tree-vs-accessibility-tree diagram in the Visual section — the one place a
+   plain comparison table can't show the idea, because inheritance only shows up once
+   elements nest. Same --bf-* token convention as every other lesson's inline diagram
+   (see e.g. foundations/git-basics): .dia-box is a kept node, .dia-box--pruned is a
+   dashed, danger-toned node that's gone from the accessibility tree. */
+.dia {
+  margin: 1.8rem 0;
+}
+.lesson.bf .dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.lesson.bf .dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+.lesson.bf .dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+.lesson.bf .dia-box--pruned {
+  fill: var(--bf-danger-wash);
+  stroke: var(--bf-danger);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.lesson.bf .dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.lesson.bf .dia-rule--danger {
+  stroke: var(--bf-danger);
+}
+.lesson.bf .dia-head {
+  fill: var(--bf-accent);
+}
+.lesson.bf .dia-head--danger {
+  fill: var(--bf-danger);
+}
+.lesson.bf .dia-strike {
+  stroke: var(--bf-danger);
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+.lesson.bf .dia-mono {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--bf-ink);
+}
+.lesson.bf .dia-mono--sm {
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+.lesson.bf .dia-mono--danger {
+  fill: var(--bf-danger);
+}
+
+/*
+ * `.fake-btn` is the "wrong way" demo in the Semantics section, and it is a
+ * REAL, clickable element on purpose — it has to look and behave identically
+ * to the real button for a mouse user, or the trap it demonstrates isn't
+ * honest. What keeps this from being an actual accessibility violation on a
+ * page whose own test suite runs axe-core against it: no `role`, no
+ * `tabindex`, no keyup/keydown handler are added here or in the markup, so it
+ * stays genuinely unreachable from the keyboard and unannounced to a screen
+ * reader — never a functioning control for the population it is warning
+ * about excluding. See the class doc on `A11y` in `a11y.ts` for the same note
+ * kept next to the component that must not change that.
+ */
+.lesson.bf .fake-btn {
   display: inline-block;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--bf-r);
+  background: var(--bf-surface-2);
+  border: 1px solid var(--bf-rule);
+  color: var(--bf-ink);
   cursor: pointer;
   user-select: none;
-  color: var(--text);
 }
 
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
+/* The disclosure demo's panel — replaces an inline style so the border and
+   radius stay in step with the rest of the brain-friendly palette. */
+.lesson.bf .a11y-panel {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
 }
 
-.contrast-row {
+/* The accessible-form demo's label and submit button spacing. */
+.lesson.bf .a11y-label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+.lesson.bf .a11y-submit {
+  margin-left: 0.5rem;
+}
+
+/* The live contrast checker. */
+.lesson.bf .contrast-row {
   display: flex;
-  gap: 16px;
+  gap: 1rem;
   align-items: center;
   flex-wrap: wrap;
-  margin: 10px 0;
+  margin: 0.6rem 0;
 }
-.contrast-row label {
+.lesson.bf .contrast-row label {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   align-items: center;
   font-size: 0.85rem;
 }
-.sample-text {
-  padding: 14px 20px;
-  border-radius: 10px;
+.lesson.bf .sample-text {
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--bf-r);
   font-size: 1rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--bf-rule);
 }
-.ratio {
-  font-family: monospace;
+.lesson.bf .ratio {
+  font-family: var(--font-mono);
   font-size: 1.3rem;
   font-weight: 700;
 }
-.verdicts {
+.lesson.bf .verdicts {
   display: flex;
-  gap: 10px;
+  gap: 0.6rem;
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: 0.5rem;
 }
-.verdict {
+.lesson.bf .verdict {
   font-size: 0.8rem;
-  padding: 3px 12px;
-  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  border-radius: var(--bf-r-pill);
   font-weight: 600;
 }
-.verdict.pass {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--green);
+.lesson.bf .verdict.pass {
+  background: var(--bf-olive-wash);
+  color: var(--bf-olive);
 }
-.verdict.fail {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+.lesson.bf .verdict.fail {
+  background: var(--bf-danger-wash);
+  color: var(--bf-danger);
 }
 
-.err[role="alert"] {
-  color: #ef4444;
+/* The live-announced form error. Colour is never the only signal here — the
+   text itself says "invalid"/"required", and `role="alert"` is what actually
+   carries the meaning to a screen reader. */
+.lesson.bf .err[role="alert"] {
+  color: var(--bf-danger);
   font-size: 0.85rem;
-  margin-top: 6px;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  margin-top: 0.4rem;
 }

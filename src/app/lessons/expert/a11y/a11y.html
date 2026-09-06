@@ -1,289 +1,538 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Cross-Cutting</span>
-  <h1>Accessibility (a11y)</h1>
-  <p class="lead">
-    An accessible app works for keyboard users, screen-reader users, low-vision users — and, not coincidentally, works
-    better for everyone else too. Most of it is semantic HTML done right; Angular adds dynamic ARIA binding and the CDK
-    <code>a11y</code> toolkit. This page is hands-on: every rule below has a live demonstration or the exact keys/math
-    behind it.
-  </p>
-
-  <h2>Semantics first — feel the difference</h2>
-  <div class="demo">
-    <p class="demo__title">Live — press Tab. Which "button" can you reach?</p>
-    <div class="row">
-      <div class="fake-btn" (click)="clicks.set(clicks() + 1)">div + (click)</div>
-      <button (click)="clicks.set(clicks() + 1)">real button</button>
-      <span class="pill">clicks: {{ clicks() }}</span>
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      The <code>&lt;div&gt;</code> is invisible to the keyboard: not focusable, no Enter/Space activation, announced as
-      plain text ("group") by screen readers. The real <code>&lt;button&gt;</code> gets all of it for free. To fix the
-      div you'd need <code>tabindex="0"</code>, <code>role="button"</code>, a keydown handler for Enter
-      <em>and</em> Space, and a disabled story — four bugs waiting to happen versus one native element.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Expert · Cross-Cutting"
+    title="Accessibility"
+    hand="or, the one bug category in this app that never throws"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      An accessible app works for keyboard users, screen-reader users and low-vision users — and, not coincidentally,
+      works better for everyone else too. Most of it is semantic HTML done right; Angular adds dynamic ARIA binding and
+      the CDK <code>a11y</code> toolkit on top. This page is hands-on: every rule below has a live demonstration, a
+      prediction to make before you see it, or the exact keys and math behind it.
     </p>
-  </div>
-  <div class="tip">
-    The first rule of ARIA: <strong>don't use ARIA</strong> — use the native element with the behavior built in
-    (<code>button</code>, <code>a</code>, <code>label</code>, <code>dialog</code>, <code>details</code>, headings,
-    landmarks). ARIA only fills genuine gaps, and bad ARIA is worse than none: it makes confident, wrong announcements.
-  </div>
+  </app-chapter>
 
-  <h2>Dynamic ARIA needs [attr.] — an exam classic</h2>
-  <p>
-    <code>aria-*</code> are HTML <em>attributes</em> with no corresponding DOM properties. Property binding
-    (<code>[ariaLabel]</code>) targets properties, so it fails — bind the attribute explicitly:
-  </p>
-  <div class="code">
-    <pre>{{ ariaBindSample }}</pre>
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Every other bug in this app throws. This one doesn't.</h2>
 
-  <h2>An accessible disclosure, annotated</h2>
-  <div class="demo">
-    <p class="demo__title">Live — keyboard-operable, screen-reader friendly</p>
-    <button [attr.aria-expanded]="open()" aria-controls="a11y-panel" (click)="open.set(!open())">
-      {{ open() ? '▼' : '▶' }} Details
-    </button>
-    <div
-      id="a11y-panel"
-      role="region"
-      aria-label="Details"
-      [hidden]="!open()"
-      style="margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px"
-    >
-      A screen reader announces this trigger as "Details, button, expanded/collapsed" — state included — because of
-      <code>aria-expanded</code>. <code>aria-controls</code> ties the panel to its trigger, and
-      <code>[hidden]</code> removes the content from BOTH the visual and accessibility trees (unlike
-      <code>opacity: 0</code>, which hides it visually but leaves it readable).
-    </div>
-  </div>
+    <p>
+      NG0100 throws. NG0303 throws. A stale RxJS subscription leaks memory you can watch climb in DevTools. Nearly every
+      mistake taught elsewhere in this curriculum announces itself, sooner or later, to the person who made it.
+      Accessibility bugs are the exception, and it's worth sitting with why: a div styled like a button
+      <span class="key">looks perfect</span> to the sighted developer testing it with a mouse. The code compiles. The
+      build succeeds. Nothing in the console complains. The only person who discovers the bug is someone who was never
+      in the room while it was written — and by then it has shipped.
+    </p>
 
-  <h2>Forms that announce their errors</h2>
-  <div class="demo">
-    <p class="demo__title">Live — submit empty, then imagine hearing it</p>
-    <label for="a11y-email" style="display: block; font-size: 0.85rem; margin-bottom: 4px">Email</label>
-    <input
-      id="a11y-email"
-      type="email"
-      [attr.aria-invalid]="emailError() !== ''"
-      aria-describedby="a11y-email-err"
-      [value]="email()"
-      (input)="email.set($any($event.target).value)"
+    <p>
+      That's the whole shape of this subject: every rule below exists to close a gap between what a sighted, mouse-using
+      developer can verify by looking, and what actually reaches a keyboard or a screen reader. Nothing on this page is
+      decoration. It's a checklist for the half of the experience your own eyes can't audit.
+    </p>
+
+    <app-napkin lead="try this —" label="Do this before you keep reading">
+      Put your hand on the Tab key instead of the mouse for the rest of this page. Every live demo below is built to be
+      judged that way — including the one right after this box.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A screen reader takes a phone call, not a photograph.</h2>
+
+    <p>
+      A sighted user takes in a page the way you take in a photograph: all at once, whatever draws the eye first, free
+      to glance ahead and back. A screen-reader user receives the same page the way you receive a phone call —
+      <strong>linearly, one utterance at a time</strong>, with no way to see what's coming and no peripheral vision to
+      lean on. Nothing on the call happens unless somebody says it out loud.
+    </p>
+
+    <p>
+      That reframes almost every rule in this lesson as a question about speech. Semantics are what let the page say
+      <em>"heading"</em> or <em>"button"</em> instead of staying silent about what something is. ARIA state is you
+      mentioning, out loud, that something just changed — expanded, invalid, selected. And a live region is you speaking
+      up <em>before</em> you're asked, the way you'd interrupt a call to say "hang on, that just failed" rather than
+      waiting for the other person to ask.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Name it, state it, announce it.</strong> Semantics <em>name</em> what a control is. ARIA attributes
+      <em>state</em> what condition it's in. Live regions <em>announce</em> what changed without being asked. Nearly
+      every fix on this page is restoring one of those three that went missing.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="treeTalk"
+      caption="What the accessibility tree actually has to say when a div is dressed up as a button — and what changes when `aria-hidden` enters the conversation."
     />
-    <button style="margin-left: 8px" (click)="submit()">Subscribe</button>
-    @if (emailError()) {
-      <p class="err" id="a11y-email-err" role="alert">{{ emailError() }}</p>
-    }
-  </div>
-  <div class="code">
-    <pre>{{ formSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>&lt;label for&gt;</code> — clicking the label focuses the input, and the reader announces the field's name.
-    </li>
-    <li><code>aria-describedby</code> — the error text is read <em>with</em> the field when focused.</li>
-    <li>
-      <code>role="alert"</code> — an implicit assertive live region: the error is announced the moment it appears, no
-      focus change needed.
-    </li>
-    <li><code>aria-invalid</code> — announced as "invalid entry" on the field itself.</li>
-  </ul>
+  </section>
 
-  <h2>Live regions — updates without navigation</h2>
-  <div class="demo">
-    <p class="demo__title">Live — aria-live="polite"</p>
-    <div class="row">
-      <button (click)="save()">Save (simulated)</button>
-      <span aria-live="polite" class="pill">{{ status() }}</span>
+  <!-- ============ 3. SEMANTICS FIRST, LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">Semantics</p>
+    <h2>The first rule of ARIA is: don't need it.</h2>
+
+    <app-predict
+      [prompt]="divButtonPredictPrompt"
+      [code]="divButtonPredictCode"
+      [answer]="divButtonPredictAnswer"
+      revealLabel="Reveal the answer"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — press Tab. Which "button" can you reach?</p>
+      <div class="row">
+        <div class="fake-btn" (click)="clicks.set(clicks() + 1)">div + (click)</div>
+        <button (click)="clicks.set(clicks() + 1)">real button</button>
+        <span class="pill">clicks: {{ clicks() }}</span>
+      </div>
+      <p class="demo__note">
+        The <code>&lt;div&gt;</code> above is deliberately left broken so you can feel the gap the prediction just
+        described — it carries no <code>role</code>, no <code>tabindex</code> and no keyboard handler, on purpose, so it
+        stays genuinely unreachable rather than only nominally so. To fix it properly you'd need
+        <code>tabindex="0"</code>, <code>role="button"</code>, a keydown handler for <em>both</em> Enter and Space, and
+        your own disabled styling — four things a real <code>&lt;button&gt;</code> gives you for free.
+      </p>
     </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Sighted users see the status change; without <code>aria-live</code>, screen-reader users hear nothing.
-      <code>polite</code> waits for a pause, <code>assertive</code> interrupts (reserve it for errors). The CDK's
-      <code>LiveAnnouncer</code> is the service-layer version of the same mechanism.
+
+    <div class="tip">
+      The first rule of ARIA: <strong>don't use ARIA</strong> — use the native element with the behaviour built in
+      (<code>button</code>, <code>a</code>, <code>label</code>, <code>dialog</code>, <code>details</code>, headings,
+      landmarks). ARIA only fills genuine gaps, and bad ARIA is worse than none: it makes confident, wrong
+      announcements.
+    </div>
+  </section>
+
+  <!-- ============ 4. DYNAMIC ARIA NEEDS [attr.] ============ -->
+  <section>
+    <p class="bf-eyebrow">An exam classic</p>
+    <h2>Property binding can't target an ARIA attribute.</h2>
+
+    <p>
+      <code>aria-*</code> are HTML <em>attributes</em> with no corresponding DOM properties. Property binding
+      (<code>[ariaLabel]</code>) targets properties, so it fails at compile time with <code>NG0303</code> — bind the
+      attribute explicitly instead:
     </p>
-  </div>
 
-  <h2>The CDK a11y toolkit</h2>
-  <div class="code">
-    <pre>{{ cdkSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Tool</th>
-      <th>Problem it solves</th>
-    </tr>
-    <tr>
-      <td><code>cdkTrapFocus</code></td>
-      <td>Tab must cycle INSIDE an open modal — reaching the page underneath is a WCAG failure.</td>
-    </tr>
-    <tr>
-      <td><code>LiveAnnouncer</code></td>
-      <td>Announce async results ("3 results found", "Saved") from anywhere in code.</td>
-    </tr>
-    <tr>
-      <td><code>FocusMonitor</code></td>
-      <td>Knows whether focus came from keyboard, mouse or program — show strong focus rings for keyboards only.</td>
-    </tr>
-    <tr>
-      <td><code>ListKeyManager</code></td>
-      <td>Arrow-key navigation + typeahead for custom listboxes/menus, so you don't hand-roll key handling.</td>
-    </tr>
-    <tr>
-      <td><code>cdkAriaLive</code></td>
-      <td>Directive form of LiveAnnouncer for a region whose content changes.</td>
-    </tr>
-  </table>
+    <app-code-lab
+      file="disclosure.html"
+      [code]="ariaBindSample"
+      [notes]="ariaBindNotes"
+      notesLabel="Why one binds and the other throws"
+    />
 
-  <h2>Focus management — the SPA-specific discipline</h2>
-  <ul>
-    <li>
-      <strong>Route changes:</strong> a browser navigation resets focus to the top; an SPA navigation changes content
-      while focus stays on a link that may no longer exist. Move focus to the new view's heading (<code
-        >tabindex="-1"</code
-      >
-      + <code>focus()</code>) and offer a skip-to-content link.
-    </li>
-    <li>
-      <strong>Dialogs:</strong> focus moves in on open, is trapped while open, and returns to the trigger on close.
-      Native <code>&lt;dialog&gt;</code> + <code>showModal()</code> gives you most of this free.
-    </li>
-    <li>
-      <strong>Deleted elements:</strong> if the focused item disappears (delete row), move focus deliberately (next row
-      / list heading) — otherwise it drops to <code>&lt;body&gt;</code> and the reader goes silent.
-    </li>
-    <li>
-      <strong>Never positive <code>tabindex</code></strong> — it hijacks the natural order; use DOM order and
-      <code>0</code>/<code>-1</code> only.
-    </li>
-  </ul>
+    <app-remember variant="rule">
+      <strong>Dynamic ARIA state always goes through <code>[attr.aria-*]</code>.</strong> A value that never changes
+      needs no binding at all — plain HTML is enough.
+    </app-remember>
 
-  <h2>Keyboard patterns cheat sheet (WAI-ARIA APG)</h2>
-  <table class="cmp">
-    <tr>
-      <th>Widget</th>
-      <th>Expected keys</th>
-    </tr>
-    <tr>
-      <td>Button</td>
-      <td>Enter and Space activate</td>
-    </tr>
-    <tr>
-      <td>Dialog</td>
-      <td>Esc closes; Tab cycles inside (trap); focus returns to trigger</td>
-    </tr>
-    <tr>
-      <td>Tabs</td>
-      <td>←/→ move between tabs, Tab leaves the tablist into the panel</td>
-    </tr>
-    <tr>
-      <td>Menu</td>
-      <td>↑/↓ navigate, Enter selects, Esc closes, typeahead jumps</td>
-    </tr>
-    <tr>
-      <td>Listbox</td>
-      <td>↑/↓ (+Shift for range), Home/End, typeahead</td>
-    </tr>
-    <tr>
-      <td>Disclosure</td>
-      <td>Enter/Space toggle; <code>aria-expanded</code> reflects state</td>
-    </tr>
-  </table>
+    <app-quiz
+      question="A colleague hits `NG0303` on `[aria-expanded]` bound to a signal, and asks what's wrong. What's the actual fix, and why?"
+      [options]="ariaQuizOptions"
+      followUp="The disclosure demo two sections down uses the fix live — [attr.aria-expanded], reacting to a signal."
+    />
+  </section>
 
-  <h2>Contrast — the actual WCAG math, live</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — a real contrast checker (WCAG 2.x formula)</p>
-    <div class="contrast-row">
-      <label>text <input type="color" [value]="fg()" (input)="fg.set($any($event.target).value)" /></label>
-      <label>background <input type="color" [value]="bg()" (input)="bg.set($any($event.target).value)" /></label>
-      <span class="ratio">{{ ratio().toFixed(2) }} : 1</span>
-    </div>
-    <div class="sample-text" [style.color]="fg()" [style.background]="bg()">
-      The quick brown fox — can you comfortably read this?
-    </div>
-    <div class="verdicts">
-      <span class="verdict" [class.pass]="ratio() >= 4.5" [class.fail]="ratio() < 4.5"
-        >AA normal text ≥ 4.5 : {{ ratio() >= 4.5 ? 'pass' : 'fail' }}</span
-      >
-      <span class="verdict" [class.pass]="ratio() >= 3" [class.fail]="ratio() < 3"
-        >AA large text / UI ≥ 3.0 : {{ ratio() >= 3 ? 'pass' : 'fail' }}</span
-      >
-      <span class="verdict" [class.pass]="ratio() >= 7" [class.fail]="ratio() < 7"
-        >AAA normal text ≥ 7.0 : {{ ratio() >= 7 ? 'pass' : 'fail' }}</span
-      >
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Ratio = (L1 + 0.05) / (L2 + 0.05) over relative luminance. 4.5:1 for body text, 3:1 for large text (≥ 24px /
-      18.66px bold) and UI components/focus indicators. This is the single most-failed WCAG criterion in audits.
+  <!-- ============ 5. THE VISUAL — THE ACCESSIBILITY TREE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The visual</p>
+    <h2>"On screen" and "in the tree" are two different questions.</h2>
+
+    <p>
+      Nearly every confusing case in this subject — <code>aria-hidden</code>, <code>display: none</code>, the "visually
+      hidden" CSS trick — is really the same 2×2 grid in disguise. An element is either painted on screen or it isn't,
+      and independently, it's either present in the accessibility tree or it isn't. Four techniques, four quadrants, and
+      mixing them up is where most real bugs live:
     </p>
-  </div>
 
-  <h2>Testing workflow</h2>
-  <ul>
-    <li><strong>Keyboard-only pass</strong> — unplug the mouse: reach everything, see focus everywhere, no traps.</li>
-    <li>
-      <strong>Automated</strong> — axe DevTools / Lighthouse catch ~30-40% of issues (labels, contrast, ARIA misuse).
-      Useful floor, never the ceiling.
-    </li>
-    <li>
-      <strong>Screen reader</strong> — NVDA (Windows, free) or VoiceOver (macOS, built-in) on your critical flows.
-    </li>
-    <li>
-      <strong>Motion &amp; zoom</strong> — honor <code>prefers-reduced-motion</code>; make sure 200% zoom doesn't break
-      layouts.
-    </li>
-  </ul>
+    <table class="cmp">
+      <tr>
+        <th scope="col">On screen ↓ / In the tree →</th>
+        <th scope="col">In the accessibility tree</th>
+        <th scope="col">Pruned from the tree</th>
+      </tr>
+      <tr>
+        <th scope="row">Painted on screen</th>
+        <td>Ordinary content. Also: text with a visible <code>alt</code> or label.</td>
+        <td>
+          <code>aria-hidden="true"</code> on a visible element — the div-styled-as-a-button trick's evil twin. Fully
+          visible, fully invisible to a screen reader.
+        </td>
+      </tr>
+      <tr>
+        <th scope="row">Removed from layout</th>
+        <td>
+          The "visually hidden" CSS technique (clipped to 1px, off-screen, never <code>display: none</code>) — invisible
+          to sighted users, fully readable by a screen reader. Used for skip links and icon-only button labels.
+        </td>
+        <td>
+          <code>display: none</code>, <code>visibility: hidden</code>, Angular's <code>[hidden]</code>, or an
+          <code>&#64;if</code> that's false. Gone from both worlds at once — the cleanest, least error-prone quadrant to
+          be in when content should genuinely disappear.
+        </td>
+      </tr>
+    </table>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why must ARIA be bound with <code>[attr.aria-expanded]</code>, not <code>[aria-expanded]</code>?</summary>
-    <div>
-      Property binding writes DOM properties, and <code>aria-*</code> exist only as HTML attributes — there is no
-      <code>ariaExpanded</code> property contract Angular can target. <code>attr.</code> tells Angular to call
-      <code>setAttribute</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What's wrong with <code>&lt;div (click)="save()"&gt;Save&lt;/div&gt;</code> — and the full fix?</summary>
-    <div>
-      Not focusable, not keyboard-activatable, announced as plain text. Fix: <code>tabindex="0"</code>,
-      <code>role="button"</code>, keydown for Enter AND Space, plus disabled handling — or just use
-      <code>&lt;button&gt;</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>A toast says "Saved". How do screen-reader users find out?</summary>
-    <div>
-      They don't, unless it's a live region: <code>aria-live="polite"</code> / <code>role="status"</code> on the toast
-      container, or announce via the CDK's <code>LiveAnnouncer</code>. <code>role="alert"</code>/assertive only for
-      errors.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What focus work does an SPA route change require?</summary>
-    <div>
-      The DOM changed but focus didn't — move it to the new content (heading with <code>tabindex="-1"</code>), keep a
-      skip link, and make sure the document title updates so the reader announces where you landed.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Minimum contrast for body text? For icons/focus rings?</summary>
-    <div>
-      4.5:1 (AA) for normal text; 3:1 for large text and for non-text UI — component boundaries, icons, focus indicators
-      (WCAG 1.4.11).
-    </div>
-  </details>
+    <p>
+      That table is about one element at a time. The same idea has a sharper edge once elements nest, because
+      <code>aria-hidden</code> doesn't stop at the element you put it on:
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Native elements first — ARIA fills gaps, and only <code>[attr.aria-*]</code> binds it dynamically.</li>
-    <li>
-      States belong in ARIA (<code>aria-expanded</code>, <code>aria-invalid</code>); updates belong in live regions.
-    </li>
-    <li>CDK a11y = focus trap, focus monitor, live announcer, list key manager — don't hand-roll these.</li>
-    <li>SPAs must manage focus on navigation, dialogs and deletions — the browser won't.</li>
-    <li>Contrast: 4.5:1 body / 3:1 large &amp; UI — measured, not eyeballed.</li>
-  </ul>
+    <div class="dia">
+      <svg
+        viewBox="0 0 760 232"
+        role="img"
+        aria-label="A diagram comparing a DOM subtree to its accessibility tree. On the left, the DOM tree: a Save button, and a div marked aria-hidden true containing a Delete button. On the right, the accessibility tree: the Save button appears normally, but the entire aria-hidden branch, including the Delete button inside it, is pruned and does not appear at all, even though the Delete button itself carries no aria-hidden attribute of its own."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="a11y-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+          <marker
+            id="a11y-arrow-danger"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head--danger" />
+          </marker>
+        </defs>
 
-  <p><a routerLink="/animations">Next: Animations →</a></p>
+        <text x="185" y="22" text-anchor="middle" class="dia-mono">DOM tree</text>
+        <text x="575" y="22" text-anchor="middle" class="dia-mono">Accessibility tree</text>
+
+        <!-- row 1: an ordinary button, kept on both sides -->
+        <rect x="45" y="42" width="150" height="42" rx="10" class="dia-box" />
+        <text x="120" y="68" text-anchor="middle" class="dia-mono--sm">&lt;button&gt; Save</text>
+
+        <rect x="435" y="42" width="150" height="42" rx="10" class="dia-box" />
+        <text x="510" y="68" text-anchor="middle" class="dia-mono--sm">button "Save"</text>
+
+        <path d="M 200 63 L 428 63" class="dia-rule" fill="none" marker-end="url(#a11y-arrow)" />
+        <text x="314" y="56" text-anchor="middle" class="dia-mono--sm">kept</text>
+
+        <!-- row 2: a div marked aria-hidden, with a perfectly fine button nested inside it -->
+        <rect x="45" y="106" width="260" height="100" rx="10" class="dia-box--pruned" />
+        <text x="60" y="126" class="dia-mono--sm dia-mono--danger">&lt;div aria-hidden="true"&gt;</text>
+        <rect x="65" y="140" width="150" height="42" rx="10" class="dia-box" />
+        <text x="140" y="166" text-anchor="middle" class="dia-mono--sm">&lt;button&gt; Delete</text>
+
+        <rect x="435" y="106" width="260" height="100" rx="10" class="dia-box--pruned" />
+        <path d="M 447 118 L 683 194" class="dia-strike" />
+        <path d="M 683 118 L 447 194" class="dia-strike" />
+        <text x="565" y="160" text-anchor="middle" class="dia-mono--sm dia-mono--danger">nothing here</text>
+
+        <path
+          d="M 310 156 L 428 156"
+          class="dia-rule dia-rule--danger"
+          fill="none"
+          marker-end="url(#a11y-arrow-danger)"
+        />
+        <text x="369" y="145" text-anchor="middle" class="dia-mono--sm dia-mono--danger">whole branch gone</text>
+      </svg>
+      <figcaption>
+        <strong>aria-hidden is inherited, not scoped to one element.</strong> The Delete button above carries no
+        <code>aria-hidden</code> of its own — it's a perfectly normal, focusable button. But its parent does, so a
+        screen reader never reaches it: <code>aria-hidden</code> prunes everything underneath the element it's set on,
+        not just that element.
+      </figcaption>
+    </div>
+
+    <app-predict
+      [prompt]="imgAltPredictPrompt"
+      [code]="imgAltPredictCode"
+      [answer]="imgAltPredictAnswer"
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 6. AN ACCESSIBLE DISCLOSURE, ANNOTATED ============ -->
+  <section>
+    <p class="bf-eyebrow">State, spoken aloud</p>
+    <h2>A disclosure has to say its own state out loud.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — keyboard-operable, screen-reader friendly</p>
+      <button [attr.aria-expanded]="open()" aria-controls="a11y-panel" (click)="open.set(!open())">
+        {{ open() ? '▼' : '▶' }} Details
+      </button>
+      <div id="a11y-panel" role="region" aria-label="Details" [hidden]="!open()" class="a11y-panel">
+        A screen reader announces this trigger as "Details, button, expanded" or "…, collapsed" — state included —
+        because of <code>aria-expanded</code>. <code>aria-controls</code> ties the panel to its trigger, and
+        <code>[hidden]</code> lands this content in the bottom-right quadrant of the table above: gone from both the
+        visual and the accessibility trees at once, unlike <code>opacity: 0</code>, which only ever hides it visually.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7. FORMS THAT ANNOUNCE THEIR ERRORS ============ -->
+  <section>
+    <p class="bf-eyebrow">Errors, spoken aloud</p>
+    <h2>An error a screen reader never hears isn't an error message.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — submit empty, then imagine hearing it over the phone</p>
+      <label for="a11y-email" class="a11y-label">Email</label>
+      <input
+        id="a11y-email"
+        type="email"
+        [attr.aria-invalid]="emailError() !== ''"
+        aria-describedby="a11y-email-err"
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+      />
+      <button class="a11y-submit" (click)="submit()">Subscribe</button>
+      @if (emailError()) {
+        <p class="err" id="a11y-email-err" role="alert">{{ emailError() }}</p>
+      }
+    </div>
+
+    <app-code-lab
+      file="subscribe-form.html"
+      [code]="formSample"
+      [notes]="formNotes"
+      notesLabel="Every attribute is doing a job"
+    />
+  </section>
+
+  <!-- ============ 8. LIVE REGIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">Live regions</p>
+    <h2>Updates without navigation still have to be spoken.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — aria-live="polite"</p>
+      <div class="row">
+        <button (click)="save()">Save (simulated)</button>
+        <span aria-live="polite" class="pill">{{ status() }}</span>
+      </div>
+      <p class="demo__note">
+        Sighted users see the status change; without <code>aria-live</code>, screen-reader users hear nothing at all —
+        the update simply never happened, from their side of the phone call. <code>polite</code> waits for a pause,
+        <code>assertive</code> interrupts (reserve it for genuine errors). The CDK's <code>LiveAnnouncer</code>, two
+        sections down, is the same mechanism from code instead of markup.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 9. THE CDK A11Y TOOLKIT ============ -->
+  <section>
+    <p class="bf-eyebrow">The toolkit</p>
+    <h2>The CDK already solved the hard parts.</h2>
+
+    <app-code-lab
+      file="dialog.component.ts"
+      [code]="cdkSample"
+      [notes]="cdkNotes"
+      notesLabel="Five lines, three separate problems solved"
+    />
+
+    <table class="cmp">
+      <tr>
+        <th>Tool</th>
+        <th>Problem it solves</th>
+      </tr>
+      <tr>
+        <td><code>cdkTrapFocus</code></td>
+        <td>Tab must cycle INSIDE an open modal — reaching the page underneath is a WCAG failure.</td>
+      </tr>
+      <tr>
+        <td><code>LiveAnnouncer</code></td>
+        <td>Announce async results ("3 results found", "Saved") from anywhere in code.</td>
+      </tr>
+      <tr>
+        <td><code>FocusMonitor</code></td>
+        <td>Knows whether focus came from keyboard, mouse or program — show strong focus rings for keyboards only.</td>
+      </tr>
+      <tr>
+        <td><code>ListKeyManager</code></td>
+        <td>Arrow-key navigation and typeahead for custom listboxes/menus, so you don't hand-roll key handling.</td>
+      </tr>
+      <tr>
+        <td><code>cdkAriaLive</code></td>
+        <td>Directive form of <code>LiveAnnouncer</code> for a region whose content changes.</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ============ 10. FOCUS MANAGEMENT ============ -->
+  <section>
+    <p class="bf-eyebrow">Focus management</p>
+    <h2>The SPA-specific discipline the browser won't do for you.</h2>
+
+    <p>
+      A full browser navigation resets focus to the top of the page automatically. An SPA route change swaps the content
+      while focus stays exactly where it was — sometimes on a link that no longer exists. Every case below is the same
+      underlying discipline: when the DOM changes out from under a user's focus,
+      <strong>something has to decide where it goes next</strong>, on purpose, or the reader goes silent.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Route changes" kicker="most common">
+        Move focus to the new view's heading (<code>tabindex="-1"</code> plus <code>.focus()</code>), keep a
+        skip-to-content link, and update the document title so a screen reader announces where you landed.
+      </app-tape-card>
+      <app-tape-card heading="Dialogs" kicker="open → trap → return" tone="accent">
+        Focus moves in on open, is trapped while open (<code>cdkTrapFocus</code>), and returns to the trigger on close.
+        Native <code>&lt;dialog&gt;</code> with <code>showModal()</code> gives you most of this for free.
+      </app-tape-card>
+      <app-tape-card heading="Deleted elements" kicker="the silent drop">
+        If the focused item disappears — a deleted row, a closed tab — the browser drops focus to
+        <code>&lt;body&gt;</code> unless you move it deliberately, and the reader goes silent with no announcement at
+        all.
+      </app-tape-card>
+      <app-tape-card heading="Positive tabindex" kicker="never do this" tone="accent">
+        A positive value hijacks the natural reading order and reorders the entire page's Tab sequence around it. Use
+        DOM order for the sequence, and only <code>0</code> or <code>-1</code> as values.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 11. KEYBOARD CHEAT SHEET ============ -->
+  <section>
+    <p class="bf-eyebrow">Keyboard patterns</p>
+    <h2>Every widget family expects specific keys.</h2>
+
+    <table class="cmp">
+      <tr>
+        <th>Widget</th>
+        <th>Expected keys</th>
+      </tr>
+      <tr>
+        <td>Button</td>
+        <td>Enter and Space activate</td>
+      </tr>
+      <tr>
+        <td>Dialog</td>
+        <td>Esc closes; Tab cycles inside (trap); focus returns to trigger</td>
+      </tr>
+      <tr>
+        <td>Tabs</td>
+        <td>←/→ move between tabs, Tab leaves the tablist into the panel</td>
+      </tr>
+      <tr>
+        <td>Menu</td>
+        <td>↑/↓ navigate, Enter selects, Esc closes, typeahead jumps</td>
+      </tr>
+      <tr>
+        <td>Listbox</td>
+        <td>↑/↓ (+Shift for range), Home/End, typeahead</td>
+      </tr>
+      <tr>
+        <td>Disclosure</td>
+        <td>Enter/Space toggle; <code>aria-expanded</code> reflects state</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ============ 12. CONTRAST, LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">Contrast</p>
+    <h2>The actual WCAG math, computed as you drag.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Interactive — a real contrast checker (WCAG 2.x formula)</p>
+      <div class="contrast-row">
+        <label>text <input type="color" [value]="fg()" (input)="fg.set($any($event.target).value)" /></label>
+        <label>background <input type="color" [value]="bg()" (input)="bg.set($any($event.target).value)" /></label>
+        <span class="ratio">{{ ratio().toFixed(2) }} : 1</span>
+      </div>
+      <div class="sample-text" [style.color]="fg()" [style.background]="bg()">
+        The quick brown fox — can you comfortably read this?
+      </div>
+      <div class="verdicts">
+        <span class="verdict" [class.pass]="ratio() >= 4.5" [class.fail]="ratio() < 4.5">
+          {{ ratio() >= 4.5 ? '✓' : '✗' }} AA normal text ≥ 4.5 : {{ ratio() >= 4.5 ? 'pass' : 'fail' }}
+        </span>
+        <span class="verdict" [class.pass]="ratio() >= 3" [class.fail]="ratio() < 3">
+          {{ ratio() >= 3 ? '✓' : '✗' }} AA large text / UI ≥ 3.0 : {{ ratio() >= 3 ? 'pass' : 'fail' }}
+        </span>
+        <span class="verdict" [class.pass]="ratio() >= 7" [class.fail]="ratio() < 7">
+          {{ ratio() >= 7 ? '✓' : '✗' }} AAA normal text ≥ 7.0 : {{ ratio() >= 7 ? 'pass' : 'fail' }}
+        </span>
+      </div>
+      <p class="demo__note">
+        Ratio = (L1 + 0.05) / (L2 + 0.05) over relative luminance. 4.5:1 for body text, 3:1 for large text (≥ 24px or
+        18.66px bold) and for UI components/focus indicators. This is the single most-failed criterion in real audits —
+        the pass/fail labels above are never colour alone, on purpose.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 13. TESTING WORKFLOW ============ -->
+  <section>
+    <p class="bf-eyebrow">Testing workflow</p>
+    <h2>No single tool catches all of this.</h2>
+
+    <ul>
+      <li><strong>Keyboard-only pass</strong> — unplug the mouse: reach everything, see focus everywhere, no traps.</li>
+      <li>
+        <strong>Automated</strong> — axe DevTools / Lighthouse catch roughly a third of issues (labels, contrast, ARIA
+        misuse). This very lesson is scanned by axe-core on every test run — a useful floor, never the ceiling.
+      </li>
+      <li>
+        <strong>Screen reader</strong> — NVDA (Windows, free) or VoiceOver (macOS, built in) on your critical flows.
+      </li>
+      <li>
+        <strong>Motion and zoom</strong> — honour <code>prefers-reduced-motion</code>; check that 200% zoom doesn't
+        break layouts.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 14. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 15. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <strong>This is the one bug category that never throws.</strong> Nothing here fails a build or shows up on the
+        author's own screen — treat every rule as a checklist item, not a thing you'll notice by looking.
+      </li>
+      <li>
+        <strong>Semantics name it, ARIA states it, live regions announce it.</strong> A screen reader gets the page one
+        utterance at a time, like a phone call — nothing reaches the listener that nobody said out loud.
+      </li>
+      <li>
+        <strong>"On screen" and "in the tree" are independent questions.</strong>
+        <code>aria-hidden</code> hides from the tree only; <code>display: none</code>/<code>[hidden]</code> hides from
+        both; the visually-hidden CSS trick hides from the screen only.
+      </li>
+      <li>
+        <strong>ARIA state binds through <code>[attr.aria-*]</code>, never <code>[aria-*]</code></strong> — there is no
+        matching DOM property for property binding to target, which is exactly why it throws <code>NG0303</code>.
+      </li>
+      <li>
+        <strong>The CDK a11y toolkit exists so you never hand-roll a focus trap</strong> — trap focus, monitor its
+        origin, announce updates, and manage focus yourself on every route change, dialog and deletion.
+      </li>
+    </ul>
+
+    <p><a routerLink="/animations">Next: Animations →</a></p>
+  </section>
 </article>
