@@ -1,42 +1,9 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.cmp td:first-child {
-  white-space: nowrap;
-}
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why this file is empty — the
+   `table.cmp` / `.qa` rules that used to live here were per-lesson copies of
+   rules the theme now owns. `.qa` in particular is gone for good: the
+   gotchas accordion on this page is an `<app-faq>` now, which is
+   keyboard-accessible and consistent with every other migrated lesson.
 
-.qa {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0;
-}
-.qa details {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+   Nothing in this lesson's own demo (`cli-explorer/`) needs page-level
+   overrides, so there is nothing lesson-specific to add here either. */
