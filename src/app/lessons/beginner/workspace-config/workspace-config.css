@@ -1,26 +1,9 @@
-.layer-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin: 16px 0;
-}
-.layer {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: var(--bg-card);
-}
-.layer h4 {
-  margin: 0 0 6px;
-  font-family: monospace;
-  font-size: 0.9rem;
-  color: var(--accent);
-}
-.layer p {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
+/* Table, callout and grid styling now comes from the shared brain-friendly
+   layer (src/brain-friendly.css §15 and its .bf-grid-* / .tip / .warn rules),
+   which is why this file only holds the one thing genuinely specific to this
+   lesson: the "where does this setting live?" task explorer's chips and
+   answer readout. See expert/change-detection/change-detection.css for the
+   sibling comment this one is modelled on. */
 
 .task-chips {
   display: flex;
@@ -55,25 +38,4 @@
 .answer-text {
   font-size: 0.9rem;
   margin: 0 0 10px;
-}
-
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.cmp td:first-child {
-  font-family: monospace;
-  white-space: nowrap;
 }
