@@ -1,290 +1,494 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Your Dev Toolkit</span>
-  <h1>Git &amp; Version Control</h1>
-  <p class="lead">
-    <strong>Git</strong> is a time machine and a safety net for your code. It records snapshots of your project as you
-    work, so you can see what changed, undo mistakes, and collaborate without overwriting each other. Practically every
-    team uses it. The secret to Git making sense — instead of being a bag of memorized incantations — is one picture:
-    <strong>your changes move through three areas</strong>. Build that picture here and the commands become obvious.
-  </p>
-
-  <h2>The problem it solves</h2>
-  <p>
-    Without version control you get <code>project-final.zip</code>, <code>project-final-REAL.zip</code>,
-    <code>project-final-v2-fixed.zip</code>… no record of what changed, no way back, and merging two people's edits by
-    hand. Git replaces all of it with one navigable history — and unlike the zips, it can tell you
-    <em>exactly which line</em> changed between any two points, who changed it, and why (the commit message).
-  </p>
-
-  <h2>The mental model: three areas</h2>
-  <div class="code">
-    <pre>
-  WORKING DIRECTORY   --git add-->   STAGING AREA   --git commit-->   HISTORY
-  (your real files,                  (the shopping                   (permanent
-   freely edited)                     cart: what the                  snapshots,
-                                      NEXT snapshot                   each with id
-                                      will contain)                   + message)</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Working directory</strong> — the actual files you edit. Git watches them and can list what differs from
-      the last snapshot (<code>git status</code>).
-    </li>
-    <li>
-      <strong>Staging area</strong> — a holding zone. <code>git add</code> doesn't save anything permanently; it
-      <em>selects</em> which changes go into the next snapshot. This indirection is a feature: you can edit five files
-      but commit two of them as one tidy, focused unit.
-    </li>
-    <li>
-      <strong>History</strong> — the chain of commits. Once committed, a snapshot is effectively permanent — this is the
-      safety net. Nothing you've committed can be truly lost by ordinary means.
-    </li>
-  </ul>
-
-  <h2>Try it — move a change through all three areas</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a two-file repo simulator</p>
-    <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
-      <button class="ghost" (click)="editFile()">edit app.ts</button>
-      <button class="ghost" (click)="addAll()" [disabled]="!hasUnstaged()">git add .</button>
-      <button (click)="commitStaged()" [disabled]="!hasStaged()">git commit -m "…"</button>
-      <button class="ghost" (click)="resetSim()">reset demo</button>
-    </div>
-    <div class="areas">
-      <div class="area">
-        <h4>Working dir</h4>
-        @for (f of files(); track f.name) {
-          @if (f.state === 'modified' || f.state === 'untracked') {
-            <span class="file mod"
-              >{{ f.name }} <em>({{ f.state }})</em></span
-            >
-          }
-        }
-        @if (!hasUnstaged()) {
-          <span class="clean">clean ✓</span>
-        }
-      </div>
-      <div class="area">
-        <h4>Staging</h4>
-        @for (f of files(); track f.name) {
-          @if (f.state === 'staged') {
-            <span class="file staged">{{ f.name }}</span>
-          }
-        }
-        @if (!hasStaged()) {
-          <span class="clean">empty</span>
-        }
-      </div>
-      <div class="area">
-        <h4>History</h4>
-        @for (c of simCommits(); track c.id) {
-          <span class="file com"
-            ><code>{{ c.id }}</code> {{ c.msg }}</span
-          >
-        } @empty {
-          <span class="clean">no commits yet</span>
-        }
-      </div>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px">
-      {{ simHint() }}
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Foundations · Your Dev Toolkit"
+    title="Git &amp; Version Control"
+    hand="or, the time machine and safety net every developer eventually wishes they'd started using sooner"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      <strong>Git</strong> is a program that runs on your own computer and remembers every version of your project
+      you've ever committed to it — a time machine you can step back through, and a safety net that makes "I broke
+      something and can't get back to what worked" a solved problem. Nearly every team on Earth uses it. The trick to
+      Git actually making sense, instead of feeling like a pile of memorised incantations, is one picture:
+      <strong>every change you make travels through three areas</strong> before it's genuinely safe. Get that picture
+      solid and almost every command on this page turns out to be obvious.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>The everyday loop, command by command</h2>
-  <div class="code">
-    <pre>
-git status                      # ALWAYS run first: which files changed? what's staged?
-git diff                        # show me the exact changed lines (q to quit the pager)
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>How did people share code before Git existed? Badly.</h2>
 
-git add .                       # stage everything changed ("." = this whole folder)
-git add src/app/login.ts        # …or stage just one file — surgical commits
+    <p>
+      <strong>Version control</strong> answers one question every developer eventually asks the hard way:
+      <em>"what did I have before I broke this?"</em> Before tools like Git existed, the honest answer for most people
+      was "whatever I happened to save under a different filename" — and that falls apart exactly when you need it most.
+    </p>
 
-git commit -m "Add login form"  # snapshot the staged changes with a message
-git log --oneline               # read the history, newest first
+    <app-compare
+      leftTitle="Before Git — the zip-file era"
+      leftTone="bad"
+      rightTitle="With Git — one navigable history"
+      rightTone="good"
+      note="Every one of Git's three areas, further down this page, exists to solve one of these zip-file problems on purpose."
+    >
+      <div left>
+        <p>
+          <code>project-final.zip</code>, <code>project-final-REAL.zip</code>,
+          <code>project-final-v2-fixed-FINAL.zip</code> — no record of what actually changed between any two of them, no
+          way back to yesterday if today's edit breaks something, and combining two people's edits means opening both
+          zips and comparing files by eye.
+        </p>
+      </div>
+      <div right>
+        <p>
+          One project, one history. Every commit says exactly what changed, when, by whom, and why — because you wrote
+          the message. Going back to any point in time is one command, and combining two people's work is a named Git
+          operation (<code>merge</code>), not a manual side-by-side comparison.
+        </p>
+      </div>
+    </app-compare>
 
-git push                        # upload my new commits to the remote (GitHub)
-git pull                        # download + merge teammates' commits from it</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>status</code> before everything.</strong> It literally tells you what to do next — including the
-      undo commands for each situation. When in doubt, status.
-    </li>
-    <li>
-      <strong>Commit messages are for the future reader.</strong> Convention: imperative mood, said as "if applied, this
-      commit will…" — <em>"Add login form"</em>, not <em>"added stuff"</em>. Six months from now,
-      <code>git log</code> is documentation.
-    </li>
-    <li>
-      <strong>Small commits, often.</strong> One logical change per commit ("Add validation to signup" — not "Friday's
-      work"). Small commits are readable, revertable and bisectable; giant ones are none of those.
-    </li>
-    <li>
-      A commit's <strong>id</strong> (like <code>a1c07f3</code>) is a hash of its content — every snapshot is
-      addressable forever. You'll paste these into commands and PR discussions.
-    </li>
-  </ul>
+    <app-napkin lead="quick guess —" label="Predict before reading on">
+      You and a teammate both edit the exact same line of the exact same file, on your own separate copies, without
+      talking to each other first. Later, you try to combine your work into one file. What do you think actually happens
+      — does Git pick one version automatically, silently keep both, or something else entirely? Hold your guess; the
+      "famous scary thing" section further down has the real, mechanical answer.
+    </app-napkin>
+  </section>
 
-  <h2>Try it — build a commit history</h2>
-  <div class="demo">
-    <p class="demo__title">Live — make commits and watch the timeline grow</p>
-    <div class="row" style="margin-bottom: 10px">
-      <input
-        aria-label="Commit message"
-        #m
-        placeholder='commit message — try "Add navbar"'
-        (keyup.enter)="commit(m.value); m.value = ''"
-      />
-      <button (click)="commit(m.value); m.value = ''">git commit</button>
-      <button class="ghost" (click)="undo()" [disabled]="!commits().length">undo last</button>
-    </div>
-    <div class="timeline">
-      @for (c of commits(); track c.id) {
-        <div class="commit">
-          <span class="dot"></span>
-          <code>{{ c.id }}</code> — {{ c.msg }}
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Every change walks through three rooms before it's safe.</h2>
+
+    <p>
+      Picture your project as a kitchen mid dinner-party. The <strong>working directory</strong> is the counter — knives
+      out, vegetables half-chopped, a sauce you've re-seasoned four times. It's messy, it's yours, and Git barely
+      watches it beyond noticing that something moved. The <strong>staging area</strong> is a tray: you deliberately
+      load it with exactly the dishes going out for <em>this</em> course, chosen on purpose from everything sitting on
+      the counter. And <strong>history</strong> is the course that already left the kitchen — once a plate goes out, you
+      don't sneak back and re-season it. You serve a new course instead.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 760 230"
+        role="img"
+        aria-label="A flow diagram. Working directory, your freely edited files, flows through git add into the staging area, what you've chosen for the next snapshot, which flows through git commit into History, permanent snapshots, labelled nearly impossible to lose."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="gb-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <!-- box 1: working directory -->
+        <rect x="15" y="70" width="210" height="90" rx="14" class="dia-box" />
+        <text x="120" y="106" text-anchor="middle" class="dia-mono">Working directory</text>
+        <text x="120" y="130" text-anchor="middle" class="dia-mono--sm">freely edited</text>
+
+        <!-- arrow 1 -->
+        <path d="M 232 115 L 268 115" class="dia-rule" fill="none" marker-end="url(#gb-arrow)" />
+        <text x="250" y="95" text-anchor="middle" class="dia-mono--sm">git</text>
+        <text x="250" y="108" text-anchor="middle" class="dia-mono--sm">add</text>
+
+        <!-- box 2: staging area -->
+        <rect x="275" y="70" width="210" height="90" rx="14" class="dia-box dia-box--lit" />
+        <text x="380" y="106" text-anchor="middle" class="dia-mono">Staging area</text>
+        <text x="380" y="130" text-anchor="middle" class="dia-mono--sm">what you've chosen</text>
+
+        <!-- arrow 2 -->
+        <path d="M 492 115 L 528 115" class="dia-rule" fill="none" marker-end="url(#gb-arrow)" />
+        <text x="510" y="95" text-anchor="middle" class="dia-mono--sm">git</text>
+        <text x="510" y="108" text-anchor="middle" class="dia-mono--sm">commit</text>
+
+        <!-- box 3: history -->
+        <rect x="535" y="70" width="210" height="90" rx="14" class="dia-box dia-box--solid" />
+        <text x="640" y="106" text-anchor="middle" class="dia-mono dia-mono--on-solid">History</text>
+        <text x="640" y="130" text-anchor="middle" class="dia-mono--sm">permanent snapshots</text>
+
+        <text x="640" y="200" text-anchor="middle" class="dia-hand">nearly impossible to lose!</text>
+      </svg>
+      <figcaption>
+        <code>git add</code> moves a change out of your working directory and into the staging area — a deliberate
+        selection, not a save. <code>git commit</code> takes whatever is currently staged and freezes it into history,
+        permanently, with a message attached forever. Everything to the left of History can be lost with one careless
+        command; History itself essentially cannot.
+      </figcaption>
+    </figure>
+
+    <app-remember variant="mnemonic">
+      <strong>Edit, stage, commit — three verbs, three areas.</strong> A change is never safe until it's
+      <code>commit</code>-ted, and it's never <em>in</em> the next commit until it's <code>add</code>-ed first. Most "my
+      change disappeared" panics are really "I skipped the middle verb."
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. TRY IT — THREE-AREAS SIMULATOR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Try it</p>
+    <h2>Push one file through all three areas yourself.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — a one-file repo simulator</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button class="ghost" (click)="editFile()">edit app.ts</button>
+        <button class="ghost" (click)="addAll()" [disabled]="!hasUnstaged()">git add .</button>
+        <button (click)="commitStaged()" [disabled]="!hasStaged()">git commit -m "…"</button>
+        <button class="ghost" (click)="resetSim()">reset demo</button>
+      </div>
+      <div class="areas">
+        <div class="area">
+          <h4>Working directory</h4>
+          @for (f of files(); track f.name) {
+            @if (f.state === 'modified' || f.state === 'untracked') {
+              <span class="file mod"
+                >{{ f.name }} <em>({{ f.state }})</em></span
+              >
+            }
+          }
+          @if (!hasUnstaged()) {
+            <span class="clean">clean ✓</span>
+          }
         </div>
-      } @empty {
-        <p style="color: var(--text-muted)">No commits yet. Type a message and commit.</p>
+        <div class="area">
+          <h4>Staging area</h4>
+          @for (f of files(); track f.name) {
+            @if (f.state === 'staged') {
+              <span class="file staged">{{ f.name }}</span>
+            }
+          }
+          @if (!hasStaged()) {
+            <span class="clean">empty</span>
+          }
+        </div>
+        <div class="area">
+          <h4>History</h4>
+          @for (c of simCommits(); track c.id) {
+            <span class="file com"
+              ><code>{{ c.id }}</code> {{ c.msg }}</span
+            >
+          } @empty {
+            <span class="clean">no commits yet</span>
+          }
+        </div>
+      </div>
+      <p class="demo__note">{{ simHint() }}</p>
+    </div>
+  </section>
+
+  <!-- ============ 4. THE CLASSIC TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">The classic trap</p>
+    <h2>You just committed. Where did your new file go?</h2>
+
+    <app-predict [prompt]="commitTrapPrompt" [answer]="commitTrapAnswer" revealLabel="Reveal what actually happened" />
+  </section>
+
+  <!-- ============ 5. THE EVERYDAY LOOP ============ -->
+  <section>
+    <p class="bf-eyebrow">The everyday loop</p>
+    <h2>Six commands cover almost your entire day.</h2>
+
+    <p>
+      You now know <em>why</em> three areas exist. Here is what actually moving between them looks like, typed out — the
+      exact loop you'll run dozens of times a day, every day, for as long as you write code.
+    </p>
+
+    <app-code-lab
+      file="terminal — the daily loop"
+      [code]="everydayLoopSample"
+      [notes]="everydayLoopNotes"
+      notesLabel="What each command actually does"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The six commands worth knowing cold
+      </caption>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>What it does</th>
+          <th>Reach for it when…</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>git status</code></td>
+          <td>lists what's changed, staged and not</td>
+          <td>constantly — before anything else, always</td>
+        </tr>
+        <tr>
+          <td><code>git add &lt;path&gt;</code></td>
+          <td>moves a change into the staging area</td>
+          <td>you're happy with an edit and want it in the next commit</td>
+        </tr>
+        <tr>
+          <td><code>git commit -m "…"</code></td>
+          <td>permanently snapshots what's staged</td>
+          <td>the staged changes form one complete, describable idea</td>
+        </tr>
+        <tr>
+          <td><code>git log --oneline</code></td>
+          <td>lists past commits, newest first</td>
+          <td>you need a commit's id, or just want the story so far</td>
+        </tr>
+        <tr>
+          <td><code>git push</code></td>
+          <td>uploads your commits to the remote</td>
+          <td>you're ready for teammates (or CI) to see your work</td>
+        </tr>
+        <tr>
+          <td><code>git pull</code></td>
+          <td>downloads and merges teammates' commits</td>
+          <td>at the start of a session, before you start editing</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-remember variant="rule" label="Writing a commit message">
+      Write it in the imperative, as if finishing the sentence "If applied, this commit will…" —
+      <code>Add login form</code>, never <code>Added stuff</code> or <code>Adds login form to the site finally</code>.
+      Six months from now, <code>git log</code> is the only documentation this decision will have.
+    </app-remember>
+  </section>
+
+  <!-- ============ 6. TRY IT — COMMIT HISTORY BUILDER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Try it</p>
+    <h2>Build a real commit history, one message at a time.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — make commits and watch the timeline grow</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <input
+          aria-label="Commit message"
+          #m
+          placeholder='commit message — try "Add navbar"'
+          (keyup.enter)="commit(m.value); m.value = ''"
+        />
+        <button (click)="commit(m.value); m.value = ''">git commit</button>
+        <button class="ghost" (click)="undo()" [disabled]="!commits().length">undo last</button>
+      </div>
+      <div class="timeline">
+        @for (c of commits(); track c.id) {
+          <div class="commit">
+            <span class="dot"></span>
+            <code>{{ c.id }}</code> — {{ c.msg }}
+          </div>
+        } @empty {
+          <p class="demo__note">No commits yet. Type a message and commit.</p>
+        }
+      </div>
+      @if (commits().length) {
+        <p class="pill">{{ commits().length }} commit(s) on branch <code>main</code></p>
       }
     </div>
-    @if (commits().length) {
-      <p class="pill">{{ commits().length }} commit(s) on branch <code>main</code></p>
-    }
-  </div>
+  </section>
 
-  <h2>Branches — parallel universes for your code</h2>
-  <p>
-    A <strong>branch</strong> is an independent line of commits. <code>main</code>
-    stays stable while you build a feature on its own branch; when it's ready, a
-    <strong>merge</strong> combines the work:
-  </p>
-  <div class="code">
-    <pre>
-git checkout -b login-page     # create branch + switch to it (one command)
-# …edit, add, commit as usual — main is untouched all the while…
+  <!-- ============ 7. BRANCHES ============ -->
+  <section>
+    <p class="bf-eyebrow">Parallel universes</p>
+    <h2>A branch just moves a label; checking one out rewrites your files.</h2>
 
-git checkout main              # jump back: your files INSTANTLY match main again
-git merge login-page           # replay the branch's work into main
-git branch -d login-page       # done — delete the label</pre>
-  </div>
-  <p>
-    The moment that makes branches click: <strong>switching branches rewrites your working directory</strong>. Checkout
-    <code>main</code> and the login code vanishes from the files; checkout the branch and it's back. Branches are cheap
-    (a branch is just a movable label pointing at a commit), so teams make one per feature or bug fix, however small.
-  </p>
-  <div class="warn">
-    <strong>Merge conflicts</strong> aren't errors — they're a question. If both branches edited the same lines, Git
-    stops and marks the spot in the file:
-    <div class="code" style="margin: 8px 0">
-      <pre>
-&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
-  &lt;h1&gt;Welcome back&lt;/h1&gt;          ← your branch's version
-=======
-  &lt;h1&gt;Hello again&lt;/h1&gt;           ← their version
-&gt;&gt;&gt;&gt;&gt;&gt;&gt; login-page</pre>
+    <p>
+      So far, every commit has landed on the same single line of history. A <span class="term">branch</span> breaks
+      that: it's an independent line of commits, so you can build something risky or half-finished on your own line
+      while <code>main</code> stays exactly as it was. When the work is ready, a <strong>merge</strong> combines the two
+      lines back into one.
+    </p>
+
+    <p>
+      Branches are cheap on purpose — a branch is nothing more than a movable label pointing at one commit, which is why
+      teams make one per feature or bug fix, however small.
+    </p>
+
+    <app-code-lab
+      file="terminal — branching"
+      [code]="branchSample"
+      [notes]="branchNotes"
+      notesLabel="What each line changes, and what it doesn't"
+      prompt="You just ran `git checkout main` on line 4. Is the `login.ts` file from your branch permanently gone, or still recoverable?"
+      output="Still completely safe. `git checkout login-page` brings it straight back — checkout only ever changes which snapshot your working directory currently mirrors. Nothing is deleted; you're just looking at a different one."
+      revealLabel="Reveal the answer"
+    />
+
+    <p>
+      That's the moment that makes branches click, and the one beginners find genuinely unsettling the first time:
+      <span class="key">switching branches rewrites your working directory.</span> A branch isn't a filter layered on
+      top of one set of files — it's a genuinely different snapshot, and checking one out swaps your files to match it,
+      right in front of you.
+    </p>
+  </section>
+
+  <!-- ============ 8. MERGE CONFLICTS ============ -->
+  <section>
+    <p class="bf-eyebrow">The famous scary thing</p>
+    <h2>A merge conflict is a question, not an error.</h2>
+
+    <p>
+      Remember the napkin from the top of this page? Here's the honest, mechanical answer: Git does not guess. If both
+      branches changed the exact same lines, it stops the merge and edits the file itself to show you
+      <em>both</em> versions, side by side, right inside the file.
+    </p>
+
+    <app-code-lab
+      file="login.html — mid-merge"
+      [code]="conflictSample"
+      [notes]="conflictNotes"
+      notesLabel="Reading the markers Git left behind"
+    />
+
+    <p>
+      Resolve it by hand: decide what the line should actually say (keep one side, keep the other, or write something
+      new entirely), delete all three marker lines, then <code>git add</code> the file and <code>git commit</code> to
+      finish the merge. That's the entire ritual — a conflict has a scary reputation and a genuinely mechanical fix.
+    </p>
+
+    <div class="warn">
+      <strong>Those marker lines are real text Git wrote into your file.</strong> Forget to delete one and commit
+      anyway, and <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> becomes permanent, syntactically-broken content in your
+      codebase. Always re-read the file — or let your editor's diff view highlight the markers — before you
+      <code>add</code> a resolved conflict.
     </div>
-    You edit the file to the version you actually want, delete the
-    <code>&lt;&lt;&lt;/===/&gt;&gt;&gt;</code> markers, then <code>add</code> + <code>commit</code>. That's the whole
-    ritual — scary reputation, mechanical fix.
-  </div>
+  </section>
 
-  <h2>Remotes, GitHub &amp; pull requests</h2>
-  <p>
-    Everything so far happened on your machine — Git works fully offline. A
-    <strong>remote</strong> is a copy of the repo hosted elsewhere; <strong>GitHub</strong> (or GitLab/Bitbucket) is
-    where remotes usually live. <code>push</code> uploads your commits, <code>pull</code> brings down everyone else's,
-    <code>clone</code> copies an entire repo (history included) to a new machine.
-  </p>
-  <div class="note">
-    Teams rarely merge straight to main. The workflow is: push your
-    <em>branch</em>, then open a <strong>pull request</strong> — "please pull my branch into main" — where teammates
-    review the diff, comment line by line, and CI runs the tests. Only then is it merged. PRs are where code review
-    lives, and your GitHub PR history is a portfolio interviewers actually read.
-  </div>
+  <!-- ============ 9. REMOTES & COLLABORATION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Remotes &amp; collaboration</p>
+    <h2>Nothing you commit reaches anyone else until you say so.</h2>
 
-  <div class="tip">
-    Add a <code>.gitignore</code> file listing what Git should never track: <code>node_modules/</code> (huge and
-    rebuildable — the npm lesson), build output like <code>dist/</code>, and anything secret (<code>.env</code>, API
-    keys). A leaked secret in a commit stays in the history even after you delete the file — treat committed secrets as
-    compromised and rotate them.
-  </div>
+    <p>
+      Everything on this page so far has happened entirely on your own machine — Git works completely offline, and every
+      commit exists only in your local project until you decide otherwise. A <span class="term">remote</span> is a copy
+      of the repository hosted somewhere else; <strong>GitHub</strong> (or GitLab, or Bitbucket) is where that somewhere
+      else usually is.
+    </p>
 
-  <h2>When things go wrong — the recovery drawer</h2>
-  <div class="code">
-    <pre>
-git restore file.ts             # discard UNCOMMITTED edits to a file (careful: gone!)
-git restore --staged file.ts    # un-stage (undo git add) — edits stay in the file
-git commit --amend              # fix the last commit's message / add a forgotten file
-git revert a1c07f3              # undo a commit SAFELY: new commit with the opposite change
-git log --oneline               # find the id you need for the above</pre>
-  </div>
-  <p>
-    Ranked by danger: <code>restore --staged</code> touches nothing real, <code>revert</code> is history-safe (it adds
-    rather than erases — right choice on shared branches), <code>restore</code> genuinely deletes local edits. The
-    general truth: <em>committed work is nearly impossible to lose; uncommitted work is trivially easy to lose</em>.
-    Commit early, commit often.
-  </p>
+    <app-bubbles
+      [turns]="syncTalk"
+      caption="The whole relationship, in five lines: commit is local, push and pull are the only two commands that ever cross the wire, and both are things you choose to run — nothing syncs automatically, ever."
+    />
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>You edited three files but only want two in this commit. How?</summary>
-    <div>
-      Stage selectively: <code>git add fileA.ts fileB.ts</code>, then <code>git commit</code>. The third file stays
-      modified-but-unstaged for a later commit. This is exactly what the staging area exists for — commits as curated,
-      logical units instead of "everything I've touched".
+    <p>
+      Teams almost never merge straight into <code>main</code>. The usual workflow is: push your <em>branch</em>, then
+      open a <strong>pull request</strong> — literally "please pull my branch into main" — where teammates read the
+      diff, leave comments on specific lines, and automated checks run before anyone merges it. This is where code
+      review actually happens, and a long, thoughtful pull-request history is something interviewers genuinely read.
+    </p>
+
+    <p>
+      <code>git push --force</code> is the same idea as an ordinary push, with one safety check switched off — the one
+      that normally stops you from overwriting commits you haven't seen yet.
+    </p>
+
+    <app-quiz
+      [question]="forcePushQuestion"
+      [options]="forcePushOptions"
+      followUp="This exact danger is why many teams block plain --force on shared branches and require --force-with-lease instead, which checks the remote hasn't moved since you last looked before it will overwrite anything."
+    />
+
+    <div class="tip">
+      Add a <code>.gitignore</code> file the moment you start a project, listing what Git should never track:
+      <code>node_modules/</code> (huge, and — as the <a routerLink="/terminal-and-npm">npm lesson</a> covers — sometimes
+      tied to one specific machine's binaries), build output like <code>dist/</code>, and anything secret
+      (<code>.env</code>, API keys). Set it up <em>before</em> your first commit: a file already committed keeps being
+      tracked even after you add it to <code>.gitignore</code> later, and a leaked secret stays readable in your history
+      forever unless you rewrite history specifically to remove it — treat a committed secret as compromised and rotate
+      it.
     </div>
-  </details>
-  <details class="qa">
-    <summary>What's the difference between <code>git add</code> and <code>git commit</code>?</summary>
-    <div>
-      <code>add</code> moves changes into the staging area — a reversible selection, nothing saved yet.
-      <code>commit</code> permanently snapshots whatever is staged, with a message, into history. Two steps, two areas.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A bad commit is already pushed and teammates have pulled it. <code>revert</code> or delete it from history?
-    </summary>
-    <div>
-      <code>git revert</code> — it creates a <em>new</em> commit containing the inverse change, so history only ever
-      grows. Rewriting/deleting shared history means every teammate's copy disagrees with the remote — a team-wide mess.
-      Rule: shared history is append-only.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why did the login page's code disappear from your editor after <code>git checkout main</code>?</summary>
-    <div>
-      Nothing is lost — switching branches rewrites the working directory to match the target branch's snapshot, and
-      main never had the login commits. <code>git checkout login-page</code> brings every line back. Branches are
-      parallel versions of the whole project, not just labels.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      The three areas: working directory —<code>add</code>→ staging —<code>commit</code>→ history. Staging exists so
-      commits can be curated, logical units.
-    </li>
-    <li>
-      Daily rhythm: <code>status</code> → <code>add</code> → <code>commit -m "imperative message"</code> →
-      <code>push</code>; <code>pull</code> for the team's work. Small commits, always.
-    </li>
-    <li>
-      <strong>Branches</strong> are cheap parallel lines of work; switching rewrites your files; merging combines, and
-      conflicts are a mechanical edit-markers-commit ritual, not a disaster.
-    </li>
-    <li>
-      <strong>GitHub + pull requests</strong> = where review happens before merge; <code>.gitignore</code> keeps
-      <code>node_modules</code> and secrets out (a committed secret is compromised forever).
-    </li>
-    <li>
-      Committed work is nearly unlosable; uncommitted work is fragile — commit early and often, and
-      <code>revert</code> (never rewrite) on shared branches.
-    </li>
-  </ul>
+  <!-- ============ 10. WHEN THINGS GO WRONG ============ -->
+  <section>
+    <p class="bf-eyebrow">When things go wrong</p>
+    <h2>Most recovery commands are safe. Read carefully before the one that isn't.</h2>
 
-  <p><a routerLink="/debugging-basics">Next: Debugging &amp; Reading Errors →</a></p>
+    <app-code-lab
+      file="terminal — recovery drawer"
+      [code]="recoverySample"
+      [notes]="recoveryNotes"
+      notesLabel="Ranked from safest to most dangerous"
+    />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="git restore" kicker="discards local edits" tone="accent">
+        Genuinely destructive: uncommitted work in the file is gone, with nothing to undo it. The one command on this
+        page that behaves like undo with no redo.
+      </app-tape-card>
+      <app-tape-card heading="git restore --staged" kicker="only un-selects" tone="olive">
+        The safest move here. It only changes what's selected for the next commit — every character you wrote is still
+        sitting in the file afterward.
+      </app-tape-card>
+      <app-tape-card heading="git revert" kicker="safe on shared branches" tone="gold">
+        Never deletes history, only adds to it. The one worth reaching for once a commit has already been pushed and
+        pulled by someone else.
+      </app-tape-card>
+    </div>
+
+    <p>
+      The pattern behind all four: <strong>committed work is nearly impossible to lose</strong> — it's sitting in
+      history, addressable by its id, forever. <strong>Uncommitted work is fragile</strong> — a stray
+      <code>restore</code>, a deleted folder, a computer that dies, and it's gone. The practical takeaway isn't
+      "memorise four commands," it's <span class="key">commit early and often</span>, because a commit is the only one
+      of these states with a genuine safety net under it.
+    </p>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Three areas, three verbs: working directory (<em>edit</em>) → staging (<em>add</em>) → history
+        (<em>commit</em>). Nothing is safe until it's committed, and nothing is in the next commit until it's staged.
+      </li>
+      <li>
+        <strong><code>git status</code> first, always.</strong> It's free, instant, and tells you exactly what state
+        everything is in before you commit to anything.
+      </li>
+      <li>
+        Small, focused commits with imperative messages ("Add X", not "stuff") — six months from now,
+        <code>git log</code> is the only documentation this decision will have.
+      </li>
+      <li>
+        Branches are cheap, independent lines of history; checking one out genuinely rewrites your files to match it —
+        nothing is deleted, you're just looking at a different snapshot.
+      </li>
+      <li>
+        A merge conflict is Git asking a question it genuinely cannot answer on its own: resolve it, delete the three
+        marker lines, <code>add</code>, <code>commit</code>.
+      </li>
+      <li>
+        Commit is local; <code>push</code> and <code>pull</code> are the only two commands that cross the wire, and both
+        are things you choose to run. <code>--force</code> on a shared branch can
+        <span class="bf-break">silently erase a teammate's work</span> — reach for
+        <code>--force-with-lease</code> instead.
+      </li>
+    </ul>
+
+    <p><a routerLink="/debugging-basics">Next: Debugging &amp; Reading Errors →</a></p>
+  </section>
 </article>

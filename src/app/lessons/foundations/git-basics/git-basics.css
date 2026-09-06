@@ -1,25 +1,170 @@
-.t {
+/* Tables, callouts, demo panels, pills and the code window are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css), so the `.qa` accordion and the bare
+   `.t` table rules that used to live here are gone — the exam questions on this page are
+   an `<app-faq>`, and the six-command cheat sheet uses the shared `<table>`/`<caption>`
+   styling.
+
+   What is left is genuinely specific to this lesson: the hand-drawn three-areas diagram,
+   the one-file-repo simulator's coloured file chips, and the commit-history timeline.
+   Every colour below comes from a --bf-* token so both follow the reader's light/dark
+   choice with no duplicate rules. The three areas share one deliberate colour mapping
+   used consistently across the diagram AND the simulator: accent = "not yet staged",
+   gold = "staged, about to commit" (a small pun), olive = "safely committed". */
+
+/* ------------------------------------------------------------------
+   1. THE THREE-AREAS DIAGRAM
+   Working directory --git add--> Staging area --git commit--> History.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
+}
+
+.dia__svg {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
+  height: auto;
+  overflow: visible;
 }
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
 }
-.t td:first-child {
-  width: 180px;
+
+/* A container drawn on the page — the same surface + hairline as a card, so a box in
+   the diagram reads as the same kind of object as a box in the layout. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
 }
+
+/* The artifact the reader has just deliberately chosen — the staging area. */
+.dia-box--lit {
+  fill: var(--bf-gold-wash);
+  stroke: var(--bf-gold);
+}
+
+/* The permanent, physical thing at the end of the chain — clay, per the layer's
+   convention that clay means "the solid object in a diagram". */
+.dia-box--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+
+.dia-mono--on-solid {
+  fill: var(--bf-clay-ink);
+  font-weight: 600;
+}
+
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 20px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. THE ONE-FILE-REPO SIMULATOR
+   Three side-by-side panels mirroring the diagram above, filled live from the
+   `files()` and `simCommits()` signals.
+   ------------------------------------------------------------------ */
+.areas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+@media (max-width: 640px) {
+  .areas {
+    grid-template-columns: 1fr;
+  }
+}
+
+.area {
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  background: var(--bf-surface);
+  padding: 10px 12px;
+  min-height: 110px;
+}
+
+.area h4 {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bf-ink-2);
+}
+
+.file {
+  display: block;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  margin: 4px 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--bf-ink);
+}
+
+/* Working directory: edited but not yet staged. */
+.file.mod {
+  background: var(--bf-accent-wash);
+}
+
+/* Staging area: chosen for the next commit — the same gold as the diagram's lit box. */
+.file.staged {
+  background: var(--bf-gold-wash);
+}
+
+/* History: permanently committed — the same olive used for "the way that works". */
+.file.com {
+  background: var(--bf-olive-wash);
+}
+
+.clean {
+  color: var(--bf-ink-2);
+  font-size: 0.8rem;
+}
+
+/* ------------------------------------------------------------------
+   3. THE COMMIT-HISTORY TIMELINE
+   ------------------------------------------------------------------ */
 .timeline {
-  border-left: 2px solid var(--border);
+  border-left: 2px solid var(--bf-rule);
   margin-left: 8px;
   padding-left: 16px;
 }
+
 .commit {
   position: relative;
   margin: 10px 0;
+  color: var(--bf-ink);
 }
+
 .commit .dot {
   position: absolute;
   left: -22px;
@@ -27,68 +172,5 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--accent);
-}
-
-.areas {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-@media (max-width: 640px) {
-  .areas {
-    grid-template-columns: 1fr;
-  }
-}
-.area {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  min-height: 110px;
-}
-.area h4 {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-.file {
-  display: block;
-  font-size: 0.82rem;
-  font-family: monospace;
-  margin: 4px 0;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
-.file.mod {
-  background: rgba(245, 158, 11, 0.12);
-}
-.file.staged {
-  background: rgba(99, 102, 241, 0.12);
-}
-.file.com {
-  background: rgba(16, 185, 129, 0.1);
-}
-.clean {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  background: var(--bf-olive);
 }
