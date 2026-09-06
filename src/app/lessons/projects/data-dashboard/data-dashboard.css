@@ -1,3 +1,11 @@
+/* Migrated to the brain-friendly layer (src/brain-friendly.css). The teaching
+   callouts that used to be a local `.step-callout` class now use the shared
+   `.tip` / `.warn` blocks the theme already owns — see change-detection.css
+   for the same call. Everything below is genuinely specific to the live
+   dashboard demo: KPI cards, filter chips, the sortable table, the pager, the
+   category bar chart and the CSV export button, none of which any shared
+   component provides. */
+
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -110,19 +118,6 @@
 }
 .region-table td {
   padding: 6px 0;
-}
-.step-callout {
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin: 14px 0;
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-.step-callout h4 {
-  margin: 0 0 6px;
-  color: #6366f1;
 }
 .sort-icon {
   font-size: 0.7rem;

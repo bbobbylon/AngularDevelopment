@@ -1,398 +1,491 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Projects · Full Walkthrough</span>
-  <h1>Project: Data Dashboard</h1>
-  <p class="lead">
-    Build a sales dashboard with live filtering, sorting, KPI cards and a category breakdown chart. This project focuses
-    on reactive data patterns — computed selectors, signal stores for filter state, and performance best practices.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Full-Stack Angular · Projects"
+    title="Project: Data Dashboard"
+    hand="or, one signal store, five computed selectors, and a table that can never lie to you"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      This is the biggest build in the Projects track: a sales dashboard with category, region and month-range filters,
+      a sortable table, pagination, one-click CSV export and a live KPI row — all of it
+      <strong>computed off one signal store</strong>. The interesting part was never the UI. It's the derivation chain
+      underneath it: one writable signal at the root, five <span class="term">computed</span> selectors hanging off it,
+      and a guarantee that nothing on the page can ever quietly disagree with anything else on it.
+    </p>
+  </app-chapter>
 
-  <h2>What you will build</h2>
-  <ul>
-    <li>KPI cards: total revenue, record count, average deal</li>
-    <li>Filter by category (hardware/software/services) and region</li>
-    <li>Sortable data table with click-to-sort column headers</li>
-    <li>Category breakdown bar chart (signal-driven, no library)</li>
-    <li>All computed from a signal store — zero redundant state</li>
-  </ul>
+  <!-- ============ THE BRIEF ============ -->
+  <section>
+    <p class="bf-eyebrow">The brief</p>
+    <h2>One dataset, five moving parts.</h2>
+    <ul>
+      <li>KPI cards: total revenue, record count, average deal, top region</li>
+      <li>Filter by category (hardware/software/services), region, and a two-thumbed month range</li>
+      <li>A sortable table — click a column header to sort by it, click again to reverse it</li>
+      <li>Pagination, and a one-click CSV export of exactly what's filtered</li>
+      <li>A category-revenue bar chart, entirely signal-driven — no charting library</li>
+      <li>All of it computed from one signal store: <span class="key">zero state stored twice</span></li>
+    </ul>
+  </section>
 
-  <h2>The mental model: a production line</h2>
-  <p>
-    A dashboard is not a pile of state — it is <strong>one set of records with a line of machines bolted to it</strong>.
-    Raw rows go in at one end. The first station drops the ones that fail the filters. The next works out how many pages
-    that leaves. The next sorts and cuts out the slice you are looking at. The KPIs are a station tapped off the middle
-    of the line, not the end.
-  </p>
-  <p>
-    Only the raw records are <em>stored</em>. Everything else is a station, and a station only runs when something
-    upstream of it moves. That is why changing the sort is cheap and changing a filter is not — and why the pager and
-    the KPIs never disagree with the table, since all three are cut from the same line.
-  </p>
+  <!-- ============ THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Five controls. If any one of them lies, the whole page lies.</h2>
+    <p>
+      Picture the shortcut version of this dashboard: <code>totalRevenue</code>, <code>pageCount</code>,
+      <code>topRegion</code> and <code>visibleRows</code> are each their own signal, and every filter's click handler
+      writes to all four by hand. It's the obvious first design, and it even <em>works</em> — right up until you add a
+      fifth control, forget one of the four writes, or reorder two of them in a refactor. Then the total on the KPI card
+      and the total on the table quietly stop <span class="bf-break">agreeing</span>, and nothing in the type system
+      will ever tell you.
+    </p>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Four "shortcut" signals — <code>totalRevenue</code>, <code>pageCount</code>, <code>topRegion</code>,
+      <code>visibleRows</code> — each written by hand from every filter's click handler. Name one situation where two of
+      them end up disagreeing. Then keep reading: the design below makes that situation
+      <strong>impossible to reach</strong>, not just less likely.
+    </app-napkin>
+  </section>
 
-  <app-remember>
-    Store the <strong>decisions</strong>, derive the <strong>consequences</strong>. The filters, the sort and the page
-    number are decisions. Row counts, totals and the visible slice are consequences — and a consequence you store by
-    hand is a consequence that will go stale.
-  </app-remember>
+  <!-- ============ THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A dashboard is a production line, not a pile of state.</h2>
+    <p>
+      A dashboard is not a pile of state — it is
+      <strong>one set of records with a line of machines bolted to it</strong>. Raw rows go in at one end. The first
+      station drops the ones that fail the filters. The next works out how many pages that leaves. The next sorts and
+      cuts out the slice you're looking at. The KPIs are a station tapped off the <em>middle</em> of the line, not the
+      end.
+    </p>
+    <p>
+      Only the raw records are <span class="key">stored</span>. Everything else is a station, and a station only runs
+      when something upstream of it moves. That's why changing the sort is cheap and changing a filter is not — and why
+      the pager and the KPIs never disagree with the table, since all three are cut from the same line.
+    </p>
+    <app-remember variant="mnemonic">
+      Store the <strong>decisions</strong>, derive the <strong>consequences</strong>. The filters, the sort and the page
+      number are decisions. Row counts, totals and the visible slice are consequences — and a consequence you store by
+      hand is a consequence that will go stale.
+    </app-remember>
+    <p>
+      Drawn out, the line looks like this — and the shape of it is what the rest of this page walks through, piece by
+      piece:
+    </p>
+    <app-flow
+      [steps]="pipeline"
+      caption="One writable signal at the top. Everything below it is derived, so nothing can fall out of step with anything else."
+    />
+  </section>
 
-  <h2>Architecture overview</h2>
-  <div class="code">
-    <pre>
-SalesStore (service)
-  _data:         Signal&lt;SaleRecord[]&gt;     // raw data (from HTTP in production)
-  _catFilter:    Signal&lt;category | 'all'&gt;
-  _regionFilter: Signal&lt;region | 'all'&gt;
-  _sortKey:      Signal&lt;SortKey&gt;
-  _sortDir:      Signal&lt;asc | desc&gt;
+  <!-- ============ THE BLUEPRINT ============ -->
+  <section>
+    <p class="bf-eyebrow">The blueprint</p>
+    <h2>Four pieces, and dependencies only point one way.</h2>
+    <p>The whole file is four kinds of thing, and each only ever depends on the one before it:</p>
+    <div class="bf-grid-2">
+      <app-tape-card heading="SaleRecord" kicker="the model">
+        One shape for a row — a stable numeric <code>id</code>, and <code>category</code>/<code>region</code> typed as
+        closed unions so the filter buttons and this field can never drift apart.
+      </app-tape-card>
+      <app-tape-card heading="SalesStore" kicker="signal service · providedIn: 'root'" tone="accent">
+        Eight signals, and that's the entire mutable state: the filters, the sort and the page. The decisions.
+      </app-tape-card>
+      <app-tape-card heading="Selectors" kicker="computed()" tone="olive">
+        <code>filtered</code> → <code>sorted</code> → <code>totalPages</code>/<code>paginatedRows</code>, with
+        <code>summary</code> branching off <code>filtered</code>. Every one a consequence, never a decision.
+      </app-tape-card>
+      <app-tape-card heading="DataDashboard" kicker="the page" tone="blue">
+        Injects the store, reads only computed signals in its template, and calls exactly one setter per control. No
+        logic lives here.
+      </app-tape-card>
+    </div>
+  </section>
 
-  filtered: computed()  // applies the filters only
-  sorted:   computed()  // reorders filtered() — reads the sort key, nothing else
-  summary:  computed()  // total, avg, byCategory, byRegion — all off filtered()
+  <!-- ============ PIECE 1 — MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 1 of 7</p>
+    <h2>Model the row before anything else.</h2>
+    <p>
+      Every filter, every sort and every KPI in this project works off exactly one shape. Get the model right once, and
+      nothing downstream of it has to guess.
+    </p>
+    <app-code-lab
+      file="data-dashboard.ts — SaleRecord"
+      [code]="modelSample"
+      [notes]="modelNotes"
+      notesLabel="What each field is for"
+    />
+  </section>
 
-DashboardPage
-  injects SalesStore
-  template reads only computed signals — no logic in the template</pre>
-  </div>
+  <!-- ============ PIECE 2 — SOURCES ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 2 of 7</p>
+    <h2>Eight signals, and that's the entire mutable state.</h2>
+    <p>
+      If you can name these eight, you can predict every pixel this dashboard ever renders — everything else on the page
+      is a <code>computed</code> that reads some subset of them.
+    </p>
+    <app-code-lab
+      file="sales-store.ts — sources"
+      [code]="sourcesSample"
+      [notes]="sourcesNotes"
+      notesLabel="The five kinds of source"
+    />
+  </section>
 
-  <h2>Step 1 — Model and mock data</h2>
-  <div class="code">
-    <pre>
-interface SaleRecord {{ '{' }}
-  id: number;        // stable key for &#64;for track — never the array index
-  product: string;
-  // Inline union rather than `string`: the filter buttons, the grouping keys
-  // and this field can now never drift apart, because there is one list.
-  category: 'hardware' | 'software' | 'services';
-  amount: number;    // currency in whole units; format at render time, not here
-  region: 'north' | 'south' | 'east' | 'west';
-  month: number;     // 1–12. A number sorts correctly; 'January' would not.
-{{ '}' }}
+  <!-- ============ PIECE 3 — WRITERS ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 3 of 7</p>
+    <h2>The only way any of it changes.</h2>
+    <p>
+      Components never call <code>.set()</code> on a store signal directly — they call a method, and the method is where
+      a rule like "reset to page 1" actually lives.
+    </p>
+    <app-code-lab
+      file="sales-store.ts — writers"
+      [code]="writersSample"
+      [notes]="writersNotes"
+      notesLabel="Two setters, one convention"
+    />
+    <app-remember variant="rule">
+      Every setter that can change <strong>which</strong> rows are visible resets the page to 1. Skip it in just one
+      place and you get a table showing "page 4 of 1" — technically correct, and completely broken to look at.
+    </app-remember>
+  </section>
 
-// In production, load from HTTP:
-// readonly data = rxResource({{ '{' }} loader: () =&gt; this.http.get&lt;SaleRecord[]&gt;('/api/sales') {{
-        '}'
-      }});</pre>
-  </div>
+  <!-- ============ PIECE 4 — FILTERED ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 4 of 7</p>
+    <h2>The first station: narrow the set, and stop there.</h2>
+    <p><code>filtered</code> is the root of the whole chain — every other selector reads it, directly or indirectly.</p>
+    <app-code-lab
+      file="sales-store.ts — filtered"
+      [code]="filteredSample"
+      [notes]="filteredNotes"
+      notesLabel="Line by line"
+    />
+  </section>
 
-  <h2>Step 2 — Signal store with filter + sort state</h2>
-  <div class="step-callout">
-    <h4>Key pattern: all UI state in signals, all derived data in computed()</h4>
-    The filter and sort values are signals. The filtered/sorted list and all KPIs are computed() — they re-derive
-    automatically whenever any input signal changes. There is no "refresh" method and no intermediate state to
-    synchronize.
-  </div>
-  <div class="code">
-    <pre>
-&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
-export class SalesStore {{ '{' }}
-  // ---- SOURCES: five signals, and that is the entire mutable state ----
-  // Everything else on this class is derived. If you can name the sources,
-  // you can predict every pixel on the dashboard.
-  private readonly _data         = signal&lt;SaleRecord[]&gt;([]);      // the rows
-  private readonly _catFilter    = signal&lt;'all' | Category&gt;('all');   // 'all' = no filter
-  private readonly _regionFilter = signal&lt;'all' | Region&gt;('all');
-  private readonly _sortKey      = signal&lt;SortKey&gt;('amount');     // which column
-  private readonly _sortDir      = signal&lt;'asc' | 'desc'&gt;('desc'); // biggest first
+  <!-- ============ PIECE 5 — SORTED ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 5 of 7</p>
+    <h2>Reorder them — without corrupting anyone else's cache.</h2>
+    <p><code>sorted</code> reads <code>filtered</code> and reorders it, which is a smaller job than it looks.</p>
+    <app-code-lab
+      file="sales-store.ts — sorted"
+      [code]="sortedSample"
+      [notes]="sortedNotes"
+      notesLabel="Line by line"
+    />
+  </section>
 
-  // Filtering and sorting are SEPARATE selectors on purpose —
-  // see the quiz below for what that buys you.
-  readonly filtered = computed(() =&gt; {{ '{' }}
-    // Read both signals into locals FIRST. Reading them inside the filter
-    // callback would work, but it re-reads once per row; this reads once and
-    // makes the dependency list obvious at a glance.
-    const cat = this._catFilter(), reg = this._regionFilter();
-    return this._data()
-      // Each clause short-circuits on 'all', so "no filter" costs one
-      // comparison rather than a special case elsewhere in the code.
-      .filter(r =&gt; (cat === 'all' || r.category === cat)
-                &amp;&amp; (reg === 'all' || r.region === reg));
-  {{ '}' }});
+  <!-- ============ PIECE 6 — PAGINATION ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 6 of 7</p>
+    <h2>Slice out the page you're actually looking at.</h2>
+    <p>
+      <code>totalPages</code> and <code>paginatedRows</code> are two small selectors, and the interesting part is which
+      stage of the chain each one reads from.
+    </p>
+    <app-code-lab
+      file="sales-store.ts — pagination"
+      [code]="paginationSample"
+      [notes]="paginationNotes"
+      notesLabel="Line by line"
+    />
+  </section>
 
-  readonly sorted = computed(() =&gt; {{ '{' }}
-    const key = this._sortKey(), dir = this._sortDir();
-    // THE SPREAD IS NOT OPTIONAL. Array.sort() sorts in place, and
-    // filtered() hands back its cached array — sorting it directly would
-    // mutate another computed's memoised value behind its back.
-    return [...this.filtered()].sort((a, b) =&gt; {{ '{' }}
-      // One comparator for both column types: localeCompare for text
-      // (handles accents and casing properly), subtraction for numbers.
-      // The `as` casts are needed because a[key] is a union of both.
-      const cmp = typeof a[key] === 'string'
-        ? (a[key] as string).localeCompare(b[key] as string)
-        : (a[key] as number) - (b[key] as number);
-      // Direction is applied by negating the result — one comparator, both
-      // directions, no duplicated logic.
-      return dir === 'asc' ? cmp : -cmp;
-    {{ '}' }});
-  {{ '}' }});
+  <!-- ============ PIECE 7 — SUMMARY / KPIs ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 7 of 7</p>
+    <h2>Where the KPI numbers actually come from.</h2>
+    <app-code-lab
+      file="sales-store.ts — summary"
+      [code]="summarySample"
+      [notes]="summaryNotes"
+      notesLabel="Line by line"
+    />
+    <app-predict
+      prompt="You click **Next →** to move from page 1 to page 2. Which of these change: `store.summary().total`, `store.summary().count`, or `store.paginatedRows()`?"
+      answer="Only `paginatedRows()`. Paging slices `sorted()`, which the KPIs never read at all — `summary` computes off `filtered()`, the same rows regardless of which slice happens to be on screen right now. Turning the page changes what you're looking at, not what there is."
+      revealLabel="Reveal the answer"
+    />
+  </section>
 
-  readonly summary = computed(() =&gt; {{ '{' }}
-    // Note: reads filtered(), NOT sorted(). The KPIs are the same numbers
-    // however you order the rows, so depending on sorted() would recompute
-    // them every time a user clicked a column header for nothing.
-    const rows  = this.filtered();
-    const total = rows.reduce((s, r) =&gt; s + r.amount, 0);
-    // `|| 1` guards the empty case: filter everything out and this would
-    // otherwise be 0/0 = NaN, which renders as literal "NaN" on the card.
-    return {{ '{' }} total, count: rows.length, avg: Math.round(total / (rows.length || 1)) {{ '}' }};
-  {{ '}' }});
+  <!-- ============ WHO ACTUALLY RERUNS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mechanism, staged as dialogue</p>
+    <h2>Who actually reruns when you click a header?</h2>
+    <app-bubbles
+      [turns]="dependencyTalk"
+      caption="One header click, five selectors downstream of the sort key — and only two of them do any work."
+    />
+    <app-quiz
+      question="You click a column header to change the sort. The store derives `filtered`, `sorted`, `totalPages`, `paginatedRows` and `summary`. Which of them actually re-run?"
+      [options]="chainOptions"
+      followUp="Dependencies are tracked per signal read, not per file. A selector is only invalidated by the signals it genuinely touched on its last run."
+    />
+  </section>
 
-  // ---- The only writers. Components call these; they never touch signals. ----
-  setCatFilter(v: string)    {{ '{' }} this._catFilter.set(v as any); {{ '}' }}
-  setRegionFilter(v: string) {{ '{' }} this._regionFilter.set(v as any); {{ '}' }}
-  setSort(key: SortKey) {{ '{' }}
-    // Clicking the column you are ALREADY sorted by flips the direction...
-    if (this._sortKey() === key)
-      this._sortDir.update(d =&gt; d === 'asc' ? 'desc' : 'asc');
-    // ...clicking a different one switches column and resets to descending,
-    // because "show me the biggest" is what people mean on a first click.
-    else {{ '{' }} this._sortKey.set(key); this._sortDir.set('desc'); {{ '}' }}
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-
-  <p>Drawn out, the line looks like this — and the shape of it is what the next two sections are about:</p>
-  <app-flow
-    [steps]="pipeline"
-    caption="One writable signal at the top. Everything below it is derived, so nothing can fall out of step with anything else."
-  />
-
-  <app-quiz
-    question="You click a column header to change the sort. The store derives `filtered`, `sorted`, `totalPages`, `paginatedRows` and `summary`. Which of them actually re-run?"
-    [options]="chainOptions"
-    followUp="Dependencies are tracked per signal read, not per file. A selector is only invalidated by the signals it genuinely touched on its last run."
-  />
-
-  <h2>Step 3 — Loading real data with resource()</h2>
-  <div class="code">
-    <pre>
-// For a real HTTP backend, replace the mock signal with rxResource():
-&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
-export class SalesStore {{ '{' }}
-  private http = inject(HttpClient);
-
-  // rxResource fetches once on init, exposes isLoading/error/value signals:
-  private salesResource = rxResource({{ '{' }}
-    // The loader runs automatically — there is no ngOnInit and no subscribe.
-    // rxResource subscribes for you and unsubscribes when the store is torn
-    // down, which is the whole reason to prefer it over a manual subscription.
-    loader: () =&gt; this.http.get&lt;SaleRecord[]&gt;('/api/sales'),
-  {{ '}' }});
-
-  // Re-export the resource's own signals under friendlier names. Components
-  // then depend on SalesStore, not on the fact that it uses rxResource — swap
-  // the implementation later and no template changes.
-  readonly isLoading = this.salesResource.isLoading;
-  readonly error     = this.salesResource.error;
-
-  readonly filtered = computed(() =&gt; {{ '{' }}
-    // value() is `SaleRecord[] | undefined` — undefined during the first
-    // load. `?? []` means every downstream computed can assume an array and
-    // the table renders empty instead of crashing on .filter of undefined.
-    const data = this.salesResource.value() ?? [];
-    // ... same filter/sort logic
-  {{ '}' }});
-{{ '}' }}
-
-// In template — all three states, in one chain, with no boolean flags:
-&#64;if (store.isLoading()) {{ '{' }}
-  &lt;!-- A skeleton, not a spinner: it reserves the layout so the page does not
-       jump when the rows land. --&gt;
-  &lt;div class="loading-skeleton"&gt;Loading...&lt;/div&gt;
-{{ '}' }} &#64;else if (store.error()) {{ '{' }}
-  &lt;!-- Always give the user a way out. An error message with no retry button
-       forces a full page reload for what is often a transient blip. --&gt;
-  &lt;div class="error"&gt;Failed to load data. &lt;button (click)="store.reload()"&gt;Retry&lt;/button&gt;&lt;/div&gt;
-{{ '}' }} &#64;else {{ '{' }}
-  &lt;!-- Only reached when loading finished AND nothing failed, so the table
-       below can read the data without any further guards. --&gt;
-{{ '}' }}</pre>
-  </div>
-
-  <h2>Step 4 — Performance: computed() vs. template methods</h2>
-
-  <app-predict
-    prompt="A formatting method is called straight from the table's markup. You type one character into an unrelated filter box. How many times does it run?"
-    [code]="templateCallSample"
-    answer="At least 50, and quite possibly several hundred. Angular has no way to know whether `formatCurrency(record.amount)` would return something different this time — the only way to find out is to call it. So it calls it, for every row, on every change-detection pass, and typing produces a pass per keystroke. The amounts did not change. The work is pure waste, and it scales with your row count exactly when you can least afford it: during interaction."
-  />
-
-  <div class="step-callout">
-    <h4>Never compute in the template — always use computed()</h4>
-    A method call in the template runs on every CD pass. computed() runs only when its signal dependencies change. For a
-    dashboard, this is the difference between re-sorting 1000 rows every frame vs. only when the sort column changes.
-  </div>
-  <div class="code">
-    <pre>
-// ❌ Recomputes on every CD pass (can be 60x/sec under interaction):
-&lt;td&gt;{{ '{{' }} formatCurrency(record.amount) {{ '}}' }}&lt;/td&gt;
-
-// ✅ Computed selector — recomputes only when filtered() changes:
-readonly formattedRows = computed(() =&gt;
-  this.store.filtered().map(r =&gt; ({{ '{' }}
-    ...r,
-    displayAmount: new Intl.NumberFormat('en-US', {{ '{' }} style: 'currency', currency: 'USD' {{
-        '}'
-      }}).format(r.amount)
-  {{ '}' }}))
-);
-
-// ✅ Pure pipe alternative — also memoized by Angular:
-&#64;Pipe({{ '{' }} name: 'currency', pure: true {{ '}' }})
-export class CurrencyPipe implements PipeTransform {{ '{' }}
-  transform(value: number): string {{ '{' }}
-    return new Intl.NumberFormat('en-US', {{ '{' }} style: 'currency', currency: 'USD' {{ '}' }}).format(value);
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-
-  <h2>Live demo — extended dashboard</h2>
-  <div class="demo">
-    <p class="demo__title">Month filter · Pagination · CSV export — all signal-driven</p>
-
-    <div class="kpi-row">
-      <div class="kpi">
-        <p class="kpi__label">Total Revenue</p>
-        <p class="kpi__value">${{ store.summary().total.toLocaleString() }}</p>
+  <!-- ============ GOING TO PRODUCTION ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>Swap the mock for a real API without touching a single selector.</h2>
+    <p>
+      Every selector above reads <code>this._data()</code> or, further down the chain, another selector that eventually
+      does. That means the mock array is the <em>only</em> thing standing between this project and a real backend —
+      replace one signal with one resource, and <code>filtered</code>, <code>sorted</code>, <code>totalPages</code>,
+      <code>paginatedRows</code> and <code>summary</code> do not change by a single character.
+    </p>
+    <app-compare
+      leftTitle="Now — a mock signal"
+      rightTitle="Production — `rxResource()`"
+      rightTone="good"
+      note="Nothing downstream of the source signal has to change — that's the entire point of routing everything through one root."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ mockSourceSample }}</pre>
+        </div>
       </div>
-      <div class="kpi">
-        <p class="kpi__label">Records</p>
-        <p class="kpi__value">{{ store.summary().count }}</p>
+      <div right>
+        <div class="code">
+          <pre>{{ resourceSourceSample }}</pre>
+        </div>
       </div>
-      <div class="kpi">
-        <p class="kpi__label">Avg Deal</p>
-        <p class="kpi__value">${{ store.summary().avg.toLocaleString() }}</p>
+    </app-compare>
+    <p>
+      And the template gets three states — loading, error and ready — for the price of one <code>&#64;if</code> chain:
+    </p>
+    <div class="code">
+      <pre>{{ loadingStatesSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ PERFORMANCE ============ -->
+  <section>
+    <p class="bf-eyebrow">Performance</p>
+    <h2>Never compute inside the template.</h2>
+    <app-predict
+      prompt="A formatting method is called straight from the table's markup. You type one character into an unrelated filter box. How many times does it run?"
+      [code]="templateCallSample"
+      answer="At least 50, and quite possibly several hundred. Angular has no way to know whether `formatCurrency(record.amount)` would return something different this time — the only way to find out is to call it. So it calls it, for every row, on every change-detection pass, and typing produces a pass per keystroke. The amounts did not change. The work is pure waste, and it scales with your row count exactly when you can least afford it: during interaction."
+    />
+    <div class="warn">
+      <strong>A method call in a template binding runs on every CD pass.</strong> <code>computed()</code> runs only when
+      its signal dependencies change. For a dashboard, that's the difference between re-formatting 1,000 rows every
+      frame versus only when the filtered set actually changes.
+    </div>
+    <app-compare
+      leftTitle="❌ Recomputes on every CD pass"
+      leftTone="bad"
+      rightTitle="✅ Recomputes only when `filtered()` changes"
+      rightTone="good"
+      note="Same output, same formatting logic — the only difference is how many times it runs."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ badMethodSample }}</pre>
+        </div>
       </div>
-      <div class="kpi">
-        <p class="kpi__label">Top Region</p>
-        <p class="kpi__value" style="font-size: 1.1rem">
-          {{ store.summary().byRegion[0]?.reg ?? 'N/A' }}
-        </p>
+      <div right>
+        <div class="code">
+          <pre>{{ goodComputedSample }}</pre>
+        </div>
       </div>
-    </div>
+    </app-compare>
+  </section>
 
-    <div class="filter-row">
-      <strong style="font-size: 0.82rem; color: var(--text-muted); align-self: center">Category:</strong>
-      @for (c of categories; track c) {
-        <button [class.active]="store.catFilter() === c" (click)="store.setCatFilter($any(c))">
-          {{ c }}
-        </button>
-      }
-    </div>
-    <div class="filter-row" style="margin-top: 0">
-      <strong style="font-size: 0.82rem; color: var(--text-muted); align-self: center">Region:</strong>
-      @for (r of regions; track r) {
-        <button [class.active]="store.regionFilter() === r" (click)="store.setRegionFilter($any(r))">
-          {{ r }}
-        </button>
-      }
-    </div>
+  <!-- ============ THE LIVE DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The whole thing, running</p>
+    <h2>See it running.</h2>
+    <app-napkin lead="try this —" label="Before you scroll into the demo">
+      Pick a category filter below and note the total on the KPI card. Then click a column header to sort. Which numbers
+      moved, and which one didn't? You already have everything you need to answer that without guessing — the diagram
+      and the dialogue above said so before you clicked anything.
+    </app-napkin>
 
-    <div class="month-range">
-      <strong>Months:</strong>
-      M{{ store.monthFrom() }}
-      <input
-        aria-label="Months"
-        type="range"
-        min="1"
-        max="12"
-        [value]="store.monthFrom()"
-        (input)="store.setMonthFrom($any($event.target).valueAsNumber)"
-      />
-      –
-      <input
-        aria-label="Months"
-        type="range"
-        min="1"
-        max="12"
-        [value]="store.monthTo()"
-        (input)="store.setMonthTo($any($event.target).valueAsNumber)"
-      />
-      M{{ store.monthTo() }}
-      <span style="color: var(--text-muted)">({{ store.summary().count }} records)</span>
-    </div>
+    <div class="demo">
+      <p class="demo__title">Month filter · Pagination · CSV export — all signal-driven</p>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px">
-      <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0">Click column headers to sort</p>
-      <button class="export-btn" (click)="store.exportCSV()">↓ Export CSV</button>
-    </div>
+      <div class="kpi-row">
+        <div class="kpi">
+          <p class="kpi__label">Total Revenue</p>
+          <p class="kpi__value">${{ store.summary().total.toLocaleString() }}</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi__label">Records</p>
+          <p class="kpi__value">{{ store.summary().count }}</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi__label">Avg Deal</p>
+          <p class="kpi__value">${{ store.summary().avg.toLocaleString() }}</p>
+        </div>
+        <div class="kpi">
+          <p class="kpi__label">Top Region</p>
+          <p class="kpi__value" style="font-size: 1.1rem">
+            {{ store.summary().byRegion[0]?.reg ?? 'N/A' }}
+          </p>
+        </div>
+      </div>
 
-    <div style="overflow-x: auto">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th (click)="store.setSort('product')">
-              Product <span class="sort-icon">{{ sortIcon('product') }}</span>
-            </th>
-            <th>Category</th>
-            <th>Region</th>
-            <th (click)="store.setSort('month')">
-              Month <span class="sort-icon">{{ sortIcon('month') }}</span>
-            </th>
-            <th (click)="store.setSort('amount')" style="text-align: right">
-              Amount <span class="sort-icon">{{ sortIcon('amount') }}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of store.paginatedRows(); track row.id) {
+      <div class="filter-row">
+        <strong style="font-size: 0.82rem; color: var(--text-muted); align-self: center">Category:</strong>
+        @for (c of categories; track c) {
+          <button [class.active]="store.catFilter() === c" (click)="store.setCatFilter($any(c))">
+            {{ c }}
+          </button>
+        }
+      </div>
+      <div class="filter-row" style="margin-top: 0">
+        <strong style="font-size: 0.82rem; color: var(--text-muted); align-self: center">Region:</strong>
+        @for (r of regions; track r) {
+          <button [class.active]="store.regionFilter() === r" (click)="store.setRegionFilter($any(r))">
+            {{ r }}
+          </button>
+        }
+      </div>
+
+      <div class="month-range">
+        <strong>Months:</strong>
+        M{{ store.monthFrom() }}
+        <input
+          aria-label="Months"
+          type="range"
+          min="1"
+          max="12"
+          [value]="store.monthFrom()"
+          (input)="store.setMonthFrom($any($event.target).valueAsNumber)"
+        />
+        –
+        <input
+          aria-label="Months"
+          type="range"
+          min="1"
+          max="12"
+          [value]="store.monthTo()"
+          (input)="store.setMonthTo($any($event.target).valueAsNumber)"
+        />
+        M{{ store.monthTo() }}
+        <span style="color: var(--text-muted)">({{ store.summary().count }} records)</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0">Click column headers to sort</p>
+        <button class="export-btn" (click)="store.exportCSV()">↓ Export CSV</button>
+      </div>
+
+      <div style="overflow-x: auto">
+        <table class="data-table">
+          <thead>
             <tr>
-              <td>{{ row.product }}</td>
-              <td>
-                <span class="badge-cat badge-{{ row.category }}">{{ row.category }}</span>
-              </td>
-              <td>{{ row.region }}</td>
-              <td>M{{ row.month }}</td>
-              <td style="text-align: right; font-family: monospace">${{ row.amount.toLocaleString() }}</td>
+              <th (click)="store.setSort('product')">
+                Product <span class="sort-icon">{{ sortIcon('product') }}</span>
+              </th>
+              <th>Category</th>
+              <th>Region</th>
+              <th (click)="store.setSort('month')">
+                Month <span class="sort-icon">{{ sortIcon('month') }}</span>
+              </th>
+              <th (click)="store.setSort('amount')" style="text-align: right">
+                Amount <span class="sort-icon">{{ sortIcon('amount') }}</span>
+              </th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <div class="pagination">
-      <button (click)="store.prevPage()" [disabled]="store.page() === 1">← Prev</button>
-      <span>Page {{ store.page() }} / {{ store.totalPages() }}</span>
-      <button (click)="store.nextPage()" [disabled]="store.page() === store.totalPages()">Next →</button>
-    </div>
-
-    <h3 style="margin-top: 20px; font-size: 0.95rem">Revenue by Category</h3>
-    @for (item of store.summary().byCategory; track item.cat) {
-      <div style="margin-bottom: 8px">
-        <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 3px">
-          <span>{{ item.cat }}</span>
-          <span>${{ item.sum.toLocaleString() }} ({{ item.pct }}%)</span>
-        </div>
-        <div class="bar-track">
-          <div class="bar-fill bar-fill-{{ item.cat }}" [style.width]="item.pct + '%'"></div>
-        </div>
+          </thead>
+          <tbody>
+            @for (row of store.paginatedRows(); track row.id) {
+              <tr>
+                <td>{{ row.product }}</td>
+                <td>
+                  <span class="badge-cat badge-{{ row.category }}">{{ row.category }}</span>
+                </td>
+                <td>{{ row.region }}</td>
+                <td>M{{ row.month }}</td>
+                <td style="text-align: right; font-family: monospace">${{ row.amount.toLocaleString() }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
-    }
-  </div>
 
-  <app-faq [items]="questions" />
+      <div class="pagination">
+        <button (click)="store.prevPage()" [disabled]="store.page() === 1">← Prev</button>
+        <span>Page {{ store.page() }} / {{ store.totalPages() }}</span>
+        <button (click)="store.nextPage()" [disabled]="store.page() === store.totalPages()">Next →</button>
+      </div>
 
-  <h2>Recap — what you practiced</h2>
-  <ul>
-    <li>
-      <strong>Signal store with filter/sort/page state</strong> — all UI state as signals, derived data as computed()
-    </li>
-    <li><strong>Month range filter</strong> — two range inputs bound to monthFrom/monthTo signals</li>
-    <li>
-      <strong>Pagination</strong> — currentPage + totalPages computed from filtered().length; paginatedRows slices it
-    </li>
-    <li>
-      <strong>CSV export</strong> — Blob + URL.createObjectURL(), no server needed; always exports the full filtered set
-    </li>
-    <li><strong>Performance best practices</strong> — no logic in templates, computed() over methods</li>
-    <li><strong>Derived chart data</strong> — bar widths from percentage signals, no chart library needed</li>
-  </ul>
+      <h3 style="margin-top: 20px; font-size: 0.95rem">Revenue by Category</h3>
+      @for (item of store.summary().byCategory; track item.cat) {
+        <div style="margin-bottom: 8px">
+          <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 3px">
+            <span>{{ item.cat }}</span>
+            <span>${{ item.sum.toLocaleString() }} ({{ item.pct }}%)</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill bar-fill-{{ item.cat }}" [style.width]="item.pct + '%'"></div>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
 
-  <h2>Further extensions</h2>
-  <ul>
-    <li>Load data from a real API using rxResource() — replace MOCK_SALES with the HTTP call</li>
-    <li>Add a sparkline SVG trend chart using path data computed from monthly totals</li>
-    <li>Add column visibility toggles — a Set&lt;string&gt; signal + NgClass to show/hide columns</li>
-  </ul>
+  <!-- ============ QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <p><a routerLink="/">Back to All Concepts →</a></p>
+  <!-- ============ RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>What to remember.</h2>
+    <ul>
+      <li>
+        <strong>Store the decisions, derive the consequences.</strong> Eight signals were the only mutable state; every
+        KPI, count and visible row was a <code>computed()</code> reading some subset of them.
+      </li>
+      <li>
+        <strong>A selector only reruns when a signal it actually reads changes.</strong> Sorting never touches
+        <code>filtered</code> or <code>summary</code>; filtering never bypasses <code>sorted</code>.
+      </li>
+      <li>
+        <strong>Reset the page on every filter and sort change.</strong> The one line that's easy to forget, and the
+        first thing that visibly breaks when you do.
+      </li>
+      <li>
+        <strong><code>summary</code> reads <code>filtered</code>, never <code>paginatedRows</code>.</strong>
+        Otherwise turning a page would look like your revenue just changed.
+      </li>
+      <li>
+        <strong
+          >A method call in a template binding reruns on every CD pass; <code>computed()</code> reruns only when it has
+          to.</strong
+        >
+        Same output, wildly different cost at scale.
+      </li>
+      <li>
+        <strong>CSV export is a <code>Blob</code> and an object URL — no server, no library</strong> — and it exports
+        the filtered set, not just the visible page, because that's what "export" means to the person clicking it.
+      </li>
+    </ul>
+
+    <h3>Further extensions</h3>
+    <ul>
+      <li>
+        Load data from a real API using <code>rxResource()</code> — the "Going further" section above is the exact swap
+      </li>
+      <li>Add a sparkline SVG trend chart using path data computed from monthly totals</li>
+      <li>
+        Add column visibility toggles — a <code>Set&lt;string&gt;</code> signal + <code>NgClass</code> to show/hide
+        columns
+      </li>
+    </ul>
+
+    <p><a routerLink="/">Back to All Concepts →</a></p>
+  </section>
 </article>
