@@ -1,17 +1,80 @@
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+/* Tables, callouts, demo panels, pills and the code window all come from the shared
+   brain-friendly layer (src/brain-friendly.css) now, which is why this file only holds one
+   thing: the hand-drawn barrel-cycle diagram in the "Re-exports and barrels" section. The
+   `.qa` accordion this file used to style is gone — the old "Exam corner" details blocks
+   were folded into the FAQ and the existing Predict, both keyboard-accessible by
+   construction. */
+
+.cyc {
+  margin: 1.8rem 0;
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+
+.cyc__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
 }
-.qa div {
-  padding: 10px 14px;
+
+.cyc figcaption {
+  margin-top: 0.7rem;
   font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+/* Both boxes read as the same kind of object — a file — regardless of which
+   direction the arrows point through them. */
+.cyc-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+.cyc-mono {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--bf-ink);
+}
+
+.cyc-mono--sm {
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+
+/* The one label naming the actual failure — the slot that never got assigned. */
+.cyc-mono--danger {
+  fill: var(--bf-danger);
+  font-weight: 600;
+}
+
+.cyc-hand {
+  font-family: var(--font-hand);
+  font-size: 16px;
+  fill: var(--bf-danger);
+}
+
+/* Arrow 1: the barrel exporting downward — the innocent half of the cycle. */
+.cyc-rule--accent {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.cyc-head--accent {
+  fill: var(--bf-accent);
+}
+
+/* Arrow 2: the file reaching back into its own still-evaluating barrel — dashed,
+   because this is the edge that only sometimes finishes before it's read. */
+.cyc-rule--danger {
+  stroke: var(--bf-danger);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 7 6;
+}
+
+.cyc-head--danger {
+  fill: var(--bf-danger);
 }

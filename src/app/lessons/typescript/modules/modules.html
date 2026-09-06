@@ -1,292 +1,507 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Language Features</span>
-  <h1>Modules, Imports &amp; Exports</h1>
-  <p class="lead">
-    Every <code>.ts</code> file with at least one <code>import</code> or <code>export</code> is an
-    <strong>ES module</strong> — and that changes the fundamental rules of the file: everything inside is
-    <em>private by default</em>, visible elsewhere only if exported. Imports/exports are also the raw material of
-    Angular's build optimizations: tree-shaking and lazy loading both work by analyzing this graph. (Heads-up: ES
-    modules ≠ Angular's legacy <code>NgModule</code> — unrelated concepts sharing a word.)
-  </p>
-
-  <h2>The mental model: a shop with one window</h2>
-  <p>
-    A module file is a shop. There is a back room full of stock — every <code>const</code>, every helper function, every
-    bit of working state — and none of it is available to anyone outside. The only things the public can reach are the
-    items you put in the window, and <code>export</code> is the act of putting something there.
-  </p>
-  <p>
-    That is more than a metaphor for privacy. It is a promise about refactoring: anything not in the window is yours to
-    rename, restructure or delete, because nobody outside could have depended on it. And it sets up the barrel problem
-    later on — a barrel file is a <strong>mall directory</strong> listing every shop, which is convenient right up to
-    the moment a shop inside the mall consults the directory to find itself.
-  </p>
-
-  <app-remember>
-    <strong><code>export</code> is the only door out.</strong> Everything else in the file is back-room stock — private
-    by default, and safe to change.
-  </app-remember>
-
-  <h2>What "module" changes: scope</h2>
-  <div class="code">
-    <pre>
-// before modules, in plain &lt;script&gt; files:
-var config = {{ '{' }} … {{ '}' }};      // GLOBAL — visible to (and clobberable by) every script
-
-// in a module file:
-const config = {{ '{' }} … {{ '}' }};    // private to THIS FILE unless exported
-export const VERSION = '1.0';   // the export keyword is the only door out</pre>
-  </div>
-  <p>
-    This is the payoff of the scope story from the Functions lesson, at file scale: a 500-file app where no file can
-    accidentally trample another's variables. The module's <em>public API</em> is exactly its export list — everything
-    else is implementation detail you can refactor freely.
-  </p>
-
-  <h2>Exports — the vocabulary</h2>
-  <div class="code">
-    <pre>
-// user.ts
-export interface User {{ '{' }} id: number; {{ '}' }}          // export inline, at declaration…
-export function makeUser(): User {{ '{' }} return {{ '{' }} id: 1 {{ '}' }}; {{ '}' }}
-export const VERSION = '1.0';
-
-const helper = () => {{ '{' }} … {{ '}' }};                    // private — no export
-export {{ '{' }} helper as publicHelper {{ '}' }};             // …or export a list at the bottom, renamed
-
-export default class Logger {{ '{' }} {{ '}' }}                // ONE default per module, no name needed</pre>
-  </div>
-
-  <h2>Imports — try each kind</h2>
-  <div class="demo">
-    <p class="demo__title">Live — six import forms and what each really does</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (k of kinds; track k.label) {
-        <button [class.ghost]="kind() !== k" (click)="kind.set(k)">{{ k.label }}</button>
-      }
-    </div>
-    <div class="code">
-      <pre>{{ kind().code }}</pre>
-    </div>
-    <p style="font-size: 0.92rem">{{ kind().explain }}</p>
-  </div>
-  <div class="tip">
-    House style for Angular codebases: <strong>named exports everywhere</strong>. They're refactor-safe,
-    auto-importable, and grep-able. Default exports have one modern niche — Angular's lazy routes accept them without
-    the <code>.then(m =&gt; m.X)</code> selector: <code>loadComponent: () =&gt; import('./admin-page')</code> just works
-    when the file default-exports the component.
-  </div>
-
-  <h2>Where does <code>'./user'</code> actually point? Resolution in 20 seconds</h2>
-  <div class="code">
-    <pre>
-import {{ '{' }} User {{ '}' }} from './user';        // relative → a FILE next to this one
-import {{ '{' }} inject {{ '}' }} from '&#64;angular/core'; // bare → node_modules/&#64;angular/core
-import {{ '{' }} CartService {{ '}' }} from '&#64;app/core/cart';  // aliased → tsconfig "paths"
-
-// tsconfig.json:
-// "paths": {{ '{' }} "&#64;app/*": ["src/app/*"] {{ '}' }}   ← kills ../../../../ imports</pre>
-  </div>
-  <p>
-    Three shapes, three meanings: <code>./</code> or <code>../</code> = relative to the importing file; a bare name = a
-    package in <code>node_modules</code>; an alias = whatever <code>paths</code> maps it to. When an editor says "cannot
-    find module", check which of the three you've accidentally written.
-  </p>
-
-  <h2>How a module actually loads</h2>
-  <p>
-    Two of the facts below — that a barrel can crash your production build, and that module-level state is shared by
-    everyone — both fall out of this one sequence:
-  </p>
-
-  <app-flow
-    [steps]="loading"
-    caption="The cycle bug lives in step two. If resolving an import leads back to a module that is already mid-evaluation, the loader hands over what exists so far rather than waiting — and what exists so far may be nothing."
-  />
-
-  <h2>Re-exports &amp; barrels — and their sharp edge</h2>
-  <div class="code">
-    <pre>
-// core/index.ts — a "barrel": one file re-exporting a folder's public API
-export * from './user';
-export {{ '{' }} Logger {{ '}' }} from './logger';
-export {{ '{' }} Logger as AppLogger {{ '}' }} from './logger';   // re-export with a rename
-
-// consumers get one tidy import:
-import {{ '{' }} User, Logger {{ '}' }} from './core';</pre>
-  </div>
-  <app-predict
-    prompt="This shipped, and it worked on every developer machine. Then the production build fell over on load. What is happening?"
-    [code]="cycleSample"
-    answer="`Cannot access 'OrderService' before initialization`. Follow the cycle: something imports the barrel, the barrel starts evaluating `order-service.ts`, which imports the barrel again — and the barrel is already mid-evaluation, so the loader hands back the partially-built namespace rather than waiting. `OrderService` has not been assigned into it yet, so `new OrderService()` reaches for a binding that exists but holds nothing. Why only in production? Because the dev server and the production bundler are free to order and hoist modules differently, and only one of those orders happens to trip the cycle. Two fixes, both cheap: have `user-service.ts` import `./order-service` directly instead of its own barrel, or — if the dependency is genuinely only a type — make it an `import type`, which erases the edge entirely and dissolves the cycle."
-  />
-
-  <div class="warn">
-    <strong>How barrels go wrong — the actual mechanism.</strong> Modules load once, in dependency order. If
-    <code>a.ts</code> imports the barrel, and the barrel lists <code>b.ts</code>, and <code>b.ts</code> imports
-    something from the barrel again, you have a <strong>cycle</strong>: one of the files executes while the other is
-    only partially initialized, and you get the infamous <em>"Cannot access 'X' before initialization"</em> at runtime —
-    often only in production builds where module order differs. Rules of thumb: a folder's own files never import their
-    own barrel; hot paths import specific files; and keep barrels for genuinely public package surfaces.
-  </div>
-
-  <h2>Type-only imports — erased by design</h2>
-  <div class="code">
-    <pre>
-import type {{ '{' }} User {{ '}' }} from './user';        // whole import erased from the JS output
-import {{ '{' }} type User, makeUser {{ '}' }} from './user';  // mixed: type part erased, function kept</pre>
-  </div>
-  <p>
-    Why a keyword for this? Because this project (like most modern ones) compiles with <code>isolatedModules</code>,
-    where each file is transpiled <em>alone</em> — the compiler can't peek into <code>./user</code> to figure out
-    whether <code>User</code> is a type (erase it) or a value (keep it). The <code>type</code> keyword tells it locally.
-    Bonus: erased imports create no runtime dependency edge, which can dissolve circular-import crashes when the cycle
-    was only ever about types.
-  </p>
-
-  <h2>Dynamic <code>import()</code> — the engine of lazy loading</h2>
-  <div class="code">
-    <pre>
-// static import: top of file, ALWAYS in the initial bundle
-import {{ '{' }} Chart {{ '}' }} from './charts';
-
-// dynamic import(): an EXPRESSION returning a Promise — bundler splits the file
-const {{ '{' }} Chart {{ '}' }} = await import('./charts');   // downloaded only when this line runs
-
-// Angular's router uses exactly this — this app's routes do it for every lesson:
-{{ '{' }} path: 'admin', loadComponent: () => import('./admin').then(m => m.Admin) {{ '}' }}</pre>
-  </div>
-  <p>
-    Line by line: the static form is declarative and hoisted — it <em>must</em> be resolvable at build time, and its
-    code lands in the initial bundle. The dynamic form is just a function call returning a promise of the module's
-    export object — the bundler sees it and <strong>splits</strong> <code>./charts</code> into its own chunk, fetched
-    over the network the first time the call runs. Angular's <code>loadComponent</code>/ <code>loadChildren</code> are
-    thin wrappers over this — which is why every lesson in this app is a separate lazy chunk (you saw them scroll past
-    in the build output).
-  </p>
-
-  <app-compare
-    leftTitle="Static `import` — always shipped"
-    rightTitle="Dynamic `import()` — shipped on demand"
-    rightTone="good"
-    note="Same module, same exports. The only difference is when the bytes reach the user — and that difference is the entire mechanism behind Angular lazy loading."
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="11"
+    kicker="TypeScript · Language Features"
+    title="Modules, Imports & Exports"
+    hand="or, why everything in a file is invisible until you say otherwise"
+    [stops]="stops"
+    [current]="2"
   >
-    <div left>
-      <div class="code">
-        <pre>
-import {{ '{' }} Chart {{ '}' }} from './charts';
+    <p class="lead">
+      Every <code>.ts</code> file with at least one <code>import</code> or <code>export</code> is an
+      <strong>ES module</strong> — and that single fact rewrites the rules of the file: everything inside starts
+      <span class="term">private</span>, reachable elsewhere only if you deliberately hand it out. Imports and exports
+      aren't just a language mechanic, either — they're the raw graph Angular's build reads to decide what to
+      <span class="key">tree-shake</span> and what to lazy-load. This page takes the whole system in the order that
+      actually explains it: why scope needed fixing, the mental model that makes "private by default" click, and then
+      everything built on top of it — export forms, resolution, barrels, <code>import type</code>, dynamic
+      <code>import()</code>, and the one property every module has whether you asked for it or not. (Heads up: ES
+      modules are <em>not</em> Angular's legacy <code>NgModule</code> — the same word describing two unrelated things;
+      more on that in the FAQ.)
+    </p>
+  </app-chapter>
 
-// A declaration, hoisted to the top.
-// Must resolve at build time.
-// → lands in the initial bundle
-// → downloaded by every visitor,
-//   including the ones who never
-//   open a chart</pre>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Two files, one shared scope — and a collision.</h2>
+
+    <p>
+      Here's something most tutorials skip straight past: before modules existed, every <code>&lt;script&gt;</code> tag
+      loaded onto a page ran in the exact same, single global scope. Declare a variable in one file and a second file
+      with the same name doesn't get its own copy — it gets <strong>the same slot</strong>, and depending on how the two
+      collide, you get a hard crash or a silent overwrite with no warning either way.
+    </p>
+
+    <p>
+      That collision is the entire reason modules exist, and the fix turns out to be almost embarrassingly simple: give
+      every file its own private scope by default, and require one explicit keyword —
+      <span class="key"><code>export</code></span> — for anything a file wants to hand outside itself.
+    </p>
+
+    <app-napkin lead="quick guess —" label="Predict before reading on">
+      Two plain <code>&lt;script&gt;</code> tags on the same page each declare <code>let helper = 5;</code>. Two
+      separate module <code>.ts</code> files each do the exact same thing. One of those setups throws a
+      duplicate-declaration error the instant the page loads. The other runs forever, side by side, with nobody noticing
+      a thing. Which is which — and why?
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A module file is a shop with one window.</h2>
+
+    <p>
+      The two <code>&lt;script&gt;</code> tags crash — a duplicate <code>let</code> in one shared global scope is a hard
+      syntax collision, caught the moment the second file parses. The two module files run fine, forever: each
+      <code>.ts</code> file gets its own private scope, so <code>helper</code> in one has nothing whatsoever to do with
+      <code>helper</code> in the other. That one sentence — <strong>every module file is private by default</strong>
+      — is the entire reason the collision above stops being possible.
+    </p>
+
+    <p>
+      Picture a module file as a shop. There's a back room full of stock — every <code>const</code>, every helper
+      function, every bit of working state — and none of it is visible from the street. The only things the public can
+      reach are the items you deliberately put in the window, and <code>export</code> is the act of putting something
+      there.
+    </p>
+
+    <p>
+      That's more than a metaphor for privacy — it's a promise about refactoring. Anything not in the window is yours to
+      rename, restructure or delete, because nobody outside could ever have depended on it. Keep that promise in mind;
+      it's what makes the barrel problem later on this page feel inevitable rather than surprising.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong><code>export</code> is the only door out.</strong> Everything else in a module file is back-room stock —
+      private by default, and safe to change.
+    </app-remember>
+
+    <app-bubbles [turns]="shopTalk" caption="The negotiation every file has with a module it wants something from." />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM: SCOPE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Same declarations, two different worlds.</h2>
+
+    <p>Put the exact same two lines in both settings, and the difference above stops being abstract:</p>
+
+    <app-compare
+      leftTitle="Before modules — one shared global"
+      leftTone="bad"
+      rightTitle="Inside a module file — private by default"
+      rightTone="good"
+      [note]="scopeCompareNote"
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ globalScriptSample }}</pre>
+        </div>
       </div>
-    </div>
-    <div right>
-      <div class="code">
-        <pre>
-const {{ '{' }} Chart {{ '}' }} = await import('./charts');
-
-// An expression returning a Promise.
-// Bundler sees the literal path.
-// → './charts' becomes its own chunk
-// → fetched the first time this
-//   line actually runs
-// → nothing for visitors who never
-//   open a chart</pre>
+      <div right>
+        <div class="code">
+          <pre>{{ moduleScopeSample }}</pre>
+        </div>
       </div>
+    </app-compare>
+
+    <p>
+      This is the scope story from the Functions lesson, replayed at file scale: a five-hundred-file app where no file
+      can accidentally trample another's variables. A module's <em>public API</em> is exactly its export list —
+      everything else is implementation detail you're free to refactor.
+    </p>
+  </section>
+
+  <!-- ============ 4. EXPORTS VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow">The vocabulary</p>
+    <h2>Exports — every shape the keyword takes.</h2>
+
+    <p>
+      One keyword, four shapes. All four do the same job — decide what leaves the shop window — and the differences are
+      about <em>where</em> you write <code>export</code>, not what it means once it's there.
+    </p>
+
+    <app-code-lab
+      file="user.ts — every export shape in one file"
+      [code]="exportsSample"
+      [notes]="exportsNotes"
+      notesLabel="What each export actually does"
+    />
+  </section>
+
+  <!-- ============ 5. RESOLUTION ============ -->
+  <section>
+    <p class="bf-eyebrow">Resolution</p>
+    <h2>Where does <code>'./user'</code> actually point?</h2>
+
+    <p>
+      A specifier — the string after <code>from</code> — resolves one of exactly three ways, and the shape of the string
+      is the tell. When an editor says "cannot find module," check which of these three you actually wrote:
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Relative" kicker="./user" tone="accent">
+        Resolves next to the importing file, on disk. A leading <code>./</code> or <code>../</code> always means a real
+        path relative to this file — never a package.
+      </app-tape-card>
+      <app-tape-card heading="Bare specifier" kicker="&#64;angular/core" tone="olive">
+        No leading dot. The bundler looks it up inside <code>node_modules</code> — this is how every third-party package
+        import in the app resolves.
+      </app-tape-card>
+      <app-tape-card heading="Aliased path" kicker="&#64;app/core/cart" tone="gold">
+        Whatever <code>tsconfig.json</code>'s <code>paths</code> maps it to. This project maps
+        <code>&#64;app/*</code> to <code>src/app/*</code>, which is what kills long chains of <code>../../../../</code>.
+      </app-tape-card>
     </div>
-  </app-compare>
 
-  <h2>Module state is a singleton</h2>
-  <div class="code">
-    <pre>
-// counter.ts
-let count = 0;                        // module-level state
-export const next = () => ++count;
-
-// a.ts and b.ts both: import {{ '{' }} next {{ '}' }} from './counter';
-next(); // a.ts → 1
-next(); // b.ts → 2  ← SAME count. Modules execute once and are cached;
-        //             every importer shares the one instance.</pre>
-  </div>
-  <p>
-    A module's top-level code runs exactly once, on first import; afterwards the loader hands out the cached instance.
-    That makes module scope a natural singleton — worth knowing both as a tool and as a warning (shared mutable module
-    state is invisible coupling; Angular's DI, which you'll meet soon, offers the same singleton-ness with far better
-    testability and lifecycle control).
-  </p>
-
-  <app-quiz
-    question="`counter.ts` has `let count = 0;` at module scope and exports `next = () => ++count`. `a.ts` imports it and calls `next()`. Then `b.ts` — a completely different file — imports it and calls `next()`. What does `b.ts` see?"
-    [options]="singletonOptions"
-    followUp="Use it deliberately and it is the neatest singleton in the language. Use it accidentally — a cache, a counter, a `let currentUser` — and you have global mutable state with no injection point, which is a nightmare to test and a worse one to server-render."
-  />
-
-  <app-faq [items]="questions" />
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>"export default" vs named export — give one concrete refactoring difference.</summary>
-    <div>
-      Rename a named export and tooling updates every import (they share the symbol). A default export has no canonical
-      name — each importer chose its own, so a rename tool can't find them, and different names for the same thing
-      accumulate across the codebase. That's the practical core of the named-exports-preferred rule.
+    <div class="code">
+      <pre>{{ resolutionSample }}</pre>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Production build crashes with "Cannot access 'OrderService' before initialization"; dev was fine. Prime suspect?
-    </summary>
-    <div>
-      A circular import — often via a barrel — where module A executes while B is partially initialized. Dev and prod
-      bundlers can order cycles differently, which is why it "only breaks in prod". Trace the cycle (build tools and
-      lint rules like import/no-cycle can print it), then break it by importing concrete files instead of the barrel, or
-      making one edge <code>import type</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why does <code>import './analytics';</code> with "nothing imported" still change app behaviour?</summary>
-    <div>
-      Side-effect import: the module's top-level code runs (registers a listener, patches a global, self-registers). And
-      because modules are cached, it runs exactly once no matter how many files import it.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What must be true of the argument to <code>import()</code> for code-splitting to work well?</summary>
-    <div>
-      The bundler must be able to see the module statically — a literal path (or a clearly constrained template) at
-      build time. A fully dynamic <code>import(someRuntimeString)</code> can't be pre-split into a chunk. This is why
-      lazy routes always use literal-path arrow functions.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A module = file-private scope; the export list <em>is</em> the public API. Everything unexported is refactor-safe
-      implementation detail.
-    </li>
-    <li>
-      Import forms: named (preferred — tooling-friendly, tree-shakeable), default (lazy-route niche), namespace (<code
-        >* as</code
-      >), side-effect (runs code, imports nothing), <code>import type</code> (erased; required rigor under
-      <code>isolatedModules</code>).
-    </li>
-    <li>
-      Paths resolve three ways: relative (<code>./</code>), bare (node_modules), aliased (tsconfig <code>paths</code>).
-    </li>
-    <li>
-      Barrels tidy imports but enable cycles — "cannot access X before initialization" means a circular import; never
-      import your own barrel.
-    </li>
-    <li>
-      <code>import()</code> returns a promise and triggers code-splitting — it is literally how Angular lazy loading
-      works. Module top-level code runs once; module state is a shared singleton.
-    </li>
-  </ul>
+  <!-- ============ 6. IMPORTS — LIVE DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow">Live — try it</p>
+    <h2>Imports — six ways to bring something in.</h2>
 
-  <p><a routerLink="/ts-async">Next: Promises &amp; async/await →</a></p>
+    <p>
+      Same idea, the other direction: an import chooses <em>how</em> whatever a module exported gets bound in this file.
+      Step through all six; every one does something genuinely different at runtime.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — six import forms and what each really does</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (k of kinds; track k.label) {
+          <button [class.ghost]="kind() !== k" (click)="kind.set(k)">{{ k.label }}</button>
+        }
+      </div>
+      <div class="code">
+        <pre>{{ kind().code }}</pre>
+      </div>
+      <p class="demo__note">{{ kind().explain }}</p>
+    </div>
+
+    <div class="tip"><app-rich-text [text]="namedExportsTip" /></div>
+  </section>
+
+  <!-- ============ 7. HOW A MODULE LOADS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism, continued</p>
+    <h2>How a module actually turns into values.</h2>
+
+    <p>
+      Two of this page's headline facts — that a barrel can crash a production build, and that module state is shared by
+      every importer — are both consequences of one sequence:
+    </p>
+
+    <app-flow
+      [steps]="loading"
+      caption="The cycle bug lives in step two. If resolving an import leads back to a module that is already mid-evaluation, the loader hands over what exists so far rather than waiting — and what exists so far may be nothing."
+    />
+  </section>
+
+  <!-- ============ 8. BARRELS AND THE CYCLE BUG ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The sharp edge</p>
+    <h2>Re-exports and barrels — convenient, until they're not.</h2>
+
+    <p>
+      A <strong>barrel</strong> is one file — usually <code>index.ts</code> — that re-exports a whole folder's public
+      surface, so consumers get one tidy import instead of three:
+    </p>
+
+    <app-code-lab
+      file="core/index.ts — a barrel, and what it buys a consumer"
+      [code]="barrelSample"
+      [notes]="barrelNotes"
+      notesLabel="What each re-export line does"
+    />
+
+    <app-napkin lead="guess first —" label="Predict before scrolling">
+      Somewhere below, one of these files imports its <em>own</em> barrel — the very file that is supposed to be
+      collecting exports <em>from</em> it. Before you scroll: does that even run? And if it does, what actually breaks?
+    </app-napkin>
+
+    <figure class="cyc">
+      <svg
+        viewBox="0 0 620 300"
+        role="img"
+        aria-label="A cycle diagram. The barrel, core index dot t s, exports user-service dot t s downward. user-service dot t s imports its own barrel back upward, on a dashed line, while OrderService inside the barrel is still marked pending."
+        class="cyc__svg"
+      >
+        <defs>
+          <marker
+            id="mod-arrow-accent"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="cyc-head cyc-head--accent" />
+          </marker>
+          <marker
+            id="mod-arrow-danger"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="cyc-head cyc-head--danger" />
+          </marker>
+        </defs>
+
+        <!-- box: the barrel -->
+        <rect x="190" y="20" width="240" height="90" rx="14" class="cyc-box" />
+        <text x="310" y="50" text-anchor="middle" class="cyc-mono">core/index.ts</text>
+        <text x="310" y="70" text-anchor="middle" class="cyc-mono--sm">the barrel</text>
+        <text x="310" y="94" text-anchor="middle" class="cyc-mono--sm cyc-mono--danger">OrderService: pending</text>
+
+        <!-- box: user-service.ts -->
+        <rect x="190" y="220" width="240" height="70" rx="14" class="cyc-box" />
+        <text x="310" y="250" text-anchor="middle" class="cyc-mono">user-service.ts</text>
+        <text x="310" y="272" text-anchor="middle" class="cyc-mono--sm">imports the barrel again</text>
+
+        <!-- arrow 1: barrel exports downward -->
+        <path
+          d="M 250 110 L 250 220"
+          class="cyc-rule cyc-rule--accent"
+          fill="none"
+          marker-end="url(#mod-arrow-accent)"
+        />
+        <text x="140" y="164" text-anchor="end" class="cyc-mono--sm">1. barrel exports this file</text>
+
+        <!-- arrow 2: user-service imports the barrel back, dashed -->
+        <path
+          d="M 370 220 L 370 110"
+          class="cyc-rule cyc-rule--danger"
+          fill="none"
+          marker-end="url(#mod-arrow-danger)"
+        />
+        <text x="480" y="150" text-anchor="start" class="cyc-mono--sm">2. imports its own barrel</text>
+        <text x="480" y="174" text-anchor="start" class="cyc-hand">still mid-evaluation!</text>
+      </svg>
+      <figcaption>
+        The barrel starts evaluating, hits <code>user-service.ts</code>, and that file immediately asks the barrel for
+        <code>OrderService</code> — except the barrel is <em>already mid-evaluation</em> (arrow 2), so it hands back
+        whatever it has built so far. <code>OrderService</code> hasn't been assigned into it yet, which is exactly what
+        "pending" means above.
+      </figcaption>
+    </figure>
+
+    <div class="warn">
+      <strong>How barrels go wrong — the actual mechanism.</strong> Modules load once, in dependency order. If
+      <code>a.ts</code> imports the barrel, and the barrel lists <code>b.ts</code>, and <code>b.ts</code> imports
+      something from the barrel again, you have a <strong>cycle</strong>: one of the files executes while the other is
+      only partially initialized, and you get the infamous <em>"Cannot access 'X' before initialization"</em> at runtime
+      — often only in production builds where module order differs. Rules of thumb: a folder's own files never import
+      their own barrel; hot paths import specific files; keep barrels for genuinely public package surfaces.
+    </div>
+
+    <app-predict
+      prompt="This shipped, and it worked on every developer machine. Then the production build fell over on load. What is happening?"
+      [code]="cycleSample"
+      answer="`Cannot access 'OrderService' before initialization`. Follow the cycle: something imports the barrel, the barrel starts evaluating `order-service.ts`, which imports the barrel again — and the barrel is already mid-evaluation, so the loader hands back the partially-built namespace rather than waiting. `OrderService` has not been assigned into it yet, so `new OrderService()` reaches for a binding that exists but holds nothing. Why only in production? Because the dev server and the production bundler are free to order and hoist modules differently, and only one of those orders happens to trip the cycle. Two fixes, both cheap: have `user-service.ts` import `./order-service` directly instead of its own barrel, or — if the dependency is genuinely only a type — make it an `import type`, which erases the edge entirely and dissolves the cycle."
+    />
+  </section>
+
+  <!-- ============ 9. TYPE-ONLY IMPORTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Erased by design</p>
+    <h2>Type-only imports — gone before the browser ever sees them.</h2>
+
+    <p>
+      Why a keyword for this at all? Because this project — like most modern ones — compiles with
+      <code>isolatedModules</code>, where each file is transpiled <em>alone</em>. The compiler can't peek into
+      <code>./user</code> to check whether <code>User</code> is a type it should erase or a value it must keep, so you
+      tell it, locally, with <code>type</code>.
+    </p>
+
+    <app-code-lab
+      file="consumer.ts — a whole-import erasure next to a mixed one"
+      [code]="typeOnlySample"
+      [notes]="typeOnlyNotes"
+      notesLabel="What survives compilation, line by line"
+    />
+
+    <p>
+      The bonus is real, not academic: an erased import creates <span class="key">no runtime dependency edge</span>
+      at all, which can dissolve a circular-import crash exactly like the one above, when the cycle was only ever about
+      types.
+    </p>
+  </section>
+
+  <!-- ============ 10. DYNAMIC IMPORT() ============ -->
+  <section>
+    <p class="bf-eyebrow">The engine of lazy loading</p>
+    <h2>Dynamic <code>import()</code> — the same module, shipped on demand.</h2>
+
+    <p>
+      Everything so far has been a <em>declaration</em>: written at the top of a file, resolved before anything runs.
+      Dynamic <code>import()</code> breaks that rule on purpose — it's an ordinary expression, and that single change is
+      the entire mechanism behind Angular's lazy loading.
+    </p>
+
+    <app-code-lab
+      file="router-config.ts — static import next to its dynamic twin"
+      [code]="dynamicImportSample"
+      [notes]="dynamicImportNotes"
+      notesLabel="Declaration versus expression, line by line"
+    />
+
+    <p>
+      Angular's <code>loadComponent</code> and <code>loadChildren</code> are thin wrappers over exactly that call —
+      which is why every lesson in this app is its own lazy chunk. Same module, same exports, in both forms below; only
+      <em>when</em> the bytes reach the user changes:
+    </p>
+
+    <app-compare
+      leftTitle="Static `import` — always shipped"
+      rightTitle="Dynamic `import()` — shipped on demand"
+      rightTone="good"
+      [note]="dynamicCompareNote"
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ staticImportPanel }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ dynamicImportPanel }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 11. MODULE STATE IS A SINGLETON ============ -->
+  <section>
+    <p class="bf-eyebrow">One property every module shares</p>
+    <h2>Module state is a singleton, whether you asked for it or not.</h2>
+
+    <p>
+      Step 3 of the loading sequence above said it plainly: top-level code runs <strong>once</strong>. That single fact
+      makes module scope a natural singleton — a genuine tool when used deliberately, and invisible coupling when it
+      isn't.
+    </p>
+
+    <app-code-lab
+      file="counter.ts — imported from two unrelated files"
+      [code]="counterSample"
+      [notes]="counterNotes"
+      notesLabel="Why b.ts sees a.ts's count"
+    />
+
+    <app-quiz
+      question="`counter.ts` has `let count = 0;` at module scope and exports `next = () => ++count`. `a.ts` imports it and calls `next()`. Then `b.ts` — a completely different file — imports it and calls `next()`. What does `b.ts` see?"
+      [options]="singletonOptions"
+      followUp="Use it deliberately and it is the neatest singleton in the language. Use it accidentally — a cache, a counter, a `let currentUser` — and you have global mutable state with no injection point, which is a nightmare to test and a worse one to server-render. Angular's DI gives you the same single-instance behaviour with an injector you can override in a test, which is exactly why services beat module-level `let`."
+    />
+  </section>
+
+  <!-- ============ 12. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Six import forms, one rule for choosing.</h2>
+
+    <table class="cmp">
+      <caption class="bf-table-caption">
+        every import form this page covered, and when it actually earns its place
+      </caption>
+      <thead>
+        <tr>
+          <th>Form</th>
+          <th>Written as</th>
+          <th>Reach for it when…</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Named</td>
+          <td>
+            <code>import {{ '{' }} x {{ '}' }} from './m'</code>
+          </td>
+          <td>Almost always. Refactor-safe, auto-importable, tree-shakeable.</td>
+        </tr>
+        <tr>
+          <td>Default</td>
+          <td><code>import x from './m'</code></td>
+          <td>An Angular lazy route accepting a component's default export directly.</td>
+        </tr>
+        <tr>
+          <td>Namespace</td>
+          <td><code>import * as ns from './m'</code></td>
+          <td>A genuine grab-bag of helpers where a shared prefix reads well.</td>
+        </tr>
+        <tr>
+          <td>Side-effect</td>
+          <td><code>import './m'</code></td>
+          <td>A polyfill or registration that must run once, with nothing to bind.</td>
+        </tr>
+        <tr>
+          <td>Type-only</td>
+          <td>
+            <code>import type {{ '{' }} X {{ '}' }} from './m'</code>
+          </td>
+          <td><code>isolatedModules</code> demands it, or a cycle is only about types.</td>
+        </tr>
+        <tr>
+          <td>Dynamic</td>
+          <td><code>await import('./m')</code></td>
+          <td>Code you want split into its own chunk, fetched only when needed.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip"><app-rich-text [text]="pullTogetherTip" /></div>
+  </section>
+
+  <!-- ============ 13. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 14. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A module is a <strong>file-private scope</strong>; the export list <em>is</em> the public API. Everything
+        unexported is refactor-safe implementation detail.
+      </li>
+      <li>
+        Six import forms, one house style: <strong>named</strong> almost always, <strong>default</strong> for the
+        lazy-route niche, <strong>namespace</strong> for a genuine grab-bag, <strong>side-effect</strong> when nothing
+        needs binding, and <strong>type-only</strong> the moment <code>isolatedModules</code> asks for it.
+      </li>
+      <li>
+        Paths resolve three ways: relative (<code>./</code>), bare (<code>node_modules</code>), aliased (tsconfig
+        <code>paths</code>).
+      </li>
+      <li>
+        Barrels tidy imports but enable cycles — <strong>"cannot access X before initialization"</strong> means a
+        circular import; never import your own barrel from inside the folder it describes.
+      </li>
+      <li>
+        <code>import()</code> is an expression, not a declaration — it returns a promise and triggers code-splitting,
+        which is literally how Angular lazy loading works.
+      </li>
+      <li>
+        Module top-level code runs <strong>exactly once</strong>. Every later import is a cache hit, which makes module
+        state a shared singleton — genuinely useful on purpose, dangerous by accident.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-async">Next: Promises &amp; async/await →</a></p>
+  </section>
 </article>
