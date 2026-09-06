@@ -281,21 +281,47 @@ diagnostics like NG8001 only surface during the full Angular compiler build `ng 
 `ng build` runs, not from `tsc` alone — worth remembering for the next batch's
 verification pass.
 
-**Lessons — remaining: 30.** Order them worst-first by `node scripts/audit-retention.mjs`,
-exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
-means rewriting it against the nine-point bar anyway. Genuinely need content work, not
-just wiring: `expert/state-management` (5/9), `intermediate/resolvers` (5/9),
+**Batch 10 — 8 more lessons landed 2026-09-06, rollout now 78 of 100.** Cleared the rest of
+the sub-9/9 band: `expert/state-management` (5/9), `intermediate/resolvers` (5/9),
 `foundations/async-basics` (6/9), `intermediate/view-encapsulation` (7/9),
 `beginner/outputs`, `beginner/components` (8/9 each, missing Table), `beginner/inputs`
-(8/9, missing Visual). The other 23 already score 9/9 from an earlier (pre-brain-friendly)
-retention pass and just need the presentation layer built on top: `route-params`,
-`rxjs-operators`, `modules`, `json-and-apis`, `attribute-directives`, `keyof-typeof`,
-`structural-directives`, `ng-template-outlet`, `builtin-directives`, `content-projection`,
-`testing-services-http`, `data-dashboard`, `task-manager`, `auth-flow`,
-`signals-advanced`, `rxjs-interop`, `routing-basics`, `class-style-binding`, `lifecycle`,
-`form-validation`, `workspace-config`, `control-flow-for`, `http-basics`. Roughly an hour
-each for those; the copy is the work, not the wiring. Read
-`src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
+(8/9, missing Visual), `intermediate/signals-advanced` (already 9/9, presentation-only).
+Verified the same way as batches 8–9: `prettier --check`, `tsc --noEmit`,
+`audit-retention.mjs` to 9/9 per lesson, one full `npm run test:ci` and one production
+`ng build` at the end. `state-management`'s five annotated code samples (`storeSample`,
+`persistSample`, `ngrxSignalsSample`, `ngrxClassicSample`, `asyncSample`) had every
+`CodeNote` line number manually cross-checked against the actual sample string, not just
+trusted from the agent's report. `resolvers` surfaced a real-looking missing `first`
+import, but it was inside a code-sample **string literal** shown as a demo, not the
+lesson's own actual imports (which were already correct) — worth the double-take before
+"fixing" a sample that was never broken.
+
+One cosmetic fix: `view-encapsulation`'s `<app-chapter number="11">` didn't match its
+track's convention (`grep -n 'number="' src/app/lessons/intermediate/*/*.html` shows
+small per-track-local numbers, 1–4) or its own `stops` rail, where View Encapsulation is
+the 4th stop — corrected to `number="4"`.
+
+One cross-cutting fix, caught only by the full-suite run, not per-lesson checks: **the
+lesson smoke-test timeout (`src/app/lessons/lessons.smoke.spec.ts`) had to be raised from
+vitest's 5000ms default to 20000ms.** Three different, unrelated lessons
+(`testing-components`, `security`, `libraries-schematics`) each tipped past 5s in
+different runs of the full suite, never the same lesson twice — cumulative GC/memory
+pressure from mounting and destroying ~100 increasingly dense lessons in one spec file,
+not any one lesson being slow in isolation. Exactly the same shape as the a11y
+`SCAN_TIMEOUT_MS` fix in batch 8: the fix is headroom, not trimming content. Expect this
+class of timeout to need raising again as density keeps growing.
+
+**Lessons — remaining: 22.** Order them worst-first by `node scripts/audit-retention.mjs`,
+exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
+means rewriting it against the nine-point bar anyway. All 22 already score 9/9 from an
+earlier (pre-brain-friendly) retention pass and just need the presentation layer built on
+top: `rxjs-interop`, `routing-basics`, `class-style-binding`, `lifecycle`,
+`form-validation`, `workspace-config`, `control-flow-for`, `http-basics`,
+`rxjs-operators`, `keyof-typeof`, `modules`, `structural-directives`,
+`ng-template-outlet`, `builtin-directives`, `route-params`, `content-projection`,
+`json-and-apis`, `attribute-directives`, `testing-services-http`, `data-dashboard`,
+`task-manager`, `auth-flow`. Roughly an hour each; the copy is the work, not the wiring.
+Read `src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
 records the teaching order the layer is designed around (pose the problem → analogy →
 mechanism → same idea in four modes), and copying that shape is most of the job.
 
