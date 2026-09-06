@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab, TapeCard } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
@@ -96,7 +96,19 @@ const SCENARIOS: ScopeScenario[] = [
  */
 @Component({
   selector: 'app-lesson-ngmodules-migration',
-  imports: [RouterLink, BfPage, Chapter, CodeLab, TapeCard, Compare, Faq, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Chapter,
+    CodeLab,
+    Napkin,
+    TapeCard,
+    Compare,
+    Faq,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './ngmodules-migration.css',
   templateUrl: './ngmodules-migration.html',
 })

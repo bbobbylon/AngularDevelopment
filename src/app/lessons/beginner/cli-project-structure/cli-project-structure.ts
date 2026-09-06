@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, TapeCard } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
@@ -54,7 +54,6 @@ import { CliExplorer } from './cli-explorer/cli-explorer';
     BfPage,
     Chapter,
     CodeLab,
-    Napkin,
     TapeCard,
     Compare,
     Faq,
