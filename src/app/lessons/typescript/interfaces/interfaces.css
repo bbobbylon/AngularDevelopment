@@ -1,29 +1,130 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-}
-.t th,
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  vertical-align: top;
+/* Tables, callouts, demo panels and the code window are all styled by the
+   shared brain-friendly layer now (src/brain-friendly.css §14–15), so the
+   old `.t`/`.qa` accordion rules that used to live here are gone — the exam
+   questions on this page are an `<app-faq>`, keyboard-accessible and
+   consistent with every other migrated lesson.
+
+   What is left is genuinely specific to this lesson: the checklist/resume
+   diagram and the live candidate-checker verdict badge. Every colour comes
+   from a --bf-* token rather than a literal, so both follow the reader's
+   light/dark choice with no duplicate rules. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAM — interface checklist vs object-literal resume
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+.dia__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
+
+.dia figcaption {
+  margin-top: 0.7rem;
   font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
+}
+
+/* The checklist — same surface + hairline as a .bf-card. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+/* The physical resume — clay, per the layer's convention that clay means
+   "the solid object in a diagram". */
+.dia-box--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+/* The excess field, flagged for a closer look. */
+.dia-flag {
+  fill: none;
+  stroke: var(--bf-danger);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-rule--danger {
+  stroke: var(--bf-danger);
+  stroke-width: 1.5;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 13px;
+  fill: var(--bf-ink-2);
+}
+
+.dia-mono--on-solid {
+  fill: var(--bf-clay-ink);
+  font-weight: 600;
+}
+
+.dia-check {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--bf-olive);
+}
+
+/* The author's handwriting, inside the picture — same face and hue as
+   `.bf-hand` in the running text. */
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 18px;
+  fill: var(--bf-danger);
+}
+
+/* ------------------------------------------------------------------
+   2. LIVE CANDIDATE-CHECKER VERDICT BADGE
+   Token-driven, replacing a former hard-coded `#ef4444`/`var(--green)`
+   inline style — no literal colours here, --bf-olive/--bf-danger only.
+   ------------------------------------------------------------------ */
+.ifc-verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 0;
+  font-size: 0.92rem;
+}
+
+.ifc-verdict__badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  background: var(--bf-olive-wash);
+  color: var(--bf-olive);
+}
+
+.ifc-verdict--error .ifc-verdict__badge {
+  background: var(--bf-danger-wash);
+  color: var(--bf-danger);
 }

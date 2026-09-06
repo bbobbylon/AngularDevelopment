@@ -1,266 +1,495 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Type System</span>
-  <h1>Interfaces vs Type Aliases</h1>
-  <p class="lead">
-    Both <code>interface</code> and <code>type</code> describe the <em>shape</em>
-    of data — the contracts you'll write constantly for API responses, component inputs and service boundaries. They're
-    erased at compile time: pure compiler-facing documentation. This page covers the member syntax in detail, the real
-    differences between the two keywords (there are fewer than folklore claims, but the ones that exist matter), and the
-    signature forms beyond plain objects.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="TypeScript · Type System"
+    title="Interfaces vs Type Aliases"
+    hand="or, how to satisfy a contract you never signed"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Both <code>interface</code> and <code>type</code> describe the <strong>shape</strong> of data, and both vanish
+      before your code ships — pure compiler-facing paperwork. What actually decides whether a value "is" a
+      <code>User</code> is not a keyword you wrote anywhere on the object; it is whether the object's fields match. That
+      one fact — <strong>structural typing</strong> — explains almost everything on this page: why you never write
+      <code>implements</code> on a plain object, why an object can satisfy an interface it has never heard of, and why
+      exactly one situation gets checked more strictly than everything else.
+    </p>
+  </app-chapter>
 
-  <h2>Describing object shapes — every member form</h2>
-  <div class="code">
-    <pre>
-interface User {{ '{' }}
-  id: number;                 // required property
-  name: string;
-  email?: string;             // OPTIONAL — its type becomes string | undefined,
-                              //   and reads must handle the undefined case
-  readonly createdAt: Date;   // READONLY — assignment after creation is an error
-                              //   (shallow: the Date's own methods still mutate it)
-  greet(): string;            // method shorthand
-  onSave: (u: User) => void;  // property holding a function — almost the same…
-{{ '}' }}
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Why does this object satisfy the interface? You never told it to.</h2>
 
-type UserT = {{ '{' }} id: number; name: string {{ '}' }};   // same shape, alias syntax</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>?</code> means "may be absent".</strong> Callers can omit the key entirely; readers get
-      <code>string | undefined</code> and must narrow. (Under the <code>exactOptionalPropertyTypes</code> flag, "absent"
-      and "explicitly set to undefined" even become distinct cases.)
-    </li>
-    <li>
-      <strong><code>readonly</code> is compile-time only</strong> and shallow — it forbids
-      <code>user.createdAt = …</code> but not mutation <em>inside</em> the value. It's the property-level version of the
-      const-seals-the-arrow rule.
-    </li>
-    <li>
-      <strong>Method vs function-property</strong> — <code>greet(): string</code> vs
-      <code>greet: () =&gt; string</code> — differ in one subtle way: method syntax gets looser (bivariant) parameter
-      checking for compatibility reasons. House rule in strict codebases: use the property/arrow form for callbacks.
-    </li>
-  </ul>
+    <p>
+      Look closely at the last line below. Nowhere does it say <code>implements User</code>. Nowhere is there a class at
+      all. And yet it compiles, cleanly, every time.
+    </p>
 
-  <h2>Watch the checker apply a shape</h2>
-  <div class="demo">
-    <p class="demo__title">Live — which candidates satisfy <code>User</code>?</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
-      @for (c of candidates; track c.label) {
-        <button [class.ghost]="candidate() !== c" (click)="candidate.set(c)">{{ c.label }}</button>
-      }
+    <div class="code">
+      <pre>{{ openingSample }}</pre>
     </div>
-    @if (candidate(); as c) {
-      <div class="code">
-        <pre>{{ c.value }}</pre>
+
+    <p>
+      In a language like Java or C#, that line would not compile without a class somewhere declaring, in writing, "I am
+      a <code>User</code>." TypeScript never asks for that declaration. So the real question this lesson exists to
+      answer is not "is this legal" — it plainly is — but
+      <span class="key">what is actually being checked here, if not a name?</span>
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Here's one object with an extra field nobody asked for:
+      <code>{{ '{' }} id: 1, name: 'Ada', debug: true {{ '}' }}</code
+      >. Do you think it satisfies <code>interface User {{ '{' }} id: number; name: string {{ '}' }}</code
+      >? Now imagine that exact object was written directly as a literal, right where a <code>User</code> is expected,
+      instead of being stored in a variable first — does your answer change? Hold both guesses. There's a live checker
+      further down that will settle them.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>TypeScript reads a resume like a hiring checklist, not a bouncer checking an ID.</h2>
+
+    <p>
+      You've probably heard "if it walks like a duck and quacks like a duck…" — and most explanations stop right there,
+      which is a shame, because it skips the actual mechanism. Here's the fuller picture. Picture a hiring manager
+      holding a checklist for a role: must know TypeScript, must have two years of experience, must be able to start
+      Monday. The manager reads every resume that arrives and asks exactly one question of each:
+      <strong>does this resume tick every box on the checklist?</strong> They do not care whose letterhead the resume is
+      printed on. They do not care whether the applicant ever filled in a form declaring "I hereby apply as a
+      checklist-satisfier." If the boxes are ticked, the application passes — even if the applicant has no idea the
+      checklist exists.
+    </p>
+
+    <p>
+      That's <span class="term">structural typing</span>, and here is the mechanism it actually runs, precisely:
+      TypeScript does not check the <em>name</em> of a type at all — it checks the <strong>shape</strong>. Give it an
+      interface and an object, and it walks the interface's members one at a time, asking "does the object have a
+      property with this name, and is that property's type compatible?" Every required member has to tick; optional
+      members are allowed to be missing; and — this is the part most explanations skip —
+      <strong>the object is allowed to have more properties than the interface asks for.</strong> A resume with extra
+      qualifications the job never listed isn't disqualified for over-delivering. There is exactly one exception to that
+      generosity, and it has its own name and its own reason to exist — it gets a full section below, because it's one
+      of the most-tested gotchas on this whole topic.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Shape, not name.</strong> TypeScript never asks what a value calls itself — no <code>implements</code>, no
+      shared ancestor, not even the same file. It asks only: does this value have every property the interface lists,
+      with a compatible type in each? Tick every box and you're in, no matter whose resume it's printed on.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="What actually gets checked when an object meets an interface — and the one thing that changes the outcome."
+    />
+  </section>
+
+  <!-- ============ 3. NOMINAL VS STRUCTURAL ============ -->
+  <section>
+    <p class="bf-eyebrow">Two philosophies</p>
+    <h2>Java asks who you are. TypeScript asks what you have.</h2>
+
+    <p>
+      Most mainstream languages with interfaces are <span class="term">nominal</span>: satisfying
+      <code>Point</code> requires a class to say so, in writing, with <code>implements</code> — and the compiler checks
+      that declaration, not the class's members. TypeScript is <span class="term">structural</span>, and the difference
+      is not cosmetic; it changes what a safe refactor looks like in each language.
+    </p>
+
+    <app-compare
+      leftTitle="Nominal — Java, C#"
+      rightTitle="Structural — TypeScript"
+      rightTone="good"
+      note="Same relationship — 'is this an acceptable Point' — checked two different ways. Java asks whether the class ever signed a contract; TypeScript asks whether the object happens to have the right fields."
+    >
+      <div left>
+        <div class="code">
+          <pre data-lang="java">{{ nominalSample }}</pre>
+        </div>
+        <p>
+          <code>Coord</code> is a <code>Point</code> because it says so, on line 6. Delete
+          <code>implements Point</code> and the class still has identical methods — and is no longer a
+          <code>Point</code> as far as the compiler is concerned.
+        </p>
       </div>
-      <p style="font-size: 0.92rem">
-        <strong [style.color]="c.verdict === 'ok' ? 'var(--green)' : '#ef4444'">
-          {{ c.verdict === 'ok' ? '✅ compiles' : '❌ compile error' }}
-        </strong>
-        — {{ c.explain }}
+      <div right>
+        <div class="code">
+          <pre>{{ structuralCompareSample }}</pre>
+        </div>
+        <p>
+          <code>coord</code> is a <code>Point</code> because it has an <code>x</code> and a <code>y</code>. There is
+          nothing to delete that would change that — the compatibility is recomputed from the shape every time, not
+          declared once and cached.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 4. THE MECHANISM, DRAWN ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism, drawn</p>
+    <h2>Two arrows land. One field never gets one.</h2>
+
+    <p>
+      Here is the member-by-member walk from the analogy, drawn as what it actually is: a match between two lists. The
+      interface's fields are the checklist; the object's fields are the resume.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 640 300"
+        role="img"
+        aria-label="Interface Point lists two required fields, x and y. An object literal has x, y and an extra z. Arrows connect the interface's x and y to the object's matching fields, each marked with a checkmark. The object's z field has no line connecting it to anything on the checklist, and is drawn with a dashed outline to show it is flagged as extra."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="ifc-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <text x="150" y="34" text-anchor="middle" class="dia-mono dia-mono--sm">interface Point — the checklist</text>
+        <rect x="20" y="46" width="260" height="170" rx="14" class="dia-box" />
+        <text x="45" y="96" class="dia-mono">x: number</text>
+        <text x="45" y="140" class="dia-mono">y: number</text>
+        <text x="45" y="184" class="dia-mono dia-mono--sm">— nothing else is asked</text>
+
+        <text x="490" y="34" text-anchor="middle" class="dia-mono dia-mono--sm">the object literal</text>
+        <rect x="360" y="46" width="260" height="170" rx="14" class="dia-box dia-box--solid" />
+        <text x="385" y="96" class="dia-mono dia-mono--on-solid">x: 1</text>
+        <text x="385" y="140" class="dia-mono dia-mono--on-solid">y: 2</text>
+        <rect x="372" y="160" width="140" height="34" rx="8" class="dia-flag" />
+        <text x="385" y="184" class="dia-mono dia-mono--on-solid">z: 3</text>
+
+        <path d="M 280 90 L 356 90" class="dia-rule" fill="none" marker-end="url(#ifc-arrow)" />
+        <text x="318" y="82" text-anchor="middle" class="dia-check">✓</text>
+        <path d="M 280 134 L 356 134" class="dia-rule" fill="none" marker-end="url(#ifc-arrow)" />
+        <text x="318" y="126" text-anchor="middle" class="dia-check">✓</text>
+
+        <path d="M 400 210 L 400 240" class="dia-rule dia-rule--danger" fill="none" stroke-dasharray="4 4" />
+        <text x="400" y="264" text-anchor="middle" class="dia-hand">no line asks about z</text>
+      </svg>
+      <figcaption>
+        Two arrows land, because the checklist only lists <code>x</code> and <code>y</code> — matched by shape, not by
+        the interface's name. The third field, <code>z</code>, matches nothing on the checklist. Handed over through a
+        variable it stays invisible; handed over as a fresh literal, right there in the assignment, it gets flagged as a
+        likely typo instead — the exact rule the next section is about.
+      </figcaption>
+    </figure>
+
+    <p>Here's the identical idea as runnable code — watch line 10 in particular.</p>
+
+    <app-code-lab
+      file="show.ts"
+      [code]="structuralSample"
+      [notes]="structuralNotes"
+      notesLabel="Line by line — where the check actually happens"
+    />
+
+    <app-quiz
+      question="`Car` and `Boat` are two interfaces, declared completely separately — no shared ancestor, nothing linking them. Both happen to declare exactly `wheels: number` and `drive(): void`. You have a value typed `Car`. Can you assign it to a variable typed `Boat`?"
+      [options]="structuralQuiz"
+      followUp="Nothing about `Car` or `Boat` needs to change for this to work — try renaming either interface and the answer stays the same."
+    />
+  </section>
+
+  <!-- ============ 5. THE NARROWER RULE ============ -->
+  <section>
+    <p class="bf-eyebrow">The narrower rule</p>
+    <h2>One case gets checked harder: a fresh literal.</h2>
+
+    <p>
+      There is one place TypeScript does look for extra fields, and it earns its own paragraph because it trips up
+      almost everyone once. The moment an object literal is written directly where a typed location expects a shape,
+      TypeScript runs a second, stricter pass called the <span class="term">excess property check</span>. This is not
+      structural typing being violated — it is an extra safety net bolted on top of it, for one narrow, sensible reason:
+      a key that appears out of nowhere on a <em>freshly-written</em> literal is almost always a typo (<code
+        >retrys</code
+      >
+      instead of <code>retries</code>), and plain structural typing would wave it straight through, because it never
+      demanded an exact match in the first place. The check applies <strong>only</strong> to a literal written in that
+      exact spot — a variable, a function's return value, anything one step removed loses the extra scrutiny, because by
+      then TypeScript is comparing two already-known types instead of proofreading a fill-in-the-blank form.
+    </p>
+
+    <app-predict
+      prompt="Two assignments, same three fields, same values. One of these two is a compile error. Which one — and why would the compiler treat identical data differently depending on how it arrived?"
+      [code]="excessSample"
+      [answer]="excessAnswer"
+      revealLabel="Reveal which one fails, and why"
+    />
+
+    <app-remember variant="rule">
+      Only a <strong>freshly-written object literal</strong> gets the excess-property check. The instant that value has
+      a binding of its own — even one line earlier, even trivially — TypeScript stops looking for stowaways and falls
+      back to ordinary structural comparison.
+    </app-remember>
+
+    <div class="demo">
+      <p class="demo__title">Live — which candidates satisfy <code>User</code>?</p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (c of candidates; track c.label) {
+          <button type="button" [class.ghost]="candidate() !== c" (click)="candidate.set(c)">{{ c.label }}</button>
+        }
+      </div>
+      @if (candidate(); as c) {
+        <div class="code"><pre [innerHTML]="highlightedCandidate()"></pre></div>
+        <p class="ifc-verdict" [class.ifc-verdict--error]="c.verdict === 'error'">
+          <span class="ifc-verdict__badge">{{ c.verdict === 'ok' ? '✅ compiles' : '❌ compile error' }}</span>
+          — {{ c.explain }}
+        </p>
+      }
+      <p class="demo__note">
+        Try "extra property (variable)" and "extra property (literal)" back to back — same fields, same values, opposite
+        verdicts. That pair is this whole section, made clickable.
       </p>
-    }
-  </div>
-  <p>
-    Cases 4 and 5 are the pair that surprises people — same object, different verdicts. The rule from the Types lesson
-    applies: structural compatibility tolerates extra members, but a <em>fresh literal</em> assigned directly gets the
-    excess-property check, because there an unknown key can serve no purpose except being a mistake.
-  </p>
-
-  <h2>Extending &amp; composing</h2>
-  <div class="code">
-    <pre>
-interface Animal {{ '{' }} name: string; {{ '}' }}
-interface Pet extends Animal {{ '{' }} owner: string; {{ '}' }}         // extend one…
-interface Dog extends Animal, Loggable {{ '{' }} breed: string; {{ '}' }} // …or several at once
-
-type Admin = User & {{ '{' }} role: 'admin' {{ '}' }};    // type composes via INTERSECTION (&)
-type Staff = User & Loggable;               // intersect any two types</pre>
-  </div>
-  <p>
-    Both express "this, plus more", with one practical difference at the edges:
-    <code>extends</code> <em>checks compatibility at the declaration</em> — if Pet redeclared <code>name: number</code>,
-    the interface itself errors, right there. An intersection with a conflicting member doesn't complain at the type —
-    it quietly produces an impossible member (<code>string &amp; number</code> = <code>never</code>) and the error
-    surfaces later, at whatever tries to construct one. Extends fails early with a good message; intersections fail late
-    with a weird one.
-  </p>
-
-  <h2>When to use which — the honest table</h2>
-  <table class="t">
-    <tr>
-      <th></th>
-      <th>interface</th>
-      <th>type</th>
-    </tr>
-    <tr>
-      <td>Object &amp; class shapes</td>
-      <td>✅ preferred</td>
-      <td>✅ works</td>
-    </tr>
-    <tr>
-      <td>Unions, tuples, primitives, function types</td>
-      <td>❌ can't</td>
-      <td>✅ only option</td>
-    </tr>
-    <tr>
-      <td>Mapped / conditional types</td>
-      <td>❌</td>
-      <td>✅ only option</td>
-    </tr>
-    <tr>
-      <td>Declaration merging</td>
-      <td>✅ (see below)</td>
-      <td>❌ duplicate name = error</td>
-    </tr>
-    <tr>
-      <td>Error messages &amp; checker perf</td>
-      <td>✅ stays a named, cached type</td>
-      <td>〜 can expand into structural noise in errors</td>
-    </tr>
-  </table>
-  <div class="tip">
-    Rule of thumb: <strong>interface</strong> for object/class shapes (especially anything a consumer might extend);
-    <strong>type</strong> for unions, tuples, function types, and anything computed. When both would do, interface gives
-    marginally nicer tooling. What actually matters is consistency — pick the rule with your team and stop debating it.
-  </div>
-
-  <h2>Declaration merging — the interface superpower</h2>
-  <p>
-    Re-declaring an interface with the same name doesn't clash — the declarations <strong>merge</strong>. Sounds odd for
-    your own code (it mostly is), but it's the sanctioned mechanism for <em>augmenting types you don't own</em>:
-  </p>
-  <div class="code">
-    <pre>
-// analytics.d.ts — teach TS about a script your index.html injects:
-declare global {{ '{' }}
-  interface Window {{ '{' }} myAnalytics?: {{ '{' }} track(event: string): void {{ '}' }}; {{ '}' }}
-{{ '}' }}
-
-// anywhere in the app — now fully type-checked:
-window.myAnalytics?.track('view');</pre>
-  </div>
-  <p>
-    The same mechanism lets libraries accept plugin-added fields (Express's
-    <code>Request</code>, component prop maps, i18n key tables). When you see a library's docs say "augment this
-    interface", this is what they mean. And it's why a <code>type</code> can't do it: aliases are bindings, and
-    re-binding a name is an error; interfaces are declarations, and declarations accumulate.
-  </p>
-
-  <h2>Beyond plain objects — callable, index, generic, hybrid</h2>
-  <div class="code">
-    <pre>
-interface Handler {{ '{' }} (event: string): void; {{ '}' }}       // CALLABLE — a function's shape
-interface Dictionary {{ '{' }} [key: string]: number; {{ '}' }}   // INDEX — any string key → number
-interface Repo&lt;T&gt; {{ '{' }}                                   // GENERIC — a contract family
-  get(id: number): T | undefined;
-  save(item: T): void;
-{{ '}' }}
-interface Counter {{ '{' }}                                   // HYBRID — callable WITH members
-  (start: number): string;                          //   (how old-school jQuery's $ was typed)
-  reset(): void;
-  count: number;
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      The callable form types function <em>values</em> — though for simple cases the alias reads better:
-      <code>type Handler = (event: string) =&gt; void</code>.
-    </li>
-    <li>
-      Index signatures say "any key of this kind maps to this type". They pair with — and are increasingly replaced by —
-      <code>Record&lt;string, number&gt;</code> from the utility-types lesson.
-    </li>
-    <li>
-      Generic interfaces are <em>families</em> of contracts: <code>Repo&lt;User&gt;</code> and
-      <code>Repo&lt;Order&gt;</code> are distinct, fully-checked instantiations of one definition.
-    </li>
-  </ul>
-
-  <h2><code>implements</code> — classes signing the contract</h2>
-  <div class="code">
-    <pre>
-class FileRepo implements Repo&lt;File&gt; {{ '{' }}
-  get(id: number) {{ '{' }} /* … */ return undefined; {{ '}' }}
-  save(item: File) {{ '{' }} /* … */ {{ '}' }}
-{{ '}' }}
-// implements CHECKS the class against the shape — it adds no code, no runtime
-// linkage, and a class may implement many interfaces.</pre>
-  </div>
-  <p>
-    Two Angular-relevant notes. First, this is exactly how lifecycle hooks are typed —
-    <code>class MyComp implements OnInit</code> makes the compiler verify you really wrote <code>ngOnInit()</code>.
-    Second, because interfaces are erased, you <em>cannot</em> ask "is this a Repo?" at runtime —
-    <code>instanceof</code> only works with classes. If you need a runtime check, use a discriminant property or a type
-    guard (Narrowing lesson).
-  </p>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Why does Angular DI need <code>InjectionToken</code>s for interface-typed dependencies?</summary>
-    <div>
-      Interfaces are erased at compile time, so at runtime there is <em>nothing</em> for the injector to look up —
-      <code>inject(MyInterface)</code> has no value to reference. Classes survive to runtime (they're real
-      constructors), which is why services are classes and interface-shaped configs get a token. This one erasure fact
-      explains a whole corner of Angular's API design.
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>type A = {{ '{' }} x: string {{ '}' }} &amp; {{ '{' }} x: number {{ '}' }}</code> — error or not? What's
-      <code>A['x']</code>?
-    </summary>
-    <div>
-      No error at the declaration — intersections merge silently. But <code>A['x']</code> is
-      <code>string &amp; number</code>, which reduces to <code>never</code>: no value can ever satisfy it, so
-      constructing an A fails wherever it's attempted, with a confusing message far from the cause. The same conflict
-      via <code>extends</code> errors immediately at the interface — the early-vs-late failure difference in action.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>You need "a User where every field is optional except id". Interface or type?</summary>
-    <div>
-      Type — it needs computation: <code>type UserPatch = Partial&lt;User&gt; &amp; Pick&lt;User, 'id'&gt;</code>.
-      Mapped/conditional machinery only exists on the <code>type</code> side, which is the deep reason the "unions and
-      computed types → type" rule exists.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A teammate writes <code>interface Props {{ '{' }} onClick: (e: Event) =&gt; void {{ '}' }}</code> vs
-      <code>onClick(e: Event): void</code>. Any real difference?
-    </summary>
-    <div>
-      Yes, one: method syntax is checked bivariantly (looser on parameter types, a compatibility concession), while the
-      property/arrow form is strictly contravariant under <code>strictFunctionTypes</code>. For callbacks you want the
-      strict checking — prefer the property form. Obscure until it isn't: this looseness can let a wrong handler type
-      through.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Members: <code>?</code> = may be absent (and reads as <code>| undefined</code>); <code>readonly</code> = no
-      reassignment (shallow, compile-time); prefer arrow-property over method syntax for strictly-checked callbacks.
-    </li>
-    <li>
-      Structural checking tolerates extra members via variables but flags them on fresh literals (excess property
-      check).
-    </li>
-    <li>
-      <code>extends</code> fails early on conflicts; intersections (<code>&amp;</code>) fail late via
-      <code>never</code> members. Unions, tuples and mapped/conditional types are <code>type</code>-only; merging is
-      <code>interface</code>-only.
-    </li>
-    <li>Declaration merging is how you augment types you don't own (Window, library interfaces).</li>
-    <li>
-      Interfaces are erased: no <code>instanceof</code>, and it's why Angular DI uses classes and InjectionTokens.
-      <code>implements</code> is a compile-time contract check only.
-    </li>
-  </ul>
+  <!-- ============ 6. MEMBER SYNTAX ============ -->
+  <section>
+    <p class="bf-eyebrow">Every member form</p>
+    <h2>The five ways to write a property, and what each one costs.</h2>
 
-  <p><a routerLink="/ts-classes">Next: Classes &amp; Access Modifiers →</a></p>
+    <app-code-lab
+      file="user.ts"
+      [code]="memberSample"
+      [notes]="memberNotes"
+      notesLabel="Line by line — required, optional, readonly, method, property"
+    />
+
+    <ul>
+      <li>
+        <strong><code>?</code> means "may be absent."</strong> Callers can omit the key entirely; readers get
+        <code>string | undefined</code> and must narrow before using it as a plain <code>string</code>.
+      </li>
+      <li>
+        <strong><code>readonly</code> is compile-time only</strong> and shallow — it forbids reassigning the property
+        but not mutating <em>inside</em> the value it holds.
+      </li>
+      <li>
+        <strong>Method vs. function-property</strong> differ in one subtle way: method syntax gets looser (bivariant)
+        parameter checking. House rule in strict codebases: use the property/arrow form for callbacks.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 7. EXTENDING & COMPOSING ============ -->
+  <section>
+    <p class="bf-eyebrow">Building bigger shapes</p>
+    <h2>extends and & agree — until a member conflicts.</h2>
+
+    <app-code-lab
+      file="pets.ts"
+      [code]="extendsSample"
+      [notes]="extendsNotes"
+      notesLabel="Line by line — one shape, or several, glued together"
+    />
+
+    <p>
+      Both express "this, plus more," and they agree right up until a property conflicts — then they diverge sharply.
+      <code>extends</code> <strong>checks compatibility at the declaration</strong>: redeclare a member as an
+      incompatible type and the interface itself refuses to compile, right there, naming the exact property. An
+      intersection with the same conflict doesn't complain about the type at all — it quietly computes an impossible
+      member (<code>string &amp; number</code> collapses to <code>never</code>), and the failure only surfaces
+      <span class="bf-break">later</span>, at whatever line actually tries to build one, pointing at a spot far from the
+      real cause. <span class="key">extends fails early and clearly; intersection fails late and cryptically.</span>
+    </p>
+
+    <app-quiz
+      question="`interface Pet extends Animal { name: number }` conflicts with `Animal`'s `name: string`. `type PetT = Animal & { name: number }` has the exact same conflict. What is the difference in how each one fails?"
+      [options]="extendsQuiz"
+      followUp="This is the early-vs-late split from the paragraph above, turned into a question you have to commit to."
+    />
+  </section>
+
+  <!-- ============ 8. WHEN TO USE WHICH ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>When to use which — the honest table.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Interface vs type, capability by capability
+      </caption>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th><code>interface</code></th>
+          <th><code>type</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Object &amp; class shapes</td>
+          <td>✅ preferred</td>
+          <td>✅ works</td>
+        </tr>
+        <tr>
+          <td>Unions, tuples, primitives, function types</td>
+          <td>❌ cannot</td>
+          <td>✅ only option</td>
+        </tr>
+        <tr>
+          <td>Mapped / conditional types</td>
+          <td>❌ cannot</td>
+          <td>✅ only option</td>
+        </tr>
+        <tr>
+          <td>Declaration merging</td>
+          <td>✅ accumulates</td>
+          <td>❌ duplicate name is an error</td>
+        </tr>
+        <tr>
+          <td>Error messages &amp; checker performance</td>
+          <td>Stays a named, cached type</td>
+          <td>Can expand into structural noise in errors</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      Rule of thumb: <strong>interface</strong> for object/class shapes (especially anything a consumer might extend);
+      <strong>type</strong> for unions, tuples, function types, and anything computed. What actually matters most is
+      consistency — pick the rule with your team and stop debating it.
+    </div>
+  </section>
+
+  <!-- ============ 9. DECLARATION MERGING ============ -->
+  <section>
+    <p class="bf-eyebrow">The interface superpower</p>
+    <h2>Redeclare the name, and it doesn't clash — it merges.</h2>
+
+    <p>
+      Re-declaring an interface with the same name doesn't error — the declarations
+      <span class="term">merge</span>. Sounds odd for your own code (it mostly is), but it's the sanctioned mechanism
+      for <em>augmenting types you don't own</em>:
+    </p>
+
+    <app-code-lab
+      file="analytics.d.ts"
+      [code]="mergeSample"
+      [notes]="mergeNotes"
+      notesLabel="Line by line — teaching TS about a field it never shipped with"
+    />
+
+    <p>
+      The same mechanism lets libraries accept plugin-added fields (Express's <code>Request</code>, i18n key tables,
+      component prop maps). When a library's docs say "augment this interface," this is what they mean — and it's why
+      <code>type</code> can't do it: aliases are bindings, and re-binding a name is an error; interfaces are
+      declarations, and declarations accumulate.
+    </p>
+
+    <app-predict
+      prompt="A teammate accidentally re-declares an interface you already wrote, forty lines below the original — same name, one new field. Does the build break?"
+      [code]="mergeTrapSample"
+      [answer]="mergeTrapAnswer"
+      revealLabel="Reveal what the compiler does"
+    />
+  </section>
+
+  <!-- ============ 10. BEYOND PLAIN OBJECTS ============ -->
+  <section>
+    <p class="bf-eyebrow">More than a plain shape</p>
+    <h2>An interface can be callable, indexed, generic, or all three at once.</h2>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Callable" kicker="Handler" tone="accent">
+        A signature with no method name at all — the interface describes something you invoke directly, like a function.
+      </app-tape-card>
+      <app-tape-card heading="Index" kicker="Dictionary" tone="olive">
+        Any key of one kind maps to a value of another. The conceptual ancestor of <code>Record&lt;K, V&gt;</code>.
+      </app-tape-card>
+      <app-tape-card heading="Generic" kicker="Repo" tone="gold">
+        A family of contracts parameterised by <code>&lt;T&gt;</code>. Every instantiation is checked on its own.
+      </app-tape-card>
+      <app-tape-card heading="Hybrid" kicker="Counter" tone="blue">
+        Callable <strong>and</strong> has members — call it like a function, or read a property off it.
+      </app-tape-card>
+    </div>
+
+    <app-code-lab
+      file="shapes.ts"
+      [code]="beyondSample"
+      [notes]="beyondNotes"
+      notesLabel="Line by line — four forms, one keyword"
+    />
+  </section>
+
+  <!-- ============ 11. IMPLEMENTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Classes signing the contract</p>
+    <h2>implements checks the shape. It never runs anything.</h2>
+
+    <app-code-lab
+      file="file-repo.ts"
+      [code]="implementsSample"
+      [notes]="implementsNotes"
+      notesLabel="Line by line — a promise the compiler verifies once, then forgets"
+    />
+
+    <p>
+      Two Angular-relevant notes. First, this is exactly how lifecycle hooks are typed —
+      <code>class MyComp implements OnInit</code> makes the compiler verify you really wrote <code>ngOnInit()</code>.
+      Second, because interfaces are erased, you <em>cannot</em> ask "is this a <code>Repo</code>?" at runtime —
+      <code>instanceof</code> only works with classes. If you need a runtime check, reach for a discriminant property or
+      a type guard, covered in the Narrowing lesson.
+    </p>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Satisfying an interface is about <strong>shape</strong>, never about declaring <code>implements</code> or
+        sharing a name — TypeScript checks structurally, every time, with no declaration required.
+      </li>
+      <li>
+        More properties than required is fine through a variable; a <strong>fresh object literal</strong> gets the
+        stricter excess-property check, because an unrecognised key there is almost always a typo.
+      </li>
+      <li>
+        <code>extends</code> fails <strong>early</strong>, at the interface itself, on a conflicting member. The
+        intersection equivalent (<code>&amp;</code>) fails <strong>late</strong>, producing a <code>never</code>
+        member that only breaks wherever you try to build one.
+      </li>
+      <li>
+        Only <code>interface</code> gets <strong>declaration merging</strong> — re-declaring the same name adds to it
+        rather than erroring, the sanctioned way to augment types you don't own. Do the same with <code>type</code> and
+        you get <code>TS2300: Duplicate identifier</code>.
+      </li>
+      <li>
+        An interface can be more than an object shape — callable, indexed, generic, or a hybrid of several — but it can
+        never carry a method <strong>body</strong>. The moment you need shared executable code, reach for a class.
+      </li>
+      <li>
+        Interfaces are erased before the JavaScript ships, which is the one fact behind three separate surprises: no
+        <code>instanceof</code> on them, Angular DI needs classes or <code>InjectionToken</code>s for them, and a
+        runtime check needs a discriminant or a type guard instead.
+      </li>
+    </ul>
+
+    <p><a routerLink="/ts-classes">Next: Classes &amp; Access Modifiers →</a></p>
+  </section>
 </article>
