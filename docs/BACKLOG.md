@@ -258,16 +258,46 @@ components earlier in the same suite run. This is the same constant that was alr
 once before, from a 5s default, for `/interview`. Content density is legitimate here (bar 1
 depth), so the fix was the timeout, not trimming the lesson.
 
-**Lessons — remaining: 38.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Batch 9 — 8 more lessons landed 2026-09-06, rollout now 70 of 100.** `expert/ssr`,
+`foundations/programming-basics`, `foundations/how-the-web-works`, `foundations/git-basics`,
+`expert/ngmodules-migration`, `beginner/what-is-angular`, `beginner/cli-project-structure`,
+`expert/a11y`. Verified the same way as batch 8: `prettier --check`, `tsc --noEmit`,
+`audit-retention.mjs` to 9/9 per lesson, one full `npm run test:ci` and one production
+`ng build` at the end. `expert/a11y` needed a second visual beyond its existing 2×2
+"painted on screen" × "in the accessibility tree" table — the audit's **Visual** check
+(diagram/SVG/`app-layers`/`app-flow`) and **Table** check are scored independently, so a
+lesson can satisfy Table without Visual. Added an inline SVG showing what the table
+can't: `aria-hidden` is inherited, so a perfectly accessible button nested inside a hidden
+ancestor is pruned along with it. If a lesson's presentation pass leaves it short only on
+Visual with a comparison table already in place, this is the pattern — a second, genuinely
+different visual, not a rename of the table's class to game the regex.
+
+One real regression, caught only by the full-suite run: `ngmodules-migration.html` uses
+`<app-napkin>` but batch 9's commit for that lesson never added `Napkin` to its `.ts`
+imports (NG8001), while `cli-project-structure.ts` imported `Napkin` but never used it
+(NG8113) — a copy-paste mixup between the two lessons' commits. Fixed in a standalone
+commit before the a11y commit. Per-lesson `tsc --noEmit` didn't catch it because template
+diagnostics like NG8001 only surface during the full Angular compiler build `ng test`/
+`ng build` runs, not from `tsc` alone — worth remembering for the next batch's
+verification pass.
+
+**Lessons — remaining: 30.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
-means rewriting it against the nine-point bar anyway. Six lessons already have a solid
-retention pass from an earlier (pre-brain-friendly) session and just need the presentation
-layer built on top rather than from scratch: `route-params`, `rxjs-operators`, `modules`,
-`json-and-apis`, `attribute-directives`, `keyof-typeof`. Roughly an hour each; the copy is
-the work, not the wiring. Read `src/app/lessons/expert/change-detection/change-detection.ts`
-first: its class JSDoc records the teaching order the layer is designed around (pose the
-problem → analogy → mechanism → same idea in four modes), and copying that shape is most of
-the job.
+means rewriting it against the nine-point bar anyway. Genuinely need content work, not
+just wiring: `expert/state-management` (5/9), `intermediate/resolvers` (5/9),
+`foundations/async-basics` (6/9), `intermediate/view-encapsulation` (7/9),
+`beginner/outputs`, `beginner/components` (8/9 each, missing Table), `beginner/inputs`
+(8/9, missing Visual). The other 23 already score 9/9 from an earlier (pre-brain-friendly)
+retention pass and just need the presentation layer built on top: `route-params`,
+`rxjs-operators`, `modules`, `json-and-apis`, `attribute-directives`, `keyof-typeof`,
+`structural-directives`, `ng-template-outlet`, `builtin-directives`, `content-projection`,
+`testing-services-http`, `data-dashboard`, `task-manager`, `auth-flow`,
+`signals-advanced`, `rxjs-interop`, `routing-basics`, `class-style-binding`, `lifecycle`,
+`form-validation`, `workspace-config`, `control-flow-for`, `http-basics`. Roughly an hour
+each for those; the copy is the work, not the wiring. Read
+`src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
+records the teaching order the layer is designed around (pose the problem → analogy →
+mechanism → same idea in four modes), and copying that shape is most of the job.
 
 **Non-lesson pages — new as of 2026-09-03, 5 of 15 done.** The theme flip above fixed
 colour/type consistency for free; it does not fix a page's own hard-coded colours or give
