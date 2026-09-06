@@ -1,364 +1,525 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Directives</span>
-  <h1>Built-in Directives &amp; Legacy Control Flow</h1>
-  <p class="lead">
-    Modern Angular gives you the <code>&#64;if</code> / <code>&#64;for</code> / <code>&#64;switch</code> blocks you've
-    already met. But every existing codebase — and the certification exam's question bank — is full of the
-    <strong>structural directives</strong> they replaced: <code>*ngIf</code>, <code>*ngFor</code>,
-    <code>*ngSwitch</code>, plus the attribute directives <code>ngClass</code> and <code>ngStyle</code>. You must be
-    fluent in both. This lesson is the legacy half — and the demo below is running the <em>real</em> directives.
-  </p>
-
-  <div class="note">
-    These directives live in <code>&#64;angular/common</code>. A standalone component imports the ones it uses
-    (<code>NgIf</code>, <code>NgFor</code>, …) — or the whole <code>CommonModule</code> in an NgModule app. Forget the
-    import and current Angular stops you at compile time with <code>NG8103</code>; older versions treated the
-    <code>*ngIf</code> as an unknown attribute and rendered the element unconditionally, with no error at all. Either
-    way, <code>&#64;if</code> has nothing to forget — that's one of its quieter advantages.
-  </div>
-
-  <h2>The mental model: a stencil, not a node</h2>
-  <p>
-    An <code>&lt;ng-template&gt;</code> is a stencil. It is a cut-out shape, and a cut-out is not ink on the page — you
-    can hold a stencil all day and nothing appears. Something has to decide to press it down, and how many times.
-  </p>
-  <p>
-    That is the whole job of a structural directive. <code>*ngIf</code> holds one stencil and presses it once, or not at
-    all. <code>*ngFor</code> holds one stencil and presses it once per item. And the <code>*</code> is simply the
-    compiler being told <em>"turn this element into a stencil for me."</em>
-  </p>
-
-  <app-remember>
-    <strong>The star turns the tag into a stencil.</strong> One star per element — you only get one stencil, which is
-    why <code>*ngIf</code> and <code>*ngFor</code> cannot share a tag, and why <code>&lt;ng-container&gt;</code> exists
-    to give the second one somewhere to live.
-  </app-remember>
-
-  <h2>The asterisk is sugar</h2>
-
-  <app-quiz
-    question='Before the reveal: `<p *ngIf="loggedIn">Welcome</p>` is shorthand. What does the compiler actually turn it into?'
-    [options]="desugarOptions"
-    followUp="Once you can do this expansion in your head, the rest of the legacy syntax stops needing memorisation — every rule about structural directives is a consequence of the rewrite."
-  />
-
-  <div class="code">
-    <pre>
-&lt;!-- The star is sugar. One element, one attribute, nothing else visible. --&gt;
-&lt;p *ngIf="loggedIn"&gt;Welcome&lt;/p&gt;
-
-&lt;!-- is exactly --&gt;
-
-&lt;!-- The compiler LIFTS the host element into an &lt;ng-template&gt; wrapper.
-     That template is a blueprint: it is parsed, but nothing is rendered yet. --&gt;
-&lt;ng-template [ngIf]="loggedIn"&gt;
-  &lt;!-- The original element becomes the CONTENT of the blueprint. The &lt;p&gt; only
-       reaches the DOM when NgIf decides to stamp this template out. --&gt;
-  &lt;p&gt;Welcome&lt;/p&gt;
-&lt;!-- The star is gone; what is left is an ordinary property binding, [ngIf],
-     feeding the directive that now sits on the template. --&gt;
-&lt;/ng-template&gt;</pre>
-  </div>
-
-  <p>Step by step, this is what the compiler and the directive do between them:</p>
-
-  <app-flow
-    [steps]="desugar"
-    caption="Nothing here is hidden with CSS. `*ngIf` creates and destroys real DOM nodes — which is the difference that matters when the element is a component."
-  />
-
-  <p>
-    That's why you can't put two structural directives (<code>*ngIf</code> and <code>*ngFor</code>) on the same element
-    — there's only one template slot. Wrap one in <code>&lt;ng-container&gt;</code>.
-  </p>
-
-  <h2>*ngIf — with else, then &amp; as</h2>
-  <div class="code">
-    <pre>
-&lt;!-- `user as u` does two jobs at once: it tests `user` for truthiness AND
-     binds the result to a local `u` for the body. That is why you write
-     `u.name` and not `user!.name` — inside here, `u` cannot be null. --&gt;
-&lt;p *ngIf="user as u; else loading"&gt;Hi {{ '{{' }} u.name {{ '}}' }}&lt;/p&gt;
-
-&lt;!-- `#loading` is a template reference variable. It NAMES this blueprint so the
-     `else` above can point at it. Nothing renders here until NgIf asks for it. --&gt;
-&lt;ng-template #loading&gt;Loading…&lt;/ng-template&gt;
-
-&lt;!-- then/else both as templates --&gt;
-
-&lt;!-- With an explicit `then`, the host element's own content is ignored entirely
-     — hence the empty &lt;div&gt;. Both branches now live in named templates, so
-     this line is pure routing: true → `content`, false → `spinner`. --&gt;
-&lt;div *ngIf="ready; then content; else spinner"&gt;&lt;/div&gt;</pre>
-  </div>
-
-  <h2>*ngFor — track, index and the booleans</h2>
-  <div class="code">
-    <pre>
-&lt;!-- Read the quoted part as five clauses separated by `;`. It is Angular's
-     "microsyntax", not HTML — which is why no comment can go inside it:
-
-     let item of items   →  `item` is the current element; one &lt;li&gt; per entry
-     let i = index       →  0-based position. `index` is the built-in name,
-                            `i` is the local you invent to hold it
-     let first = first   →  true only on the very first iteration
-     let last  = last    →  true only on the very last  (`even`/`odd` alternate)
-     trackBy: trackById  →  names the function below; see the warning after --&gt;
-&lt;li *ngFor="let item of items;
-            let i = index;
-            let first = first; let last = last;
-            let even = even; let odd = odd;
-            trackBy: trackById"&gt;
-  &lt;!-- Every `let` name above is in scope here, and ONLY here — they belong to
-       this iteration, not to the component. --&gt;
-  {{ '{{' }} i {{ '}}' }}: {{ '{{' }} item.name {{ '}}' }}
-&lt;/li&gt;
-
-&lt;!-- Lives in the component class, not the template. Angular calls it for every
-     item and uses the RETURNED VALUE as that row's identity. Returning
-     `item.id` means "a row is the same row if its id is the same" — so Angular
-     reuses the existing DOM node instead of destroying and rebuilding it. --&gt;
-trackById(index: number, item: Item) {{ '{' }} return item.id; {{ '}' }}</pre>
-  </div>
-  <div class="warn">
-    Always provide <code>trackBy</code> for lists that change. Without it Angular tracks by object identity and
-    re-creates every DOM node when the array reference changes — slow, and it destroys input focus/animation state. (The
-    new <code>&#64;for</code> makes <code>track</code> mandatory for exactly this reason.)
-  </div>
-
-  <h2>[ngSwitch]</h2>
-  <div class="code">
-    <pre>
-&lt;!-- [ngSwitch] is a PLAIN property binding — no star. It holds the value to
-     match against and does no rendering of its own; the container stays. --&gt;
-&lt;div [ngSwitch]="status"&gt;
-  &lt;!-- These DO have stars: each case is its own template, stamped out only
-       when its value matches. Note the quotes inside quotes — 'loading' is a
-       string literal in the expression, not an attribute value. --&gt;
-  &lt;p *ngSwitchCase="'loading'"&gt;Loading…&lt;/p&gt;
-  &lt;p *ngSwitchCase="'success'"&gt;Done&lt;/p&gt;
-  &lt;!-- The fallback. No expression to match, so it needs no value at all.
-       Matching is strict (===), which is the usual reason a case "silently"
-       never fires: a number 1 will not match the string '1'. --&gt;
-  &lt;p *ngSwitchDefault&gt;Unknown&lt;/p&gt;
-&lt;/div&gt;</pre>
-  </div>
-
-  <h2>ngClass &amp; ngStyle</h2>
-  <div class="code">
-    <pre>
-&lt;!-- object: keys are classes, truthy values apply them --&gt;
-&lt;div [ngClass]="{{ '{' }} active: isActive, disabled: !enabled {{ '}' }}"&gt;
-&lt;!-- string or array forms too --&gt;
-&lt;div [ngClass]="'a b c'"&gt;   &lt;div [ngClass]="['a', 'b']"&gt;
-
-&lt;div [ngStyle]="{{ '{' }} color: c, 'font-size.px': size {{ '}' }}"&gt;</pre>
-  </div>
-  <p>
-    For a <em>single</em> class or style, the native bindings <code>[class.active]="isActive"</code> and
-    <code>[style.color]="c"</code> are lighter — reach for <code>ngClass</code>/<code>ngStyle</code>
-    when you're toggling several at once from an object.
-  </p>
-
-  <h2>Try it — the real directives, live</h2>
-  <div class="demo">
-    <p class="demo__title">Every directive below is the genuine &#64;angular/common one</p>
-
-    <p class="row" style="margin-bottom: 6px">
-      <button (click)="show.set(!show())">Toggle *ngIf</button>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · Directives"
+    title="Built-in Directives &amp; Legacy Control Flow"
+    hand="or, how to read the Angular you'll actually find in the wild"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      Modern Angular gives you the <code>&#64;if</code> / <code>&#64;for</code> / <code>&#64;switch</code> blocks you've
+      already met — and those are what you should write today. But open
+      <strong>any codebase older than Angular 17</strong>, most tutorials, half of Stack Overflow, and a good chunk of
+      the certification's question bank, and you'll meet a different syntax entirely: the
+      <span class="term">structural directives</span> <code>*ngIf</code>, <code>*ngFor</code>, <code>*ngSwitch</code>,
+      plus the attribute directives <code>ngClass</code> and <code>ngStyle</code>. You need to <em>read</em> both
+      fluently, even though you'll only ever <em>write</em> one of them — that asymmetry is the whole point of this
+      page, and the demos below run the <span class="key">real</span> directives so the mapping is never just asserted.
     </p>
-    <p *ngIf="show(); else hidden" class="pill" style="color: var(--green)">Shown by <code>*ngIf</code></p>
-    <ng-template #hidden>
-      <span class="pill">Hidden — the <code>#else</code> template renders instead</span>
-    </ng-template>
+  </app-chapter>
 
-    <p class="demo__title" style="margin-top: 16px">*ngFor + ngClass + ngStyle (click a row)</p>
-    <ul class="list">
-      <li
-        *ngFor="let f of fruits(); let i = index; trackBy: trackByName"
-        [ngClass]="{ active: f === selected() }"
-        [ngStyle]="{ 'font-weight': f === selected() ? '700' : '400' }"
-        (click)="selected.set(f)"
-      >
-        {{ i + 1 }}. {{ f }} <span *ngIf="f === selected()">←</span>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>One star, and a rule nobody explains.</h2>
+
+    <p>
+      Here's a rule you'll hit in your first hour of reading legacy Angular:
+      <strong>you can never put two structural directives on the same element.</strong> Not a style-guide preference — a
+      compile error. Memorise the rule on its own and it's a trap waiting for a tired afternoon. Know <em>why</em>, and
+      the mistake stops being conceivable, because you'll be able to see exactly what each star is trying to do to your
+      markup.
+    </p>
+
+    <div class="note">
+      These directives live in <code>&#64;angular/common</code>. A standalone component imports the ones it uses
+      (<code>NgIf</code>, <code>NgFor</code>, …) — or the whole <code>CommonModule</code> in an NgModule app. Forget the
+      import and current Angular stops you at compile time with <code>NG8103</code>; older versions treated the
+      <code>*ngIf</code> as an unknown attribute and rendered the element unconditionally, with no error at all. Either
+      way, <code>&#64;if</code> has nothing to forget — that's one of its quieter advantages.
+    </div>
+
+    <app-napkin lead="quick guess —" label="Predict before scrolling">
+      You're allowed to put <code>*ngIf</code> on any element you like. You're allowed to put <code>*ngFor</code> on any
+      element you like. Before you scroll: why can't you put <em>both</em> on the <strong>same</strong> element — what
+      would actually have to happen for <code>&lt;li *ngIf="show" *ngFor="let x of xs"&gt;</code> to make sense, and why
+      can the compiler not just pick an order for you?
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An <code>&lt;ng-template&gt;</code> is a stencil, not a page.</h2>
+
+    <p>
+      A stencil is a cut-out shape. It is not ink on the page — you can hold a stencil all day and nothing appears.
+      Something has to decide to <span class="key">press it down</span>, and how many times.
+    </p>
+
+    <p>
+      That is the whole job of a structural directive. <code>*ngIf</code> holds one stencil and presses it once, or not
+      at all. <code>*ngFor</code> holds one stencil and presses it once per item. And the <code>*</code> is simply the
+      compiler being told <em>"turn this element into a stencil for me."</em> Once you picture it that way, the rule
+      from the last section answers itself: an element can only be lifted into one stencil, because it is only one
+      element. Two structural directives both wanting to wrap it is two stencils fighting over one piece of paper.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>The star turns the tag into a stencil.</strong> One star per element — you only get one stencil, which is
+      why <code>*ngIf</code> and <code>*ngFor</code> cannot share a tag, and why
+      <code>&lt;ng-container&gt;</code> exists to give the second one somewhere to live.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="desugarTalk"
+      caption="The exchange behind one `*ngIf`. Notice the star never survives compilation — by the time your code runs, it's an ordinary `[ngIf]` binding."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — THE DESUGARING, THREE WAYS ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>The asterisk is sugar — here's the whole trick.</h2>
+
+    <app-quiz
+      question='Before the reveal: `<p *ngIf="loggedIn">Welcome</p>` is shorthand. What does the compiler actually turn it into?'
+      [options]="desugarOptions"
+      followUp="Once you can do this expansion in your head, the rest of the legacy syntax stops needing memorisation — every rule about structural directives is a consequence of the rewrite."
+    />
+
+    <app-code-lab
+      file="what the compiler emits — one `*ngIf`"
+      [code]="desugarSample"
+      [notes]="desugarNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>Step by step, this is the same rewrite as a runtime sequence:</p>
+
+    <app-flow
+      [steps]="desugar"
+      caption="Nothing here is hidden with CSS. `*ngIf` creates and destroys real DOM nodes — which is the difference that matters when the element is a component."
+    />
+
+    <p>
+      That's the answer to the napkin above: <code>*ngIf</code> and <code>*ngFor</code> can't share a tag because
+      there's only one template slot to lift it into, and the compiler won't guess which directive should wrap the other
+      — the two orders describe genuinely different markup. Wrap one in <code>&lt;ng-container&gt;</code> and you've
+      made a second slot appear for free, with no extra DOM node — more on that shape further down.
+    </p>
+  </section>
+
+  <!-- ============ 4. *NGIF — ELSE, THEN, AS ============ -->
+  <section>
+    <p class="bf-eyebrow">*ngIf in the wild</p>
+    <h2>*ngIf — with else, then &amp; as.</h2>
+
+    <p>
+      The single-argument form above is the rare case. In real code, <code>*ngIf</code> is almost always paired with an
+      <code>else</code>, and sometimes a <code>then</code> too — both of which are just more named templates for
+      <code>NgIf</code> to choose between.
+    </p>
+
+    <app-code-lab
+      file="ngif-variants.html"
+      [code]="ngIfVariantsSample"
+      [notes]="ngIfVariantsNotes"
+      notesLabel="else, then and as, one clause at a time"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the real <code>*ngIf</code>, toggled</p>
+      <p class="row" style="margin-bottom: 6px">
+        <button (click)="show.set(!show())">Toggle *ngIf</button>
+      </p>
+      <p *ngIf="show(); else hidden" class="pill" style="color: var(--green)">Shown by <code>*ngIf</code></p>
+      <ng-template #hidden>
+        <span class="pill">Hidden — the <code>#else</code> template renders instead</span>
+      </ng-template>
+      <p class="demo__note">
+        Click the button and watch which element exists at all — this isn't a CSS toggle. When "Hidden" shows, the pill
+        above it has been destroyed, not painted over.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. *NGFOR — TRACK, INDEX, THE BOOLEANS ============ -->
+  <section>
+    <p class="bf-eyebrow">*ngFor in the wild</p>
+    <h2>*ngFor — track, index and the booleans.</h2>
+
+    <p>
+      <code>*ngFor</code> holds its stencil once per item, and it hands you a small bundle of local variables you never
+      have to compute yourself — index, first, last, even, odd — plus the one input that decides whether re-rendering
+      that list is cheap or expensive.
+    </p>
+
+    <app-code-lab
+      file="ngfor-microsyntax.html"
+      [code]="ngForSample"
+      [notes]="ngForNotes"
+      notesLabel="Five clauses and a tracking function"
+    />
+
+    <div class="warn">
+      Always provide <code>trackBy</code> for lists that change. Without it Angular tracks by object identity and
+      re-creates every DOM node when the array reference changes — slow, and it destroys input focus/animation state.
+      (The new <code>&#64;for</code> makes <code>track</code> mandatory for exactly this reason.)
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — *ngFor + ngClass + ngStyle (click a row)</p>
+      <ul class="list">
+        <li
+          *ngFor="let f of fruits(); let i = index; trackBy: trackByName"
+          [ngClass]="{ active: f === selected() }"
+          [ngStyle]="{ 'font-weight': f === selected() ? '700' : '400' }"
+          (click)="selected.set(f)"
+        >
+          {{ i + 1 }}. {{ f }} <span *ngIf="f === selected()">←</span>
+        </li>
+      </ul>
+      <p class="demo__note">
+        Every row is real <code>*ngFor</code>, and the highlight is real <code>[ngClass]</code>/<code>[ngStyle]</code>
+        reacting to <code>selected()</code> — you'll meet both properly in the next section.
+      </p>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — first / last / even / odd</p>
+      <ul class="list">
+        <li
+          *ngFor="let f of fruits(); let i = index; let isFirst = first; let isLast = last; let isEven = even"
+          [ngClass]="{ active: isFirst || isLast }"
+          [ngStyle]="{ background: isEven ? 'var(--bg-elevated)' : 'transparent' }"
+        >
+          {{ i + 1 }}. {{ f }}
+          <span *ngIf="isFirst" class="pill">first</span>
+          <span *ngIf="isLast" class="pill">last</span>
+          <span class="pill">{{ isEven ? 'even' : 'odd' }}</span>
+        </li>
+      </ul>
+      <p class="demo__note">
+        <code>index</code>, <code>first</code>, <code>last</code>, <code>even</code> and <code>odd</code> are all local
+        template variables <code>*ngFor</code> exposes per iteration — no extra computation needed in the component.
+      </p>
+    </div>
+
+    <app-remember variant="rule">
+      Local template variables belong to the <strong>loop</strong>, not the component. You will never find
+      <code>first</code>, <code>last</code>, <code>even</code> or <code>odd</code> on <code>this</code> — they exist
+      only inside the tag that declared them.
+    </app-remember>
+  </section>
+
+  <!-- ============ 6. [NGSWITCH] ============ -->
+  <section>
+    <p class="bf-eyebrow">Multi-branch rendering</p>
+    <h2>[ngSwitch].</h2>
+
+    <p>
+      Where <code>*ngIf</code> is a yes/no fork, <code>[ngSwitch]</code> is Angular's multi-way fork — one container
+      holding several possible templates, exactly one of which gets stamped out.
+    </p>
+
+    <app-code-lab
+      file="ngswitch.html"
+      [code]="ngSwitchSample"
+      [notes]="ngSwitchNotes"
+      notesLabel="A binding and three templates"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — [ngSwitch]</p>
+      <div class="row" style="margin-bottom: 8px">
+        <button class="ghost" (click)="status.set('loading')">loading</button>
+        <button class="ghost" (click)="status.set('success')">success</button>
+        <button class="ghost" (click)="status.set('error')">error</button>
+      </div>
+      <div [ngSwitch]="status()">
+        <p *ngSwitchCase="'loading'">⏳ Loading…</p>
+        <p *ngSwitchCase="'success'">✅ Done!</p>
+        <p *ngSwitchDefault>⚠️ Something went wrong.</p>
+      </div>
+      <p class="demo__note">
+        Three buttons, three real cases. Nothing here is an <code>&#64;if</code>/<code>&#64;else</code> chain in
+        disguise — <code>error</code> falls through to the <em>same</em> <code>*ngSwitchDefault</code> as any value the
+        cases don't cover.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 7. NGCLASS & NGSTYLE ============ -->
+  <section>
+    <p class="bf-eyebrow">Attribute directives</p>
+    <h2>ngClass &amp; ngStyle.</h2>
+
+    <p>
+      Unlike the directives above, <code>ngClass</code> and <code>ngStyle</code> carry no star — they don't add or
+      remove elements, they only change what an existing one looks like. Three shapes for classes, one for styles:
+    </p>
+
+    <app-code-lab
+      file="ngclass-ngstyle.html"
+      [code]="ngClassStyleSample"
+      [notes]="ngClassStyleNotes"
+      notesLabel="Object, string and array forms"
+    />
+
+    <app-compare
+      leftTitle="One class or style — go native"
+      leftTone="good"
+      rightTitle="Several at once — reach for `ngClass`/`ngStyle`"
+      note="Neither replaces your static `class`/`style` attribute — every one of these **merges** with it. See the rule below."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ compareNativeSample }}</pre>
+        </div>
+        <p>Lighter to read, and the compiler can specialise the update for exactly one property.</p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ compareNgClassSample }}</pre>
+        </div>
+        <p>One binding toggling several classes or styles together, computed as an object.</p>
+      </div>
+    </app-compare>
+
+    <app-remember variant="rule">
+      <code>ngClass</code>/<code>ngStyle</code> <strong>diff and patch</strong>, they never replace. Each cycle they
+      compute what changed since last time and call <code>addClass</code>/<code>removeClass</code> (or
+      <code>setStyle</code>/<code>removeStyle</code>) only for the deltas — a class from your static attribute isn't
+      theirs to remove.
+    </app-remember>
+  </section>
+
+  <!-- ============ 8. NG-CONTAINER & NG-TEMPLATE ============ -->
+  <section>
+    <p class="bf-eyebrow">The wrapper problem</p>
+    <h2>ng-container &amp; ng-template.</h2>
+
+    <p>
+      <code>&lt;ng-container&gt;</code> is a grouping element that leaves <em>no</em> node in the DOM — the answer to "I
+      need a structural directive here, but adding a real element will wreck my layout":
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — an extra `&lt;div&gt;`"
+      leftTone="bad"
+      rightTitle="Right — `&lt;ng-container&gt;`"
+      rightTone="good"
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ wrapperDivSample }}</pre>
+        </div>
+        <p>
+          In a flex or grid container, that uninvited <code>&lt;div&gt;</code> is a new flex/grid item — a phantom cell
+          you never asked for.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ ngContainerSample }}</pre>
+        </div>
+        <p>Same content, zero extra nodes. Nothing to style, nothing to break your layout.</p>
+      </div>
+    </app-compare>
+
+    <p>
+      <code>&lt;ng-template&gt;</code> is the more general shape underneath — a named, reusable fragment rendered on
+      demand, which is exactly what <code>*ngIf="…; else x"</code> compiles down to using:
+    </p>
+    <div class="code">
+      <pre>{{ ngTemplateOutletSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ 9. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Five mechanisms, not five coincidences.</h2>
+
+    <p>
+      Every rule this page has thrown at you traces back to one of five actual behaviours. Pin these down and there's
+      nothing left to memorise by rote:
+    </p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Desugars to &lt;ng-template&gt;" kicker="mechanism" tone="accent">
+        The <code>*</code> shorthand is sugar the compiler expands into an <code>&lt;ng-template&gt;</code> wrapping the
+        host element. The directive itself calls <code>viewContainerRef.createEmbeddedView(templateRef)</code> to insert
+        or remove that view.
+      </app-tape-card>
+      <app-tape-card heading="@if/@for/@switch aren't directives" kicker="control flow" tone="olive">
+        They're built-in blocks the compiler emits straight into the template function — no directive class, no injector
+        lookup, no <code>CommonModule</code>. Nothing to import means nothing to forget.
+      </app-tape-card>
+      <app-tape-card heading="NgFor reconciles by identity" kicker="*ngFor" tone="gold">
+        Each check it diffs the new iterable against the previous one — by <code>trackBy</code> if supplied, else by
+        reference — and only creates, moves or destroys the views that actually changed.
+      </app-tape-card>
+      <app-tape-card heading="ngClass/ngStyle diff-and-patch" kicker="not replace" tone="blue">
+        Each cycle computes which class/style entries changed since last time and patches only the deltas. The static
+        attribute is never overwritten wholesale.
+      </app-tape-card>
+      <app-tape-card heading="&lt;ng-container&gt; is a comment" kicker="no DOM node" tone="accent">
+        It never creates an element at all — the compiler emits an anchor comment, so a structural directive has
+        somewhere to attach without adding a wrapper to the rendered HTML.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 10. THE TRAP: [HIDDEN] LOOKS LIKE *NGIF ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The famous trap</p>
+    <h2>[hidden] looks like *ngIf. It is not *ngIf.</h2>
+
+    <p>
+      Both make an element disappear from the page. Only one of them makes it stop <em>existing</em>. Mixing them up is
+      one of the most common mistakes in the certification's question bank, precisely because the visual result —
+      nothing on screen — is identical either way.
+    </p>
+
+    <app-predict
+      prompt="The stencil model has a consequence people miss until it costs them. Think about what is still running here."
+      [code]="hiddenSample"
+      answer="Polling the server once a second and holding a socket open, for the whole hour. `[hidden]` is a CSS toggle — it sets `display: none` on an element that is still fully alive. The component was never destroyed, so `ngOnDestroy` never ran, the interval was never cleared and the socket was never closed. Swap it for `@if (showPlayer)` (or `*ngIf`) and the component is genuinely destroyed: subscriptions torn down, timers cleared, memory released. The trade-off is real in the other direction too — the player loses its position and has to rebuild when it comes back, which is exactly when `[hidden]` is the right choice. The rule is to ask whether you want the thing *gone* or merely *invisible*, and then say which one you meant."
+    />
+  </section>
+
+  <!-- ============ 11. OLD → NEW AT A GLANCE ============ -->
+  <section>
+    <p class="bf-eyebrow">Reference</p>
+    <h2>Old → new at a glance.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        every legacy form and its modern replacement
+      </caption>
+      <thead>
+        <tr>
+          <th>Legacy directive</th>
+          <th>Modern block</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>*ngIf="x"</code></td>
+          <td>
+            <code>&#64;if (x) {{ '{' }} … {{ '}' }}</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>*ngIf="x; else e"</code></td>
+          <td>
+            <code>&#64;if (x) {{ '{' }} … {{ '}' }} &#64;else {{ '{' }} … {{ '}' }}</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>*ngFor="let i of xs; trackBy: fn"</code></td>
+          <td>
+            <code>&#64;for (i of xs; track i.id) {{ '{' }} … {{ '}' }}</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>[ngSwitch]</code> + <code>*ngSwitchCase</code></td>
+          <td><code>&#64;switch</code> + <code>&#64;case</code></td>
+        </tr>
+        <tr>
+          <td><code>&lt;ng-container *ngIf&gt;</code></td>
+          <td>(no wrapper needed — blocks aren't elements)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 12. COMMON MISTAKES ============ -->
+  <section>
+    <p class="bf-eyebrow">Reference</p>
+    <h2>Common mistakes.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        the five that catch people most
+      </caption>
+      <thead>
+        <tr>
+          <th>Mistake</th>
+          <th>What's actually going on</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Two structural directives on one element</td>
+          <td>
+            <code>*ngIf</code> and <code>*ngFor</code> together is a compile error. Move one onto an
+            <code>&lt;ng-container&gt;</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>*ngIf</code> renders nothing and no error</td>
+          <td>You forgot to import <code>NgIf</code>/<code>CommonModule</code> in the standalone component.</td>
+        </tr>
+        <tr>
+          <td>List re-renders / loses focus on every change</td>
+          <td>Missing <code>trackBy</code>. Return a stable id.</td>
+        </tr>
+        <tr>
+          <td><code>[hidden]</code> used like <code>*ngIf</code></td>
+          <td>
+            <code>[hidden]</code> only toggles CSS <code>display</code> — the element (and its component, subscriptions,
+            etc.) stays alive. <code>*ngIf</code> removes it entirely.
+          </td>
+        </tr>
+        <tr>
+          <td>Combining <code>[ngClass]</code> and <code>class</code> and expecting one to win</td>
+          <td>
+            They merge. Static <code>class</code> plus <code>[ngClass]</code> object both apply; don't fight them.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 13. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 14. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>*</code> means <strong>structural directive</strong> — it desugars to <code>&lt;ng-template&gt;</code>
+        and adds/removes real DOM, never just hides it. One star per element, because there's only one template to wrap.
+      </li>
+      <li>
+        <code>*ngIf</code> (else/then/as) and <code>*ngFor</code> (trackBy/index/first/last/even/odd) both hand you
+        local template variables that live only inside the tag that declared them.
+      </li>
+      <li>
+        <code>[ngSwitch]</code> is a plain binding on a container that never disappears;
+        <code>*ngSwitchCase</code>/<code>*ngSwitchDefault</code> are the starred templates that do the appearing,
+        matched strictly (<code>===</code>).
+      </li>
+      <li>
+        <code>ngClass</code>/<code>ngStyle</code> diff-and-patch for multiple classes/styles from an object; reach for
+        native <code>[class.x]</code>/<code>[style.x]</code> when it's just one.
+      </li>
+      <li>
+        <code>&lt;ng-container&gt;</code> groups without adding a DOM node — reach for it whenever a structural
+        directive would otherwise force an unwanted wrapper into your layout.
       </li>
     </ul>
 
-    <p class="demo__title" style="margin-top: 16px">[ngSwitch]</p>
-    <div class="row" style="margin-bottom: 8px">
-      <button class="ghost" (click)="status.set('loading')">loading</button>
-      <button class="ghost" (click)="status.set('success')">success</button>
-      <button class="ghost" (click)="status.set('error')">error</button>
-    </div>
-    <div [ngSwitch]="status()">
-      <p *ngSwitchCase="'loading'">⏳ Loading…</p>
-      <p *ngSwitchCase="'success'">✅ Done!</p>
-      <p *ngSwitchDefault>⚠️ Something went wrong.</p>
-    </div>
-  </div>
-
-  <h2>Demo 2 — *ngFor's local template variables</h2>
-  <div class="demo">
-    <p class="demo__title">first / last / even / odd, live</p>
-    <ul class="list">
-      <li
-        *ngFor="let f of fruits(); let i = index; let isFirst = first; let isLast = last; let isEven = even"
-        [ngClass]="{ active: isFirst || isLast }"
-        [ngStyle]="{ background: isEven ? 'var(--bg-elevated)' : 'transparent' }"
-      >
-        {{ i + 1 }}. {{ f }}
-        <span *ngIf="isFirst" class="pill">first</span>
-        <span *ngIf="isLast" class="pill">last</span>
-        <span class="pill">{{ isEven ? 'even' : 'odd' }}</span>
-      </li>
-    </ul>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      <code>index</code>, <code>first</code>, <code>last</code>, <code>even</code> and <code>odd</code> are all local
-      template variables <code>*ngFor</code> exposes per iteration — no extra computation needed in the component.
-    </p>
-  </div>
-
-  <h2>ng-container &amp; ng-template</h2>
-  <p>
-    <code>&lt;ng-container&gt;</code> is a grouping element that leaves <em>no</em> node in the DOM — perfect for
-    applying a structural directive without an extra wrapper:
-  </p>
-  <div class="code">
-    <pre>
-&lt;ng-container *ngIf="user as u"&gt;
-  &lt;h2&gt;{{ '{{' }} u.name {{ '}}' }}&lt;/h2&gt;
-  &lt;p&gt;{{ '{{' }} u.email {{ '}}' }}&lt;/p&gt;
-&lt;/ng-container&gt;
-
-&lt;!-- a named, reusable fragment rendered on demand --&gt;
-&lt;ng-template #row let-name&gt;&lt;td&gt;{{ '{{' }} name {{ '}}' }}&lt;/td&gt;&lt;/ng-template&gt;
-&lt;ng-container *ngTemplateOutlet="row; context: {{ '{' }} $implicit: 'Ada' {{ '}' }}"&gt;&lt;/ng-container&gt;</pre>
-  </div>
-
-  <h2>Old → new at a glance</h2>
-  <table class="t">
-    <tr>
-      <td><code>*ngIf="x"</code></td>
-      <td>
-        <code>&#64;if (x) {{ '{' }} … {{ '}' }}</code>
-      </td>
-    </tr>
-    <tr>
-      <td><code>*ngIf="x; else e"</code></td>
-      <td>
-        <code>&#64;if (x) {{ '{' }} … {{ '}' }} &#64;else {{ '{' }} … {{ '}' }}</code>
-      </td>
-    </tr>
-    <tr>
-      <td><code>*ngFor="let i of xs; trackBy: fn"</code></td>
-      <td>
-        <code>&#64;for (i of xs; track i.id) {{ '{' }} … {{ '}' }}</code>
-      </td>
-    </tr>
-    <tr>
-      <td><code>[ngSwitch]</code> + <code>*ngSwitchCase</code></td>
-      <td><code>&#64;switch</code> + <code>&#64;case</code></td>
-    </tr>
-    <tr>
-      <td><code>&lt;ng-container *ngIf&gt;</code></td>
-      <td>(no wrapper needed — blocks aren't elements)</td>
-    </tr>
-  </table>
-
-  <h2>Under the hood</h2>
-  <ul>
-    <li>
-      <strong>Structural directives desugar to <code>&lt;ng-template&gt;</code>.</strong> The <code>*</code> shorthand
-      is sugar the compiler expands into a <code>&lt;ng-template&gt;</code> wrapping the host element, with the
-      directive's input bound via microsyntax. The directive itself calls
-      <code>viewContainerRef.createEmbeddedView(templateRef)</code> to insert or remove that view — that's the
-      mechanism, not magic CSS hiding.
-    </li>
-    <li>
-      <strong><code>&#64;if</code>/<code>&#64;for</code>/<code>&#64;switch</code> aren't directives at all.</strong>
-      They're built-in control-flow blocks the compiler emits straight into the component's template function — no
-      directive class, no injector lookup, no <code>CommonModule</code> needed. That's exactly why forgetting to import
-      <code>NgIf</code> breaks <code>*ngIf</code>, but there's nothing to "import" for <code>&#64;if</code>.
-    </li>
-    <li>
-      <strong><code>NgFor</code> keeps a live embedded view per item and reconciles by identity.</strong> Each
-      change-detection run it diffs the new iterable against the previous one — by <code>trackBy</code> if you supplied
-      one, otherwise by object reference — and only creates, moves or destroys the embedded views that actually changed.
-    </li>
-    <li>
-      <strong><code>[ngClass]</code>/<code>[ngStyle]</code> diff-and-patch; they don't replace the attribute.</strong>
-      Each cycle they compute which class/style entries changed since last time and call
-      <code>renderer.addClass</code>/<code>removeClass</code> (or <code>setStyle</code>/<code>removeStyle</code>) only
-      for those deltas — the static <code>class</code>/<code>style</code> attribute is left alone and merged with, never
-      overwritten wholesale.
-    </li>
-    <li>
-      <strong><code>&lt;ng-container&gt;</code> compiles to a comment node, not an element.</strong> It never creates a
-      DOM element at all — the compiler emits an anchor comment, so a structural directive has somewhere to attach
-      without introducing a wrapper into the rendered HTML.
-    </li>
-  </ul>
-
-  <app-predict
-    prompt="The stencil model has a consequence people miss until it costs them. Think about what is still running here."
-    [code]="hiddenSample"
-    answer="Polling the server once a second and holding a socket open, for the whole hour. `[hidden]` is a CSS toggle — it sets `display: none` on an element that is still fully alive. The component was never destroyed, so `ngOnDestroy` never ran, the interval was never cleared and the socket was never closed. Swap it for `@if (showPlayer)` (or `*ngIf`) and the component is genuinely destroyed: subscriptions torn down, timers cleared, memory released. The trade-off is real in the other direction too — the player loses its position and has to rebuild when it comes back, which is exactly when `[hidden]` is the right choice. The rule is to ask whether you want the thing *gone* or merely *invisible*, and then say which one you meant."
-  />
-
-  <h2>Common mistakes</h2>
-  <table class="t">
-    <tr>
-      <td>Two structural directives on one element</td>
-      <td>
-        <code>*ngIf</code> and <code>*ngFor</code> together is a compile error. Move one onto an
-        <code>&lt;ng-container&gt;</code>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>*ngIf</code> renders nothing and no error</td>
-      <td>You forgot to import <code>NgIf</code>/<code>CommonModule</code> in the standalone component.</td>
-    </tr>
-    <tr>
-      <td>List re-renders / loses focus on every change</td>
-      <td>Missing <code>trackBy</code>. Return a stable id.</td>
-    </tr>
-    <tr>
-      <td><code>[hidden]</code> used like <code>*ngIf</code></td>
-      <td>
-        <code>[hidden]</code> only toggles CSS <code>display</code> — the element (and its component, subscriptions,
-        etc.) stays alive. <code>*ngIf</code> removes it entirely.
-      </td>
-    </tr>
-    <tr>
-      <td>Combining <code>[ngClass]</code> and <code>class</code> and expecting one to win</td>
-      <td>They merge. Static <code>class</code> plus <code>[ngClass]</code> object both apply; don't fight them.</td>
-    </tr>
-  </table>
-
-  <app-faq [items]="questions" />
-
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>*</code> = structural directive = adds/removes DOM; it desugars to <code>&lt;ng-template&gt;</code>.</li>
-    <li>
-      <code>*ngIf</code> (else/then/as), <code>*ngFor</code> (trackBy/index/first/last/even/odd),
-      <code>[ngSwitch]</code>.
-    </li>
-    <li>
-      <code>ngClass</code>/<code>ngStyle</code> for multiple classes/styles; native <code>[class.x]</code>/<code
-        >[style.x]</code
-      >
-      for one.
-    </li>
-    <li>
-      <code>ng-container</code> groups without adding a DOM node; <code>ng-template</code> is a fragment you render on
-      demand.
-    </li>
-    <li>
-      You'll write <code>&#64;if</code>/<code>&#64;for</code> in new code, but you must <em>read</em> the directive
-      forms fluently.
-    </li>
-  </ul>
-
-  <p><a routerLink="/pipes">Next: Built-in Pipes →</a></p>
+    <p><a routerLink="/pipes">Next: Built-in Pipes →</a></p>
+  </section>
 </article>

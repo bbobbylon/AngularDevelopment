@@ -1,15 +1,8 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-}
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 320px;
-}
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which targets `.lesson.bf table` directly — the
+   `.t` rules that used to live here were a per-lesson copy of what the theme
+   now owns, so this file only keeps what's genuinely specific to this lesson:
+   the highlight state on the *ngFor demo's list rows. */
 .list {
   list-style: none;
   padding: 0;
