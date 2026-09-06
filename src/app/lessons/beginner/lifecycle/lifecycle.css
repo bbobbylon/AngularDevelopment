@@ -1,3 +1,10 @@
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why the old `.hooks` table rules are
+   gone — they were a per-lesson copy of what the theme now owns for any
+   `<table>` inside a `.lesson.bf` article.
+
+   The hook log is genuinely specific to this lesson: it's a scrollable,
+   monospace, numbered list, not a generic table. */
 .log {
   background: var(--code-bg);
   color: var(--code-fg);
@@ -8,18 +15,4 @@
   font-size: 0.82rem;
   max-height: 220px;
   overflow: auto;
-}
-.hooks {
-  width: 100%;
-  border-collapse: collapse;
-}
-.hooks th,
-.hooks td {
-  text-align: left;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.hooks td:first-child {
-  white-space: nowrap;
 }

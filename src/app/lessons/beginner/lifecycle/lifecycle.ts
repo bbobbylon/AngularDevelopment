@@ -2,31 +2,105 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LifecycleLog } from './lifecycle.shared';
 import { LifecycleChild } from './lifecycle-child/lifecycle-child';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { BfPage, Bubbles, Chapter, CodeLab, TapeCard } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
 /**
- * Lesson: Lifecycle Hooks — the order Angular calls them in, and which ones you
- * still need.
+ * Lesson: Lifecycle Hooks — the order Angular calls them in, which ones still
+ * earn their keep now that signals exist, and the two traps every interview
+ * reliably asks about: constructor vs `ngOnInit`, and parent/child ordering.
  *
  * The demo mounts and unmounts a child that logs every hook it receives, so the
- * sequence is observed rather than memorised — including the parts that surprise
- * people, like `ngOnChanges` running *before* `ngOnInit`, and content hooks
- * running before view hooks.
+ * sequence is *observed* rather than memorised — including the parts that
+ * surprise people, like `ngOnChanges` running before `ngOnInit`, and content
+ * hooks running before view hooks.
  *
- * The modern framing the lesson gives: most of these hooks existed to work
- * around the lack of reactivity. With signals, `ngOnChanges` is usually a
- * `computed`, and `ngOnInit` is usually just a field initialiser. The two that
- * remain genuinely necessary are `ngOnDestroy` for cleanup and the
- * `afterNextRender` / `afterEveryRender` family for work that needs real DOM.
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
+ * following the shape of the reference implementation in
+ * `lessons/expert/change-detection/`. The teaching order is deliberate:
+ *
+ * 1. **Pose the problem before naming hooks.** The lesson opens on "Angular
+ *    creates your component — then what?" and a napkin makes the reader
+ *    commit to a guess about parent/child ordering before any mechanism is
+ *    explained, with a pointer to the live demo further down to check it.
+ * 2. **Analogy next, mechanism after.** The building-site frame (framed
+ *    outside-in, signed off inside-out) gives the reader somewhere to *put*
+ *    the ordering before the hook names arrive — reinforced immediately by a
+ *    `Bubbles` dialogue staging the same handshake between Angular, a parent
+ *    and its child.
+ * 3. **Then the same idea in several modes**: an annotated read of the real
+ *    `LifecycleChild` source via `CodeLab`, a `Flow` diagram of the full
+ *    order, a `Quiz` testing that exact order, a live demo logging real hook
+ *    firings, and a reference table — because the retention bar is
+ *    redundancy across modes, not repetition in one.
+ * 4. **The modern replacement, last.** A `Compare` sets the decorator-input
+ *    pattern against its signal-based replacement, closing on the two hooks
+ *    that remain genuinely necessary.
  */
 @Component({
   selector: 'app-lesson-lifecycle',
-  imports: [RouterLink, LifecycleChild, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    TapeCard,
+    Compare,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+    LifecycleChild,
+  ],
   providers: [LifecycleLog],
   templateUrl: './lifecycle.html',
   styleUrl: './lifecycle.css',
 })
 export class Lifecycle {
+  /** The Components & Templates neighbourhood, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Built-in Pipes', id: 'pipes' },
+    { label: 'Lifecycle Hooks' },
+    { label: 'Component Inputs', id: 'inputs' },
+    { label: 'Component Outputs', id: 'outputs' },
+    { label: 'Services & DI', id: 'services-di' },
+  ];
+
+  /**
+   * The handshake a `<app-child>` binding actually sets off, staged as
+   * dialogue instead of described in a paragraph — the ordering people get
+   * backwards in interviews, in a mode a reader follows without having to
+   * hold both parties in their head at once.
+   */
+  protected readonly mechanismTalk: BubbleTurn[] = [
+    {
+      who: 'Angular',
+      says: "Time to render `<app-child>` inside the parent's template. First, I create the instance.",
+    },
+    {
+      who: 'Parent',
+      says: "My `ngOnInit` already ran — but I'm not finished. Rendering my own template is what creates you.",
+    },
+    {
+      who: 'Child',
+      says: "I exist now. My `ngOnChanges` and `ngOnInit` run before you're allowed to say your view is complete.",
+    },
+    {
+      who: 'Child',
+      says: 'My view — and anything inside it — is ready. `ngAfterViewInit` just fired. I report in first.',
+    },
+    {
+      who: 'Parent',
+      says: 'Now that every child under me has reported ready, my own `ngAfterViewInit` finally fires.',
+    },
+  ];
+
   /**
    * One component's life in order. Grouped the way the mnemonic groups it —
    * create, then content, then view, then destroy — because exam questions on
@@ -56,22 +130,79 @@ export class Lifecycle {
     },
   ];
 
-  /** The ExpressionChanged trap. */
-  protected readonly expressionChangedSample = `@Component({
-  template: '<p>{{ label }}</p>',
+  /**
+   * The real `LifecycleChild` source (trimmed of doc comments), read line by
+   * line so a hook stops being an abstract name and becomes a method the
+   * reader can see Angular actually calling.
+   */
+  protected readonly childSource = `@Component({
+  selector: 'app-lifecycle-child',
+  templateUrl: './lifecycle-child.html',
 })
-export class Banner implements AfterViewInit {
-  label = 'loading…';
+export class LifecycleChild implements OnChanges, OnInit, DoCheck, AfterViewInit, OnDestroy {
+  @Input() value = 0;
+  private readonly log = inject(LifecycleLog);
 
-  ngAfterViewInit() {
-    this.label = 'ready';   // the binding above already read it
+  ngOnChanges(changes: SimpleChanges) {
+    const v = changes['value'];
+    this.log.add(\`ngOnChanges — value \${v.previousValue} → \${v.currentValue}\`);
   }
-}
+  ngOnInit() {
+    this.log.add('ngOnInit — component initialised');
+  }
+  ngDoCheck() {
+    this.log.add('ngDoCheck — change detection ran');
+  }
+  ngAfterViewInit() {
+    this.log.add('ngAfterViewInit — view & children ready');
+  }
+  ngOnDestroy() {
+    this.log.add('ngOnDestroy — cleaning up');
+  }
+}`;
 
-// You run this in development. What do you see?`;
+  /** Line-by-line walkthrough of {@link childSource}. */
+  protected readonly childNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: "Five TypeScript interfaces, one per hook used below. They're erased at runtime — implementing `OnInit` only buys you a compiler check that `ngOnInit` is spelled right. Angular itself never looks at this list.",
+    },
+    {
+      line: 6,
+      text: 'A plain decorator `@Input()`, not the newer `input()` function — deliberately. `ngOnChanges` only ever fires for decorator inputs, so this is the one field in the app written the old way on purpose, to prove the point.',
+    },
+    {
+      line: 7,
+      text: "`inject(LifecycleLog)` grabs the log this child and the lesson's own component share, so every hook below can write into the same panel you'll watch fire live.",
+    },
+    {
+      line: 9,
+      text: 'Angular calls this **before** `ngOnInit`, the first time, and again on every later change to `value` — never on any other property.',
+    },
+    {
+      line: 10,
+      text: "`changes['value']` is a `SimpleChanges` entry keyed by input name. It's the only hook that hands you the *previous* value alongside the current one.",
+    },
+    {
+      line: 13,
+      text: 'Runs exactly once, after the first `ngOnChanges` and before the first render. This is where setup belongs — inputs are guaranteed to be set by now.',
+    },
+    {
+      line: 16,
+      text: 'Runs on **every** change-detection pass this component is reached by — not just when `value` changes. That is what makes it the hook most likely to become a performance problem.',
+    },
+    {
+      line: 19,
+      text: "Runs once, after this component's own view and every child inside it exist. The earliest point a `viewChild` query is safe to read.",
+    },
+    {
+      line: 22,
+      text: "The cleanup hook — unsubscribe, clear timers, disconnect observers. Fires when Angular removes this component, which in the demo below is the moment you click 'Destroy'.",
+    },
+  ];
 
   /** Choices for the parent/child ordering check. */
-  protected readonly orderOptions = [
+  protected readonly orderOptions: QuizOption[] = [
     {
       text: 'Parent init, parent view-init, child init, child view-init',
       why: 'This assumes the parent finishes entirely before the child starts. It cannot: the child only exists because the parent rendered it, so the parent is midway through its own setup when the child begins.',
@@ -91,8 +222,43 @@ export class Banner implements AfterViewInit {
     },
   ];
 
+  /** The ExpressionChanged trap. */
+  protected readonly expressionChangedSample = `@Component({
+  template: '<p>{{ label }}</p>',
+})
+export class Banner implements AfterViewInit {
+  label = 'loading…';
+
+  ngAfterViewInit() {
+    this.label = 'ready';   // the binding above already read it
+  }
+}
+
+// You run this in development. What do you see?`;
+
+  /** Sample: the decorator-input pattern against its signal-based replacement. */
+  protected readonly oldHooksSample = `@Input() value = 0;
+
+ngOnChanges(changes: SimpleChanges) {
+  this.total = changes['value'].currentValue * 2;
+}
+ngOnInit() {
+  this.sub = this.source.subscribe((v) => (this.latest = v));
+}
+ngOnDestroy() {
+  this.sub.unsubscribe();
+}`;
+
+  /** Sample: the modern equivalent — no ngOnChanges, no manual unsubscribe. */
+  protected readonly modernSample = `value = input(0);
+
+readonly total = computed(() => this.value() * 2);
+
+readonly latest = toSignal(this.source$);
+// cleanup is automatic — no ngOnDestroy needed here`;
+
   /** The doubts this lesson reliably leaves behind. */
-  protected readonly questions = [
+  protected readonly questions: FaqItem[] = [
     {
       q: 'Why not just put my setup in the constructor?',
       a: 'Because inputs are not there yet. The constructor runs when the object is created, before Angular has bound a single `@Input` — so anything reading one gets `undefined`. Keep the constructor for `inject()` and nothing else; by `ngOnInit`, the inputs are set and the component knows who it is.',
