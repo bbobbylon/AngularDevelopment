@@ -1,496 +1,448 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Components & Templates</span>
-  <h1>Interpolation & Template Expressions</h1>
-  <p class="lead">
-    Interpolation — the <code>{{ '{{' }} ... {{ '}}' }}</code> syntax — renders a component's data into the DOM as text.
-    Angular evaluates the expression inside, converts the result to a string and keeps it in sync on every
-    change-detection pass. It looks like "just print this value", but the exam cares about three things underneath that:
-    exactly which expressions are legal, how expensive an interpolated call can be, and what happens when the value is
-    null, undefined, or an object.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Beginner · Templates"
+    title="Interpolation &amp; Template Expressions"
+    hand="or, how your class's data learns to show up as text"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      <span class="term">Interpolation</span> — the <code>{{ '{{' }} … {{ '}}' }}</code> syntax — is how a component's
+      data becomes text on the page. Angular runs the expression inside, turns the result into a string, and keeps that
+      string in sync every time it checks the view. That sounds like "just print this value", and mostly it is — but the
+      exam (and your future self debugging a blank field) cares about three things underneath it: exactly which
+      expressions are legal in there, how expensive a call inside it can quietly get, and what happens the moment the
+      value is <code>null</code>
+      or a whole object instead of a string.
+    </p>
+  </app-chapter>
 
-  <h2>Basic interpolation</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 12px">
-      <input aria-label="first" [value]="first()" (input)="first.set($any($event.target).value)" placeholder="first" />
-      <input aria-label="last" [value]="last()" (input)="last.set($any($event.target).value)" placeholder="last" />
-    </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You have a value in your class. How does it get onto the screen?</h2>
+
     <p>
-      Full name: <strong>{{ first() }} {{ last() }}</strong>
+      Say your component holds <code>first = signal('Grace')</code>. Somewhere in the HTML you want the actual text
+      "Grace" to show up, and you want it to stay correct if <code>first</code> ever changes. Plain HTML has no way to
+      do that — <code>&lt;p&gt;first&lt;/p&gt;</code> would print the four letters <em>f-i-r-s-t</em>, not the value the
+      signal holds. You need a piece of syntax that means "stop, this part isn't literal text — go read a value out of
+      the component and put <em>that</em> here instead."
     </p>
-    <p>Characters: {{ (first() + last()).length }}</p>
-    <p>Uppercase: {{ (first() + ' ' + last()).toUpperCase() }}</p>
-  </div>
 
-  <div class="code">
-    <pre>{{ basicSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lbl">
-    <tr>
-      <th>Line</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} first() {{ '}}' }} {{ '{{' }} last() {{ '}}' }}</td>
-      <td>
-        Two separate interpolations in one text node. Signals are callable, so <code>first()</code> reads the current
-        value (not the signal object itself); Angular stringifies each result and stitches them together with the
-        literal space that sits between the two <code>{{ '{{' }} {{ '}}' }}</code> pairs in the source.
-      </td>
-    </tr>
-    <tr>
-      <td>(first() + last()).length</td>
-      <td>
-        A normal TypeScript expression is allowed as long as it's a single, side-effect-free read: string concatenation,
-        then <code>.length</code> off the result. Angular re-runs the <em>whole</em> expression on every check — there's
-        no partial re-evaluation of sub-expressions.
-      </td>
-    </tr>
-    <tr>
-      <td>.toUpperCase()</td>
-      <td>
-        Calling a method on the computed string is fine because <code>String.prototype.toUpperCase</code> is pure and
-        deterministic for the same input — exactly the class of call the template sandbox is designed to allow (contrast
-        with the noisy method-call demo below).
-      </td>
-    </tr>
-  </table>
+    <app-napkin lead="guess first —" label="Predict before reading on">
+      Before the next section names it: is that syntax a one-time <strong>stamp</strong> — Angular reads the value once
+      when the page loads and writes it into the HTML — or does it stay <strong>live</strong>, somehow reading the value
+      again later? Commit to an answer. Most people guess "stamp", because that is how printing a value normally works.
+      The real answer is the more useful half of this whole lesson.
+    </app-napkin>
+  </section>
 
-  <h2>Expressions can do math & call methods</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="count.set(count() - 1)">−</button>
-      <span class="pill">count = {{ count() }}</span>
-      <button (click)="count.set(count() + 1)">+</button>
-    </div>
-    <p>Doubled: {{ count() * 2 }}</p>
-    <p>Is even? {{ count() % 2 === 0 ? 'yes' : 'no' }}</p>
-    <p>Squared via method: {{ square(count()) }}</p>
-  </div>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular cut a peephole in the door between your template and your class.</h2>
 
-  <div class="code">
-    <pre>{{ mathSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lbl">
-    <tr>
-      <th>Line</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} count() {{ '}}' }}</td>
-      <td>
-        Reads the counter signal directly. This is the cheapest possible interpolation: no operators, no method call,
-        just a value read.
-      </td>
-    </tr>
-    <tr>
-      <td>count() * 2</td>
-      <td>
-        Arithmetic is allowed inline. Angular re-evaluates <code>count() * 2</code>
-        on every pass that reaches this view, but only writes to the DOM
-        <code>Text</code> node when the new string differs from the last one.
-      </td>
-    </tr>
-    <tr>
-      <td>count() % 2 === 0 ? 'yes' : 'no'</td>
-      <td>
-        The ternary operator is explicitly permitted — it's still a single expression, unlike an
-        <code>if/else</code> statement, which is not. Strict <code>===</code> avoids the type-coercion surprises
-        <code>==</code> can cause.
-      </td>
-    </tr>
-    <tr>
-      <td>square(count())</td>
-      <td>
-        Legal syntax, but this is the exact anti-pattern the demo below measures: Angular can't know
-        <code>square()</code> is pure just from calling it, so it re-invokes it on <em>every</em> change-detection pass
-        that reaches this template — fine for something this trivial, costly for anything that isn't.
-      </td>
-    </tr>
-  </table>
-
-  <h2>Live proof — a template method call re-runs every check; computed() doesn't</h2>
-  <p>
-    Both rows below compute the same value (<code>seed() * 2</code>) and both increment a counter every time their logic
-    actually executes. Click <strong>"trigger unrelated re-render"</strong> a few times — it changes a signal this
-    template reads (so a change-detection pass happens) but has nothing to do with <code>seed</code>:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — instrumented run counters</p>
     <p>
-      Method call: <strong>{{ noisyDouble() }}</strong> · ran <span class="pill">{{ noisyRunsDisplay() }}</span> times
+      Picture your component as a room, and the template as the hallway outside it.
+      <code>{{ '{{' }} first() {{ '}}' }}</code> is a small round <span class="term">peephole</span> drilled straight
+      through the door. Put your eye to it and you see whatever is on the other side <strong>right now</strong> — not a
+      photo taken once, an actual live look. Walk away and look again in five minutes and you see whatever is true
+      <em>then</em>. Nobody has to fetch you a new photo; the hole was never showing a photo in the first place.
     </p>
+
+    <figure class="peephole-fig">
+      <svg class="peephole" viewBox="0 0 460 225" aria-hidden="true" focusable="false">
+        <rect class="peephole__wall" x="215" y="65" width="40" height="70" rx="4" />
+        <circle class="peephole__hole" cx="235" cy="100" r="22" />
+        <circle class="peephole__hole-rim" cx="235" cy="100" r="22" />
+
+        <rect class="peephole__box peephole__box--component" x="20" y="65" width="150" height="70" rx="14" />
+        <text class="peephole__name" x="95" y="97" text-anchor="middle">Component</text>
+        <text class="peephole__role" x="95" y="114" text-anchor="middle">HOLDS DATA</text>
+
+        <rect class="peephole__box peephole__box--template" x="290" y="65" width="150" height="70" rx="14" />
+        <text class="peephole__name" x="365" y="97" text-anchor="middle">Template</text>
+        <text class="peephole__role" x="365" y="114" text-anchor="middle">READS ONLY</text>
+
+        <path class="peephole__edge peephole__edge--look" d="M170 90 L281 90" />
+        <path class="peephole__head peephole__head--look" d="M292 90 L280 84 L280 96 Z" />
+        <text class="peephole__tag" x="230" y="45" text-anchor="middle">look — a fresh read, every check</text>
+
+        <path class="peephole__edge peephole__edge--blocked" d="M282 112 L250 112" />
+        <line class="peephole__blockmark" x1="222" y1="101" x2="248" y2="123" />
+        <line class="peephole__blockmark" x1="248" y1="101" x2="222" y2="123" />
+        <text class="peephole__tag" x="230" y="160" text-anchor="middle">reach — always blocked</text>
+
+        <text class="peephole__hand" x="440" y="205" text-anchor="end">a look, never a reach</text>
+      </svg>
+      <figcaption>
+        The peephole. A template can look through <code>{{ '{{' }} {{ '}}' }}</code> and see whatever the component
+        currently holds — a fresh look on every single check — but it can never reach a hand back through that same hole
+        to change what's on the other side. Wanting to change something means wiring up a completely different piece of
+        the door: an event binding.
+      </figcaption>
+    </figure>
+
     <p>
-      computed(): <strong>{{ computedDouble() }}</strong> · ran <span class="pill">{{ computedRuns }}</span> times
+      That one image explains both halves of this topic at once. It stays <strong>live</strong> because looking through
+      a hole is not a photograph — there is nothing to go stale. And it only ever accepts
+      <strong>an expression, never a statement</strong> — a look, never a reach — because a peephole physically cannot
+      do anything but show you what's there. You cannot post a letter through it, flip a switch through it, or reassign
+      a value through it. If you want to change something on the other side of the door, you need an entirely different
+      mechanism — an event binding, two lessons from now.
     </p>
-    <div class="row" style="margin-top: 12px">
-      <button (click)="bumpSeed()">seed.update(+1) — bumps BOTH counters</button>
-      <button class="ghost" (click)="bumpUnrelated()">trigger unrelated re-render ({{ unrelatedTick() }})</button>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The unrelated button forces this component to re-render (it reads
-      <code>unrelatedTick()</code> above), so <em>every</em> interpolation in the template — including
-      <code>noisyDouble()</code> — is re-evaluated and its counter climbs. <code>computedDouble()</code>'s counter holds
-      still, because its cached value is still valid: <code>seed</code>, the only signal it read last time, hasn't
-      changed. Click the seed button and both counters move together. (The "ran … times" pill lags by one click — it's a
-      snapshot taken after each render finishes, not a live read of the counter itself, which is what keeps this demo
-      from throwing <code>ExpressionChangedAfterItHasBeenCheckedError</code>.)
-    </p>
-  </div>
-  <div class="code">
-    <pre>{{ noisyVsComputedSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lbl">
-    <tr>
-      <th>Line</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>seed = signal(2)</td>
-      <td>
-        The writable signal both derivations depend on — the single "source of truth" this whole comparison is built
-        around.
-      </td>
-    </tr>
-    <tr>
-      <td>noisyRuns = 0</td>
-      <td>
-        A plain (non-signal) instance field, used purely to make invocations visible for this demo. Mutating a plain
-        field never notifies Angular of anything — it's just instrumentation, not reactive state.
-      </td>
-    </tr>
-    <tr>
-      <td>noisyDouble() {{ '{' }} this.noisyRuns++; return this.seed() * 2; {{ '}' }}</td>
-      <td>
-        An ordinary method. Angular has no way to know it "really" only depends on <code>seed()</code> — it must assume
-        the return value could differ on every single check, so it calls the whole method body (increment included)
-        every time the template is checked.
-      </td>
-    </tr>
-    <tr>
-      <td>computedRuns = 0</td>
-      <td>
-        Same instrumentation trick, this time to count how often the <code>computed()</code> callback body actually
-        executes.
-      </td>
-    </tr>
-    <tr>
-      <td>computedDouble = computed(() =&gt; {{ '{' }} this.computedRuns++; return this.seed() * 2; {{ '}' }})</td>
-      <td>
-        <code>computed()</code> records exactly which signals were read during its last run (here, only
-        <code>seed()</code>). It only re-invokes the callback — and therefore only re-runs the increment — when one of
-        those recorded dependencies actually produced a new value; otherwise it hands back the memoized result without
-        touching the function body at all.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} noisyDouble() {{ '}}' }} … {{ '{{' }} computedDouble() {{ '}}' }}</td>
-      <td>
-        Both are <em>read</em> on every check that reaches this view — that part is unavoidable, it's just a
-        function/signal call. The difference is entirely inside: one body always runs to completion, the other
-        short-circuits to a cached value when its dependency graph says nothing changed.
-      </td>
-    </tr>
-  </table>
-  <div class="tip">
-    This is the real reason the exam (and every style guide) tells you to avoid calling component methods from
-    interpolation for anything non-trivial: it isn't that method calls are "banned", it's that they can't be memoized
-    the way a
-    <code>computed()</code> signal or a pure pipe can.
-  </div>
 
-  <h2>What expressions are NOT allowed</h2>
-  <p>
-    Template expressions are intentionally limited to keep templates simple and side-effect free. You
-    <strong>cannot</strong> use:
-  </p>
-  <ul>
-    <li>Assignments (<code>=</code>, <code>+=</code>) — except inside event statements</li>
-    <li><code>new</code>, <code>++</code> / <code>--</code></li>
-    <li>Bitwise operators <code>|</code> and <code>&amp;</code> (the <code>|</code> means "pipe" in templates)</li>
-    <li>Chaining with <code>;</code> or <code>,</code></li>
-    <li>Global references like <code>window</code> or <code>document</code></li>
-  </ul>
-  <div class="code">
-    <pre>{{ invalidSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lbl">
-    <tr>
-      <th>Line</th>
-      <th>Why it's rejected</th>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} count = 5 {{ '}}' }}</td>
-      <td>
-        Assignment writes state; template expressions may only <strong>read</strong>. Writes belong in an event binding,
-        e.g. <code>(click)="count.set(5)"</code>, which is parsed as a statement, not an expression.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} new Date() {{ '}}' }}</td>
-      <td>
-        <code>new</code> is disallowed — constructing an object is exactly the kind of non-idempotent operation the
-        expression grammar deliberately excludes.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} count()++ {{ '}}' }}</td>
-      <td>
-        Increment/decrement mutate a value in place; same "reads only" rule blocks them, same as assignment above.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} first(); last() {{ '}}' }}</td>
-      <td>
-        <code>;</code> and <code>,</code> chain statements. A template expression must parse as one single expression,
-        not a sequence — there is no way to "run two things" inside one interpolation.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} window.innerWidth {{ '}}' }}</td>
-      <td>
-        Top-level template expressions resolve only against the component instance and template-local variables (like
-        <code>let item</code> in <code>&#64;for</code>) — ambient globals aren't in scope. Inject what you need (e.g.
-        via a service) and expose it as a component member instead.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} a | b {{ '}}' }}</td>
-      <td>
-        Inside a template, <code>|</code> is <em>always</em> the pipe operator, never JS bitwise OR. <code>b</code> here
-        is looked up as a <strong>pipe name</strong>, and the build fails if no pipe called <code>b</code> is
-        registered.
-      </td>
-    </tr>
-  </table>
+    <app-remember variant="mnemonic">
+      <strong>A look, never a reach.</strong> <code>{{ '{{' }} … {{ '}}' }}</code> reads a fresh value on every check —
+      that's the "look" — and only ever a single expression, never an assignment or a statement — that's why it can't
+      "reach" back and change anything.
+    </app-remember>
 
-  <div class="warn">
-    Keep interpolation expressions simple and <strong>fast</strong>. They run on every change detection cycle, so avoid
-    heavy work or anything with side effects — move that into the component class or a pure pipe.
-  </div>
+    <app-bubbles
+      [turns]="peepTalk"
+      caption="What actually passes between the template and the component on one read — and why the template never gets to write back."
+    />
+  </section>
 
-  <h2>Text content only & null handling</h2>
-  <p>
-    Interpolation produces <strong>text</strong>, so it belongs in element content (and string attributes). For DOM
-    properties, prefer property binding (<code>[value]</code>) over <code>value="{{ '{{' }} x {{ '}}' }}"</code>.
-    <code>null</code> and <code>undefined</code> render as an empty string, and the safe-navigation
-    <code>?.</code> stops a nullish path from throwing.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — toggle the signal between an object and null</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="toggleUser()">toggle user() — currently {{ user() ? 'an object' : 'null' }}</button>
-    </div>
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Every single check does the same three things, in order.</h2>
+
     <p>
-      Safe navigation: <code>user()?.name</code> → <strong>"{{ user()?.name }}"</strong>
+      "Live" is not magic — it is Angular re-running a small, fixed routine every time it checks this view, whether or
+      not anything actually changed. Zoom in on one <code>{{ '{{' }} … {{ '}}' }}</code> and this is the whole routine:
     </p>
+
+    <app-flow
+      [steps]="checkFlow"
+      caption="One interpolation, one check. The first two steps always happen; the last one only touches the real DOM when it has to."
+    />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="It always evaluates" kicker="step 1" tone="accent">
+        Angular re-runs the expression fresh, every reachable check — there is no "skip it, nothing changed" shortcut
+        built into a plain <code>{{ '{{' }} … {{ '}}' }}</code> itself.
+      </app-tape-card>
+      <app-tape-card heading="It always stringifies" kicker="step 2" tone="olive">
+        Whatever comes out gets coerced to text. A number becomes digits, <code>null</code>/<code>undefined</code>
+        become an empty string, and a plain object becomes <code>[object Object]</code> — more on that below.
+      </app-tape-card>
+      <app-tape-card heading="It only writes if it changed" kicker="step 3" tone="gold">
+        The new string is diffed against what was painted last time. The real DOM is untouched unless that string is
+        actually different — which is what keeps "runs every check" from meaning "expensive every check".
+      </app-tape-card>
+    </div>
+
     <p>
-      Direct object interpolation: <code>user()</code> → <strong>"{{ user() }}"</strong>
+      That last point is also where the restriction from the peephole analogy earns its keep in practice. Because an
+      expression can only <em>read</em>, Angular is free to re-run it as often as it likes without worrying that doing
+      so might change something — a read has no side effects to worry about. Here is exactly where that line is drawn:
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Toggle to "an object": the second row prints
-      <code>[object Object]</code> — Angular stringifies with <code>'' + value</code> under the hood, and a plain
-      object's default <code>toString()</code> is exactly that placeholder. Toggle to "null": both rows print an empty
-      string instead of throwing, because <code>?.</code> short-circuits before the property read and Angular treats
-      <code>null</code>/<code>undefined</code> as <code>''</code>.
+
+    <app-compare
+      leftTitle="Allowed — a single expression"
+      leftTone="good"
+      rightTitle="Blocked — a statement"
+      rightTone="bad"
+      note="The left side only ever reads. The right side tries to write, construct, mutate or chain — every one of which is a statement, and `{{
+        '{{'
+      }} … {{ '}}' }}` only ever parses one expression."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ compareAllowedSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ compareBlockedSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 4. BASIC INTERPOLATION ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Two values, one string, always current.</h2>
+
+    <p>Type in either box below. Every paragraph under it is reading straight through the peephole, live.</p>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 12px">
+        <input
+          aria-label="First name"
+          [value]="first()"
+          (input)="first.set($any($event.target).value)"
+          placeholder="first"
+        />
+        <input
+          aria-label="Last name"
+          [value]="last()"
+          (input)="last.set($any($event.target).value)"
+          placeholder="last"
+        />
+      </div>
+      <p>
+        Full name: <strong>{{ first() }} {{ last() }}</strong>
+      </p>
+      <p>Characters: {{ (first() + last()).length }}</p>
+      <p>Uppercase: {{ (first() + ' ' + last()).toUpperCase() }}</p>
+    </div>
+
+    <app-code-lab
+      file="name-panel.html"
+      [code]="basicSample"
+      [notes]="basicNotes"
+      notesLabel="Line by line — what each symbol is"
+    />
+  </section>
+
+  <!-- ============ 5. MATH, TERNARIES, METHOD CALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">More than plain values</p>
+    <h2>An expression can compute, compare and call — not just read.</h2>
+
+    <p>
+      A single expression covers a lot of ground: arithmetic, a ternary, even a method call. All four lines below are
+      legal for the same reason — each one is exactly one expression that evaluates to one value.
     </p>
-  </div>
 
-  <div class="code">
-    <pre>{{ nullHandlingSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lbl">
-    <tr>
-      <th>Line</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} user()?.name {{ '}}' }}</td>
-      <td>
-        The safe-navigation operator short-circuits to <code>undefined</code> the instant <code>user()</code> is
-        <code>null</code>/<code>undefined</code>, instead of throwing "Cannot read properties of null". Angular then
-        stringifies that <code>undefined</code> to an empty string — no crash, no visible error.
-      </td>
-    </tr>
-    <tr>
-      <td>[src]="avatar()"</td>
-      <td>
-        Square brackets are a <strong>property binding</strong>, not interpolation: the raw return value of
-        <code>avatar()</code> is assigned directly to the DOM <code>src</code> property, preserving its real type.
-        Writing <code>src="{{ '{{' }} avatar() {{ '}}' }}"</code> instead would force it through string interpolation
-        and could break relative-URL resolution.
-      </td>
-    </tr>
-    <tr>
-      <td>{{ '{{' }} price() | currency {{ '}}' }}</td>
-      <td>
-        The pipe runs <em>after</em> the signal is read, formatting the raw number into a display string (e.g.
-        <code>"$12.00"</code>). Pipes are the idiomatic place for display formatting — not string concatenation inside
-        the expression itself.
-      </td>
-    </tr>
-  </table>
-  <p>
-    Templates are type-checked too: if <code>first()</code> were a number, <code>.toUpperCase()</code> would be a build
-    error. Use <code>$any(x)</code> as an escape hatch only when you must opt out of that checking.
-  </p>
-
-  <h2>Under the hood: what the compiler generates</h2>
-  <p>
-    Each <code>{{ '{{' }} … {{ '}}' }}</code> compiles to two things: a <strong>creation-mode</strong> instruction that
-    reserves a text node once, and an <strong>update-mode</strong> instruction that re-runs the expression(s) and diffs
-    the result on every change-detection pass. That's why a <em>method</em> call in a template (<code
-      >{{ '{{' }} square(count()) {{ '}}' }}</code
-    >) is a smell for anything expensive: the update-mode instruction re-executes it constantly. Move heavy or shared
-    derivations to a <code>computed()</code> or a <strong>pure pipe</strong>, both of which cache until their inputs
-    change.
-  </p>
-  <div class="code">
-    <pre>{{ underTheHoodSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lbl">
-    <tr>
-      <th>Line</th>
-      <th>What it does &amp; why</th>
-    </tr>
-    <tr>
-      <td>ɵɵelementStart(0,'p') / ɵɵtext(1) / ɵɵelementEnd()</td>
-      <td>
-        Creation-mode instructions that run <strong>once</strong> per view instance: they build the static DOM shape —
-        the <code>&lt;p&gt;</code> element and an empty text node reserved at slot 1 — before any data exists to fill
-        it.
-      </td>
-    </tr>
-    <tr>
-      <td>ɵɵadvance(1)</td>
-      <td>
-        Moves an internal slot pointer forward before the next instruction touches that node. Every update-mode
-        interpolation instruction is preceded by an <code>ɵɵadvance</code> so Angular knows which node to update without
-        re-walking the whole template tree on every pass.
-      </td>
-    </tr>
-    <tr>
-      <td>ɵɵtextInterpolate2(...)</td>
-      <td>
-        The "2" means the compiler found exactly two dynamic expressions in that text node. Angular generates a
-        specialized instruction per expression-count (<code>textInterpolate1</code> through <code>8</code>, then a
-        generic <code>textInterpolateV</code> for more) purely to avoid allocating an array for the common cases — a
-        build-time optimization you never see in the source.
-      </td>
-    </tr>
-    <tr>
-      <td>diffs the freshly-built string…</td>
-      <td>
-        The expressions themselves always re-run on a pass that reaches this view — that part can't be skipped short of
-        OnPush/computed-style memoization further up the chain. But the real DOM <code>Text.data</code> is only written
-        when the new string differs from the last one, which is why interpolation stays cheap even though "it runs every
-        pass".
-      </td>
-    </tr>
-  </table>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Expensive method calls.</strong> They run every change detection — prefer <code>computed()</code> or a
-      pure pipe (proven live above).
-    </li>
-    <li>
-      <strong>Interpolating into a property.</strong> <code>value="{{ '{{' }} x {{ '}}' }}"</code> always yields a
-      <em>string</em>; use <code>[value]="x"</code> to keep the real type.
-    </li>
-    <li>
-      <strong>Objects print as <code>[object Object]</code>.</strong> Use <code>| json</code> while debugging, or
-      interpolate a specific field.
-    </li>
-    <li>
-      <strong>Side effects.</strong> No assignments/increments in an expression — Angular may evaluate it many times; it
-      must be pure.
-    </li>
-    <li>
-      <strong><code>|</code> is always the pipe operator</strong> inside a template — never bitwise OR, even though it's
-      legal JS outside one.
-    </li>
-    <li>
-      <strong>ExpressionChangedAfterItHasBeenChecked.</strong> Mutating bound state <em>after</em> it was read in the
-      same cycle throws in dev mode — set it earlier.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Why avoid calling a method inside <code>{{ '{{' }} … {{ '}}' }}</code>?
-    </summary>
-    <div>
-      It re-runs on every change-detection pass that reaches the view — there is no memoization, unlike
-      <code>computed()</code>, which only re-invokes its callback when a signal it actually read has changed. Use a
-      <code>computed()</code> signal or a pure pipe for anything non-trivial.
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="count.set(count() - 1)" aria-label="Decrement count">−</button>
+        <span class="pill">count = {{ count() }}</span>
+        <button (click)="count.set(count() + 1)" aria-label="Increment count">+</button>
+      </div>
+      <p>Doubled: {{ count() * 2 }}</p>
+      <p>Is even? {{ count() % 2 === 0 ? 'yes' : 'no' }}</p>
+      <p>Squared via method: {{ square(count()) }}</p>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A component reads an unrelated signal and re-renders. Does a plain method call in its template re-execute even
-      though the values it depends on didn't change?
-    </summary>
-    <div>
-      Yes. Angular can't tell that a method's result is unrelated to whatever triggered the pass — it re-invokes every
-      interpolated method call the view reaches. Only <code>computed()</code> (and pure pipes with unchanged inputs)
-      skip the work, because they track their own dependency list.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      <code>value="{{ '{{' }} n {{ '}}' }}"</code> vs <code>[value]="n"</code>?
-    </summary>
-    <div>
-      Interpolation stringifies, so the first passes <code>'42'</code>; property binding passes the number
-      <code>42</code>. Bind properties with <code>[prop]</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What renders when the value is <code>null</code> or <code>undefined</code>?</summary>
-    <div>An empty string. Use <code>?.</code> to guard a nullish path so it doesn't throw.</div>
-  </details>
-  <details class="qa">
-    <summary>
-      Why does <code>{{ '{{' }} a | b {{ '}}' }}</code> fail to compile with "no pipe found" instead of doing a bitwise
-      OR?
-    </summary>
-    <div>
-      Angular's template grammar reserves <code>|</code> exclusively for pipes; it never falls back to JavaScript's
-      bitwise operator inside an interpolation, no matter what the operands look like.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>{{ '{{' }} expr {{ '}}' }}</code> renders <code>expr</code> as text and keeps it live, via a creation-mode
-      instruction (once) plus an update-mode instruction (every pass).
-    </li>
-    <li>
-      The result is coerced to a string; <code>null</code>/<code>undefined</code> become <code>''</code>, and plain
-      objects stringify to <code>[object Object]</code>.
-    </li>
-    <li>It's for text content — bind DOM properties with <code>[prop]</code> instead.</li>
-    <li>
-      Expressions are sandboxed and type-checked: no assignments, no globals, no side effects, <code>|</code> always
-      means "pipe".
-    </li>
-    <li>
-      A template method call always re-executes on every reachable change-detection pass; <code>computed()</code>/pure
-      pipes memoize by tracking their real dependencies.
-    </li>
-  </ul>
+    <app-code-lab
+      file="counter-panel.html"
+      [code]="mathSample"
+      [notes]="mathNotes"
+      notesLabel="Line by line — and the one line that costs more than it looks"
+    />
+  </section>
 
-  <p><a routerLink="/property-binding">Next: Property &amp; Attribute Binding →</a></p>
+  <!-- ============ 6. LIVE PROOF: METHOD CALL VS computed() ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Ask before telling</p>
+    <h2>Does an unrelated click really cost you anything?</h2>
+
+    <p>
+      Line 4 of the last sample — <code>square(count())</code> — is legal, and it looks harmless for something this
+      small. The next demo makes the actual cost visible by wiring up a plain method call and a <code>computed()</code>
+      side by side, both deriving the same number, each with its own run counter.
+    </p>
+
+    <app-predict [prompt]="methodPredictPrompt" [code]="methodPredictCode" [answer]="methodPredictAnswer" />
+
+    <div class="demo">
+      <p class="demo__title">Live — instrumented run counters</p>
+      <p>
+        Method call: <strong>{{ noisyDouble() }}</strong> · ran <span class="pill">{{ noisyRunsDisplay() }}</span> times
+      </p>
+      <p>
+        computed(): <strong>{{ computedDouble() }}</strong> · ran <span class="pill">{{ computedRuns }}</span> times
+      </p>
+      <div class="row" style="margin-top: 12px; flex-wrap: wrap">
+        <button (click)="bumpSeed()">seed.update(+1) — bumps BOTH counters</button>
+        <button class="ghost" (click)="bumpUnrelated()">trigger unrelated re-render ({{ unrelatedTick() }})</button>
+      </div>
+      <p class="demo__note">
+        Press <strong>trigger unrelated re-render</strong> a few times on its own — it changes a signal this template
+        reads, so a change-detection pass happens, but it has nothing to do with <code>seed</code>. Watch the method's
+        counter climb anyway while the <code>computed()</code>'s counter holds perfectly still. Then press
+        <strong>seed.update(+1)</strong> and watch both counters move together.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="method-vs-computed.ts"
+      [code]="noisyVsComputedSample"
+      [notes]="noisyVsComputedNotes"
+      notesLabel="Line by line — where the two derivations actually differ"
+    />
+
+    <app-remember variant="rule">
+      A plain method call inside <code>{{ '{{' }} … {{ '}}' }}</code> re-runs on <strong>every</strong> reachable check,
+      no matter how unrelated the trigger was. Put anything non-trivial behind <code>computed()</code> or a pure pipe
+      instead — both cache until their real inputs actually change.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. WHAT'S NOT ALLOWED ============ -->
+  <section>
+    <p class="bf-eyebrow">The boundary</p>
+    <h2>Six things that look reasonable and none of them compile.</h2>
+
+    <p>
+      Back to the peephole: a look can never become a reach. Every line below tries to write, construct, mutate, chain,
+      reach for something ambient, or sneak in an operator that doesn't mean what it means in plain JavaScript.
+    </p>
+
+    <app-code-lab
+      file="not-allowed.html"
+      [code]="invalidSample"
+      [notes]="invalidNotes"
+      notesLabel="Line by line — why each one is rejected"
+    />
+
+    <div class="warn">
+      Keep interpolation expressions simple and <strong>fast</strong>. They run on every change-detection pass that
+      reaches them, so avoid heavy work or anything with side effects — move that into the component class, a
+      <code>computed()</code>, or a pure pipe.
+    </div>
+  </section>
+
+  <!-- ============ 8. NULL, UNDEFINED AND OBJECTS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Ask before telling</p>
+    <h2>What actually shows up when there's nothing to show?</h2>
+
+    <p>
+      Interpolation always produces <strong>text</strong>, which means it always has to turn whatever you give it into a
+      string — including the awkward cases. Before the demo proves it, commit to a guess on the one people get wrong
+      most often:
+    </p>
+
+    <app-predict [prompt]="objectPredictPrompt" [answer]="objectPredictAnswer" />
+
+    <div class="demo">
+      <p class="demo__title">Live — toggle the signal between an object and null</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="toggleUser()">toggle user() — currently {{ user() ? 'an object' : 'null' }}</button>
+      </div>
+      <p>
+        Safe navigation: <code>user()?.name</code> → <strong>"{{ user()?.name }}"</strong>
+      </p>
+      <p>
+        Direct object interpolation: <code>user()</code> → <strong>"{{ user() }}"</strong>
+      </p>
+      <p class="demo__note">
+        Toggle to "an object" and the second row prints <code>[object Object]</code> — confirmed live, exactly as
+        predicted above. Toggle to "null" and <em>both</em> rows print an empty string instead of throwing, because
+        <code>?.</code> short-circuits before the property read, and Angular treats a bare <code>null</code>/
+        <code>undefined</code> the same way. That second behaviour is the self-test below.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="user-panel.html"
+      [code]="nullHandlingSample"
+      [notes]="nullHandlingNotes"
+      notesLabel="Line by line — what each symbol is"
+    />
+
+    <app-quiz
+      question="The `user` signal now holds `null`. What does `{{
+        '{{'
+      }} user() {{ '}}' }}` print — not `user()?.name`, the whole thing, direct?"
+      [options]="nullVsObjectOptions"
+      followUp="Flip back to the demo above and toggle to null to see it for yourself — nothing renders, and nothing in the console explains why."
+    />
+  </section>
+
+  <!-- ============ 9. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What the compiler actually builds for one interpolated line.</h2>
+
+    <p>
+      The peephole is a picture; this is the proof. Angular's compiler turns
+      <code>{{ '{{' }} … {{ '}}' }}</code> into two separate groups of instructions — one that runs once, and one that
+      runs on every check — and seeing them named is what makes
+      <span class="key">it re-runs every check, but only writes when something changed</span>
+      stop being a claim you have to take on faith.
+    </p>
+
+    <app-code-lab
+      file="compiled-instructions.js"
+      [code]="underTheHoodSample"
+      [notes]="underTheHoodNotes"
+      notesLabel="Line by line — creation mode vs. update mode"
+    />
+  </section>
+
+  <!-- ============ 10. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls</p>
+    <h2>Six ways this bites people who already understand it.</h2>
+
+    <ul>
+      <li>
+        <strong>Expensive method calls.</strong> They run on every reachable change-detection pass — prefer
+        <code>computed()</code> or a pure pipe, proven live above.
+      </li>
+      <li>
+        <strong>Interpolating into a property attribute.</strong>
+        <code>value="{{ '{{' }} x {{ '}}' }}"</code> always yields a <em>string</em>; use <code>[value]="x"</code> to
+        keep the real type.
+      </li>
+      <li>
+        <strong>Objects silently print as <code>[object Object]</code>.</strong> Use <code>| json</code> while
+        debugging, or interpolate a specific field instead of the whole thing.
+      </li>
+      <li>
+        <strong>Side effects.</strong> No assignments or increments in an expression — Angular may evaluate it many
+        times per second, so it has to be pure.
+      </li>
+      <li>
+        <strong><code>|</code> is always the pipe operator</strong> inside a template — never bitwise OR, even though
+        it's legal JavaScript everywhere else.
+      </li>
+      <li>
+        <strong>A missing value doesn't look like anything.</strong> <code>null</code>/<code>undefined</code> render as
+        an empty string, not an error — the self-test above is the whole reason this one makes the list.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <strong>A look, never a reach.</strong> <code>{{ '{{' }} … {{ '}}' }}</code> re-reads a fresh value on every
+        check — that's what keeps it live — and only ever accepts a single expression, never a statement — that's why it
+        can't write anything back.
+      </li>
+      <li>
+        <strong>Three steps, every time.</strong> Evaluate, stringify, then write to the real DOM only if the string
+        actually changed. The first two always happen; the third is what keeps "runs every check" cheap.
+      </li>
+      <li>
+        <strong>A method call is not free.</strong> It re-executes on every reachable change-detection pass, no matter
+        how unrelated the trigger was — proven live in the run-counter demo. <code>computed()</code> and pure pipes
+        memoize by tracking their real dependencies; a plain method cannot.
+      </li>
+      <li>
+        <strong><code>null</code>, <code>undefined</code> and objects all stringify differently</strong> — nullish
+        values quietly become <code>''</code>, and a plain object becomes <code>[object Object]</code>. Neither one
+        throws, which is exactly why both are worth memorising.
+      </li>
+      <li>
+        <strong>It's for text, not properties.</strong> Bind DOM properties with <code>[prop]</code> to keep their real
+        type; reach for interpolation only when text is genuinely what you want on the page.
+      </li>
+    </ul>
+
+    <p><a routerLink="/property-binding">Next: Property &amp; Attribute Binding →</a></p>
+  </section>
 </article>

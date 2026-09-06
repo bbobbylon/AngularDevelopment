@@ -1,40 +1,156 @@
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+/* Tables, callouts, demo panels and pills are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css), and the retention/
+   presentation devices (app-faq, app-code-lab, app-compare, ...) own their
+   own markup and styling. The `.qa` and `table.lbl` rules that used to live
+   here were a hand-rolled Q&A accordion and a hand-rolled line-by-line
+   breakdown table — both superseded by `app-faq` and `app-code-lab`. What's
+   left is genuinely specific to this lesson: the peephole figure. */
+
+/* ── The peephole figure ──────────────────────────────────────────────────
+   Hand-authored SVG rather than an <app-flow>, because the thing being
+   taught IS the shape: a wall with a hole that only lets a look through in
+   one direction and physically cannot pass anything back. Modelled on the
+   glitch diamond in beginner/signals — every colour is a --bf-* token so the
+   figure follows the page into dark mode, and the whole <svg> is
+   aria-hidden with the information repeated in the <figcaption>. */
+.peephole-fig {
+  margin: 1.8rem 0;
 }
 
-table.lbl {
+.peephole {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 4px 0 20px;
+  max-width: 480px;
+  height: auto;
+  margin: 0 auto;
 }
-table.lbl th,
-table.lbl td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
+
+.peephole-fig figcaption {
+  max-width: 60ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
 }
-table.lbl th {
-  background: var(--bg-elevated);
+
+.peephole__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
 }
-table.lbl td:first-child {
-  white-space: pre-wrap;
-  font-family: "JetBrains Mono", Menlo, Consolas, monospace;
-  font-size: 0.82rem;
-  width: 34%;
+
+.peephole__box--component {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+}
+
+.peephole__box--template {
+  fill: var(--bf-accent-wash);
+  stroke: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+.peephole__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.peephole__role {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* The wall the hole is drilled through. Faint on purpose — it is scenery,
+   not a labelled part of the mechanism. */
+.peephole__wall {
+  fill: var(--bf-ink-2);
+  opacity: 0.16;
+}
+
+/* The hole itself: painted in the page background so it reads as a gap
+   punched through the wall rather than another solid shape. */
+.peephole__hole {
+  fill: var(--bf-bg);
+}
+
+.peephole__hole-rim {
+  fill: none;
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+}
+
+.peephole__edge {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.peephole__edge--look {
+  stroke: var(--bf-accent);
+}
+
+.peephole__edge--blocked {
+  stroke: var(--bf-danger);
+  stroke-dasharray: 5 4;
+}
+
+.peephole__head--look {
+  fill: var(--bf-accent);
+}
+
+.peephole__blockmark {
+  stroke: var(--bf-danger);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.peephole__tag {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 11px;
+}
+
+/* The author's own annotation, in the margin voice — the one thing on the
+   diagram that is a comment rather than a part of the mechanism. */
+.peephole__hand {
+  fill: var(--bf-gold);
+  font-family: var(--font-hand);
+  font-size: 18px;
+}
+
+/* The look arrow draws itself in and the block mark fades in after it, so
+   the reader sees "a read gets through" resolve before "a write does not".
+   Transform/opacity-only, so reduced motion just skips straight to the
+   finished picture. */
+@media (prefers-reduced-motion: no-preference) {
+  .peephole__edge--look {
+    stroke-dasharray: 130;
+    stroke-dashoffset: 130;
+    animation: peephole-draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+  }
+
+  .peephole__head--look,
+  .peephole__edge--blocked,
+  .peephole__blockmark,
+  .peephole__hand {
+    opacity: 0;
+    animation: peephole-fade 0.4s ease 0.65s forwards;
+  }
+
+  @keyframes peephole-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes peephole-fade {
+    to {
+      opacity: 1;
+    }
+  }
 }
