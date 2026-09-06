@@ -1,23 +1,12 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-  margin: 12px 0;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why the old `.t` rule set that used
+   to live here is gone — it was a per-lesson copy of styling the theme now
+   owns for any plain <table> inside a `.lesson.bf` page.
+
+   `button.active` stays: it is genuinely specific to this lesson's
+   compact/detailed toggle and has no shared-layer equivalent. `--accent`
+   resolves to the brain-friendly accent token automatically once the page
+   opts in via `class="bf"` / `bfPage`. */
 button.active {
   background: var(--accent);
   color: #fff;
