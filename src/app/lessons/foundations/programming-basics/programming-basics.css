@@ -1,16 +1,93 @@
-.t {
+/* Tables, callouts, demo panels, pills and the code window are all styled by
+   the shared brain-friendly layer now (src/brain-friendly.css §14-15), so the
+   `.qa` accordion and the `.t` table rules that used to live here are gone —
+   the value/type table is a plain `<table>` and the exam questions are an
+   `<app-faq>`, both of which the layer already styles.
+
+   What is left is genuinely specific to this lesson: the two-panel "one box,
+   two moments" diagram, and the live demo fields/trace-stepper markup. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAM
+   One SVG carries this lesson's visual: a replaceable `let` box being
+   overwritten next to a sealed `const` box refusing a second write. Every
+   colour comes from a --bf-* token rather than a literal, so the diagram
+   follows the reader's light/dark choice with no duplicate rules.
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
+}
+
+.dia__svg {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
+  height: auto;
+  overflow: visible;
 }
-.t td {
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
 }
-.t td:first-child {
-  width: 150px;
+
+/* A container drawn on the page: the same surface + hairline as a .bf-card,
+   so a box in the diagram reads as the same kind of object as a box in the
+   layout. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
 }
+
+/* The box the arrow is currently pointing at. */
+.dia-box--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+/* The padlock on the sealed `const` box — clay, per the layer's convention
+   that clay means "the solid object in a diagram". */
+.dia-box--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 13px;
+  fill: var(--bf-ink-2);
+}
+
+/* The author's handwriting, inside the picture. Same face and hue as
+   `.bf-hand` in the running text, so the margin voice sounds the same
+   whether it is set in HTML or drawn in SVG. */
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. DEMO FIELDS (the + type-coercion playground)
+   ------------------------------------------------------------------ */
 .field {
   display: flex;
   align-items: center;
@@ -27,6 +104,9 @@
   font-size: 0.8rem;
 }
 
+/* ------------------------------------------------------------------
+   3. THE TRACE STEPPER (the execution-order demo)
+   ------------------------------------------------------------------ */
 .trace-code {
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -82,22 +162,4 @@
   padding: 6px 10px;
   font-family: monospace;
   font-weight: 700;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }

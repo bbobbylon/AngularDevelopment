@@ -1,294 +1,534 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Programming from Zero</span>
-  <h1>Programming Basics: Values &amp; Variables</h1>
-  <p class="lead">
-    Programming is writing instructions for a computer to follow, <em>one at a time, top to bottom</em>. Those
-    instructions almost always work with <strong>values</strong> — pieces of information — stored in
-    <strong>variables</strong>. This page builds those two ideas properly, shows you how the computer actually walks
-    through a program, and defuses the traps that bite every beginner.
-  </p>
-
-  <h2>What is a value — and why its <em>type</em> matters</h2>
-  <p>A value is a single piece of data. The everyday kinds you'll use constantly:</p>
-  <table class="t">
-    <tr>
-      <td><strong>Number</strong></td>
-      <td><code>42</code>, <code>3.14</code>, <code>-7</code> — for counting and math. No quotes.</td>
-    </tr>
-    <tr>
-      <td><strong>String</strong></td>
-      <td>
-        <code>'Ada'</code>, <code>'hello world'</code>, even <code>'42'</code> — text, always inside quotes. The quotes
-        are how you (and the computer) know it's text.
-      </td>
-    </tr>
-    <tr>
-      <td><strong>Boolean</strong></td>
-      <td>
-        <code>true</code> or <code>false</code> — a yes/no answer. Named after logician George Boole. Every decision a
-        program makes boils down to one of these.
-      </td>
-    </tr>
-    <tr>
-      <td><strong>undefined / null</strong></td>
-      <td>
-        "Nothing here." <code>undefined</code> = never given a value; <code>null</code> = deliberately empty. You'll
-        meet both constantly in real code.
-      </td>
-    </tr>
-  </table>
-  <p>
-    The <em>kind</em> of a value is called its <strong>type</strong>, and it decides what operations mean. Watch the
-    same <code>+</code> do two different jobs:
-  </p>
-  <div class="code">
-    <pre>
-5 + 5        // 10        numbers → addition
-'5' + '5'    // '55'      strings → gluing (concatenation)
-'5' + 5      // '55' (!)  mixed → JavaScript converts the number to text and glues</pre>
-  </div>
-  <p>
-    That last line is a real bug factory: a value read from an input field is
-    <em>always a string</em>, so <code>ageFromInput + 1</code> gives <code>'361'</code> instead of <code>37</code>. This
-    whole class of surprise is why the next lessons introduce <strong>TypeScript</strong>, which flags mixed-type
-    mistakes <em>before</em> the code ever runs. Try it yourself:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — the same + with different types</p>
-    <div class="field">
-      <label>left value</label>
-      <input
-        aria-label="left value"
-        [value]="left()"
-        (input)="left.set($any($event.target).value)"
-        style="width: 110px"
-      />
-      <label class="mini">treat as</label>
-      <button [class.ghost]="!leftIsNum()" (click)="leftIsNum.set(true)">number</button>
-      <button [class.ghost]="leftIsNum()" (click)="leftIsNum.set(false)">string</button>
-    </div>
-    <div class="field">
-      <label>right value</label>
-      <input
-        aria-label="right value"
-        [value]="right()"
-        (input)="right.set($any($event.target).value)"
-        style="width: 110px"
-      />
-      <label class="mini">treat as</label>
-      <button [class.ghost]="!rightIsNum()" (click)="rightIsNum.set(true)">number</button>
-      <button [class.ghost]="rightIsNum()" (click)="rightIsNum.set(false)">string</button>
-    </div>
-    <div class="code">
-      <pre>{{ plusExpr() }}</pre>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Same operator, different types, different meaning. When either side is a string, + becomes "glue".
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Foundations · Programming from Zero"
+    title="Programming Basics"
+    hand="or, how to give a computer instructions it can't wiggle out of"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      Programming means writing instructions for a computer to follow, <strong>one at a time, top to bottom</strong>.
+      Almost every instruction works with two ideas: a <strong>value</strong> (a piece of information) and a
+      <strong>variable</strong> (a place to keep one so you can use it again later by name). This page builds both
+      properly, shows you exactly how a computer walks through a program, and — because this is where every beginner
+      gets bitten at least once — defuses the traps before you meet them for the first time in an exam.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>What is a variable?</h2>
-  <p>
-    A variable is a <strong>labelled box</strong> that holds a value so you can use it later by name. You create
-    ("declare") one with <code>let</code> or <code>const</code>:
-  </p>
-  <div class="code">
-    <pre>
-let score = 0;       // "let": a box whose contents may be replaced later
-const name = 'Ada';  // "const": a box that is sealed after the first value
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A computer never guesses what you mean.</h2>
 
-score = 10;          // ✅ allowed — let can be reassigned
-// name = 'Grace';   // ❌ error — const cannot be reassigned</pre>
-  </div>
-  <p>Reading the first line the way the computer does, right side first:</p>
-  <ul>
-    <li><code>let score</code> — "make a new box and label it <em>score</em>".</li>
-    <li>
-      <code>= 0</code> — "put the value <code>0</code> into it". The <code>=</code> does <strong>not</strong> mean
-      "equals" like in maths — it means <em>"store the right side into the left side"</em>. We call that
-      <strong>assignment</strong>, and it always flows right → left.
-    </li>
-    <li><code>;</code> — "this instruction is finished". Like a full stop in a sentence.</li>
-  </ul>
-  <div class="tip">
-    <strong>Default to <code>const</code>.</strong> Professional code uses <code>const</code> for almost everything and
-    <code>let</code> only when a value genuinely must change (a counter, a running total). A sealed box is one less
-    thing that can go wrong — if you try to overwrite it, the mistake announces itself immediately instead of corrupting
-    data silently.
-  </div>
-
-  <h2>The computer's eye view — step through a program</h2>
-  <p>
-    This is the single most useful skill on this page: being able to
-    <strong>trace</strong> code — play computer, one line at a time, tracking what every box holds. Step through this
-    five-line program and watch the boxes:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — execute one line at a time</p>
-    <div class="trace-code">
-      @for (line of trace; track line.code; let i = $index) {
-        <div class="tline" [class.done]="lineNo() > i" [class.now]="lineNo() === i" (click)="lineNo.set(i)">
-          <span class="ln">{{ i + 1 }}</span
-          ><code>{{ line.code }}</code>
-        </div>
-      }
-    </div>
-    <div class="row" style="margin: 10px 0">
-      <button (click)="stepBack()" [disabled]="lineNo() === 0" class="ghost">← Back</button>
-      <button (click)="stepFwd()" [disabled]="lineNo() === trace.length - 1">Step →</button>
-    </div>
-    <p style="font-size: 0.92rem">
-      <strong>What line {{ lineNo() + 1 }} does:</strong> {{ trace[lineNo()].effect }}
+    <p>
+      Ask a friend to "grab the big one" and they will glance around, use context, and probably get it right. A computer
+      cannot do any of that. It runs
+      <span class="key">the exact instructions you gave it, in the exact order you gave them</span>, and nothing else —
+      no guessing, no filling in gaps, no "I think you meant". That sounds limiting, and it is also the entire reason
+      programming is learnable: the machine's behaviour is completely predictable once you know what instruction you
+      actually wrote.
     </p>
-    <div class="boxes">
-      @for (b of trace[lineNo()].boxes; track b.name) {
-        <div class="box">
-          <span class="box-name">{{ b.name }}</span
-          ><span class="box-val">{{ b.value }}</span>
-        </div>
-      }
+
+    <p>
+      So the very first problem every program has to solve is a small one:
+      <strong>where do I keep the information I'm working with</strong>, so a later instruction can use it? That
+      question is what values and variables answer, and it is worth taking seriously — the rest of this entire course is
+      built on top of the answer.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      You write <code>let score = 0;</code>. A little later, some other line runs <code>score = 10;</code>.
+      <strong
+        >Is that the exact same box with new insides, or does JavaScript throw the old box away and make a brand new
+        one?</strong
+      >
+      Commit to an answer now — you'll get to check yourself against a real diagram in a few paragraphs.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. VALUES AND TYPES ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Values</p>
+    <h2>Every value has a kind, and the kind decides what happens next.</h2>
+
+    <p>
+      A <span class="term">value</span> is one single piece of data. The everyday kinds — called
+      <span class="term">types</span> — you will use constantly:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        The four types you'll meet in almost every program
+      </caption>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>What it looks like</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Number</strong></td>
+          <td><code>42</code>, <code>3.14</code>, <code>-7</code> — for counting and maths. Never in quotes.</td>
+        </tr>
+        <tr>
+          <td><strong>String</strong></td>
+          <td>
+            <code>'Ada'</code>, <code>'hello world'</code>, even <code>'42'</code> — text, always inside quotes. The
+            quotes are the only thing telling you (and the computer) that this is text and not a number.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Boolean</strong></td>
+          <td>
+            <code>true</code> or <code>false</code> — a plain yes/no answer, named after logician George Boole. Every
+            decision a program ever makes boils down to one of these two words.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>undefined / null</strong></td>
+          <td>
+            Two different flavours of "nothing here": <code>undefined</code> means a variable was never given a value;
+            <code>null</code> means something was deliberately left empty on purpose.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      A value's type decides what an operator even <em>means</em>. Watch the exact same <code>+</code> symbol do two
+      completely different jobs depending only on what is sitting either side of it:
+    </p>
+
+    <app-code-lab
+      file="plus.ts"
+      [code]="plusSample"
+      [notes]="plusNotes"
+      notesLabel="What the quotes are actually doing"
+      prompt="Before the reveal — is line 3 an error, a warning, or does it just quietly run?"
+      output="It just quietly runs. JavaScript never asks which one you meant — it converts the number to text and glues, no warning printed anywhere."
+      revealLabel="Reveal what really happens"
+    />
+
+    <p>
+      That silent conversion is a genuine <span class="bf-break">bug factory</span>: a value read out of an HTML input
+      field is <em>always</em> a string, even if it looks like a number, so <code>ageFromInput + 1</code> can give you
+      <code>'361'</code> instead of <code>37</code>. This exact class of surprise is why the very next lessons introduce
+      <strong>TypeScript</strong> — it flags a mixed-type mistake like this one <em>before</em> your code ever runs. For
+      now, try it with your own numbers:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the same + with different types</p>
+      <div class="field">
+        <label>left value</label>
+        <input
+          aria-label="left value"
+          [value]="left()"
+          (input)="left.set($any($event.target).value)"
+          style="width: 110px"
+        />
+        <label class="mini">treat as</label>
+        <button [class.ghost]="!leftIsNum()" (click)="leftIsNum.set(true)">number</button>
+        <button [class.ghost]="leftIsNum()" (click)="leftIsNum.set(false)">string</button>
+      </div>
+      <div class="field">
+        <label>right value</label>
+        <input
+          aria-label="right value"
+          [value]="right()"
+          (input)="right.set($any($event.target).value)"
+          style="width: 110px"
+        />
+        <label class="mini">treat as</label>
+        <button [class.ghost]="!rightIsNum()" (click)="rightIsNum.set(true)">number</button>
+        <button [class.ghost]="rightIsNum()" (click)="rightIsNum.set(false)">string</button>
+      </div>
+      <div class="code">
+        <pre>{{ plusExpr() }}</pre>
+      </div>
+      <p class="demo__note">
+        Set both sides to "number" and you get real addition. Flip either one to "string" and <code>+</code>
+        immediately switches to gluing — same button, same symbol, a completely different operation underneath.
+      </p>
     </div>
-  </div>
-  <div class="warn">
-    Line 4 is the big lesson: after <code>qty = 4</code>, <code>total</code> is <em>still 60</em>. A variable holds the
-    <strong>result</strong> of a calculation, not the calculation itself — code is a sequence of moments, not a
-    spreadsheet of live formulas. (Angular's <em>signals</em>, which you'll meet soon, exist precisely to give you the
-    spreadsheet behaviour when you want it — <code>computed()</code> re-runs automatically. Now you'll understand why
-    that's special.)
-  </div>
+  </section>
 
-  <h2>Doing things with values — operators</h2>
-  <div class="code">
-    <pre>
-// arithmetic on numbers:
-2 + 3        // 5
-10 - 4       // 6
-6 * 7        // 42
-20 / 4       // 5
-7 % 3        // 1     ← "modulo": the REMAINDER after division (7 = 2×3 + 1)
+  <!-- ============ 3. VARIABLES — THE BOX ANALOGY, AT LENGTH ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A variable is a labelled box — not the thing inside it.</h2>
 
-// comparisons — each produces a boolean (true/false):
-5 > 3        // true
-5 >= 5       // true
-5 === 5      // true   "exactly equal to"
-5 !== 4      // true   "not equal to"
+    <p>
+      A <span class="term">variable</span> is a box with a name written on the outside, sitting somewhere in the
+      computer's memory, holding one value so a later instruction can find it again. Here is the part worth sitting
+      with: <strong>the label on the box does not care what's currently inside it.</strong> You can open the box, throw
+      out the old contents, and put something new in — the box is still the same box, still has the same label, and any
+      other instruction that reaches for it by name still finds it in the same place.
+    </p>
 
-// combining booleans:
-true && false   // false  — && is AND: both sides must be true
-true || false   // true   — || is OR: at least one side true
-!true           // false  — ! flips it: NOT</pre>
-  </div>
-  <ul>
-    <li>
-      <code>%</code> (modulo) looks exotic but is everywhere: <code>n % 2 === 0</code> is the classic "is n even?" test
-      — a number is even exactly when dividing by 2 leaves remainder 0.
-    </li>
-    <li>
-      Comparisons don't <em>do</em> anything by themselves — they <em>produce a boolean</em> that you then store or hand
-      to an <code>if</code> (next lesson) to make a decision.
-    </li>
-    <li>
-      <code>&amp;&amp;</code> / <code>||</code> / <code>!</code> let you build compound questions:
+    <p>
+      You create ("declare") a box with <code>let</code> or <code>const</code>, and the two keywords disagree about one
+      thing only — whether the box can ever be refilled:
+    </p>
+
+    <app-code-lab
+      file="boxes.ts"
+      [code]="boxSample"
+      [notes]="boxNotes"
+      notesLabel="Every symbol, including the punctuation"
+    />
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 720 220"
+        role="img"
+        aria-label="Two diagrams side by side. On the left, one box labelled score holds 0, then an arrow curves to a second box, still labelled score, now holding 10 — the same box at two different moments. On the right, a box labelled name holds Ada with a small padlock drawn above it; an attempted arrow labelled name equals Grace is blocked by a cross, with the word TypeError beside it."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="pb-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <!-- LEFT: let — same box, new contents -->
+        <text x="20" y="26" class="dia-mono dia-mono--sm">let score</text>
+        <rect x="16" y="36" width="120" height="76" rx="14" class="dia-box" />
+        <text x="76" y="82" text-anchor="middle" class="dia-mono">0</text>
+
+        <path d="M 136 60 C 175 30, 195 30, 224 58" class="dia-rule" fill="none" marker-end="url(#pb-arrow)" />
+        <text x="180" y="24" text-anchor="middle" class="dia-hand">score = 10;</text>
+
+        <text x="204" y="26" class="dia-mono dia-mono--sm">score</text>
+        <rect x="200" y="36" width="120" height="76" rx="14" class="dia-box dia-box--lit" />
+        <text x="260" y="82" text-anchor="middle" class="dia-mono">10</text>
+
+        <text x="168" y="140" text-anchor="middle" class="dia-mono dia-mono--sm">one box, two moments</text>
+
+        <!-- divider -->
+        <line x1="376" y1="16" x2="376" y2="204" class="dia-rule" stroke-dasharray="3 6" />
+
+        <!-- RIGHT: const — sealed -->
+        <text x="420" y="26" class="dia-mono dia-mono--sm">const name</text>
+        <rect x="416" y="36" width="150" height="76" rx="14" class="dia-box" />
+        <text x="491" y="82" text-anchor="middle" class="dia-mono">'Ada'</text>
+
+        <!-- padlock -->
+        <path d="M 540 30 a10 10 0 0 1 20 0 v8 h-20 z" class="dia-rule" fill="none" />
+        <rect x="534" y="38" width="32" height="20" rx="4" class="dia-box--solid" />
+
+        <path d="M 596 96 L 660 74" class="dia-rule" stroke-dasharray="4 5" fill="none" />
+        <text x="601" y="66" class="dia-hand">name = 'Grace';</text>
+        <g transform="translate(660, 66)">
+          <line x1="-9" y1="-9" x2="9" y2="9" class="dia-rule" />
+          <line x1="9" y1="-9" x2="-9" y2="9" class="dia-rule" />
+        </g>
+        <text x="612" y="128" class="dia-mono dia-mono--sm">✗ TypeError: Assignment to constant variable.</text>
+      </svg>
+      <figcaption>
+        <strong>Left:</strong> reassigning a <code>let</code> box is the same box, new contents — the label never moved.
+        <strong>Right:</strong> a <code>const</code> box refuses a second owner outright: the attempt never reaches the
+        box at all, and the program stops instead of quietly overwriting anything.
+      </figcaption>
+    </figure>
+
+    <app-bubbles
+      [turns]="boxTalk"
+      caption="What 'changing a variable' means for a reassignable box versus a sealed one."
+    />
+
+    <div class="tip">
+      <strong>Default to <code>const</code>.</strong> Professional code uses <code>const</code> for almost everything
+      and reaches for <code>let</code> only when a value genuinely must change later — a counter, a running total. A
+      sealed box is one less thing that can go wrong: if something tries to overwrite it by mistake, the program
+      announces the mistake immediately instead of silently corrupting data.
+    </div>
+  </section>
+
+  <!-- ============ 4. EXECUTION ORDER — THE COMPUTER'S EYE VIEW ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Programs run one instruction at a time, and a box never "keeps up".</h2>
+
+    <p>
+      Here is the single most useful skill on this entire page: being able to <span class="term">trace</span>
+      code — play computer, one line at a time, tracking exactly what every box currently holds. Reading an assignment
+      line the way the computer does means running it in a fixed order, every single time:
+    </p>
+
+    <app-flow
+      [steps]="assignFlow"
+      caption="What `let total = price * qty;` actually does, broken into its three moves. Nothing about this remembers `price` or `qty` once step 3 finishes."
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>Right side first, then into the box.</strong> Every assignment reads the current contents of whatever is
+      on the right, computes an answer, and only then stores that answer in the box on the left. Once stored, the answer
+      has no memory of the formula that produced it.
+    </app-remember>
+
+    <p>
+      Which leads straight to the trap: if <code>total</code> was calculated from <code>price</code> and
+      <code>qty</code>, and then <code>qty</code> changes, does <code>total</code> update itself?
+    </p>
+
+    <app-predict
+      prompt="Trace it line by line before you reveal. After the last line runs, what does `console.log(total)` print — 60 or 80?"
+      [code]="staleTotalSample"
+      answer="**60.** `total` was calculated once, on the line `let total = price * qty;`, back when `qty` was still 3 — and a box holds the **answer** of a calculation, never the calculation itself. Changing `qty` afterwards does nothing to a box that already finished being written to. To get 80 you would have to run `total = price * qty;` again, on purpose, after the change."
+      revealLabel="Reveal what total actually holds"
+    />
+
+    <p>Now check yourself against the exact same program, one line at a time:</p>
+
+    <div class="demo">
+      <p class="demo__title">Live — execute one line at a time</p>
+      <div class="trace-code">
+        @for (line of trace; track line.code; let i = $index) {
+          <div class="tline" [class.done]="lineNo() > i" [class.now]="lineNo() === i" (click)="lineNo.set(i)">
+            <span class="ln">{{ i + 1 }}</span
+            ><code>{{ line.code }}</code>
+          </div>
+        }
+      </div>
+      <div class="row" style="margin: 10px 0">
+        <button (click)="stepBack()" [disabled]="lineNo() === 0" class="ghost">← Back</button>
+        <button (click)="stepFwd()" [disabled]="lineNo() === trace.length - 1">Step →</button>
+      </div>
+      <p style="font-size: 0.92rem">
+        <strong>What line {{ lineNo() + 1 }} does:</strong> {{ trace[lineNo()].effect }}
+      </p>
+      <div class="boxes">
+        @for (b of trace[lineNo()].boxes; track b.name) {
+          <div class="box">
+            <span class="box-name">{{ b.name }}</span
+            ><span class="box-val">{{ b.value }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="note">
+      Angular's <em>signals</em>, which you'll meet in a few lessons, exist precisely to give you the "keeps up
+      automatically" behaviour when you actually want it — <code>computed()</code> re-runs its formula every time a
+      value it reads changes. Once you have felt <code>total</code> go stale here, you will understand exactly why that
+      is worth having.
+    </div>
+  </section>
+
+  <!-- ============ 5. OPERATORS ============ -->
+  <section>
+    <p class="bf-eyebrow">The toolkit</p>
+    <h2>Operators do the work — but not always the job you'd guess.</h2>
+
+    <p>
+      You have already met <code>+</code>, <code>-</code>, <code>=</code> and <code>===</code>. A handful more come up
+      constantly enough to learn on purpose rather than by accident:
+    </p>
+
+    <app-code-lab
+      file="operators.ts"
+      [code]="operatorsSample"
+      [notes]="operatorsNotes"
+      notesLabel="One operator, one job, per line"
+    />
+
+    <app-napkin lead="go try it —" label="Hands-on practice">
+      Open your browser's developer console (usually <code>F12</code>) and type <code>7 % 3</code>, then
+      <code>5 === '5'</code>, then <code>true &amp;&amp; false</code>. Reading about an operator and watching it answer
+      <em>your</em> question are two different kinds of learning — this page can only do the first one for you.
+    </app-napkin>
+
+    <p>
+      Comparisons don't <em>do</em> anything on their own — each one <span class="key">produces a boolean</span> that
+      you can store, print, or hand to a decision (the very next lesson). <code>&amp;&amp;</code>, <code>||</code> and
+      <code>!</code> let you combine several yes/no questions into one:
       <em>"is the user logged in AND is the cart non-empty?"</em>
-    </li>
-  </ul>
+    </p>
+  </section>
 
-  <div class="note">
-    <strong><code>=</code> vs <code>===</code> — completely different jobs.</strong>
-    One equals sign <em>assigns</em> ("put this into the box"). Three equals signs <em>compare</em> ("are these the
-    same?") and hand back <code>true</code> or <code>false</code>. You'll also see <code>==</code> (two) in old code —
-    it compares <em>after</em> silently converting types (<code>'5' == 5</code> is <code>true</code>!), which causes so
-    many surprises that modern style bans it. Always <code>===</code>.
-  </div>
+  <!-- ============ 6. THE FAMOUS TRAP: = vs == vs === ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The famous trap</p>
+    <h2>One equals sign is not like the other two.</h2>
 
-  <h2>Naming things — a professional habit from day one</h2>
-  <div class="code">
-    <pre>
-// ❌ legal, but cruel to the next reader (probably you, next week):
+    <p>
+      Three different symbols, spelled almost identically, doing three unrelated jobs. This single family of confusion
+      produces more beginner bugs — and more exam questions — than anything else on this page, so it earns its own
+      section rather than a footnote.
+    </p>
+
+    <ul>
+      <li><code>=</code> — one equals sign. <strong>Assigns.</strong> "Store the right side into the left side."</li>
+      <li>
+        <code>==</code> — two. <strong>Compares, after silently converting types.</strong> Legacy, and banned by modern
+        style.
+      </li>
+      <li>
+        <code>===</code> — three. <strong>Compares, with no conversion at all.</strong> The one you should reach for by
+        default.
+      </li>
+    </ul>
+
+    <p>
+      The most dangerous of the three is the single one, because using it where you meant a comparison is
+      <span class="bf-break">completely legal JavaScript that runs without any error</span>:
+    </p>
+
+    <app-predict
+      prompt="`score` starts at 0. Trace this before you reveal — what does the console log, and what does `score` end up holding?"
+      [code]="assignBugSample"
+      answer="It logs **'You win!'** — every single time, no matter what `score` started as — and afterwards `score` holds **100**. `if (score = 100)` does not compare anything: the single `=` **assigns** 100 to `score` and the whole expression then evaluates to that freshly-stored 100, which is truthy, so the `if` branch always runs. The line silently overwrote `score` as a side effect of a condition that looked like a comparison. The fix is one extra character: `if (score === 100)`."
+      revealLabel="Reveal what actually happens"
+    />
+
+    <p>
+      Two equals signs are almost as risky, in a quieter way — they compare, but only after converting one side to match
+      the other's type:
+    </p>
+
+    <app-quiz
+      question="What does `'5' == 5` evaluate to, and what does `'5' === 5` evaluate to?"
+      [options]="equalityQuizOptions"
+      followUp="This is exactly why the modern rule is blunt: always use `===`, and treat seeing `==` in someone else's code as a small red flag."
+    />
+
+    <app-remember variant="rule">
+      <strong>One <code>=</code> assigns. Three <code>===</code> compares. Never write two.</strong> If you ever catch
+      yourself reaching for <code>==</code>, you almost certainly wanted <code>===</code> — and if a condition looks
+      suspiciously easy to satisfy, check it for a stray single equals sign first.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. NAMING AND COMMENTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Professional habits</p>
+    <h2>Name things for the next reader — probably you, next week.</h2>
+
+    <p>
+      Code is read far more often than it is written, so a variable's name is a tiny piece of documentation that never
+      goes stale. The convention in JavaScript and TypeScript is <span class="term">camelCase</span>: the first word
+      lowercase, every following word capitalised, no spaces or underscores.
+    </p>
+
+    <app-compare
+      leftTitle="Legal, but cruel to the next reader"
+      rightTitle="The name carries the meaning"
+      leftTone="bad"
+      rightTone="good"
+    >
+      <div left>
+        <div class="code">
+          <pre>
 const x = 86400;
-
-// ✅ the name carries the meaning:
+let n = 3;
+const arr = [];</pre>
+        </div>
+        <p>
+          Runs perfectly. Six months from now — or six minutes — nobody, including you, can tell what any of it is for.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
 const secondsPerDay = 86400;
-
-// convention in JavaScript/TypeScript: camelCase —
-// first word lowercase, every following word capitalized:
 let itemsInCart = 3;
-const maxRetryCount = 5;</pre>
-  </div>
-  <p>
-    Code is read far more often than it is written. A good variable name is a tiny piece of documentation that never
-    goes stale — you will see this principle enforced through every lesson in this course.
-  </p>
+const pendingOrders = [];</pre>
+        </div>
+        <p>Identical behaviour, and the code now explains itself without a single comment.</p>
+      </div>
+    </app-compare>
 
-  <h2>Comments — notes for humans</h2>
-  <div class="code">
-    <pre>
-// anything after two slashes is a comment — the computer ignores it.
-let total = 5; // they can also sit at the end of a line
+    <p>
+      Comments are the other half of writing for a reader: text the computer skips entirely, left behind for the next
+      human.
+    </p>
 
-/* a slash-star pair makes a comment
-   that can span several lines */</pre>
-  </div>
-  <p>
-    Best practice you'll see in this codebase: comment the <em>why</em>, not the <em>what</em>.
-    <code>// add 1 to i</code> restates the obvious; <code>// cart prices arrive as strings from the API</code> saves
-    the reader an investigation.
-  </p>
+    <app-code-lab
+      file="comments.ts"
+      [code]="commentsSample"
+      [notes]="commentsNotes"
+      notesLabel="Two ways to write a comment"
+    />
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>What does <code>let x = 5; let y = x; x = 10;</code> leave in <code>y</code>?</summary>
-    <div>
-      <code>y</code> is <strong>5</strong>. Line 2 <em>copied the value</em> out of x's box into y's box; the boxes are
-      independent afterwards, so line 3 only changes x. (Later you'll learn objects behave differently — two variables
-      can share one object — but for numbers, strings and booleans, assignment copies.)
+    <p>
+      Best practice you'll see throughout this codebase: comment the <em>why</em>, not the <em>what</em>.
+      <code>// add 1 to i</code> restates what the next line already says in plain sight;
+      <code>// cart prices arrive as strings from the API</code> saves the next reader an entire investigation.
+    </p>
+  </section>
+
+  <!-- ============ 8. FOUR TRAPS, PINNED TO THE PAGE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Pulling it together</p>
+    <h2>Four traps you will meet again — probably this week.</h2>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Sneaky glue" kicker="mixed-type +" tone="accent">
+        <code>'5' + 5</code> gives <code>'55'</code>, not <code>10</code> — one string on either side of
+        <code>+</code> switches the whole operation from addition to gluing text together.
+      </app-tape-card>
+      <app-tape-card heading="Stale total" kicker="assignment order" tone="olive">
+        A box holds the <em>answer</em> of a calculation, never the calculation itself. Change an input afterwards and
+        nothing recalculates on its own.
+      </app-tape-card>
+      <app-tape-card heading="One equals" kicker="= inside an if" tone="gold">
+        <code>if (score = 100)</code> assigns and always passes. It never compares anything — that would need a third
+        equals sign.
+      </app-tape-card>
+      <app-tape-card heading="Quiet nothing" kicker="undefined / null" tone="blue">
+        A missing value doesn't crash on its own — it hands back <code>undefined</code> and waits. The crash always
+        arrives one step later, when something tries to use it.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary>
-      Why does <code>'10' + 5</code> give <code>'105'</code> but <code>'10' - 5</code> give <code>5</code>?
-    </summary>
-    <div>
-      <code>+</code> has two jobs — if either side is a string it glues, so the 5 becomes '5' and you get '105'.
-      <code>-</code> has only one job (math), so JavaScript converts '10' to a number instead. Inconsistent? Absolutely
-      — which is why TypeScript will simply refuse to compile the mixed versions.
-    </div>
-  </details>
-  <details class="qa">
-    <summary><code>if (score = 100)</code> — spot the bug.</summary>
-    <div>
-      Single <code>=</code>: it <em>assigns</em> 100 into score (destroying its value!) instead of comparing. The
-      intended code is <code>if (score === 100)</code>. This bug is legal JavaScript and runs without error — the
-      condition just becomes the assigned value. TypeScript and linters flag it, which is one more reason they exist.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>When must you use <code>let</code> instead of <code>const</code>?</summary>
-    <div>
-      Only when the variable will be <em>reassigned</em>: counters (<code>i = i + 1</code>), running totals, values
-      built up across steps. Everything else should be <code>const</code>. Note the subtlety: const seals the
-      <em>box</em>, not the value — a const object's insides can still change (that nuance returns in the Arrays &amp;
-      Objects lesson).
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A <strong>value</strong> is a piece of data; its <strong>type</strong> (number, string, boolean…) decides what
-      operations mean — <code>5 + 5</code> ≠ <code>'5' + '5'</code>.
-    </li>
-    <li>
-      A <strong>variable</strong> is a named box. <code>const</code> = sealed (use by default), <code>let</code> =
-      replaceable. Assignment flows right → left.
-    </li>
-    <li>
-      Programs run <strong>one line at a time</strong>; a variable holds the result of a past calculation, and won't
-      update unless you recalculate. Tracing code line-by-line is a learnable superpower.
-    </li>
-    <li><code>=</code> assigns, <code>===</code> compares, <code>==</code> is a legacy trap — never use it.</li>
-    <li>Name variables for meaning in <strong>camelCase</strong>; comment the <em>why</em>.</li>
-  </ul>
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <p><a routerLink="/functions-basics">Next: Functions →</a></p>
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        A <strong>value</strong> has a <strong>type</strong>, and the type decides what an operator means —
+        <code>5 + 5</code> is addition, <code>'5' + '5'</code> is gluing, and <code>'5' + 5</code> silently glues too.
+      </li>
+      <li>
+        A <strong>variable is a labelled box, not the value inside it.</strong> Reassigning a <code>let</code> box keeps
+        the same box with new contents; a <code>const</code> box refuses a new owner outright, and the attempt throws
+        rather than quietly failing.
+      </li>
+      <li>
+        Programs run <strong>one instruction at a time</strong>, and every assignment reads its right side first,
+        computes an answer, then stores it. A box never "keeps up" with a value that changes after it was written — you
+        must recalculate on purpose.
+      </li>
+      <li>
+        <code>=</code> assigns, <code>===</code> compares with no conversion, and <code>==</code> compares after
+        secretly converting types. <strong><code>if (x = value)</code> is a legal, silent bug</strong> — always
+        double-check you wrote enough equals signs.
+      </li>
+      <li>
+        Name variables for meaning in <strong>camelCase</strong>, and comment the <em>why</em>, not the <em>what</em>.
+      </li>
+    </ul>
+
+    <p><a routerLink="/functions-basics">Next: Functions →</a></p>
+  </section>
 </article>
