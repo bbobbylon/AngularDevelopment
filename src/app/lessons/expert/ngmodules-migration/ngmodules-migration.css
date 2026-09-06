@@ -1,21 +1,24 @@
+/* Table and callout styling comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) once `bf` is on the article, which is why this
+   file only holds what is genuinely specific to this lesson: the six-chip
+   scope-scenario picker and the two "free ride" diagrams.
+
+   The `.chips` buttons are deliberately given `class="ghost"` rather than
+   left as plain `<button>`s: `.lesson.bf .demo button:not(.bf-btn):not(.ghost)`
+   forces every plain button in a `.demo` to a solid accent pill, which would
+   turn six togglable scenario chips into six identical shouting buttons. The
+   `.ghost` global rule only sets shape and type, leaving background/colour
+   free for `.chips button.on` below to own the "selected" state. */
 .chips {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin: 0 0 12px;
 }
-.chips button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 6px 14px;
-  font-size: 0.84rem;
-}
 .chips button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--bf-accent);
+  border-color: var(--bf-accent);
+  color: var(--bf-bg);
 }
 
 .verdict {
@@ -27,45 +30,92 @@
   margin: 8px 0 6px;
 }
 .verdict.yes {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--green);
+  background: var(--bf-olive-wash);
+  color: var(--bf-olive);
 }
 .verdict.no {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  background: var(--bf-danger-wash);
+  color: var(--bf-danger);
 }
 
-table.cmp {
+/* ── The "free ride" scope-graph figures ─────────────────────────────────
+   Hand-authored SVG rather than <app-layers>, because the thing being taught
+   is a chain of re-exports (a graph), not one thing nested inside another —
+   forcing that into a containment diagram would tell the reader something
+   untrue about the shape of the idea. Every colour is a --bf-* token, both
+   <svg>s are aria-hidden, and each figcaption repeats the same information as
+   a sentence for anyone who cannot see it — same technique as the diamond
+   diagram in beginner/signals.html. */
+.sg-fig {
+  margin: 0;
+}
+.sg {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
+  max-width: 300px;
+  height: auto;
+  margin: 0 auto;
+}
+.sg-fig figcaption {
+  max-width: 46ch;
+  margin: 0.9rem auto 0;
   font-size: 0.86rem;
-  margin: 12px 0;
+  line-height: 1.6;
+  color: var(--bf-ink-2);
+  text-align: center;
 }
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
+.sg__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
 }
-table.cmp th {
-  background: var(--bg-elevated);
+.sg__box--a {
+  fill: var(--bf-danger-wash);
+  stroke: color-mix(in srgb, var(--bf-danger) 45%, transparent);
 }
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+.sg__box--c {
+  fill: var(--bf-gold-wash);
+  stroke: color-mix(in srgb, var(--bf-gold) 45%, transparent);
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
+.sg__box--core {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+}
+.sg__pill {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+  stroke-width: 1.5;
+}
+.sg__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+.sg__sub {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.sg__pill-label {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sg__tag {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-hand);
+  font-size: 15px;
+}
+.sg__edge {
+  fill: none;
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.sg__head {
+  fill: var(--bf-accent);
 }
