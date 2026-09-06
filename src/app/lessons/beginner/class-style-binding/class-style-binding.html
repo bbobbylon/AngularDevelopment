@@ -1,261 +1,428 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Data Binding</span>
-  <h1>Class & Style Binding</h1>
-  <p class="lead">
-    Angular gives you several ways to drive an element's classes and inline styles from data — from single-toggle
-    bindings to whole objects.
-  </p>
-
-  <h2>The mental model: sheets on an overhead projector</h2>
-  <p>
-    Picture the old classroom projector. The static <code>class="box"</code> is the bottom sheet, drawn once and never
-    erased. Every binding you add lays another transparent sheet on top of it — <code>[class]</code> one sheet,
-    <code>[class.box--active]</code> another. Nobody wipes anyone else's sheet clean; you see everything at once.
-  </p>
-  <p>
-    That single picture answers both of the questions people get wrong here. Why does <code>class="box"</code> survive a
-    <code>[class]</code> binding that never mentions it? Because the binding is a different sheet. And when two sheets
-    both draw <code>box--active</code>, which one do you see? The stack has a fixed order, and the per-class binding
-    sits on top.
-  </p>
-
-  <app-remember>
-    <strong>Bindings layer — they never replace.</strong> Static class, then <code>[class]</code> maps, then
-    <code>[class.x]</code> on top. If a class you did not expect is still there, something below is still drawing it.
-  </app-remember>
-
-  <h2>Single class & style bindings</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 14px">
-      <label
-        ><input type="checkbox" [checked]="active()" (change)="active.set($any($event.target).checked)" /> active</label
-      >
-      <label
-        >size <input type="range" min="12" max="40" [value]="size()" (input)="size.set(+$any($event.target).value)"
-      /></label>
-      <input aria-label="size" type="color" [value]="color()" (input)="color.set($any($event.target).value)" />
-    </div>
-    <div class="box" [class.box--active]="active()" [style.fontSize.px]="size()" [style.color]="color()">
-      Styled box ({{ size() }}px)
-    </div>
-  </div>
-
-  <div class="code">
-    <pre>
-&lt;div [class.box--active]="active()"
-     [style.fontSize.px]="size()"
-     [style.color]="color()"&gt;...&lt;/div&gt;</pre>
-  </div>
-  <div class="note">
-    <code>[class.name]="bool"</code> toggles one class. <code>[style.prop]="val"</code> sets one style; you can append a
-    unit, e.g. <code>[style.width.px]</code> or <code>[style.width.%]</code>.
-  </div>
-
-  <p>
-    That suffix is doing more work than it looks like it is. Drop it and nothing complains — which is precisely the
-    problem:
-  </p>
-
-  <app-compare
-    leftTitle="No suffix — silently does nothing"
-    leftTone="bad"
-    rightTitle="With `.px` — the unit is appended"
-    rightTone="good"
-    note="Angular does not validate or infer units. It concatenates yours onto the value and hands the string to the browser."
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Angular Beginner · Data Binding"
+    title="Class & Style Binding"
+    hand="or, five ways to tell an element what to wear, and which ones actually stick"
+    [stops]="stops"
+    [current]="3"
   >
-    <div left>
-      <div class="code">
-        <pre>
+    <p class="lead">
+      Angular gives you several ways to drive an element's classes and inline styles from data — from single-toggle
+      bindings to whole objects, plus the older <code>ngClass</code> / <code>ngStyle</code> directives. They all merge
+      rather than replace, which is the one fact that explains almost everything on this page.
+    </p>
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>An element already has a class. You bind another one in. What survives?</h2>
+
+    <p>
+      Here's the assumption almost everyone brings from plain JavaScript: setting <code>el.className</code> replaces
+      whatever was there before. Angular's class and style bindings are <em>not</em> that. They look similar enough that
+      the wrong mental model survives right up until it produces a bug nobody can explain in code review.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      A <code>&lt;div&gt;</code> starts with a static <code>class="card shadow"</code>. You add a
+      <code>[class]</code> binding that turns on <code>active</code> whenever a signal called <code>isActive()</code> is
+      true — and right now, it's true. Before you scroll any further: does the final <code>class</code> attribute still
+      have <code>card</code> and <code>shadow</code> on it, or has the new binding wiped them out? There's a full
+      walkthrough with the answer further down the page.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE ANALOGY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular is a stack of transparencies on an overhead projector.</h2>
+
+    <p>
+      Picture the old classroom projector. The static <code>class="box"</code> is the bottom sheet, drawn once and never
+      erased. Every binding you add lays another transparent sheet on top of it — <code>[class]</code> one sheet,
+      <code>[class.box--active]</code> another. <span class="key">Nobody wipes anyone else's sheet clean</span>
+      — you see everything at once, stacked.
+    </p>
+    <p>
+      That single picture answers both of the questions people get wrong here. Why does <code>class="box"</code> survive
+      a <code>[class]</code> binding that never mentions it? Because the binding is a different sheet. And when two
+      sheets both draw <code>box--active</code>, which one do you see? The stack has a fixed order, and the per-class
+      binding always sits on top.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Bindings layer — they never replace.</strong> Static class, then <code>[class]</code> maps, then
+      <code>[class.x]</code> on top. If a class you didn't expect is still there, something below is still drawing it.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="sheetsTalk"
+      caption="The sheets, in their own words. Note that nobody ever mentions erasing anything."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Every sheet is its own compiled instruction.</h2>
+
+    <p>
+      Your template doesn't run through some generic "apply the classes" function at runtime. Each binding source is
+      compiled, ahead of time, into its own small instruction that the renderer calls on every check. Here's roughly
+      what the compiler emits for an element driven by a per-class binding, a <code>[class]</code> map, and both style
+      forms:
+    </p>
+
+    <app-code-lab
+      file="box.template.js — what the compiler emitted"
+      [code]="mechanismSample"
+      [notes]="mechanismNotes"
+      notesLabel="Four instructions, one element"
+    />
+
+    <p>
+      That's the whole reason one binding can never clobber another's classes: there is no single
+      <code>className</code> string being rebuilt from scratch every pass. There are several small instructions, each
+      one responsible for its own sheet, and a differ patching only what actually moved.
+    </p>
+
+    <app-flow
+      [steps]="resolutionFlow"
+      caption="The resolution order the projector picture is describing, as the actual sequence Angular runs on every change-detection pass."
+    />
+  </section>
+
+  <!-- ============ 4. ONE CLASS, ONE STYLE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The default tool</p>
+    <h2>Toggling a single class or style.</h2>
+
+    <p>
+      <code>[class.name]="bool"</code> toggles one class. <code>[style.prop]="val"</code> sets one style — and you can
+      append a unit, like <code>[style.width.px]</code> or <code>[style.width.%]</code>. This is what you reach for when
+      you already know the class or property name at author time, which is most of the time:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 14px">
+        <label
+          ><input type="checkbox" [checked]="active()" (change)="active.set($any($event.target).checked)" />
+          active</label
+        >
+        <label
+          >size <input type="range" min="12" max="40" [value]="size()" (input)="size.set(+$any($event.target).value)"
+        /></label>
+        <input aria-label="color" type="color" [value]="color()" (input)="color.set($any($event.target).value)" />
+      </div>
+      <div class="box" [class.box--active]="active()" [style.fontSize.px]="size()" [style.color]="color()">
+        Styled box ({{ size() }}px)
+      </div>
+    </div>
+
+    <app-code-lab
+      file="single-binding.html"
+      [code]="singleBindingSample"
+      [notes]="singleBindingNotes"
+      notesLabel="Three bindings, three independent sheets"
+    />
+  </section>
+
+  <!-- ============ 5. THE UNIT SUFFIX GOTCHA ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Where this bites</p>
+    <h2>That suffix is doing more work than it looks like it is.</h2>
+
+    <p>
+      Drop the unit suffix and nothing complains — which is precisely the problem.
+      <span class="bf-break"
+        >The binding still runs, the value still gets set, and the browser just quietly throws it away.</span
+      >
+    </p>
+
+    <app-compare
+      leftTitle="No suffix — silently does nothing"
+      leftTone="bad"
+      rightTitle="With `.px` — the unit is appended"
+      rightTone="good"
+      note="Angular does not validate or infer units. It concatenates yours onto the value and hands the string to the browser."
+    >
+      <div left>
+        <div class="code">
+          <pre>
 &lt;div [style.width]="8"&gt;
 
 // setProperty('width', '8')
 // → invalid CSS, dropped by the browser</pre>
+        </div>
       </div>
-    </div>
-    <div right>
-      <div class="code">
-        <pre>
+      <div right>
+        <div class="code">
+          <pre>
 &lt;div [style.width.px]="8"&gt;
 
 // setProperty('width', '8px')
 // → 8 pixels wide</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-quiz
+      question='A component renders `<div [style.width]="8">`. What does the user see?'
+      [options]="unitOptions"
+      followUp="The mirror-image mistake is worth knowing too: if the value is *already* a string with a unit, the suffix still appends. `[style.width.px]=&quot;'8em'&quot;` produces `8empx`, which the browser also drops. Suffix for numbers, bare binding for complete strings — never both."
+    />
+  </section>
+
+  <!-- ============ 6. BINDING MANY AT ONCE ============ -->
+  <section>
+    <p class="bf-eyebrow">The data-driven tool</p>
+    <h2>Binding many classes or styles at once.</h2>
+
+    <p>
+      Reach for the <code>[class]</code> / <code>[style]</code> map when the <em>set</em> of classes isn't known until
+      runtime — a status that could be any of several values, for instance:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 14px">
+        <button (click)="state.set('ok')">ok</button>
+        <button (click)="state.set('warn')">warn</button>
+        <button (click)="state.set('error')">error</button>
+      </div>
+      <div
+        class="box"
+        [class]="{ 'box--ok': state() === 'ok', 'box--warn': state() === 'warn', 'box--error': state() === 'error' }"
+        [style]="{ fontWeight: '600', letterSpacing: '0.04em' }"
+      >
+        state = {{ state() }}
       </div>
     </div>
-  </app-compare>
 
-  <app-quiz
-    question='A component renders `<div [style.width]="8">`. What does the user see?'
-    [options]="unitOptions"
-    followUp="The mirror-image mistake is worth knowing too: if the value is *already* a string with a unit, the suffix still appends. `[style.width.px]=&quot;'8em'&quot;` produces `8empx`, which the browser also drops. Suffix for numbers, bare binding for complete strings — never both."
-  />
+    <app-code-lab
+      file="map-binding.html"
+      [code]="mapBindingSample"
+      [notes]="mapBindingNotes"
+      notesLabel="One object, many keys"
+    />
 
-  <h2>Binding many classes / styles at once</h2>
-  <p>Bind an object or array to <code>[class]</code> / <code>[style]</code>:</p>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 14px">
-      <button (click)="state.set('ok')">ok</button>
-      <button (click)="state.set('warn')">warn</button>
-      <button (click)="state.set('error')">error</button>
+    <app-predict
+      prompt="Here is the question from the top of the page, in full. Commit to an answer before you open it."
+      [code]="mergeSample"
+      answer='`class="card shadow active"` — all three. The `[class]` binding adds `active`; it has no opinion about `card` or `shadow`, so they stay exactly where they were. People expect `class="active"` because assignment is the intuition a template brings from JavaScript, where `el.className = &apos;active&apos;` really does wipe the rest. Angular&apos;s binding is not an assignment — it is one layer being told which of *its own* keys are on. Flip `isActive()` to false and you are back to `card shadow`, never to nothing.'
+    />
+
+    <div class="note">
+      Bound classes <strong>merge</strong> with the static <code>class</code> attribute — they don't replace it. When
+      two bindings target the same class/style, the more specific one wins (e.g. <code>[class.box--active]</code> beats
+      a key inside <code>[class]</code>), and <code>!important</code> is honoured in style strings.
     </div>
-    <div
-      class="box"
-      [class]="{ 'box--ok': state() === 'ok', 'box--warn': state() === 'warn', 'box--error': state() === 'error' }"
-      [style]="{ fontWeight: '600', letterSpacing: '0.04em' }"
-    >
-      state = {{ state() }}
-    </div>
-  </div>
+  </section>
 
-  <div class="code">
-    <pre>
-&lt;div [class]="{{ '{' }} active: isActive(), error: hasError() {{ '}' }}"
-     [style]="{{ '{' }} color: 'red', fontWeight: '600' {{ '}' }}"&gt;...&lt;/div&gt;</pre>
-  </div>
+  <!-- ============ 7. NGCLASS & NGSTYLE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The legacy tool</p>
+    <h2>NgClass & NgStyle: same jobs, an older engine.</h2>
 
-  <app-predict
-    prompt="Here is the question the projector picture is meant to settle. Commit to an answer before you open it."
-    [code]="mergeSample"
-    answer='`class="card shadow active"` — all three. The `[class]` binding adds `active`; it has no opinion about `card` or `shadow`, so they stay exactly where they were. People expect `class="active"` because assignment is the intuition a template brings from JavaScript, where `el.className = &apos;active&apos;` really does wipe the rest. Angular&apos;s binding is not an assignment — it is one layer being told which of *its own* keys are on. Flip `isActive()` to false and you are back to `card shadow`, never to nothing.'
-  />
+    <p>
+      The <code>ngClass</code> and <code>ngStyle</code> directives predate the bindings above. They still work and
+      accept strings, arrays or objects — but for new code the native <code>[class]</code> / <code>[style]</code>
+      bindings are usually clearer and faster.
+    </p>
 
-  <div class="note">
-    Bound classes <strong>merge</strong> with the static <code>class</code> attribute — they don't replace it. Above,
-    <code>class="box"</code> stays applied while <code>[class]</code> adds/removes the state classes. The same holds for
-    <code>style</code>. When two bindings target the same class/style, the more specific one wins (e.g.
-    <code>[class.box--active]</code> beats a key inside <code>[class]</code>), and <code>!important</code> is honoured
-    in style strings.
-  </div>
-
-  <h2>NgClass & NgStyle directives</h2>
-  <p>
-    The <code>ngClass</code> and <code>ngStyle</code> directives predate the bindings above. They still work and accept
-    strings, arrays or objects, but for new code the native <code>[class]</code> / <code>[style]</code> bindings are
-    usually clearer and faster.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — ngClass / ngStyle</p>
-    <div
-      class="box"
-      [ngClass]="{ 'box--active': active(), 'box--ok': state() === 'ok' }"
-      [ngStyle]="{ 'border-style': active() ? 'solid' : 'dashed' }"
-    >
-      driven by ngClass / ngStyle
-    </div>
-  </div>
-
-  <h2>Try it — when bindings collide</h2>
-  <p>What wins when a per-class binding and a map binding both target the same class name?</p>
-  <div class="demo">
-    <p class="demo__title">Live — [class.x] always beats a same-named key inside [class]</p>
-    <div class="row" style="margin-bottom: 14px">
-      <label>
-        <input
-          type="checkbox"
-          [checked]="objectWantsActive()"
-          (change)="objectWantsActive.set($any($event.target).checked)"
-        />
-        [class] object requests box--active
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          [checked]="perClassActive()"
-          (change)="perClassActive.set($any($event.target).checked)"
-        />
-        [class.box--active] override
-      </label>
-    </div>
-    <div class="box" [class]="{ 'box--active': objectWantsActive() }" [class.box--active]="perClassActive()">
-      box--active applied = {{ perClassActive() }} ([class] object says {{ objectWantsActive() }})
-    </div>
-  </div>
-  <div class="code">
-    <pre>
-&lt;div [class]="{{ '{' }} 'box--active': objectWantsActive() {{ '}' }}"
-     [class.box--active]="perClassActive()"&gt;...&lt;/div&gt;
-&lt;!-- resolved class always follows perClassActive(), regardless of objectWantsActive() --&gt;</pre>
-  </div>
-
-  <h2>Under the hood</h2>
-
-  <p>
-    Here is the projector picture again, this time as the actual resolution order Angular runs on every change-detection
-    pass:
-  </p>
-
-  <app-flow
-    [steps]="layers"
-    caption="Each source is compiled into its own styling instruction. Nothing rebuilds `className` from scratch, which is why one binding can never clobber another's classes."
-  />
-
-  <ul>
-    <li>
-      <strong>Angular doesn't rebuild <code>className</code> from scratch.</strong> Each binding source — the static
-      <code>class</code> attribute, a <code>[class]</code> map, per-class <code>[class.x]</code> bindings,
-      <code>ngClass</code> — is compiled into its own styling instruction; the renderer merges them and, on each
-      change-detection pass, diffs the new value against the last one.
-    </li>
-    <li>
-      <strong>Only the changed classes are patched.</strong> Angular calls <code>classList.add</code>/<code
-        >classList.remove</code
+    <div class="demo">
+      <p class="demo__title">Live — ngClass / ngStyle</p>
+      <div
+        class="box"
+        [ngClass]="{ 'box--active': active(), 'box--ok': state() === 'ok' }"
+        [ngStyle]="{ 'border-style': active() ? 'solid' : 'dashed' }"
       >
-      (or <code>style.setProperty</code>/<code>removeProperty</code>) for just the entries that actually changed — it
-      never touches classes/styles that came from a different binding source.
-    </li>
-    <li>
-      <strong>Static class and bindings coexist because they're separate layers.</strong> The literal
-      <code>class="box"</code> is applied once at creation; bound classes are layered on top independently, which is why
-      a <code>[class]</code> object that never mentions <code>box</code> can't remove it.
-    </li>
-    <li>
-      <strong>Collisions resolve by binding kind, not DOM order.</strong> When two bindings target the same class,
-      Angular resolves it at the styling layer by priority — a per-class <code>[class.x]</code> binding always wins over
-      a same-named key inside a <code>[class]</code> map — before the browser's CSS cascade/specificity ever gets
-      involved.
-    </li>
-    <li>
-      <strong>Unit suffixes are string concatenation, not validation.</strong> <code>[style.width.px]="8"</code> just
-      becomes <code>style.setProperty('width', '8px')</code>; Angular does no unit checking, so binding a value that's
-      already a string (<code>[style.width.px]="'8em'"</code>) produces the nonsensical <code>"8empx"</code>.
-    </li>
-  </ul>
+        driven by ngClass / ngStyle
+      </div>
+    </div>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Thinking <code>[class]</code> wipes the static <code>class</code>.</strong> It doesn't — bound and static
-      classes merge. Same for <code>[style]</code>.
-    </li>
-    <li>
-      <strong>Forgetting the unit suffix.</strong> <code>[style.width]="8"</code> sets <code>width: 8</code> (invalid);
-      use <code>[style.width.px]="8"</code> or bind a full string <code>"8px"</code>.
-    </li>
-    <li>
-      <strong>Reaching for <code>ngClass</code>/<code>ngStyle</code> in new code.</strong> The native
-      <code>[class]</code>/<code>[style]</code> bindings are faster and need no import.
-    </li>
-    <li>
-      <strong>Fighting specificity.</strong> When <code>[class.active]</code> and a key inside
-      <code>[class]</code> target the same class, the specific binding wins — don't set the same class from two places.
-    </li>
-    <li>
-      <strong>camelCase vs kebab-case.</strong> In binding syntax use camelCase (<code>[style.fontSize.px]</code>);
-      inside a bound <em>object</em> either works (<code>{{ '{' }} 'font-size': … {{ '}' }}</code
-      >).
-    </li>
-  </ul>
+    <app-code-lab
+      file="ngclass-demo.html"
+      [code]="ngClassSample"
+      [notes]="ngClassNotes"
+      notesLabel="An imported directive, not a compiled instruction"
+    />
 
-  <app-faq [items]="questions" />
+    <app-compare
+      leftTitle="Native — `[class]` / `[style]`"
+      leftTone="good"
+      rightTitle="Legacy — `ngClass` / `ngStyle`"
+      note="Same job, different cost: one is baked into the compiled template, the other is an imported directive running its own differ at runtime."
+    >
+      <div left>
+        <p>
+          Compiled straight into the update function the template compiler already generates. No extra import beyond
+          what <code>@angular/common</code> gives you for free, and Angular knows the shape of the binding at build
+          time.
+        </p>
+      </div>
+      <div right>
+        <p>
+          Needs its own import (<code>NgClass</code> / <code>NgStyle</code>), and walks the object through a
+          general-purpose differ every check. Not a bug, not deprecated — just no longer the best default.
+        </p>
+      </div>
+    </app-compare>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>[class.x]</code> / <code>[style.x]</code> toggle or set a single thing.</li>
-    <li><code>[class]</code> / <code>[style]</code> accept objects/arrays/strings for many at once.</li>
-    <li>Style bindings support unit suffixes like <code>.px</code> and <code>.%</code>.</li>
-    <li>Bound classes/styles merge with static ones; <code>ngClass</code>/<code>ngStyle</code> are legacy.</li>
-  </ul>
+  <!-- ============ 8. TRY IT — COLLISIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Try it</p>
+    <h2>What wins when two bindings target the same class?</h2>
 
-  <p><a routerLink="/control-flow-if">Next: Control Flow — &#64;if →</a></p>
+    <p>
+      This is the projector picture put under load: a map binding and a per-class binding, both aimed at
+      <code>box--active</code>. Drive them independently and watch which one the DOM actually listens to.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — [class.x] always beats a same-named key inside [class]</p>
+      <div class="row" style="margin-bottom: 14px">
+        <label>
+          <input
+            type="checkbox"
+            [checked]="objectWantsActive()"
+            (change)="objectWantsActive.set($any($event.target).checked)"
+          />
+          [class] object requests box--active
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            [checked]="perClassActive()"
+            (change)="perClassActive.set($any($event.target).checked)"
+          />
+          [class.box--active] override
+        </label>
+      </div>
+      <div class="box" [class]="{ 'box--active': objectWantsActive() }" [class.box--active]="perClassActive()">
+        box--active applied = {{ perClassActive() }} ([class] object says {{ objectWantsActive() }})
+      </div>
+    </div>
+
+    <app-code-lab
+      file="collision-demo.html"
+      [code]="collisionSample"
+      [notes]="collisionNotes"
+      notesLabel="Two sheets, one class name"
+    />
+  </section>
+
+  <!-- ============ 9. THE REFERENCE TABLE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The reference</p>
+    <h2>Five syntaxes, and when to reach for each.</h2>
+
+    <table class="cmp">
+      <tr>
+        <th>Syntax</th>
+        <th>Binds</th>
+        <th>Value</th>
+        <th>Use for</th>
+      </tr>
+      <tr>
+        <td><code>[class.name]="expr"</code></td>
+        <td>one class</td>
+        <td>boolean</td>
+        <td>the class name is known at author time — the default choice</td>
+      </tr>
+      <tr>
+        <td><code>[class]="expr"</code></td>
+        <td>many classes</td>
+        <td>object / array / string</td>
+        <td>the <em>set</em> of classes is data-driven</td>
+      </tr>
+      <tr>
+        <td><code>[style.prop]="expr"</code></td>
+        <td>one style property</td>
+        <td>value already a complete string</td>
+        <td>one property, e.g. a colour</td>
+      </tr>
+      <tr>
+        <td><code>[style.prop.unit]="expr"</code></td>
+        <td>one style property</td>
+        <td>bare number</td>
+        <td>Angular never infers units — supply one here</td>
+      </tr>
+      <tr>
+        <td><code>[style]="expr"</code></td>
+        <td>many style properties</td>
+        <td>object</td>
+        <td>several properties driven by one binding</td>
+      </tr>
+      <tr>
+        <td><code>ngClass</code> / <code>ngStyle</code></td>
+        <td>same jobs as <code>[class]</code>/<code>[style]</code></td>
+        <td>object / array / string</td>
+        <td>legacy code only — needs an import, runs a runtime differ</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- ============ 10. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Where this bites</p>
+    <h2>Pitfalls that show up in exams &amp; code review.</h2>
+    <ul>
+      <li>
+        <strong>Thinking <code>[class]</code> wipes the static <code>class</code>.</strong> It doesn't — bound and
+        static classes merge. Same for <code>[style]</code>.
+      </li>
+      <li>
+        <strong>Forgetting the unit suffix.</strong> <code>[style.width]="8"</code> sets an invalid
+        <code>width: 8</code>; use <code>[style.width.px]="8"</code> or bind a full string like <code>"8px"</code>.
+      </li>
+      <li>
+        <strong>Reaching for <code>ngClass</code>/<code>ngStyle</code> in new code.</strong> The native
+        <code>[class]</code>/<code>[style]</code> bindings are faster and need no import.
+      </li>
+      <li>
+        <strong>Fighting specificity.</strong> When <code>[class.active]</code> and a key inside
+        <code>[class]</code> target the same class, the specific binding wins — don't set the same class from two
+        places.
+      </li>
+      <li>
+        <strong>camelCase vs kebab-case.</strong> In binding syntax use camelCase (<code>[style.fontSize.px]</code>);
+        inside a bound object either spelling works, since the key there is just a string handed to
+        <code>setProperty</code>.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Four things to remember.</h2>
+    <ul>
+      <li>
+        <code>[class.x]</code> / <code>[style.x]</code> toggle or set a single thing — reach for these first, they're
+        the cheapest to update.
+      </li>
+      <li><code>[class]</code> / <code>[style]</code> accept objects/arrays/strings for many at once.</li>
+      <li>
+        Style bindings support unit suffixes like <code>.px</code> and <code>.%</code> —
+        <span class="bf-break">a bare number with no suffix is silently invalid CSS</span>, not an error.
+      </li>
+      <li>
+        Bound classes/styles <span class="key">merge</span> with static ones, and collisions resolve by binding kind —
+        the per-class form always beats a map. <code>ngClass</code>/<code>ngStyle</code> still work but are legacy.
+      </li>
+    </ul>
+
+    <p><a routerLink="/control-flow-if">Next: Control Flow — &#64;if →</a></p>
+  </section>
 </article>
