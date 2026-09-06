@@ -1,43 +1,6 @@
-.tab-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-.tab-row button {
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-.tab-row button.active {
-  background: #6366f1;
-  color: #fff;
-  border-color: #6366f1;
-}
-.test-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.87rem;
-  margin: 12px 0;
-}
-.test-table th {
-  background: var(--surface);
-  padding: 8px 10px;
-  text-align: left;
-  border-bottom: 2px solid var(--border);
-}
-.test-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.good {
-  color: #22c55e;
-}
-.bad {
-  color: #ef4444;
-}
+/* Tables, callouts and the old tab strip all came from lesson-local CSS before
+   this migration — tables and callouts are now owned by the shared
+   brain-friendly layer (src/brain-friendly.css §15), and the tab strip was
+   dropped in favour of one linear reading order, matching every other
+   migrated lesson (see intermediate/testing-components, its closest sibling).
+   There is nothing left that is genuinely specific to this lesson. */
