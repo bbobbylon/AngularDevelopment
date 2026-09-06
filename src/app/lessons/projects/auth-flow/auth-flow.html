@@ -1,761 +1,553 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Projects · Full Walkthrough</span>
-  <h1>Project: Auth Flow</h1>
-  <p class="lead">
-    Build a complete authentication flow: login form, JWT token storage, an HTTP interceptor that attaches the token to
-    every request, and a route guard that protects private pages.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Projects · Full Walkthrough"
+    title="Project: Auth Flow"
+    hand="or, how three small pieces stop your app from ever storing a password"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Build a complete authentication flow: a login form, JWT token storage, an HTTP interceptor that attaches the token
+      to every request, and a route guard that protects private pages. This is a <strong>practice project</strong>, not
+      a single-concept lesson — it puts pieces from several other lessons together into the thing they are usually
+      assembled into, and the live demo below is the <em>real</em> working thing, not a mockup.
+    </p>
+  </app-chapter>
 
-  <h2>What you will build</h2>
-  <ul>
-    <li>A signal-based <code>AuthService</code> that holds the current user and token</li>
-    <li>A login form with error feedback</li>
-    <li>A profile page shown only when logged in</li>
-    <li>An HTTP interceptor that automatically attaches <code>Authorization: Bearer ...</code></li>
-    <li>A functional route guard (<code>authGuard</code>) that redirects unauthenticated users</li>
-  </ul>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE ANY CODE ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Every protected page asks the same three questions.</h2>
 
-  <h2>The mental model: a festival wristband</h2>
-  <p>
-    You show your ID once, at the gate. Nobody looks at it again all weekend. What you carry instead is a
-    <strong>wristband</strong>, and every bar, stage and gate checks that — quickly, without phoning anyone.
-  </p>
-  <p>
-    The token is the wristband. Your password is the ID, and it is presented exactly once, at
-    <code>login()</code>; after that every request carries the band instead. That explains most of what follows: the
-    band is <em>bearer</em> credentials, so whoever holds it is treated as you, which is why it must not be left lying
-    around. It expires at midnight rather than lasting forever, because a stolen band should stop working soon. And the
-    re-entry pass you left in the safe at the hotel — the refresh token — is how you get a new band without going back
-    to the gate with your ID.
-  </p>
+    <p>
+      Strip away the framework and any app with a login is answering three questions, over and over, for every single
+      request: <strong>who is this</strong> (identity), <strong>are they still who they say they are</strong> (a live
+      session, not a one-time check), and <strong>are they allowed to be here</strong> (authorization). Get the wiring
+      wrong and you end up asking the user for their password on every page, or — worse — not asking at all after the
+      first click.
+    </p>
 
-  <app-remember>
-    A token is a <strong>wristband, not an ID card</strong>. Whoever holds it <em>is</em> you, so keep it short-lived
-    and keep it out of anywhere a script can read it.
-  </app-remember>
+    <p>By the end of this page you will have built:</p>
+    <ul>
+      <li>A signal-based <code>AuthService</code> that holds the current user and token</li>
+      <li>A login form with error feedback</li>
+      <li>A profile page shown only when logged in</li>
+      <li>An HTTP interceptor that automatically attaches <code>Authorization: Bearer ...</code></li>
+      <li>A functional route guard (<code>authGuard</code>) that redirects unauthenticated users</li>
+    </ul>
+  </section>
 
-  <h2>Architecture overview</h2>
-  <div class="code">
-    <pre>
-AuthService (root service)
-  currentUser: Signal&lt;AuthUser | null&gt;    // read-only
-  isLoggedIn:  Signal&lt;boolean&gt;            // computed
-  isAdmin:     Signal&lt;boolean&gt;            // computed
-  login(email, password): boolean         // sets user + token
-  logout(): void                          // clears both
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A JWT is a wristband, not an ID card.</h2>
 
-authInterceptor (functional interceptor)
-  reads AuthService.getToken()
-  clones the request with Authorization header
-  passes to next()
+    <p>
+      You show your ID once, at the gate. Nobody looks at it again all weekend. What you carry instead is a
+      <strong>wristband</strong>, and every bar, stage and gate checks that — quickly, without phoning anyone.
+    </p>
+    <p>
+      The token is the wristband. Your password is the ID, and it is presented exactly once, at <code>login()</code>;
+      after that every request carries the band instead. That explains most of what follows: the band is
+      <span class="term">bearer</span> credentials, so whoever holds it <span class="key">is treated as you</span>,
+      which is why it must not be left lying around. It expires at midnight rather than lasting forever, because a
+      stolen band should stop working soon. And the re-entry pass you left in the safe at the hotel — the refresh token
+      — is how you get a new band without going back to the gate with your ID.
+    </p>
 
-authGuard (functional CanActivateFn)
-  reads AuthService.isLoggedIn()
-  returns true or UrlTree('/login')</pre>
-  </div>
+    <app-remember variant="mnemonic">
+      A token is a <strong>wristband, not an ID card</strong>. Whoever holds it <em>is</em> you, so keep it short-lived
+      and keep it out of anywhere a script can read it.
+    </app-remember>
+  </section>
 
-  <p>
-    That is the cast list. Here is the plot — one authenticated request from sign-in to response, with every piece of
-    the walkthrough shown where it actually sits:
-  </p>
-  <app-flow
-    [steps]="requestFlow"
-    caption="The guard and the interceptor never talk to each other. Both just ask the service what it is holding."
-  />
+  <!-- ============ 3. THE CAST, THEN PROOF THEY DON'T TALK DIRECTLY ============ -->
+  <section>
+    <p class="bf-eyebrow">The pieces</p>
+    <h2>Three small pieces, and none of them talk to each other directly.</h2>
 
-  <h2>Step 1 — The AuthService signal store</h2>
+    <p>
+      Everything on this page is one of three collaborators, or something built on top of them. Meet all three before
+      any code, because the shape of the system is easier to hold in your head than any one file:
+    </p>
 
-  <app-quiz
-    question="You are building the real version of this, not the demo. Where should the access token live?"
-    [options]="storageOptions"
-    followUp="The question behind the question is always the same: can a script on my page read this? Everything else is a detail."
-  />
-
-  <p>Four places a browser will let you put a token, and they differ on exactly three things that matter:</p>
-  <table class="cmp">
-    <tr>
-      <th>Where</th>
-      <th>Readable by JavaScript?</th>
-      <th>Survives refresh?</th>
-      <th>Sent automatically?</th>
-    </tr>
-    <tr>
-      <td><code>localStorage</code></td>
-      <td>Yes — any script on the page</td>
-      <td>Yes, and across tabs</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td><code>sessionStorage</code></td>
-      <td>Yes — any script on the page</td>
-      <td>Yes, this tab only</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td>In-memory field</td>
-      <td><strong>No</strong> — gone when the page unloads</td>
-      <td>No</td>
-      <td>No</td>
-    </tr>
-    <tr>
-      <td><code>HttpOnly</code> cookie</td>
-      <td><strong>No</strong> — invisible to <code>document.cookie</code></td>
-      <td>Yes</td>
-      <td>Yes — which is why CSRF applies</td>
-    </tr>
-  </table>
-  <p>
-    Read down the second column and the production answer falls out: only the last two rows are safe from a script, and
-    only one of those survives a refresh. That is the pairing —
-    <strong>access token in memory, refresh token in an <code>HttpOnly</code> cookie</strong> — and each covers
-    precisely the weakness of the other.
-  </p>
-
-  <div class="step-callout">
-    <h4>Key decision: where to store the JWT</h4>
-    We keep the token in memory (a private class field) — not localStorage. In-memory tokens are invisible to other tabs
-    and XSS cannot read them with document.cookie or localStorage.getItem. The downside: the user is logged out on page
-    refresh. For production, use an HttpOnly cookie (server-set) or a short-lived access token refreshed from a secure
-    refresh token cookie.
-  </div>
-  <div class="code">
-    <pre>
-&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
-export class AuthService {{ '{' }}
-  private readonly _user  = signal&lt;AuthUser | null&gt;(null);
-  private _token: string | null = null;  // in-memory only — no localStorage
-
-  // Public read-only signals
-  readonly currentUser = this._user.asReadonly();
-  readonly isLoggedIn  = computed(() =&gt; this._user() !== null);
-  readonly isAdmin     = computed(() =&gt; this._user()?.role === 'admin');
-
-  // Called only by the interceptor — never exposed to templates
-  getToken() {{ '{' }} return this._token; {{ '}' }}
-
-  login(email: string, password: string): Observable&lt;AuthUser&gt; {{ '{' }}
-    return this.http.post&lt;{{ '{' }} user: AuthUser; token: string {{ '}' }}&gt;('/api/auth/login',
-      {{ '{' }} email, password {{ '}' }}
-    ).pipe(
-      tap(res =&gt; {{ '{' }}
-        this._user.set(res.user);
-        this._token = res.token;
-      {{ '}' }})
-    );
-  {{ '}' }}
-
-  logout() {{ '{' }}
-    this._user.set(null);
-    this._token = null;
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-
-  <h2>Step 2 — The HTTP interceptor</h2>
-  <div class="step-callout">
-    <h4>Concept: functional interceptors</h4>
-    Interceptors sit between your code and the network. Every HTTP request passes through them. The auth interceptor
-    reads the token and attaches it as a header — your services never need to know about auth.
-  </div>
-  <div class="code">
-    <pre>
-// auth.interceptor.ts
-// HttpInterceptorFn is a plain FUNCTION — no class, no @Injectable. It gets
-// the outgoing request and `next`, the rest of the chain.
-export const authInterceptor: HttpInterceptorFn = (req, next) =&gt; {{ '{' }}
-  // inject() works here because Angular runs interceptors inside an
-  // injection context. Calling it inside a nested callback would NOT work.
-  const auth  = inject(AuthService);
-  const token = auth.getToken();
-
-  // Calling next(req) hands the request to the next interceptor (or the
-  // backend). Returning it unchanged is how you opt out for anonymous calls —
-  // and it is what stops you sending "Bearer null" to the server.
-  if (!token) return next(req);   // not logged in — pass through unchanged
-
-  // HttpRequest is IMMUTABLE. You cannot set a header on req directly; clone()
-  // returns a modified copy. Forgetting this is the #1 interceptor bug —
-  // mutating req appears to work and silently changes nothing.
-  const authedReq = req.clone({{ '{' }}
-    // headers.set() is also immutable, returning a new HttpHeaders. set()
-    // replaces an existing value; append() would add a second one.
-    headers: req.headers.set('Authorization', 'Bearer ' + token)
-  {{ '}' }});
-  // Pass the MODIFIED request down the chain, not the original.
-  return next(authedReq);
-{{ '}' }};
-
-// app.config.ts — register it:
-export const appConfig: ApplicationConfig = {{ '{' }}
-  providers: [
-    provideHttpClient(
-      // The array is ordered: interceptors run left-to-right on the way out,
-      // and right-to-left on the way back with the response.
-      withInterceptors([authInterceptor])
-    ),
-  ],
-{{ '}' }};
-// The payoff: not one service in the app mentions a token. Every HTTP call
-// they make is authenticated, and swapping to a different scheme is a
-// one-file change.</pre>
-  </div>
-
-  <h2>Step 3 — The route guard</h2>
-
-  <app-predict
-    prompt="A signed-out user hits a protected route. The guard redirects them with `router.navigate()`. What actually happens?"
-    [code]="guardSample"
-    answer="They land on the protected page — and then get bounced to /login. `router.navigate()` returns a `Promise<boolean>`, and a Promise is a truthy object, so the guard's return value reads as *allow*. The router lets the navigation through while a second, competing navigation starts underneath it. Best case, a visible flash of a page they were never allowed to see; worst case, the two navigations race and the wrong one wins. Return a `UrlTree` instead — `router.createUrlTree(['/login'])` — which tells the router 'not there, here' as a single decision it can act on atomically."
-  />
-
-  <div class="step-callout">
-    <h4>Critical: always return a UrlTree, never call router.navigate()</h4>
-    Calling router.navigate() inside a guard and returning undefined lets the original navigation proceed. Always return
-    a UrlTree to block AND redirect atomically.
-  </div>
-  <div class="code">
-    <pre>
-// auth.guard.ts
-// CanActivateFn is another plain function. `state.url` is the URL the user
-// was TRYING to reach — the piece that makes the round trip work.
-export const authGuard: CanActivateFn = (route, state) =&gt; {{ '{' }}
-  const auth   = inject(AuthService);
-  const router = inject(Router);
-
-  // true = allow the navigation, unchanged.
-  if (auth.isLoggedIn()) return true;
-
-  // Return a UrlTree — blocks AND redirects in one operation:
-  // A UrlTree is a parsed URL object, and returning one means "not there,
-  // HERE". The router cancels this navigation and starts the new one as a
-  // single atomic decision — no flash of protected content, no race.
-  return router.createUrlTree(['/login'], {{ '{' }}
-    // Stash the intended destination so login can send them back. This is
-    // the difference between "please sign in" and "please sign in, then find
-    // your way back to that invoice yourself".
-    queryParams: {{ '{' }} returnUrl: state.url {{ '}' }}    // save where they were going
-  {{ '}' }});
-{{ '}' }};
-
-// In routes:
-{{ '{' }}
-  path: 'dashboard',
-  // loadComponent = lazy: this chunk is only downloaded if the guard passes.
-  loadComponent: () =&gt; import('./dashboard').then(m =&gt; m.Dashboard),
-  // The guard runs BEFORE loadComponent, so an unauthenticated visitor never
-  // even downloads the protected bundle.
-  canActivate: [authGuard],          // guard runs before the component loads
-{{ '}' }},
-
-// In LoginComponent — redirect back after login:
-// .snapshot because the value is read once, at construction. (Use the
-// queryParamMap observable instead if the same component stays mounted
-// across parameter changes.)
-readonly returnUrl = inject(ActivatedRoute).snapshot.queryParams['returnUrl'] ?? '/dashboard';
-// After successful login — closing the loop the guard opened:
-this.router.navigateByUrl(this.returnUrl);
-// REMEMBER: a guard is a UX feature, not a security control. It only hides
-// the route in the browser. The API must re-check the token on every
-// request, because anyone can edit the JavaScript that runs this guard.</pre>
-  </div>
-
-  <h2>Step 4 — The login component</h2>
-  <div class="code">
-    <pre>
-&#64;Component({{ '{' }}
-  standalone: true,
-  imports: [ReactiveFormsModule],
-  template: '
-    &lt;form [formGroup]="form" (ngSubmit)="submit()"&gt;
-      &lt;!-- type="email" gives mobile users the right keyboard; type="password"
-           masks the field and keeps it out of password-manager confusion. --&gt;
-      &lt;input formControlName="email"    type="email" placeholder="Email" /&gt;
-      &lt;input formControlName="password" type="password" placeholder="Password" /&gt;
-      &lt;!-- One error slot for the whole form. Note what it will NOT say:
-           "no such user" or "wrong password". Distinguishing the two tells an
-           attacker which emails are registered. --&gt;
-      &#64;if (error()) {{ '{' }}
-        &lt;p class="error"&gt;{{ '{{' }} error() {{ '}}' }}&lt;/p&gt;
-      {{ '}' }}
-      &lt;!-- Disabled while in flight, so an impatient double-click cannot fire
-           two login requests. --&gt;
-      &lt;button type="submit" [disabled]="loading()"&gt;
-        &lt;!-- The label doubles as the progress indicator — no spinner needed. --&gt;
-        {{ '{{' }} loading() ? 'Signing in...' : 'Sign In' {{ '}}' }}
-      &lt;/button&gt;
-    &lt;/form&gt;
-  '
-{{ '}' }})
-export class LoginComponent {{ '{' }}
-  private auth   = inject(AuthService);
-  private router = inject(Router);
-  // Where to go AFTER a successful login. The guard put this in the query
-  // string when it bounced the user here, so someone who deep-linked to
-  // /orders/42 lands back on /orders/42 rather than the generic home page.
-  // ?? '/' covers a direct visit to /login with no returnUrl.
-  readonly returnUrl = inject(ActivatedRoute).snapshot.queryParams['returnUrl'] ?? '/';
-
-  form = new FormGroup({{ '{' }}
-    email:    new FormControl('', [Validators.required, Validators.email]),
-    // minLength(6) is CLIENT-side convenience only. The server must enforce
-    // its own rules — anyone can POST straight past this.
-    password: new FormControl('', [Validators.required, Validators.minLength(6)]),
-  {{ '}' }});
-
-  // Two pieces of local UI state. They belong to the component, not the auth
-  // service: a different login screen would want to present them differently.
-  readonly error   = signal('');
-  readonly loading = signal(false);
-
-  submit() {{ '{' }}
-    // Guard clause. ngSubmit still fires on an invalid form (pressing Enter
-    // in a field submits), so this check is what stops a pointless request.
-    if (this.form.invalid) return;
-    this.loading.set(true);
-    // Clear any previous failure, or the old message lingers under the
-    // spinner during the retry and reads as if it just failed again.
-    this.error.set('');
-
-    // The `!` non-null assertions: FormControl values are typed
-    // `string | null` because reset() can null them, but the invalid check
-    // above guarantees both are filled in by the time we reach this line.
-    this.auth.login(this.form.value.email!, this.form.value.password!).subscribe({{ '{' }}
-      // navigateByUrl takes the full URL string, including any query params
-      // that were captured in returnUrl. (navigate() takes a segment array.)
-      next: () =&gt; this.router.navigateByUrl(this.returnUrl),
-      error: () =&gt; {{ '{' }}
-        // Deliberately vague, and deliberately identical for both failure
-        // modes — see the note in the template above.
-        this.error.set('Invalid email or password');
-        // Reset loading HERE, in the error branch only. The success branch
-        // navigates away, so the component is destroyed and its loading
-        // state stops mattering.
-        this.loading.set(false);
-      {{ '}' }},
-    {{ '}' }});
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-
-  <h2>Live demo — auth simulation</h2>
-  <div class="demo">
-    <p class="demo__title">Try logging in with different accounts</p>
-    <div class="hint-row">
-      <span class="hint-pill" (click)="fillAdmin()">admin&#64;example.com / admin123</span>
-      <span class="hint-pill" (click)="fillUser()">user&#64;example.com / user123</span>
+    <div class="bf-grid-3">
+      <app-tape-card heading="AuthService" kicker="the one source of truth" tone="gold">
+        Holds the signed-in user as a signal and the token as a private field. Every other piece asks
+        <em>this</em>, never each other.
+      </app-tape-card>
+      <app-tape-card heading="HTTP interceptor" kicker="outbound requests" tone="accent">
+        Reads <code>getToken()</code> and attaches it to every request that leaves the app. Runs whether or not the
+        route was guarded.
+      </app-tape-card>
+      <app-tape-card heading="Route guard" kicker="navigation" tone="blue">
+        Reads <code>isLoggedIn()</code> before letting a navigation through. Runs whether or not the request that
+        follows is intercepted.
+      </app-tape-card>
     </div>
-    <div class="auth-demo">
-      @if (!auth.isLoggedIn()) {
-        <div class="auth-panel">
-          <h3>Sign In</h3>
-          @if (loginError()) {
-            <p class="error-msg">{{ loginError() }}</p>
-          }
-          <div class="field">
-            <label>Email</label>
-            <input aria-label="you@example.com" [(ngModel)]="email" type="email" placeholder="you@example.com" />
+
+    <p>
+      Notice what none of the three do: the interceptor does not know the guard exists, and the guard does not know the
+      interceptor exists. Watch what actually happens during a login, and the decoupling stops being a claim and becomes
+      something you can see:
+    </p>
+
+    <app-bubbles
+      [turns]="decoupleTalk"
+      caption="Four collaborators, and only one of them — AuthService — is spoken to by more than one other. That is the whole design."
+    />
+
+    <p>
+      That is the cast. Here is the plot — one authenticated request from sign-in to response, with every piece shown
+      where it actually sits:
+    </p>
+    <app-flow
+      [steps]="requestFlow"
+      caption="The guard and the interceptor never talk to each other. Both just ask the service what it is holding."
+    />
+  </section>
+
+  <!-- ============ 4. PIECE 1 — THE STORAGE DECISION + AUTHSERVICE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Piece 1 of 3 · state</p>
+    <h2>Where does the token actually live?</h2>
+
+    <app-quiz
+      question="You are building the real version of this, not the demo. Where should the access token live?"
+      [options]="storageOptions"
+      followUp="The question behind the question is always the same: can a script on my page read this? Everything else is a detail."
+    />
+
+    <p>Four places a browser will let you put a token, and they differ on exactly three things that matter:</p>
+    <table class="cmp">
+      <tr>
+        <th>Where</th>
+        <th>Readable by JavaScript?</th>
+        <th>Survives refresh?</th>
+        <th>Sent automatically?</th>
+      </tr>
+      <tr>
+        <td><code>localStorage</code></td>
+        <td>Yes — any script on the page</td>
+        <td>Yes, and across tabs</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td><code>sessionStorage</code></td>
+        <td>Yes — any script on the page</td>
+        <td>Yes, this tab only</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>In-memory field</td>
+        <td><strong>No</strong> — gone when the page unloads</td>
+        <td>No</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td><code>HttpOnly</code> cookie</td>
+        <td><strong>No</strong> — invisible to <code>document.cookie</code></td>
+        <td>Yes</td>
+        <td>Yes — which is why CSRF applies</td>
+      </tr>
+    </table>
+    <p>
+      Read down the second column and the production answer falls out: only the last two rows are safe from a script,
+      and only one of those survives a refresh. That is the pairing —
+      <strong>access token in memory, refresh token in an <code>HttpOnly</code> cookie</strong> — and each covers
+      precisely the weakness of the other.
+    </p>
+
+    <p>
+      With that decided, here is the whole <code>AuthService</code>: the signal store, the in-memory token, and the
+      <code>sessionStorage</code>-backed profile restore that lets the UI render immediately on a refresh without
+      exposing anything readable.
+    </p>
+    <app-code-lab
+      file="auth.service.ts"
+      [code]="authServiceSample"
+      [notes]="authServiceNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 5. PIECE 2 — THE INTERCEPTOR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Piece 2 of 3 · outbound requests</p>
+    <h2>Every request needs the same header. Write it once.</h2>
+
+    <p>
+      Without an interceptor, every service that calls the backend would need to remember to attach the token — and the
+      first one that forgets is a silent 401 in production. A <span class="key">functional interceptor</span>
+      sits between your code and the network exactly once, so nothing downstream has to know auth exists at all.
+    </p>
+
+    <app-code-lab
+      file="auth.interceptor.ts"
+      [code]="authInterceptorSample"
+      [notes]="authInterceptorNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 6. PIECE 3 — THE GUARD (PREDICT THE TRAP FIRST) ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Piece 3 of 3 · routes</p>
+    <h2>The guard that lets everyone in.</h2>
+
+    <app-predict
+      prompt="A signed-out user hits a protected route. The guard redirects them with `router.navigate()`. What actually happens?"
+      [code]="guardSample"
+      answer="They land on the protected page — and then get bounced to /login. `router.navigate()` returns a `Promise<boolean>`, and a Promise is a truthy object, so the guard's return value reads as *allow*. The router lets the navigation through while a second, competing navigation starts underneath it. Best case, a visible flash of a page they were never allowed to see; worst case, the two navigations race and the wrong one wins. Return a `UrlTree` instead — `router.createUrlTree(['/login'])` — which tells the router 'not there, here' as a single decision it can act on atomically."
+    />
+
+    <p>Fixed — a <code>UrlTree</code>, never a call to <code>router.navigate()</code>:</p>
+    <app-code-lab
+      file="auth.guard.ts"
+      [code]="authGuardSample"
+      [notes]="authGuardNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-remember variant="rule">
+      A guard is a <strong>UX convenience</strong>, not a security control. It only hides the route in the browser —
+      anyone can open devtools and call the router directly. The <strong>server</strong> is the only real gate, and it
+      must re-check the token on every request without exception.
+    </app-remember>
+  </section>
+
+  <!-- ============ 7. LIVE DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">See it work</p>
+    <h2>Try it — this is the real thing, not a mockup.</h2>
+
+    <p>
+      Every piece below is exactly what you just read: a signal-based service, computed <code>isLoggedIn</code> /
+      <code>isAdmin</code>, and a session mirrored into <code>sessionStorage</code> the same way
+      <code>auth.service.ts</code>
+      above does it.
+    </p>
+
+    <app-napkin lead="before you click —" label="Predict before trying the demo">
+      Log in below, then refresh this tab in your browser. <strong>Does it sign you out?</strong> Think about what just
+      got restored on load and what did not, before you actually try it.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Try logging in with different accounts</p>
+      <div class="hint-row">
+        <span class="hint-pill" (click)="fillAdmin()">admin&#64;example.com / admin123</span>
+        <span class="hint-pill" (click)="fillUser()">user&#64;example.com / user123</span>
+      </div>
+      <div class="auth-demo">
+        @if (!auth.isLoggedIn()) {
+          <div class="auth-panel">
+            <h3>Sign In</h3>
+            @if (loginError()) {
+              <p class="error-msg">{{ loginError() }}</p>
+            }
+            <div class="field">
+              <label>Email</label>
+              <input
+                aria-label="you@example.com"
+                [ngModel]="email()"
+                (ngModelChange)="email.set($event)"
+                type="email"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div class="field">
+              <label>Password</label>
+              <input
+                aria-label="password"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
+                type="password"
+                placeholder="password"
+              />
+            </div>
+            <button class="login-btn" (click)="login()">Sign In</button>
           </div>
-          <div class="field">
-            <label>Password</label>
-            <input aria-label="password" [(ngModel)]="password" type="password" placeholder="password" />
+        } @else {
+          <div class="profile-card">
+            <div class="avatar">{{ auth.currentUser()!.name.charAt(0) }}</div>
+            <p class="profile-name">{{ auth.currentUser()!.name }}</p>
+            <p class="profile-email">{{ auth.currentUser()!.email }}</p>
+            <span class="role-badge {{ auth.currentUser()!.role }}">{{ auth.currentUser()!.role }}</span>
+            @if (auth.isAdmin()) {
+              <p style="margin: 8px 0; font-size: 0.85rem; color: #6366f1">You have admin access.</p>
+            }
+            <p style="margin: 8px 0 0; font-size: 0.78rem; color: var(--text-muted)">
+              {{
+                auth.wasRestoredFromSession()
+                  ? '↺ Restored from sessionStorage'
+                  : '✓ Session saved — refresh the tab to test'
+              }}
+            </p>
+            <br />
+            <button class="logout-btn" (click)="auth.logout()">Log out</button>
           </div>
-          <button class="login-btn" (click)="login()">Sign In</button>
-        </div>
-      } @else {
-        <div class="profile-card">
-          <div class="avatar">{{ auth.currentUser()!.name.charAt(0) }}</div>
-          <p class="profile-name">{{ auth.currentUser()!.name }}</p>
-          <p class="profile-email">{{ auth.currentUser()!.email }}</p>
-          <span class="role-badge {{ auth.currentUser()!.role }}">{{ auth.currentUser()!.role }}</span>
-          @if (auth.isAdmin()) {
-            <p style="margin: 8px 0; font-size: 0.85rem; color: #6366f1">You have admin access.</p>
-          }
-          <p style="margin: 8px 0 0; font-size: 0.78rem; color: var(--text-muted)">
-            {{
-              auth.wasRestoredFromSession()
-                ? '↺ Restored from sessionStorage'
-                : '✓ Session saved — refresh the tab to test'
-            }}
-          </p>
-          <br />
-          <button class="logout-btn" (click)="auth.logout()">Log out</button>
-        </div>
-      }
+        }
+      </div>
+      <p class="demo__note">
+        The answer to the napkin above: signed in survives the refresh (the profile restores instantly from
+        <code>sessionStorage</code>, and the banner above tells you so), but the <em>token</em> does not — it was never
+        there to begin with. In this simulation that distinction is invisible; in a real app it is exactly what makes a
+        silent <code>/refresh</code> call on startup necessary, covered further down.
+      </p>
     </div>
-  </div>
+  </section>
 
-  <h2>Step 5 — Role-based access control (RBAC) and session persistence</h2>
-  <div class="code">
-    <pre>
-// Role guard — restrict routes to admins only:
-export const adminGuard: CanActivateFn = () =&gt; {{ '{' }}
-  const auth = inject(AuthService);
-  if (auth.isAdmin()) return true;
-  return inject(Router).createUrlTree(['/forbidden']);
-{{ '}' }};
+  <!-- ============ 8. THE LOGIN COMPONENT ============ -->
+  <section>
+    <p class="bf-eyebrow">The last piece</p>
+    <h2>The component that ties it together.</h2>
 
-// In routes:
-{{ '{' }}
-  path: 'admin',
-  loadComponent: () =&gt; import('./admin').then(m =&gt; m.AdminPanel),
-  canActivate: [authGuard, adminGuard],   // both guards must pass
-{{ '}' }},
+    <p>
+      The service, interceptor and guard exist independently of any one screen. Somewhere, though, a form has to call
+      <code>login()</code>, show a loading state, and send the user back where the guard intercepted them.
+    </p>
 
-// In templates — hide UI elements based on role:
-&#64;if (auth.isAdmin()) {{ '{' }}
-  &lt;button (click)="deleteUser(id)"&gt;Delete User&lt;/button&gt;
-{{ '}' }}
+    <app-code-lab
+      file="login.component.ts"
+      [code]="loginComponentSample"
+      [notes]="loginComponentNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
 
-// IMPORTANT: guards protect the UI, not the data.
-// Your backend must still authorize every API call independently.</pre>
-  </div>
+  <!-- ============ 9. RBAC ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Now make it production-shaped · RBAC</p>
+    <h2>Not every signed-in user should see everything.</h2>
 
-  <h2>Step 6 — Persist the user across tab refresh (sessionStorage)</h2>
-  <div class="step-callout">
-    <h4>Key decision: user object vs token</h4>
-    Store the user profile (name, role) in sessionStorage so the UI can restore immediately on refresh — no API
-    round-trip needed. Never store the JWT in sessionStorage (it is vulnerable to XSS). The token stays in memory only
-    and the user re-authenticates silently via a refresh-token cookie when they revisit.
-  </div>
-  <div class="code">
-    <pre>
-&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
-export class AuthService {{ '{' }}
-  // On construction, attempt to restore from sessionStorage. Doing it in the
-  // field initialiser means the user is already known before the first
-  // render — no flash of the signed-out header on refresh.
-  private readonly _user = signal&lt;AuthUser | null&gt;(this.loadSession());
-  // A PLAIN FIELD, not a signal, and never persisted. In memory only, so a
-  // successful XSS payload cannot read it out of storage — it dies with the
-  // tab. This asymmetry is the whole design: profile persists, token does not.
-  private _token: string | null = null;  // token stays in-memory only
+    <p>
+      Signed in and <span class="key">allowed here</span> are different questions, and the second one usually has more
+      than one answer. Role-based access control chains a second guard after the first: <code>authGuard</code> asks "is
+      anyone signed in?", <code>adminGuard</code> asks "is it an admin?" — and both must pass.
+    </p>
 
-  login(email: string, password: string) {{ '{' }}
-    return this.http.post&lt;AuthResponse&gt;('/api/auth/login', {{ '{' }} email, password {{ '}' }}).pipe(
-      // tap performs a side effect WITHOUT changing what flows downstream —
-      // the caller still receives the AuthResponse. map() would replace it.
-      tap(res =&gt; {{ '{' }}
-        this._user.set(res.user);
-        this._token = res.accessToken;
-        // Persist the user profile — NOT the token. The profile is display
-        // data (name, role); leaking it is embarrassing, leaking the token
-        // hands over the account.
-        sessionStorage.setItem('auth_user', JSON.stringify(res.user));
-      {{ '}' }})
-      // Returned un-subscribed, on purpose: the CALLER subscribes, so the
-      // login component controls its own loading and error UI.
-    );
-  {{ '}' }}
+    <app-code-lab
+      file="admin.guard.ts"
+      [code]="adminGuardSample"
+      [notes]="adminGuardNotes"
+      notesLabel="What each line is doing"
+    />
 
-  logout() {{ '{' }}
-    // Clear all three places state lives, in the same method. Miss one and
-    // you get the classic bug where the UI logs out but the next request
-    // still carries a valid token.
-    this._user.set(null);
-    this._token = null;
-    sessionStorage.removeItem('auth_user');
-  {{ '}' }}
+    <p>
+      The same signal drives the template too — try logging in as the admin account above and look for
+      <code>auth.isAdmin()</code> gating the "admin access" line on the profile card. The rule to hold onto:
+      <span class="bf-break">guards and template conditionals decide what renders, never what is allowed.</span> Your
+      backend must still authorize every API call independently, or a curious user with devtools open gets further than
+      a hidden button was supposed to let them.
+    </p>
+  </section>
 
-  private loadSession(): AuthUser | null {{ '{' }}
-    try {{ '{' }}
-      const raw = sessionStorage.getItem('auth_user');
-      // getItem returns null when absent; the ternary avoids JSON.parse(null),
-      // which would return null anyway but reads as an accident.
-      return raw ? JSON.parse(raw) : null;
-      // Any corrupted value lands here. Returning null degrades to "signed
-      // out" — the safe direction to fail in an auth service.
-    {{ '}' }} catch {{ '{' }} return null; {{ '}' }}
-  {{ '}' }}
-{{ '}' }}
-// Worth stating plainly: a restored session is a UI convenience, nothing
-// more. It says "this browser recently held a session", not "this user is
-// authenticated". Only the server, checking a real token, can say that.</pre>
-  </div>
+  <!-- ============ 10. CANDEACTIVATE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Guarding the way out, not just the way in</p>
+    <h2>Leaving a page can be dangerous too.</h2>
 
-  <h2>Step 7 — CanDeactivate guard for unsaved changes</h2>
-  <div class="step-callout">
-    <h4>Concept: CanDeactivateFn prevents accidental navigation away</h4>
-    When a user has unsaved form edits, ask them to confirm before navigating away. The guard gets a reference to the
-    component, so it can call a method on it or read a signal.
-  </div>
-  <div class="code">
-    <pre>
-// Shared interface — components that support deactivation checks implement it.
-// Without it the guard would be tied to one component class; with it, any
-// component that can answer this question is compatible.
-export interface CanDeactivateComponent {{ '{' }}
-  hasUnsavedChanges: Signal&lt;boolean&gt;;
-{{ '}' }}
+    <p>
+      Every guard so far runs <code>canActivate</code>, on the way <em>in</em> to a route.
+      <code>CanDeactivateFn</code> runs on the way <em>out</em> — the shape a "you have unsaved changes" prompt actually
+      takes, generic enough to protect any form-editing screen in the app.
+    </p>
 
-// The guard — generic, reusable across any component.
-// The type parameter is what gives you a TYPED `component` argument below;
-// CanDeactivateFn passes the actual component instance being left.
-export const unsavedChangesGuard: CanDeactivateFn&lt;CanDeactivateComponent&gt; = (component) =&gt; {{ '{' }}
-  // Nothing to lose → leave silently. Prompting on a pristine form is the
-  // fastest way to train users to click through your dialogs.
-  if (!component.hasUnsavedChanges()) return true;
-  // confirm() returns boolean, which is exactly what a guard wants: true =
-  // leave, false = stay. (A real app would use a styled dialog; window.confirm
-  // blocks the whole thing and cannot be themed.)
-  return window.confirm('You have unsaved changes. Leave anyway?');
-{{ '}' }};
+    <app-code-lab
+      file="unsaved-changes.guard.ts"
+      [code]="deactivateGuardSample"
+      [notes]="deactivateGuardNotes"
+      notesLabel="What each line is doing"
+    />
 
-// In routes:
-{{ '{' }}
-  path: 'profile/edit',
-  component: ProfileEditComponent,
-  // canDeactivate runs on the way OUT, unlike canActivate on the way in.
-  canDeactivate: [unsavedChangesGuard],
-{{ '}' }},
+    <p>
+      Wired up the same way as any other guard, just on the other property:
+      <code>canDeactivate: [unsavedChangesGuard]</code> in the route, and
+      <code>readonly hasUnsavedChanges = computed(() =&gt; this.form.dirty)</code> on the editing component. Call
+      <code>form.markAsPristine()</code> after a successful save, or the guard nags on the way out of a form that was
+      just saved. One thing it cannot stop: a browser refresh or a closed tab never reaches the router at all — that
+      needs a separate <code>beforeunload</code> listener.
+    </p>
+  </section>
 
-// In ProfileEditComponent:
-// `implements` is what makes the compiler check this component actually
-// satisfies the guard's contract.
-export class ProfileEditComponent implements CanDeactivateComponent {{ '{' }}
-  form = new FormGroup({{ '{' }} ... {{ '}' }});
-  // `dirty` flips true as soon as the user changes any control, and back to
-  // false after form.reset() or markAsPristine() — so call one of those after
-  // a successful save, or the guard will nag on the way out of a saved form.
-  readonly hasUnsavedChanges = computed(() =&gt; this.form.dirty);
-{{ '}' }}
-// Note this guard cannot stop a browser refresh or a closed tab — the router
-// never sees those. For that you also need a beforeunload listener.</pre>
-  </div>
+  <!-- ============ 11. REFRESH INTERCEPTOR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Enterprise pattern · silent refresh</p>
+    <h2>Short-lived tokens need a second interceptor.</h2>
 
-  <h2>Step 8 — JWT refresh token interceptor (enterprise pattern)</h2>
-  <div class="step-callout">
-    <h4>The problem: short-lived access tokens expire</h4>
-    Enterprise apps use access tokens that expire in 15 minutes. When they do, every API call returns 401. The solution
-    is a refresh token interceptor that catches the 401, silently calls /api/auth/refresh (the server reads an HttpOnly
-    refresh token cookie automatically), gets a new access token, then retries the original request — all invisible to
-    the component that made the call.
-  </div>
-  <div class="code">
-    <pre>
-// token-refresh.interceptor.ts
-import {{ '{' }} inject {{ '}' }} from '@angular/core';
-import {{ '{' }} HttpInterceptorFn, HttpErrorResponse, HttpClient {{ '}' }} from '@angular/common/http';
-import {{ '{' }} catchError, switchMap, throwError {{ '}' }} from 'rxjs';
-import {{ '{' }} AuthService {{ '}' }} from './auth.service';
+    <p>
+      Enterprise apps issue access tokens that expire in minutes, not hours. When one does, every API call starts
+      returning <code>401</code> — and the fix has to be invisible to whatever component made the call, or every screen
+      in the app needs its own retry logic.
+    </p>
 
-export const tokenRefreshInterceptor: HttpInterceptorFn = (req, next) =&gt; {{ '{' }}
-  const auth = inject(AuthService);
-  const http = inject(HttpClient);
+    <app-layers
+      [core]="{ label: 'Your backend', sub: 'the real API call' }"
+      [rings]="[
+        { label: 'authInterceptor', sub: 'attaches the Bearer token' },
+        { label: 'tokenRefreshInterceptor', sub: 'catches a 401, retries once' },
+      ]"
+      arrow="req leaves here"
+      caption="Outgoing, the request passes through authInterceptor first, then tokenRefreshInterceptor, on its way to the backend. A response travels back through the same two, in reverse — so tokenRefreshInterceptor is the one positioned to actually see the 401 and retry before authInterceptor (or your component) ever notices."
+    />
 
-  return next(req).pipe(
-    catchError((error: HttpErrorResponse) =&gt; {{ '{' }}
-      // Only intercept 401s — and never retry the refresh call itself
-      if (error.status !== 401 || req.url.includes('/api/auth/refresh')) {{ '{' }}
-        return throwError(() =&gt; error);
-      {{ '}' }}
+    <app-code-lab
+      file="token-refresh.interceptor.ts"
+      [code]="refreshInterceptorSample"
+      [notes]="refreshInterceptorNotes"
+      notesLabel="What each line is doing"
+    />
 
-      // Call the refresh endpoint — browser sends the HttpOnly cookie automatically
-      return http.post&lt;{{ '{' }} accessToken: string {{ '}' }}&gt;(
-        '/api/auth/refresh', {{ '{' }}{{ '}' }}, {{ '{' }} withCredentials: true {{ '}' }}
-      ).pipe(
-        switchMap(({{ '{' }} accessToken {{ '}' }}) =&gt; {{ '{' }}
-          auth.setToken(accessToken);       // update the in-memory token
-          // Replay the original request with the new token attached:
-          return next(req.clone({{ '{' }}
-            headers: req.headers.set('Authorization', 'Bearer ' + accessToken),
-          {{ '}' }}));
-        {{ '}' }}),
-        catchError((refreshError) =&gt; {{ '{' }}
-          // Refresh token is expired too — force the user to log in again
-          auth.logout();
-          return throwError(() =&gt; refreshError);
-        {{ '}' }}),
-      );
-    {{ '}' }}),
-  );
-{{ '}' }};
+    <app-predict
+      prompt="Two requests fire at almost the same moment and both come back 401. With switchMap in the pipe above, how many times does /api/auth/refresh actually get called?"
+      answer="Once, not twice — and this is the one thing worth knowing about `switchMap` here rather than `mergeMap`. `switchMap` cancels any previous in-flight inner Observable when a new value arrives on the same operator; if the second `catchError` fires while the first refresh call is still pending, `switchMap` drops that first call's subscription and starts a new one. In production you would usually go further and share a single refresh call with `shareReplay(1)`, so concurrent 401s all wait on the *same* network request instead of triggering a new one each time."
+      revealLabel="Reveal the answer"
+    />
+  </section>
 
-// Register both interceptors in app.config.ts — order matters:
-// authInterceptor runs first (attaches token), tokenRefreshInterceptor retries on 401.
-export const appConfig: ApplicationConfig = {{ '{' }}
-  providers: [
-    provideHttpClient(
-      withInterceptors([authInterceptor, tokenRefreshInterceptor])
-    ),
-  ],
-{{ '}' }};</pre>
-  </div>
-  <div class="note">
-    <strong>Why switchMap, not mergeMap?</strong> switchMap cancels any previous in-flight refresh. If two requests 401
-    simultaneously, only one refresh call goes out. For production, share a single refresh Observable with
-    <code>shareReplay(1)</code> so concurrent 401s all wait on the same call rather than firing multiple refresh
-    requests.
-  </div>
+  <!-- ============ 12. BROADCASTCHANNEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Enterprise pattern · multi-tab sync</p>
+    <h2>One tab logs out. The others don't know — yet.</h2>
 
-  <h2>Step 9 — Multi-tab sync with BroadcastChannel</h2>
-  <div class="step-callout">
-    <h4>Problem: logging out in one tab doesn't affect other tabs</h4>
-    Signals live in a single JavaScript context. Tab B has no way to know Tab A logged out — until you use the
-    BroadcastChannel API, which sends messages between all same-origin tabs instantly.
-  </div>
-  <div class="code">
-    <pre>
-&#64;Injectable({{ '{' }} providedIn: 'root' {{ '}' }})
-export class AuthService {{ '{' }}
-  private readonly _user  = signal&lt;AuthUser | null&gt;(this.loadSession());
-  private _token: string | null = null;
+    <app-napkin lead="try this —" label="Predict a two-tab scenario">
+      Imagine this app open in two browser tabs, both signed in. You click "Log out" in tab A.
+      <strong>What does tab B's profile card show</strong>, right now, with no refresh? Signals live in a single
+      JavaScript context per tab — so before reading on, guess whether tab B has any way to find out.
+    </app-napkin>
 
-  // One channel shared across all tabs on the same origin:
-  private readonly channel = new BroadcastChannel('auth_events');
+    <p>
+      The honest answer is: nothing, on its own. A signal write in tab A cannot reach across to tab B — they are
+      separate JavaScript contexts entirely. <code>BroadcastChannel</code> is the browser API built for exactly this:
+      same-origin tabs can open a channel with the same name and pass messages between them instantly.
+    </p>
 
-  constructor() {{ '{' }}
-    // Listen for messages sent by OTHER tabs (not ourselves):
-    this.channel.onmessage = ({{ '{' }} data {{ '}' }}: MessageEvent&lt;string&gt;) =&gt; {{ '{' }}
-      if (data === 'logout') {{ '{' }}
-        this._user.set(null);
-        this._token = null;
-        sessionStorage.removeItem('auth_user');
-        // Optionally navigate to /login here via inject(Router)
-      {{ '}' }}
-    {{ '}' }};
-  {{ '}' }}
+    <app-code-lab
+      file="auth.service.ts — multi-tab logout"
+      [code]="broadcastSample"
+      [notes]="broadcastNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
 
-  logout() {{ '{' }}
-    this._user.set(null);
-    this._token = null;
-    sessionStorage.removeItem('auth_user');
-    this.channel.postMessage('logout'); // broadcast to all other tabs
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
+  <!-- ============ 13. SERVER-SIDE LOGOUT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Enterprise pattern · revocation</p>
+    <h2>Clearing the client is not the same as logging out.</h2>
 
-  <h2>Step 10 — Server-side logout (token revocation)</h2>
-  <div class="step-callout">
-    <h4>Client-only logout is not real logout</h4>
-    Clearing the in-memory token means the current device can no longer make authenticated requests. But if the refresh
-    token cookie is still valid, an attacker (or another device) can silently obtain a new access token. Real logout
-    tells the server to invalidate the refresh token in its database.
-  </div>
-  <div class="code">
-    <pre>
-// In AuthService:
-logout(): Observable&lt;void&gt; {{ '{' }}
-  return this.http
-    .post&lt;void&gt;('/api/auth/logout', {{ '{' }}{{ '}' }}, {{ '{' }} withCredentials: true {{ '}' }})
-    .pipe(
-      finalize(() =&gt; {{ '{' }}
-        // Always clear locally — even if the server call fails
-        this._user.set(null);
-        this._token = null;
-        sessionStorage.removeItem('auth_user');
-        this.channel.postMessage('logout');
-      {{ '}' }})
-    );
-{{ '}' }}
+    <p>
+      Clearing the in-memory token stops <em>this device</em> from making authenticated requests. It does nothing to the
+      refresh-token cookie sitting in the browser — if that is still valid, another device (or an attacker who stole it)
+      can silently obtain a fresh access token. Real logout has to tell the server to revoke it.
+    </p>
 
-// Server must:
-// 1. Read the refresh token from the HttpOnly cookie
-// 2. Delete (or mark revoked) that token in the DB
-// 3. Clear the cookie:  Set-Cookie: refresh_token=; Max-Age=0; HttpOnly; Secure
+    <app-compare
+      leftTitle="Client-only — clears local state"
+      leftTone="bad"
+      rightTitle="Client + server — revokes the refresh token"
+      rightTone="good"
+      note="finalize() over tap(): it guarantees the local state clears even if the server call itself fails over the network. tap() would skip that cleanup on a failed request."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ logoutClientOnlySample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ logoutServerSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+  </section>
 
-// In the component:
-logoutClick() {{ '{' }}
-  this.auth.logout().subscribe(); // subscribe to trigger the HTTP call
-{{ '}' }}</pre>
-  </div>
-  <div class="note">
-    <strong>finalize() vs tap()</strong> — use <code>finalize()</code> to guarantee local state is cleared whether the
-    server call succeeds or fails. Using <code>tap()</code> would skip the cleanup if the network request errors.
-  </div>
+  <!-- ============ 14. PKCE / OAUTH2 CONCEPT MAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Concept map · federated login</p>
+    <h2>Most enterprise apps don't roll their own login.</h2>
 
-  <h2>PKCE / OAuth2 OIDC — federated login (concept map)</h2>
-  <div class="step-callout">
-    <h4>Most enterprise apps don't roll their own auth</h4>
-    They delegate to an Identity Provider (IdP) — Google, Microsoft Azure AD, Okta, Auth0 — using the OAuth2
-    Authorization Code flow with PKCE. Your Angular app never sees the user's password; the IdP handles it and returns
-    tokens.
-  </div>
-  <div class="code">
-    <pre>
-// High-level PKCE flow (what happens in the browser):
-//
-// 1. User clicks "Sign in with Google"
-// 2. App generates: code_verifier (random), code_challenge = SHA-256(code_verifier)
-// 3. App redirects to IdP:
-//    https://accounts.google.com/o/oauth2/auth
-//      ?client_id=YOUR_CLIENT_ID
-//      &redirect_uri=https://yourapp.com/callback
-//      &response_type=code
-//      &scope=openid email profile
-//      &code_challenge=BASE64URL(SHA256(verifier))
-//      &code_challenge_method=S256
-//
-// 4. IdP authenticates the user, redirects back to /callback?code=AUTH_CODE
-// 5. App exchanges the code:
-//    POST https://oauth2.googleapis.com/token
-//      {{ '{' }} code, code_verifier, client_id, redirect_uri, grant_type: 'authorization_code' {{ '}' }}
-//    Response: {{ '{' }} access_token, id_token (JWT), refresh_token {{ '}' }}
-//
-// 6. App decodes the id_token JWT (claims: sub, email, name, picture)
-// 7. App sends id_token to YOUR backend for verification and session creation
+    <p>
+      They delegate to an identity provider — Google, Microsoft Entra ID, Okta, Auth0 — using the OAuth2 Authorization
+      Code flow with <span class="term">PKCE</span> (Proof Key for Code Exchange). Your Angular app never sees the
+      user's password at all; the IdP handles it and hands back tokens.
+    </p>
 
-// Angular library: use @angular/fire for Firebase/Google, or @auth0/auth0-angular,
-// or the lightweight 'angular-oauth2-oidc' package.
+    <app-code-lab
+      file="oauth-login.ts — conceptual PKCE flow"
+      [code]="pkceSample"
+      [notes]="pkceNotes"
+      notesLabel="What each step is doing"
+    />
 
-// angular-oauth2-oidc — minimal setup:
-export const appConfig: ApplicationConfig = {{ '{' }}
-  providers: [
-    provideHttpClient(withInterceptors([authInterceptor])),
-    importProvidersFrom(
-      OAuthModule.forRoot({{ '{' }}
-        resourceServer: {{ '{' }}
-          allowedUrls: ['https://api.yourapp.com'],
-          sendAccessToken: true,       // auto-attach token to matching URLs
-        {{ '}' }},
-      {{ '}' }})
-    ),
-  ],
-{{ '}' }};
+    <div class="code">
+      <pre>{{ oauthConfigSample }}</pre>
+    </div>
+  </section>
 
-// In AppComponent.ngOnInit():
-this.oauthService.configure({{ '{' }}
-  issuer: 'https://accounts.google.com',
-  clientId: 'YOUR_CLIENT_ID',
-  redirectUri: window.location.origin + '/callback',
-  scope: 'openid email profile',
-  responseType: 'code',
-{{ '}' }});
-await this.oauthService.loadDiscoveryDocumentAndTryLogin();
-// PKCE is enabled by default in auth0-angular and angular-oauth2-oidc >=13</pre>
-  </div>
+  <!-- ============ 15. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
 
-  <app-faq [items]="questions" />
+  <!-- ============ 16. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>What you practiced.</h2>
 
-  <h2>Recap — what you practiced</h2>
-  <ul>
-    <li><strong>Signal store for auth state</strong> — private token, read-only user signal, computed flags</li>
-    <li><strong>SessionStorage persistence</strong> — user profile survives tab refresh; token stays in-memory</li>
-    <li><strong>Functional HTTP interceptor</strong> — auto-attaches Authorization header</li>
-    <li><strong>Functional route guard</strong> — returns UrlTree to redirect, saves returnUrl</li>
-    <li><strong>CanDeactivate guard</strong> — prevents accidental navigation from unsaved forms</li>
-    <li><strong>Role-based access</strong> — computed isAdmin() signal, admin guard, template conditionals</li>
-    <li><strong>JWT refresh token interceptor</strong> — catches 401, silently refreshes, retries original request</li>
-    <li><strong>BroadcastChannel multi-tab sync</strong> — logout in one tab reflects everywhere instantly</li>
-    <li><strong>Server-side logout</strong> — revokes refresh token on the server with finalize() safety net</li>
-    <li><strong>PKCE / OAuth2 OIDC</strong> — federated login flow with an external identity provider</li>
-  </ul>
+    <ul>
+      <li>
+        <strong>A signal store for auth state</strong> — private token, read-only user signal, computed
+        <code>isLoggedIn</code> / <code>isAdmin</code> flags that can never disagree with each other.
+      </li>
+      <li>
+        <strong>The storage decision itself</strong> — access token in memory, never in <code>localStorage</code> or
+        <code>sessionStorage</code>; only the profile persists, for UI convenience, never the credential.
+      </li>
+      <li>
+        <strong>A functional HTTP interceptor</strong> that attaches the header exactly once, so no other service in the
+        app has to know auth exists.
+      </li>
+      <li>
+        <strong>A functional route guard</strong> that always returns a <code>UrlTree</code>, never calls
+        <code>router.navigate()</code>, and saves <code>returnUrl</code> so login can send the user back.
+      </li>
+      <li>
+        <strong>Role-based access</strong> — a second guard chained after the first, and the same computed signal
+        driving both the route and the template.
+      </li>
+      <li>
+        <strong><code>CanDeactivate</code></strong> for unsaved changes, silent token refresh on a <code>401</code>,
+        multi-tab logout with <code>BroadcastChannel</code>, and real server-side revocation — the difference between a
+        toy and something you could actually ship.
+      </li>
+      <li>
+        <strong>None of the pieces talk to each other directly.</strong> The service is the one thing every other piece
+        asks — that is what makes each of them independently testable and replaceable.
+      </li>
+    </ul>
 
-  <h2>Further extensions</h2>
-  <ul>
-    <li>
-      Share the refresh Observable with <code>shareReplay(1)</code> so concurrent 401s send only one refresh request
-    </li>
-    <li>Replace <code>confirm()</code> in the canDeactivate guard with a custom Angular dialog component</li>
-    <li>Write a test for <code>authGuard</code> using TestBed with a mocked AuthService</li>
-    <li>
-      Add silent re-auth on app load: call <code>/api/auth/refresh</code> on startup and set the token before the first
-      protected route resolves
-    </li>
-    <li>
-      Implement "logout all devices" by adding a <code>jti</code> (JWT ID) claim and maintaining a server-side
-      revocation list
-    </li>
-  </ul>
+    <h2>Further extensions</h2>
+    <ul>
+      <li>
+        Share the refresh Observable with <code>shareReplay(1)</code> so concurrent 401s send only one refresh request
+      </li>
+      <li>
+        Replace <code>confirm()</code> in the <code>canDeactivate</code> guard with a custom Angular dialog component
+      </li>
+      <li>Write a test for <code>authGuard</code> using <code>TestBed</code> with a mocked <code>AuthService</code></li>
+      <li>
+        Add silent re-auth on app load: call <code>/api/auth/refresh</code> on startup and set the token before the
+        first protected route resolves
+      </li>
+      <li>
+        Implement "logout all devices" by adding a <code>jti</code> (JWT ID) claim and maintaining a server-side
+        revocation list
+      </li>
+    </ul>
 
-  <p><a routerLink="/data-dashboard">Next Project: Data Dashboard →</a></p>
+    <p><a routerLink="/data-dashboard">Next Project: Data Dashboard →</a></p>
+  </section>
 </article>
