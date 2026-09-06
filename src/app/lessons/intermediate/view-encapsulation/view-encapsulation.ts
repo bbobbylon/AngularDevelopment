@@ -1,6 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BfPage, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import type { ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, QuizOption } from '../../../shared/teaching';
 import { VeBadge } from './ve-badge/ve-badge';
 
 /**
@@ -34,10 +37,52 @@ p { color: red; }`,
   },
 };
 
+/** Line-by-line notes for each mode's {@link MODE_INFO} sample, keyed the same way. */
+const MODE_NOTES: Record<Mode, CodeNote[]> = {
+  Emulated: [
+    {
+      line: 2,
+      text: 'The compiler appends `_ngcontent-abc-123` — a per-component attribute, a different one for every component in the app — to the selector. This exact rule can now only ever match an element that carries that exact attribute.',
+    },
+    {
+      line: 5,
+      text: "Every element in this component's OWN template gets stamped with the same attribute at build time, so the rule above finds them and nothing written by any other component.",
+    },
+  ],
+  None: [
+    {
+      line: 2,
+      text: 'No attribute, no rewriting — this exact rule ships into a plain `<style>` tag and matches every `<p>` on the page, in every component, for as long as that tag stays in the document.',
+    },
+  ],
+  ShadowDom: [
+    {
+      line: 2,
+      text: '`#shadow-root` is a real browser feature — `element.attachShadow()` — not an Angular convention. Everything indented below it lives in its own document-like subtree.',
+    },
+    {
+      line: 3,
+      text: 'This `<style>` tag is physically INSIDE the shadow root, so its rules can only ever see the elements that are also inside it. The browser enforces that, not the Angular compiler — which is why nothing, not even `!important`, gets past it from outside.',
+    },
+  ],
+};
+
 /**
  * Lesson: how component CSS is scoped (emulated encapsulation), the three
  * ViewEncapsulation modes, :host / :host-context, and the CSS-custom-property
  * theming pattern that replaces the deprecated ::ng-deep.
+ *
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (see `shared/brain/` and
+ * `src/app/lessons/expert/change-detection/change-detection.ts` for the shape
+ * this copies). The teaching order: pose the leak-that-never-happens problem,
+ * then the one-way-window analogy with a hand-authored SVG boundary diagram
+ * (selectors stop at the fence, inheritance crosses it), then the same three
+ * modes in five different representations — prose, an interactive
+ * mode-picker, an annotated `app-code-lab` sample, a `TapeCard` row, and a
+ * comparison table — before moving on to `:host` and the custom-property
+ * styling API that replaces `::ng-deep`.
  *
  * The badge below is a real child component with :host styles, used by the
  * live demos: the parent classes its tag (:host(.compact)) and themes it via
@@ -45,11 +90,31 @@ p { color: red; }`,
  */
 @Component({
   selector: 'app-lesson-view-encapsulation',
-  imports: [RouterLink, VeBadge, Faq, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    VeBadge,
+    BfPage,
+    Chapter,
+    CodeLab,
+    Napkin,
+    TapeCard,
+    Faq,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './view-encapsulation.css',
   templateUrl: './view-encapsulation.html',
 })
 export class ViewEncapsulationLesson {
+  /** The Components & Templates track, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Content Projection', id: 'content-projection' },
+    { label: 'View Queries', id: 'view-queries' },
+    { label: 'ng-template & Outlet', id: 'ng-template-outlet' },
+    { label: 'View Encapsulation' },
+  ];
+
   /** The silently-never-matches rule, posed before the section that explains it. */
   protected readonly piercingSample = `/* parent.css */
 app-ve-badge .dot {
@@ -60,7 +125,7 @@ app-ve-badge .dot {
 <span class="dot"></span>`;
 
   /** Choices for the inheritance-vs-matching check — the crux of the whole lesson. */
-  protected readonly boundaryOptions = [
+  protected readonly boundaryOptions: QuizOption[] = [
     {
       text: 'Nothing crosses — the child is fully isolated',
       why: 'Too strong for Emulated mode. Set `font-family` on `<body>` and every component picks it up; encapsulation never touched that.',
@@ -77,7 +142,7 @@ app-ve-badge .dot {
   ];
 
   /** The doubts this lesson reliably leaves behind. */
-  protected readonly questions = [
+  protected readonly questions: FaqItem[] = [
     {
       q: 'Why is my component ignoring `width` and `margin`?',
       a: 'Almost certainly because a custom element is `display: inline` by default, and inline elements ignore width and vertical margin. Add `:host { display: block }` — this is the single most common styling surprise in Angular.',
@@ -103,6 +168,10 @@ app-ve-badge .dot {
    * What each mode emits and what it means.
    */
   readonly modeInfo = MODE_INFO;
+  /**
+   * Line-by-line notes for the sample currently shown, keyed by mode.
+   */
+  readonly modeNotes = MODE_NOTES;
   /**
    * The mode being examined.
    */
@@ -145,6 +214,30 @@ export class VeBadge {}
 <!-- parent template -->
 <app-ve-badge [class.compact]="compact()">Deployed</app-ve-badge>`;
 
+  /** Line-by-line walkthrough of {@link hostSample}. */
+  readonly hostNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: "`:host` selects the component's own tag — `<app-ve-badge>` itself — which normally belongs to the PARENT's template and would otherwise be unreachable from inside the child's own scoped styles.",
+    },
+    {
+      line: 6,
+      text: '`var(--badge-accent, var(--accent))` is a fallback chain: use `--badge-accent` if some ancestor set it, else fall back to the app-wide `--accent` token. Both are custom properties, so both cross the boundary by inheritance.',
+    },
+    {
+      line: 8,
+      text: "`:host(.compact)` only matches when the ELEMENT ITSELF carries `.compact` — and only the parent's template can put a class on that tag, since it lives outside the child's own template entirely.",
+    },
+    {
+      line: 13,
+      text: "The child's actual internals. This `<span>` carries the CHILD's `_ngcontent-*` attribute at runtime — the thing an outside selector can never directly reach.",
+    },
+    {
+      line: 18,
+      text: 'The parent adds `class="compact"` to the tag from the OUTSIDE — no `@Input`, no method call, just an ordinary class binding that the child\'s own `:host(.compact)` rule reacts to.',
+    },
+  ];
+
   /**
    * Sample: the theming mistake and its fix.
    *
@@ -163,4 +256,24 @@ app-ve-badge .dot { background: purple; }
 <div [style.--badge-accent]="accent()">
   <app-ve-badge>themed</app-ve-badge>
 </div>`;
+
+  /** Line-by-line walkthrough of {@link themingSample}. */
+  readonly themingNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "Valid CSS, and it compiles fine — with the PARENT's scoping attribute appended to `.dot`. The child's actual `.dot` carries the CHILD's attribute. Two different attributes, so this can never match anything. No error, no warning — just a colour that never changes.",
+    },
+    {
+      line: 5,
+      text: 'The child names its OWN styling API: a custom property with a sane fallback. Anyone outside can now affect this colour without ever writing a selector that reaches inside.',
+    },
+    {
+      line: 8,
+      text: '`[style.--badge-accent]` sets a custom property on this `<div>` — the leading `--` is what makes it a custom property rather than a real CSS property Angular would otherwise try to validate.',
+    },
+    {
+      line: 9,
+      text: 'The badge is nested inside that `<div>` in the DOM, so it inherits `--badge-accent` the same way it would inherit `color` or `font-family`. Encapsulation never touches inheritance — only selector matching.',
+    },
+  ];
 }

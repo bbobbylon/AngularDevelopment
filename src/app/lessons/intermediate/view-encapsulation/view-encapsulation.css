@@ -1,37 +1,30 @@
+/* Table and callout styling comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) once `bf` is on the article, which is why this
+   file only holds what is genuinely specific to this lesson: the mode-chip
+   picker, the badge/theming demo rows, and the hand-authored boundary
+   diagram. Buttons below carry `class="ghost"` deliberately —
+   `.lesson.bf .demo button:not(.bf-btn):not(.ghost)` forces every plain
+   button in a `.demo` into a solid accent pill, which would turn a row of
+   togglable chips (or colour swatches with their own background) into
+   identical shouting buttons. `.ghost` opts out of that and leaves colour
+   free for the `.on` rules below to own the "selected" state — same
+   technique as `ngmodules-migration.css`'s `.chips`. */
 .mode-chips {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin: 0 0 12px;
 }
-.mode-chips button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 6px 14px;
-  font-size: 0.84rem;
-}
 .mode-chips button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.mode-meaning {
-  font-size: 0.9rem;
-  margin: 10px 0 0;
+  background: var(--bf-accent);
+  border-color: var(--bf-accent);
+  color: var(--bf-bg);
 }
 
-.badge-row {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 12px 0;
-}
+.badge-row,
 .theme-row {
   display: flex;
-  gap: 10px;
+  gap: 14px;
   align-items: center;
   flex-wrap: wrap;
   margin: 12px 0;
@@ -39,11 +32,108 @@
 .theme-row .swatch-btn {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
-  border: 2px solid transparent;
+  box-sizing: border-box;
   cursor: pointer;
-  padding: 0;
 }
 .theme-row .swatch-btn.on {
-  border-color: var(--text);
+  border-color: var(--bf-ink);
+  border-width: 2px;
+}
+
+/* ── The "boundary" diagram — hand-authored SVG rather than <app-layers>,
+   because the idea being taught is an asymmetric one-way fence (selectors
+   stop, inheritance doesn't), not one thing nested inside another — forcing
+   that into a containment diagram would tell the reader something untrue
+   about the shape of the idea. Every colour is a --bf-* token, the <svg> is
+   aria-hidden, and the figcaption repeats the same information as a
+   sentence for anyone who cannot see it — same technique as the scope-graph
+   figures in ngmodules-migration.css. */
+.boundary-fig {
+  margin: 0;
+}
+.boundary {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin: 0 auto;
+}
+.boundary-fig figcaption {
+  max-width: 50ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--bf-ink-2);
+  text-align: center;
+}
+.boundary__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+.boundary__pill {
+  fill: var(--bf-gold-wash);
+  stroke: color-mix(in srgb, var(--bf-gold) 45%, transparent);
+  stroke-width: 1.5;
+}
+.boundary__wall {
+  stroke: var(--bf-ink-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+.boundary__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+.boundary__sub {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.boundary__code {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+.boundary__tag {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-hand);
+  font-size: 13px;
+}
+.boundary__dot {
+  fill: var(--bf-clay);
+  stroke: var(--bf-clay-ink);
+  stroke-width: 1.5;
+}
+.boundary__edge-bad {
+  stroke: var(--bf-danger);
+  stroke-width: 2;
+  fill: none;
+}
+.boundary__mark-bad {
+  stroke: var(--bf-danger);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.boundary__label-bad {
+  fill: var(--bf-danger);
+  font-family: var(--font-hand);
+  font-size: 13px;
+}
+.boundary__edge-good {
+  stroke: var(--bf-olive);
+  stroke-width: 2;
+  fill: none;
+}
+.boundary__arrowhead-good {
+  fill: var(--bf-olive);
+}
+.boundary__label-good {
+  fill: var(--bf-olive);
+  font-family: var(--font-hand);
+  font-size: 13px;
 }
