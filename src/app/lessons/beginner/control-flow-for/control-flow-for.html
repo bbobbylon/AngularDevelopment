@@ -1,272 +1,431 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Control Flow</span>
-  <h1>Control Flow: &#64;for</h1>
-  <p class="lead">
-    The <code>&#64;for</code> block repeats a chunk of template for each item in a collection. A
-    <code>track</code> expression is <strong>required</strong>
-    so Angular can identify items efficiently across updates.
-  </p>
-
-  <h2>The mental model: the coat check</h2>
-  <p>
-    You hand your coat to the attendant and get a numbered ticket. When you come back, the ticket is what matches you to
-    your coat — not where the coat happened to be hanging. Staff can shuffle the rack all afternoon and it still works,
-    because the ticket travels with the coat.
-  </p>
-  <p>
-    <code>track</code> is that ticket. <code>track item.id</code> staples a real number to the item, so however the
-    array reorders, Angular can find the DOM node that belongs to it and simply move it. <code>track $index</code> is
-    the other system: <em>"your coat is the one on hook 3."</em> That is fine until someone reshuffles the rack, and
-    then everybody goes home in the wrong coat — which is precisely what you are about to see happen to a form input.
-  </p>
-
-  <app-remember>
-    <strong>Track the thing, not the slot.</strong> A stable id follows the item wherever it moves;
-    <code>$index</code> is just a hook number, and hook numbers do not move with anything.
-  </app-remember>
-
-  <h2>Basic loop with track</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 12px">
-      <input
-        aria-label="new task"
-        #t
-        placeholder="new task"
-        (keyup.enter)="add(t.value); t.value = ''"
-        style="flex: 1"
-      />
-      <button (click)="add(t.value); t.value = ''">Add</button>
-      <button class="ghost" (click)="shuffle()">Shuffle</button>
-    </div>
-
-    @for (task of tasks(); track task.id) {
-      <label class="taskrow">
-        <input type="checkbox" [checked]="task.done" (change)="toggle(task.id)" />
-        <span [style.textDecoration]="task.done ? 'line-through' : 'none'">
-          {{ task.label }}
-        </span>
-        <button class="ghost" (click)="remove(task.id)">✕</button>
-      </label>
-    } @empty {
-      <p style="color: var(--text-muted)">No tasks — add one above.</p>
-    }
-  </div>
-
-  <div class="code">
-    <pre>
-&#64;for (task of tasks(); track task.id) {{ '{' }}
-  &lt;li&gt;{{ '{{' }} task.label {{ '}}' }}&lt;/li&gt;
-{{ '}' }} &#64;empty {{ '{' }}
-  &lt;li&gt;Nothing here yet&lt;/li&gt;
-{{ '}' }}</pre>
-  </div>
-
-  <div class="warn">
-    <strong>track is mandatory.</strong> Use a stable unique id (<code>track item.id</code>). Only use
-    <code>track $index</code> for static lists that never reorder. Good tracking lets Angular reuse DOM nodes instead of
-    recreating them — this is the single biggest list-perf lever.
-  </div>
-  <p>
-    For primitive arrays with no id, <code>track item</code> (the value itself) is fine if values are unique. For
-    objects without an id you control, you may <code>track $index</code> — accepting that edits in the middle re-render
-    rows. In <strong>nested</strong> loops, alias each level's variables so they don't collide:
-    <code>&#64;for (row of rows; track row.id; let r = $index)</code> then an inner
-    <code>&#64;for (cell of row.cells; track cell.id; let c = $index)</code>.
-  </p>
-
-  <h2>Contextual variables</h2>
-  <p>Inside <code>&#64;for</code> you get handy implicit variables:</p>
-  <div class="demo">
-    <p class="demo__title">Live — $index, $first, $last, $even</p>
-    @for (task of tasks(); track task.id; let i = $index, isFirst = $first, isLast = $last, isEven = $even) {
-      <div class="meta" [class.even]="isEven">
-        <span class="pill">#{{ i }}</span>
-        {{ task.label }}
-        @if (isFirst) {
-          <span class="pill">first</span>
-        }
-        @if (isLast) {
-          <span class="pill">last</span>
-        }
-      </div>
-    }
-  </div>
-
-  <div class="code">
-    <pre>
-&#64;for (item of items(); track item.id;
-      let i = $index, e = $even, f = $first, l = $last, c = $count) {{ '{' }} … {{ '}' }}</pre>
-  </div>
-
-  <ul>
-    <li><code>$index</code> — zero-based position</li>
-    <li><code>$first</code> / <code>$last</code> — boolean edges</li>
-    <li><code>$even</code> / <code>$odd</code> — parity helpers</li>
-    <li><code>$count</code> — total length of the collection</li>
-  </ul>
-
-  <h2>track by id vs. track by $index</h2>
-
-  <app-predict
-    prompt="No performance hand-waving — this one is a correctness bug you can watch happen. What does the user see after the prepend?"
-    [code]="prependSample"
-    answer="The word `hello` is now sitting in Zoe's input, and Ada's is empty. Nothing moved the text: with `track $index`, row 0 is *defined* as &quot;whatever is at position 0&quot;, and the DOM node for row 0 never went anywhere. Zoe took over Ada's node, keys, focus, scroll position, half-typed text and all. Angular only rebound the `placeholder`. This is why `$index` tracking is not merely a slow choice — on any list holding state it is a wrong one, and it fails in a way that looks like a data bug rather than a template bug."
-  />
-
-  <p>Try it yourself. The two columns below are the same four letters, tracked two different ways:</p>
-
-  <div class="demo">
-    <p class="demo__title">Live — type a note in a box or two, then Shuffle</p>
-    <button class="ghost" (click)="shuffleLetters()" style="margin-bottom: 12px">Shuffle</button>
-    <div class="row" style="gap: 24px; align-items: flex-start">
-      <div style="flex: 1">
-        <p class="demo__title">track letter.id</p>
-        @for (letter of letters(); track letter.id) {
-          <div class="row" style="margin-bottom: 6px">
-            <span class="pill">{{ letter.ch }}</span>
-            <input aria-label="note" placeholder="note" style="flex: 1" />
-          </div>
-        }
-      </div>
-      <div style="flex: 1">
-        <p class="demo__title">track $index</p>
-        @for (letter of letters(); track $index) {
-          <div class="row" style="margin-bottom: 6px">
-            <span class="pill">{{ letter.ch }}</span>
-            <input aria-label="note" placeholder="note" style="flex: 1" />
-          </div>
-        }
-      </div>
-    </div>
-  </div>
-  <p style="color: var(--text-muted); font-size: 0.85rem">
-    Type something into a couple of the "note" boxes, then click Shuffle. On the left (<code>track letter.id</code>)
-    Angular matches each DOM node to its data item and moves the node, so your note travels with the same letter. On the
-    right (<code>track $index</code>) Angular matches by position, so the input stays put and now holds whichever letter
-    landed in that slot — the note appears to "jump" to a different letter.
-  </p>
-
-  <app-compare
-    leftTitle="`track $index` — keyed by position"
-    leftTone="bad"
-    rightTitle="`track row.id` — keyed by identity"
-    rightTone="good"
-    note="Same data, same prepend. The difference is entirely in what the key means."
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Beginner · Control Flow"
+    title="Control Flow: &#64;for"
+    hand="or, how Angular remembers which row is which when the list won't hold still"
+    [stops]="stops"
+    [current]="1"
   >
-    <div left>
-      <div class="code">
-        <pre>
-Before:  [0:Ada] [1:Grace] [2:Linus]
-Prepend Zoe
-After:   [0:Zoe] [1:Ada]   [2:Grace] [3:Linus]
+    <p class="lead">
+      The <code>&#64;for</code> block repeats a chunk of template once for every item in a collection — and unlike its
+      predecessor, it <strong>requires</strong> you to say how it should tell one item from another across updates. That
+      one word, <code>track</code>, decides almost everything interesting on this page: which DOM nodes get reused, what
+      happens to state living inside a reordered row, and what breaks when you get it wrong. This page proves each
+      answer live, not just states it.
+    </p>
+  </app-chapter>
 
-Keys 0,1,2 already exist → nodes kept in place,
-their bindings rewritten. One new node at the end.
-→ 3 rows re-bound, all row state misaligned</pre>
-      </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>The array changed. Which rows are actually the same rows?</h2>
+
+    <p>
+      Say you're rendering a list — to-dos, search results, rows in a table. Updating the array itself is the easy part:
+      fetch new data, <code>.set()</code> a signal, done. The genuinely hard question is a different one, and it's one
+      <strong>you</strong> have to answer, not Angular: for every item that's in the collection <em>now</em>, is this
+      the <span class="key">same row you already had</span> — same DOM node, same typed-in text, same scroll position —
+      or is it something <span class="key">brand new</span>?
+    </p>
+
+    <p>
+      Get that wrong and nothing crashes. The list still looks correct on screen. What breaks is everything
+      <em>attached</em> to a row that Angular silently decided wasn't the one it used to be — focus, a half-typed
+      answer, a checkbox's checked state. <code>&#64;for</code> doesn't guess at the answer for you. It makes you say it
+      out loud, in a required expression called <code>track</code>.
+    </p>
+
+    <ul>
+      <li>What key identifies a row across two updates, so Angular can match them up? (<strong>track</strong>)</li>
+      <li>What happens to a row whose key nobody claims any more? (<strong>destroyed</strong>, not hidden)</li>
+      <li>What renders when the collection has nothing in it at all? (<code>&#64;empty</code>)</li>
+    </ul>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Picture three names in a list, each with its own text box beside it, and you've just typed half a sentence into
+      the box next to the <em>second</em> name. A brand-new row arrives — not at the end, at the very top. Where does
+      your half-typed sentence end up: still riding along with the same name, or now sitting next to whichever name
+      happens to land in that same box on screen? Hold your guess — there's a live version of exactly this a few
+      sections down that will settle it either way.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular is a coat check, not a row of hooks.</h2>
+
+    <p>
+      Picture handing your coat to an attendant and getting back a numbered ticket. When you return, that ticket — not
+      which hook the coat happens to be hanging on — is what reunites you with it. Staff can rehang every coat in the
+      place while you're gone, and it still works, because the ticket travels with the <em>coat</em>, not with the hook.
+    </p>
+
+    <p>
+      <code>track item.id</code> is that ticket: a real, stable number stapled to the data itself. However the array
+      reorders, Angular can always find the DOM node that belongs to a given item and simply move it, no matter where it
+      now sits. <code>track $index</code> throws the ticket away and keeps the hook system instead —
+      <em>"your coat is whatever's on hook 3."</em> That's fine, right up until someone reshuffles the rack — which is
+      exactly what you're about to watch happen to a form input.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Track the thing, not the slot.</strong> A stable id follows the item wherever it moves;
+      <code>$index</code>
+      is just a hook number, and hook numbers don't move with anything.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="trackTalk"
+      caption="Same rule, argued from both sides — and the one line that actually matters: who moves when the list reorders, the ticket or the hook."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One update is a keyed diff, not a re-render.</h2>
+
+    <p>
+      <code>&#64;for</code> isn't a directive you import — like <code>&#64;if</code>, it's block syntax the Angular
+      compiler understands directly, the same way <code>*ngFor</code> used to be a structural <em>directive</em> built
+      on an <code>&lt;ng-template&gt;</code> and an <code>NgForOf</code> class underneath. That difference is exactly
+      why <code>track</code> can be <strong>enforced</strong> at compile time instead of merely recommended: the
+      compiler already owns the whole block, so it can simply refuse to build one that doesn't have one.
+    </p>
+
+    <p>Here's the shape you'll actually write, <code>&#64;empty</code> included:</p>
+
+    <app-code-lab file="tasks.html" [code]="basicForSample" [notes]="basicForNotes" notesLabel="What each line does" />
+
+    <p>
+      Read line 7 twice: <code>&#64;empty</code> is not <code>else</code>. It's a <strong>sibling branch</strong> that
+      fires only when the bound collection's length is exactly 0 — a <code>null</code> or
+      <code>undefined</code> collection gives <code>&#64;for</code> nothing to iterate over at all, and it throws
+      instead of quietly rendering nothing.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Embedded view" kicker="one row's DOM">
+        The nodes and bindings for exactly one item. Building or discarding one of these, as a whole, is what a keyed
+        diff spends its entire cost on.
+      </app-tape-card>
+      <app-tape-card heading="track key" kicker="the identity" tone="accent">
+        Whatever your <code>track</code> expression returns for a row — compared, not the row's contents. The same key
+        next pass means "reuse this exact node."
+      </app-tape-card>
+      <app-tape-card heading="Keyed diff" kicker="old keys vs. new" tone="olive">
+        New keys are matched against last pass's keys. A key that already existed keeps its node and just gets rebound;
+        a brand-new key gets a freshly built one.
+      </app-tape-card>
+      <app-tape-card heading="@empty view" kicker="a sibling, not a fallback" tone="gold">
+        Built once, shown only while the collection's length is 0. A <code>null</code>/<code>undefined</code> collection
+        never reaches this branch at all — it throws instead.
+      </app-tape-card>
     </div>
-    <div right>
-      <div class="code">
-        <pre>
-Before:  [id7:Ada] [id2:Grace] [id9:Linus]
-Prepend Zoe
-After:   [id4:Zoe] [id7:Ada]   [id2:Grace] [id9:Linus]
 
-Key id4 is new → one node created and inserted
-first. id7, id2, id9 are untouched.
-→ 1 row created, all row state intact</pre>
-      </div>
+    <app-flow
+      [steps]="diff"
+      caption="This is the same keyed reconciliation other frameworks use for keyed lists. Your `track` expression is the key function; everything downstream is decided by it."
+    />
+
+    <div class="warn">
+      <strong>track is mandatory.</strong> Skip it and <code>&#64;for</code> won't compile — not a lint warning, a build
+      failure. For primitive arrays with no id, <code>track item</code> (the value itself) is fine as long as values are
+      unique; for objects with no id you control, <code>track $index</code> is the honest fallback, accepting that a
+      middle-insert or sort re-renders every row after it. In <strong>nested</strong> loops, alias each level's
+      variables so they don't collide: <code>&#64;for (row of rows; track row.id; let r = $index)</code> then an inner
+      <code>&#64;for (cell of row.cells; track cell.id; let c = $index)</code>.
     </div>
-  </app-compare>
 
-  <app-quiz
-    question="Your `track` expression returns the same value for two items in the list — say `track item.name` and two people share a name. What happens?"
-    [options]="duplicateOptions"
-    followUp="Worth knowing because the failure is data-dependent: the list renders happily for months until the one day two records collide in production."
-  />
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 12px">
+        <input
+          aria-label="new task"
+          #t
+          placeholder="new task"
+          (keyup.enter)="add(t.value); t.value = ''"
+          style="flex: 1"
+        />
+        <button (click)="add(t.value); t.value = ''">Add</button>
+        <button class="ghost" (click)="shuffle()">Shuffle</button>
+      </div>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Omitting <code>track</code>.</strong> Unlike the old <code>*ngFor</code>, <code>track</code> is
-      <em>required</em> — the template won't compile without it.
-    </li>
-    <li>
-      <strong><code>track $index</code> on a reorderable list.</strong> Angular then keys rows by position, so a sort or
-      middle-insert re-renders and can desync form/checkbox state. Track a stable id instead.
-    </li>
-    <li>
-      <strong>Tracking a non-unique value.</strong> Duplicate track keys throw at runtime. For primitive arrays with
-      possible dupes, fall back to <code>$index</code>.
-    </li>
-    <li>
-      <strong>Colliding aliases in nested loops.</strong> Give each level its own <code>let i = $index</code> alias;
-      reusing the same name shadows the outer one.
-    </li>
-    <li>
-      <strong>Expecting <code>&#64;empty</code> to fire on <code>null</code>.</strong> It renders for an empty iterable;
-      a <code>null</code>/<code>undefined</code> collection errors — default to <code>[]</code>.
-    </li>
-  </ul>
+      @for (task of tasks(); track task.id) {
+        <label class="taskrow">
+          <input type="checkbox" [checked]="task.done" (change)="toggle(task.id)" />
+          <span [style.textDecoration]="task.done ? 'line-through' : 'none'">
+            {{ task.label }}
+          </span>
+          <button class="ghost" (click)="remove(task.id)">✕</button>
+        </label>
+      } @empty {
+        <p style="color: var(--text-muted)">No tasks — add one above.</p>
+      }
+      <p class="demo__note">
+        Add a task, then mash Shuffle a few times. Nothing about a shuffled row's checkbox state or its place in your
+        tab order ever breaks — <code>track task.id</code> is doing exactly what the coat-check ticket did above, in
+        real DOM.
+      </p>
+    </div>
+  </section>
 
-  <h2>Under the hood</h2>
+  <!-- ============ 4. CONTEXTUAL VARIABLES ============ -->
+  <section>
+    <p class="bf-eyebrow">The contextual variables</p>
+    <h2>Six variables ride along with the block, for free.</h2>
 
-  <p>
-    Here is what actually happens when the bound collection changes. Note how little of it is "rendering" — the
-    expensive part is the matching, and <code>track</code> is the only input you give it:
-  </p>
+    <p>
+      Inside <code>&#64;for</code>, on top of the item itself, Angular hands you a small set of implicit values about
+      the current iteration — not properties on your data, values the block computes fresh, on every single pass:
+    </p>
 
-  <app-flow
-    [steps]="diff"
-    caption="This is the same keyed reconciliation other frameworks use for keyed lists. `track` is your key function; everything downstream is decided by it."
-  />
+    <div class="bf-grid-2">
+      <app-tape-card heading="$index" kicker="this row's spot">
+        Zero-based position of this item in the current pass — recomputed for every row, every time the collection
+        changes.
+      </app-tape-card>
+      <app-tape-card heading="$first / $last" kicker="the edges" tone="accent">
+        Booleans, true for exactly one row each: position 0, and the final position. Neither ever fires on an empty
+        collection — there's nothing to be first or last.
+      </app-tape-card>
+      <app-tape-card heading="$even / $odd" kicker="parity" tone="olive">
+        Alternates by position. The usual use is zebra-striping a list, nothing more exotic than that.
+      </app-tape-card>
+      <app-tape-card heading="$count" kicker="the total" tone="blue">
+        Total length of the bound collection — recomputed on every pass, and identical for every row in it.
+      </app-tape-card>
+    </div>
 
-  <ul>
-    <li>
-      <strong><code>&#64;for</code> is native block syntax, not a directive.</strong> Unlike <code>*ngFor</code> (a
-      structural <em>directive</em> that the <code>*</code> micro-syntax desugars to an
-      <code>&lt;ng-template&gt;</code>), <code>&#64;for</code> is compiled directly into repeat/track instructions by
-      the Angular compiler — that's part of why <code>track</code> can be enforced at compile time instead of merely
-      recommended.
-    </li>
-    <li>
-      <strong><code>track</code> drives a keyed diff, not a naive re-render.</strong> On each update Angular computes
-      the new collection's track keys, matches them against the previous run's keys, and only creates/moves/destroys the
-      DOM nodes whose keys actually changed — the same reconciliation idea keyed lists use in other frameworks.
-    </li>
-    <li>
-      <strong>Why <code>track</code> became mandatory.</strong> <code>*ngFor</code>'s <code>trackBy</code> was an
-      easy-to-forget optional input; without it Angular defaulted to identity-by-index, which silently broke on
-      reorders. Making <code>track</code> a required part of the <code>&#64;for</code> grammar turns that footgun into a
-      compile-time error instead of a runtime perf/state bug.
-    </li>
-    <li>
-      <strong
-        ><code>$index</code>/<code>$first</code>/<code>$last</code>/<code>$count</code>/ <code>$even</code>/<code
-          >$odd</code
-        >
-        are implicit template context variables</strong
-      >, not properties on your data — the <code>&#64;for</code> block computes them fresh for the current iteration,
-      and they only exist inside that block's <code>let</code> aliasing, which is why nested loops need distinct alias
-      names to avoid shadowing.
-    </li>
-    <li>
-      <strong><code>&#64;empty</code> is a sibling branch, not a fallback value.</strong> It renders only when the bound
-      collection's length is 0; a <code>null</code>/ <code>undefined</code> collection skips both branches and throws,
-      because <code>&#64;for</code> needs an actual iterable to diff against.
-    </li>
-  </ul>
+    <p>Alias whichever ones you need with <code>let</code>, in any order, under whatever names make sense to you:</p>
 
-  <app-faq [items]="questions" />
+    <app-code-lab
+      file="task-list.html"
+      [code]="contextVarsSample"
+      [notes]="contextVarsNotes"
+      notesLabel="Line by line"
+    />
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>&#64;for (x of xs; track x.id)</code> repeats a template — track is required.</li>
-    <li><code>&#64;empty</code> renders when the collection is empty.</li>
-    <li>Implicit vars (<code>$index</code>, <code>$first</code>, …) are aliased with <code>let</code>.</li>
-    <li>Track a stable id for reorderable lists; <code>$index</code> only for static ones.</li>
-  </ul>
+    <div class="demo">
+      <p class="demo__title">Live — $index, $first, $last, $even</p>
+      @for (task of tasks(); track task.id; let i = $index, isFirst = $first, isLast = $last, isEven = $even) {
+        <div class="meta" [class.even]="isEven">
+          <span class="pill">#{{ i }}</span>
+          {{ task.label }}
+          @if (isFirst) {
+            <span class="pill">first</span>
+          }
+          @if (isLast) {
+            <span class="pill">last</span>
+          }
+        </div>
+      }
+      <p class="demo__note">
+        Add or remove a task above and watch every badge here recompute — <code>$index</code>, <code>$first</code> and
+        <code>$last</code> are never stored on your data; they're rebuilt from scratch, for every row, on every pass
+        that reaches this block.
+      </p>
+    </div>
+  </section>
 
-  <p><a routerLink="/control-flow-switch">Next: Control Flow — &#64;switch →</a></p>
+  <!-- ============ 5. TRACK BY ID VS. TRACK BY $INDEX ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The bug you can watch happen</p>
+    <h2>$index isn't the slow choice. It's the wrong one.</h2>
+
+    <p>
+      Back to the question from the top of the page — here it is again as actual code, no hand-waving and no talk of
+      performance yet. Read it and predict what the user genuinely sees:
+    </p>
+
+    <app-predict
+      prompt="No performance hand-waving — this one is a correctness bug you can watch happen. What does the user see after the prepend?"
+      [code]="prependSample"
+      answer="The word `hello` is now sitting in Zoe's input, and Ada's is empty. Nothing moved the text: with `track $index`, row 0 is *defined* as &quot;whatever is at position 0&quot;, and the DOM node for row 0 never went anywhere. Zoe took over Ada's node, keys, focus, scroll position, half-typed text and all. Angular only rebound the `placeholder`. This is why `$index` tracking is not merely a slow choice — on any list holding state it is a wrong one, and it fails in a way that looks like a data bug rather than a template bug."
+      revealLabel="Reveal what actually happens"
+    />
+
+    <p>Try it yourself. The two columns below are the same four letters, tracked two different ways:</p>
+
+    <div class="demo">
+      <p class="demo__title">Live — type a note in a box or two, then Shuffle</p>
+      <button class="ghost" (click)="shuffleLetters()" style="margin-bottom: 12px">Shuffle</button>
+      <div class="row" style="gap: 24px; align-items: flex-start">
+        <div style="flex: 1">
+          <p class="demo__title">track letter.id</p>
+          @for (letter of letters(); track letter.id) {
+            <div class="row" style="margin-bottom: 6px">
+              <span class="pill">{{ letter.ch }}</span>
+              <input aria-label="note" placeholder="note" style="flex: 1" />
+            </div>
+          }
+        </div>
+        <div style="flex: 1">
+          <p class="demo__title">track $index</p>
+          @for (letter of letters(); track $index) {
+            <div class="row" style="margin-bottom: 6px">
+              <span class="pill">{{ letter.ch }}</span>
+              <input aria-label="note" placeholder="note" style="flex: 1" />
+            </div>
+          }
+        </div>
+      </div>
+      <p class="demo__note">
+        Type something into a couple of the "note" boxes, then click Shuffle. On the left (<code>track letter.id</code>)
+        Angular matches each DOM node to its data item and moves the node, so your note travels with the same letter. On
+        the right (<code>track $index</code>) Angular matches by position, so the input stays put and now holds
+        whichever letter landed in that slot — the note appears to "jump" to a different letter.
+      </p>
+    </div>
+
+    <app-compare
+      leftTitle="`track $index` — keyed by position"
+      leftTone="bad"
+      rightTitle="`track row.id` — keyed by identity"
+      rightTone="good"
+      note="Same data, same prepend. The difference is entirely in what the key means."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ keyDiffIndexBefore }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ keyDiffIdAfter }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-quiz
+      question="Your `track` expression returns the same value for two items in the list — say `track item.name` and two people share a name. What happens?"
+      [options]="duplicateOptions"
+      followUp="Worth knowing because the failure is data-dependent: the list renders happily for months until the one day two records collide in production."
+    />
+  </section>
+
+  <!-- ============ 6. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls that show up in exams &amp; code review</p>
+    <h2>Five ways to get bitten.</h2>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        every one of these compiles cleanly except the first
+      </caption>
+      <thead>
+        <tr>
+          <th>The mistake</th>
+          <th>What actually happens</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Omitting <code>track</code></td>
+          <td>
+            Unlike the old <code>*ngFor</code>, <code>track</code> is <em>required</em> — the template simply won't
+            compile without it.
+          </td>
+        </tr>
+        <tr>
+          <td><code>track $index</code> on a reorderable list</td>
+          <td>
+            Angular keys rows by position, so a sort or middle-insert re-renders rows and can desync form or checkbox
+            state. Track a stable id instead.
+          </td>
+        </tr>
+        <tr>
+          <td>Tracking a non-unique value</td>
+          <td>
+            Duplicate <code>track</code> keys throw at runtime — at least it's loud. For primitive arrays with possible
+            duplicates, fall back to <code>$index</code>.
+          </td>
+        </tr>
+        <tr>
+          <td>Colliding aliases in nested loops</td>
+          <td>
+            Reusing <code>let i = $index</code> at both levels lets the inner one silently shadow the outer. Give each
+            level its own alias name.
+          </td>
+        </tr>
+        <tr>
+          <td>Expecting <code>&#64;empty</code> to fire on <code>null</code></td>
+          <td>
+            It renders only for a genuinely empty iterable (length 0); a <code>null</code>/<code>undefined</code>
+            collection errors out instead — default to <code>[]</code> at the source.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 7. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Compiled syntax, not a runtime guess.</h2>
+
+    <ul>
+      <li>
+        <strong><code>&#64;for</code> is native block syntax, not a directive.</strong> Unlike <code>*ngFor</code> (a
+        structural <em>directive</em> that the <code>*</code> micro-syntax desugars to an
+        <code>&lt;ng-template&gt;</code>), <code>&#64;for</code> is compiled directly into repeat/track instructions by
+        the Angular compiler — there is no <code>NgForOf</code> instance to inject or override.
+      </li>
+      <li>
+        <strong>Why <code>track</code> became mandatory.</strong> <code>*ngFor</code>'s <code>trackBy</code> was an
+        easy-to-forget optional input; without it Angular defaulted to identity-by-index, which silently broke on
+        reorders. Making <code>track</code> a required part of the <code>&#64;for</code> grammar turns that footgun into
+        a compile-time error instead of a runtime perf-and-state bug.
+      </li>
+      <li>
+        <strong><code>&#64;empty</code> needs an actual iterable, not just a falsy one.</strong> A <code>0</code>-length
+        array reaches <code>&#64;empty</code> just fine; a <code>null</code> or <code>undefined</code> collection isn't
+        an empty <em>iterable</em>, it's the absence of one, so <code>&#64;for</code> has nothing to diff against and
+        throws rather than guessing which branch you meant.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 8. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 9. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>&#64;for (x of xs; track x.id)</code> repeats a template once per item —
+        <strong>track is required</strong>, not a best practice.
+      </li>
+      <li>
+        Reordering a tracked list <strong>moves DOM nodes</strong>; it never rebuilds them. That's the entire
+        performance-and-state-preservation story in one sentence.
+      </li>
+      <li>
+        <code>track $index</code> keys by <strong>position</strong>, not identity — safe for a list that only ever grows
+        at the end, wrong for anything that reorders or inserts in the middle.
+      </li>
+      <li>
+        <code>$index</code>, <code>$first</code>, <code>$last</code>, <code>$even</code>, <code>$odd</code>,
+        <code>$count</code> are <strong>computed fresh every pass</strong> — alias them with <code>let</code>, and give
+        nested loops their own names so they don't shadow each other.
+      </li>
+      <li>
+        <code>&#64;empty</code> is a <strong>sibling branch</strong>, not an <code>else</code> — it renders for a
+        genuinely empty collection, and throws for <code>null</code>/<code>undefined</code>.
+      </li>
+    </ul>
+
+    <p>
+      <a routerLink="/control-flow-if">← &#64;if / &#64;else</a> &nbsp;·&nbsp;
+      <a routerLink="/control-flow-switch">Next: Control Flow — &#64;switch →</a>
+    </p>
+  </section>
 </article>
