@@ -77,10 +77,13 @@ async function mountAndScan(component: Type<unknown>): Promise<Result[]> {
 
 /**
  * axe walks the rendered DOM rule by rule, and the biggest pages here render a
- * few thousand nodes — `/interview` alone exceeds the 5s default. Generous
- * rather than tuned: a slow scan is not the failure this suite looks for.
+ * few thousand nodes — `/interview` alone exceeds the 5s default, and the
+ * densest brain-friendly lesson so far (`intermediate/testing-components`,
+ * 16 `<app-code-lab>` blocks) ran ~21s in isolation and tipped past the prior
+ * 30s cap under the memory/GC pressure of the full suite. Generous rather
+ * than tuned: a slow scan is not the failure this suite looks for.
  */
-const SCAN_TIMEOUT_MS = 30_000;
+const SCAN_TIMEOUT_MS = 60_000;
 
 const lessonIds = new Set(CURRICULUM.map((lesson) => lesson.id));
 const written = CURRICULUM.filter((lesson) => lesson.loadComponent);
