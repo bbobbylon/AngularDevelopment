@@ -1,12 +1,7 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-}
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 300px;
-}
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why this file is nearly empty — the
+   `.t` block that used to live here was a per-lesson copy of a rule the theme
+   now owns for every bare `<table>` inside a `.lesson.bf` article.
+
+   Anything left here has to be genuinely specific to this lesson, and nothing
+   currently is. */

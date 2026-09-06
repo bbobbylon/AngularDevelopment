@@ -1,6 +1,9 @@
 import { Component, computed, linkedSignal, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /**
  * Lesson: Advanced Signals — the parts beyond `signal` / `computed` / `effect`.
@@ -18,10 +21,44 @@ import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
  *   the consequence concrete: the `computed` recomputes when `a` changes and not
  *   when `b` does, even though it reads both — which is either exactly what you
  *   wanted or a stale-value bug, depending on whether you meant it.
+ *
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
+ * following the shape of the reference implementation in
+ * `lessons/expert/change-detection/`. This lesson already scored 9/9 on the
+ * retention audit before this pass — the analogy, the predicts, the quiz and the
+ * FAQ below are carried over rather than reinvented. What changed is how they are
+ * presented: every snippet now runs through `app-code-lab` with real line-by-line
+ * notes, the ASCII decision tree became a row of `app-tape-card`s (a picture that
+ * actually reads as one, rather than monospace art forced into a `<pre>`), and a
+ * `app-bubbles` dialogue dramatises the one misconception the quiz exists to
+ * correct — that a still-valid option survives a `linkedSignal` reset. It does
+ * not; the computation re-derives from a blank slate every time, and the
+ * dialogue stages that in the actors' own voices before the quiz asks the reader
+ * to commit to it.
+ *
+ * @see beginner/signals — the spreadsheet analogy this page builds on, and the
+ * lesson that first name-drops `linkedSignal` as "a third thing to learn later".
+ * @see intermediate/resource-api — the next stop on the Signals track, which
+ * uses `linkedSignal` internally to hold `resource()`'s result.
  */
 @Component({
   selector: 'app-lesson-signals-advanced',
-  imports: [RouterLink, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    TapeCard,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   templateUrl: './signals-advanced.html',
   styleUrl: './signals-advanced.css',
 })
@@ -31,28 +68,120 @@ export class SignalsAdvanced {
    * equality check happens *after* recomputation, and a value that compares equal
    * stops the ripple there rather than passing it on.
    */
-  protected readonly propagation = [
+  protected readonly propagation: FlowStep[] = [
     { label: 'You call `set()`', detail: 'The value lands and the version counter ticks' },
     { label: 'Dependents marked dirty', detail: 'Marked, not run — nothing is recomputed yet' },
     {
       label: 'Something reads',
       detail: 'A template or `computed` finally asks for the value',
-      tone: 'accent' as const,
+      tone: 'accent',
     },
-    { label: 'Formula re-runs', detail: 'Only now, and only for the consumers actually read' },
+    { label: 'Formula re-runs', detail: 'Only now, and only for the consumers that read' },
     {
       label: '`equal(old, new)`?',
       detail: 'Equal → the ripple stops here and nobody downstream is told',
-      tone: 'warn' as const,
+      tone: 'warn',
     },
     {
       label: 'Different → notify',
       detail: 'The next layer is marked dirty and it repeats',
-      tone: 'good' as const,
+      tone: 'good',
     },
   ];
 
-  /** The untracked staleness trap. */
+  /**
+   * Sample: the basic `linkedSignal` shorthand — writable state derived from a
+   * source, in as few lines as the API allows.
+   */
+  protected readonly linkedBasicSample = `options = signal(['Red', 'Green', 'Blue']);
+
+// defaults to the first option, but stays user-writable:
+selected = linkedSignal(() => this.options()[0]);`;
+
+  /** Line-by-line walkthrough of {@link linkedBasicSample}. */
+  protected readonly linkedBasicNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`options` is an ordinary writable `signal` — nothing on this line says anything is derived. It could be replaced with a brand-new array at any time, from anywhere.',
+    },
+    {
+      line: 4,
+      text: '`linkedSignal(fn)` looks exactly like `computed(fn)` — same shape, same laziness, the same dependency on `this.options()` discovered by reading it. The difference is invisible right here and everywhere in the demo below: the value this hands back is **writable**, the same way a plain `signal` is.',
+    },
+  ];
+
+  /** Choices for the linkedSignal reset check. */
+  protected readonly linkedOptions: QuizOption[] = [
+    {
+      text: "'Blue' — it only resets when the old value disappears",
+      why: 'That is the behaviour people expect, and it is what the `source` / `computation` form further down this page gives you. The plain one-argument form has no idea what the previous value was, so it cannot make that comparison at all.',
+    },
+    {
+      text: 'The first option of the new list',
+      correct: true,
+      why: 'The computation `() => this.options()[0]` re-runs in full whenever `options` changes, and it says "the first one" unconditionally. Whether the old selection is still present never enters into it — nothing in that expression looks.',
+    },
+    {
+      text: "'Blue', but only until the next read of `selected()`",
+      why: 'There is no deferred reset in signals. A `linkedSignal` settles synchronously the moment its source changes; reading it later just returns the value it already settled on.',
+    },
+    {
+      text: 'It stays whatever the user last wrote until you call `.set()` again',
+      why: 'That would make it an ordinary `signal`. The entire point of `linkedSignal` is that it *does* re-derive from its source — writability is the addition, not a replacement.',
+    },
+  ];
+
+  /**
+   * The reset dramatised as a conversation, one turn per actor. Exists because
+   * the misconception the quiz corrects — "it stays 'Blue' because 'Blue' is
+   * still in the new list" — is a claim about what `linkedSignal` *checks*, and
+   * a dialogue can show that it never asks the question at all far more plainly
+   * than a paragraph describing the same absence.
+   */
+  protected readonly resetTalk: BubbleTurn[] = [
+    { who: 'You', says: "`selected.set('Blue')` — I'm overriding the formula by hand." },
+    {
+      who: 'linkedSignal',
+      says: "Noted. I'll show 'Blue' — right up until my source changes, at which point I forget you ever wrote anything.",
+    },
+    {
+      who: 'The source',
+      says: "`options.set([...])` — a brand-new array just arrived. It happens to still contain 'Blue'.",
+    },
+    {
+      who: 'linkedSignal',
+      says: "Doesn't matter. I don't compare your old pick against the new list — I just re-run my computation from a blank slate.",
+    },
+    {
+      who: 'The computation',
+      says: "`() => this.options()[0]` — that's simply 'the first entry of whatever `options` holds right now'. It never asked whether 'Blue' survived, because it was never given a way to ask.",
+    },
+  ];
+
+  /**
+   * Sample: the mechanism behind the staleness trap — two reads inside one
+   * `computed`, tracked completely differently.
+   */
+  protected readonly untrackedMechanismSample = `a = signal(1);
+b = signal(100);
+
+// a() is a normal tracked read — every write to a marks sum dirty
+// b() is wrapped in untracked() — this read records NO dependency
+sum = computed(() => this.a() + untracked(this.b));`;
+
+  /** Line-by-line walkthrough of {@link untrackedMechanismSample}. */
+  protected readonly untrackedMechanismNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`a` and `b` are declared identically — two ordinary signals. Nothing here hints that one of them is about to be read differently from the other.',
+    },
+    {
+      line: 6,
+      text: 'One `computed`, two reads, two outcomes. `this.a()` is a normal tracked read: it registers `sum` as a consumer of `a`, the standard way. `untracked(this.b)` is different — `untracked()` takes a **function** and calls it outside the current reactive context, so no dependency is recorded. `this.b` already *is* a zero-argument function (that is what a signal getter is), which is why you can hand it straight to `untracked()` instead of writing `untracked(() => this.b())`.',
+    },
+  ];
+
+  /** Sample fed to the ask-before-telling prediction. */
   protected readonly untrackedSample = `a = signal(1);
 b = signal(100);
 
@@ -63,29 +192,78 @@ this.b.set(500);
 
 // What does sum() return now?`;
 
-  /** Choices for the linkedSignal reset check. */
-  protected readonly linkedOptions = [
+  /**
+   * Sample: `effect`'s cleanup callback, the tool for tearing down whatever a
+   * previous run set up.
+   */
+  protected readonly effectCleanupSample = `effect((onCleanup) => {
+  const id = setInterval(tick, 1000);
+  onCleanup(() => clearInterval(id));   // runs before re-run / on destroy
+});`;
+
+  /** Line-by-line walkthrough of {@link effectCleanupSample}. */
+  protected readonly effectCleanupNotes: CodeNote[] = [
     {
-      text: "'Blue' — it only resets when the old value disappears",
-      why: 'That is the behaviour people expect, and it is what the `source` / `computation` form gives you. The plain one-argument form has no idea what the previous value was, so it cannot make that comparison.',
+      line: 1,
+      text: "`effect(fn)` — `fn`'s first parameter is `onCleanup`, a function **Angular hands to you**. You never import it or construct it yourself.",
     },
     {
-      text: 'The first option of the new list',
-      correct: true,
-      why: 'The computation `() => this.options()[0]` re-runs in full whenever `options` changes, and it says "the first one" unconditionally. Whether the old selection is still present never enters into it — nothing in that expression looks.',
+      line: 2,
+      text: 'Starts a repeating timer — a side effect in the literal sense, since nothing is returned. This is exactly the kind of work `effect` exists for, and exactly the kind `computed` is forbidden from doing.',
     },
     {
-      text: "'Blue', but only until the next read of `selected()`",
-      why: 'There is no deferred reset in signals. A `linkedSignal` settles synchronously when its source changes; reading it later just returns the settled value.',
+      line: 3,
+      text: 'Registering the teardown. Angular calls this callback automatically **right before the effect body runs again**, and once more when the effect itself is destroyed — so a timer started on run 3 is always cleared before run 4 starts a new one.',
+    },
+  ];
+
+  /** Sample: the default `Object.is` check next to a custom `equal`. */
+  protected readonly equalitySample = `// default: Object.is — a new object is "different" even with identical fields
+const draft = signal({ id: 1, name: 'Ari' });
+
+// custom: compare by id — an equivalent object is treated as unchanged
+const user = signal(initial, { equal: (a, b) => a.id === b.id });`;
+
+  /** Line-by-line walkthrough of {@link equalitySample}. */
+  protected readonly equalityNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'With no second argument, a signal decides "did this change?" using `Object.is` — reference equality for anything that isn\'t a primitive. Replace `draft` with a brand-new object holding the exact same fields, and every reader is still notified.',
     },
     {
-      text: 'It stays whatever the user last wrote until you call `.set()` again',
-      why: 'That would make it an ordinary `signal`. The entire point of `linkedSignal` is that it *does* re-derive from its source — writability is the addition, not a replacement.',
+      line: 5,
+      text: 'The second argument to `signal()` is an options object. `equal` is your own answer to "did this change?" — it receives the old and new values and, if it returns `true`, the write is stored but **nobody downstream is told**. Two user objects that merely share an `id` now count as identical.',
+    },
+  ];
+
+  /**
+   * Sample: the object form of `linkedSignal`, which hands the computation a
+   * memory of what it returned last time.
+   */
+  protected readonly linkedPrevSample = `selected = linkedSignal({
+  source: this.options,
+  computation: (options, prev) =>
+    options.includes(prev?.value) ? prev!.value : options[0],
+});`;
+
+  /** Line-by-line walkthrough of {@link linkedPrevSample}. */
+  protected readonly linkedPrevNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "`source` is the object form's first field — any zero-argument function that supplies the upstream value. A plain `signal` works, and so does a `computed`. Whenever it changes, `computation` runs again, exactly the trigger the one-argument shorthand already uses.",
+    },
+    {
+      line: 3,
+      text: '`computation` receives **two** arguments where the shorthand form only ever saw one: the fresh `options`, and `prev` — either `undefined` on the very first run, or an object shaped `{ source, value }` holding what `source` returned and what this function returned, both from last time.',
+    },
+    {
+      line: 4,
+      text: '`prev?.value` is what lets this version ask "is the old selection still valid?" — something `() => this.options()[0]` has no way to ask at all, because it was never handed a previous value in the first place.',
     },
   ];
 
   /** The doubts this lesson reliably leaves behind. */
-  protected readonly questions = [
+  protected readonly questions: FaqItem[] = [
     {
       q: 'When do I actually need `linkedSignal` rather than `computed`?',
       a: 'Only when a human has to be able to overwrite the derived value. Selection state is the giveaway: the default comes from the data (first row, cheapest plan, current month), but the user can pick something else, and reloading the data should sensibly reset it. If nothing ever writes it, `computed` is simpler and you should prefer it.',
@@ -153,4 +331,11 @@ this.b.set(500);
     this.paletteIndex = (this.paletteIndex + 1) % this.palettes.length;
     this.options.set(this.palettes[this.paletteIndex]);
   }
+
+  /** The reactivity path this page sits on, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Signals', id: 'signals' },
+    { label: 'Advanced Signals' },
+    { label: 'resource()', id: 'resource-api' },
+  ];
 }
