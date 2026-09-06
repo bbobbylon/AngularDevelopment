@@ -1,16 +1,11 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-}
-.t td {
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 170px;
-}
+/* Table styling now comes from the shared brain-friendly layer (src/brain-friendly.css §15),
+   which themes any bare `<table>` inside a `.lesson.bf` article — this lesson no longer has one
+   at all, having replaced its old comparison tables with `<app-tape-card>` and `<app-compare>`.
+   The old exam-corner Q&A is gone too: it's an `<app-faq>` now, keyboard-accessible like every
+   other migrated lesson.
+
+   Anything left here is genuinely specific to the click-through journey demo, which is this
+   lesson's own bespoke widget rather than a shared teaching component. */
 
 .journey {
   display: grid;
@@ -26,7 +21,7 @@
   background: var(--bg-elevated);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--bf-r, 10px);
   padding: 10px 12px;
   font-size: 0.78rem;
   text-align: left;
@@ -44,27 +39,9 @@
 .jdetail {
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 var(--bf-r, 10px) var(--bf-r, 10px) 0;
   padding: 4px 14px;
   margin-top: 10px;
   font-size: 0.92rem;
   min-height: 80px;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }
