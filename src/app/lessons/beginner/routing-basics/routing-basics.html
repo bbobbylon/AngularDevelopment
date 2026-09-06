@@ -1,212 +1,350 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Routing</span>
-  <h1>Routing Basics</h1>
-  <p class="lead">
-    The Angular Router maps URLs to components, enabling a single-page app to have many "pages" without full reloads.
-    You define a route table, mark where components render with <code>&lt;router-outlet&gt;</code>, and link with
-    <code>routerLink</code>.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · Routing"
+    title="Routing Basics"
+    hand="or, how one string in the address bar decides which component you're looking at"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      The Angular Router maps URLs to components, so a single-page app can have a dozen "pages" without a single server
+      round trip. You define a route table, mark where components render with
+      <code>&lt;router-outlet&gt;</code>, and link with <code>routerLink</code>. Almost every bug in this lesson comes
+      from one rule: the router reads that table <strong>top to bottom</strong> and stops at the
+      <strong>first</strong> entry that fits.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: the queue at passport control</h2>
-  <p>
-    Picture a row of desks, each with a sign. You walk down the line and go to the
-    <strong>first desk whose sign fits you</strong> — you do not compare all of them and pick the best. Neither does the
-    router: it reads the route table top to bottom and stops at the first entry that matches.
-  </p>
-  <p>
-    Two consequences follow immediately, and between them they explain most routing bugs. Put a desk labelled "anyone"
-    (<code>**</code>) near the front and nobody ever reaches the specific desks behind it. And a sign that matches more
-    loosely than you intended will quietly claim traffic meant for something further down.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>One <code>index.html</code>. A dozen different screens. How?</h2>
 
-  <app-remember>
-    <strong>First match wins.</strong> Specific routes go above general ones, and <code>**</code> goes last. If a route
-    "never fires", something above it matched first.
-  </app-remember>
+    <p>
+      Here is the part that's easy to skip past: <code>/about</code> is not a file on a server anywhere. This is a
+      single-page app — there is exactly <strong>one</strong> HTML document, downloaded once, and
+      <span class="key">nothing about a URL changing tells the browser to swap in new content</span> on its own.
+      Something has to notice the address changed, decide what that address means, and put the right component on
+      screen. That something is the Angular <strong>Router</strong>.
+    </p>
 
-  <h2>1. Define the routes</h2>
-  <div class="code">
-    <pre>
-// app.routes.ts
-export const routes: Routes = [
-  {{ '{' }} path: '', component: HomeComponent {{ '}' }},
-  {{ '{' }} path: 'about', component: AboutComponent {{ '}' }},
-  {{ '{' }} path: 'users/:id', component: UserComponent {{ '}' }},   // route param
-  {{ '{' }} path: '**', redirectTo: '' {{ '}' }},                    // wildcard / 404
-];</pre>
-  </div>
+    <p>
+      Once you accept that routing is a deliberate decision Angular makes rather than something the browser does for
+      you, three questions fall out on their own, and this lesson answers them in order: how do you
+      <em>describe</em> the mapping from URL to component, how does the router decide <em>which</em> mapping wins when
+      more than one could apply, and what does clicking a link actually set in motion?
+    </p>
 
-  <h2>2. Register the router</h2>
-  <div class="code">
-    <pre>
-// app.config.ts
-export const appConfig: ApplicationConfig = {{ '{' }}
-  providers: [provideRouter(routes)],
-{{ '}' }};</pre>
-  </div>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Two links, side by side, both saying "About" and both pointing at <code>/about</code>. One is
+      <code>&lt;a routerLink="/about"&gt;</code>; the other is a plain <code>&lt;a href="/about"&gt;</code> someone
+      typed by mistake. Both take you to the same place when clicked. Are they doing <strong>the same thing</strong> to
+      get there? There's a comparison and a quiz further down to check your answer against.
+    </app-napkin>
+  </section>
 
-  <h2>3. Place an outlet</h2>
-  <p>The matched component renders wherever you put the outlet:</p>
-  <div class="code">
-    <pre>
-&lt;nav&gt;...&lt;/nav&gt;
-&lt;router-outlet /&gt;   &lt;!-- routed component appears here --&gt;</pre>
-  </div>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>The router is a line of desks, and it stops at the first one that fits you.</h2>
 
-  <h2>4. Link with routerLink (not href)</h2>
-  <p>
-    <code>routerLink</code> navigates without reloading the page; <code>routerLinkActive</code> adds a class when the
-    link's route is active. These links are live — they navigate this very app:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live navigation</p>
-    <div class="navdemo">
-      <a routerLink="/signals" routerLinkActive="active">Signals</a>
-      <a routerLink="/inputs" routerLinkActive="active">Inputs</a>
-      <a routerLink="/pipes" routerLinkActive="active">Pipes</a>
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+    <p>
+      Picture a row of desks at passport control, each with a sign overhead. You don't compare every sign and pick the
+      best match — you walk down the line and stop at the <strong>first</strong> desk whose sign fits you. The router
+      works the exact same way: it reads the route table top to bottom and stops at the first entry that matches the
+      URL, even if a better match was sitting two rows down.
+    </p>
+
+    <p>
+      Two consequences follow immediately, and between them they explain most routing bugs you'll ever hit. Put a desk
+      labelled "anyone" (<code>**</code>) near the front and nobody ever reaches the specific desks behind it. A sign
+      that matches more loosely than you intended quietly claims traffic meant for something further down the line.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>First match wins.</strong> Specific routes go above general ones, and <code>**</code> goes last. If a
+      route "never fires", something above it in the table matched first.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="matchTalk"
+      caption="Every routing bug in this lesson is a variation on this scan — a URL arrives, and the table is asked, top to bottom, until one entry says yes."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One click sets off six steps.</h2>
+
+    <p>
+      Beginners tend to picture "URL changes, component appears" as a single step. It isn't — and every routing feature
+      you meet later (guards, resolvers, lazy loading) turns out to be one of the gaps between these six:
+    </p>
+
+    <app-flow
+      [steps]="navigation"
+      caption="Note the last step. The address bar changes only once the navigation has succeeded — which is why a cancelled guard leaves the URL exactly where it was."
+    />
+  </section>
+
+  <!-- ============ 4. SAME IDEA, IN CODE ============ -->
+  <section>
+    <p class="bf-eyebrow">Same idea, in code</p>
+    <h2>Three files, one job each.</h2>
+
+    <p>First, the table itself — the thing the scan from above walks:</p>
+    <app-code-lab
+      file="src/app/app.routes.ts"
+      [code]="routesSample"
+      [notes]="routesNotes"
+      notesLabel="Reading the route table"
+    />
+
+    <p>Next, the one line that turns that array into a working router:</p>
+    <app-code-lab
+      file="src/app/app.config.ts"
+      [code]="configSample"
+      [notes]="configNotes"
+      notesLabel="What the one provider call buys you"
+    />
+
+    <p>And the tag that says where the matched component actually renders:</p>
+    <div class="code">
+      <pre>{{ outletSample }}</pre>
     </div>
-  </div>
+  </section>
 
-  <div class="code">
-    <pre>
-&lt;a routerLink="/about" routerLinkActive="active"&gt;About&lt;/a&gt;
-&lt;a [routerLink]="['/users', user.id]"&gt;Profile&lt;/a&gt;   &lt;!-- dynamic --&gt;</pre>
-  </div>
+  <!-- ============ 5. LIVE — NAVIGATE THIS LESSON ============ -->
+  <section>
+    <p class="bf-eyebrow">Live — try it</p>
+    <h2>These links navigate this very app.</h2>
 
-  <div class="note">
-    Use <code>[routerLinkActiveOptions]="{{ '{' }} exact: true {{ '}' }}"</code> on the home link so <code>/</code> is
-    not marked active for every route (since every path starts with <code>/</code>).
-  </div>
+    <p>
+      <code>routerLink</code> navigates without reloading the page; <code>routerLinkActive</code> adds a class the
+      moment its route is active. Click around — nothing here is a mockup:
+    </p>
 
-  <app-quiz
-    question="Someone writes `<a href='/about'>About</a>` instead of using `routerLink`. It looks like it works. What actually happens on click?"
-    [options]="hrefOptions"
-    followUp="A useful tell in review: if one link feels slower than the rest of the app and the page flashes white, check whether it is an `href`."
-  />
-
-  <h2>Links with params, query & fragment</h2>
-  <div class="code">
-    <pre>
-&lt;a [routerLink]="['/users', id]"
-   [queryParams]="{{ '{' }} tab: 'profile' {{ '}' }}"
-   fragment="bio"&gt;Profile&lt;/a&gt;             // → /users/7?tab=profile#bio
-
-&lt;a routerLink="../sibling"&gt;Up one&lt;/a&gt;   // relative to the current route</pre>
-  </div>
-
-  <h2>Programmatic navigation</h2>
-  <div class="code">
-    <pre>
-private router = inject(Router);
-goToUser(id: number) {{ '{' }}
-  this.router.navigate(['/users', id], {{ '{' }}
-    queryParams: {{ '{' }} tab: 'profile' {{ '}' }},
-    relativeTo: this.route,          // for relative navigation
-  {{ '}' }});
-{{ '}' }}
-// or parse a string: this.router.navigateByUrl('/users/7?tab=profile');</pre>
-  </div>
-  <div class="note">
-    Routes are matched <strong>top-to-bottom, first match wins</strong>, so put the wildcard <code>**</code> last and
-    order specific paths before generic ones. Set per-route page titles with the <code>title</code> property, and
-    provide a <code>TitleStrategy</code> to customise how they're applied.
-  </div>
-
-  <h2>Live #2 — the matcher: first match wins</h2>
-  <p>
-    The router walks the table top-to-bottom and stops at the <strong>first</strong> route that matches the URL. Type a
-    path below and watch which entry wins — reorder in your head and you'll see why a stray <code>**</code> or a bare
-    <code>''</code> in the wrong place can swallow everything:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — enter a URL path</p>
-    <div class="row" style="margin-bottom: 12px">
-      <span>/</span>
-      <input
-        aria-label="e.g. users/7/edit"
-        [value]="testUrl()"
-        (input)="testUrl.set($any($event.target).value)"
-        placeholder="e.g. users/7/edit"
-        style="width: 200px"
-      />
+    <div class="demo">
+      <p class="demo__title">Live navigation</p>
+      <div class="navdemo">
+        <a routerLink="/signals" routerLinkActive="active">Signals</a>
+        <a routerLink="/inputs" routerLinkActive="active">Inputs</a>
+        <a routerLink="/pipes" routerLinkActive="active">Pipes</a>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      </div>
+      <p class="demo__note">
+        Notice the Home link needs one extra option the others don't:
+        <code>[routerLinkActiveOptions]="{{ '{' }} exact: true {{ '}' }}"</code>. Without it, Home would show "active"
+        on every single page, because <code>routerLinkActive</code> matches by <strong>prefix</strong>, and every URL in
+        the app starts with <code>/</code>.
+      </p>
     </div>
-    <table class="matcher">
-      @for (r of demoRoutes; track r.path) {
-        <tr [class.hit]="matchedPath() === r.path">
-          <td>
-            <code>{{ r.path === '' ? "'' (empty)" : r.path }}</code
-            >{{ r.full ? ' · full' : '' }}
-          </td>
-          <td>{{ r.label }}</td>
-          <td>{{ matchedPath() === r.path ? '✅ matched' : '' }}</td>
-        </tr>
-      }
-    </table>
-  </div>
 
-  <h2>Under the hood — how a URL is matched</h2>
+    <p>
+      Which brings the napkin from the top of the page back around. A <code>routerLink</code> and a plain
+      <code>href</code> pointed at the same path both "work" — visually nothing looks wrong, which is exactly why the
+      wrong one <span class="bf-break">survives all the way into production</span> before anyone notices:
+    </p>
 
-  <p>
-    Matching is only the middle of the story. One click on a <code>routerLink</code> sets off six steps, and nearly
-    every routing feature you meet later slots into one of the gaps between them:
-  </p>
-  <app-flow
-    [steps]="navigation"
-    caption="Note the last step. The address bar changes only once the navigation has succeeded — which is why a cancelled guard leaves the URL alone."
-  />
+    <app-compare
+      leftTitle="Plain `href`"
+      leftTone="bad"
+      rightTitle="`routerLink`"
+      rightTone="good"
+      note="A useful tell in review: if one link feels slower than the rest of the app and the page flashes white for a moment, check whether it's an href."
+    >
+      <div left>
+        <p>
+          The browser handles the click exactly like it would on any ordinary website: it cancels nothing, requests
+          <code>/about</code> fresh from the server, and re-downloads and re-boots the <strong>entire app</strong>
+          from scratch.
+        </p>
+        <p>Every signal, every service instance and every unsaved form is gone — the router never even sees it.</p>
+      </div>
+      <div right>
+        <p>
+          The directive calls <code>preventDefault()</code> first, so the browser's default navigation never starts. The
+          router then parses the URL and matches it entirely on the client.
+        </p>
+        <p>
+          Only the routed component swaps, into the existing <code>&lt;router-outlet&gt;</code> — the rest of the page,
+          and all of its state, never moves.
+        </p>
+      </div>
+    </app-compare>
 
-  <p>
-    The router splits both the URL and each route's <code>path</code> into <strong>segments</strong> on <code>/</code>,
-    then compares them left to right. A literal segment must equal the URL's; a <code>:param</code> segment matches any
-    single segment and captures its value; <code>**</code> matches all remaining segments. By default matching is
-    <strong>prefix</strong>: <code>path: 'users'</code> matches <code>/users</code>, <code>/users/7</code> and deeper,
-    because the route only needs to match the <em>start</em>. That's usually what you want for parent routes with
-    children — but it's a trap for redirects.
-  </p>
+    <app-quiz
+      question="Someone writes `<a href='/about'>About</a>` instead of using `routerLink`. It looks like it works. What actually happens on click?"
+      [options]="hrefOptions"
+      followUp="You just read why in the comparison above — this just checks whether it stuck."
+    />
+  </section>
 
-  <app-predict
-    prompt="An empty-path redirect with no `pathMatch`. The user navigates to /about. Where do they land?"
-    [code]="pathMatchSample"
-    answer="On /home — and so does every other URL in the app. Matching defaults to **prefix**, and the empty path is a prefix of literally every URL, so that first route claims /about before the router ever reaches the entry that would have handled it. The app looks broken in the strangest way: only the home page works. Add `pathMatch: 'full'` and the rule becomes 'match only when the whole URL is empty', which is what you meant. This is the single most-failed routing question on the exam, and the reason is that the buggy version *looks* obviously correct."
-  />
+  <!-- ============ 6. LINKING WITH DATA ============ -->
+  <section>
+    <p class="bf-eyebrow">Same idea, in code</p>
+    <h2>Links can carry more than a path.</h2>
 
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      <strong><code>pathMatch: 'full'</code> on empty-path redirects.</strong>
-      <code>{{ '{' }} path: '', redirectTo: 'home' {{ '}' }}</code> with the default prefix match redirects
-      <em>every</em> URL (they all start with <code>''</code>). Add <code>pathMatch: 'full'</code> so only the exact
-      empty path redirects.
-    </li>
-    <li>
-      <strong>Order matters — wildcard last.</strong> A <code>**</code> or a greedy prefix route placed early wins
-      before more specific ones ever get a chance.
-    </li>
-    <li>
-      <strong><code>href</code> triggers a full page reload.</strong> Use <code>routerLink</code> for in-app navigation;
-      <code>href</code> re-downloads the whole app.
-    </li>
-    <li>
-      <strong>Home link stays "active" everywhere.</strong> <code>routerLinkActive</code> uses prefix matching too — add
-      <code>[routerLinkActiveOptions]="{{ '{' }} exact: true {{ '}' }}"</code> to the <code>/</code> link.
-    </li>
-    <li>
-      <strong>Leading slash = absolute.</strong> <code>routerLink="/users"</code> is absolute;
-      <code>routerLink="users"</code> is relative to the current route. Mixing them up navigates somewhere surprising.
-    </li>
-  </ul>
+    <p>Static, dynamic, and relative — all three are <code>routerLink</code>, just fed differently:</p>
+    <div class="code">
+      <pre>{{ linkingSample }}</pre>
+    </div>
 
-  <app-faq [items]="questions" />
+    <p>Query params and a fragment can ride along too, as separate bindings rather than hand-built into the string:</p>
+    <div class="code">
+      <pre>{{ queryFragmentSample }}</pre>
+    </div>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Routes map a <code>path</code> to a <code>component</code> (or a lazy <code>loadComponent</code>).</li>
-    <li><code>&lt;router-outlet&gt;</code> marks where the matched component renders.</li>
-    <li><code>routerLink</code> navigates in-app; <code>routerLinkActive</code> highlights the current link.</li>
-    <li><code>:param</code> declares a route parameter; <code>**</code> is the wildcard.</li>
-    <li>Navigate from code with <code>Router.navigate()</code>.</li>
-  </ul>
+    <p>And from code, the same trip looks like this:</p>
+    <app-code-lab
+      file="user-list.component.ts"
+      [code]="navSample"
+      [notes]="navNotes"
+      notesLabel="Building a navigation by hand"
+    />
+  </section>
 
-  <p><a routerLink="/http-basics">Next: HTTP Basics →</a></p>
+  <!-- ============ 7. LIVE — THE MATCHER ============ -->
+  <section>
+    <p class="bf-eyebrow">Live — try it</p>
+    <h2>The matcher: first match wins, for real.</h2>
+
+    <p>
+      Type a path below and watch which table entry lights up. Reorder the rows in your head and you'll see exactly why
+      a stray <code>**</code> or a bare <code>''</code> in the wrong spot can swallow everything beneath it — this is
+      the same top-down scan the route table dialogue dramatised above, running live on whatever you type.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — enter a URL path</p>
+      <div class="row" style="margin-bottom: 12px">
+        <span>/</span>
+        <input
+          aria-label="e.g. users/7/edit"
+          [value]="testUrl()"
+          (input)="testUrl.set($any($event.target).value)"
+          placeholder="e.g. users/7/edit"
+          style="width: 200px"
+        />
+      </div>
+      <table class="matcher">
+        <caption class="bf-table-caption">
+          Top to bottom — the highlighted row is the one that wins
+        </caption>
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>Component</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of demoRoutes; track r.path) {
+            <tr [class.hit]="matchedPath() === r.path">
+              <td>
+                <code>{{ r.path === '' ? "'' (empty)" : r.path }}</code
+                >{{ r.full ? ' · full' : '' }}
+              </td>
+              <td>{{ r.label }}</td>
+              <td>{{ matchedPath() === r.path ? '✅ matched' : '' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 8. UNDER THE HOOD — SEGMENTS & PREFIX MATCHING ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What "matching" actually compares.</h2>
+
+    <p>
+      The router splits both the URL and each route's <code>path</code> into <strong>segments</strong> on
+      <code>/</code>, then compares them left to right. A literal segment must equal the URL's exactly; a
+      <code>:param</code> segment matches any single segment and captures its value; <code>**</code> matches everything
+      left over. That's the whole algorithm — the dialogue above and the live table below are both running it.
+    </p>
+
+    <p>
+      By default, matching is <strong>prefix</strong> matching: <code>path: 'users'</code> matches <code>/users</code>,
+      <code>/users/7</code>, and deeper — because the route only has to match the <em>start</em> of the URL. That's
+      usually exactly what you want for a parent route with children, and it's the single biggest trap for a redirect.
+    </p>
+
+    <app-predict
+      prompt="An empty-path redirect with no `pathMatch`. The user navigates to /about. Where do they land?"
+      [code]="pathMatchSample"
+      answer="On /home — and so does every other URL in the app. Matching defaults to **prefix**, and the empty path is a prefix of literally every URL, so that first route claims /about before the router ever reaches the entry that would have handled it. The app looks broken in the strangest way: only the home page works. Add `pathMatch: 'full'` and the rule becomes 'match only when the whole URL is empty', which is what you meant. This is the single most-failed routing question on the exam, and the reason is that the buggy version *looks* obviously correct."
+    />
+  </section>
+
+  <!-- ============ 9. EXAM PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Worth pinning to the board</p>
+    <h2>Five traps, each one a one-line fix.</h2>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="Empty path needs `pathMatch: 'full'`" kicker="the exam trap" tone="accent">
+        Without it, <code>{{ '{' }} path: '', redirectTo: 'home' {{ '}' }}</code> redirects <strong>every</strong> URL,
+        because they all start with the empty prefix.
+      </app-tape-card>
+      <app-tape-card heading="Wildcard always goes last" kicker="order in the table" tone="gold">
+        A <code>**</code> or a greedy prefix placed early wins before more specific routes below it ever get a chance.
+      </app-tape-card>
+      <app-tape-card heading="`href` reloads the whole app" kicker="not the same as routerLink" tone="olive">
+        Use <code>routerLink</code> for in-app navigation. A plain <code>href</code> re-downloads and re-boots
+        everything.
+      </app-tape-card>
+      <app-tape-card heading="Home link stays “active” everywhere" kicker="prefix strikes again" tone="blue">
+        <code>routerLinkActive</code> matches by prefix too — add
+        <code>[routerLinkActiveOptions]="{{ '{' }} exact: true {{ '}' }}"</code> to the <code>/</code> link only.
+      </app-tape-card>
+      <app-tape-card heading="Leading slash means absolute" kicker="relative vs. absolute" tone="accent">
+        <code>routerLink="/users"</code> is absolute; <code>routerLink="users"</code> is relative to the current route.
+        Mixing them up navigates somewhere surprising.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        A route table is scanned <strong>top to bottom</strong>, and the <strong>first</strong> match wins — even if a
+        better one was further down. Specific routes go above general ones; <code>**</code> goes last.
+      </li>
+      <li>
+        Matching defaults to <strong>prefix</strong>, not exact. An empty-path redirect without
+        <code>pathMatch: 'full'</code> claims every URL in the app; a link's <code>routerLinkActive</code> without
+        <code>{{ '{' }} exact: true {{ '}' }}</code> lights up on every page for the same reason.
+      </li>
+      <li>
+        <code>routerLink</code> navigates client-side and keeps your app's state intact.
+        <strong>A plain <code>href</code> to an in-app route reloads everything</strong> — a full document navigation,
+        not a shortcut.
+      </li>
+      <li>
+        A leading slash is <strong>absolute</strong>; no leading slash is <strong>relative</strong> to the current
+        route. From code, that's the difference <code>relativeTo</code> controls.
+      </li>
+      <li>
+        Prefer <code>loadComponent</code> over <code>component</code> for anything beyond a landing page — it's the
+        easiest way to keep the initial bundle small, and this whole app is built that way.
+      </li>
+    </ul>
+
+    <p><a routerLink="/http-basics">Next: HTTP Basics →</a></p>
+  </section>
 </article>

@@ -1,6 +1,9 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /** A route entry for the live matcher demo. */
 interface DemoRoute {
@@ -13,36 +16,103 @@ interface DemoRoute {
  * Lesson: Routing Basics — how the router turns a URL into a component.
  *
  * Covers the `Routes` array, `path` / `component` / `loadComponent`, route
- * parameters, `routerLink` and `routerLinkActive`.
+ * parameters, `routerLink` and `routerLinkActive`, and the first-match-wins
+ * scan that trips up more beginners than any other single routing fact.
  *
- * The centrepiece is a route-matcher playground: a fixed table of demo routes
- * and a URL you can edit, with the row that would win highlighted live. Route
- * matching is first-match-wins on a top-down scan, which is the single most
- * common source of "my route never fires" — and it is far easier to see than to
- * read about.
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
+ * following the shape of the reference implementation in
+ * `lessons/expert/change-detection/`. The teaching order is deliberate:
+ *
+ * 1. **Pose the problem first.** The page opens on "there is one HTML page —
+ *    how do you get a dozen different screens out of it?" before naming the
+ *    router as the answer, and asks the reader to predict whether a plain
+ *    `href` and a `routerLink` pointed at the same path behave identically.
+ * 2. **Analogy before vocabulary.** The passport-control queue gives
+ *    "first match wins" somewhere to live before the matching rules
+ *    (segments, `:params`, `**`) have to carry any weight on their own.
+ * 3. **Then the same idea in several modes** — a dialogue between the route
+ *    table entries scanning a URL, a six-step flow diagram of a whole
+ *    navigation, a live matcher table, and annotated real route/config code.
+ * 4. **Every substantial snippet is annotated line by line** via `app-code-lab`.
+ *
+ * The centrepiece is still the route-matcher playground: a fixed table of demo
+ * routes and a URL you can edit, with the row that would win highlighted live.
+ * Route matching is first-match-wins on a top-down scan, which is the single
+ * most common source of "my route never fires" — and it is far easier to see
+ * than to read about.
  *
  * @see routeMatches for the matching rules the demo implements.
  */
 @Component({
   selector: 'app-lesson-routing-basics',
-  imports: [RouterLink, RouterLinkActive, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Compare,
+    Faq,
+    Flow,
+    Napkin,
+    Predict,
+    Quiz,
+    Remember,
+    TapeCard,
+  ],
   templateUrl: './routing-basics.html',
   styleUrl: './routing-basics.css',
 })
 export class RoutingBasics {
+  /** The Routing track, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Routing Basics' },
+    { label: 'Child Routes & Lazy', id: 'router-children-lazy' },
+    { label: 'Route Guards', id: 'route-guards' },
+    { label: 'Resolvers', id: 'resolvers' },
+    { label: 'Route Params', id: 'route-params' },
+  ];
+
+  /**
+   * The route table scanning a URL, dramatised as each entry speaking up in
+   * turn. Exists because "first match wins" as a sentence is easy to nod
+   * along to and easy to forget the moment a real table has five entries in
+   * it — watching each one get asked and rejected in order is what actually
+   * sticks. Uses the same URL the live matcher demo defaults to, on purpose.
+   */
+  protected readonly matchTalk: BubbleTurn[] = [
+    { who: 'The URL', says: '`/users/7/edit` just arrived. Who wants me?' },
+    {
+      who: "Route `''`",
+      says: 'Not me — I only take the truly empty path, and this one has three segments.',
+    },
+    { who: 'Route `about`', says: 'Not me either — wrong segment count, wrong first segment.' },
+    {
+      who: 'Route `users/:id/edit`',
+      says: 'Me. `:id` matches `7`, and `edit` matches itself exactly — I’ll take it.',
+    },
+    {
+      who: 'The router',
+      says: 'Match found at entry three. Scan over — nothing below this line even gets asked.',
+    },
+  ];
+
   /**
    * What one click on a `routerLink` actually sets in motion. Laid out because
    * beginners tend to picture "URL changes, component appears" as one step, and
    * every routing feature they meet later — guards, resolvers, lazy loading —
    * slots into one of the gaps in between.
    */
-  protected readonly navigation = [
+  protected readonly navigation: FlowStep[] = [
     { label: 'Click a `routerLink`', detail: 'The default browser navigation is cancelled' },
     { label: 'URL → `UrlTree`', detail: 'Parsed into segments, query params and a fragment' },
     {
       label: 'Match the table, top-down',
       detail: 'The scan stops at the first route that fits',
-      tone: 'accent' as const,
+      tone: 'accent',
     },
     { label: 'Guards run', detail: 'Any one of them can cancel or redirect the whole navigation' },
     {
@@ -52,21 +122,140 @@ export class RoutingBasics {
     {
       label: 'Component into the outlet',
       detail: 'Only now does the address bar update',
-      tone: 'good' as const,
+      tone: 'good',
     },
   ];
 
-  /** The empty-path redirect trap — the most-failed routing exam question. */
-  protected readonly pathMatchSample = `export const routes: Routes = [
-  { path: '', redirectTo: 'home' },     // no pathMatch
-  { path: 'home', component: Home },
-  { path: 'about', component: About },
-];
+  /**
+   * Sample: the route table — a static path, a param, a lazy route, and the
+   * wildcard. Deliberately keeps the wildcard as a real component rather than
+   * a `redirectTo`, so it doesn't pre-empt the empty-path redirect trap in
+   * {@link pathMatchSample} further down.
+   */
+  protected readonly routesSample = `// src/app/app.routes.ts
+export const routes: Routes = [
+  { path: '', component: HomeComponent },
+  { path: 'about', component: AboutComponent },
+  { path: 'users/:id', component: UserComponent },
+  { path: 'users/:id/edit', loadComponent: () => import('./user-edit/user-edit').then((m) => m.UserEdit) },
+  { path: '**', component: NotFoundComponent },
+];`;
 
-// The user navigates to /about. Where do they end up?`;
+  /** Line-by-line walkthrough of {@link routesSample}. */
+  protected readonly routesNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: '`Routes` is the array type every route object must satisfy — plain data, no class and no service to register.',
+    },
+    {
+      line: 3,
+      text: "The empty path `''` matches the site root, `/`. No `pathMatch` is set here — worth remembering for the trap a few sections down.",
+    },
+    {
+      line: 4,
+      text: 'A literal segment: this route matches `/about` and nothing else.',
+    },
+    {
+      line: 5,
+      text: '`:id` is a route **parameter** — a colon-prefixed segment that matches any single value and captures it. `/users/7` and `/users/anything` both match; the component reads the captured value back out through `ActivatedRoute`.',
+    },
+    {
+      line: 6,
+      text: '`loadComponent` defers this route into its own chunk, fetched only when the user actually navigates here. The `component` property used above bundles eagerly instead — this is also the reason it can afford a longer, more specific path.',
+    },
+    {
+      line: 7,
+      text: "`'**'` is the wildcard — it matches anything nothing above it claimed first. It has to be **last**: the router stops scanning at the first match, so a wildcard any earlier would swallow every route beneath it.",
+    },
+  ];
+
+  /**
+   * Sample: registering the router — the one line that turns a plain array
+   * into a working `Router`, `routerLink` and `routerLinkActive`.
+   */
+  protected readonly configSample = `// src/app/app.config.ts
+export const appConfig: ApplicationConfig = {
+  providers: [provideRouter(routes)],
+};`;
+
+  /** Line-by-line walkthrough of {@link configSample}. */
+  protected readonly configNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: '`ApplicationConfig` is a plain interface with one required property — no base class, no module to extend.',
+    },
+    {
+      line: 3,
+      text: '`provideRouter` is a **function call**, not a class. Calling it with your `routes` array returns the bundle of providers that makes `Router`, `routerLink` and `routerLinkActive` all work together — omit this line and injecting `Router` anywhere throws `NullInjectorError`.',
+    },
+  ];
+
+  /** Sample: where the matched component actually renders. Trivial on purpose — one real line. */
+  protected readonly outletSample = `<nav>...</nav>
+<router-outlet />   <!-- the routed component appears here -->`;
+
+  /** Sample: static, dynamic and relative `routerLink` forms. */
+  protected readonly linkingSample = `<a routerLink="/about" routerLinkActive="active">About</a>
+<a [routerLink]="['/users', user.id]">Profile</a>   <!-- dynamic, from a variable -->
+<a routerLink="../sibling">Up one level</a>          <!-- relative to the current route -->`;
+
+  /** Sample: query params and a fragment riding along with a routerLink. */
+  protected readonly queryFragmentSample = `<a [routerLink]="['/users', id]"
+   [queryParams]="{ tab: 'profile' }"
+   fragment="bio">Profile</a>
+<!-- → /users/7?tab=profile#bio -->`;
+
+  /**
+   * Sample: navigating from code — the array form of the path, query params as
+   * a sibling property, and the one-string alternative for when you already
+   * have a full path in hand.
+   */
+  protected readonly navSample = `// user-list.component.ts
+private readonly router = inject(Router);
+private readonly route = inject(ActivatedRoute);
+
+goToUser(id: number): void {
+  this.router.navigate(['/users', id], {
+    queryParams: { tab: 'profile' },
+    relativeTo: this.route,
+  });
+}
+
+// or, parsing a ready-made path directly:
+goToUrl(path: string): void {
+  this.router.navigateByUrl(path);
+}`;
+
+  /** Line-by-line walkthrough of {@link navSample}. */
+  protected readonly navNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: '`inject()` is the modern way to get a service handle — the same object a constructor parameter would give you, without the constructor.',
+    },
+    {
+      line: 3,
+      text: "`ActivatedRoute` describes THIS component's own route. It's only needed here for `relativeTo` below — reading a route's own params is a separate lesson.",
+    },
+    {
+      line: 6,
+      text: "`router.navigate()` takes an **array** of path segments, not a single string — `['/users', id]` builds `/users/7` for you, with `id` interpolated safely instead of string-concatenated.",
+    },
+    {
+      line: 7,
+      text: 'Query params ride along as a separate, sibling property — never appended onto the path string yourself.',
+    },
+    {
+      line: 8,
+      text: '`relativeTo` is what makes the array above relative to the CURRENT route instead of absolute. Omit it and a segment with no leading `/` is resolved from the app root instead — a common source of “navigates somewhere surprising”.',
+    },
+    {
+      line: 14,
+      text: '`navigateByUrl()` takes one ready-made string instead of building segments — reach for it when you already have a full path (a saved URL, a deep link) rather than assembling one piece by piece.',
+    },
+  ];
 
   /** Choices for the href check. */
-  protected readonly hrefOptions = [
+  protected readonly hrefOptions: QuizOption[] = [
     {
       text: 'The same as `routerLink` — Angular intercepts every anchor on the page',
       why: 'Angular only intercepts anchors carrying the `routerLink` directive. A plain `href` is an ordinary link and the browser handles it the ordinary way, with no framework involvement at all.',
@@ -87,7 +276,7 @@ export class RoutingBasics {
   ];
 
   /** The doubts this lesson reliably leaves behind. */
-  protected readonly questions = [
+  protected readonly questions: FaqItem[] = [
     {
       q: 'What is the difference between `routerLink="users"` and `routerLink="/users"`?',
       a: 'The leading slash means **absolute**. From `/admin`, `routerLink="/users"` goes to `/users`, while `routerLink="users"` is relative and goes to `/admin/users`. Getting this wrong is a common cause of "the link works from one page but not another" — the absolute form is the safer default unless you specifically want relative navigation.',
@@ -110,10 +299,19 @@ export class RoutingBasics {
     },
   ];
 
+  /** The empty-path redirect trap — the most-failed routing exam question. */
+  protected readonly pathMatchSample = `export const routes: Routes = [
+  { path: '', redirectTo: 'home' },     // no pathMatch
+  { path: 'home', component: Home },
+  { path: 'about', component: About },
+];
+
+// The user navigates to /about. Where do they end up?`;
+
   /**
    * The URL being matched in the playground. Seeded with a parameterised,
-   * multi-segment path so the demo opens on an interesting case rather than on a
-   * bare `/`.
+   * multi-segment path so the demo opens on an interesting case rather than on
+   * a bare `/` — and so it matches {@link matchTalk} above.
    */
   protected readonly testUrl = signal('users/7/edit');
 

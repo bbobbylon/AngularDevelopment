@@ -1,3 +1,11 @@
+/* Table, demo and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) and the base theme (src/styles.css), which is why
+   this file is nearly empty — the border/spacing rules that used to live here
+   were per-lesson copies of what those two files now own for every `.lesson.bf`
+   page. What's left is genuinely specific to this lesson: the pill-style demo
+   links (an ordinary `<table>` handles the matcher, no custom rules needed for
+   it beyond the "this row just won" highlight). */
+
 .navdemo {
   display: flex;
   gap: 8px;
@@ -15,15 +23,10 @@
   color: #fff;
   text-decoration: none;
 }
-.matcher {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-.matcher td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-}
+
+/* The row the live matcher currently resolves to — a green tint plus a solid
+   left edge, so the "winner" reads at a glance even for a colour-blind reader
+   (the ✅ text in the cell is the non-colour signal). */
 .matcher tr.hit {
   background: rgba(46, 193, 107, 0.12);
 }
