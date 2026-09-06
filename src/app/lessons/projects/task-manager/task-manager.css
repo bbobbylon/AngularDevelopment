@@ -114,19 +114,6 @@
   background: var(--surface);
   color: var(--text);
 }
-.step-callout {
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin: 16px 0;
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-.step-callout h4 {
-  margin: 0 0 6px;
-  color: #6366f1;
-}
 .filter-row {
   display: flex;
   gap: 8px;

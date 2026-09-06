@@ -1,203 +1,201 @@
-    <article class="lesson">
-      <span class="lesson__eyebrow">Projects · Full Walkthrough</span>
-      <h1>Project: Task Manager</h1>
-      <p class="lead">
-        Build a Kanban-style task manager from scratch. This walkthrough connects
-        signals, a signal store, components, two-way binding, control flow and
-        localStorage persistence into one working application.
-      </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Projects · Full-Stack Angular"
+    title="Task Manager"
+    hand="or, wiring six lessons' worth of Angular into one board that remembers what you did to it"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      This is the first <span class="term">capstone project</span> in the curriculum: not one new concept, but
+      everything you've already met — <strong>signals</strong>, a <strong>signal store</strong>,
+      <strong>components</strong>, <strong>two-way binding</strong> and <strong>localStorage</strong> — wired together
+      into one working Kanban board. The walkthrough below builds it <span class="key">piece by piece</span>, in the
+      order you'd actually write it; the live board underneath is the real thing, extended past the walkthrough with a
+      priority filter and deadlines, and you can click around in it right now.
+    </p>
+  </app-chapter>
 
-      <h2>What you will build</h2>
-      <ul>
-        <li>A three-column Kanban board: Todo → In Progress → Done</li>
-        <li>Add tasks with title and priority (high/medium/low)</li>
-        <li>Move tasks between columns</li>
-        <li>Tasks persist across page reloads via localStorage</li>
-        <li>Live stats: total, done, high-priority remaining</li>
-      </ul>
+  <!-- ============ 1. WHAT YOU'RE BUILDING ============ -->
+  <section>
+    <p class="bf-eyebrow">What you're building</p>
+    <h2>A three-column board that survives a refresh.</h2>
+    <ul>
+      <li>A three-column Kanban board: Todo → In Progress → Done</li>
+      <li>Add tasks with a title, a priority, and an optional deadline</li>
+      <li>Move tasks between columns, or remove them, with one click each</li>
+      <li>Tasks persist across page reloads via <code>localStorage</code></li>
+      <li>Live stats: total, done, and high-priority remaining</li>
+    </ul>
+  </section>
 
-      <h2>The mental model: a warehouse with one loading dock</h2>
-      <p>
-        The store is a warehouse. The tasks are the stock on the shelves, and nobody
-        is allowed to wander in and rearrange them. Everything goes through one
-        loading dock: a short list of named operations — <code>add</code>,
-        <code>move</code>, <code>remove</code>, <code>clearDone</code>.
-      </p>
-      <p>
-        That is what <code>private readonly _tasks</code> plus
-        <code>readonly tasks = this._tasks.asReadonly()</code> buys you. Components
-        can <em>look</em> at the shelves as much as they like; to change anything
-        they have to go to the dock. When something is wrong with the board, the
-        list of things that could have caused it is the list of methods on the
-        store — not every template in the app.
-      </p>
+  <!-- ============ 2. THE SHAPE OF THE BUILD ============ -->
+  <section>
+    <p class="bf-eyebrow">The shape of the build</p>
+    <h2>Data goes down through three views. Events come back up through two.</h2>
+    <p>
+      Before any code: this is the shape every piece below has to fit. A task travels down through the component tree
+      until it lands on <code>TaskCard</code>, a leaf with <span class="key">no state of its own</span> — and a click
+      on that same card travels all the way back out, through the same rings, as an event.
+    </p>
 
-      <app-remember>
-        <strong>Private writes, public reads.</strong> One signal owns the state,
-        <code>asReadonly()</code> exposes it, and named methods are the only way in.
-        Break that rule anywhere and you lose the guarantee everywhere.
-      </app-remember>
+    <app-layers
+      [core]="boardCore"
+      [rings]="boardRings"
+      arrow="[task] flows in here"
+      caption="`[task]` carries data inward, ring by ring, until it reaches the leaf. `(onMove)` and `(onRemove)` carry
+        events back OUT the same rings — never sideways, and never through a shared mutable object the way two
+        siblings might otherwise be tempted to communicate."
+    />
 
-      <h2>Architecture overview</h2>
-      <div class="code">
-        <pre>TaskManagerPage          ← host component (injects TaskStore)
-  AddTaskForm            ← child component, emits new-task event
-  KanbanBoard            ← renders 3 columns from byStatus computed
-    TaskCard x N         ← leaf component, input task, emits move/remove
-TaskStore (service)      ← signal store: private state, computed, methods</pre>
-      </div>
+    <p>
+      That is the static picture — what contains what. The one worth memorising is the <em>moving</em> picture: what
+      happens between a click and the screen actually changing.
+    </p>
 
-      <p>
-        That is the static picture — what contains what. The one worth memorising is
-        the moving picture: what happens between a click and the screen changing.
-      </p>
-      <app-flow
-        [steps]="loop"
-        caption="One direction, always. Data goes down through bindings, changes go up through methods — a cycle you can trace with a finger when something misbehaves."
-      />
+    <app-flow
+      [steps]="loop"
+      caption="One direction, always. Data goes down through bindings, changes go up through methods — a cycle you can
+        trace with a finger when something misbehaves."
+    />
+  </section>
 
-      <h2>Step 1 — Define the data model</h2>
-      <div class="step-callout">
-        <h4>Concept: TypeScript interfaces for domain types</h4>
-        Always start with your data model. Strong typing catches bugs before they reach the browser.
-      </div>
-      <div class="code">
-        <pre>// UNION TYPES, not string. Typo 'hgih' anywhere in the app and the compiler
-// stops you; `string` would happily let it through to production. These also
-// give you autocomplete everywhere a Priority is expected.
-type Priority = 'low' | 'medium' | 'high';
-type Status   = 'todo' | 'in-progress' | 'done';
+  <!-- ============ 3. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>The store is a warehouse with one loading dock.</h2>
+    <p>
+      The tasks are the stock on the shelves, and nobody is allowed to wander in and rearrange them. Everything goes
+      through one loading dock: a short list of named operations — <code>add</code>, <code>move</code>,
+      <code>remove</code>, <code>clearDone</code>.
+    </p>
+    <p>
+      That is what <code>private readonly _tasks</code> plus <code>readonly tasks = this._tasks.asReadonly()</code>
+      buys you. Components can <em>look</em> at the shelves as much as they like; to change anything they have to go
+      to the dock. When something is wrong with the board, the list of things that could have caused it is
+      <span class="key">the list of methods on the store</span> — not every template in the app.
+    </p>
 
-interface Task {{ '{' }}
-  id: number;                // stable identity — what &#64;for tracks by
-  title: string;             // the only field the user types
-  priority: Priority;        // reuses the union above, so it can't drift
-  status: Status;            // which Kanban column this task sits in
-  createdAt: number;         // Date.now() ms timestamp, not a Date object —
-                             // numbers survive JSON.stringify/parse intact,
-                             // and a Date would come back as a string
-{{ '}' }}</pre>
-      </div>
+    <app-remember variant="hook">
+      <strong>Private writes, public reads.</strong> One signal owns the state, <code>asReadonly()</code> exposes it,
+      and named methods are the only way in. Break that rule anywhere and you lose the guarantee everywhere.
+    </app-remember>
 
-      <h2>Step 2 — Sketch the signal store interface</h2>
-      <p>Before writing code, sketch what the store exposes:</p>
-      <div class="code">
-        <pre>// Public API of TaskStore:
-readonly tasks:    Signal&lt;Task[]&gt;       // all tasks
-readonly byStatus: Signal&lt;Record&lt;Status, Task[]&gt;&gt;   // grouped for columns
-readonly stats:    Signal&lt;{{ '{' }} total, done, high {{ '}' }}&gt;
+    <p>Same rule, said a second way — from the other side of the counter:</p>
 
-add(title: string, priority: Priority): void
-move(id: number, status: Status): void
-remove(id: number): void</pre>
-      </div>
+    <app-bubbles
+      [turns]="dockTalk"
+      caption="Every shortcut a component tries to take gets the same answer: go through the dock."
+    />
 
-      <h2>Step 3 — Implement the signal store</h2>
-      <div class="step-callout">
-        <h4>Concepts: signal(), computed(), .asReadonly(), private writes</h4>
-        The store owns all task state. Components read signals but never write directly.
-        localStorage is synced on every mutation.
-      </div>
-      <div class="code">
-        <pre>// No `providedIn: 'root'` — this store is provided by the page component,
-// so its state dies when you navigate away. Deliberate for a feature store.
-&#64;Injectable()
-class TaskStore {{ '{' }}
-  // ---- THE ONE SOURCE OF TRUTH ----
-  // `private` + the underscore convention: nothing outside this class can
-  // call .set() or .update() on it. `readonly` stops the field itself being
-  // reassigned. The initial value comes from localStorage, so a refresh
-  // restores your board.
-  private readonly _tasks = signal&lt;Task[]&gt;(this.load());
+    <app-napkin lead="sketch it —" label="Predict the store's shape before scrolling">
+      Before you see the real <code>TaskStore</code>: what would you make <strong>public</strong> — safe to read from
+      anywhere — and what would you only allow through a <strong>named method</strong>? There's a live version of the
+      whole board further down this page to check your sketch against.
+    </app-napkin>
+  </section>
 
-  // ---- READ-ONLY WINDOW ONTO IT ----
-  // asReadonly() returns the SAME signal with the write methods stripped from
-  // its type. Zero runtime cost — it's TypeScript telling components "look,
-  // don't touch". They must go through add/move/remove below.
-  readonly tasks    = this._tasks.asReadonly();
+  <!-- ============ 4. FOUR PIECES, ONE STORE ============ -->
+  <section>
+    <p class="bf-eyebrow">Four pieces, one store</p>
+    <h2>Everything below is one of these four things.</h2>
+    <p>
+      Before the code, the parts it's made of — the same four ideas the loading dock analogy was describing, pinned
+      down with their real names:
+    </p>
+    <div class="bf-grid-2">
+      <app-tape-card heading="Private signal" kicker="_tasks" tone="gold">
+        The one source of truth. <code>private</code>, so nothing outside <code>TaskStore</code> can call
+        <code>.set()</code> or <code>.update()</code> on it.
+      </app-tape-card>
+      <app-tape-card heading="Read-only exposure" kicker="asReadonly()" tone="accent">
+        Same signal, same data, write methods erased from its type. Components can look; they cannot touch.
+      </app-tape-card>
+      <app-tape-card heading="Computed selectors" kicker="byStatus, stats" tone="olive">
+        Derived views recomputed from <code>_tasks</code> automatically. Three columns from one source means they can
+        never disagree.
+      </app-tape-card>
+      <app-tape-card heading="Named mutators" kicker="add, move, remove, clearDone" tone="blue">
+        The only way in. Every one of them replaces the array and calls <code>save()</code> before it returns.
+      </app-tape-card>
+    </div>
+  </section>
 
-  // ---- DERIVED STATE ----
-  // The board needs three columns. Rather than store three arrays and keep
-  // them in sync (three chances to get it wrong), derive them from the one.
-  // Note the wrapping parens below. Without them JavaScript reads the braces
-  // as a function body rather than an object literal, and the computed
-  // returns undefined.
-  readonly byStatus = computed(() =&gt; ({{ '{' }}
-    todo:        this._tasks().filter(t =&gt; t.status === 'todo'),
-    // Quoted because the key contains a hyphen — not a plain identifier.
-    'in-progress': this._tasks().filter(t =&gt; t.status === 'in-progress'),
-    done:        this._tasks().filter(t =&gt; t.status === 'done'),
-  {{ '}' }}));
-  // A second computed off the same source. Both recompute only when _tasks
-  // actually changes, and only if something is currently reading them.
-  readonly stats = computed(() =&gt; ({{ '{' }}
-    total: this._tasks().length,
-    done:  this._tasks().filter(t =&gt; t.status === 'done').length,
-    // "High priority, still outstanding" — the number that belongs on a badge.
-    high:  this._tasks().filter(t =&gt; t.priority === 'high' &amp;&amp; t.status !== 'done').length,
-  {{ '}' }}));
+  <!-- ============ 5. PIECE 1 — THE DATA MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 1 of 6 · the data model</p>
+    <h2>Start with the shape of a task.</h2>
+    <p>
+      Always start with the data model. Strong typing catches a bug before it reaches the browser — a misspelled
+      priority is a compiler error here, and a production incident anywhere weaker than <code>Priority</code>.
+    </p>
+    <app-code-lab
+      file="task.model.ts"
+      [code]="dataModelSample"
+      [notes]="dataModelNotes"
+      notesLabel="What each field is for"
+    />
+  </section>
 
-  // ---- MUTATIONS: the only way in ----
-  add(title: string, priority: Priority) {{ '{' }}
-    // Build the full object here, in the store. The caller passes intent
-    // (title + priority); the store owns id, default status and timestamp.
-    const task: Task = {{ '{' }} id: this.nextId++, title, priority, status: 'todo', createdAt: Date.now() {{ '}' }};
-    // update() takes the current value and returns the NEXT one. The spread
-    // builds a new array — a new reference — which is what makes the signal
-    // notify. `l.push(task)` would mutate in place and change nothing on screen.
-    this._tasks.update(l =&gt; [...l, task]);
-    this.save();   // persist after every mutation, so state survives reload
-  {{ '}' }}
-  move(id: number, status: Status) {{ '{' }}
-    // map() rebuilds the array; the ternary replaces only the matching task
-    // with a spread copy carrying the new status, and returns every other
-    // task untouched (same reference — so their TaskCards don't re-render).
-    this._tasks.update(l =&gt; l.map(t =&gt; t.id === id ? {{ '{' }} ...t, status {{ '}' }} : t));
-    this.save();
-  {{ '}' }}
-  remove(id: number) {{ '{' }}
-    // filter() naturally returns a new array, so this one is safe by default.
-    this._tasks.update(l =&gt; l.filter(t =&gt; t.id !== id));
-    this.save();
-  {{ '}' }}
+  <!-- ============ 6. PIECE 2 — STORE STATE ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 2 of 6 · the store's state</p>
+    <h2>One signal, a read-only window, and two computed views.</h2>
+    <p>
+      The store owns all task state. Components read signals but never write directly, and the two
+      <code>computed</code>s below are how three Kanban columns and three stat pills come from a
+      <span class="key">single array</span> instead of three or four copies that could drift apart.
+    </p>
+    <app-code-lab
+      file="task-store.ts — state &amp; derived views"
+      [code]="storeStateSample"
+      [notes]="storeStateNotes"
+      notesLabel="Why each line is shaped this way"
+    />
+  </section>
 
-  // ---- PERSISTENCE ----
-  // Reading this._tasks() inside save() is fine: it's a plain method call,
-  // not a computed, so it creates no reactive dependency.
-  private save() {{ '{' }} localStorage.setItem('ng-tasks', JSON.stringify(this._tasks())); {{ '}' }}
-  private load(): Task[] {{ '{' }}
-    // ?? '[]' covers the first-ever visit (getItem returns null).
-    try {{ '{' }} return JSON.parse(localStorage.getItem('ng-tasks') ?? '[]'); {{ '}' }}
-    // The try/catch is not paranoia: one corrupted entry — a half-written
-    // value, a manual edit in DevTools — would otherwise throw during field
-    // initialisation and take the whole component down with it. Falling back
-    // to an empty board is far better than a blank screen.
-    catch {{ '{' }} return []; {{ '}' }}
-  {{ '}' }}
-{{ '}' }}</pre>
-      </div>
+  <!-- ============ 7. PIECE 3 — MUTATIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 3 of 6 · the only way in</p>
+    <h2>Four named methods, and nothing else that writes.</h2>
+    <p>
+      Every mutation follows the same two-line shape: replace the array, then <code>save()</code>. That repetition is
+      not an accident — it is the whole discipline, written out four times so it can never be forgotten once.
+    </p>
+    <app-code-lab
+      file="task-store.ts — mutations"
+      [code]="storeMutationsSample"
+      [notes]="storeMutationsNotes"
+      notesLabel="The one line that matters in each method"
+    />
 
-      <app-predict
-        prompt="A component reaches past the dock and pushes straight onto the array. The array genuinely gets longer. Does the board redraw?"
-        [code]="mutationSample"
-        answer="No — and this is the single most common way to break a signal store. `tasks()` hands back the array itself, so `push` really does add the task. But the signal still holds *the same array reference*, and signals compare with `Object.is`. Same reference in, same reference out, nothing to announce. The board is stale and there is no error to tell you. Replace, never mutate: `_tasks.update(list =&gt; [...list, task])` creates a new array, so the reference changes and every consumer wakes up."
-      />
+    <app-predict
+      prompt="A component reaches past the dock and pushes straight onto the array. The array genuinely gets longer.
+        Does the board redraw?"
+      [code]="mutationSample"
+      answer="No — and this is the single most common way to break a signal store. `tasks()` hands back the array
+        itself, so `push` really does add the task. But the signal still holds **the same array reference**, and
+        signals compare with `Object.is`. Same reference in, same reference out, nothing to announce. The board is
+        stale and there is no error to tell you. Replace, never mutate: `_tasks.update(list => [...list, task])`
+        creates a new array, so the reference changes and every consumer wakes up."
+    />
 
-      <p>
-        Which is the real argument for the loading dock. It is not about tidiness —
-        it is that the correct way is only correct if it is the <em>only</em> way:
-      </p>
+    <p>
+      Which is the real argument for the loading dock. It is not about tidiness — it is that the correct way is only
+      correct if it is the <em>only</em> way:
+    </p>
 
-      <app-compare
-        leftTitle="Reaching past the dock"
-        leftTone="bad"
-        rightTitle="Going through it"
-        rightTone="good"
-        note="Both compile. Both type-check. Only one of them redraws — which is why the writable signal is private."
-      >
-        <div left>
-          <div class="code">
-            <pre>// in a component
+    <app-compare
+      leftTitle="Reaching past the dock"
+      leftTone="bad"
+      rightTitle="Going through it"
+      rightTone="good"
+      note="Both compile. Both type-check. Only one of them redraws — which is why the writable signal is private."
+    >
+      <div left>
+        <div class="code">
+          <pre>// in a component
 store.tasks().push(task);
 store.tasks()[0].status = 'done';
 store.tasks().sort(byDate);
@@ -205,11 +203,11 @@ store.tasks().sort(byDate);
 // mutates in place → same reference
 // → no notification → stale board
 // → and nothing saved to storage</pre>
-          </div>
         </div>
-        <div right>
-          <div class="code">
-            <pre>// in a component
+      </div>
+      <div right>
+        <div class="code">
+          <pre>// in a component
 store.add(title, priority);
 store.move(id, 'done');
 
@@ -219,238 +217,226 @@ this.save();
 
 // new reference → consumers notified
 // → and save() cannot be forgotten</pre>
-          </div>
         </div>
-      </app-compare>
-
-      <h2>Step 4 — Host component</h2>
-      <div class="step-callout">
-        <h4>Concepts: inject(), providers[], template control flow</h4>
-        Provide the store at the component level (not root) so the board has its own
-        isolated state. Inject it with inject() and pass data down via template bindings.
       </div>
-      <div class="code">
-        <pre>&#64;Component({{ '{' }}
-  standalone: true,
-  // Providing it HERE, not with providedIn:'root', gives this component tree
-  // its own TaskStore instance. Two boards on one page would not share state,
-  // and leaving the route destroys the store with the component.
-  providers: [TaskStore],
-  template: '
-    &lt;div class="stat-row"&gt;
-      &lt;!-- stats() is called three times. That is fine: a computed caches its
-           result, so the filtering work happens once per change, not once per
-           interpolation. --&gt;
-      &lt;span&gt;Total: {{ '{{' }} store.stats().total {{ '}}' }}&lt;/span&gt;
-      &lt;span&gt;Done: {{ '{{' }} store.stats().done {{ '}}' }}&lt;/span&gt;
-      &lt;span&gt;High priority: {{ '{{' }} store.stats().high {{ '}}' }}&lt;/span&gt;
-    &lt;/div&gt;
+    </app-compare>
+  </section>
 
-    &lt;div class="add-form"&gt;
-      &lt;!-- [(ngModel)] is two-way: typing updates newTitle, and clearing
-           newTitle in add() below empties the box on screen. --&gt;
-      &lt;input [(ngModel)]="newTitle" placeholder="New task..." /&gt;
-      &lt;select [(ngModel)]="newPriority"&gt;...&lt;/select&gt;
-      &lt;!-- The template calls the component method, never store.add directly,
-           because add() also has to reset the form. --&gt;
-      &lt;button (click)="add()"&gt;Add Task&lt;/button&gt;
-    &lt;/div&gt;
+  <!-- ============ 8. PIECE 4 — PERSISTENCE ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 4 of 6 · persistence</p>
+    <h2>Two private methods make a refresh harmless.</h2>
+    <p>
+      Persistence lives entirely inside the store — no component knows <code>localStorage</code> exists.
+      <code>save()</code> runs synchronously inside every mutator above; <code>load()</code> runs once, in the
+      field initialiser for <code>_tasks</code>, before the component has even rendered.
+    </p>
+    <app-code-lab
+      file="task-store.ts — persistence"
+      [code]="persistenceSample"
+      [notes]="persistenceNotes"
+      notesLabel="Why the try/catch is not paranoia"
+    />
+  </section>
 
-    &lt;div class="board"&gt;
-      &lt;!-- OUTER loop: the three column definitions. A static array, so
-           `track col.id` is just good hygiene here. --&gt;
-      &#64;for (col of columns; track col.id) {{ '{' }}
-        &lt;div class="column"&gt;
-          &lt;div class="col-head"&gt;
-            &lt;h3&gt;{{ '{{' }} col.label {{ '}}' }}&lt;/h3&gt;
-            &lt;!-- Indexing the byStatus record by the column id is what makes
-                 one loop body serve all three columns. --&gt;
-            &lt;span class="col-count"&gt;{{ '{{' }} store.byStatus()[col.id].length {{ '}}' }}&lt;/span&gt;
-          &lt;/div&gt;
-          &lt;!-- INNER loop: the tasks in this column. `track task.id` is the
-               line that matters — track by identity and moving a task keeps
-               its DOM node (and any animation or focus on it). Track by
-               index and Angular would recycle nodes into the wrong rows. --&gt;
-          &#64;for (task of store.byStatus()[col.id]; track task.id) {{ '{' }}
-            &lt;!-- Data DOWN via [task]; events UP via (onMove)/(onRemove).
-                 $event is whatever the child passed to emit(), so here it is
-                 the {{ '{' }} id, status {{ '}' }} object and the plain number respectively. --&gt;
-            &lt;app-task-card [task]="task"
-              (onMove)="store.move($event.id, $event.status)"
-              (onRemove)="store.remove($event)" /&gt;
-          {{ '}' }}
-        &lt;/div&gt;
-      {{ '}' }}
-    &lt;/div&gt;
-  '
-{{ '}' }})
-export class TaskManagerPage {{ '{' }}
-  // `protected` = reachable from the template, invisible to other classes.
-  // inject() is the field-initialiser form; no constructor needed.
-  protected readonly store = inject(TaskStore);
-  // Plain fields, not signals — ngModel writes to them directly and these
-  // are transient form state, not application state the store should own.
-  newTitle = '';
-  newPriority: Priority = 'medium';
+  <!-- ============ 9. PIECE 5 — THE HOST COMPONENT ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 5 of 6 · the host component</p>
+    <h2>Provide the store, inject it, and let the template do the rest.</h2>
+    <p>
+      The host component's own job is small on purpose: provide the store at <em>this</em> level (not root), inject
+      it, and hand data down through bindings. It never touches <code>_tasks</code> — it doesn't even know the field
+      exists.
+    </p>
+    <app-code-lab
+      file="task-manager.page.ts"
+      [code]="hostSample"
+      [notes]="hostNotes"
+      notesLabel="Providers, control flow, and the two-way form"
+    />
+  </section>
 
-  add() {{ '{' }}
-    // The component's whole job: hand the store the user's intent...
-    this.store.add(this.newTitle, this.newPriority);
-    // ...and reset the input. Note it does NOT reset newPriority — someone
-    // adding three high-priority tasks should not re-pick it each time.
-    this.newTitle = '';
-  {{ '}' }}
-{{ '}' }}</pre>
-      </div>
+  <!-- ============ 10. PIECE 6 — THE TASKCARD LEAF ============ -->
+  <section>
+    <p class="bf-eyebrow">Piece 6 of 6 · the TaskCard leaf</p>
+    <h2>One input, two outputs, zero state.</h2>
+    <p>
+      <code>TaskCard</code> receives one task and reports what was clicked. It has no internal state, no injected
+      store, and no idea what the parent will do with an event — which is exactly what makes it reusable anywhere a
+      <code>Task</code> needs to be shown.
+    </p>
+    <app-code-lab
+      file="task-card.component.ts"
+      [code]="taskCardSample"
+      [notes]="taskCardNotes"
+      notesLabel="input(), output(), and what's missing on purpose"
+    />
 
-      <h2>Step 5 — TaskCard child component</h2>
-      <div class="step-callout">
-        <h4>Concepts: input(), output(), child components</h4>
-        TaskCard receives one task via input and emits move/remove events to the parent.
-        It has no internal state — it's a pure presentation component.
-      </div>
-      <div class="code">
-        <pre>&#64;Component({{ '{' }}
-  selector: 'app-task-card',
-  standalone: true,
-  template: '
-    &lt;div class="task-card"&gt;
-      &lt;!-- task is a SIGNAL, so every read is a call: task(), then .title. --&gt;
-      &lt;p class="task-title"&gt;{{ '{{' }} task().title {{ '}}' }}&lt;/p&gt;
-      &lt;div class="task-meta"&gt;
-        &lt;!-- Interpolation inside a class attribute builds a dynamic class
-             name: priority-high / priority-medium / priority-low, so one CSS
-             rule per priority colours the badge. --&gt;
-        &lt;span class="priority priority-{{ '{{' }} task().priority {{ '}}' }}"&gt;{{ '{{' }} task().priority {{ '}}' }}&lt;/span&gt;
-        &lt;!-- Hide the "complete" button on tasks already done. --&gt;
-        &#64;if (task().status !== 'done') {{ '{' }}
-          &lt;!-- emit() sends the payload to whatever the parent bound to
-               (onMove). The card decides WHAT happened; it has no idea how
-               the parent will store it. That ignorance is the point — this
-               component is reusable anywhere. --&gt;
-          &lt;button (click)="onMove.emit({{ '{' }} id: task().id, status: 'done' {{ '}' }})"&gt;✓&lt;/button&gt;
-        {{ '}' }}
-        &lt;button (click)="onRemove.emit(task().id)"&gt;✕&lt;/button&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
-  '
-{{ '}' }})
-export class TaskCard {{ '{' }}
-  // .required means there is no default — forget [task] on the parent and
-  // the build fails, instead of rendering an undefined card at runtime.
-  task = input.required&lt;Task&gt;();
-  // The type parameter IS the event payload contract. Emit the wrong shape
-  // and TypeScript catches it here, before the parent ever sees it.
-  onMove   = output&lt;{{ '{' }} id: number; status: Status {{ '}' }}&gt;();
-  onRemove = output&lt;number&gt;();
-  // Notice what is NOT here: no state, no store, no injected service. The
-  // card renders what it is given and reports what was clicked — nothing
-  // else. That is what "presentational component" means in practice, and it
-  // is why this class needs no test setup beyond setInput().
-{{ '}' }}</pre>
+    <app-predict
+      prompt="The board tracks by `task.id`. Swap it for `track $index` and delete the first task in a column — the
+        one at the top. What does Angular conclude changed, and what would you actually notice on screen?"
+      [code]="trackSample"
+      answer="It concludes every remaining task in that column changed, because each one now sits at a different
+        index than it did last render. Angular tears down and rebuilds the DOM node for every task after the deleted
+        one — even though the tasks themselves are untouched. The **text** still renders correctly, so nothing looks
+        obviously wrong. What you lose is anything tied to the discarded DOM node itself: an in-progress CSS
+        transition, keyboard focus, scroll position inside a long card. `track task.id` tells Angular the identity
+        moved rather than changed, so it relocates the existing node instead of replacing it."
+    />
+  </section>
+
+  <!-- ============ 11. LIVE DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">See it running</p>
+    <h2>The same board, for real — extended past the walkthrough.</h2>
+    <p>
+      Everything above was a simplified walkthrough, split into pieces to read one at a time. Below is the
+      <span class="key">actual, working board</span> — one flattened component for easier reading while learning,
+      wired to the exact <code>TaskStore</code> from every piece above, plus a priority filter, optional deadlines,
+      and a "clear done" button the walkthrough didn't cover. Add a task, move it, filter by priority, then reload
+      the page — it's still there.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Priority filter · Deadline dates · Clear done — all wired to the signal store</p>
+      <div class="stat-row">
+        <span class="stat-pill">Total: {{ store.stats().total }}</span>
+        <span class="stat-pill" style="color:#22c55e">Done: {{ store.stats().done }}</span>
+        @if (store.stats().high > 0) {
+          <span class="stat-pill" style="color:#ef4444">High pending: {{ store.stats().high }}</span>
+        }
       </div>
 
-      <h2>Live demo — extended board</h2>
-      <div class="demo">
-        <p class="demo__title">Priority filter · Deadline dates · Clear done — all wired to the signal store</p>
-        <div class="stat-row">
-          <span class="stat-pill">Total: {{ store.stats().total }}</span>
-          <span class="stat-pill" style="color:#22c55e">Done: {{ store.stats().done }}</span>
-          @if (store.stats().high > 0) {
-            <span class="stat-pill" style="color:#ef4444">High pending: {{ store.stats().high }}</span>
-          }
-        </div>
+      <div class="filter-row">
+        <strong>Priority:</strong>
+        @for (p of priorityFilters; track p.id) {
+          <button [class.active]="store.priorityFilter() === p.id"
+                  (click)="store.setPriorityFilter($any(p.id))">{{ p.label }}</button>
+        }
+      </div>
 
-        <div class="filter-row">
-          <strong>Priority:</strong>
-          @for (p of priorityFilters; track p.id) {
-            <button [class.active]="store.priorityFilter() === p.id"
-                    (click)="store.setPriorityFilter($any(p.id))">{{ p.label }}</button>
-          }
-        </div>
+      <div class="add-form">
+        <input aria-label="New task title" [(ngModel)]="newTitle" placeholder="New task title..." (keyup.enter)="add()" />
+        <select aria-label="New Priority" [(ngModel)]="newPriority" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;background:var(--surface);color:var(--text)">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <input type="date" [(ngModel)]="newDeadline"
+          style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:var(--surface);color:var(--text);font-size:.84rem"
+          title="Optional deadline" />
+        <button (click)="add()">Add Task</button>
+      </div>
 
-        <div class="add-form">
-          <input aria-label="New task title" [(ngModel)]="newTitle" placeholder="New task title..." (keyup.enter)="add()" />
-          <select aria-label="New Priority" [(ngModel)]="newPriority" style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;background:var(--surface);color:var(--text)">
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-          <input type="date" [(ngModel)]="newDeadline"
-            style="border:1px solid var(--border);border-radius:6px;padding:6px 8px;background:var(--surface);color:var(--text);font-size:.84rem"
-            title="Optional deadline" />
-          <button (click)="add()">Add Task</button>
-        </div>
-
-        <div class="board">
-          @for (col of columns; track col.id) {
-            <div class="column">
-              <div class="col-head">
-                <h3>{{ col.label }}</h3>
-                <span class="col-count">{{ store.byStatus()[col.id].length }}</span>
-                @if (col.id === 'done' && store.byStatus().done.length > 0) {
-                  <button class="clear-done-btn" (click)="store.clearDone()">Clear</button>
-                }
-              </div>
-              @for (task of store.byStatus()[col.id]; track task.id) {
-                <div class="task-card-item" [class.urgent]="isUrgent(task)">
-                  <p class="task-title">{{ task.title }}</p>
-                  <div class="task-meta">
-                    <span class="priority priority-{{ task.priority }}">{{ task.priority }}</span>
-                    @if (task.deadline) {
-                      <span class="deadline-badge" [class.urgent]="isUrgent(task)">
-                        {{ formatDeadline(task) }}
-                      </span>
-                    }
-                    <div class="task-btns">
-                      @if (task.status !== 'in-progress') {
-                        <button (click)="store.move(task.id, 'in-progress')">▶</button>
-                      }
-                      @if (task.status !== 'done') {
-                        <button (click)="store.move(task.id, 'done')">✓</button>
-                      }
-                      @if (task.status !== 'todo') {
-                        <button (click)="store.move(task.id, 'todo')">↩</button>
-                      }
-                      <button (click)="store.remove(task.id)" style="color:#ef4444">✕</button>
-                    </div>
-                  </div>
-                </div>
-              }
-              @if (store.byStatus()[col.id].length === 0) {
-                <p style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:16px">Empty</p>
+      <div class="board">
+        @for (col of columns; track col.id) {
+          <div class="column">
+            <div class="col-head">
+              <h3>{{ col.label }}</h3>
+              <span class="col-count">{{ store.byStatus()[col.id].length }}</span>
+              @if (col.id === 'done' && store.byStatus().done.length > 0) {
+                <button class="clear-done-btn" (click)="store.clearDone()">Clear</button>
               }
             </div>
-          }
-        </div>
+            @for (task of store.byStatus()[col.id]; track task.id) {
+              <div class="task-card-item" [class.urgent]="isUrgent(task)">
+                <p class="task-title">{{ task.title }}</p>
+                <div class="task-meta">
+                  <span class="priority priority-{{ task.priority }}">{{ task.priority }}</span>
+                  @if (task.deadline) {
+                    <span class="deadline-badge" [class.urgent]="isUrgent(task)">
+                      {{ formatDeadline(task) }}
+                    </span>
+                  }
+                  <div class="task-btns">
+                    @if (task.status !== 'in-progress') {
+                      <button (click)="store.move(task.id, 'in-progress')">▶</button>
+                    }
+                    @if (task.status !== 'done') {
+                      <button (click)="store.move(task.id, 'done')">✓</button>
+                    }
+                    @if (task.status !== 'todo') {
+                      <button (click)="store.move(task.id, 'todo')">↩</button>
+                    }
+                    <button (click)="store.remove(task.id)" style="color:#ef4444">✕</button>
+                  </div>
+                </div>
+              </div>
+            }
+            @if (store.byStatus()[col.id].length === 0) {
+              <p style="text-align:center;color:var(--text-muted);font-size:.82rem;padding:16px">Empty</p>
+            }
+          </div>
+        }
       </div>
+    </div>
+  </section>
 
-      <app-quiz
-        question="The store is registered with `providers: [TaskStore]` on the component, not `providedIn: 'root'`. What does that actually change?"
-        [options]="scopeOptions"
-        followUp="Scope is lifetime. Ask 'who should be able to see this state, and when should it die?' — the answer picks the provider for you."
-      />
+  <!-- ============ 12. SELF-CHECK: PROVIDER SCOPE ============ -->
+  <section>
+    <p class="bf-eyebrow">Check yourself</p>
+    <h2>One question before the FAQ.</h2>
+    <app-quiz
+      question="The store is registered with `providers: [TaskStore]` on the component, not `providedIn: 'root'`.
+        What does that actually change?"
+      [options]="scopeOptions"
+      followUp="Scope is lifetime. Ask 'who should be able to see this state, and when should it die?' — the answer
+        picks the provider for you."
+    />
+  </section>
 
-      <app-faq [items]="questions" />
+  <!-- ============ 13. FAQ ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-      <h2>Recap — what you practiced</h2>
-      <ul>
-        <li><strong>Signal store pattern</strong> — private writes, public reads, computed selectors, named mutations</li>
-        <li><strong>Priority filter</strong> — a <code>_priorityFilter</code> signal applied inside <code>byStatus</code> computed</li>
-        <li><strong>Deadline field</strong> — optional timestamp stored in the model; urgency computed at render time</li>
-        <li><strong>clearDone()</strong> — a named store mutation, immutable update with filter()</li>
-        <li><strong>Two-way binding</strong> — [(ngModel)] for text, select, and date inputs</li>
-        <li><strong>&#64;for with track</strong> — efficient list rendering in three columns</li>
-        <li><strong>localStorage persistence</strong> — save on every mutation, hydrate in the store constructor</li>
-      </ul>
+  <!-- ============ 14. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
 
-      <h2>Further extensions</h2>
-      <ul>
-        <li>Add drag-and-drop between columns (HTML5 drag events — no library needed)</li>
-        <li>Add an urgency sort within columns: tasks due soonest appear first</li>
-        <li>Write a unit test for <code>TaskStore.add()</code> and <code>clearDone()</code></li>
-        <li>Add a "tag" system: comma-separated tags stored in the model, filter by tag</li>
-      </ul>
+    <app-remember variant="rule">
+      One store, one loading dock: every mutation is a <strong>named method</strong> that replaces the array and
+      calls <code>save()</code> before it returns. If a bug touches the board's state, the list of suspects is the
+      list of methods on <code>TaskStore</code> — nothing else.
+    </app-remember>
 
-      <p><a routerLink="/auth-flow">Next Project: Auth Flow Walkthrough →</a></p>
-    </article>
+    <ul>
+      <li>
+        <strong>Derive, don't duplicate.</strong> One <code>computed</code> split three ways beats three signals that
+        could quietly disagree.
+      </li>
+      <li>
+        <strong><code>track task.id</code>, never <code>track $index</code></strong>, whenever rows can move or
+        disappear — an index is a position, not an identity.
+      </li>
+      <li>
+        <strong>Save inside the mutator, not in an <code>effect()</code>.</strong> A synchronous write means nothing
+        is lost to a refresh that lands before a scheduled effect would have run.
+      </li>
+      <li>
+        <strong><code>[(ngModel)]</code> is sugar for two one-way bindings</strong>, nothing more — the same property
+        binding and event binding you would otherwise wire up by hand.
+      </li>
+      <li>
+        <strong>Scope decides lifetime.</strong> <code>providers: [TaskStore]</code> on the component, not
+        <code>providedIn: 'root'</code>, is what makes a fresh visit start from storage rather than a stale instance.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 15. FURTHER EXTENSIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">Where to take it from here</p>
+    <h2>Further extensions.</h2>
+    <ul>
+      <li>Add drag-and-drop between columns (HTML5 drag events — no library needed)</li>
+      <li>Add an urgency sort within columns: tasks due soonest appear first</li>
+      <li>Write a unit test for <code>TaskStore.add()</code> and <code>clearDone()</code></li>
+      <li>Add a "tag" system: comma-separated tags stored in the model, filter by tag</li>
+    </ul>
+
+    <p><a routerLink="/auth-flow">Next Project: Auth Flow Walkthrough →</a></p>
+  </section>
+</article>
