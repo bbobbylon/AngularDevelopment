@@ -1,23 +1,9 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-  margin: 12px 0;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+/* Table styling now comes from the shared brain-friendly layer (src/brain-friendly.css
+   §15), which targets `.lesson.bf table` directly — a migrated lesson can delete its
+   own `.t` rules entirely, per that file's own comment. Nothing else here is generic:
+   `.badge-active` is this lesson's own visual treatment of the class BadgeDirective's
+   `host: { '[class.badge-active]': 'active()' }` binding applies to its host element in
+   the exportAs demo, so it stays. */
 .badge-active {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

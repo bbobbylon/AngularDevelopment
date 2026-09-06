@@ -1,327 +1,361 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Pipes &amp; Directives</span>
-  <h1>Custom Attribute Directives</h1>
-  <p class="lead">
-    Attribute directives attach behavior to an existing element — no template of their own, just host bindings and event
-    listeners. They are the primitive behind
-    <code>NgClass</code>, <code>NgStyle</code>, and every third-party UI library's interactive helpers. In Angular 17+
-    the patterns got cleaner: <code>inject()</code> replaces constructor injection, <code>input()</code> replaces
-    <code>&#64;Input()</code>, and <code>host: &#123;&#125;</code> in the decorator replaces
-    <code>&#64;HostBinding</code>.
-  </p>
-
-  <h2>The mental model: bolt-on accessories</h2>
-  <p>
-    A component is a vehicle — it has a body, a shape, an interior you designed. An attribute directive is a roof rack.
-    It has no engine and no chassis of its own; it bolts onto a car somebody else built and gives that car an ability it
-    did not have. On its own it is just a box of brackets.
-  </p>
-  <p>
-    Which explains the parts of the API that otherwise look arbitrary. Several racks fit the same car at once — unlike
-    structural directives, you can stack as many attribute directives on one element as you like. The rack borrows the
-    car's bodywork, which is what a <code>host</code> binding is: styling and listening on an element you do not own.
-    And when the car is scrapped, the rack goes with it — but the trailer you left parked in the street does not. That
-    trailer is the tooltip <code>div</code> you appended to <code>document.body</code>, and it is the one thing Angular
-    cannot clean up for you.
-  </p>
-
-  <app-remember>
-    <strong>A directive has no body of its own — it borrows the host's.</strong> Angular removes everything you attached
-    <em>to the host</em> automatically. Anything you created somewhere else is yours to destroy in
-    <code>ngOnDestroy</code>.
-  </app-remember>
-
-  <h2>Modern directive anatomy</h2>
-  <div class="code">
-    <pre>
-&#64;Directive(&#123;
-  // The SQUARE BRACKETS make this an attribute selector: it matches any
-  // element carrying appHighlight. Drop them and you'd be matching a TAG
-  // called appHighlight, which is a component's job, not a directive's.
-  selector: '[appHighlight]',
-  standalone: true,
-  // host: &#123;&#125; replaces every &#64;HostBinding — compiled away at build time
-  host: &#123;
-    // Keys read exactly like template syntax: [property] binds, (event) listens.
-    // The VALUE is an expression string evaluated against this directive
-    // instance — which is why the double quotes are nested inside the single
-    // ones here. Without them Angular would look for a field named
-    // background-color.
-    '[style.transition]': '"background-color .15s ease"',
-    '[style.backgroundColor]': 'bg()',   // reads a signal
-  &#125;,
-&#125;)
-export class HighlightDirective &#123;
-  // signal input — replaces &#64;Input(). The name of the field IS the attribute
-  // name, so &lt;div appHighlight="red"&gt; feeds this. The argument is the
-  // fallback used when the attribute is present but empty.
-  appHighlight = input&lt;string&gt;('var(--amber)');
-  // Internal state. protected, because only this class and its host bindings
-  // need it — nothing outside should be able to set the colour directly.
-  protected readonly bg = signal('');
-
-  // &#64;HostListener wires a DOM event on the HOST element to a method. Angular
-  // removes the listener automatically when the directive is destroyed —
-  // that automatic cleanup is exactly what a manual addEventListener lacks.
-  // Setting bg() here is all it takes: the host binding above is watching it,
-  // so the style updates with no direct DOM manipulation anywhere.
-  &#64;HostListener('mouseenter') onEnter() &#123; this.bg.set(this.appHighlight()); &#125;
-  // Reset to '' rather than a colour, so the element falls back to whatever
-  // the stylesheet says instead of being locked to a hardcoded default.
-  &#64;HostListener('mouseleave') onLeave() &#123; this.bg.set(''); &#125;
-&#125;</pre>
-  </div>
-
-  <p>Three modern patterns in one directive:</p>
-  <ul>
-    <li>
-      <strong><code>host: &#123;&#125;</code></strong> — property/event bindings in the decorator metadata. No
-      <code>&#64;HostBinding</code> needed. Angular compiles these directly into the directive's change-detection code —
-      faster than decorators at runtime.
-    </li>
-    <li>
-      <strong><code>input()</code></strong> — signal-based, typed, readonly. Reading it inside
-      <code>host</code> bindings or <code>effect()</code> creates reactive dependencies automatically.
-    </li>
-    <li>
-      <strong><code>inject()</code></strong> in the constructor body or as a field initialiser — replaces constructor
-      parameter injection. Same DI resolution, cleaner code.
-    </li>
-  </ul>
-
-  <h2>Demo 1 — hover highlight (signal input)</h2>
-  <div class="demo">
-    <p class="demo__title">Live — hover each row</p>
-    <p appHighlight style="padding: 8px 12px; border-radius: 8px; margin-bottom: 8px">
-      Default amber — <code>&lt;p appHighlight&gt;</code>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Intermediate · Pipes &amp; Directives"
+    title="Custom Attribute Directives"
+    hand="or, how a roof rack gives someone else's car a new trick"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      An attribute directive is a component with <strong>no view of its own</strong> — no template, just a set of
+      instructions for decorating whatever element it lands on. It's the mechanism behind <code>NgClass</code>,
+      <code>NgStyle</code>, and every hover/focus/drag helper any UI library has ever shipped. This page builds three
+      real ones — a hover highlight, a badge you can reach from the template, and a tooltip that creates its own DOM —
+      because the third one is where the interesting bug lives.
     </p>
-    <p [appHighlight]="'rgba(124,77,255,.35)'" style="padding: 8px 12px; border-radius: 8px; margin-bottom: 8px">
-      Violet — <code>[appHighlight]="'rgba(124,77,255,.35)'"</code>
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A directive and a component are declared almost identically. What's actually different?</h2>
+
+    <p>
+      &#64;Component and &#64;Directive are both decorators on a class. Both can take inputs, both can be injected into,
+      both go through the exact same dependency-injection machinery. Strip away the template and — that's it. That's the
+      whole difference. A component paints something with a shape of its own. A directive
+      <span class="key">attaches to a shape somebody else already painted.</span>
     </p>
-    <p [appHighlight]="'rgba(46,193,107,.30)'" style="padding: 8px 12px; border-radius: 8px">
-      Green — <code>[appHighlight]="'rgba(46,193,107,.30)'"</code>
+    <p>That thin difference has consequences that look arbitrary until you've thought them through.</p>
+
+    <app-napkin lead="guess first —" label="Predict before reading on">
+      Three quick guesses about an attribute directive, before the mechanism explains them. Does it render any markup of
+      its own? Can more than one of them sit on the exact same element at once? And if one of them creates a DOM node
+      with <code>renderer.createElement()</code> while it's active, does destroying the host element clean that node up
+      along with it? Two of your answers are probably the ones you'd expect. One of them is the trap this whole lesson
+      is built around — there's a live version of exactly that trap further down the page.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A directive is a roof rack, not a car.</h2>
+
+    <p>
+      A component is a vehicle — it has a body, a shape, an interior you designed. An attribute directive is a
+      <span class="term">roof rack</span>. It has no engine and no chassis of its own; it bolts onto a car somebody else
+      built and gives that car an ability it didn't have. On its own it's just a box of brackets.
     </p>
-  </div>
+    <p>
+      Which answers the first two guesses you just made. Several racks fit the same car at once —
+      <strong>you can stack as many attribute directives on one element as you like</strong>, which is the sharpest
+      difference from a structural directive, where the star allows exactly one. And the rack borrows the car's
+      bodywork, which is what a <code>host</code> binding actually is: styling and listening on an element you don't
+      own.
+    </p>
+    <p>
+      The third guess doesn't fall out of the analogy for free — because a real roof rack can't leave a trailer parked
+      in the street. A directive can. That trailer is the tooltip <code>div</code> you append to
+      <code>document.body</code>, and it's <span class="bf-break">the one thing Angular cannot clean up for you</span>.
+      Hold onto that; it comes back.
+    </p>
 
-  <h2>The life of a directive instance</h2>
+    <app-remember variant="mnemonic">
+      <strong>A directive has no body of its own — it borrows the host's.</strong> Angular removes everything you
+      attached <em>to the host</em> automatically. Anything you created somewhere else is yours to destroy in
+      <code>ngOnDestroy</code>.
+    </app-remember>
 
-  <app-flow
-    [steps]="lifecycle"
-    caption="Two bugs live in this sequence: reading an input at step two, when it is only set at step three; and creating DOM outside the host, which step seven will not reclaim for you."
-  />
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="What actually happens when a template writes `<p appHighlight>` — staged as a conversation, because 'who cleans up what' is exactly the part a paragraph glosses over."
+    />
+  </section>
 
-  <app-quiz
-    question="A directive declares `text = input.required<string>()` and reads `this.text()` in its constructor to compute a starting value. What happens at runtime?"
-    [options]="timingOptions"
-    followUp="A useful rule of thumb for any injectable: the constructor is for wiring, `ngOnInit` is for reading. If you find yourself wanting input values during construction, what you actually want is an `effect()`."
-  />
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Anatomy of a modern attribute directive.</h2>
 
-  <h2>Injecting ElementRef and Renderer2</h2>
-  <p>
-    When you need to read or modify the host element directly, inject
-    <code>ElementRef</code> and <code>Renderer2</code>. Use <code>Renderer2</code> rather than touching
-    <code>.nativeElement</code> directly — it stays compatible with SSR and Web Workers.
-  </p>
-  <div class="code">
-    <pre>
-private readonly el = inject&lt;ElementRef&lt;HTMLElement&gt;&gt;(ElementRef);
-private readonly renderer = inject(Renderer2);
+    <p>
+      Three things changed about how you'd write this in Angular 17+: <code>inject()</code> replaces constructor
+      injection, <code>input()</code> replaces &#64;Input(), and the <code>host</code> object in the decorator replaces
+      &#64;HostBinding. Here's <code>HighlightDirective</code> in full — every line is doing something, so read the
+      numbered notes rather than skimming.
+    </p>
 
-// Add a CSS class safely across all platforms:
-this.renderer.addClass(this.el.nativeElement, 'is-active');
+    <app-code-lab
+      file="highlight-directive.ts"
+      [code]="highlightSample"
+      [notes]="highlightNotes"
+      notesLabel="What each part is doing"
+    />
 
-// Set an inline style:
-this.renderer.setStyle(this.el.nativeElement, 'color', 'red');
-
-// Create and append a child element:
-const tip = this.renderer.createElement('span');
-this.renderer.setProperty(tip, 'textContent', 'Hello');
-this.renderer.appendChild(this.el.nativeElement, tip);</pre>
-  </div>
-
-  <h2>exportAs — access directive from the template</h2>
-  <p>
-    Set <code>exportAs</code> in the decorator to give the template a reference to the directive instance. Useful for
-    calling directive methods from the parent.
-  </p>
-  <div class="code">
-    <pre>
-&#64;Directive(&#123;
-  selector: '[appBadge]',
-  exportAs: 'appBadge',   // ← the alias
-&#125;)
-export class BadgeDirective &#123;
-  label = input&lt;string&gt;('New');
-  active = signal(true);
-  toggle() &#123; this.active.update(v => !v); &#125;
-&#125;
-
-// Template — grab the directive instance via #b="appBadge"
-&lt;span appBadge label="Beta" #b="appBadge"&gt;&lt;/span&gt;
-&lt;button (click)="b.toggle()"&gt;Toggle badge&lt;/button&gt;</pre>
-  </div>
-
-  <h2>Demo 2 — exportAs + signal input</h2>
-  <div class="demo">
-    <p class="demo__title">Live — toggle the badge visibility</p>
-    <div class="row" style="gap: 12px; align-items: center">
-      <span
-        appBadge
-        [label]="'Beta'"
-        #badge="appBadge"
-        style="padding: 4px 12px; border-radius: 999px; background: var(--bg-elevated); border: 1px solid var(--border)"
-      >
-        Feature {{ badge.active() ? badge.label() : '(hidden)' }}
-      </span>
-      <button (click)="badge.toggle()">Toggle badge</button>
+    <div class="bf-grid-3">
+      <app-tape-card heading="host: &#123;&#125;" kicker="in the decorator" tone="accent">
+        Property and event bindings, written once, compiled straight into the directive's update function. No
+        &#64;HostBinding or &#64;HostListener decorator required.
+      </app-tape-card>
+      <app-tape-card heading="input()" kicker="signal-based" tone="olive">
+        Typed, readonly, and reactive by default — read it inside a <code>host</code> binding or an
+        <code>effect()</code> and the dependency is tracked for you.
+      </app-tape-card>
+      <app-tape-card heading="inject()" kicker="constructor body or field" tone="blue">
+        Same DI resolution as a constructor parameter, usable as a field initialiser — which is what lets
+        &#64;HostListener stay a plain method instead of forcing everything through the constructor.
+      </app-tape-card>
     </div>
-    <p style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted)">
-      <code>active()</code> = {{ badge.active() }} · <code>ariaLabel()</code> = "{{ badge.ariaLabel() }}"
+  </section>
+
+  <!-- ============ 4. OLD VS NEW ============ -->
+  <section>
+    <p class="bf-eyebrow">Old way, for context</p>
+    <h2>What actually got shorter.</h2>
+    <p>
+      If you've read older Angular code, this is the same directive, decorator for decorator. Line the two up and the
+      trade is obvious: three decorators disappeared, and the state moved from plain fields to a signal.
     </p>
-  </div>
 
-  <h2>Real-world: tooltip directive</h2>
-  <p>
-    The app-wide tooltip in this platform (<code>shared/tooltip.directive.ts</code>) is an attribute directive. It
-    dynamically appends a floating <code>div</code> to <code>document.body</code>, positions it via
-    <code>getBoundingClientRect()</code>, and cleans up in <code>ngOnDestroy</code>.
-  </p>
-  <div class="code">
-    <pre>
-&#64;Directive(&#123; selector: '[appTooltip]', standalone: true &#125;)
-export class TooltipDirective implements OnDestroy &#123;
-  // alias lets the FIELD be called `text` (readable inside the class) while
-  // the ATTRIBUTE stays `appTooltip` (readable in the template). Without it
-  // you'd have to name the field appTooltip too.
-  text = input&lt;string&gt;('', &#123; alias: 'appTooltip' &#125;);
+    <app-compare
+      leftTitle="Before — &#64;HostBinding / &#64;HostListener"
+      rightTitle="Now — host object + input()"
+      leftTone="bad"
+      rightTone="good"
+      note="Both directives do exactly the same thing. The new one compiles its two host bindings straight into the element's own update function instead of resolving two decorators per instance at runtime."
+    >
+      <div left class="code">
+        <pre>{{ oldHighlightSample }}</pre>
+      </div>
+      <div right class="code">
+        <pre>{{ highlightSample }}</pre>
+      </div>
+    </app-compare>
+  </section>
 
-  // ElementRef wraps the host DOM node. The generic tells TypeScript it's an
-  // HTMLElement, so .nativeElement.getBoundingClientRect() type-checks.
-  private readonly el     = inject&lt;ElementRef&lt;HTMLElement&gt;&gt;(ElementRef);
-  // Renderer2 instead of document.createElement: it's an abstraction over the
-  // DOM, so the same directive works during server-side rendering and inside
-  // a web worker, where `document` doesn't exist.
-  private readonly renderer = inject(Renderer2);
-  // The handle on what we created. Null when no tooltip is showing — this
-  // field is the entire cleanup story, so it must stay accurate.
-  private tip: HTMLElement | null = null;
-
-  &#64;HostListener('mouseenter') show(): void &#123;
-    this.tip = this.renderer.createElement('div');
-    this.renderer.addClass(this.tip, 'app-tooltip');
-    // setProperty with 'textContent', not innerHTML — text can never be
-    // parsed as markup, so a tooltip string can't inject a script.
-    this.renderer.setProperty(this.tip, 'textContent', this.text());
-    // Appended to document.body, NOT to the host. Deliberate: a tooltip
-    // nested inside the host would be clipped by any ancestor with
-    // overflow:hidden, and would inherit its stacking context.
-    this.renderer.appendChild(document.body, this.tip);
-    // position relative to host bounding box…
-  &#125;
-
-  &#64;HostListener('mouseleave') hide(): void &#123;
-    // The guard makes hide() idempotent, which is what lets ngOnDestroy call
-    // it blindly below.
-    if (this.tip) &#123;
-      this.renderer.removeChild(document.body, this.tip);
-      // Reset the handle, or a second hide() would try to remove a node that
-      // is no longer in the document.
-      this.tip = null;
-    &#125;
-  &#125;
-
-  // THE LINE THAT MATTERS. Angular cleans up host listeners and host bindings
-  // for you — but this tooltip lives on document.body, outside the directive's
-  // view. Navigate away mid-hover without this and the tooltip is orphaned on
-  // screen forever. Rule: whatever YOU created, YOU destroy.
-  ngOnDestroy(): void &#123; this.hide(); &#125;
-&#125;</pre>
-  </div>
-
-  <h2>Demo 3 — tooltip directive</h2>
-  <div class="demo">
-    <p class="demo__title">Live — hover each button</p>
-    <div class="row" style="gap: 10px; flex-wrap: wrap">
-      <button [appDemoTooltip]="'Saves your progress'">Save</button>
-      <button [appDemoTooltip]="'Permanently deletes — cannot undo'">Delete</button>
-      <button [appDemoTooltip]="'Sends a copy to your inbox'">Share</button>
+  <!-- ============ 5. LIVE #1 ============ -->
+  <section>
+    <p class="bf-eyebrow">Live demo</p>
+    <h2>Live #1 — hover highlight.</h2>
+    <div class="demo">
+      <p class="demo__title">Live — hover each row</p>
+      <p appHighlight style="padding: 8px 12px; border-radius: 8px; margin-bottom: 8px">
+        Default amber — <code>&lt;p appHighlight&gt;</code>
+      </p>
+      <p [appHighlight]="'rgba(124,77,255,.35)'" style="padding: 8px 12px; border-radius: 8px; margin-bottom: 8px">
+        Violet — <code>[appHighlight]="'rgba(124,77,255,.35)'"</code>
+      </p>
+      <p [appHighlight]="'rgba(46,193,107,.30)'" style="padding: 8px 12px; border-radius: 8px">
+        Green — <code>[appHighlight]="'rgba(46,193,107,.30)'"</code>
+      </p>
     </div>
-  </div>
+  </section>
 
-  <h2>Spot what is missing</h2>
-  <p>
-    Here is the same tooltip with one line removed. Work out what goes wrong before you open it — and note that
-    everything about this directive looks symmetrical and correct.
-  </p>
+  <!-- ============ 6. LIFECYCLE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism, continued</p>
+    <h2>The life of a directive instance.</h2>
 
-  <app-predict
-    prompt="Trace it: who removes the tooltip, and does that code ever get the chance to run?"
-    [code]="orphanSample"
-    answer="A tooltip is now stuck on the screen forever. Removing the button destroys the element, which destroys the directive — and `mouseleave` never fires on an element that no longer exists, so `hide()` is never called. The `div` is fine, though: it was appended to `document.body`, not to the button, so nothing about the button's removal touches it. It just floats there, pointing at empty space, until a full page reload. This is the exact failure mode the `ngOnDestroy(): void { this.hide(); }` line in the real directive exists to prevent, and it is worth internalising as a rule rather than a fix: **anything you create outside your host element, you must destroy yourself.** The same applies to a `setInterval`, a `ResizeObserver`, a `window` listener you added by hand, or a subscription. Host bindings and `@HostListener` are the exception — Angular tears those down, because they were on the host all along."
-  />
+    <app-flow
+      [steps]="lifecycle"
+      caption="Two bugs live in this sequence: reading an input at step two, when it's only set at step three; and creating DOM outside the host, which step seven won't reclaim for you."
+    />
 
-  <h2>Old patterns vs. modern equivalents</h2>
-  <table class="t">
-    <thead>
-      <tr>
-        <th>Old pattern</th>
-        <th>Modern Angular 17+ equivalent</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><code>&#64;Input() color = ''</code></td>
-        <td><code>color = input&lt;string&gt;('')</code></td>
-      </tr>
-      <tr>
-        <td><code>&#64;HostBinding('class.active') isActive</code></td>
-        <td><code>host: &#123; '[class.active]': 'isActive()' &#125;</code></td>
-      </tr>
-      <tr>
-        <td><code>constructor(private el: ElementRef) &#123;&#125;</code></td>
-        <td><code>private el = inject(ElementRef)</code></td>
-      </tr>
-      <tr>
-        <td><code>&#64;Input('appTooltip') text</code> (alias)</td>
-        <td><code>text = input('', &#123; alias: 'appTooltip' &#125;)</code></td>
-      </tr>
-      <tr>
-        <td>Manually implement <code>OnChanges</code> to watch inputs</td>
-        <td><code>effect(() =&gt; &#123; /* reads input() signals reactively */ &#125;)</code></td>
-      </tr>
-    </tbody>
-  </table>
+    <app-quiz
+      question="A directive declares `text = input.required<string>()` and reads `this.text()` in its constructor to compute a starting value. What happens at runtime?"
+      [options]="timingOptions"
+      followUp="A useful rule of thumb for any injectable: the constructor is for wiring, `ngOnInit` is for reading. If you find yourself wanting input values during construction, what you actually want is an `effect()`."
+    />
+  </section>
 
-  <div class="tip">
-    <strong>When to use <code>host: &#123;&#125;</code> vs <code>&#64;HostBinding</code>:</strong>
-    <code>host: &#123;&#125;</code> is resolved at compile time and optimised — prefer it for all new directives.
-    <code>&#64;HostBinding</code> / <code>&#64;HostListener</code> still work and may be clearer for simple cases.
-  </div>
-  <div class="warn">
-    Never write to <code>el.nativeElement</code> in a loop without <code>Renderer2</code> — raw DOM access breaks SSR
-    and makes tests harder. Renderer2 methods are always safe.
-  </div>
+  <!-- ============ 7. ELEMENTREF / RENDERER2 ============ -->
+  <section>
+    <p class="bf-eyebrow">Reaching into the DOM</p>
+    <h2>Injecting ElementRef and Renderer2.</h2>
+    <p>
+      Host bindings cover most of what a directive needs to do to its own element. When you need to go further — add a
+      class conditionally in code, create a node — inject <code>ElementRef</code> for a handle to the host and use
+      <code>Renderer2</code> instead of touching <code>.nativeElement</code> directly. <code>Renderer2</code> is an
+      abstraction over <span class="key">whatever is actually drawing the page right now</span>, which is what keeps a
+      directive working under server-side rendering, where there is no <code>document</code> at all.
+    </p>
 
-  <app-faq [items]="questions" />
+    <app-code-lab
+      file="element-ref-demo.ts"
+      [code]="elementRefSample"
+      [notes]="elementRefNotes"
+      notesLabel="Renderer2, method by method"
+    />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>&#64;Directive</code> with an attribute selector adds behaviour to any existing element — no template.
-    </li>
-    <li>
-      <code>host: &#123;&#125;</code> in the decorator replaces <code>&#64;HostBinding</code> and is more efficient.
-    </li>
-    <li>
-      <code>input()</code> replaces <code>&#64;Input()</code> — signal-based, reactive, readonly in the directive.
-    </li>
-    <li>
-      <code>inject()</code> replaces constructor param injection — works in the constructor body or as a field
-      initializer.
-    </li>
-    <li><code>exportAs</code> lets the parent template call methods on the directive instance.</li>
-    <li>Always clean up created DOM and subscriptions in <code>ngOnDestroy</code>.</li>
-  </ul>
+  <!-- ============ 8. EXPORTAS ============ -->
+  <section>
+    <p class="bf-eyebrow">Talking back to the template</p>
+    <h2>exportAs — grabbing the directive instance from the template.</h2>
+    <p>
+      Every example so far has been one-directional: the directive reacts to the host, and the template never touches
+      the directive back. <code>exportAs</code> breaks that — it names the directive instance so a template reference
+      variable can grab it directly, the same way <code>#form="ngForm"</code> grabs Angular's own form directive.
+    </p>
 
-  <p><a routerLink="/content-projection">Next: Content Projection →</a></p>
+    <app-code-lab
+      file="badge-directive.ts"
+      [code]="badgeSample"
+      [notes]="badgeNotes"
+      notesLabel="What each part is doing"
+    />
+  </section>
+
+  <!-- ============ 9. LIVE #2 ============ -->
+  <section>
+    <p class="bf-eyebrow">Live demo</p>
+    <h2>Live #2 — exportAs + signal input.</h2>
+    <div class="demo">
+      <p class="demo__title">Live — toggle the badge visibility</p>
+      <div class="row" style="gap: 12px; align-items: center">
+        <span
+          appBadge
+          [label]="'Beta'"
+          #badge="appBadge"
+          style="
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+          "
+        >
+          Feature {{ badge.active() ? badge.label() : '(hidden)' }}
+        </span>
+        <button (click)="badge.toggle()">Toggle badge</button>
+      </div>
+      <p style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted)">
+        <code>active()</code> = {{ badge.active() }} · <code>ariaLabel()</code> = "{{ badge.ariaLabel() }}"
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 10. REAL WORLD TOOLTIP ============ -->
+  <section>
+    <p class="bf-eyebrow">Real world</p>
+    <h2>The app's own tooltip is exactly this pattern.</h2>
+    <p>
+      <code>shared/tooltip.directive.ts</code>, the tooltip you've hovered over elsewhere in this app, is an attribute
+      directive that appends a floating <code>div</code> to <code>document.body</code>, positions it against the host's
+      bounding box, and — this is the part to read carefully — cleans up after itself.
+    </p>
+
+    <app-code-lab
+      file="demo-tooltip-directive.ts"
+      [code]="tooltipSample"
+      [notes]="tooltipNotes"
+      notesLabel="Line by line — read the last note first"
+    />
+  </section>
+
+  <!-- ============ 11. LIVE #3 ============ -->
+  <section>
+    <p class="bf-eyebrow">Live demo</p>
+    <h2>Live #3 — tooltip directive.</h2>
+    <div class="demo">
+      <p class="demo__title">Live — hover each button</p>
+      <div class="row" style="gap: 10px; flex-wrap: wrap">
+        <button [appDemoTooltip]="'Saves your progress'">Save</button>
+        <button [appDemoTooltip]="'Permanently deletes — cannot undo'">Delete</button>
+        <button [appDemoTooltip]="'Sends a copy to your inbox'">Share</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 12. THE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The trap</p>
+    <h2>Spot what's missing.</h2>
+    <p>
+      Here's the same tooltip with one line removed — the line the note above told you to read first. Trace it yourself
+      before you open the answer:
+      <span class="key">everything about this directive still looks symmetrical and correct.</span> This is also the
+      answer to the third guess from the top of the page.
+    </p>
+
+    <app-predict
+      prompt="Trace it: who removes the tooltip, and does that code ever get the chance to run?"
+      [code]="orphanSample"
+      answer="A tooltip is now stuck on the screen forever. Removing the button destroys the element, which destroys the directive — and `mouseleave` never fires on an element that no longer exists, so `hide()` is never called. The `div` is fine, though: it was appended to `document.body`, not to the button, so nothing about the button's removal touches it. It just floats there, pointing at empty space, until a full page reload. This is the exact failure mode the `ngOnDestroy(): void { this.hide(); }` line in the real directive exists to prevent, and it's worth internalising as a rule rather than a fix: **anything you create outside your host element, you must destroy yourself.** The same applies to a `setInterval`, a `ResizeObserver`, a `window` listener you added by hand, or a subscription. Host bindings and `@HostListener` are the exception — Angular tears those down, because they were on the host all along."
+    />
+  </section>
+
+  <!-- ============ 13. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>The rest of the old-to-new mapping.</h2>
+    <p>The three biggest swaps got their own comparison above. The rest are smaller, one-line trades:</p>
+
+    <table>
+      <caption class="bf-table-caption">
+        Old pattern → modern equivalent
+      </caption>
+      <thead>
+        <tr>
+          <th>Old pattern</th>
+          <th>Modern equivalent</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&#64;Input('appTooltip') text</code> (alias)</td>
+          <td><code>text = input('', &#123; alias: 'appTooltip' &#125;)</code></td>
+        </tr>
+        <tr>
+          <td><code>constructor(private el: ElementRef) &#123;&#125;</code></td>
+          <td><code>private el = inject(ElementRef)</code></td>
+        </tr>
+        <tr>
+          <td>Manually implement <code>OnChanges</code> to watch inputs</td>
+          <td><code>effect(() =&gt; &#123; /* reads input() signals reactively */ &#125;)</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      <strong>When to reach for <code>host: &#123;&#125;</code> vs the old decorators:</strong> always, for new code —
+      it's resolved at compile time and is the modern default. The old decorators still work, and you'll still meet them
+      reading existing codebases.
+    </div>
+    <div class="warn">
+      Never write to <code>el.nativeElement</code> in a loop without <code>Renderer2</code> — raw DOM access breaks SSR
+      and makes a directive harder to test. Renderer2's methods are always safe.
+    </div>
+  </section>
+
+  <!-- ============ 14. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 15. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Things to remember.</h2>
+    <ul>
+      <li>A directive is a component with <strong>no view of its own</strong> — it borrows the host's.</li>
+      <li>
+        <code>host: &#123;&#125;</code> in the decorator replaces &#64;HostBinding/&#64;HostListener, compiled straight
+        into the element's own update function.
+      </li>
+      <li><code>input()</code> replaces &#64;Input() — signal-based, reactive, readonly inside the directive.</li>
+      <li>
+        Attribute directives <strong>stack</strong> — as many as you like on one element. Structural directives don't:
+        one <code>*</code> per element, full stop.
+      </li>
+      <li><code>exportAs</code> lets a template reference variable grab the directive instance directly.</li>
+      <li>
+        <strong>Whatever you create outside the host, you must destroy yourself.</strong> Host bindings and listeners
+        clean up automatically; anything appended to <code>document.body</code> does not.
+      </li>
+    </ul>
+
+    <p><a routerLink="/structural-directives">Next: Custom Structural Directives →</a></p>
+  </section>
 </article>
