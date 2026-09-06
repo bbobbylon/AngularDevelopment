@@ -1,378 +1,523 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Routing</span>
-  <h1>Resolvers &amp; Route Data</h1>
-  <p class="lead">
-    A resolver fetches data <em>before</em> a route activates, so the component renders with its data already present —
-    no in-component loading flicker, no empty first paint. Static <code>data</code> attaches fixed values to a route.
-    The catch: resolvers block navigation, so they carry rules (complete or hang, keep them fast, handle errors) that
-    this page drills with live simulations.
-  </p>
-
-  <h2>The problem a resolver solves</h2>
-  <p>
-    Fetch data <em>inside</em> the component and the route activates instantly with nothing to show — you paint a
-    spinner, then swap in the data (a "flicker"). A resolver moves that wait to <em>before</em> activation: the old view
-    stays up while data loads, then the new route appears already populated. Same total time; very different feel. Click
-    once and watch both timelines:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — component-level fetch vs resolver</p>
-    <div class="browsers">
-      <div>
-        <span class="browser__label">Fetch inside component (no resolver)</span>
-        <div class="browser">
-          <div class="browser__bar">
-            <span class="browser__dot"></span>
-            <span class="browser__url">{{ panelA() === 'idle' ? '/dashboard' : '/users/7' }}</span>
-          </div>
-          <div class="browser__screen">
-            @switch (panelA()) {
-              @case ('idle') {
-                <div>📊 Dashboard <span style="color: var(--text-muted)">(previous page)</span></div>
-              }
-              @case ('loading') {
-                <div><span class="spinner"></span> Loading user…</div>
-                <div class="flickered">↑ route already changed, component has no data yet</div>
-              }
-              @case ('ready') {
-                <div class="usercard"><strong>Ada Lovelace</strong><span>ada&#64;example.com · id 7</span></div>
-                <div class="flickered">user saw an empty loading state first</div>
-              }
-            }
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <span class="browser__label">Resolver (data before activation)</span>
-        <div class="browser">
-          <div class="browser__bar">
-            <span class="browser__dot"></span>
-            <span class="browser__url">{{ panelB() === 'ready' ? '/users/7' : '/dashboard' }}</span>
-          </div>
-          @if (panelB() === 'resolving') {
-            <div class="browser__progress"></div>
-          }
-          <div class="browser__screen">
-            @switch (panelB()) {
-              @case ('idle') {
-                <div>📊 Dashboard <span style="color: var(--text-muted)">(previous page)</span></div>
-              }
-              @case ('resolving') {
-                <div>
-                  📊 Dashboard <span style="color: var(--text-muted)">(still showing — navigation pending)</span>
-                </div>
-              }
-              @case ('ready') {
-                <div class="usercard"><strong>Ada Lovelace</strong><span>ada&#64;example.com · id 7</span></div>
-                <div class="noflicker">route appeared already populated — no flicker</div>
-              }
-            }
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="row">
-      <button (click)="navigate()">Navigate to /users/7</button>
-      <button class="ghost" (click)="resetDemo1()">Reset</button>
-    </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Both take the same ~900 ms. The left route changes first and shows a spinner; the right keeps the old view up
-      until the data is ready, then swaps in one step.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Intermediate · Routing"
+    title="Resolvers & Route Data"
+    hand="or, the maître d' who won't seat you until your table is actually ready"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      A resolver fetches data <strong>before</strong> a route activates, so the component that finally renders never has
+      to fake a loading state — it already has what it needs. Static <span class="term">data</span> attaches fixed
+      values the same way, with no fetch at all. The catch: a resolver <span class="key">blocks the click</span> until
+      its promise keeps one specific word — <strong>complete</strong> — and this page drills exactly what that word
+      means with two live simulations and the trap that catches almost everyone.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>A functional resolver</h2>
-  <p>
-    A resolver is a <code>ResolveFn&lt;T&gt;</code> — a plain function that can <code>inject()</code> and returns the
-    data, a <code>Promise</code>, or an <code>Observable</code>. Register it under a key in the route's
-    <code>resolve</code> map:
-  </p>
-  <div class="code">
-    <pre>{{ resolverSample }}</pre>
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Your route just changed. Where's the data?</h2>
 
-  <h2>Where resolvers run — the navigation pipeline</h2>
-  <p>
-    Resolvers are not the first thing the router does. A navigation runs a fixed pipeline, and resolvers sit near the
-    end — they only run once every guard has passed, so you never waste a fetch on a route the user isn't allowed to
-    enter:
-  </p>
-  <div class="code">
-    <pre>{{ pipelineSample }}</pre>
-  </div>
-  <div class="note">
-    All resolve keys on the activated route (and its resolved parents) run
-    <strong>in parallel</strong>, and navigation waits for <em>all</em> of them. One slow resolver holds up the whole
-    transition — the route is only as fast as its slowest resolver. That is also why guards run first: an unauthorized
-    user should be redirected <em>before</em> you pay for the data.
-  </div>
+    <p>
+      Fetch inside a component and there is a gap — however small — between the moment the route changes and the moment
+      there is anything worth looking at. During that gap the component has already mounted, already run
+      <code>ngOnInit</code>, and has nothing to show: a spinner, an empty shell, a <span class="key">flicker</span>. The
+      URL is already right. The screen is still wrong.
+    </p>
 
-  <h2>Reading resolved data</h2>
-  <div class="code">
-    <pre>{{ readSample }}</pre>
-  </div>
-  <div class="tip">
-    With <code>provideRouter(routes, withComponentInputBinding())</code> (enabled in this app), each
-    <code>resolve</code> key, path param and query param is bound straight to a matching component
-    <code>input()</code> — no <code>ActivatedRoute</code> plumbing. The input name must equal the resolve key. Prefer
-    the observable <code>route.data</code> over <code>snapshot.data</code> when the same component instance is reused
-    across param changes (see <code>runGuardsAndResolvers</code> below) — the snapshot is frozen at activation and won't
-    update on re-resolve.
-  </div>
+    <p>
+      What if, instead, something checked whether the data existed <em>before</em> the router ever handed control to the
+      component at all?
+    </p>
 
-  <h2>An Observable resolver must complete</h2>
-  <p>
-    This is the number-one resolver bug. The router subscribes to your resolver and waits for it to
-    <strong>complete</strong>, not just emit. An <code>HttpClient</code> call completes after one value, so it's fine.
-    But a long-lived stream — a <code>Subject</code>, <code>valueChanges</code>, a store <code>select()</code>,
-    <code>interval()</code> — emits and keeps going, so the router waits forever and the navigation silently hangs. Take
-    one value with <code>first()</code> (or <code>take(1)</code>) to force completion:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — does navigation ever finish?</p>
-    <div class="row">
-      <span>Resolver returns a store stream</span>
-      <span class="seg">
-        <button [class.active]="!useFirst()" (click)="useFirst.set(false)">store.select(user)</button>
-        <button [class.active]="useFirst()" (click)="useFirst.set(true)">…pipe(first())</button>
-      </span>
+    <app-napkin lead="hold on —" label="Predict before reading on">
+      Two identical trips, both about 900ms. One navigates instantly and fetches inside the component. The other holds
+      the OLD page up the entire time and fetches first.
+      <strong>Nobody waits any less — the total time is identical either way.</strong> Before you scroll: which one do
+      you think <em>feels</em> faster to the person who clicked, and why? There's a live version further down to check
+      yourself against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A resolver is the maître d', not the waiter.</h2>
+
+    <p>
+      Picture two restaurants, both fully booked. The first seats you the moment you walk in — at a table that hasn't
+      been cleared yet, so the busser works around your elbows while you wait for cutlery. The second makes you stand at
+      the door for the exact same ninety seconds, then walks you straight to a table that is already set, poured, and
+      ready. <strong>Nobody waited less.</strong> One of them just picked a far better place to spend the wait.
+    </p>
+
+    <p>
+      A resolver is the second restaurant's <span class="term">maître d'</span>: the host who won't seat you until your
+      table is actually ready. A component that fetches its own data in <code>ngOnInit</code> is the first — technically
+      quicker to seat you, but it seats you into a mess. The router is the door; the resolver is the person standing in
+      it, refusing to open that door until the table — the data — is set.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>No ticket, no table.</strong> A resolver is the router's way of refusing to seat the next component until
+      its data ticket is actually punched — <em>punched</em> meaning something very specific, which is the whole of the
+      next section.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="resolverTalk"
+      caption="Guards have already passed. What the router is actually waiting on before it creates the component"
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One resolver is one function that returns a promise to be kept.</h2>
+
+    <p>
+      No classes, no decorators — a resolver is a plain <code>ResolveFn&lt;T&gt;</code>, the exact same shape as the
+      guards from the previous lesson, just answering a different question: not <em>may this navigation proceed</em>,
+      but <em>what does the next component need before it does</em>.
+    </p>
+
+    <app-code-lab
+      file="user.resolver.ts"
+      [code]="resolverSample"
+      [notes]="resolverNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      Resolvers do not run first. They sit near the <em>end</em> of a navigation — every
+      <a routerLink="/route-guards">guard</a> on the route has to return <code>true</code> before a single resolver is
+      even asked, so a fetch is never wasted on a user who was never getting in. All resolve keys on the matched route
+      then run <strong>in parallel</strong>, and navigation waits for every one of them — the route is only as fast as
+      its slowest key.
+    </p>
+  </section>
+
+  <!-- ============ 4. THE SAME IDEA, TWICE MORE ============ -->
+  <section>
+    <p class="bf-eyebrow">The same idea, twice more</p>
+    <h2>Same total wait. A completely different place to spend it.</h2>
+
+    <p>Two timelines for the identical navigation — watch where the fetch sits relative to the route change:</p>
+
+    <div class="bf-grid-2">
+      <app-flow [steps]="noResolverFlow" direction="vertical" caption="Without a resolver — the flicker" />
+      <app-flow [steps]="resolverFlow" direction="vertical" caption="With a resolver — no flicker" />
     </div>
-    <div class="row" style="margin-top: 12px">
-      <button (click)="runResolver2()">Start navigation</button>
-      <button class="ghost" (click)="resetDemo2()">Reset</button>
-      <span class="status-pill">
-        @switch (demo2()) {
-          @case ('idle') {
-            <span>idle</span>
+
+    <p>Now drive it yourself — click once and watch both versions of the same 900ms play out for real:</p>
+
+    <div class="demo">
+      <p class="demo__title">Live — component-level fetch vs resolver</p>
+      <div class="browsers">
+        <div>
+          <span class="browser__label">Fetch inside component (no resolver)</span>
+          <div class="browser">
+            <div class="browser__bar">
+              <span class="browser__dot"></span>
+              <span class="browser__url">{{ panelA() === 'idle' ? '/dashboard' : '/users/7' }}</span>
+            </div>
+            <div class="browser__screen">
+              @switch (panelA()) {
+                @case ('idle') {
+                  <div>📊 Dashboard <span style="color: var(--text-muted)">(previous page)</span></div>
+                }
+                @case ('loading') {
+                  <div><span class="spinner"></span> Loading user…</div>
+                  <div class="flickered">↑ route already changed, component has no data yet</div>
+                }
+                @case ('ready') {
+                  <div class="usercard"><strong>Ada Lovelace</strong><span>ada&#64;example.com · id 7</span></div>
+                  <div class="flickered">user saw an empty loading state first</div>
+                }
+              }
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span class="browser__label">Resolver (data before activation)</span>
+          <div class="browser">
+            <div class="browser__bar">
+              <span class="browser__dot"></span>
+              <span class="browser__url">{{ panelB() === 'ready' ? '/users/7' : '/dashboard' }}</span>
+            </div>
+            @if (panelB() === 'resolving') {
+              <div class="browser__progress"></div>
+            }
+            <div class="browser__screen">
+              @switch (panelB()) {
+                @case ('idle') {
+                  <div>📊 Dashboard <span style="color: var(--text-muted)">(previous page)</span></div>
+                }
+                @case ('resolving') {
+                  <div>
+                    📊 Dashboard <span style="color: var(--text-muted)">(still showing — navigation pending)</span>
+                  </div>
+                }
+                @case ('ready') {
+                  <div class="usercard"><strong>Ada Lovelace</strong><span>ada&#64;example.com · id 7</span></div>
+                  <div class="noflicker">route appeared already populated — no flicker</div>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <button (click)="navigate()">Navigate to /users/7</button>
+        <button class="ghost" (click)="resetDemo1()">Reset</button>
+      </div>
+      <p class="demo__note">
+        Both panels take the same ~900ms. The left route changes first and shows a spinner; the right keeps the old view
+        up until the data is ready, then swaps in one step — exactly the two flows above, happening live.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. THE RULE EVERYONE BREAKS ============ -->
+  <section>
+    <p class="bf-eyebrow">The rule everyone breaks</p>
+    <h2>An Observable resolver must complete — not just emit.</h2>
+
+    <p>
+      This is the number-one resolver bug, in this app's own audit and in bug trackers everywhere. The router subscribes
+      to your resolver and waits for it to <strong>complete</strong>, not merely to produce a value. An
+      <code>HttpClient</code> call completes on its own after one emission, so it's fine. A long-lived stream — a
+      <code>Subject</code>, a store <code>select()</code>, <code>valueChanges</code>, <code>interval()</code> — emits
+      and then keeps going, so the router waits <span class="bf-break">forever</span>, with no error and no timeout of
+      its own.
+    </p>
+
+    <app-remember variant="rule">
+      An Observable resolver must <strong>complete</strong>, not just emit. Pipe <code>first()</code> (or
+      <code>take(1)</code>) onto any long-lived stream you resolve, or the navigation hangs with nothing in the console
+      to even tell you it's stuck.
+    </app-remember>
+
+    <div class="demo">
+      <p class="demo__title">Live — does navigation ever finish?</p>
+      <div class="row">
+        <span>Resolver returns a store stream</span>
+        <span class="seg">
+          <button [class.active]="!useFirst()" (click)="useFirst.set(false)">store.select(user)</button>
+          <button [class.active]="useFirst()" (click)="useFirst.set(true)">…pipe(first())</button>
+        </span>
+      </div>
+      <div class="row" style="margin-top: 12px">
+        <button (click)="runResolver2()">Start navigation</button>
+        <button class="ghost" (click)="resetDemo2()">Reset</button>
+        <span class="status-pill">
+          @switch (demo2()) {
+            @case ('idle') {
+              <span>idle</span>
+            }
+            @case ('pending') {
+              <span class="spinner"></span> <span>resolving… navigation blocked</span>
+            }
+            @case ('done') {
+              <span class="ok">✓ navigated</span>
+            }
           }
-          @case ('pending') {
-            <span class="spinner"></span> <span>resolving… navigation blocked</span>
-          }
-          @case ('done') {
-            <span class="ok">✓ navigated</span>
-          }
+        </span>
+      </div>
+      <p class="demo__note">
+        @if (demo2() === 'pending' && !useFirst()) {
+          The stream emitted the user, but never completed — the router is still waiting, and will keep waiting forever.
+          In a real app the URL is stuck and nothing on screen ever changes.
+        } @else {
+          <code>first()</code> completes the stream after the first value, so the router unblocks and the route
+          activates.
         }
-      </span>
+      </p>
     </div>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      @if (demo2() === 'pending' && !useFirst()) {
-        The stream emitted the user, but never completed — the router is still waiting. In a real app the URL is stuck
-        and nothing happens.
-      } @else {
-        <code>first()</code> completes the stream after the first value, so the router unblocks and the route activates.
-      }
+
+    <app-predict
+      prompt="A resolver returns `store.select(user)`. The store already has the user cached, so `select()` emits that
+      cached value **synchronously, the instant you subscribe** — no network round trip, no delay at all. Does this
+      navigation complete instantly?"
+      answer="No — and this is the version of the bug that actually fools people. Emitting immediately is not the same
+      as completing immediately. `select()` emits the cached value right away, sure, but the selector observable
+      stays open forever waiting for the NEXT state change — it never sends a completion signal. So despite handing
+      over the data instantly, this navigation hangs exactly as hard as the slow version above; it just LOOKS like it
+      should have worked, which is what makes it a genuinely dangerous trap in code review."
+      revealLabel="Reveal the answer"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        Three ways a resolver's promise can go
+      </caption>
+      <thead>
+        <tr>
+          <th>Outcome</th>
+          <th>What the router does</th>
+          <th>What the user sees</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Completes normally</td>
+          <td>Activates the route with the resolved data</td>
+          <td>One clean paint, already populated</td>
+        </tr>
+        <tr>
+          <td>Emits, never completes</td>
+          <td>Nothing. Ever. No error, no cancel event, no timeout</td>
+          <td>The URL never changes — the click looks like it did nothing at all</td>
+        </tr>
+        <tr>
+          <td>Errors</td>
+          <td>Cancels immediately with <code>NavigationError</code></td>
+          <td>Stays on the current page — no route change, nothing rendered</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      An error is not the same failure as a hang — it's the opposite one, and it needs its own handling. Returning a
+      <code>RedirectCommand</code> turns a dead end into a page instead of a silent freeze:
     </p>
-  </div>
-  <div class="warn">
-    If a resolver <em>errors</em> (or its Observable errors), the navigation is cancelled and the router emits
-    <code>NavigationError</code> — the user is left on the current page with no route change. Always catch and decide:
-    redirect, return an empty/placeholder value, or rethrow to a global handler.
-  </div>
 
-  <h2>Error handling &amp; redirects from a resolver</h2>
-  <div class="code">
-    <pre>{{ errorSample }}</pre>
-  </div>
-  <div class="note">
-    <code>RedirectCommand</code> (Angular 17.1+) is the clean way to bail out of a guard or resolver: return
-    <code>new RedirectCommand(router.parseUrl('/login'))</code>
-    and the router redirects instead of throwing. Before it, you injected the
-    <code>Router</code> and called <code>navigate()</code> as a side effect while returning <code>EMPTY</code> to abort
-    the original navigation.
-  </div>
+    <app-code-lab
+      file="user.resolver.ts"
+      [code]="errorSample"
+      [notes]="errorNotes"
+      notesLabel="Completion and error handling, together"
+      prompt="Does `catchError` here also protect against the resolver hanging forever, the way it protects against a
+      failed request?"
+      output="No — `catchError` only reacts to an error being thrown. A stream that neither errors NOR completes never
+      reaches this callback at all; it just keeps running, uncaught and unfinished. `first()` on line 16 is the ONLY
+      thing here guarding against a hang — `catchError` guards a completely separate failure mode."
+      revealLabel="Reveal the connection"
+    />
+  </section>
 
-  <h2>Re-running: <code>runGuardsAndResolvers</code></h2>
-  <p>
-    Navigate from <code>/users/7</code> to <code>/users/9</code> and Angular reuses the same component instance. By
-    default the resolver does <strong>not</strong> re-run on a query-param-only change — which is a classic "why is my
-    data stale?" bug. The route's <code>runGuardsAndResolvers</code> controls exactly when:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Value</th>
-      <th>Re-runs guards + resolvers when…</th>
-    </tr>
-    <tr>
-      <td><code>'paramsChange'</code> <em>(default)</em></td>
-      <td>
-        a <strong>matrix/path param</strong> changes (<code>:id</code>). Query-only changes do <em>not</em> re-run.
-      </td>
-    </tr>
-    <tr>
-      <td><code>'pathParamsChange'</code></td>
-      <td>only a path param changes — ignores matrix params like <code>;view=grid</code>.</td>
-    </tr>
-    <tr>
-      <td><code>'paramsOrQueryParamsChange'</code></td>
-      <td>any param <em>or</em> query param changes — use when <code>?page=2</code> should refetch.</td>
-    </tr>
-    <tr>
-      <td><code>'pathParamsOrQueryParamsChange'</code></td>
-      <td>path params or query params (ignores matrix params).</td>
-    </tr>
-    <tr>
-      <td><code>'always'</code></td>
-      <td>
-        every navigation that lands on this route, even same-URL. Combine with
-        <code>onSameUrlNavigation: 'reload'</code> to support a "refresh" click.
-      </td>
-    </tr>
-    <tr>
-      <td>a <code>function</code></td>
-      <td>you return a boolean from <code>(from, to) =&gt; boolean</code> for full control.</td>
-    </tr>
-  </table>
+  <!-- ============ 6. READING RESOLVED DATA ============ -->
+  <section>
+    <p class="bf-eyebrow">Reading the result</p>
+    <h2>Three ways to receive it, three different lifetimes.</h2>
 
-  <h2>Resolver, resource(), guard, or component fetch?</h2>
-  <p>
-    Resolvers are not always the answer. Blocking navigation for a big or slow fetch makes the app feel frozen — the
-    user clicks and nothing happens. Match the tool to the data:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Use…</th>
-      <th>When</th>
-      <th>Trade-off</th>
-    </tr>
-    <tr>
-      <td><strong>Resolver</strong></td>
-      <td>
-        Small, fast, must-have data the first paint depends on (the user record for a profile page). You'd rather delay
-        the route than flash an empty shell.
-      </td>
-      <td>Blocks navigation; a slow resolver = a frozen click. Keep it fast.</td>
-    </tr>
-    <tr>
-      <td>
-        <strong><code>resource()</code></strong> <span class="ok">modern</span>
-      </td>
-      <td>
-        Data that can stream in after the route shows. Render the shell immediately, load reactively, drive skeletons
-        off <code>isLoading</code>. Re-fetches when its params signal changes.
-      </td>
-      <td>You design the loading/empty/error states in the template.</td>
-    </tr>
-    <tr>
-      <td><strong>Guard</strong> (<code>CanActivate</code>)</td>
-      <td>Deciding <em>whether</em> the route may activate (auth, feature flag) — not fetching its content.</td>
-      <td>Returns boolean / UrlTree / RedirectCommand, not data.</td>
-    </tr>
-    <tr>
-      <td><strong>Component fetch</strong></td>
-      <td>Secondary or below-the-fold data, or anything where a spinner is acceptable UX.</td>
-      <td>First paint has no data — plan the flicker away with skeletons.</td>
-    </tr>
-  </table>
-  <div class="tip">
-    Rule of thumb in the signals era: reach for
-    <a routerLink="/resource-api"><code>resource()</code></a> first for responsiveness, and keep resolvers for the
-    small, critical, must-be-present-on-first-paint data.
-  </div>
+    <app-code-lab
+      file="user-page.component.ts"
+      [code]="readSample"
+      [notes]="readNotes"
+      notesLabel="Input binding, observable, or snapshot"
+    />
 
-  <h2>Static route data</h2>
-  <p>
-    The <code>data</code> property attaches fixed values to a route — read the exact same way as resolved data. Use it
-    for roles, breadcrumbs, feature flags, or anything a shared guard/component reads generically:
-  </p>
-  <div class="code">
-    <pre>{{ staticDataSample }}</pre>
-  </div>
-
-  <h2>Titles: the built-in string resolver</h2>
-  <p>
-    A route's <code>title</code> is really a tiny resolver: give it a string, or a
-    <code>ResolveFn&lt;string&gt;</code> for a dynamic one, and the router sets <code>document.title</code> for you.
-    Centralise formatting (e.g. append "· Angular Concepts") with a custom <code>TitleStrategy</code> — which is exactly
-    how this app titles every lesson page:
-  </p>
-  <div class="code">
-    <pre>{{ titleSample }}</pre>
-  </div>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Non-completing Observable → hung navigation.</strong> The router waits for completion, not the first
-      emission. Pipe <code>first()</code>/<code>take(1)</code> onto any long-lived stream you resolve.
-    </li>
-    <li>
-      <strong>Reading <code>snapshot.data</code> when the route is reused.</strong> On a param change with
-      <code>runGuardsAndResolvers</code>, the snapshot is stale — subscribe to <code>route.data</code> or bind an
-      <code>input()</code> instead.
-    </li>
-    <li>
-      <strong>Query-param changes don't re-resolve by default.</strong> Add
-      <code>runGuardsAndResolvers: 'paramsOrQueryParamsChange'</code> when <code>?page=</code> or
-      <code>?sort=</code> must refetch.
-    </li>
-    <li>
-      <strong>Heavy resolver = frozen app.</strong> Users perceive the whole app as hung during a slow resolver because
-      the URL hasn't changed yet. Prefer <code>resource()</code> for anything that can stream in.
-    </li>
-    <li>
-      <strong>Unhandled resolver error kills the navigation.</strong> It's a <code>NavigationError</code>, not a
-      component-level catch — handle it in the resolver (redirect / EMPTY / fallback value).
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>Your resolver returns <code>store.select(x)</code> and the page never loads. Why?</summary>
-    <div>
-      The selector is a long-lived Observable — it emits but never completes, so the router waits forever. Add
-      <code>.pipe(first())</code> so it completes after the first value.
+    <div class="tip">
+      With <code>provideRouter(routes, withComponentInputBinding())</code> (enabled in this app), each
+      <code>resolve</code> key, path param and query param binds straight to a matching component <code>input()</code> —
+      no <code>ActivatedRoute</code> plumbing at all. Prefer the observable <code>route.data</code> over
+      <code>snapshot.data</code> whenever the same component instance can be reused across a param change — the snapshot
+      is frozen at activation and simply won't update on a re-resolve.
     </div>
-  </details>
-  <details class="qa">
-    <summary>Do guards or resolvers run first?</summary>
-    <div>
-      Guards. <code>CanDeactivate</code> → <code>CanActivate</code>/<code>CanMatch</code> → <strong>resolvers</strong> →
-      activation. Resolvers run only if every guard passed, so you never fetch data for a route the user can't enter.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Navigating <code>/users/7?tab=posts</code> → <code>?tab=likes</code> doesn't refetch. Fix?</summary>
-    <div>
-      Only the query param changed, and the default is <code>'paramsChange'</code>. Set
-      <code>runGuardsAndResolvers: 'paramsOrQueryParamsChange'</code> on the route.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Resolver vs <code>resource()</code> — one line?</summary>
-    <div>
-      Resolver blocks navigation until small, critical data is ready (no flicker, but a slow fetch freezes the click).
-      <code>resource()</code> shows the route now and streams data in reactively (responsive, but you design the loading
-      state).
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How do you redirect from a resolver in modern Angular?</summary>
-    <div>
-      Return <code>new RedirectCommand(router.parseUrl('/somewhere'))</code>. Pre-17.1 you injected <code>Router</code>,
-      called <code>navigate()</code>, and returned <code>EMPTY</code> to abort the original navigation.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>A <code>ResolveFn&lt;T&gt;</code> pre-fetches data before activation, removing the first-paint flicker.</li>
-    <li>Resolvers run <em>after</em> guards, in parallel, and block navigation until all complete.</li>
-    <li>An Observable resolver must <strong>complete</strong> — pipe <code>first()</code> or the route hangs.</li>
-    <li>
-      Read via bound <code>input()</code>s or <code>route.data</code>; avoid stale <code>snapshot.data</code> on reused
-      routes.
-    </li>
-    <li>
-      <code>runGuardsAndResolvers</code> controls re-fetch on param/query changes; static <code>data</code> and
-      <code>title</code> use the same read path.
-    </li>
-    <li>Prefer <code>resource()</code> for anything that can stream in; keep resolvers for small, must-have data.</li>
-  </ul>
+  <!-- ============ 7. RE-RUNNING ============ -->
+  <section>
+    <p class="bf-eyebrow">Re-running</p>
+    <h2>Navigate from <code>/users/7</code> to <code>/users/9</code> — does the resolver fire again?</h2>
 
-  <p>
-    Drill routing with the <a routerLink="/practice">Routing challenges</a>, compare with
-    <a routerLink="/route-guards">Route Guards</a>, then continue to
-    <a routerLink="/route-params">Route &amp; Query Parameters →</a>
-  </p>
+    <p>
+      Angular reuses the same component instance across that navigation. By default the resolver does
+      <strong>not</strong> re-run on a query-param-only change — a classic "why is my data stale?" bug. The route's
+      <code>runGuardsAndResolvers</code> controls exactly when it does:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        runGuardsAndResolvers — when guards and resolvers re-run
+      </caption>
+      <thead>
+        <tr>
+          <th>Value</th>
+          <th>Re-runs when…</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>'paramsChange'</code> <em>(default)</em></td>
+          <td>a <strong>matrix/path param</strong> changes (<code>:id</code>). Query-only changes do NOT re-run.</td>
+        </tr>
+        <tr>
+          <td><code>'pathParamsChange'</code></td>
+          <td>only a path param changes — ignores matrix params.</td>
+        </tr>
+        <tr>
+          <td><code>'paramsOrQueryParamsChange'</code></td>
+          <td>any param OR query param changes — use when a page/sort query should refetch.</td>
+        </tr>
+        <tr>
+          <td><code>'pathParamsOrQueryParamsChange'</code></td>
+          <td>path params or query params, ignoring matrix params.</td>
+        </tr>
+        <tr>
+          <td><code>'always'</code></td>
+          <td>
+            every navigation that lands here, even same-URL. Pair with <code>onSameUrlNavigation: 'reload'</code> for a
+            "refresh" click.
+          </td>
+        </tr>
+        <tr>
+          <td>a <code>function</code></td>
+          <td>you return a boolean from <code>(from, to) =&gt; boolean</code> for full control.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 8. STATIC DATA & TITLES ============ -->
+  <section>
+    <p class="bf-eyebrow">The version with nothing to fetch</p>
+    <h2>Static data, and the resolver hiding inside a route's <code>title</code>.</h2>
+
+    <p>
+      <code>data</code> attaches fixed values to a route, read the exact same way as resolved data — roles, breadcrumbs,
+      feature flags, or anything a shared guard or component reads generically:
+    </p>
+
+    <app-code-lab
+      file="admin.routes.ts"
+      [code]="staticDataSample"
+      [notes]="staticDataNotes"
+      notesLabel="Fixed values, same read path"
+    />
+
+    <p>
+      <code>title</code> is really a tiny resolver of its own: a string, or a <code>ResolveFn&lt;string&gt;</code> for a
+      dynamic one. Centralise the formatting with a custom <code>TitleStrategy</code> — exactly how this app titles
+      every lesson page:
+    </p>
+
+    <app-code-lab
+      file="app-title.strategy.ts"
+      [code]="titleSample"
+      [notes]="titleNotes"
+      notesLabel="One string resolver, app-wide"
+    />
+  </section>
+
+  <!-- ============ 9. CHOOSING THE RIGHT TOOL ============ -->
+  <section>
+    <p class="bf-eyebrow">Choosing the right tool</p>
+    <h2>Resolver, resource(), guard, or component fetch?</h2>
+
+    <p>
+      Resolvers are not always the answer — blocking navigation for a big or slow fetch makes the whole app feel frozen.
+      Match the tool to the data:
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Resolver" kicker="blocks navigation" tone="gold">
+        Small, fast, must-have data the first paint depends on. Delays the route rather than flashing an empty shell —
+        keep it fast, or a slow resolver freezes the whole click.
+      </app-tape-card>
+      <app-tape-card heading="resource()" kicker="modern · streams in" tone="blue">
+        Shows the shell immediately and loads reactively. You design the loading, empty and error states, and it
+        re-fetches whenever its params signal changes.
+      </app-tape-card>
+      <app-tape-card heading="Guard" kicker="decides, doesn't fetch" tone="olive">
+        CanActivate / CanMatch decide WHETHER a route may proceed — auth, a feature flag. Never return data from one;
+        return a boolean, a UrlTree, or a RedirectCommand.
+      </app-tape-card>
+      <app-tape-card heading="Component fetch" kicker="simplest, worst first paint" tone="accent">
+        Fine for secondary or below-the-fold data where a spinner is acceptable UX. First paint always has nothing to
+        show.
+      </app-tape-card>
+    </div>
+
+    <div class="tip">
+      Rule of thumb in the signals era: reach for <a routerLink="/resource-api"><code>resource()</code></a> first for
+      responsiveness, and keep resolvers for the small, critical, must-be-present-on-first-paint data.
+    </div>
+  </section>
+
+  <!-- ============ 10. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Spot the bug: a "fixed" resolver that still hangs.</h2>
+
+    <app-quiz
+      question='A junior dev "fixes" the hanging resolver from earlier by wrapping it in `catchError(() => of(cachedUser))` — but never adds `first()` anywhere. Does navigation now complete?'
+      [options]="quizOptions"
+    />
+
+    <p>Five more ways this bites people in real code and in exams:</p>
+    <ul>
+      <li>
+        <strong>Non-completing Observable → hung navigation.</strong> The router waits for completion, not the first
+        emission — pipe <code>first()</code>/<code>take(1)</code> onto any long-lived stream you resolve.
+      </li>
+      <li>
+        <strong>Reading <code>snapshot.data</code> when the route is reused.</strong> On a param change with the default
+        <code>runGuardsAndResolvers</code>, the snapshot is stale — subscribe to <code>route.data</code> or bind an
+        <code>input()</code> instead.
+      </li>
+      <li>
+        <strong>Query-param changes don't re-resolve by default.</strong> Add
+        <code>runGuardsAndResolvers: 'paramsOrQueryParamsChange'</code> when a page or sort query must refetch.
+      </li>
+      <li>
+        <strong>Heavy resolver = frozen app.</strong> Users perceive the whole app as hung during a slow resolver
+        because the URL hasn't even moved yet. Prefer <code>resource()</code> for anything that can stream in.
+      </li>
+      <li>
+        <strong>An unhandled resolver error kills the navigation.</strong> It's a <code>NavigationError</code>, not a
+        component-level catch — handle it in the resolver itself, with a redirect or a fallback value.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six takeaways before you move on.</h2>
+
+    <ul>
+      <li>
+        A resolver is the <strong>maître d'</strong>, not the waiter — data is fetched <strong>before</strong> the route
+        activates, so the component never renders in a loading state at all.
+      </li>
+      <li>
+        Resolvers run only after every guard has passed, and every <code>resolve</code> key on the route runs
+        <strong>in parallel</strong> — navigation waits for the slowest one.
+      </li>
+      <li>
+        An Observable resolver must <strong>complete</strong>, not just emit. <code>first()</code>/<code>take(1)</code>
+        is the fix; skipping it hangs navigation with nothing in the console to notice.
+      </li>
+      <li>
+        Emitting immediately is <strong>not</strong> completing immediately — a cached, synchronous-looking value from a
+        long-lived stream can still hang the navigation exactly the same way.
+      </li>
+      <li>
+        An <strong>error</strong> is the opposite failure mode: it cancels the navigation instantly with
+        <code>NavigationError</code>, rather than hanging silently forever.
+      </li>
+      <li>
+        Prefer <code>resource()</code> for anything that can stream in after first paint; keep resolvers for the small,
+        must-have data that actually justifies delaying the click.
+      </li>
+    </ul>
+
+    <p>
+      Drill routing with the <a routerLink="/practice">Routing challenges</a>, compare with
+      <a routerLink="/route-guards">Route Guards</a>, then continue to
+      <a routerLink="/route-params">Route &amp; Query Parameters →</a>
+    </p>
+  </section>
 </article>
