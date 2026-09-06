@@ -1,6 +1,6 @@
 # Backlog
 
-**Version:** 1.1
+**Version:** 1.2
 **Last Updated:** 2026-09-06
 **Status:** Living document
 
@@ -339,15 +339,47 @@ each building their own unrelated lesson, independently noticed the resulting bu
 and flagged it — a small win of running full builds inside agent verification even when
 their own lesson isn't the culprit. Fixed in a standalone commit before continuing.
 
-**Lessons — remaining: 14.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Batch 12 — 8 more lessons landed 2026-09-06, rollout now 94 of 100.** All already 9/9,
+presentation-only: `intermediate/rxjs-operators`, `typescript/keyof-typeof`,
+`typescript/modules`, `intermediate/structural-directives`,
+`intermediate/ng-template-outlet`, `beginner/builtin-directives`,
+`intermediate/route-params`, `intermediate/content-projection`. Run as 8 parallel fresh
+agents; verified the same way as batches 8–11 — `prettier --check`, `tsc --noEmit`,
+`audit-retention.mjs` to 9/9, and every `CodeNote` line number manually recounted against
+its exact sample string. This was the cleanest batch yet: no bugs found in any of the 8
+lessons' pre-existing content or in any agent's CodeNote line numbers — a genuine result,
+not a skipped check, but keep recounting anyway; it has caught a real bug in 3 of the last
+5 batches and there is no way to tell which batch is next without doing it.
+
+Load-bearing pre-existing content was preserved rather than rewritten, per the batch
+prompts: `route-params`' live URL-dissector demo (path/matrix/query/fragment parsing,
+including the `getAll` vs `get` repeated-query-key trap) came through byte-identical;
+`rxjs-operators`' four-receptionists analogy, `builtin-directives`' NG8103 correction, and
+`modules`' static-vs-dynamic-`import()` `Compare` were all kept and rehoused rather than
+reinvented.
+
+The session hit an API rate limit right before this batch's first launch attempt (all 8
+agents failed immediately, `HTTP 429`, reset time given as a specific clock time) — it
+cleared on its own once that time passed, and a straight relaunch of all 8 with the same
+prompts worked with no other change needed. Separately, this batch's coordinating session
+saw the full test suite and a bare `ng build` both exit 0 with truncated/missing output on
+the first attempt, then pass cleanly with full output on an immediate retry — matching the
+project's already-documented environment segfault flakiness (see the ng-build/test
+segfault memory), not a real regression; one of the 8 agents independently confirmed the
+same flakiness exists on a clean `master` with no lesson changes at all, and that `npm ci`
+(which also repaired a corrupted cached esbuild/rollup tarball) reliably clears it.
+
+**Lessons — remaining: 6.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
-means rewriting it against the nine-point bar anyway. All 14 already score 9/9 from an
+means rewriting it against the nine-point bar anyway. All 6 already score 9/9 from an
 earlier (pre-brain-friendly) retention pass and just need the presentation layer built on
-top: `rxjs-operators`, `keyof-typeof`, `modules`, `structural-directives`,
-`ng-template-outlet`, `builtin-directives`, `route-params`, `content-projection`,
-`json-and-apis`, `attribute-directives`, `testing-services-http`, `data-dashboard`,
-`task-manager`, `auth-flow`. Roughly an hour each; the copy is the work, not the wiring.
-Read `src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
+top: `foundations/json-and-apis`, `intermediate/attribute-directives`,
+`intermediate/testing-services-http`, `projects/data-dashboard`, `projects/task-manager`,
+`projects/auth-flow`. Roughly an hour each; the copy is the work, not the wiring. The last
+three are `projects/` tier — full interactive builds (Kanban board, JWT login flow, sales
+dashboard), not single-concept lessons — so expect the migration to need more care staging
+the existing app-sized demo inside the new structure than a concept lesson does. Read
+`src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
 records the teaching order the layer is designed around (pose the problem → analogy →
 mechanism → same idea in four modes), and copying that shape is most of the job.
 

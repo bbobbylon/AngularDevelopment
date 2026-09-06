@@ -416,7 +416,7 @@ section rhythm, and the line-annotation rules.
 
 **Rollout state (2026-09-06):** the brain-friendly palette and typography are now the
 app's ONE unconditional default theme — every page, migrated or not, chrome included,
-inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). On top of that: 86 of 100
+inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). On top of that: 94 of 100
 lessons are through the combined retention + brain-friendly pass, and 5 of 15 non-lesson
 pages (home, certification, practice, mock-exam, review) have had their own colour/motion
 restyle. See `docs/BACKLOG.md` §1.2 for the current count before starting a batch — it is
