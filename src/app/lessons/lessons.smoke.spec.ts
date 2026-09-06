@@ -34,6 +34,12 @@ describe('lesson components', () => {
   });
 
   for (const lesson of written) {
+    // 20s, not vitest's 5s default: with ~100 lessons now mounted and destroyed in this
+    // one file, and each brain-friendly migration roughly doubling a lesson's component
+    // tree, whichever lesson lands on a GC pause occasionally tips a 5s budget even
+    // though no single lesson is actually slow in isolation. Same root cause already
+    // fixed once for the a11y WCAG scan (see SCAN_TIMEOUT_MS) — the fix is headroom,
+    // not trimming content.
     it(`${lesson.id} mounts and renders content`, async () => {
       const component = await lesson.loadComponent!();
 
@@ -61,6 +67,6 @@ describe('lesson components', () => {
       expect(host.querySelector('h1')).toBeTruthy();
 
       fixture.destroy();
-    });
+    }, 20000);
   }
 });
