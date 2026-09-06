@@ -1,45 +1,30 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
-}
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 120px;
-}
+/* Tables, callouts, demo panels, pills and the code window are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css) — the old `.t` table rules and the `.qa`
+   accordion are gone: the promise-states table uses the shared `<table>`/`<caption>` styling, and
+   the exam questions are an `<app-faq>` now, keyboard-accessible like every other migrated lesson.
 
-/* Fixed dark console — colours must not come from theme vars (see styles.css --code-fg note). */
+   What's left is the one genuinely bespoke widget on this page: the live execution-order log,
+   which is filled from a signal rather than being static code, so it can't go through
+   `<app-code-lab>`. It borrows the same editor-window feel as `.code` (dark surface, monospace)
+   so it reads as "the console" rather than as an unstyled list, using the same `--bf-code-*`
+   tokens so it still follows the reader's light/dark choice. */
+
 .console {
-  background: var(--code-bg);
-  color: var(--code-fg);
-  border-radius: 8px;
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
   padding: 10px 14px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   min-height: 80px;
-}
-.console .dim {
-  color: #8b93a8;
+  margin-top: 10px;
 }
 
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+/* Same muted tone the syntax highlighter uses for comments (`.hl-cmt` in
+   brain-friendly.css) — fixed, not a `--bf-ink-*` token, because this text sits on the
+   permanently-dark `--bf-code-bg` in both light and dark mode, and `--bf-ink-2` is tuned
+   for the page's own (theme-following) surface, not this one. */
+.console .dim {
+  color: #7f8792;
 }

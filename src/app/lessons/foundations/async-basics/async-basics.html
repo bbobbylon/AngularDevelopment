@@ -1,282 +1,362 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Programming from Zero</span>
-  <h1>Doing Things Later: Async</h1>
-  <p class="lead">
-    Some things are instant (<code>2 + 2</code>). Others take <em>time</em> — fetching data from a server, waiting for a
-    timer. Here's the constraint that shapes everything: <strong>JavaScript runs on one thread</strong>. One lane, one
-    instruction at a time — and it's the <em>same lane the page uses to respond to clicks and repaint</em>. If your code
-    stood still waiting two seconds for a server, the whole page would freeze for two seconds. So JavaScript never
-    waits. It starts slow work, keeps going, and handles the result <strong>later</strong>. This page is about how
-    "later" works.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="Foundations · Programming from Zero"
+    title="Doing Things Later: Async"
+    hand="or, why your code isn't allowed to just stand there and wait"
+    [stops]="stops"
+    [current]="4"
+  >
+    <p class="lead">
+      Some things are instant (<code>2 + 2</code>). Others take <em>time</em> — fetching data from a server, waiting for
+      a timer. Here's the constraint that shapes everything on this page:
+      <strong>JavaScript runs on a single thread</strong> — one lane, one instruction at a time — and it's the
+      <em>exact same lane</em> the page uses to respond to clicks and repaint the screen. This page is about what
+      JavaScript does instead of waiting.
+    </p>
+  </app-chapter>
 
-  <h2>The coffee-shop analogy</h2>
-  <p>
-    You order a coffee and the barista hands you a <strong>buzzer</strong>. You don't stand frozen at the counter — you
-    sit down, read, chat (the program keeps running). When the coffee is ready the buzzer goes off and you collect it.
-    Every async tool below is a variation on that buzzer:
-    <em>"I'll let you know when it's done."</em>
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>What happens while your code is busy?</h2>
 
-  <h2>Prove the order to yourself</h2>
-  <p>
-    The single most important fact: async code does <strong>not</strong> run where it's written — it runs when it's
-    ready, after the current code finishes. Predict the order these three print, then run it:
-  </p>
-  <div class="code">
-    <pre>
-console.log('A');                          // plain, instant
-setTimeout(() => console.log('B'), 0);     // "later" — even at 0ms!
+    <p>
+      Picture one line of code that genuinely takes two seconds to run — no network, no timer, just a slow calculation.
+      While it runs, <span class="key">nothing else on the lane can move</span>: not a click, not a scroll, not the
+      theme toggle at the top of this page. If JavaScript really did stand still and wait for slow things, the whole
+      page would freeze for exactly as long as the wait.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Would you bet on "the page freezes" or "everything still works fine" while that slow line runs? Keep your answer
+      in mind — the rest of this page is the reason you're right either way, because the language that actually ships
+      never lets that two-second freeze happen at all.
+    </app-napkin>
+
+    <p>
+      So JavaScript never waits. It starts slow work, keeps going, and deals with the result <strong>later</strong>.
+      Every tool on this page — <span class="term">callbacks</span>, <span class="term">Promises</span>,
+      <span class="term">async</span>/<span class="term">await</span> — is a different way of saying the same sentence:
+      <em>"I'll let you know when it's done."</em>
+    </p>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Every async tool below is the same buzzer.</h2>
+
+    <p>
+      You order a coffee, and instead of making you stand at the counter, the barista hands you a
+      <strong>buzzer</strong>. You sit down, read, chat — the program keeps running. When the coffee is ready, the
+      buzzer goes off and you collect it. Nobody stood frozen, and nobody had to guess when it would be ready; the
+      buzzer <em>announces</em> it.
+    </p>
+
+    <p>
+      Hold onto that picture. A <span class="term">callback</span> is the barista shouting your name across the shop. A
+      <span class="term">Promise</span> is the buzzer itself — an actual object you can hold, hand to someone else, or
+      set on the table and ignore for a while. <span class="term">async</span>/<span class="term">await</span> is the
+      same buzzer, just with a nicer way of saying "wait right here for the beep." Three outfits, one idea.
+    </p>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM: THE EVENT LOOP ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Async code runs when it's ready — never where it's written.</h2>
+
+    <p>
+      The single most important fact on this page: async code does <strong>not</strong> run at the spot it's written. It
+      runs later, and "later" follows one strict rule, forever, on a loop:
+    </p>
+
+    <app-flow
+      caption="One full lap of the event loop — the ordering rule the rest of this page is built on."
+      [steps]="eventLoopFlow"
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>Sync, then microtasks, then one macrotask — repeat.</strong> Every "what prints first?" question you'll
+      ever see is really asking which of those three buckets a line landed in.
+    </app-remember>
+
+    <p>
+      It's easy to blur <code>setTimeout</code> and "the event loop" into one vague idea of "stuff that happens later."
+      They're four separate actors with four separate jobs:
+    </p>
+
+    <app-bubbles
+      [turns]="eventLoopTalk"
+      caption="Note that `setTimeout` never runs anything itself — it only ever hands a function to someone else."
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — run it and watch the order for yourself</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="runOrder()" [disabled]="orderRunning()">▶ Run</button>
+        <button class="ghost" (click)="orderLog.set([])">Clear</button>
+      </div>
+      <div class="code">
+        <pre>
+console.log('A');
+setTimeout(() => console.log('B'), 0);
 console.log('C');</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — run it and watch the console</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="runOrder()" [disabled]="orderRunning()">▶ Run</button>
-      <button class="ghost" (click)="orderLog.set([])">Clear</button>
+      </div>
+      <div class="console">
+        @for (line of orderLog(); track $index) {
+          <div>{{ line }}</div>
+        } @empty {
+          <div class="dim">// output appears here…</div>
+        }
+      </div>
+      <p class="demo__note">
+        A, C, <em>then</em> B — even with a <span class="bf-break">0ms delay</span>. <code>setTimeout</code> hands the
+        callback to the browser and returns immediately; the callback only gets a turn once the current
+        run-to-completion — and, per the diagram above, every microtask — has finished. "Async" beats "0 milliseconds,"
+        every time.
+      </p>
     </div>
-    <div class="console">
-      @for (line of orderLog(); track $index) {
-        <div>{{ line }}</div>
-      } @empty {
-        <div class="dim">// output appears here…</div>
+
+    <p>
+      Now the harder version of the same question — the one that actually separates "read the docs once" from
+      "understands the rule":
+    </p>
+
+    <app-predict
+      prompt="What order do these four lines print in?"
+      [code]="orderingPredictSample"
+      [answer]="orderingPredictAnswer"
+      revealLabel="Reveal the order"
+    />
+  </section>
+
+  <!-- ============ 4. ROUND 1: CALLBACKS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Round 1</p>
+    <h2>Callbacks: pass a function to run when it's done.</h2>
+
+    <app-code-lab
+      file="callback.js"
+      [code]="callbackSample"
+      [notes]="callbackNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      Callbacks work fine for one step. The trouble starts when steps depend on each other — each "and then" nests
+      another level, one function inside the next:
+    </p>
+
+    <app-code-lab file="pyramid.js" [code]="pyramidSample" [notes]="pyramidNotes" notesLabel="Why it nests" />
+
+    <app-layers
+      [core]="{ label: 'loadInvoice(…)', sub: 'three levels deep' }"
+      [rings]="[
+        { label: 'loadUser(…)', sub: 'starts the chain' },
+        { label: 'loadOrders(…)', sub: 'nested one level' },
+      ]"
+      arrow="each level needs its own error handling"
+      caption="Every step waits for the one wrapping it. This nested shape is what people mean by **callback hell** — and it's also why an error thrown at the core has no single place to be caught."
+    />
+  </section>
+
+  <!-- ============ 5. ROUND 2: PROMISES ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Round 2</p>
+    <h2>Promises: the buzzer as an actual object.</h2>
+
+    <p>
+      A Promise makes "a value that will arrive" into a thing you can hold, store, and attach handlers to. It is always
+      in exactly one of three states:
+    </p>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        A Promise's three states — and only ever one at a time
+      </caption>
+      <tr>
+        <td><strong>pending</strong></td>
+        <td>still working — the buzzer hasn't gone off</td>
+      </tr>
+      <tr>
+        <td><strong>fulfilled</strong></td>
+        <td>done, with a value — <code>.then</code> handlers run</td>
+      </tr>
+      <tr>
+        <td><strong>rejected</strong></td>
+        <td>failed, with a reason — <code>.catch</code> handlers run</td>
+      </tr>
+    </table>
+
+    <app-code-lab
+      file="promise-chain.js"
+      [code]="promiseSample"
+      [notes]="promiseNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      A Promise settles exactly once — the buzzer can't ring twice. (Angular's Observables, coming later, are the "can
+      ring many times" upgrade to this same idea.)
+    </p>
+  </section>
+
+  <!-- ============ 6. ROUND 3: ASYNC / AWAIT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Round 3</p>
+    <h2>async/await: the same buzzer in plain clothes.</h2>
+
+    <app-code-lab
+      file="show-user.js"
+      [code]="asyncAwaitSample"
+      [notes]="asyncAwaitNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <p>
+      An <code>async</code> function always returns a Promise itself — its <code>return</code> value is what that
+      Promise fulfills with. Async is contagious: whoever calls you must <code>await</code> you, or <code>.then</code>
+      you.
+    </p>
+
+    <app-remember variant="rule">
+      <code>await</code> pauses only the <strong>function</strong> it's written in —
+      <span class="key">never the page</span>. If something on screen looks frozen, the bug is somewhere else.
+    </app-remember>
+
+    <div class="warn">
+      <strong>The <span class="bf-break">forgotten-await</span> bug</strong> — the most common async mistake in real
+      code. Forgetting <code>await</code> doesn't fail, or even print a warning — it just quietly hands you the buzzer
+      instead of the coffee.
+    </div>
+
+    <app-quiz
+      question="You write `const user = loadUser();` inside an `async` function, forgetting the `await` — and `loadUser()` genuinely does return a Promise. What actually happens?"
+      [options]="forgottenAwaitOptions"
+      followUp="When data looks wrong — `[object Promise]` on screen, or properties reading `undefined` — check for a missing `await` before anything else."
+    />
+  </section>
+
+  <!-- ============ 7. SEQUENTIAL VS PARALLEL ============ -->
+  <section>
+    <p class="bf-eyebrow">A real performance decision</p>
+    <h2>Awaiting one after another silently doubles your wait.</h2>
+
+    <app-compare
+      leftTitle="Sequential — waits twice"
+      rightTitle="Parallel — waits once"
+      leftTone="bad"
+      rightTone="good"
+      note="Independent requests should run in parallel — two 1-second calls take 1 second, not 2. Await sequentially only when step 2 genuinely needs step 1's answer."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ sequentialSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ parallelSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p>Interviewers ask this. Production code reviews flag it when it's missed.</p>
+  </section>
+
+  <!-- ============ 8. TRY IT — THE LIVE DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it yourself</p>
+    <h2>Start something slow, and watch the page keep going.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — a simulated 1.2s load</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="load()" [disabled]="status() === 'loading'">Load user data</button>
+        <span class="pill"
+          >promise state: {{ status() === 'loading' ? 'pending' : status() === 'done' ? 'fulfilled' : '—' }}</span
+        >
+      </div>
+      @if (status() === 'loading') {
+        <p>⏳ Working… (the page is still responsive — try the theme toggle or scroll)</p>
+      } @else if (status() === 'done') {
+        <p style="color: var(--green)">✅ Got it: {{ result() }}</p>
+      } @else {
+        <p style="color: var(--text-muted)">Press the button to start.</p>
       }
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px">
-      A, C, <em>then</em> B — even with a 0ms delay. <code>setTimeout</code> hands the callback to the browser and
-      returns <em>immediately</em>; the callback is only allowed back into the lane once the current run-to-completion
-      finishes. "Async" beats "0 milliseconds".
-    </p>
-  </div>
 
-  <h2>Round 1: Callbacks — pass a function to run when done</h2>
-  <div class="code">
-    <pre>
-setTimeout(() => {{ '{' }}
-  console.log('2 seconds passed!');   // runs LATER
-{{ '}' }}, 2000);
-console.log('this prints FIRST');     // the program didn't wait</pre>
-  </div>
-  <p>
-    This is the functions-are-values superpower from the Functions lesson: hand over a function (no parentheses —
-    unpressed!), and the browser calls it when the time comes. Callbacks work fine for one step. The trouble starts when
-    steps depend on each other — each "and then" nests another level:
-  </p>
-  <div class="code">
-    <pre>
-loadUser(id, (user) => {{ '{' }}
-  loadOrders(user, (orders) => {{ '{' }}
-    loadInvoice(orders[0], (invoice) => {{ '{' }}
-      // three levels deep and every level needs its own error handling…
-    {{ '}' }});
-  {{ '}' }});
-{{ '}' }});   // ← the "callback pyramid" / "callback hell"</pre>
-  </div>
+    <app-code-lab
+      file="lesson.component.ts"
+      [code]="liveDemoSample"
+      [notes]="liveDemoNotes"
+      notesLabel="Tracing this exact click"
+    />
 
-  <h2>Round 2: Promises — the buzzer as an object</h2>
-  <p>
-    A <strong>Promise</strong> makes "a value that will arrive" into a thing you can hold, store, and attach handlers
-    to. It is always in one of three states:
-  </p>
-  <table class="t">
-    <tr>
-      <td><strong>pending</strong></td>
-      <td>still working — the buzzer hasn't gone off</td>
-    </tr>
-    <tr>
-      <td><strong>fulfilled</strong></td>
-      <td>done, with a value — <code>.then</code> handlers run</td>
-    </tr>
-    <tr>
-      <td><strong>rejected</strong></td>
-      <td>failed, with a reason — <code>.catch</code> handlers run</td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>
-loadUser()                                    // returns a Promise instantly (pending)
-  .then(user => console.log('got', user))    // "when fulfilled, run this"
-  .catch(err => console.error('oops', err)); // "if rejected anywhere above, run this"</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Line 1</strong>: calling an async function doesn't give you the user — it gives you the
-      <em>promise of</em> a user, immediately, while work continues in the background.
-    </li>
-    <li>
-      <strong><code>.then</code></strong> registers a callback for success — and returns a <em>new</em> promise, so
-      thens chain flat instead of nesting: <code>loadUser().then(u =&gt; loadOrders(u)).then(o =&gt; …)</code>. The
-      pyramid becomes a pipeline.
-    </li>
-    <li>
-      <strong><code>.catch</code></strong> catches a failure from <em>any</em> earlier step — one error handler for the
-      whole chain, instead of one per level.
-    </li>
-    <li>
-      A promise settles exactly once — the buzzer can't ring twice. (Angular's Observables, coming later, are the "can
-      ring many times" upgrade.)
-    </li>
-  </ul>
-
-  <h2>Round 3: async / await — promises in plain clothes</h2>
-  <div class="code">
-    <pre>
-async function showUser() {{ '{' }}          // "async" marks: this function awaits inside
-  try {{ '{' }}
-    const user = await loadUser();     // pause THIS FUNCTION until fulfilled
-    const orders = await loadOrders(user);   // then this — reads top-to-bottom
-    console.log('got', orders);
-  {{ '}' }} catch (err) {{ '{' }}                     // any rejection above lands here
-    console.error('oops', err);
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>await</code></strong> unwraps a promise: instead of <code>.then(user =&gt; …)</code>, the resolved
-      value lands in a normal variable. The code below the await simply doesn't run until the promise settles.
-    </li>
-    <li>
-      <strong>Only the function pauses</strong> — not the page. At each <code>await</code>, the function steps out of
-      the lane and lets everything else run; it steps back in when the value arrives. Same buzzer, nicer syntax — it
-      <em>is</em> promises underneath.
-    </li>
-    <li>
-      <strong>Errors become ordinary <code>try/catch</code></strong> — the same construct you'd use for synchronous
-      mistakes.
-    </li>
-    <li>
-      An <code>async</code> function always returns a promise itself — its <code>return</code> value is what the promise
-      fulfills with. Async is contagious: whoever calls you must await you (or <code>.then</code> you).
-    </li>
-  </ul>
-
-  <div class="warn">
-    <strong>The forgotten-await bug</strong> — the most common async mistake in real code:
-    <code>const user = loadUser();</code> (no await) doesn't fail — it quietly puts a <em>Promise object</em> in the
-    variable instead of the user. The symptom is seeing <code>[object Promise]</code> on screen or
-    <code>undefined</code> properties. When data looks wrong, check for a missing <code>await</code> first.
-  </div>
-
-  <h2>Sequential vs parallel — a real performance decision</h2>
-  <div class="code">
-    <pre>
-// SEQUENTIAL — b doesn't even START until a finished (total: a + b time):
-const a = await loadProfile();
-const b = await loadSettings();
-
-// PARALLEL — start both immediately, then wait for both (total: the slower one):
-const [profile, settings] = await Promise.all([
-  loadProfile(),      // ← called with no await: both promises are now pending…
-  loadSettings(),
-]);                   // ← …and Promise.all bundles them into one awaitable</pre>
-  </div>
-  <p>
-    Independent requests should run in parallel — two 1-second calls take 1 second, not 2. Await sequentially only when
-    step 2 genuinely needs step 1's answer. Interviewers ask this; production code reviews flag it.
-  </p>
-
-  <h2>Try it — start something slow</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a simulated 1.2s load</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="load()" [disabled]="status() === 'loading'">Load user data</button>
-      <span class="pill"
-        >promise state: {{ status() === 'loading' ? 'pending' : status() === 'done' ? 'fulfilled' : '—' }}</span
-      >
+    <div class="note">
+      Angular mostly uses a cousin of Promises called <strong>Observables</strong> for data over time — a Promise
+      settles once, but an Observable can deliver many values (keystrokes, live prices). Every Observable skill still
+      builds on this page's mindset: start slow work, don't block, handle the result when it arrives, and always handle
+      the failure case too.
     </div>
-    @if (status() === 'loading') {
-      <p>⏳ Working… (the page is still responsive — try the theme toggle or scroll)</p>
-    } @else if (status() === 'done') {
-      <p style="color: var(--green)">✅ Got it: {{ result() }}</p>
-    } @else {
-      <p style="color: var(--text-muted)">Press the button to start.</p>
-    }
-    <div class="code" style="margin-top: 10px">
-      <pre>
-protected async load() {{ '{' }}
-  this.status.set('loading');                  // 1· instant: show the spinner
-  const data = await fakeServer(1200);         // 2· function pauses HERE; page lives on
-  this.result.set(data);                       // 3· resumes when fulfilled
-  this.status.set('done');
-{{ '}' }}</pre>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      This is the demo's actual source. Line 1 runs instantly, the UI repaints, and 1.2s later execution resumes at line
-      3. That idle-then-resume gap is all of async in one picture.
-    </p>
-  </div>
+  </section>
 
-  <div class="note">
-    Angular mostly uses a cousin of promises called <strong>Observables</strong>
-    for data over time (a promise settles once; an observable can deliver many values — keystrokes, live prices). But
-    every observable skill builds on this page's mindset: start slow work, don't block, handle the result when it
-    arrives, always handle the failure case too.
-  </div>
+  <!-- ============ 9. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Three rounds, one buzzer.</h2>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      Predict the output:
-      <code
-        >console.log(1); setTimeout(() =&gt; console.log(2), 0); Promise.resolve().then(() =&gt; console.log(3));
-        console.log(4);</code
-      >
-    </summary>
-    <div>
-      1, 4, 3, 2. Synchronous code first (1, 4). Then queued async work — and promise callbacks (called
-      <em>microtasks</em>) run before timer callbacks (<em>macrotasks</em>), so 3 beats 2. You rarely need the
-      micro/macro detail day-to-day, but "sync first, promises before timers" wins interview points.
+    <div class="bf-grid-3">
+      <app-tape-card heading="Callbacks" kicker="round 1">
+        Hand a function to run later. Simple for one step; nests into a pyramid once steps depend on each other.
+      </app-tape-card>
+      <app-tape-card heading="Promises" kicker="round 2" tone="accent">
+        The buzzer as an object — pending, fulfilled or rejected. <code>.then</code> chains flatten the pyramid; one
+        <code>.catch</code> covers the whole chain.
+      </app-tape-card>
+      <app-tape-card heading="async/await" kicker="round 3" tone="olive">
+        Same Promises, top-to-bottom syntax. <code>try</code>/<code>catch</code> for errors — but a missing
+        <code>await</code> is still the classic trap.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary>A template shows <code>[object Promise]</code> instead of a name. Diagnosis?</summary>
-    <div>
-      Somewhere a promise was assigned without being awaited/unwrapped — e.g.
-      <code>this.name = loadName()</code> instead of <code>this.name = await loadName()</code>. The variable holds the
-      buzzer, not the coffee.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why can't you just write a loop that waits until <code>done === true</code>?</summary>
-    <div>
-      A busy-wait loop occupies the single lane — the callback that would set <code>done = true</code> can never run,
-      and the page freezes forever. The lane must be <em>yielded</em> (function ends, or awaits) for queued work to run.
-      This is why async is cooperative, not optional.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Three independent API calls each take ~1s. Minimum total time, and how?</summary>
-    <div>
-      ~1 second: start all three without awaiting, then <code>await Promise.all([p1, p2, p3])</code>. Awaiting each in
-      turn costs ~3s. Caveat: Promise.all rejects as soon as ANY member rejects — use
-      <code>Promise.allSettled</code> when you want every result regardless of individual failures.
-    </div>
-  </details>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      JavaScript is single-threaded and shares its lane with the UI — so it <strong>never waits</strong>; slow work is
-      started, and its result handled later. Async callbacks run only after the current code finishes (A, C, B — even at
-      0ms).
-    </li>
-    <li>
-      Evolution: <strong>callbacks</strong> (nest into pyramids) → <strong>promises</strong> (pending →
-      fulfilled/rejected; <code>.then</code> chains flat, one <code>.catch</code> for the chain) →
-      <strong>async/await</strong> (same promises, top-to-bottom syntax, <code>try/catch</code> errors).
-    </li>
-    <li>
-      <code>await</code> pauses only the function, never the page; a missing await hands you the buzzer (<code
-        >[object Promise]</code
-      >) instead of the coffee.
-    </li>
-    <li>
-      Independent work runs in <strong>parallel</strong> with <code>Promise.all</code> — sequential awaits are a silent
-      performance bug.
-    </li>
-    <li>Observables (Angular's tool for values-over-time) are this same mindset, many-values edition.</li>
-  </ul>
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
 
-  <p><a routerLink="/json-and-apis">Next: Data on the Web — JSON &amp; APIs →</a></p>
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        JavaScript is single-threaded and shares its lane with the UI — so it <strong>never waits</strong>; slow work is
+        started, and its result is handled later. Async callbacks run only after the current code finishes and the
+        microtask queue is empty (A, C, <em>then</em> B — even at 0ms).
+      </li>
+      <li>
+        Evolution: <strong>callbacks</strong> (nest into pyramids) → <strong>Promises</strong> (pending →
+        fulfilled/rejected; <code>.then</code> chains flat, one <code>.catch</code> for the whole chain) →
+        <strong>async/await</strong> (same Promises, top-to-bottom syntax, <code>try</code>/<code>catch</code>
+        errors).
+      </li>
+      <li>
+        <code>await</code> pauses only the function, never the page; a missing <code>await</code> hands you the buzzer
+        (<code>[object Promise]</code>) instead of the coffee.
+      </li>
+      <li>
+        Independent work runs in <strong>parallel</strong> with <code>Promise.all</code> — sequential awaits are a
+        silent performance bug.
+      </li>
+      <li>Observables (Angular's tool for values-over-time) are this same mindset, many-values edition.</li>
+    </ul>
+
+    <p><a routerLink="/json-and-apis">Next: Data on the Web — JSON &amp; APIs →</a></p>
+  </section>
 </article>
