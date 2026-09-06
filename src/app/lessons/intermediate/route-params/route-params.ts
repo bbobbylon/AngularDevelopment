@@ -2,7 +2,10 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /** One parsed row in the URL playground. */
 interface ParsedEntry {
@@ -18,20 +21,112 @@ interface ParsedEntry {
  * array query params via getAll, matrix params, withComponentInputBinding and
  * the name-collision caveat, the everything-is-a-string trap, and the exam
  * questions. Includes a live demo that mutates this page's own query string.
+ *
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
+ * following the teaching order recorded on the reference implementation,
+ * `lessons/expert/change-detection/`:
+ *
+ * 1. **Pose the problem before naming it.** The lesson opens on one URL that
+ *    *looks* like a single string, and asks the reader to guess how many
+ *    genuinely different mechanisms are stapled together inside it.
+ * 2. **Analogy next, mechanism after.** The postal-address frame — street
+ *    address, delivery instructions, "once you're inside go to the kitchen",
+ *    a note stapled to one line of the address — gives path/query/fragment/
+ *    matrix somewhere to live before the router vocabulary has to carry any
+ *    weight on its own.
+ * 3. **Then the same idea in four modes.** Prose, a four-card visual restating
+ *    the analogy, the URL-dissector live demo (unchanged from the pre-migration
+ *    lesson — this is the load-bearing teaching device the migration was asked
+ *    to preserve), and an annotated `app-code-lab` reading the same four things
+ *    off a real `ActivatedRoute`.
+ * 4. **The reuse trap gets its own two modes.** A `Bubbles` dialogue between the
+ *    router, the component, the snapshot and the observable stages the same
+ *    mechanism an `app-flow` diagram lays out as steps — dialogue for the
+ *    *why*, steps for the *sequence*.
+ *
+ * ## The URL dissector
+ *
+ * `playgroundUrl` down to `fragment` below is the interactive demo this
+ * migration was told to preserve exactly: a live URL split into path segments,
+ * matrix params, query params (with repeated-key detection, since that is what
+ * `getAll` exists for) and the fragment. Every piece of its reactive state is a
+ * `signal`/`computed` — required for template binding under zoneless change
+ * detection, and also what makes the demo genuinely live rather than a static
+ * illustration.
  */
 @Component({
   selector: 'app-lesson-route-params',
-  imports: [RouterLink, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    TapeCard,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   templateUrl: './route-params.html',
   styleUrl: './route-params.css',
 })
 export class RouteParams {
+  /** The Routing stretch of the Intermediate track, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Child Routes & Lazy Loading', id: 'router-children-lazy' },
+    { label: 'Route Guards', id: 'route-guards' },
+    { label: 'Resolvers', id: 'resolvers' },
+    { label: 'Route Params' },
+    { label: 'HTTP CRUD', id: 'http-crud' },
+  ];
+
   /**
-   * Why a component survives a parameter change. Drawn out because the staleness
-   * bug is not really about `snapshot` — it is about this reuse decision, and once
-   * you can see where it happens the bug stops being surprising.
+   * The reuse mechanism, staged as a conversation. This is the two/three-party
+   * relationship learners reliably get backwards: they assume the *snapshot*
+   * is what goes stale, when really the router's reuse decision is what
+   * creates the conditions for staleness in the first place — the snapshot is
+   * just the object that is unlucky enough to have been read too early.
    */
-  protected readonly reuse = [
+  protected readonly reuseTalk: BubbleTurn[] = [
+    {
+      who: 'The component',
+      says: 'The URL just went from `/users/1` to `/users/2`. Are you destroying me and building a new one?',
+    },
+    {
+      who: 'The router',
+      says: "Depends. Same route *config* both times — same path template, `users/:id` — so no. I'm keeping you.",
+    },
+    {
+      who: 'The component',
+      says: "But the id changed. Doesn't that count for anything?",
+    },
+    {
+      who: 'The router',
+      says: 'Not to me. My reuse strategy checks the config, not the param values. I just push the new params onto you and move on.',
+    },
+    {
+      who: 'The snapshot',
+      says: 'Which is bad news for me — I already read the old id once, at construction, and nobody is telling me to read it again.',
+    },
+    {
+      who: 'The observable',
+      says: "I don't have that problem. I'm still subscribed. New params arrive, I re-emit, and whoever reads me sees `2` a moment later.",
+    },
+  ];
+
+  /**
+   * Why a component survives a parameter change, as a sequence of steps —
+   * the same mechanism as {@link reuseTalk}, in a different mode. Drawn out
+   * because the staleness bug is not really about `snapshot` — it is about
+   * this reuse decision, and once you can see where it happens the bug stops
+   * being surprising.
+   */
+  protected readonly reuse: FlowStep[] = [
     { label: 'URL changes', detail: '`/users/1` → `/users/2`' },
     {
       label: 'Router resolves a new snapshot tree',
@@ -40,7 +135,7 @@ export class RouteParams {
     {
       label: 'Diff against the current tree',
       detail: 'Same route *config*? Then reuse — param values are not consulted',
-      tone: 'accent' as const,
+      tone: 'accent',
     },
     {
       label: 'The node is kept',
@@ -49,7 +144,7 @@ export class RouteParams {
     {
       label: 'New params pushed onto it',
       detail: '`paramMap` emits. Anything you copied out earlier does not',
-      tone: 'warn' as const,
+      tone: 'warn',
     },
   ];
 
@@ -63,7 +158,7 @@ this.router.navigate([], { queryParams: { page: 2 } });
 // What is the URL now?`;
 
   /** Choices for the string-coercion check. */
-  protected readonly coercionOptions = [
+  protected readonly coercionOptions: QuizOption[] = [
     {
       text: '`NaN`, so the `isNaN` guard catches it',
       why: 'That would be the merciful outcome, and it is what people assume by analogy with `Number(undefined)`. But `paramMap.get` returns `null` for a missing key, not `undefined`, and the two coerce differently.',
@@ -84,7 +179,7 @@ this.router.navigate([], { queryParams: { page: 2 } });
   ];
 
   /** The doubts this lesson reliably leaves behind. */
-  protected readonly questions = [
+  protected readonly questions: FaqItem[] = [
     {
       q: 'When is `snapshot` actually fine?',
       a: 'When the route can never re-navigate to itself with different params — a detail page reached only from a list, and never from a link on the page itself. The trouble is that this is a property of your *whole app\'s* linking, not of the component, so it stops being true the day someone adds a "next record" button. The reactive read costs one `toSignal` and is never wrong, which is why it is the default advice.',
@@ -106,6 +201,8 @@ this.router.navigate([], { queryParams: { page: 2 } });
       a: 'They are params attached to a single URL segment — `/users;view=grid/7` — rather than to the whole URL, and they arrive in `paramMap` alongside path params. The appeal is scoping: state that belongs to one segment of a nested route does not leak into siblings. In practice they are rare, unfamiliar to most teams, and awkward to hand-write, so query params are the pragmatic default unless you have a genuine scoping problem.',
     },
   ];
+
+  // ── The URL dissector (preserve exactly — see class JSDoc) ─────────────────
 
   /**
    * The URL being dissected in the playground. Seeded with one of everything — a
@@ -193,8 +290,11 @@ this.router.navigate([], { queryParams: { page: 2 } });
    */
   protected readonly snapshotTheme = this.route.snapshot.queryParamMap.get('theme') ?? '(none)';
 
+  // ── Code samples ────────────────────────────────────────────────────────────
+
   /**
-   * Sample: declaring a parameterised route and reading it back.
+   * Sample: declaring a parameterised route and reading it back, snapshot next
+   * to reactive so the divergence is visible in one block.
    */
   protected readonly readSample = `{ path: 'users/:id', component: UserPage }
 <a [routerLink]="['/users', user.id]">View</a>
@@ -207,6 +307,30 @@ id = toSignal(this.route.paramMap.pipe(map(p => p.get('id'))));
 
 // snapshot (one-time read — goes stale if the route is reused):
 const id = this.route.snapshot.paramMap.get('id');`;
+
+  /** Line-by-line walkthrough of {@link readSample}. */
+  protected readonly readNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'A route config, not a component. `:id` is a **path param placeholder** — it matches any single segment (`/users/42`, `/users/abc`, anything) and whatever matched is handed back as a string under the key `id`. `component` says what mounts when this path matches.',
+    },
+    {
+      line: 2,
+      text: "`[routerLink]=\"['/users', user.id]\"` builds the path by handing the router an array of segments instead of a hand-written string. The router joins them with `/` — `['/users', 42]` becomes `/users/42` — so you never `+`-concatenate a URL yourself.",
+    },
+    {
+      line: 5,
+      text: "`inject(ActivatedRoute)` is the modern, function-based way to ask the DI system for this component's own activated route — the object holding everything the router matched to get here. `private` because nothing outside this class needs it directly.",
+    },
+    {
+      line: 8,
+      text: "`toSignal(...)` turns an RxJS Observable into a signal a template can read with `id()`. `.pipe(map(p => p.get('id')))` runs on every emission: `p` is a `ParamMap`, and `.get('id')` pulls out the string (or `null` if it is missing). Because `paramMap` is an Observable on the *same* `ActivatedRoute` the router reuses, this keeps re-emitting on every later navigation — no re-subscribe needed.",
+    },
+    {
+      line: 11,
+      text: "`route.snapshot` is a frozen picture of the route **at the moment this line ran** — usually once, in a constructor or `ngOnInit`. `.paramMap.get('id')` reads the same kind of string, but reads it exactly once. If the router reuses this component for a later navigation, this line never runs again and the value never changes.",
+    },
+  ];
 
   /**
    * Sample: `queryParamsHandling`, and what `merge` against `preserve` does to the
@@ -221,7 +345,9 @@ const id = this.route.snapshot.paramMap.get('id');`;
 router.navigate([], { queryParams: { page: null }, queryParamsHandling: 'merge' });`;
 
   /**
-   * Sample: repeated keys and `getAll`, since a query string can carry a list.
+   * Sample: what the dissector demo above reads by hand — repeated keys via
+   * `getAll`, the fragment as an Observable, and matrix params surfacing
+   * through `paramMap` rather than `queryParamMap`.
    */
   protected readonly arraysSample = `// repeated key → array
 // URL:  /list?tag=ng&tag=rxjs
@@ -234,6 +360,26 @@ route.fragment;                               // Observable<string | null>
 // matrix params — scoped to one segment: /users;view=grid;page=2
 route.snapshot.paramMap.get('view');          // 'grid'`;
 
+  /** Line-by-line walkthrough of {@link arraysSample}. */
+  protected readonly arraysNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: "`getAll('tag')` returns **every** value a repeated key carried, in order, as a string array. This is the only correct way to read `?tag=ng&tag=rxjs` — the URL is not malformed, it is a list.",
+    },
+    {
+      line: 4,
+      text: '`get(\'tag\')` on the exact same URL silently returns only the **first** match. Nothing about the call site tells you a value was dropped — this is the bug that reaches code review as "why did we lose the second tag?"',
+    },
+    {
+      line: 7,
+      text: '`route.fragment` is an `Observable<string | null>` — the `#hash` portion, kept separate from both param maps because it is not sent to the server at all. Subscribe to it (or `toSignal` it) the same way you would `paramMap`.',
+    },
+    {
+      line: 10,
+      text: "The trap in this whole block: matrix params look like they belong with query params — they're written with punctuation in the URL, not as a path segment — but the router surfaces them through **`paramMap`**, the same map path params use, never `queryParamMap`.",
+    },
+  ];
+
   /**
    * Sample: `withComponentInputBinding`, which binds path parameters, query
    * parameters and resolved data straight to `input()`s by name — no
@@ -245,4 +391,24 @@ route.snapshot.paramMap.get('view');          // 'grid'`;
 id   = input<string>();     // from /users/:id
 q    = input<string>();     // from ?q=...
 user = input<User>();       // from a resolver keyed 'user'`;
+
+  /** Line-by-line walkthrough of {@link inputSample}. */
+  protected readonly inputNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`withComponentInputBinding()` is a router *feature*, opted into once where routes are provided. Without it, none of the bindings below happen and the component must `inject(ActivatedRoute)` instead.',
+    },
+    {
+      line: 4,
+      text: 'A plain signal `input()` — no decorator, no constructor wiring. The router looks for a path param named `id` and writes it here automatically, by **name only**.',
+    },
+    {
+      line: 5,
+      text: 'Same mechanism, a query param this time. The router does not care which source a name came from — which is exactly the collision risk the warning below spells out.',
+    },
+    {
+      line: 6,
+      text: "A **resolver's** resolved value binds the same way, matched by the key it was registered under in the route's `resolve` object. One `input()` API covers all three sources.",
+    },
+  ];
 }

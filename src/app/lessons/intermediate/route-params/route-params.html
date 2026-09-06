@@ -1,307 +1,474 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Routing</span>
-  <h1>Route &amp; Query Parameters</h1>
-  <p class="lead">
-    Routes carry data in the URL two ways: <strong>path params</strong> (<code>/users/42</code>) identify a resource,
-    and <strong>query params</strong>
-    (<code>?sort=name&amp;page=2</code>) carry optional, shareable state. Read them reactively — the URL is state, and
-    the same component often stays mounted while that state changes.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Angular Intermediate · Routing"
+    title="Route &amp; Query Parameters"
+    hand="or, how one URL carries four different messages stapled together"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      Routes carry data in the URL <strong>four</strong> different ways, and they are read through four different APIs —
+      <span class="term">path params</span>, <span class="term">query params</span>,
+      <span class="term">matrix params</span> and the <span class="term">fragment</span>. Confusing them is the single
+      most common routing bug this app's exam bank sees. Read them reactively — the URL is state, and the same component
+      often stays mounted while that state changes underneath it.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: a postal address</h2>
-  <p>
-    A URL carries several kinds of information at once, and they are as different from each other as the parts of an
-    address on a parcel. <strong>Path params</strong> are the street address — they say <em>which</em> house, they are
-    required, and changing one sends you somewhere else entirely. <strong>Query params</strong> are the delivery
-    instructions written on the label: "leave at the back door, ring twice." Optional, reorderable, and they never
-    change which house you are going to. The <strong>fragment</strong> is "and once you are inside, go to the kitchen" —
-    so purely a within-the-page instruction that the browser does not even send it to the server. And
-    <strong>matrix params</strong> are a note stapled to one specific line of the address rather than to the parcel as a
-    whole.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>One URL. How many messages is it actually carrying?</h2>
 
-  <app-remember>
-    <strong>Path says <u>which</u>. Query says <u>how</u>. Fragment says <u>where on the page</u>.</strong> If removing
-    it still leaves a URL that makes sense, it belongs in the query string.
-  </app-remember>
+    <p>
+      Here's a URL: <code>/users/42;view=grid?tag=ng&amp;tag=rxjs&amp;sort=name#bio</code>. It reads as one string, and
+      that is exactly the trap — it is <strong>not</strong> one piece of information. It is four completely different
+      mechanisms, concatenated with no visual seam between them, and the router reads each one through a different API.
+      Treat them as interchangeable, which is the natural first assumption, and you'll write code that reads a value
+      from the wrong place — or worse, code that reads a value which quietly
+      <span class="bf-break">went stale</span> the moment you stopped looking at it.
+    </p>
 
-  <h2>Live — dissect a URL</h2>
-  <p>
-    Edit the URL and watch the four mechanisms separate out. Try deleting <code>?tag=ng&amp;</code>, or adding a second
-    <code>;</code> param to a segment:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — one URL, four kinds of parameter</p>
-    <div class="row" style="margin-bottom: 12px">
-      <input
-        aria-label="URL to dissect"
-        [value]="playgroundUrl()"
-        (input)="playgroundUrl.set($any($event.target).value)"
-        style="flex: 1; font-family: var(--font-mono, monospace)"
-      />
+    <app-napkin lead="quick guess —" label="Predict before reading on">
+      Look at that URL again: <code>/users/42;view=grid?tag=ng&amp;tag=rxjs&amp;sort=name#bio</code>. Before you scroll
+      — how many genuinely <em>different kinds</em> of parameter do you think are hiding in there, and which one of them
+      do you think the server never even receives? There's a live dissector further down to check yourself against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A URL is a parcel with four different labels on it.</h2>
+
+    <p>
+      Picture a parcel being delivered. <strong>Path params</strong> are the street address — they say
+      <em>which</em> house, they are required, and changing one sends the courier somewhere else entirely.
+      <strong>Query params</strong> are the delivery instructions written on the label: "leave at the back door, ring
+      twice." Optional, reorderable, and they never change which house the parcel is going to. The
+      <strong>fragment</strong> is "and once you're inside, go to the kitchen" — purely a within-the-house instruction
+      that the courier (the browser) never even passes on to the depot (the server). And
+      <strong>matrix params</strong> are a note stapled to one specific line of the address rather than to the parcel as
+      a whole.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Path says <u>which</u>. Query says <u>how</u>. Fragment says <u>where on the page</u>.</strong> If
+      removing a param still leaves a URL that makes sense, it belongs in the query string.
+    </app-remember>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Path param" kicker="/users/42" tone="accent">
+        The street address. Required — remove it and there's no house to deliver to. Changing it sends you somewhere
+        else entirely, and the router treats it as a different resource.
+      </app-tape-card>
+      <app-tape-card heading="Query param" kicker="?sort=name&amp;page=2" tone="olive">
+        The delivery instructions on the label. Optional, reorderable, shareable — and they never change which resource
+        you're looking at, only how you're looking at it.
+      </app-tape-card>
+      <app-tape-card heading="Fragment" kicker="#bio" tone="blue">
+        "Once you're inside, go to the kitchen." A purely within-page instruction — the browser never even sends it to
+        the server, so a resolver or a guard can never see it.
+      </app-tape-card>
+      <app-tape-card heading="Matrix param" kicker=";view=grid" tone="gold">
+        A note stapled to one specific line of the address, not the parcel as a whole. Rare in practice, and it rides
+        along in <code>paramMap</code>, not <code>queryParamMap</code> — the first surprise this lesson proves.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 3. THE SAME IDEA IN MULTIPLE MODES: THE LIVE DISSECTOR ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Now watch the router actually pull it apart.</h2>
+
+    <p>
+      Everything above was the analogy. Here is the same idea made real: edit the URL below and watch the four
+      mechanisms separate out into four different rows, read by four different pieces of API. Try deleting
+      <code>?tag=ng&amp;</code>, or adding a second <code>;</code> param to a segment:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — one URL, four kinds of parameter</p>
+      <div class="row" style="margin-bottom: 12px">
+        <input
+          aria-label="URL to dissect"
+          [value]="playgroundUrl()"
+          (input)="playgroundUrl.set($any($event.target).value)"
+          style="flex: 1; font-family: var(--font-mono, monospace)"
+        />
+      </div>
+
+      <table>
+        <caption class="bf-table-caption">
+          split live, row by row
+        </caption>
+        <tr>
+          <th scope="row">Path segments</th>
+          <td>
+            @for (s of segments(); track $index) {
+              <code>{{ s }}</code>
+              @if (!$last) {
+                <span> / </span>
+              }
+            } @empty {
+              <em>(none)</em>
+            }
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">
+            Matrix params<br /><small>read via <code>paramMap</code></small>
+          </th>
+          <td>
+            @for (p of matrixParams(); track $index) {
+              <code>{{ p.key }} = {{ p.value }}</code>
+              <span>&nbsp;</span>
+            } @empty {
+              <em>(none)</em>
+            }
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">
+            Query params<br /><small>read via <code>queryParamMap</code></small>
+          </th>
+          <td>
+            @for (p of queryParams(); track $index) {
+              <code>{{ p.key }} = {{ p.value }}</code>
+              <span>&nbsp;</span>
+            } @empty {
+              <em>(none)</em>
+            }
+            @if (repeatedKeys().length) {
+              <p style="color: var(--accent); font-size: 0.85rem; margin: 6px 0 0">
+                Repeated:
+                @for (k of repeatedKeys(); track k) {
+                  <code>{{ k }}</code>
+                }
+                — <code>get()</code> gives you only the first. Use <code>getAll()</code>.
+              </p>
+            }
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">Fragment<br /><small>never sent to the server</small></th>
+          <td>
+            @if (fragment(); as f) {
+              <code>{{ f }}</code>
+            } @else {
+              <em>(none)</em>
+            }
+          </td>
+        </tr>
+      </table>
     </div>
 
-    <table class="cmp">
+    <p>
+      That table is the demo; this is the same four reads written the way you'd actually write them against a real
+      <code>ActivatedRoute</code> — repeated keys, the fragment as an Observable, and the matrix-param surprise the last
+      card flagged:
+    </p>
+
+    <app-code-lab
+      file="route-params-demo.ts — reading the same four things for real"
+      [code]="arraysSample"
+      [notes]="arraysNotes"
+      notesLabel="Line by line — get vs getAll, fragment, and the matrix-param gotcha"
+    />
+  </section>
+
+  <!-- ============ 4. DECLARING & READING PATH PARAMS ============ -->
+  <section>
+    <p class="bf-eyebrow">Reading them for real</p>
+    <h2>Declare a param, then read it — two ways, one very different outcome.</h2>
+
+    <app-code-lab
+      file="user-page.ts — declaring and reading a path param"
+      [code]="readSample"
+      [notes]="readNotes"
+      notesLabel="Line by line — what every symbol is"
+    />
+
+    <div class="warn">
+      Prefer the <strong>observable</strong> <code>paramMap</code> over the snapshot. Navigating <code>/users/1</code> →
+      <code>/users/2</code> reuses the component — the router doesn't destroy and recreate it for a param change — so
+      <code>snapshot.paramMap</code> is <span class="bf-break">frozen at the first activation</span> and never updates,
+      while the observable emits the new id. This is the single most common routing bug in reviews.
+    </div>
+  </section>
+
+  <!-- ============ 5. WHY THE REUSE TRAP EXISTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Why would the same id ever go stale?</h2>
+
+    <p>
+      The staleness bug above is not really about <code>snapshot</code> being a bad API. It is about a decision the
+      router makes in the middle, before either the snapshot or the observable ever gets a say. Staged as a conversation
+      first:
+    </p>
+
+    <app-bubbles
+      [turns]="reuseTalk"
+      caption="The exchange a `/users/1` → `/users/2` navigation actually sets off. Note that the reuse decision never once looks at the id."
+    />
+
+    <p>Reduced to steps, that's the same decision path:</p>
+
+    <app-flow
+      [steps]="reuse"
+      caption="Reuse is keyed on the route *config*, not the param values — which is exactly why a component can outlive the id it was built for."
+    />
+
+    <ul>
+      <li>
+        <strong>There's no typed route syntax.</strong> A path like <code>users/:id</code> matches any segment verbatim
+        — the router never validates or coerces it, so <code>/users/abc</code> matches just as well as
+        <code>/users/1</code>. That's the actual reason params are always strings: nothing upstream ever had a number to
+        give you.
+      </li>
+      <li>
+        <strong>Query params live on the URL tree, not the route match.</strong> Changing <code>?sort=</code> alone
+        doesn't change which route or component activates — only the path segments decide that — which is also why a
+        query-param-only navigation can reuse the component even under a stricter reuse strategy.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 6. LIVE — THE TRAP MADE VISIBLE ============ -->
+  <section>
+    <p class="bf-eyebrow">Prove it to yourself</p>
+    <h2>Click the links; watch the snapshot freeze.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — these links rewrite <code>?theme=…&amp;sort=…</code></p>
+      <div class="row" style="margin-bottom: 10px">
+        <a routerLink="." [queryParams]="{ theme: 'dark', sort: 'name' }" queryParamsHandling="merge">theme=dark</a>
+        <a routerLink="." [queryParams]="{ theme: 'light', sort: 'date' }" queryParamsHandling="merge">theme=light</a>
+        <a routerLink="." [queryParams]="{}">clear</a>
+      </div>
+      <ul>
+        <li>
+          <code>theme</code> = <strong>{{ theme() ?? '(none)' }}</strong>
+        </li>
+        <li>
+          <code>sort</code> = <strong>{{ sort() ?? '(none)' }}</strong>
+        </li>
+      </ul>
+      <p class="demo__note">
+        Look at the address bar — the state lives in the URL, so it's bookmarkable and shareable. The component instance
+        never changes; the signals just re-emit.
+      </p>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Live — click the theme links above, then compare these two rows</p>
+      <ul>
+        <li>
+          <code>route.snapshot.queryParamMap.get('theme')</code> — read once, on init:
+          <strong>{{ snapshotTheme }}</strong>
+        </li>
+        <li>
+          <code>route.queryParamMap</code> observable — re-reads on every navigation:
+          <strong>{{ theme() ?? '(none)' }}</strong>
+        </li>
+      </ul>
+      <p class="demo__note">
+        The snapshot row is frozen forever at whatever the URL was when this component was created; the observable row
+        keeps updating as you click the links. This is the exact bug from the warning above, made visible on the same
+        page.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 7. QUERYPARAMSHANDLING ============ -->
+  <section>
+    <p class="bf-eyebrow">Setting query params</p>
+    <h2>Merge, replace or preserve — pick wrong and pagination erases your filters.</h2>
+
+    <app-predict
+      prompt="Paginating a search page. Nothing here looks unusual — which is the problem. What is in the address bar afterwards?"
+      [code]="handlingTrap"
+      answer="`/search?page=2`. The search term, the sort and the view are gone. The default for `queryParamsHandling` is to *replace* the entire query string with what you passed, not to merge into it — so every param you did not mention is dropped. The bug reports arrive as &quot;pagination resets my filters&quot;, which sounds like a state-management problem and is actually one missing option. Pass `queryParamsHandling: 'merge'` and the other three survive; set a key to `null` in the same call when you genuinely want to remove it."
+    />
+
+    <p>What happens to the query params already in the URL depends entirely on this option:</p>
+    <table>
+      <caption class="bf-table-caption">
+        one option, three behaviours
+      </caption>
       <tr>
-        <th scope="row">Path segments</th>
-        <td>
-          @for (s of segments(); track $index) {
-            <code>{{ s }}</code>
-            @if (!$last) {
-              <span> / </span>
-            }
-          } @empty {
-            <em>(none)</em>
-          }
-        </td>
+        <th>Value</th>
+        <th>Effect on existing query params</th>
       </tr>
       <tr>
-        <th scope="row">
-          Matrix params<br /><small>read via <code>paramMap</code></small>
-        </th>
-        <td>
-          @for (p of matrixParams(); track $index) {
-            <code>{{ p.key }} = {{ p.value }}</code>
-            <span>&nbsp;</span>
-          } @empty {
-            <em>(none)</em>
-          }
-        </td>
+        <td><code>''</code> <em>(default)</em></td>
+        <td>replaced entirely by the new <code>[queryParams]</code> (drops the rest).</td>
       </tr>
       <tr>
-        <th scope="row">
-          Query params<br /><small>read via <code>queryParamMap</code></small>
-        </th>
-        <td>
-          @for (p of queryParams(); track $index) {
-            <code>{{ p.key }} = {{ p.value }}</code>
-            <span>&nbsp;</span>
-          } @empty {
-            <em>(none)</em>
-          }
-          @if (repeatedKeys().length) {
-            <p style="color: var(--accent); font-size: 0.85rem; margin: 6px 0 0">
-              Repeated:
-              @for (k of repeatedKeys(); track k) {
-                <code>{{ k }}</code>
-              }
-              — <code>get()</code> gives you only the first. Use <code>getAll()</code>.
-            </p>
-          }
-        </td>
+        <td><code>'merge'</code></td>
+        <td>merged — new keys added/overwritten, others kept. Set a key to <code>null</code> to remove it.</td>
       </tr>
       <tr>
-        <th scope="row">Fragment<br /><small>never sent to the server</small></th>
-        <td>
-          @if (fragment(); as f) {
-            <code>{{ f }}</code>
-          } @else {
-            <em>(none)</em>
-          }
-        </td>
+        <td><code>'preserve'</code></td>
+        <td>keeps the current query params, ignores the new ones.</td>
       </tr>
     </table>
-  </div>
-
-  <h2>Declaring &amp; reading path params</h2>
-  <div class="code">
-    <pre>{{ readSample }}</pre>
-  </div>
-  <div class="warn">
-    Prefer the <strong>observable</strong> <code>paramMap</code> over the snapshot. Navigating <code>/users/1</code> →
-    <code>/users/2</code> reuses the component (the router doesn't destroy and recreate it for a param change), so
-    <code>snapshot.paramMap</code> is <em>frozen at the first activation</em> and never updates — the observable emits
-    the new id. This is the single most common routing bug in reviews.
-  </div>
-
-  <h2>Live — query params on this very page</h2>
-  <div class="demo">
-    <p class="demo__title">Live — these links rewrite <code>?theme=…&amp;sort=…</code></p>
-    <div class="row" style="margin-bottom: 10px">
-      <a routerLink="." [queryParams]="{ theme: 'dark', sort: 'name' }" queryParamsHandling="merge">theme=dark</a>
-      <a routerLink="." [queryParams]="{ theme: 'light', sort: 'date' }" queryParamsHandling="merge">theme=light</a>
-      <a routerLink="." [queryParams]="{}">clear</a>
+    <div class="code">
+      <pre>{{ handlingSample }}</pre>
     </div>
+  </section>
+
+  <!-- ============ 8. COMPONENT INPUT BINDING ============ -->
+  <section>
+    <p class="bf-eyebrow">Skipping <code>ActivatedRoute</code> entirely</p>
+    <h2>Or don't inject anything — bind params straight to inputs.</h2>
+
+    <app-code-lab
+      file="user-page.ts — withComponentInputBinding"
+      [code]="inputSample"
+      [notes]="inputNotes"
+      notesLabel="Line by line — one input() API, three sources"
+    />
+
+    <div class="warn">
+      Path params, query params <em>and</em> resolved data all bind to inputs by matching name — so
+      <strong>avoid name collisions</strong> (a path <code>:id</code> and a <code>?id=</code> and a resolver keyed
+      <code>id</code> all target one input, and only one wins). Also: params are always <strong>strings</strong> or
+      <code>null</code>. <code>get('id')</code> gives <code>'42'</code>, not <code>42</code> — convert with
+      <code>Number(id)</code> and validate, guarding the <code>null</code> case before parsing.
+    </div>
+  </section>
+
+  <!-- ============ 9. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Four kinds of parameter, one summary.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        the whole lesson, one row per mechanism
+      </caption>
+      <thead>
+        <tr>
+          <th>Kind</th>
+          <th>Identifies or describes?</th>
+          <th>Required?</th>
+          <th>Sent to the server?</th>
+          <th>Read via</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Path</strong> — <code>/users/42</code></td>
+          <td>Identifies the resource</td>
+          <td>Yes — the route config demands it</td>
+          <td>Yes</td>
+          <td><code>paramMap</code></td>
+        </tr>
+        <tr>
+          <td><strong>Query</strong> — <code>?sort=name</code></td>
+          <td>Describes how you're viewing it</td>
+          <td>No</td>
+          <td>Yes</td>
+          <td><code>queryParamMap</code></td>
+        </tr>
+        <tr>
+          <td><strong>Fragment</strong> — <code>#bio</code></td>
+          <td>Where on the page</td>
+          <td>No</td>
+          <td><span class="bf-break">No — browser-only</span></td>
+          <td><code>route.fragment</code></td>
+        </tr>
+        <tr>
+          <td><strong>Matrix</strong> — <code>;view=grid</code></td>
+          <td>Scoped to one segment</td>
+          <td>No</td>
+          <td>Yes</td>
+          <td><code>paramMap</code> <em>(same as path!)</em></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip">
+      The fastest heuristic in code review:
+      <strong>path params are required by the route definition; query params never are.</strong> If you can delete it
+      and the URL still parses to a sensible route, it was never a path param.
+    </div>
+  </section>
+
+  <!-- ============ 10. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls that show up in exams &amp; code review</p>
+    <h2>The five ways this bites in practice.</h2>
     <ul>
       <li>
-        <code>theme</code> = <strong>{{ theme() ?? '(none)' }}</strong>
+        <strong>Stale snapshot on reuse.</strong> Read <code>route.paramMap</code> (observable/signal), not
+        <code>snapshot.paramMap</code>, when the same route can re-navigate with different params.
       </li>
       <li>
-        <code>sort</code> = <strong>{{ sort() ?? '(none)' }}</strong>
+        <strong>Everything is a string.</strong> <code>+id</code> / <code>Number(id)</code>; a missing param is
+        <code>null</code>, so parse defensively.
+      </li>
+      <li>
+        <strong>Default handling drops query params.</strong> Omitting <code>queryParamsHandling</code> replaces the
+        whole query string — use <code>'merge'</code> to keep the rest.
+      </li>
+      <li>
+        <strong><code>get</code> vs <code>getAll</code>.</strong> Repeated keys need <code>getAll</code>;
+        <code>get</code> silently returns just the first.
+      </li>
+      <li>
+        <strong>Query params don't re-run resolvers by default.</strong> That's a
+        <code>runGuardsAndResolvers</code> setting — see <a routerLink="/resolvers">Resolvers</a>.
       </li>
     </ul>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Look at the address bar — the state lives in the URL, so it's bookmarkable and shareable. The component instance
-      never changes; the signals just re-emit.
-    </p>
-  </div>
 
-  <h2>Live — snapshot vs observable, side by side</h2>
-  <div class="demo">
-    <p class="demo__title">Live — click the theme links above, then compare these two rows</p>
+    <app-quiz
+      question="A component runs `const id = Number(route.snapshot.paramMap.get('id'));` and then guards with `if (isNaN(id)) return;`. The URL has no `id` at all. What is `id`?"
+      [options]="coercionOptions"
+      followUp="The habit worth forming: check the string for `null` before you convert it, not the number for `NaN` afterwards. `NaN` cannot tell you the difference between a missing param and a param that said `banana` — and only one of those is worth a 404."
+    />
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Recap — before you go</p>
+    <h2>Six things to remember.</h2>
     <ul>
       <li>
-        <code>route.snapshot.queryParamMap.get('theme')</code> — read once, on init:
-        <strong>{{ snapshotTheme }}</strong>
+        <strong>Path params identify</strong> a resource (<code>:id</code>); <strong>query params describe</strong> how
+        you're viewing it; the <strong>fragment</strong> never leaves the browser; <strong>matrix params</strong>
+        scope to one segment.
       </li>
       <li>
-        <code>route.queryParamMap</code> observable — re-reads on every navigation:
-        <strong>{{ theme() ?? '(none)' }}</strong>
+        Read via the reactive <code>paramMap</code>/<code>queryParamMap</code> (or a signal from <code>toSignal</code>),
+        not the snapshot, on any route that can reuse its component.
+      </li>
+      <li>
+        The router reuses a component whenever the matched route <em>config</em> is unchanged — param values are never
+        part of that decision, which is the entire reason a snapshot can go stale.
+      </li>
+      <li>
+        <code>queryParamsHandling: 'merge'</code> preserves existing query params; the default replaces the whole query
+        string.
+      </li>
+      <li>A repeated query key needs <code>getAll</code>; <code>get</code> silently returns only the first.</li>
+      <li>
+        Params are strings — convert explicitly. <code>Number(null)</code> is <code>0</code>, not <code>NaN</code>, so
+        check for <code>null</code> before you convert; <code>withComponentInputBinding()</code> maps them to inputs
+        (mind name collisions).
       </li>
     </ul>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The snapshot row is frozen forever at whatever the URL was when this component was created; the observable row
-      keeps updating as you click the links. This is the exact bug from the warning above, made visible on the same
-      page.
-    </p>
-  </div>
 
-  <h2>Setting query params: <code>queryParamsHandling</code></h2>
-
-  <app-predict
-    prompt="Paginating a search page. Nothing here looks unusual — which is the problem. What is in the address bar afterwards?"
-    [code]="handlingTrap"
-    answer="`/search?page=2`. The search term, the sort and the view are gone. The default for `queryParamsHandling` is to *replace* the entire query string with what you passed, not to merge into it — so every param you did not mention is dropped. The bug reports arrive as &quot;pagination resets my filters&quot;, which sounds like a state-management problem and is actually one missing option. Pass `queryParamsHandling: 'merge'` and the other three survive; set a key to `null` in the same call when you genuinely want to remove it."
-  />
-
-  <p>What happens to the query params already in the URL depends entirely on this option:</p>
-  <table class="cmp">
-    <tr>
-      <th>Value</th>
-      <th>Effect on existing query params</th>
-    </tr>
-    <tr>
-      <td><code>'' </code><em>(default)</em></td>
-      <td>replaced entirely by the new <code>[queryParams]</code> (drops the rest).</td>
-    </tr>
-    <tr>
-      <td><code>'merge'</code></td>
-      <td>merged — new keys added/overwritten, others kept. Set a key to <code>null</code> to remove it.</td>
-    </tr>
-    <tr>
-      <td><code>'preserve'</code></td>
-      <td>keeps the current query params, ignores the new ones.</td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>{{ handlingSample }}</pre>
-  </div>
-
-  <h2>Arrays, fragments &amp; matrix params</h2>
-  <div class="code">
-    <pre>{{ arraysSample }}</pre>
-  </div>
-  <div class="note">
-    A key repeated in the URL (<code>?tag=a&amp;tag=b</code>) is read with
-    <code>queryParamMap.getAll('tag')</code> → <code>['a','b']</code>; <code>get('tag')</code> returns only the first.
-    <strong>Matrix params</strong>
-    (<code>/users;view=grid;page=2</code>) attach to a single segment and live in
-    <code>paramMap</code> — handy for scoping state to one route segment rather than the whole URL.
-  </div>
-
-  <h2>Component input binding</h2>
-  <div class="code">
-    <pre>{{ inputSample }}</pre>
-  </div>
-  <div class="warn">
-    With <code>withComponentInputBinding()</code>, path params, query params <em>and</em> resolved data all bind to
-    inputs by matching name — so <strong>avoid name collisions</strong> (a path <code>:id</code> and a
-    <code>?id=</code> and a resolver keyed <code>id</code> all target one input, and only one wins). Also: params are
-    always <strong>strings</strong> or <code>null</code>. <code>get('id')</code> gives <code>'42'</code>, not
-    <code>42</code> — convert with <code>Number(id)</code> and validate, guarding the <code>null</code> case before
-    parsing.
-  </div>
-
-  <h2>Under the hood</h2>
-
-  <p>
-    The staleness bug is not really about <code>snapshot</code> being a bad API. It is about what the router decides
-    here, in the middle:
-  </p>
-
-  <app-flow
-    [steps]="reuse"
-    caption="Reuse is keyed on the route *config*, not the param values — which is exactly why a component can outlive the id it was built for."
-  />
-
-  <ul>
-    <li>
-      <strong>Reuse is a policy, not an accident.</strong> The default
-      <code>RouteReuseStrategy.shouldReuseRoute</code> returns <code>true</code> whenever the matched route
-      <em>config</em> (the path template) is unchanged, regardless of param values — that's precisely why
-      <code>/users/1</code> → <code>/users/2</code> keeps the same <code>UserPage</code> instance while navigating to a
-      different route destroys and recreates it.
-    </li>
-    <li>
-      <strong><code>paramMap</code> is multicast on the surviving <code>ActivatedRoute</code>.</strong> Because the
-      router keeps the same <code>ActivatedRoute</code> object across a reused navigation, a subscription started once
-      in <code>ngOnInit</code> keeps receiving every later param change — no need to re-subscribe per navigation.
-    </li>
-    <li>
-      <strong>Only the reused node's params are swapped.</strong> The router resolves a whole new
-      <code>ActivatedRouteSnapshot</code> tree per navigation, diffs it against the current tree, and reuses matching
-      branches wholesale — the retained node just gets new <code>params</code>/<code>queryParams</code>/<code
-        >data</code
-      >
-      pushed onto it, with no <code>ngOnDestroy</code>/<code>ngOnInit</code> cycle in between.
-    </li>
-    <li>
-      <strong>There's no typed route syntax.</strong> A path like <code>users/:id</code> matches any segment verbatim —
-      the router never validates or coerces it, so <code>/users/abc</code> matches just as well as
-      <code>/users/1</code>. That's the actual reason params are always strings: nothing upstream ever had a number to
-      give you.
-    </li>
-    <li>
-      <strong>Query params live on the URL tree, not the route match.</strong> Changing <code>?sort=</code> alone
-      doesn't change which route/component activates — only the path segments decide that — which is also why a
-      query-param-only navigation can reuse the component even under a stricter reuse strategy.
-    </li>
-  </ul>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Stale snapshot on reuse.</strong> Read <code>route.paramMap</code> (observable/signal), not
-      <code>snapshot.paramMap</code>, when the same route can re-navigate with different params.
-    </li>
-    <li>
-      <strong>Everything is a string.</strong> <code>+id</code> / <code>Number(id)</code>; a missing param is
-      <code>null</code>, so parse defensively.
-    </li>
-    <li>
-      <strong>Default handling drops query params.</strong> Omitting <code>queryParamsHandling</code> replaces the whole
-      query string — use <code>'merge'</code> to keep the rest.
-    </li>
-    <li>
-      <strong><code>get</code> vs <code>getAll</code>.</strong> Repeated keys need <code>getAll</code>;
-      <code>get</code> silently returns just the first.
-    </li>
-    <li>
-      <strong>Query params don't re-run resolvers by default.</strong> That's a
-      <code>runGuardsAndResolvers</code> setting — see <a routerLink="/resolvers">Resolvers</a>.
-    </li>
-  </ul>
-
-  <app-quiz
-    question="A component runs `const id = Number(route.snapshot.paramMap.get('id'));` and then guards with `if (isNaN(id)) return;`. The URL has no `id` at all. What is `id`?"
-    [options]="coercionOptions"
-    followUp="The habit worth forming: check the string for `null` before you convert it, not the number for `NaN` afterwards. `NaN` cannot tell you the difference between a missing param and a param that said `banana` — and only one of those is worth a 404."
-  />
-
-  <app-faq [items]="questions" />
-
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Path params identify resources (<code>:id</code>); query params carry optional, shareable state.</li>
-    <li>
-      Read via the reactive <code>paramMap</code>/<code>queryParamMap</code>, not the snapshot, on reusable routes.
-    </li>
-    <li><code>queryParamsHandling: 'merge'</code> preserves existing query params; the default replaces them.</li>
-    <li>
-      Params are strings — convert explicitly; <code>withComponentInputBinding()</code> maps them to inputs (mind name
-      collisions).
-    </li>
-  </ul>
-
-  <p><a routerLink="/http-crud">Next: HttpClient CRUD →</a></p>
+    <p><a routerLink="/http-crud">Next: HttpClient CRUD →</a></p>
+  </section>
 </article>

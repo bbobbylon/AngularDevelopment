@@ -1,33 +1,10 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+/* Table and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why this file is empty — the
+   `.cmp` / `.qa` blocks that used to live here were per-lesson copies of
+   rules the theme now owns for any plain `<table>` inside `.lesson.bf`. The
+   exam questions on this page are an `<app-faq>` now, which is
+   keyboard-accessible and consistent with every other migrated lesson.
+
+   Nothing on this page needs a rule of its own — the URL-dissector input
+   and demo rows use the shared `.row` / `.demo` utilities. If that changes,
+   add only what is genuinely specific to route-params here. */
