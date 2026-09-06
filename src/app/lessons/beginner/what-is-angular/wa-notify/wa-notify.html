@@ -1,0 +1,11 @@
+<div class="wa-demo-box">
+  <div class="row" style="margin-bottom: 10px">
+    <span class="pill">signal: {{ signalVal() }}</span>
+    <span class="pill">plain field: {{ plainVal }}</span>
+  </div>
+  <div class="row">
+    <button (click)="bumpSignal()">Bump the signal</button>
+    <button class="ghost" (click)="mutatePlain()">Mutate the plain field (0.6s delay)</button>
+    <button class="ghost" (click)="nudge()">No-op click (forces a check)</button>
+  </div>
+</div>

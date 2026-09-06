@@ -1,0 +1,6 @@
+.wa-demo-box {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}

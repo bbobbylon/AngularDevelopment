@@ -1,42 +1,158 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-table.cmp td:first-child {
-  white-space: nowrap;
+/* Tables, callouts and demo panels are all styled by the shared brain-friendly
+   layer now (src/brain-friendly.css §14–15), which is why the `table.cmp` and
+   `.qa` blocks that used to live here are gone — they were per-lesson copies
+   of rules the theme now owns, and the beginner misconceptions this page used
+   to render as hand-rolled `<details>` are an `<app-faq>` now.
+
+   What is left is genuinely specific to this lesson: the "three files, one
+   component" diagram. */
+
+/* ── The anatomy diagram ─────────────────────────────────────────────────────
+   Hand-authored SVG rather than an `app-layers`, because the relationship
+   being taught is convergence (three files → one unit), not containment —
+   forcing that shape into concentric rings would tell the reader something
+   untrue about it (see docs/CONTRIBUTING.md §2B.2).
+
+   Every colour is a --bf-* token so the figure follows the page into dark
+   mode, and the whole <svg> is aria-hidden with the same information repeated
+   in the <figcaption> — a diagram that has to be re-read as a sentence is
+   better done as a sentence for anyone who cannot see it. */
+.anatomy-fig {
+  margin: 1.8rem 0;
 }
 
-.qa {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0;
+.anatomy {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  margin: 0 auto;
 }
-.qa details {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
+
+.anatomy-fig figcaption {
+  max-width: 60ch;
+  margin: 0.9rem auto 0;
   font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
+}
+
+.anatomy__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+.anatomy__box--ts {
+  fill: var(--bf-accent-wash);
+  stroke: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+.anatomy__box--html {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+}
+
+.anatomy__box--css {
+  fill: var(--bf-gold-wash);
+  stroke: color-mix(in srgb, var(--bf-gold) 45%, transparent);
+}
+
+/* The merged result — "the solid object at the centre of a diagram" is
+   exactly what --bf-clay is reserved for; app-layers' own core circle uses
+   the same pairing. */
+.anatomy__box--core {
+  fill: var(--bf-clay);
+  stroke: color-mix(in srgb, var(--bf-clay) 60%, black 10%);
+}
+
+.anatomy__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.anatomy__name--core {
+  fill: var(--bf-clay-ink);
+  font-size: 15px;
+}
+
+.anatomy__role {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.anatomy__role--core {
+  fill: var(--bf-clay-ink);
+  opacity: 0.85;
+}
+
+.anatomy__edge {
+  fill: none;
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.anatomy__head {
+  fill: var(--bf-accent);
+}
+
+/* The author's own annotation, in the margin voice — a comment on the
+   mechanism rather than part of it. */
+.anatomy__hand {
+  fill: var(--bf-gold);
+  font-family: var(--font-hand);
+  font-size: 17px;
+}
+
+/* The edges draw themselves in and the merged box settles in last, so the
+   convergence reads as something that happens rather than a static fact.
+   Animated on the whole <svg> root (not per-child, where SVG's default
+   transform origin sits at the document corner rather than the element's own
+   centre) to keep this simple and safe. Opacity/transform only, and gated
+   behind reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .anatomy {
+    opacity: 0;
+    transform: translateY(6px);
+    animation: anatomy-in 0.5s ease 0.05s forwards;
+  }
+
+  .anatomy__edge {
+    /* Longest of the three edges is ~175 units; 200 gives it headroom so the
+       dash fully covers the path with none left un-stroked at the tip. */
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: anatomy-draw 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards;
+  }
+
+  .anatomy__head {
+    opacity: 0;
+    animation: anatomy-fade 0.3s ease 0.7s forwards;
+  }
+
+  @keyframes anatomy-in {
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes anatomy-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes anatomy-fade {
+    to {
+      opacity: 1;
+    }
+  }
 }

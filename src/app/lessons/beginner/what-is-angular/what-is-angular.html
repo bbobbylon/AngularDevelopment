@@ -1,345 +1,519 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Getting Started</span>
-  <h1>What is Angular?</h1>
-  <p class="lead">
-    Angular is a <strong>TypeScript framework</strong> for building scalable single-page web applications. The one idea
-    to hold onto from day one:
-    <em>a framework is a machine that keeps the screen in sync with your data.</em>
-    You describe what the UI should look like <em>for a given state</em>; you change the state; Angular figures out the
-    minimal DOM edits and applies them. You almost never touch the DOM yourself. Everything below builds on that
-    sentence.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · Getting Started"
+    title="What is Angular?"
+    hand="or, why a button click doesn't just repaint itself"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      If you've never touched a frontend framework before, <strong>welcome</strong> — you're exactly who this page is
+      for. The one idea to carry out of it:
+      <strong>a framework is a machine that keeps the screen in sync with your data.</strong> You describe what the UI
+      should look like <em>for a given state</em>, you change the state, and Angular works out the DOM edits and applies
+      them — you almost never touch the DOM yourself. Everything below exists to make that sentence feel
+      <span class="key">obvious</span> rather than just true: why it needs to exist at all, what a component actually
+      is, and the handful of ways beginners trip over it in the first week.
+    </p>
+  </app-chapter>
 
-  <h2>Framework vs library — why the distinction matters</h2>
-  <p>
-    A <strong>library</strong> (like React or jQuery) is code <em>you</em> call: you stay in charge of the app's
-    structure and reach for the library when you need it. A <strong>framework</strong> like Angular is code that calls
-    <em>you</em>: it owns the application lifecycle — bootstrapping, routing, rendering, dependency injection — and runs
-    your components at the right moments. This is the "Hollywood principle":
-    <em>don't call us, we'll call you.</em>
-  </p>
-  <p>
-    The practical payoff is that Angular is <strong>batteries-included</strong>: routing, forms, HTTP, testing and build
-    tooling are all official, versioned together, and designed to fit. You trade some up-front learning for far fewer
-    glue decisions later.
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Concern</th>
-      <th>Angular (framework)</th>
-      <th>React (library)</th>
-    </tr>
-    <tr>
-      <td>Routing</td>
-      <td>Official <code>&#64;angular/router</code></td>
-      <td>Pick one (React Router, …)</td>
-    </tr>
-    <tr>
-      <td>Forms</td>
-      <td>Two official systems, built in</td>
-      <td>Third-party or hand-rolled</td>
-    </tr>
-    <tr>
-      <td>HTTP</td>
-      <td>Official <code>HttpClient</code></td>
-      <td><code>fetch</code> / axios / your choice</td>
-    </tr>
-    <tr>
-      <td>Language</td>
-      <td>TypeScript-first (templates type-checked)</td>
-      <td>JS or TS, your setup</td>
-    </tr>
-    <tr>
-      <td>Philosophy</td>
-      <td>One opinionated way</td>
-      <td>Assemble your own stack</td>
-    </tr>
-  </table>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You changed a value. The browser did nothing.</h2>
 
-  <h2>The building blocks (with the job each one does)</h2>
-  <table class="cmp">
-    <tr>
-      <th>Block</th>
-      <th>What it is</th>
-      <th>When you reach for it</th>
-    </tr>
-    <tr>
-      <td><strong>Component</strong></td>
-      <td>A UI piece: template + class + styles</td>
-      <td>Any piece of screen (the core unit)</td>
-    </tr>
-    <tr>
-      <td><strong>Template</strong></td>
-      <td>HTML plus binding, control flow &amp; pipes</td>
-      <td>To describe what a component shows</td>
-    </tr>
-    <tr>
-      <td><strong>Directive</strong></td>
-      <td>Behavior attached to an element</td>
-      <td>Reusable behavior without its own view</td>
-    </tr>
-    <tr>
-      <td><strong>Pipe</strong></td>
-      <td>A pure display transform (<code>| currency</code>)</td>
-      <td>Formatting a value for the screen</td>
-    </tr>
-    <tr>
-      <td><strong>Service</strong></td>
-      <td>Reusable logic/state, shared via DI</td>
-      <td>Anything that isn't "what to draw"</td>
-    </tr>
-    <tr>
-      <td><strong>Router</strong></td>
-      <td>Maps URLs to components</td>
-      <td>More than one screen</td>
-    </tr>
-    <tr>
-      <td><strong>Signal</strong></td>
-      <td>The reactive value primitive</td>
-      <td>Any state the UI depends on</td>
-    </tr>
-  </table>
+    <p>
+      Here's the thing nobody says out loud on day one:
+      <strong>assigning a value in JavaScript does nothing to a web page.</strong> Write <code>total = 42</code> and
+      you've updated one slot in memory — full stop. The browser isn't watching that slot. Nothing calls you back. If
+      you want the number on screen to change, you have to go and change it yourself, by name, every single place it
+      appears:
+    </p>
 
-  <h2>Live proof — a component is just data + a template</h2>
-  <p>
-    Here is a real, running component. Watch the number: you click a button, the button changes a <em>value</em>, and
-    Angular re-renders the text. Nobody wrote <code>element.textContent = …</code>. The "doubled" line updates too,
-    without a second click — because it is <em>derived</em> from the count.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — click to change state, Angular re-renders</p>
-    <app-wa-counter />
-  </div>
-  <p>Here is that component's entire source, line by line:</p>
-  <div class="code">
-    <pre>{{ counterSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>&#64;Component({{ '{' }}…{{ '}' }})</code> — the decorator that turns a plain class into an Angular
-      component and attaches its metadata.
-    </li>
-    <li>
-      <code>selector: 'app-wa-counter'</code> — the custom HTML tag you write to place this component:
-      <code>&lt;app-wa-counter /&gt;</code>.
-    </li>
-    <li>
-      <code>template</code> — the HTML this component renders. <code>{{ '{{' }} count() {{ '}}' }}</code> is
-      <strong>interpolation</strong>: it prints the value and re-prints it whenever <code>count</code> changes.
-    </li>
-    <li>
-      <code>(click)="count.set(count() + 1)"</code> — <strong>event binding</strong>: run this expression on click.
-      <code>count.set(...)</code> writes a new value into the signal.
-    </li>
-    <li>
-      <code>count = signal(0)</code> — a <strong>signal</strong>: a reactive box holding <code>0</code>. Calling
-      <code>count()</code> reads it; reading it inside a template subscribes that template to it.
-    </li>
-    <li>
-      <code>doubled = computed(() =&gt; this.count() * 2)</code> — a <strong>computed</strong>: a value defined by a
-      formula. It recalculates only when a signal it read (<code>count</code>) changes, then only the DOM showing it
-      updates.
-    </li>
-  </ul>
+    <div class="code">
+      <pre>{{ domLineSample }}</pre>
+    </div>
 
-  <h2>Reactivity in the small — the cart total</h2>
-  <p>
-    Signals shine when data drives several things at once. This cart's item count and money total are both
-    <code>computed</code> from one <code>items</code> signal. Add or clear items and every dependent piece stays correct
-    — you never recompute the total or re-render a row by hand:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — one source of truth, several derived views</p>
-    <app-wa-cart />
-  </div>
-  <div class="code">
-    <pre>{{ cartSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>items = signal&lt;…&gt;([])</code> — the single source of truth: an array of cart lines, starting empty.
-    </li>
-    <li>
-      <code>count = computed(() =&gt; this.items().length)</code> — derived, so it can never disagree with the array.
-    </li>
-    <li>
-      <code>total = computed(() =&gt; this.items().reduce(…))</code> — the sum, recomputed only when
-      <code>items</code> changes (not on every render).
-    </li>
-    <li>
-      <code>items.update((list) =&gt; [...list, newLine])</code> — we produce a <em>new</em> array. Assigning a new
-      reference is what notifies the signal; mutating the old array in place would not.
-    </li>
-    <li>
-      <code>&#64;for (item of items(); track item.id)</code> — template <strong>control flow</strong>: loop the array;
-      <code>track item.id</code> gives each row a stable identity so Angular reuses DOM nodes instead of rebuilding the
-      list.
-    </li>
-    <li>
-      <code>{{ '{{' }} item.price | currency {{ '}}' }}</code> — a <strong>pipe</strong> formats the raw number as money
-      for display, without changing the underlying value.
-    </li>
-  </ul>
+    <p>
+      That single line is the entire problem a framework exists to solve. Do it once and it's harmless. Do it in an app
+      with a hundred places state and screen have to agree — a cart total, a "3 unread" badge, a form's error state —
+      and keeping all of it in sync by hand is where bugs are born. Here's the same behaviour done two ways:
+    </p>
 
-  <h2>How an app boots — <code>main.ts</code> line by line</h2>
-  <p>Every Angular app starts from one call that mounts the root component and installs app-wide features:</p>
-  <div class="code">
-    <pre>{{ bootstrapSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>bootstrapApplication(App, …)</code> — creates the root component <code>App</code> and renders it into the
-      <code>&lt;app-root&gt;</code> tag in <code>index.html</code>.
-    </li>
-    <li>
-      <code>providers: […]</code> — app-wide dependency-injection registrations: things any component can ask for.
-    </li>
-    <li><code>provideRouter(routes)</code> — turns on the router and hands it your URL-to-component map.</li>
-    <li>
-      <code>provideHttpClient()</code> — makes <code>HttpClient</code> injectable so components/services can call APIs.
-    </li>
-    <li>
-      No <code>NgModule</code> in sight — this is the modern <strong>standalone</strong> bootstrap (more on that below).
-    </li>
-  </ul>
-
-  <h2>How a page actually renders (the pipeline)</h2>
-  <ol>
-    <li><code>main.ts</code> bootstraps the root component with the app-wide providers.</li>
-    <li>
-      The <strong>router</strong> reads the URL and picks the matching component (lazy-loading its code if needed).
-    </li>
-    <li>
-      Angular <strong>instantiates</strong> that component, running its constructor and injecting whatever it asks for.
-    </li>
-    <li>The <strong>template</strong> renders, reading signals/inputs to produce the initial DOM.</li>
-    <li>
-      When a signal the template read <strong>changes</strong>, that view is marked dirty and Angular re-renders
-      <em>only</em> the affected DOM in the next change-detection pass.
-    </li>
-  </ol>
-  <div class="tip">
-    Mental model: <strong>state → template → DOM</strong>, and Angular owns the last arrow. Your job is to keep the
-    state correct; keeping the pixels correct is the framework's job.
-  </div>
-
-  <h2>Standalone today, NgModules yesterday</h2>
-  <p>
-    You will see two eras of Angular in tutorials and Stack Overflow answers. Knowing which is which saves hours of
-    confusion:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>Modern (standalone)</th>
-      <th>Legacy (NgModule)</th>
-    </tr>
-    <tr>
-      <td>Declaring deps</td>
-      <td>Component lists its own <code>imports: […]</code></td>
-      <td>An <code>&#64;NgModule</code> declares/exports them</td>
-    </tr>
-    <tr>
-      <td>Bootstrap</td>
-      <td><code>bootstrapApplication(App)</code></td>
-      <td><code>platformBrowser…bootstrapModule(AppModule)</code></td>
-    </tr>
-    <tr>
-      <td>Providers</td>
-      <td><code>provideRouter()</code>, <code>provideHttpClient()</code></td>
-      <td><code>RouterModule.forRoot()</code>, <code>HttpClientModule</code></td>
-    </tr>
-    <tr>
-      <td>Status</td>
-      <td>Default since v17; recommended</td>
-      <td>Still supported; being phased out</td>
-    </tr>
-  </table>
-  <p>
-    This whole app is standalone. If a snippet you find online starts with
-    <code>&#64;NgModule</code>, it's the older style — the concepts map across, but prefer the standalone form shown
-    here.
-  </p>
-
-  <h2>What makes Angular distinctive</h2>
-  <ul>
-    <li>
-      <strong>TypeScript-first</strong> — even templates are type-checked, so a typo in a binding is a compile error,
-      not a blank screen.
-    </li>
-    <li>
-      <strong>Opinionated &amp; complete</strong> — one official answer for routing, forms and HTTP means less
-      bikeshedding.
-    </li>
-    <li><strong>Dependency Injection</strong> — a powerful hierarchical DI system wires your services together.</li>
-    <li><strong>Signals</strong> — fine-grained reactivity that enables precise updates and zoneless apps.</li>
-    <li><strong>Tooling</strong> — the CLI, Language Service, DevTools and schematics come as one package.</li>
-    <li><strong>Rendering options</strong> — client-side, server-side (SSR) and hydration are built in.</li>
-  </ul>
-
-  <h2>Common beginner misconceptions</h2>
-  <div class="qa">
-    <details>
-      <summary>"I need to update the DOM after changing my data."</summary>
-      <div>
-        No — that's the framework's entire job. Change the signal/property; the view follows. Reaching for
-        <code>document.querySelector</code> in a component is almost always a sign you're fighting Angular.
+    <app-compare
+      leftTitle="Imperative — you do the DOM work"
+      leftTone="bad"
+      rightTitle="Declarative — you describe, Angular does the work"
+      rightTone="good"
+      [note]="compareNote"
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ imperativeSample }}</pre>
+        </div>
       </div>
-    </details>
-    <details>
-      <summary>"Angular is Angular.js / AngularJS."</summary>
-      <div>
-        Different frameworks. AngularJS (v1) is the legacy, discontinued one. "Angular" means v2+ — a full rewrite in
-        TypeScript. This curriculum is modern Angular (v21).
+      <div right>
+        <div class="code">
+          <pre>{{ declarativeSample }}</pre>
+        </div>
       </div>
-    </details>
-    <details>
-      <summary>"Every component needs an NgModule."</summary>
-      <div>
-        Not anymore. Standalone components declare their own <code>imports</code> and boot without any module. NgModules
-        are legacy.
-      </div>
-    </details>
-    <details>
-      <summary>"Mutating an object updates the view."</summary>
-      <div>
-        Not reliably. Signals notify on <em>assignment</em> (a new reference). Prefer <code>items.set(newArray)</code> /
-        <code>items.update(...)</code> over pushing into the existing array — you saw this in the cart demo.
-      </div>
-    </details>
-  </div>
+    </app-compare>
 
-  <h2>Release cadence &amp; ecosystem</h2>
-  <p>
-    Angular ships a <strong>major version roughly every 6 months</strong>, each with ~18 months of support and automated
-    <code>ng update</code> migrations, so upgrades are routine rather than rewrites. It's maintained by Google and used
-    across many of its own products. Because the router, forms, HTTP and testing tools are all official, an Angular
-    codebase from one team looks a lot like the next — a real advantage on large or long-lived projects.
-  </p>
+    <p>
+      Nobody on the right ever calls <code>output.textContent = …</code>. The template's
+      <code>{{ '{{' }} total() {{ '}}' }}</code> is a standing instruction, and Angular is the machine that keeps
+      carrying it out. That machine is what the rest of this page is about.
+    </p>
 
-  <div class="tip">
-    This very app is a standalone Angular 21 project. Browse the source —
-    <code>src/app/</code> — to see every concept in this curriculum applied for real.
-  </div>
+    <app-predict
+      [prompt]="classAttrPredictPrompt"
+      [answer]="classAttrPredictAnswer"
+      revealLabel="Reveal the difference"
+    />
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A framework keeps the screen in sync with your data: <strong>state → template → DOM</strong>, and Angular owns
-      rendering.
-    </li>
-    <li>
-      Components (template + class + styles) are the core unit; services + DI share logic; signals drive reactivity.
-    </li>
-    <li>
-      Interpolation shows values, event bindings change them, computed values derive from them — you rarely touch the
-      DOM.
-    </li>
-    <li>
-      Modern Angular is <strong>standalone-first</strong>; NgModule snippets you find online are the legacy style.
-    </li>
-    <li>Angular is batteries-included and TypeScript-first: more to learn up front, far less glue later.</li>
-  </ul>
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular calls you. You don't call Angular.</h2>
 
-  <p><a routerLink="/cli-project-structure">Next: CLI &amp; Project Structure →</a></p>
+    <p>
+      A <span class="term">library</span> (jQuery, or React on its own) is code <em>you</em> call: you stay in charge of
+      the app's structure, and you reach for the library's functions when you need them. A
+      <span class="term">framework</span> like Angular is code that calls <em>you</em> — it owns bootstrapping,
+      rendering and dependency injection, and it runs your components at the moments <em>it</em> decides. This is
+      sometimes called the <strong>Hollywood Principle</strong>: don't call us, we'll call you.
+    </p>
+
+    <app-bubbles
+      [turns]="hollywoodTalk"
+      caption="The negotiation every beginner has with the framework at least once, staged as dialogue."
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>State → template → DOM, and Angular owns everything to the right of the first arrow.</strong> Change the
+      state; never reach for the DOM yourself. If you catch yourself writing <code>document.querySelector</code>
+      inside a component, you're fighting the framework rather than using it.
+    </app-remember>
+
+    <p>
+      The practical payoff of handing over that control is that Angular is <strong>batteries-included</strong>: routing,
+      forms, HTTP and testing tooling are all official, versioned together, and built to fit one another. You trade some
+      up-front learning for far fewer glue decisions later.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        the same job, two philosophies
+      </caption>
+      <thead>
+        <tr>
+          <th>Concern</th>
+          <th>Angular (framework)</th>
+          <th>React (library)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Routing</td>
+          <td>Official <code>&#64;angular/router</code></td>
+          <td>Pick one (React Router, …)</td>
+        </tr>
+        <tr>
+          <td>Forms</td>
+          <td>Two official systems, built in</td>
+          <td>Third-party or hand-rolled</td>
+        </tr>
+        <tr>
+          <td>HTTP</td>
+          <td>Official <code>HttpClient</code></td>
+          <td><code>fetch</code> / axios / your choice</td>
+        </tr>
+        <tr>
+          <td>Language</td>
+          <td>TypeScript-first (templates type-checked)</td>
+          <td>JS or TS, your setup</td>
+        </tr>
+        <tr>
+          <td>Philosophy</td>
+          <td>One opinionated way</td>
+          <td>Assemble your own stack</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-quiz
+      question="You've heard Angular described as “a framework, not a library.” Which of these actually explains what that means for your code?"
+      [options]="frameworkQuizOptions"
+      followUp="Hold onto “who is in charge” — it's the test you'll reach for again when Change Detection asks who tells Angular to look."
+    />
+  </section>
+
+  <!-- ============ 3. ANATOMY OF A COMPONENT ============ -->
+  <section>
+    <p class="bf-eyebrow">The building blocks</p>
+    <h2>Everything else in this app is one of seven ideas.</h2>
+
+    <p>
+      You'll meet these names constantly from here on. Nothing to memorise yet — just enough of a map that when
+      "directive" or "pipe" shows up three lessons from now, it lands on something instead of arriving cold.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        the vocabulary you'll meet everywhere
+      </caption>
+      <thead>
+        <tr>
+          <th>Block</th>
+          <th>What it is</th>
+          <th>When you reach for it</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Component</strong></td>
+          <td>A UI piece: template + class + styles</td>
+          <td>Any piece of screen — the core unit</td>
+        </tr>
+        <tr>
+          <td><strong>Template</strong></td>
+          <td>HTML plus binding, control flow &amp; pipes</td>
+          <td>To describe what a component shows</td>
+        </tr>
+        <tr>
+          <td><strong>Directive</strong></td>
+          <td>Behaviour attached to an element</td>
+          <td>Reusable behaviour without its own view</td>
+        </tr>
+        <tr>
+          <td><strong>Pipe</strong></td>
+          <td>A pure display transform (<code>| currency</code>)</td>
+          <td>Formatting a value for the screen</td>
+        </tr>
+        <tr>
+          <td><strong>Service</strong></td>
+          <td>Reusable logic/state, shared via DI</td>
+          <td>Anything that isn't "what to draw"</td>
+        </tr>
+        <tr>
+          <td><strong>Router</strong></td>
+          <td>Maps URLs to components</td>
+          <td>More than one screen</td>
+        </tr>
+        <tr>
+          <td><strong>Signal</strong></td>
+          <td>The reactive value primitive</td>
+          <td>Any state the UI depends on</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      The first of those — <strong>component</strong> — is worth slowing down for, because it is the one unit every
+      Angular app is built entirely out of.
+    </p>
+
+    <app-napkin lead="quick guess —" label="Predict before scrolling">
+      A real, working Angular component is never just one file. Before you scroll: how many files does the
+      <em>smallest</em> one actually need, and what job does each one do?
+    </app-napkin>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="wa-counter.ts" kicker="the class" tone="accent">
+        Behaviour and state: fields, methods, and the decorator that ties the other two files to this one.
+      </app-tape-card>
+      <app-tape-card heading="wa-counter.html" kicker="the template" tone="olive">
+        What gets painted: plain HTML plus Angular's binding syntax, reading straight from the class above it.
+      </app-tape-card>
+      <app-tape-card heading="wa-counter.css" kicker="the styles" tone="gold">
+        Scoped to this component alone — its rules never leak out, and no outside rule leaks in.
+      </app-tape-card>
+    </div>
+
+    <figure class="anatomy-fig">
+      <svg class="anatomy" viewBox="0 0 480 268" aria-hidden="true" focusable="false">
+        <rect class="anatomy__box anatomy__box--ts" x="6" y="14" width="148" height="54" rx="14" />
+        <text class="anatomy__name" x="80" y="36" text-anchor="middle">wa-counter.ts</text>
+        <text class="anatomy__role" x="80" y="52" text-anchor="middle">THE CLASS</text>
+
+        <rect class="anatomy__box anatomy__box--html" x="166" y="14" width="148" height="54" rx="14" />
+        <text class="anatomy__name" x="240" y="36" text-anchor="middle">wa-counter.html</text>
+        <text class="anatomy__role" x="240" y="52" text-anchor="middle">THE TEMPLATE</text>
+
+        <rect class="anatomy__box anatomy__box--css" x="326" y="14" width="148" height="54" rx="14" />
+        <text class="anatomy__name" x="400" y="36" text-anchor="middle">wa-counter.css</text>
+        <text class="anatomy__role" x="400" y="52" text-anchor="middle">THE STYLES</text>
+
+        <path class="anatomy__edge" d="M80,68 L204,192" />
+        <path class="anatomy__head" d="M198,198 L203,186.6 L211.4,193 Z" />
+
+        <path class="anatomy__edge" d="M240,68 L240,192" />
+        <path class="anatomy__head" d="M234,198 L240,186 L246,198 Z" />
+
+        <path class="anatomy__edge" d="M400,68 L276,192" />
+        <path class="anatomy__head" d="M282,198 L277,186 L268.6,192.6 Z" />
+
+        <text class="anatomy__hand" x="240" y="178" text-anchor="middle">&#64;Component staples these together</text>
+
+        <rect class="anatomy__box anatomy__box--core" x="145" y="196" width="190" height="58" rx="16" />
+        <text class="anatomy__name anatomy__name--core" x="240" y="220" text-anchor="middle">
+          &lt;app-wa-counter /&gt;
+        </text>
+        <text class="anatomy__role anatomy__role--core" x="240" y="238" text-anchor="middle">
+          ONE COMPONENT, ON THE PAGE
+        </text>
+      </svg>
+      <figcaption>
+        Three separate files — a class, a template and a stylesheet — and only one thing ends up in the DOM:
+        <code>&lt;app-wa-counter /&gt;</code>. The <code>&#64;Component</code> decorator is the staple: its
+        <code>templateUrl</code> and <code>styleUrl</code> are what tell Angular which HTML and CSS belong to this
+        particular class. Change a field on the class, and only the line of the template that reads it repaints — nobody
+        wired that connection by hand.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 4. LIVE PROOF — THE COUNTER ============ -->
+  <section>
+    <p class="bf-eyebrow">Live proof</p>
+    <h2>Here's a real, running component.</h2>
+
+    <p>
+      Watch the number: you click a button, the button changes a <em>value</em>, and Angular re-renders the text. Nobody
+      wrote <code>element.textContent = …</code>. The "doubled" line updates too, without a second click — because it is
+      <em>derived</em> from the count, exactly like the spreadsheet-style formula you'll meet properly in the Signals
+      lesson.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — click to change state, Angular re-renders</p>
+      <app-wa-counter />
+    </div>
+
+    <p>Here's that component's shape, line by line — not this exact file, but every idea it uses:</p>
+
+    <app-code-lab
+      file="wa-counter.ts — the smallest complete component"
+      [code]="counterSample"
+      [notes]="counterNotes"
+      notesLabel="Line by line — what every symbol is"
+    />
+
+    <p>
+      Now for the trap this whole page has been building toward. You've just watched a click change the screen
+      <em>instantly</em>. Not every change works that way.
+    </p>
+
+    <app-predict
+      prompt="Below, `plainVal` is an ordinary field — not a signal. Pressing “Mutate the plain field” waits 0.6 seconds, then quietly runs `this.plainVal++`. No click handler is running at that exact moment. When the 0.6 seconds are up, does the number on screen change by itself?"
+      answer="No — not on its own. The value in memory genuinely changed, but Angular doesn't poll every field hoping to notice; it repaints only when something **tells** it to look, and a plain assignment inside a `setTimeout` tells nobody. Press “No-op click” afterwards and the number jumps straight to the new value in one go — the change was never lost, only never announced."
+      revealLabel="Reveal what actually happens"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — a signal next to a plain field</p>
+      <app-wa-notify />
+      <p class="demo__note">
+        Press <strong>mutate</strong>, then watch the "plain field" number for a full second — it doesn't move. Press
+        <strong>no-op click</strong> next, which changes no state at all, and the number jumps straight to the correct
+        value. Nothing was lost. It just was never <span class="bf-break">announced</span> — and a click, any click, is
+        what finally triggers Angular to go and look. That's the whole mechanism this lesson is previewing;
+        <strong>Change Detection</strong>, later in the curriculum, is the full story.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. THE CART ============ -->
+  <section>
+    <p class="bf-eyebrow">Reactivity in the small</p>
+    <h2>One source of truth, several derived views.</h2>
+
+    <p>
+      Signals shine when data drives several things at once. This cart's item count and money total are both
+      <code>computed</code> from one <code>items</code> signal. Add or clear items and every dependent piece stays
+      correct — you never recompute the total or re-render a row by hand:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — one source of truth, several derived views</p>
+      <app-wa-cart />
+    </div>
+
+    <app-code-lab
+      file="wa-cart.ts — one signal, two derivations"
+      [code]="cartSample"
+      [notes]="cartNotes"
+      notesLabel="Line by line — generics, derivation, and the replace-not-mutate habit"
+    />
+
+    <app-remember variant="rule">
+      A signal notifies on a <strong>new</strong> value — <code>items.update(list =&gt; [...list, x])</code> — never on
+      a mutation of the one it already holds. <code>items().push(x)</code> changes the data and tells nobody.
+    </app-remember>
+  </section>
+
+  <!-- ============ 6. HOW AN APP BOOTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>How does any of this even start?</h2>
+
+    <p>Every Angular app starts from one call that mounts the root component and installs app-wide features:</p>
+
+    <app-code-lab
+      file="main.ts — the single entry point"
+      [code]="bootstrapSample"
+      [notes]="bootstrapNotes"
+      notesLabel="Line by line — what boots, and what gets switched on"
+    />
+
+    <p>From there, a page renders in five predictable steps:</p>
+    <ol>
+      <li><code>main.ts</code> bootstraps the root component with the app-wide providers.</li>
+      <li>
+        The <strong>router</strong> reads the URL and picks the matching component, lazy-loading its code if needed.
+      </li>
+      <li>
+        Angular <strong>instantiates</strong> that component, running its constructor and injecting whatever it asks
+        for.
+      </li>
+      <li>The <strong>template</strong> renders, reading signals and inputs to produce the initial DOM.</li>
+      <li>
+        When a signal the template read <strong>changes</strong>, that view is marked dirty and Angular re-renders
+        <em>only</em> the affected DOM on the next pass — the mechanism behind the notify trap above.
+      </li>
+    </ol>
+
+    <div class="tip">
+      Mental model: <strong>state → template → DOM</strong>, and Angular owns the last arrow. Your job is to keep the
+      state correct; keeping the pixels correct is the framework's job.
+    </div>
+  </section>
+
+  <!-- ============ 7. STANDALONE VS NGMODULE ============ -->
+  <section>
+    <p class="bf-eyebrow">Two eras</p>
+    <h2>Standalone today, NgModules yesterday.</h2>
+
+    <p>
+      You'll see two eras of Angular in tutorials and Stack Overflow answers. Knowing which is which saves hours of
+      confusion:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        two eras — know which one you're looking at
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Modern (standalone)</th>
+          <th>Legacy (NgModule)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Declaring deps</td>
+          <td>Component lists its own <code>imports: […]</code></td>
+          <td>An <code>&#64;NgModule</code> declares/exports them</td>
+        </tr>
+        <tr>
+          <td>Bootstrap</td>
+          <td><code>bootstrapApplication(App)</code></td>
+          <td><code>platformBrowser…bootstrapModule(AppModule)</code></td>
+        </tr>
+        <tr>
+          <td>Providers</td>
+          <td><code>provideRouter()</code>, <code>provideHttpClient()</code></td>
+          <td><code>RouterModule.forRoot()</code>, <code>HttpClientModule</code></td>
+        </tr>
+        <tr>
+          <td>Status</td>
+          <td>Default since v17; recommended</td>
+          <td>Still supported; being phased out</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      This whole app is standalone. If a snippet you find online starts with <code>&#64;NgModule</code>, it's the older
+      style — the concepts map across, but prefer the standalone form shown here.
+    </p>
+  </section>
+
+  <!-- ============ 8. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>What actually makes Angular, Angular.</h2>
+
+    <ul>
+      <li>
+        <strong>TypeScript-first</strong> — even templates are type-checked, so a typo in a binding is a compile error,
+        not a blank screen.
+      </li>
+      <li>
+        <strong>Opinionated &amp; complete</strong> — one official answer for routing, forms and HTTP means less
+        bikeshedding.
+      </li>
+      <li><strong>Dependency injection</strong> — a hierarchical DI system wires your services together for you.</li>
+      <li><strong>Signals</strong> — fine-grained reactivity that enables precise updates and zoneless apps.</li>
+      <li><strong>Tooling</strong> — the CLI, Language Service, DevTools and schematics come as one package.</li>
+      <li><strong>Rendering options</strong> — client-side, server-side (SSR) and hydration are all built in.</li>
+    </ul>
+
+    <p>
+      Angular ships a <strong>major version roughly every six months</strong>, each with about 18 months of support and
+      automated <code>ng update</code> migrations, so upgrades are routine rather than rewrites. It's maintained by
+      Google and used across many of its own products — and because routing, forms, HTTP and testing are all official,
+      an Angular codebase from one team looks a lot like the next, which matters on large or long-lived projects.
+    </p>
+
+    <div class="tip">
+      This very app is a standalone Angular 21 project. Browse the source — <code>src/app/</code> — to see every concept
+      in this curriculum applied for real.
+    </div>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        A framework calls <em>you</em>, not the other way round — the <strong>Hollywood Principle</strong>. Hand Angular
+        a component; it decides when to construct it, render it, and check it again.
+      </li>
+      <li>
+        A component is three files pretending to be one thing: a class holds behaviour and state, a template says what
+        to paint, a stylesheet says how it looks — and <code>&#64;Component</code> staples them together.
+      </li>
+      <li>
+        State drives the DOM, never the other way round. Change a signal; Angular finds every place that reads it and
+        repaints only those. You should never see <code>document.querySelector</code> inside a component.
+      </li>
+      <li>
+        <strong>Nothing renders until something notifies Angular.</strong> A plain field can change in memory and sit
+        invisible on screen for as long as nothing tells Angular to look — that's not a bug, that's the mechanism, and
+        Change Detection is where the full story lives.
+      </li>
+      <li>
+        Replace, don't mutate: <code>items.update(list =&gt; [...list, x])</code> notifies; <code>items().push(x)</code>
+        changes the data and tells nobody.
+      </li>
+      <li>
+        Standalone is the modern default. A snippet starting with <code>&#64;NgModule</code> is the legacy style — the
+        ideas map across, but write it the standalone way shown here.
+      </li>
+    </ul>
+
+    <p><a routerLink="/cli-project-structure">Next: CLI &amp; Project Structure →</a></p>
+  </section>
 </article>
