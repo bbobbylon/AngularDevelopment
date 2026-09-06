@@ -1,320 +1,424 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">TypeScript · Advanced Types</span>
-  <h1>keyof, typeof &amp; Indexed Access</h1>
-  <p class="lead">
-    These three operators let you derive types <em>from</em> values and other types. That flips the usual direction of
-    maintenance: instead of writing a type and praying it stays in sync with the data, you make the data the
-    <strong>single source of truth</strong> and let the compiler recompute the types every build. Add a key to the
-    object → every derived union, check and autocomplete updates itself. Nothing drifts, ever.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="TypeScript · Advanced Types"
+    title="keyof, typeof &amp; Indexed Access"
+    hand="or, how to make the compiler recompute your types every time the data does"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      These three operators let you <strong>derive</strong> a type from a value, or from another type, instead of typing
+      it out by hand and hoping it stays right. That flips the usual direction of maintenance: the object becomes the
+      <strong>single source of truth</strong>, and every union, check and autocomplete the compiler offers you is
+      recomputed <em>from it</em>, on every build. Add a key to the object, and everything downstream updates itself —
+      nothing can drift, because there is only ever one place to edit.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: formulas, not typed-in numbers</h2>
-  <p>
-    Think about a spreadsheet. You can type <code>47</code> into a cell, or you can type <code>=SUM(A1:A10)</code>. Both
-    show 47 today. Only one of them is still right after somebody edits row 6. Writing a type by hand is typing in the
-    number; <code>typeof</code>, <code>keyof</code> and <code>T[K]</code> are the formula bar.
-  </p>
-  <p>
-    The analogy keeps paying off. <code>as const</code> is telling the spreadsheet to keep the exact value rather than
-    rounding it — without it the literals widen and your formula returns <code>string</code>, which is the "any number
-    at all" of types. And erasure is the printout: formulas live in the file, but the page that comes out of the printer
-    has only values on it. Your bundle is the printout, which is why none of this costs a byte and also why none of it
-    can check data arriving at runtime.
-  </p>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You hand-wrote a type. The data just moved on without it.</h2>
 
-  <app-remember>
-    <strong><code>typeof</code> lifts, <code>keyof</code> lists, <code>[K]</code> looks up.</strong> Lift a value into a
-    type, list that type's keys, look up what is stored at one. Chain all three and you have read most of the generic
-    TypeScript you will ever meet.
-  </app-remember>
+    <p>
+      Here's a shape you've probably typed before: a small config object, and right underneath it, a union of its keys —
+      written out by hand because that felt like the obvious thing to do.
+    </p>
 
-  <h2>typeof — lift a value into a type</h2>
-  <div class="code">
-    <pre>
-const theme = {{ '{' }} primary: '#dd0031', accent: '#7c4dff' {{ '}' }} as const;
+    <div class="code">
+      <pre>{{ configSample }}</pre>
+    </div>
 
-type Theme = typeof theme;
-//           └── the TYPE-LEVEL typeof: "the type that this variable has"
-// = {{ '{' }} readonly primary: '#dd0031'; readonly accent: '#7c4dff' {{ '}' }}
+    <p>
+      Six months later, someone adds a fourth field — <code>retryDelay</code> — to <code>config</code>. Nothing about
+      <code>ConfigKey</code> changes. It still compiles. Autocomplete on a variable typed <code>ConfigKey</code> quietly
+      refuses to offer the new field, <span class="bf-break">forever</span>, until someone remembers to come back and
+      edit a completely different line of code than the one they just touched.
+    </p>
 
-function makeUser(name: string) {{ '{' }} return {{ '{' }} id: 1, name {{ '}' }}; {{ '}' }}
-type MakeUser = typeof makeUser;  // (name: string) =&gt; {{ '{' }} id: number; name: string {{ '}' }}
-type UserShape = ReturnType&lt;typeof makeUser&gt;;  // the return object's type — for free</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Two typeofs share a keyword.</strong> The <em>runtime</em> <code>typeof x === 'string'</code> from the
-      narrowing lesson evaluates while the program runs; this <em>type-level</em> one exists only in type positions and
-      is erased. The compiler picks by context.
-    </li>
-    <li>
-      <strong><code>as const</code> is the difference between useful and mushy.</strong> Without it,
-      <code>typeof theme</code> would be <code>{{ '{' }} primary: string; accent: string {{ '}' }}</code> — the literals
-      widen and the derived keys/values lose their precision (widening rules from the Types lesson).
-    </li>
-    <li>
-      <strong>It only accepts identifiers and property chains</strong> — <code>typeof user.address</code> is fine,
-      <code>typeof (a + b)</code> is not. Name the expression first if you need its type.
-    </li>
-    <li>
-      The <code>ReturnType&lt;typeof fn&gt;</code> combo is everyday practice: functions that build objects define the
-      shape once, in code, and the type tags along.
-    </li>
-  </ul>
+    <p>So before any operator gets a name, sit with the actual question:</p>
 
-  <h2>keyof — the union of a type's keys</h2>
-  <div class="code">
-    <pre>
-type ThemeKey = keyof typeof theme;      // 'primary' | 'accent'
-//              └── the signature combo: value → type → union of key names
+    <ul>
+      <li>
+        What would make <code>ConfigKey</code> <strong>recompute itself</strong> the moment <code>config</code> gains a
+        field?
+      </li>
+      <li>Is there a way to make the type <em>read</em> the object, instead of being typed out next to it?</li>
+    </ul>
 
-type AnyKey  = keyof Record&lt;string, number&gt;;   // string | number (index signature)
-type ArrKeys = keyof string[];   // number | 'length' | 'push' | … (ALL array members!)</pre>
-  </div>
-  <p>
-    Line one is the pairing you'll type weekly: <code>typeof</code> lifts the value, <code>keyof</code> extracts the key
-    union. The other two lines are the edge cases worth having seen once: an index-signature type's keyof is the index
-    type itself (plus <code>number</code>, since numeric keys are stringified), and keyof an array includes every method
-    name — usually a hint you wanted <code>T[number]</code> (below) instead.
-  </p>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Below is this exact scenario, made real: a <code>THEME</code> object and a colour picker built entirely from
+      <code>keyof typeof THEME</code>. Add a fourth colour to <code>THEME</code> in your head — say
+      <code>warning</code>. Does the picker gain a fourth button? Does anything anywhere need to be told about it by
+      hand? There's a live version further down the page to check yourself against.
+    </app-napkin>
+  </section>
 
-  <h2>Indexed access — look up a member's type</h2>
-  <div class="code">
-    <pre>
-interface User {{ '{' }} id: number; roles: string[]; address: {{ '{' }} city: string {{ '}' }} {{ '}' }}
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Typing a type by hand is typing a number into a spreadsheet cell.</h2>
 
-type Id   = User['id'];               // number   — same brackets as runtime lookup,
-type City = User['address']['city'];  // string     but operating on TYPES
-type Vals = User[keyof User];         // number | string[] | {{ '{' }} city: string {{ '}' }}
-//               └── index by a UNION → union of all value types
+    <p>
+      Think about a spreadsheet. You can type <code>47</code> directly into a cell, or you can type
+      <code>=SUM(A1:A10)</code>. Both show <code>47</code> today. Only one of them is still right after somebody edits
+      row 6. Writing <code>ConfigKey</code> by hand is typing in the number. <code>typeof</code>, <code>keyof</code> and
+      indexed access — <code>T[K]</code> — are the <span class="key">formula bar</span>.
+    </p>
 
-// indexing by number = an array/tuple's element type:
-type Role   = User['roles'][number];  // string — "element type of roles"
-type Tuple  = [boolean, string];
-type Second = Tuple[1];               // string — tuples index per position</pre>
-  </div>
-  <ul>
-    <li>
-      The key must be a <em>type</em>: <code>User['id']</code> (a literal type), not <code>User[myVariable]</code>. To
-      use a variable's value as the key type: <code>User[typeof myKey]</code>.
-    </li>
-    <li>
-      <code>T[keyof T]</code> ("all the value types") and <code>T[number]</code> ("the element type") are the two idioms
-      to memorize — the second is how you type "one item of this array I already have".
-    </li>
-  </ul>
-  <div class="demo">
-    <p class="demo__title">Live — <code>T[number]</code>, indexing an array by position</p>
-    <div class="row" style="margin-bottom: 10px">
-      @for (r of roles; track $index) {
-        <button [class.ghost]="roleIndex() !== $index" (click)="roleIndex.set($index)">{{ r }}</button>
+    <p>
+      The analogy keeps paying off in two more places. <code>as const</code> is telling the spreadsheet to keep the
+      exact value instead of rounding it — leave it off and the literals <span class="bf-break">widen</span>, and your
+      formula quietly returns <code>string</code>, the "any number at all" of types. And
+      <span class="term">erasure</span>
+      is the printout: the formulas live in the workbook, but the page that comes out of the printer has only values on
+      it. Your compiled bundle is the printout — which is exactly why none of this costs a byte, and exactly why none of
+      it can check data arriving at runtime.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong><code>typeof</code> lifts, <code>keyof</code> lists, <code>[K]</code> looks up.</strong> Lift a value into
+      a type, list that type's keys, look up what's stored at one. Chain all three and you can read most of the generic
+      TypeScript you'll ever meet.
+    </app-remember>
+
+    <p>Here's the mix-up those three words exist to prevent, staged as the argument it actually causes:</p>
+
+    <app-bubbles
+      [turns]="mixupTalk"
+      caption="The reason `keyof` and `typeof` always show up together — one operator only accepts what the other one produces."
+    />
+
+    <p>Put a name on each side of that exchange and you get a shelf of three named things:</p>
+
+    <div class="bf-grid-3">
+      @for (o of operators; track o.op) {
+        <app-tape-card [heading]="o.op" [kicker]="o.kicker" [tone]="o.tone">
+          <p><strong>Gives:</strong> {{ o.gives }}</p>
+          <p>
+            <strong>You'll write:</strong> <code>{{ o.use }}</code>
+          </p>
+          <p><strong>Usual trap:</strong> {{ o.trap }}</p>
+        </app-tape-card>
       }
     </div>
-    <p class="row">
-      <code>roles[{{ roleIndex() }}] = '{{ role() }}'</code>
+  </section>
+
+  <!-- ============ 3. TYPEOF ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>typeof — lift a value into a type.</h2>
+
+    <p>Start with the only hand-written thing on this whole page: an ordinary <code>const</code>.</p>
+
+    <app-code-lab file="theme.ts" [code]="typeofSample" [notes]="typeofNotes" notesLabel="What each line is doing" />
+
+    <p>
+      Worth flagging early: this <code>typeof</code> shares a keyword with the <em>runtime</em>
+      <code>typeof x === 'string'</code> from the <a routerLink="/ts-narrowing">narrowing lesson</a> — but it's a
+      completely different operator. The <span class="term">type-level</span> one only exists in a type position and
+      never runs; the compiler tells the two apart purely by where they appear.
     </p>
-    <div class="code">
-      <pre>
+  </section>
+
+  <!-- ============ 4. KEYOF ============ -->
+  <section>
+    <p class="bf-eyebrow">One step further</p>
+    <h2>keyof — the union of a type's keys.</h2>
+
+    <p>Now take that lifted type and ask it for its keys.</p>
+
+    <app-code-lab
+      file="theme-keys.ts"
+      [code]="keyofSample"
+      [notes]="keyofNotes"
+      notesLabel="Value → type → key union"
+    />
+
+    <p>
+      Line one is the pairing you'll type weekly. The other two lines are the edge cases worth having met once, so an
+      index signature or an array's own method list doesn't ambush you mid-exam.
+    </p>
+  </section>
+
+  <!-- ============ 5. INDEXED ACCESS ============ -->
+  <section>
+    <p class="bf-eyebrow">One bracket further</p>
+    <h2>T[K] — look up what's stored at a key.</h2>
+
+    <p>One operator left: given a type and a key, what's actually stored there?</p>
+
+    <app-code-lab
+      file="user-shape.ts"
+      [code]="indexedSample"
+      [notes]="indexedNotes"
+      notesLabel="One bracket, one step inward"
+    />
+
+    <app-layers
+      [core]="indexedCore"
+      [rings]="indexedRings"
+      arrow="User['address']['city']"
+      caption="Each bracket pair is one step inward — `['address']` reaches the middle ring, `['city']` reaches the core. The **type at the very centre is what the whole chain resolves to** — nothing about the outer layers survives in the final answer, exactly like the runtime property lookup it mirrors."
+    />
+
+    <p>
+      That last idiom — indexing by <code>number</code> — is common enough to deserve its own live demo. These buttons
+      are generated straight from an <code>as const</code> array, and the type of the selected role comes from indexing
+      it.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — T[number], indexing an array by position</p>
+      <div class="row" style="margin-bottom: 10px">
+        @for (r of roles; track $index) {
+          <button [class.ghost]="roleIndex() !== $index" (click)="roleIndex.set($index)">{{ r }}</button>
+        }
+      </div>
+      <p class="row">
+        <code>roles[{{ roleIndex() }}] = '{{ role() }}'</code>
+      </p>
+      <div class="code">
+        <pre>
 const roles = ['admin', 'editor', 'viewer'] as const;
 type Role = (typeof roles)[number];   // 'admin' | 'editor' | 'viewer'
 //                       └── same trick as User['roles'][number] above,
 //                           just starting from the array's own typeof</pre>
+      </div>
+      <p class="demo__note">
+        Add a fourth role to the array and the <code>Role</code> union — and these buttons — pick it up with zero other
+        edits. Same single-source-of-truth idea as the THEME demo further down, applied to a tuple-like array instead of
+        an object.
+      </p>
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Add a fourth role to the array and the <code>Role</code> union — and these buttons — pick it up with zero other
-      edits. Same single-source-of-truth idea as the THEME demo below, applied to a tuple-like array instead of an
-      object.
-    </p>
-  </div>
+  </section>
 
-  <h2>The three operators, side by side</h2>
-  <div class="ops-wrap">
-    <table class="ops">
-      <thead>
-        <tr>
-          <th>Operator</th>
-          <th>Takes</th>
-          <th>Gives</th>
-          <th>You will write</th>
-          <th>The usual trap</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (o of operators; track o.op) {
-          <tr>
-            <td>
-              <code>{{ o.op }}</code>
-            </td>
-            <td>{{ o.takes }}</td>
-            <td>{{ o.gives }}</td>
-            <td>
-              <code>{{ o.use }}</code>
-            </td>
-            <td>{{ o.trap }}</td>
-          </tr>
+  <!-- ============ 6. THE CHAIN ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Putting the brackets together</p>
+    <h2>The chain, link by link.</h2>
+
+    <p>
+      Three separate operators, learned three separate ways — and then a real codebase hands you
+      <code>(typeof ROUTES)[keyof typeof ROUTES]</code> on one line and it looks impenetrable. It isn't; it's every step
+      below, written inside-out, like a formula.
+    </p>
+
+    <app-flow
+      [steps]="chain"
+      caption="Read it from the top down, then read the compound expression from the inside out — they're the same five steps."
+    />
+  </section>
+
+  <!-- ============ 7. THE GETTER ============ -->
+  <section>
+    <p class="bf-eyebrow">Putting the three together</p>
+    <h2>Build the classic type-safe getter, piece by piece.</h2>
+
+    <app-napkin lead="before you look —" label="Design it yourself first">
+      In plain English, not TypeScript syntax yet: how would you describe a function <code>prop(obj, key)</code> whose
+      return type automatically matches whatever <code>key</code> turns out to be? What has to be <em>true</em> about
+      <code>key</code> for that to even be checkable at compile time?
+    </app-napkin>
+
+    <app-code-lab
+      file="prop.ts"
+      [code]="getterSample"
+      [notes]="getterNotes"
+      notesLabel="Three type parameters, read as a sentence"
+      prompt="Before you scroll: what's the return type of `prop(user, 'roles')`, and why does `prop(user, 'xyz')` fail?"
+      [output]="getterAnswer"
+      revealLabel="Reveal the answer"
+    />
+
+    <p>
+      Read the three type parameters as a sentence:
+      <em>"given any object T and a key K that provably belongs to T, I return exactly the type stored at K."</em> No
+      overloads, no casts — and it self-updates when <code>User</code> gains a field. This one signature shape (<code
+        >K extends keyof T</code
+      >
+      … <code>T[K]</code>) is the backbone of typed form helpers, ORMs, state selectors, and half the generic APIs
+      you'll ever read.
+    </p>
+  </section>
+
+  <!-- ============ 8. TRY IT — THEME ============ -->
+  <section>
+    <p class="bf-eyebrow">See it move</p>
+    <h2>Try it — types derived from the THEME object.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — this demo's buttons are generated from keyof</p>
+      <div class="row" style="margin-bottom: 10px">
+        @for (k of keys; track k) {
+          <button [class.ghost]="key() !== k" (click)="key.set(k)">{{ k }}</button>
         }
-      </tbody>
-    </table>
-  </div>
-  <p>
-    The column that matters is <em>Takes</em>. <code>typeof</code> is the only one that reaches into the value world;
-    the other two operate purely on types. Get that straight and <code>keyof THEME</code> stops being a puzzle — it is
-    an error, because <code>THEME</code> is a value and <code>keyof</code> wanted a type. You needed
-    <code>keyof typeof THEME</code>, and now you know why the two words always appear together.
-  </p>
+      </div>
+      <p class="row">
+        <span class="swatch" [style.background]="value()"></span>
+        <code>THEME['{{ key() }}'] = {{ value() }}</code>
+      </p>
+      <div class="code">
+        <pre>{{ themeSourceSample }}</pre>
+      </div>
+      <p class="demo__note">
+        That's this component's actual source. Add <code>warning: '#f5a623'</code> to <code>THEME</code> and — with zero
+        other edits — a fourth button appears, the signal accepts it, and any typo'd key anywhere fails the build. One
+        object, one truth. (The <code>as ThemeKey[]</code> is needed because <code>Object.keys</code> deliberately
+        returns <code>string[]</code> — objects can have extra keys at runtime; here we know ours doesn't.)
+      </p>
+    </div>
+  </section>
 
-  <h2>The chain, link by link</h2>
+  <!-- ============ 9. THE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The trap</p>
+    <h2>Two characters missing. Does it still compile?</h2>
 
-  <app-flow
-    [steps]="chain"
-    caption="`(typeof ROUTES)[keyof typeof ROUTES]` looks impenetrable until you see it as these steps written on one line. Read it inside-out, like a formula."
-  />
+    <p>
+      This is the same <code>T[number]</code> trick from the roles demo, with one difference from the version above.
+      Decide whether the last line is an error before you open it.
+    </p>
 
-  <h2>Build the classic type-safe getter, piece by piece</h2>
-  <div class="code">
-    <pre>
-function prop&lt;T, K extends keyof T&gt;(obj: T, key: K): T[K] {{ '{' }}
-  return obj[key];
-{{ '}' }}
-//  T                 — inferred from obj: the object's full type
-//  K extends keyof T — key must be ONE OF T's actual keys; K captures WHICH one
-//                      (as a literal type — pass 'id' and K is 'id', not string)
-//  T[K]              — the return type is looked up from that exact key
+    <app-predict
+      prompt="`'emperor'` is obviously not a role. Is that a compile error?"
+      [code]="widenSample"
+      answer="It compiles happily, and that is the most expensive thing on this page. Without `as const`, TypeScript infers `roles` as `string[]` — the array is mutable, so the literals widen to their base type. `(typeof roles)[number]` then dutifully gives you `string`, and `Role` is just an alias for `string`, so every string on earth is a valid role. Nothing is wrong with any single step; the derivation worked perfectly on a type that had already lost its precision. This is the failure mode to fear with derived types generally: **they do not break loudly, they quietly derive from something wider than you meant.** Add `as const` and the same line becomes `'admin' | 'editor' | 'viewer'`, and `setRole('emperor')` finally fails. A quick way to check without changing anything: hover the type in your editor. If a derived union shows as `string`, the `as const` is missing somewhere upstream."
+    />
+  </section>
 
-prop(user, 'id');      // return type: number      — the compiler did the lookup
-prop(user, 'roles');   // return type: string[]    — different key, different type
-// prop(user, 'xyz');  // ❌ 'xyz' is not assignable to keyof User — typo caught</pre>
-  </div>
-  <p>
-    Read the three type parameters as a sentence:
-    <em>"given any object T and a key K that provably belongs to T, I return exactly the type stored at K."</em> No
-    overloads, no casts — and it self-updates when User gains a field. This one signature shape (<code
-      >K extends keyof T</code
+  <!-- ============ 10. THE OTHER DIRECTION ============ -->
+  <section>
+    <p class="bf-eyebrow">Now the other direction</p>
+    <h2>Freeze it, and the mistake runs backwards.</h2>
+
+    <app-quiz
+      [question]="asConstQuizQuestion"
+      [options]="literalOptions"
+      followUp="Put the two together and you have the real rule: as const is right for tables you only read from, and wrong for objects you intend to write to. Deriving types is not free of judgement — you are choosing how much precision to keep."
+    />
+
+    <app-remember variant="rule">
+      <strong><code>as const</code> is right for objects you only ever <em>read</em></strong> — lookup tables, route
+      maps, permission lists. Leave it off (or widen deliberately with a conditional type) for anything you intend to
+      <em>write</em> new values into later.
+    </app-remember>
+  </section>
+
+  <!-- ============ 11. IN THE WILD ============ -->
+  <section>
+    <p class="bf-eyebrow">In the wild</p>
+    <h2>Derive an enum instead of writing one.</h2>
+
+    <p>
+      This is the pattern in the wild: derive both the key union <em>and</em> the value union from one object, instead
+      of hand-listing them in an <code>enum</code>.
+    </p>
+
+    <app-compare
+      leftTitle="Before — `enum`"
+      leftTone="neutral"
+      rightTitle="Now — const object, derived types"
+      rightTone="good"
+      note="Both give you a checked set of routes. Only one of them is also real data your program can loop over."
     >
-    … <code>T[K]</code>) is the backbone of typed form helpers, ORMs, state selectors, and half the generic APIs you'll
-    ever read.
-  </p>
+      <div left>
+        <div class="code">
+          <pre>{{ enumRouteSample }}</pre>
+        </div>
+        <p>
+          Safe, familiar — and a second representation of the same idea, maintained by hand alongside the routes
+          themselves.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ constRouteSample }}</pre>
+        </div>
+        <p>
+          <code>ROUTES</code> is real data — <code>Object.keys(ROUTES)</code>, <code>Object.values(ROUTES)</code> — with
+          the key and value unions derived, not duplicated.
+        </p>
+      </div>
+    </app-compare>
 
-  <h2>Try it — types derived from the THEME object</h2>
-  <div class="demo">
-    <p class="demo__title">Live — this demo's buttons are generated from keyof</p>
-    <div class="row" style="margin-bottom: 10px">
-      @for (k of keys; track k) {
-        <button [class.ghost]="key() !== k" (click)="key.set(k)">{{ k }}</button>
-      }
-    </div>
-    <p class="row">
-      <span class="swatch" [style.background]="value()"></span>
-      <code>THEME['{{ key() }}'] = {{ value() }}</code>
+    <p>
+      See the <a routerLink="/ts-enums">Enums lesson</a> for the full trade-off between the two — the point here is only
+      that <code>keyof</code>/<code>typeof</code> let you build enum-like safety <em>from</em> an ordinary object, with
+      one source of truth instead of two, and you'll see this exact combo typing route tables, permission maps and
+      config across production Angular codebases.
     </p>
-    <div class="code">
-      <pre>
-const THEME = {{ '{' }} primary: …, accent: …, success: … {{ '}' }} as const;
+  </section>
 
-type ThemeKey = keyof typeof THEME;        // 'primary' | 'accent' | 'success'
-const keys = Object.keys(THEME) as ThemeKey[];   // the buttons above
-const key  = signal&lt;ThemeKey&gt;('primary');        // can ONLY hold real keys</pre>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      That's this component's actual source. Add <code>warning: '#f5a623'</code> to THEME and — with zero other edits —
-      a fourth button appears, the signal accepts it, and any typo'd key anywhere fails the build. One object, one
-      truth. (The <code>as ThemeKey[]</code> is needed because <code>Object.keys</code> deliberately returns
-      <code>string[]</code> — objects can have extra keys at runtime; here we know ours doesn't.)
-    </p>
-  </div>
+  <!-- ============ 12. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>None of this exists once your code runs.</h2>
 
-  <h2>Two characters missing — does it still compile?</h2>
-  <p>
-    This is the same <code>T[number]</code> trick you just used, with one difference from the version above. Decide
-    whether the last line is an error before you open it.
-  </p>
+    <p>That's worth sitting with, because it explains both the power and the limits of these operators.</p>
 
-  <app-predict
-    prompt="`'emperor'` is obviously not a role. Is that a compile error?"
-    [code]="widenSample"
-    answer="It compiles happily, and that is the most expensive thing on this page. Without `as const`, TypeScript infers `roles` as `string[]` — the array is mutable, so the literals widen to their base type. `(typeof roles)[number]` then dutifully gives you `string`, and `Role` is just an alias for `string`, so every string on earth is a valid role. Nothing is wrong with any single step; the derivation worked perfectly on a type that had already lost its precision. This is the failure mode to fear with derived types generally: they do not break loudly, they quietly derive from something wider than you meant. Add `as const` and the same line becomes `'admin' | 'editor' | 'viewer'`, and `setRole('emperor')` finally fails. A quick way to check without changing anything: hover the type in your editor. If a derived union shows as `string`, the `as const` is missing somewhere upstream."
-  />
+    <ul>
+      <li>
+        <strong>Full erasure, zero runtime cost.</strong> The compiler resolves
+        <code>typeof</code>/<code>keyof</code>/<code>T[K]</code> entirely during type-checking, then strips every type
+        annotation before emitting JS. The buttons in the THEME demo above are generated by the real runtime call
+        <code>Object.keys(THEME)</code> — <code>ThemeKey</code> itself never appears in the compiled output, not even as
+        a string array.
+      </li>
+      <li>
+        <strong>Resolution is <span class="term">structural</span>, not name-based.</strong> <code>keyof T</code>
+        doesn't look up a declaration by name; the compiler walks T's actual member list (however it was built — an
+        interface, an inferred object literal, a mapped type) and unions the property keys it finds. That's why
+        <code>keyof typeof THEME</code> works on a plain <code>const</code> with no <code>interface</code> in sight.
+      </li>
+      <li>
+        <strong>Index signatures widen the union.</strong> <code>keyof</code> on a type with a
+        <code>[key: string]: V</code> index signature includes <code>string</code> (and <code>number</code>, since
+        numeric property access is stringified) in the key union — the compiler can't enumerate an open-ended
+        signature's members, so it falls back to "any string/number key is valid."
+      </li>
+      <li>
+        <strong>This is why "add a key, everything updates" actually holds.</strong> Because the union is recomputed
+        from T's structure on every compile rather than cached from a prior declaration, there is no second place that
+        can go stale — <span class="key">the const object <em>is</em> the type</span>, one build behind.
+      </li>
+    </ul>
+  </section>
 
-  <app-quiz
-    question="Now the other direction. `const config = { retries: 3, url: '/api' } as const;` and `function update<K extends keyof typeof config>(key: K, value: (typeof config)[K]) {}`. Does `update('retries', 5)` compile?"
-    [options]="literalOptions"
-    followUp="Put the two together and you have the real rule: `as const` is right for tables you only read from, and wrong for objects you intend to write to. Deriving types is not free of judgement — you are choosing how much precision to keep."
-  />
+  <!-- ============ 13. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <h2>The pattern in the wild: const object instead of enum</h2>
-  <div class="code">
-    <pre>
-export const ROUTES = {{ '{' }}
-  home: '/',
-  lesson: '/lessons',
-  practice: '/practice',
-{{ '}' }} as const;
+  <!-- ============ 14. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Recap</p>
+    <h2>Five things worth remembering.</h2>
 
-type RouteKey = keyof typeof ROUTES;             // 'home' | 'lesson' | 'practice'
-type RoutePath = (typeof ROUTES)[RouteKey];      // '/' | '/lessons' | '/practice'
+    <ul>
+      <li>
+        <code>typeof value</code> (type position) lifts a value/function into a type — pair with
+        <code>as const</code> for precise literals and <code>ReturnType&lt;&gt;</code> for function results.
+      </li>
+      <li>
+        <code>keyof T</code> = union of key names; the everyday combo is <code>keyof typeof someConstObject</code>.
+      </li>
+      <li>
+        <code>T[K]</code> looks up member types; <code>T[keyof T]</code> = all value types; <code>T[number]</code> =
+        array/tuple element type.
+      </li>
+      <li>
+        <code>&lt;T, K extends keyof T&gt;(obj: T, key: K) =&gt; T[K]</code> is the canonical type-safe accessor — learn
+        to read it as a sentence.
+      </li>
+      <li>
+        The strategic win: <strong>one const object as source of truth</strong>, all unions derived — add a key once,
+        everything updates, typos can't compile.
+      </li>
+    </ul>
 
-function go(to: RouteKey) {{ '{' }} router.navigateByUrl(ROUTES[to]); {{ '}' }}</pre>
-  </div>
-  <p>
-    Derive both the key union <em>and</em> the value union from one object — this "const object + derived types" combo
-    is the modern alternative to <code>enum</code> for many teams (the Enums lesson picks up that debate), and you'll
-    see it typing route tables, permission maps and config across production Angular codebases.
-  </p>
-
-  <h2>Under the hood</h2>
-  <p>
-    None of this exists once your code runs — that's worth sitting with, because it explains both the power and the
-    limits of these operators.
-  </p>
-  <ul>
-    <li>
-      <strong>Full erasure, zero runtime cost.</strong> The compiler resolves
-      <code>typeof</code>/<code>keyof</code>/<code>T[K]</code> entirely during type-checking, then strips every type
-      annotation before emitting JS. The buttons in the demo above are generated by the real runtime call
-      <code>Object.keys(THEME)</code> — <code>ThemeKey</code> itself never appears in the compiled output, not even as a
-      string array.
-    </li>
-    <li>
-      <strong>Resolution is structural, not name-based.</strong> <code>keyof T</code>
-      doesn't look up a declaration by name; the compiler walks T's actual member list (however it was built — an
-      interface, an inferred object literal, a mapped type) and unions the property keys it finds. That's why
-      <code>keyof typeof THEME</code> works on a plain <code>const</code> with no <code>interface</code> in sight.
-    </li>
-    <li>
-      <strong>Index signatures widen the union.</strong> <code>keyof</code> on a type with a
-      <code>[key: string]: V</code> index signature includes <code>string</code> (and <code>number</code>, since numeric
-      property access is stringified) in the key union — the compiler can't enumerate an open-ended signature's members,
-      so it falls back to "any string/number key is valid."
-    </li>
-    <li>
-      <strong>This is why "add a key, everything updates" actually holds.</strong>
-      Because the union is recomputed from T's structure on every compile rather than cached from a prior declaration,
-      there is no second place that can go stale — the const object <em>is</em> the type, one build behind.
-    </li>
-  </ul>
-
-  <app-faq [items]="questions" />
-
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>typeof value</code> (type position) lifts a value/function into a type — pair with <code>as const</code> for
-      precise literals and <code>ReturnType&lt;&gt;</code> for function results.
-    </li>
-    <li><code>keyof T</code> = union of key names; the everyday combo is <code>keyof typeof someConstObject</code>.</li>
-    <li>
-      <code>T[K]</code> looks up member types; <code>T[keyof T]</code> = all value types; <code>T[number]</code> =
-      array/tuple element type.
-    </li>
-    <li>
-      <code>&lt;T, K extends keyof T&gt;(obj: T, key: K) =&gt; T[K]</code> is the canonical type-safe accessor — learn
-      to read it as a sentence.
-    </li>
-    <li>
-      The strategic win: <strong>one const object as source of truth</strong>, all unions derived — add a key once,
-      everything updates, typos can't compile.
-    </li>
-  </ul>
-
-  <p><a routerLink="/ts-mapped-conditional">Next: Mapped &amp; Conditional Types →</a></p>
+    <p><a routerLink="/ts-mapped-conditional">Next: Mapped &amp; Conditional Types →</a></p>
+  </section>
 </article>

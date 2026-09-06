@@ -1,22 +1,9 @@
-.ops-wrap {
-  overflow-x: auto;
-}
-.ops {
-  width: 100%;
-  min-width: 680px;
-  border-collapse: collapse;
-  font-size: 0.87rem;
-}
-.ops th,
-.ops td {
-  text-align: left;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.ops th {
-  font-size: 0.78rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
+/* Tables, callouts, demo panels, pills and the code window are all styled by
+   the shared brain-friendly layer now (src/brain-friendly.css §8–15), so the
+   `.ops` table rules that used to live here are gone — the operator overview
+   is a row of `<app-tape-card>`s now, and the `.swatch` used by the THEME demo
+   comes from src/styles.css.
+
+   Both live demos (the THEME colour picker and the roles/T[number] picker)
+   are plain button rows and `.demo` panels with no bespoke markup of their
+   own, so there is nothing left here that is specific to this lesson. */
