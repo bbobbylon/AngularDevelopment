@@ -1,167 +1,316 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Component Communication</span>
-  <h1>Component Outputs</h1>
-  <p class="lead">
-    Outputs let a child notify its parent that something happened. The modern
-    <code>output()</code> function creates a typed emitter; the parent listens with event-binding syntax
-    <code>(outputName)="handler($event)"</code>.
-  </p>
-
-  <p>
-    The mental model: <strong>an output is a doorbell, not a door</strong>. The child can ring it — "someone picked four
-    stars" — but it cannot walk in and rearrange the furniture. What happens next is entirely the parent's decision, and
-    the child neither knows nor cares. That is what makes the child reusable in a screen it was never designed for: it
-    has no opinion about the consequences of its own events.
-  </p>
-
-  <app-remember variant="rule">
-    Data flows <strong>down</strong> through inputs. Events flow <strong>up</strong> through outputs. Nothing ever goes
-    the other way.
-  </app-remember>
-
-  <h2>Declaring & emitting</h2>
-  <div class="code">
-    <pre>
-export class Rating {{ '{' }}
-  rate = output&lt;RateEvent&gt;();      // typed output
-  select(stars: number) {{ '{' }}
-    this.rate.emit({{ '{' }} stars, at: new Date() {{ '}' }});  // push a value up
-  {{ '}' }}
-{{ '}' }}</pre>
-  </div>
-
-  <h2>Try it</h2>
-  <div class="demo">
-    <p class="demo__title">Live — child emits, parent reacts</p>
-    <app-rating (rate)="onRate($event)" (cleared)="onClear()" />
-
-    <p style="margin-top: 14px">
-      @if (last(); as r) {
-        Parent received: <strong>{{ r.stars }} star(s)</strong> at {{ r.at | date: 'HH:mm:ss' }}
-      } @else {
-        Parent received: <em>nothing yet</em>
-      }
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="18"
+    kicker="Beginner · Component Communication"
+    title="Component Outputs"
+    hand="or, how a child tells its parent something happened, without ever saying what to do about it"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      An <span class="term">output</span> is how a child tells its parent that something happened, without ever reaching
+      into the parent to make anything happen itself. The modern <code>output()</code> function creates a typed emitter;
+      the parent listens with event-binding syntax, <code>(outputName)="handler($event)"</code>. Everything below is
+      really one idea told a few different ways:
+      <strong>a child announces, and the parent decides.</strong>
     </p>
-    @if (history().length) {
-      <p class="pill">events fired: {{ history().length }}</p>
-    }
-  </div>
+  </app-chapter>
 
-  <div class="code">
-    <pre>
-&lt;app-rating (rate)="onRate($event)" (cleared)="onClear()" /&gt;
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Something happened inside the child. Now what?</h2>
 
-onRate(e: RateEvent) {{ '{' }} this.last.set(e); {{ '}' }}</pre>
-  </div>
+    <p>
+      A star got clicked inside a <code>&lt;app-rating&gt;</code> component, three levels deep in your page. The parent
+      needs to know. But the child has no reference to the parent, no idea what the parent will do about it, and — if it
+      is any good as a reusable component — no business knowing either. So how does the message get out?
+    </p>
 
-  <app-predict
-    prompt="In the parent's handler, what exactly is `$event`?"
-    [code]="eventSample"
-    answer="The `RateEvent` object the child passed to `emit()` — `{ stars: 4, at: ... }`. Not a DOM event, not a wrapper around one. In an *output* binding `$event` is simply the payload, so it is typed as whatever the output was declared with. The name is shared with DOM event bindings purely out of consistency, and it trips almost everyone once."
-  />
+    <p>
+      The tempting wrong answer is to just <span class="key">hand the child a way to reach back in</span> — a callback
+      function, a shared object, a reference to the parent itself. That works, once. It also means the child can now
+      only be used inside a parent shaped exactly like the one you wrote it for. Outputs exist to solve this without
+      paying that price.
+    </p>
 
-  <p>
-    Notice what the demo above does <em>not</em> do: the child never reaches into the parent. It emits, the parent
-    changes its own state, and the new value comes back down as an input. The whole cycle only ever moves one way:
-  </p>
+    <app-napkin lead="before we start —" label="Predict before reading on">
+      The rating child further down this page needs to tell its parent "someone picked 4 stars." Would you rather it
+      called a method the parent handed it directly, or just announced what happened and let the parent decide what
+      happens next? Which one still works if you drop that same child onto a screen its author has never seen?
+    </app-napkin>
+  </section>
 
-  <app-flow
-    [steps]="loop"
-    caption="Unidirectional data flow. Every arrow has one direction, which is why you can always answer 'who changed this?'"
-  />
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An output is a doorbell, not a door.</h2>
 
-  <div class="note">
-    <code>$event</code> in an output binding is the emitted value (here a <code>RateEvent</code>), not a DOM event.
-    Outputs are how <code>[(two-way)]</code> binding works under the hood: an input <code>x</code> plus an output
-    <code>xChange</code> — which is exactly what <code>model()</code> generates.
-  </div>
+    <p>
+      The child can ring it — "someone picked four stars" — but it cannot walk in and rearrange the furniture. What
+      happens next is entirely the parent's decision, and the child neither knows nor cares. That is what makes the
+      child reusable in a screen it was never designed for: it has no opinion about the consequences of its own events.
+    </p>
 
-  <h2>Outputs from an Observable</h2>
-  <div class="code">
-    <pre>
-import {{ '{' }} outputFromObservable {{ '}' }} from '&#64;angular/core/rxjs-interop';
-// expose a stream as an output:
-saved = outputFromObservable(this.savedSubject$);</pre>
-  </div>
-  <div class="note">
-    Subscriptions to outputs are cleaned up automatically when the component is destroyed — no manual unsubscribe. Name
-    outputs for the <em>event</em> (<code>saved</code>, <code>rate</code>), not <code>onSave</code>, and avoid native
-    event names like <code>click</code>/<code>change</code> to prevent confusion with DOM events.
-  </div>
+    <app-remember variant="rule">
+      Data flows <strong>down</strong> through inputs. Events flow <strong>up</strong> through outputs. Nothing ever
+      goes the other way.
+    </app-remember>
 
-  <h2>The classic &#64;Output / EventEmitter</h2>
-  <p>The decorator equivalent you will meet in exams and older code:</p>
-  <div class="code">
-    <pre>
-&#64;Output() rate = new EventEmitter&lt;RateEvent&gt;();
-this.rate.emit(payload);</pre>
-  </div>
-  <p>
-    <code>output()</code> is preferred: it's not a full <code>Subject</code> (no <code>.subscribe</code> on the
-    instance, no values pushed in from outside), which keeps the contract one-directional and clear.
-  </p>
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="What a `rate.emit(...)` call actually sets off. Note the child never learns what the parent decided."
+    />
+  </section>
 
-  <app-quiz
-    question="`[(value)]` on a child component desugars into what, exactly?"
-    [options]="twoWayOptions"
-    followUp="Worth memorising the suffix: the output must be named `<inputName>Change` or the shorthand will not compile."
-  />
+  <!-- ============ 3. THE MECHANISM — THE CHILD'S SIDE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One emit, one binding — that's the whole idea.</h2>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Thinking <code>$event</code> is a DOM event.</strong> In an output binding it's the
-      <em>emitted value</em> (your payload type), not a browser event.
-    </li>
-    <li>
-      <strong>Naming outputs <code>onX</code>.</strong> Name them for the event (<code>rate</code>, <code>saved</code>);
-      the <code>on</code> prefix belongs on the parent's handler, not the output.
-    </li>
-    <li>
-      <strong>Shadowing native events.</strong> Avoid output names like <code>click</code>/ <code>change</code> — they
-      collide with real DOM events on the host.
-    </li>
-    <li>
-      <strong>Treating <code>output()</code> like a Subject.</strong> It has no <code>.subscribe()</code> and can't be
-      fed from outside — it's emit-only by design. Use an RxJS <code>Subject</code> +
-      <code>outputFromObservable</code> if you need a stream source.
-    </li>
-    <li>
-      <strong>Manual unsubscribe.</strong> Output bindings are torn down with the component — no cleanup needed (unlike
-      a hand-rolled <code>EventEmitter.subscribe()</code>).
-    </li>
-  </ul>
+    <p>
+      Declaring an output takes one line; using it takes one more. Here is the child's half of the wire — a
+      <code>Rating</code> component that emits a typed payload every time a star is picked:
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>What is <code>$event</code> in <code>(rate)="onRate($event)"</code>?</summary>
-    <div>
-      The value passed to <code>rate.emit(...)</code> — here a <code>RateEvent</code>. Output <code>$event</code> is the
-      payload, not a DOM event.
+    <app-code-lab
+      file="rating.ts — the child's side"
+      [code]="declareSample"
+      [notes]="declareNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 4. TRY IT — THE PARENT'S SIDE ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Watch it happen, then read the other half of the wire.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — child emits, parent reacts</p>
+      <app-rating (rate)="onRate($event)" (cleared)="onClear()" />
+
+      <p style="margin-top: 14px">
+        @if (last(); as r) {
+          Parent received: <strong>{{ r.stars }} star(s)</strong> at {{ r.at | date: 'HH:mm:ss' }}
+        } @else {
+          Parent received: <em>nothing yet</em>
+        }
+      </p>
+      @if (history().length) {
+        <p class="pill">events fired: {{ history().length }}</p>
+      }
     </div>
-  </details>
-  <details class="qa">
-    <summary>How does two-way <code>[(x)]</code> binding relate to outputs?</summary>
-    <div>
-      It desugars to an input <code>x</code> plus an output <code>xChange</code>. <code>model()</code> generates exactly
-      that pair.
-    </div>
-  </details>
-  <details class="qa">
-    <summary><code>output()</code> vs <code>&#64;Output() EventEmitter</code>?</summary>
-    <div>
-      Same wiring for parents. <code>output()</code> is preferred — it's emit-only (no external
-      <code>subscribe</code>/<code>next</code>), keeping the child→parent contract one-directional.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>output&lt;T&gt;()</code> creates a typed event emitter on a child.</li>
-    <li>Emit with <code>.emit(value)</code>; the parent listens with <code>(name)</code>.</li>
-    <li>The handler receives the emitted value as <code>$event</code>.</li>
-    <li>Decorator form: <code>&#64;Output() x = new EventEmitter&lt;T&gt;()</code>.</li>
-  </ul>
+    <p>
+      Notice what the demo above does <em>not</em> do: the child never reaches into the parent. It emits, the parent
+      changes its own state, and the new value comes back down as an input. Here is the parent's side of exactly the
+      same wire:
+    </p>
 
-  <p><a routerLink="/services-di">Next: Services &amp; Dependency Injection →</a></p>
+    <app-code-lab
+      file="rating-demo.ts — the parent's side"
+      [code]="bindSample"
+      [notes]="bindNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-predict
+      prompt="In the parent's handler, what exactly is `$event`?"
+      [code]="eventSample"
+      answer="The `RateEvent` object the child passed to `emit()` — `{ stars: 4, at: ... }`. Not a DOM event, not a wrapper around one. In an *output* binding `$event` is simply the payload, so it is typed as whatever the output was declared with. The name is shared with DOM event bindings purely out of consistency, and it trips almost everyone once."
+    />
+
+    <p>The whole cycle only ever moves one way, which is why you can always answer "who changed this?":</p>
+
+    <app-flow
+      [steps]="loop"
+      caption="Unidirectional data flow. Every arrow has one direction, and there is no arrow going the other way."
+    />
+  </section>
+
+  <!-- ============ 5. THE PAYOFF — INPUT VS OUTPUT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The payoff</p>
+    <h2>Inputs and outputs are two halves of one contract.</h2>
+
+    <p>
+      This lesson's sibling covers <a routerLink="/inputs">Component Inputs</a> — data flowing the other direction. Put
+      side by side, the two are answers to the same six questions, in opposite directions:
+    </p>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        One contract, read from both sides
+      </caption>
+      <thead>
+        <tr>
+          <th>Question</th>
+          <th>Input — <code>input()</code></th>
+          <th>Output — <code>output()</code></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Which way does data move?</td>
+          <td><strong>Down</strong> — parent → child</td>
+          <td><strong>Up</strong> — child → parent</td>
+        </tr>
+        <tr>
+          <td>What does the child declare?</td>
+          <td>A read-only signal it can only read</td>
+          <td>An emitter it can only trigger</td>
+        </tr>
+        <tr>
+          <td>How does the parent bind it?</td>
+          <td><code>[value]="expr"</code> — square brackets</td>
+          <td><code>(event)="handler($event)"</code> — parens</td>
+        </tr>
+        <tr>
+          <td>Who decides what happens next?</td>
+          <td>The parent — it chose the value</td>
+          <td>The parent — it wrote the handler</td>
+        </tr>
+        <tr>
+          <td>Can the child write to it?</td>
+          <td>Never — inputs are read-only inside the child</td>
+          <td>Yes — <code>.emit()</code> is the child's only move</td>
+        </tr>
+        <tr>
+          <td>The analogy</td>
+          <td>A function parameter</td>
+          <td>A doorbell</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 6. OTHER WAYS TO WRITE AN OUTPUT ============ -->
+  <section>
+    <p class="bf-eyebrow">More than one way</p>
+    <h2>There's more than one way to ring the bell.</h2>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="output()" kicker="modern, signal-based" tone="gold">
+        The form this lesson uses. Emit-only — no <code>.subscribe()</code> on the instance — and cleaned up
+        automatically when the component is destroyed.
+      </app-tape-card>
+      <app-tape-card heading="&#64;Output() + EventEmitter" kicker="the decorator form" tone="accent">
+        Still valid, still common in older code and exams. Wires up exactly the same way from the parent's side — only
+        the child's declaration changes.
+      </app-tape-card>
+      <app-tape-card heading="outputFromObservable()" kicker="rxjs-interop" tone="olive">
+        Exposes an existing RxJS stream as an output. The subscription is torn down with the component — no manual
+        <code>unsubscribe</code>.
+      </app-tape-card>
+    </div>
+
+    <app-compare
+      leftTitle="Before — &#64;Output() + EventEmitter"
+      rightTitle="Now — `output()`"
+      leftTone="neutral"
+      rightTone="good"
+      note="Same wiring on the parent's side either way — the `(rate)` binding doesn't change. What changes is how hard it is to accidentally break the one-way contract from the child's side."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ classicOutputSample }}</pre>
+        </div>
+        <p>
+          <code>EventEmitter</code> is a full RxJS <code>Subject</code> under the hood. Nothing in the type stops
+          another piece of code from calling <code>.subscribe()</code> on it, or even pushing a value in from outside
+          the component.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ modernOutputSample }}</pre>
+        </div>
+        <p>
+          <code>output()</code> is emit-only by construction — no <code>.subscribe()</code>, nothing can push a value in
+          from outside. The one-way contract is enforced by the type, not just by convention.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      Name outputs for the <em>event</em> (<code>saved</code>, <code>rate</code>), not <code>onSave</code>, and avoid
+      native event names like <code>click</code>/<code>change</code> — they collide with real DOM events on the host
+      element.
+    </div>
+  </section>
+
+  <!-- ============ 7. SELF-TEST ============ -->
+  <section>
+    <p class="bf-eyebrow">Self-test</p>
+    <h2>Can you say what <code>[(value)]</code> really is?</h2>
+
+    <p>
+      <code>$event</code> in an output binding is the emitted value (here a <code>RateEvent</code>), not a DOM event.
+      That single fact is also how two-way <code>[(banana-in-a-box)]</code> binding works under the hood: an input
+      <code>x</code> plus an output <code>xChange</code> — which is exactly what <code>model()</code> generates.
+    </p>
+
+    <app-quiz
+      question="`[(value)]` on a child component desugars into what, exactly?"
+      [options]="twoWayOptions"
+      followUp="Worth memorising the suffix: the output must be named `<inputName>Change` or the shorthand will not compile."
+    />
+  </section>
+
+  <!-- ============ 8. TRAPS ============ -->
+  <section>
+    <p class="bf-eyebrow">Traps</p>
+    <h2>The five ways this trips people up.</h2>
+
+    <ul>
+      <li>
+        <strong>Thinking <code>$event</code> is a DOM event.</strong> In an output binding it's the
+        <em>emitted value</em> (your payload type), not a browser event.
+      </li>
+      <li>
+        <strong>Naming outputs <code>onX</code>.</strong> Name them for the event (<code>rate</code>,
+        <code>saved</code>); the <code>on</code> prefix belongs on the parent's handler, not the output.
+      </li>
+      <li>
+        <strong>Shadowing native events.</strong> An output named <code class="bf-break">click</code> or
+        <code class="bf-break">change</code> collides with the real DOM event of the same name on the host.
+      </li>
+      <li>
+        <strong>Treating <code>output()</code> like a Subject.</strong> It has no <code>.subscribe()</code> and can't be
+        fed from outside — it's emit-only by design. Use an RxJS <code>Subject</code> +
+        <code>outputFromObservable</code> if you need a stream source.
+      </li>
+      <li>
+        <strong>Manual unsubscribe.</strong> Output bindings are torn down with the component — no cleanup needed
+        (unlike a hand-rolled <code>EventEmitter.subscribe()</code>).
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Four things to remember.</h2>
+
+    <ul>
+      <li><code>output&lt;T&gt;()</code> creates a typed event emitter on a child.</li>
+      <li>Emit with <code>.emit(value)</code>; the parent listens with <code>(name)="handler($event)"</code>.</li>
+      <li>
+        The child never reaches into the parent, and can't — <strong>it only ever announces</strong>, it never decides.
+      </li>
+      <li>
+        Decorator form still works: <code>&#64;Output() x = new EventEmitter&lt;T&gt;()</code>. Prefer
+        <code>output()</code> in new code — it's emit-only, which keeps the contract one-directional by construction.
+      </li>
+    </ul>
+
+    <p><a routerLink="/services-di">Next: Services &amp; Dependency Injection →</a></p>
+  </section>
 </article>
