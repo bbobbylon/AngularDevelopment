@@ -1,30 +1,8 @@
-.triggers {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.triggers th,
-.triggers td {
-  text-align: left;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
+/* Table, note/tip/warn and demo-pill styling now comes from the shared
+   brain-friendly layer (src/brain-friendly.css §15 and the `.demo`/`.pill`/
+   `.note` rules in styles.css), which is why this file is empty — the
+   `.triggers` table rules and the dead `.qa` accordion styles that used to
+   live here were per-lesson copies of rules the theme now owns (the exam
+   questions on this page have been an `<app-faq>`, not a `.qa` accordion,
+   since before this migration). Nothing left here is specific to
+   HttpClient Basics. */

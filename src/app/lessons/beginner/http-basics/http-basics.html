@@ -1,271 +1,432 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · HTTP</span>
-  <h1>HttpClient Basics</h1>
-  <p class="lead">
-    <code>HttpClient</code> is Angular's typed wrapper over the browser's fetch/XHR. It returns RxJS
-    <strong>Observables</strong>, integrates with interceptors, and gives you typed responses.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · HTTP"
+    title="HttpClient Basics"
+    hand="or, why calling http.get() doesn't send a single byte over the network"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      <code>HttpClient</code> is Angular's typed wrapper over the browser's fetch/XHR. Every method on it returns an
+      RxJS <strong>Observable</strong>, and almost every beginner HTTP bug traces back to one fact about that
+      Observable: it does <span class="key">nothing at all</span> until something asks it to.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: a recipe card, not a meal</h2>
-  <p>
-    Here is the thing that trips up everyone arriving from <code>fetch</code>. When you call
-    <code>http.get('/api/posts')</code>, <strong>no request is sent.</strong> What you get back is a recipe card: a
-    written-down description of a request that could be made. It sits there doing nothing until somebody actually cooks
-    it — and in Angular, cooking is <code>subscribe()</code>.
-  </p>
-  <p>
-    Two consequences fall straight out of the picture, and between them they cover most beginner HTTP bugs. Nothing
-    happens if you never subscribe — no request, no error, no clue. And if you hand the same recipe card to three
-    different people, you get three meals, because a recipe is not a leftover. Three subscriptions means three network
-    requests.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You called <code>http.get()</code>. The Network tab stayed empty.</h2>
 
-  <app-remember>
-    <strong><code>get()</code> hands you a recipe, not a result.</strong> Subscribing is cooking, and every subscriber
-    cooks their own.
-  </app-remember>
+    <p>
+      Here's the thing that trips up everyone arriving from <code>fetch</code>:
+      <code>this.http.get('/api/posts')</code> returns something immediately, and yet nothing goes out over the network.
+      No request, no error, no clue that anything happened at all — the line just quietly returns a value and moves on.
+    </p>
 
-  <h2>1. Provide it once</h2>
-  <div class="code">
-    <pre>
+    <p>
+      That value is not a promise of data on its way. It is a <span class="term">cold Observable</span>: a description
+      of a request that <em>could</em> be made, sitting inert until something specifically asks it to run. Three
+      questions fall out of that one fact, and between them they cover almost every HTTP bug a beginner hits:
+    </p>
+
+    <ul>
+      <li>What actually has to happen before a request is sent at all?</li>
+      <li>What happens if two different places in the app ask for the same thing?</li>
+      <li>What happens to a request that outlives its usefulness — cancelled, or its component destroyed?</li>
+    </ul>
+
+    <app-napkin lead="notice —" label="Predict before reading on">
+      Component A calls <code>this.http.get('/api/posts')</code> and stores the result somewhere shared. Component B,
+      elsewhere entirely, reads that same value and calls <code>.subscribe()</code> on it too, just to be safe.
+      <strong>How many network requests fire?</strong> There's a concrete version of this question — with a real answer
+      — a little further down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Think of <code>http.get()</code> as a recipe card, not a meal.</h2>
+
+    <p>
+      A recipe card is a written-down description of a meal that could be made. It sits there doing nothing until
+      somebody actually cooks it — and in Angular, cooking is <code>subscribe()</code>. Two consequences fall straight
+      out of that picture. Nothing happens if you never subscribe: no request, no error, no meal. And if you hand the
+      same recipe card to three different cooks, you get three meals, because a recipe is not a leftover — three
+      subscriptions means three network requests.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong><code>get()</code> hands you a recipe, not a result.</strong> Subscribing is cooking, and every subscriber
+      cooks their own — three subscriptions to the same call is three separate meals, not one shared plate.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="recipeTalk"
+      caption="The exchange a single `http.get(...).subscribe(...)` line actually sets off. Note that `get()` never touches the network by itself."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Cooking the recipe is six steps, in a fixed order.</h2>
+
+    <p>
+      It's worth holding these steps in order, because nearly every HTTP topic you meet later — interceptors, auth
+      headers, retries, cancellation — is a change to exactly one of them.
+    </p>
+
+    <app-flow
+      [steps]="lifecycle"
+      caption="Interceptors run twice per request: once on the way down with the outgoing request, once on the way back with the response."
+    />
+
+    <p>
+      Step 2 is worth a picture of its own. Interceptors don't sit beside the request — they <strong>wrap</strong> it,
+      one inside the next, with the real network call at the very centre:
+    </p>
+
+    <app-layers
+      [core]="{ label: 'Backend', sub: 'the real fetch/XHR call' }"
+      [rings]="[
+        { label: 'Your code', sub: 'http.get() + subscribe()' },
+        { label: 'Auth interceptor', sub: 'clones the request' },
+        { label: 'Logging interceptor' },
+      ]"
+      arrow="request travels inward"
+      caption="The request travels in through **Auth → Logging** to reach the backend; the response travels back out through the same two, in reverse, before your `subscribe()` callback ever sees it. Each interceptor can only see what the one before it handed over."
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Cold until subscribe()" kicker="step 1" tone="accent">
+        The request object isn't built until <code>subscribe()</code> runs. Subscribe twice and you get two independent
+        requests, flowing through the pipeline separately.
+      </app-tape-card>
+      <app-tape-card heading="Immutable — clone to change" kicker="steps 2–3" tone="olive">
+        You can't mutate a request's headers or body in place. An interceptor calls
+        <code>req.clone({{ '{' }} setHeaders: {{ '{' }} … {{ '}' }} {{ '}' }})</code> to attach a token, producing a new
+        request for the next handler.
+      </app-tape-card>
+      <app-tape-card heading="responseType parses the body" kicker="step 4" tone="gold">
+        Defaults to <code>'json'</code> — the raw text runs through <code>JSON.parse</code>. Ask for
+        <code>{{ '{' }} responseType: 'text' {{ '}' }}</code> or <code>'blob'</code> and that parsing is skipped
+        entirely.
+      </app-tape-card>
+      <app-tape-card heading="Unsubscribe = abort" kicker="step 6" tone="blue">
+        Teardown calls <code>AbortController.abort()</code> under <code>withFetch()</code>, or
+        <code>xhr.abort()</code> under XHR. The connection genuinely stops — this is why <code>switchMap</code> really
+        cancels the previous request instead of merely ignoring its response.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 4. TRY IT — THE GET DEMO ============ -->
+  <section>
+    <p class="bf-eyebrow">See it live</p>
+    <h2>Fetch five posts, and watch every state along the way.</h2>
+
+    <p>Provide the client once, then inject and call it:</p>
+
+    <div class="code">
+      <pre>
 // app.config.ts
 providers: [provideHttpClient(withFetch())]</pre>
-  </div>
-
-  <h2>2. Inject & request</h2>
-  <div class="code">
-    <pre>
-private http = inject(HttpClient);
-
-load() &#123;
-  this.http.get&lt;Post[]&gt;('https://jsonplaceholder.typicode.com/posts')
-    .subscribe(posts =&gt; this.posts.set(posts));
-&#125;</pre>
-  </div>
-
-  <h2>Try it — a real GET request</h2>
-  <div class="demo">
-    <p class="demo__title">Live (calls jsonplaceholder.typicode.com)</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="load()" [disabled]="state() === 'loading'">
-        {{ state() === 'loading' ? 'Loading…' : 'Fetch 5 posts' }}
-      </button>
-      <span class="pill">state: {{ state() }}</span>
     </div>
 
-    @switch (state()) {
-      @case ('error') {
-        <p style="color: var(--accent)">Request failed (are you online?).</p>
-      }
-      @case ('done') {
-        <ul>
-          @for (post of posts(); track post.id) {
-            <li>
-              <strong>{{ post.title }}</strong>
-            </li>
-          }
-        </ul>
-      }
-      @default {
-        <p style="color: var(--text-muted)">Press the button to load data.</p>
-      }
-    }
-  </div>
+    <app-code-lab
+      file="posts.component.ts"
+      [code]="loadSample"
+      [notes]="loadNotes"
+      notesLabel="What each line is doing"
+    />
 
-  <app-predict
-    prompt="The recipe-card model makes a prediction. Commit to a number before you open this."
-    [code]="coldSample"
-    answer="Two. The variable holds a *description* of a request, not a request in flight and certainly not its result — so each `subscribe()` builds and sends its own. This is the shape of a genuinely expensive production bug: a component that reads the same Observable from four places quietly quadruples your API traffic, and nothing in the code looks wrong. The fixes are to subscribe once and share the value (`toSignal`, or the `async` pipe used once with `@if (data$ | async; as data)`), or to add `shareReplay(1)` to the pipeline so late subscribers get the cached response instead of a fresh call."
-  />
-
-  <div class="note">
-    <code>http.get()</code> is <strong>lazy</strong>: nothing happens until you <code>subscribe()</code> (or use the
-    <code>async</code> pipe / <code>toSignal</code>). Each subscription fires a new request.
-  </div>
-
-  <p>So it is worth knowing exactly which of the things you might write actually count as subscribing:</p>
-
-  <table class="triggers">
-    <tr>
-      <th>What you write</th>
-      <th>Request sent?</th>
-      <th>Cleans up after itself?</th>
-    </tr>
-    <tr>
-      <td><code>http.get(url)</code> alone</td>
-      <td>No</td>
-      <td>n/a — nothing started</td>
-    </tr>
-    <tr>
-      <td><code>.pipe(map(…), catchError(…))</code></td>
-      <td>No — <code>pipe</code> only builds a longer recipe</td>
-      <td>n/a</td>
-    </tr>
-    <tr>
-      <td><code>.subscribe(fn)</code></td>
-      <td>Yes</td>
-      <td>No — add <code>takeUntilDestroyed()</code></td>
-    </tr>
-    <tr>
-      <td><code>data$ | async</code> in a template</td>
-      <td>Yes, once per <code>async</code> in the template</td>
-      <td>Yes, on destroy</td>
-    </tr>
-    <tr>
-      <td><code>toSignal(http.get(url))</code></td>
-      <td>Yes</td>
-      <td>Yes, on destroy</td>
-    </tr>
-    <tr>
-      <td><code>await firstValueFrom(…)</code></td>
-      <td>Yes</td>
-      <td>Yes, on the first value</td>
-    </tr>
-  </table>
-
-  <h2>The verbs</h2>
-  <div class="code">
-    <pre>
-http.get&lt;T&gt;(url, &#123; params, headers &#125;)
-http.post&lt;T&gt;(url, body)
-http.put&lt;T&gt;(url, body)
-http.patch&lt;T&gt;(url, body)
-http.delete&lt;T&gt;(url)</pre>
-  </div>
-
-  <h2>Handling errors</h2>
-  <div class="code">
-    <pre>
-this.http.get&lt;Post[]&gt;(url).pipe(
-  catchError(err =&gt; &#123; console.error(err); return of([]); &#125;)
-).subscribe(...)</pre>
-  </div>
-  <p>
-    The error is an <code>HttpErrorResponse</code> with <code>status</code>, <code>message</code> and the parsed
-    <code>error</code> body — branch on <code>err.status</code> to handle 401/404/500 differently.
-  </p>
-
-  <h2>Bridging to signals & cancellation</h2>
-  <div class="code">
-    <pre>
-// turn the Observable into a signal (auto-subscribes & cleans up):
-posts = toSignal(this.http.get&lt;Post[]&gt;(url), &#123; initialValue: [] &#125;);
-
-// switchMap cancels the previous request when a new one starts (typeahead):
-results$ = this.query$.pipe(switchMap(q =&gt; this.http.get(&#96;/search?q=&#36;&#123;q&#125;&#96;)));</pre>
-  </div>
-  <p>
-    Because requests are Observables, unsubscribing <strong>cancels</strong> the in-flight HTTP call (with
-    <code>withFetch()</code>, via <code>AbortController</code>) — no wasted responses. The <code>async</code> pipe and
-    <code>toSignal</code>
-    unsubscribe for you.
-  </p>
-
-  <h2>Try it — cancelling in-flight requests</h2>
-  <div class="demo">
-    <p class="demo__title">Live — rapid clicks cancel the previous request (switchMap)</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="loadRandomUser()">Fetch random user</button>
-      <span class="pill">requests started: {{ requestCount() }}</span>
-      <span class="pill">responses applied: {{ responseCount() }}</span>
-    </div>
-    <p style="color: var(--text-muted)">
-      Click rapidly a few times — <code>switchMap</code> unsubscribes the previous request as soon as a new one starts,
-      so even though several may still be in flight, only the <strong>last</strong> response is ever applied.
-    </p>
-    @if (lastUserName(); as name) {
-      <div class="code">
-        <pre>last applied: {{ name }}</pre>
+    <div class="demo">
+      <p class="demo__title">Live (calls jsonplaceholder.typicode.com)</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="load()" [disabled]="state() === 'loading'">
+          {{ state() === 'loading' ? 'Loading…' : 'Fetch 5 posts' }}
+        </button>
+        <span class="pill">state: {{ state() }}</span>
       </div>
-    }
-  </div>
-  <div class="note">
-    <code>requestCount</code> can climb faster than <code>responseCount</code> — the gap is every request that got
-    superseded and unsubscribed before its response arrived.
-  </div>
 
-  <h2>Under the hood</h2>
+      @switch (state()) {
+        @case ('error') {
+          <p style="color: var(--accent)">Request failed (are you online?).</p>
+        }
+        @case ('done') {
+          <ul>
+            @for (post of posts(); track post.id) {
+              <li>
+                <strong>{{ post.title }}</strong>
+              </li>
+            }
+          </ul>
+        }
+        @default {
+          <p style="color: var(--text-muted)">Press the button to load data.</p>
+        }
+      }
+    </div>
 
-  <p>
-    Cooking the recipe is six steps, and it is worth holding them in order — nearly every HTTP topic you meet later is a
-    modification to exactly one of them:
-  </p>
+    <app-predict
+      prompt="The recipe-card model makes a prediction. Commit to a number before you open this."
+      [code]="coldSample"
+      answer="Two. The variable holds a *description* of a request, not a request in flight and certainly not its result — so each `subscribe()` builds and sends its own. This is the shape of a genuinely expensive production bug: a component that reads the same Observable from four places quietly quadruples your API traffic, and nothing in the code looks wrong. The fixes are to subscribe once and share the value (`toSignal`, or the `async` pipe used once with `@if (data$ | async; as data)`), or to add `shareReplay(1)` to the pipeline so late subscribers get the cached response instead of a fresh call."
+    />
+  </section>
 
-  <app-flow
-    [steps]="lifecycle"
-    caption="Interceptors run twice per request: once on the way down with the outgoing request, once on the way back with the response."
-  />
+  <!-- ============ 5. WHICH CALLS ACTUALLY SEND SOMETHING ============ -->
+  <section>
+    <p class="bf-eyebrow">Worth knowing exactly</p>
+    <h2>Not everything that looks like a request is one.</h2>
 
-  <ul>
-    <li>
-      <strong>The request isn't built until <code>subscribe()</code> runs.</strong> <code>http.get()</code> returns a
-      cold Observable whose subscribe callback is what actually constructs the <code>HttpRequest</code> and dispatches
-      it — subscribing twice creates two independent requests that flow through the pipeline separately.
-    </li>
-    <li>
-      <strong>Interceptors form a linked chain of handlers.</strong> Each provided interceptor wraps the next
-      <code>HttpHandler</code>; calling <code>next.handle(req)</code> passes control down the chain to the final
-      backend, then the response bubbles back up through the same interceptors in reverse — so one interceptor can
-      transform both the outgoing request and the incoming response.
-    </li>
-    <li>
-      <strong>Requests are immutable — interceptors clone to change them.</strong> You can't mutate a request's
-      headers/body in place, so an auth interceptor calls
-      <code>req.clone({{ '{' }} setHeaders: {{ '{' }} … {{ '}' }} {{ '}' }})</code> to attach a token, producing a new
-      request object for the next handler.
-    </li>
-    <li>
-      <strong>The body is parsed based on <code>responseType</code>.</strong> The default is <code>'json'</code> (the
-      raw body is run through <code>JSON.parse</code>); asking for
-      <code>{{ '{' }} responseType: 'text' {{ '}' }}</code> or <code>'blob'</code> skips that parsing entirely —
-      mismatching this against what the server actually sends is a common source of parse errors.
-    </li>
-    <li>
-      <strong>Unsubscribing tears down the network call itself.</strong> With <code>withFetch()</code> the teardown
-      logic calls <code>AbortController.abort()</code>; with XHR it calls <code>xhr.abort()</code> — this is why
-      <code>switchMap</code> genuinely cancels the previous request instead of just ignoring its response.
-    </li>
-  </ul>
+    <p>So it's worth knowing exactly which of the things you might write actually count as subscribing:</p>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Forgetting to subscribe.</strong> <code>http.get()</code> is a <em>cold</em> Observable — no request fires
-      until <code>subscribe()</code>, the <code>async</code> pipe, or <code>toSignal</code>.
-    </li>
-    <li>
-      <strong>Subscribing multiple times.</strong> Each subscription is a new HTTP call. Share with
-      <code>toSignal</code>/<code>async</code> or <code>shareReplay</code>.
-    </li>
-    <li>
-      <strong>Manual subscriptions that leak.</strong> A hand-rolled <code>.subscribe()</code> should be cleaned up
-      (<code>takeUntilDestroyed()</code>); <code>async</code>/<code>toSignal</code> do it for you.
-    </li>
-    <li>
-      <strong>Swallowing errors.</strong> <code>catchError</code> that returns a value hides failures — branch on
-      <code>err.status</code> and surface real problems.
-    </li>
-    <li>
-      <strong>Not typing the response.</strong> <code>get&lt;Post[]&gt;()</code> gives you compile-time safety;
-      <code>get()</code> returns <code>Object</code>.
-    </li>
-  </ul>
+    <table>
+      <caption class="bf-table-caption">
+        What you write, and whether it actually sends anything
+      </caption>
+      <thead>
+        <tr>
+          <th>What you write</th>
+          <th>Request sent?</th>
+          <th>Cleans up after itself?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>http.get(url)</code> alone</td>
+          <td>No</td>
+          <td>n/a — nothing started</td>
+        </tr>
+        <tr>
+          <td><code>.pipe(map(…), catchError(…))</code></td>
+          <td>No — <code>pipe</code> only builds a longer recipe</td>
+          <td>n/a</td>
+        </tr>
+        <tr>
+          <td><code>.subscribe(fn)</code></td>
+          <td>Yes</td>
+          <td>No — add <code>takeUntilDestroyed()</code></td>
+        </tr>
+        <tr>
+          <td><code>data$ | async</code> in a template</td>
+          <td>Yes, once per <code>async</code> in the template</td>
+          <td>Yes, on destroy</td>
+        </tr>
+        <tr>
+          <td><code>toSignal(http.get(url))</code></td>
+          <td>Yes</td>
+          <td>Yes, on destroy</td>
+        </tr>
+        <tr>
+          <td><code>await firstValueFrom(…)</code></td>
+          <td>Yes</td>
+          <td>Yes, on the first value</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 
-  <app-quiz
-    question="A request is in flight and you unsubscribe from it — because `switchMap` superseded it, or because the component was destroyed. What happens to the network call?"
-    [options]="cancelOptions"
-    followUp="Practical upshot: navigating away from a page mid-load does not leave orphaned requests draining the connection pool, as long as you subscribed through `toSignal`, the `async` pipe, or `takeUntilDestroyed()`."
-  />
+  <!-- ============ 6. THE VERBS ============ -->
+  <section>
+    <p class="bf-eyebrow">The other four verbs</p>
+    <h2>Five verbs, one shape.</h2>
 
-  <app-faq [items]="questions" />
+    <p>
+      Every one of these is exactly as lazy as <code>get()</code> — nothing fires until something subscribes.
+      <a routerLink="/http-crud">HttpClient CRUD</a> takes request bodies, params and headers apart in full; this is
+      just the shape.
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Provide once with <code>provideHttpClient()</code>; inject <code>HttpClient</code>.</li>
-    <li>Methods return cold Observables — subscribe (or async pipe) to trigger them.</li>
-    <li>Type the response with the generic: <code>get&lt;Post[]&gt;()</code>.</li>
-    <li>Handle failures with the RxJS <code>catchError</code> operator.</li>
-  </ul>
+    <app-code-lab
+      file="http-verbs.ts"
+      [code]="verbsSample"
+      [notes]="verbsNotes"
+      notesLabel="What each verb actually means"
+    />
+  </section>
 
-  <p><a routerLink="/template-forms">Next: Template-Driven Forms →</a></p>
+  <!-- ============ 7. HANDLING ERRORS ============ -->
+  <section>
+    <p class="bf-eyebrow">Handling failure</p>
+    <h2>A failed request is not a thrown exception.</h2>
+
+    <p>
+      A rejected HTTP call doesn't throw in the way a synchronous error would — it arrives as an
+      <code>HttpErrorResponse</code> down the <em>error</em> channel of the Observable, and RxJS's
+      <code>catchError</code> is how you intercept it before it reaches — or skips — your <code>subscribe</code>.
+    </p>
+
+    <app-code-lab
+      file="posts.component.ts"
+      [code]="errorSample"
+      [notes]="errorNotes"
+      notesLabel="Line by line"
+      prompt="If the request fails, what ends up in `posts` — and does anything here tell you a failure actually happened?"
+      output="`posts` becomes an empty array — indistinguishable, from the template's point of view, from a topic that genuinely has zero posts. `console.error` tells *you*, in the browser console, but nothing here sets an error state the UI can react to. That gap — between logging a failure and handling one — is the single most common way HTTP error handling goes wrong."
+    />
+  </section>
+
+  <!-- ============ 8. WHY OBSERVABLES, NOT PROMISES ============ -->
+  <section>
+    <p class="bf-eyebrow">A question worth asking</p>
+    <h2>Two things a Promise cannot give you.</h2>
+
+    <p>
+      A request only ever resolves to one thing, so it's fair to ask why <code>HttpClient</code> bothers with RxJS at
+      all instead of just returning a Promise. Side by side:
+    </p>
+
+    <app-compare
+      leftTitle="A Promise — one shot"
+      rightTitle="An Observable — cancellable and composable"
+      leftTone="neutral"
+      rightTone="good"
+      note="Genuinely want a Promise instead? `firstValueFrom(http.get(url))` gives you one — and you give up both columns on the right."
+    >
+      <div left>
+        <p>
+          Resolves once, with whatever the first response was. There's no way to call in afterwards and say "never mind"
+          — the request keeps running to completion even once nothing cares about the result any more.
+        </p>
+        <p>
+          Want to retry on failure, or wait a moment before firing? There's no shared vocabulary for that — you write it
+          yourself, by hand, every time you need it.
+        </p>
+      </div>
+      <div right>
+        <p>
+          An <code>HttpClient</code> call returns a stream. Unsubscribing from it — including a component simply being
+          destroyed — tears down the real network request via <code>AbortController</code> (or
+          <code>XMLHttpRequest.abort()</code>).
+        </p>
+        <p>
+          <code>retry</code>, <code>debounceTime</code>, <code>timeout</code> and <code>switchMap</code> all apply to it
+          completely unchanged, because they're operators on the exact same Observable type as everything else in RxJS.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 9. TRY IT — CANCELLATION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The payoff</p>
+    <h2>Unsubscribing doesn't just ignore the response — it cancels the call.</h2>
+
+    <p>
+      Because a request is an Observable, the same teardown logic that runs when any Observable is unsubscribed applies
+      here too. The <code>async</code> pipe and <code>toSignal</code> unsubscribe for you; a hand-rolled
+      <code>.subscribe()</code> needs <code>takeUntilDestroyed()</code> to do the same.
+    </p>
+
+    <app-code-lab
+      file="posts.component.ts"
+      [code]="bridgeSample"
+      [notes]="bridgeNotes"
+      notesLabel="Two jobs, two lines"
+    />
+
+    <app-remember variant="rule">
+      <code>toSignal</code> and the <code>async</code> pipe unsubscribe for you. A hand-written
+      <code>.subscribe()</code> does not — clean it up yourself with <code>takeUntilDestroyed()</code>, or its callback
+      keeps running after the component that started it is gone.
+    </app-remember>
+
+    <div class="demo">
+      <p class="demo__title">Live — rapid clicks cancel the previous request (switchMap)</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="loadRandomUser()">Fetch random user</button>
+        <span class="pill">requests started: {{ requestCount() }}</span>
+        <span class="pill">responses applied: {{ responseCount() }}</span>
+      </div>
+      <p class="demo__note">
+        Click rapidly a few times — <code>switchMap</code> unsubscribes the previous request as soon as a new one
+        starts, so even though several may still be in flight, only the <strong>last</strong> response is ever applied.
+      </p>
+      @if (lastUserName(); as name) {
+        <div class="code">
+          <pre>last applied: {{ name }}</pre>
+        </div>
+      }
+    </div>
+    <div class="note">
+      <code>requestCount</code> can climb faster than <code>responseCount</code> — the gap is every request that got
+      superseded and unsubscribed before its response arrived.
+    </div>
+
+    <app-quiz
+      question="A request is in flight and you unsubscribe from it — because `switchMap` superseded it, or because the component was destroyed. What happens to the network call?"
+      [options]="cancelOptions"
+      followUp="Practical upshot: navigating away from a page mid-load does not leave orphaned requests draining the connection pool, as long as you subscribed through `toSignal`, the `async` pipe, or `takeUntilDestroyed()`."
+    />
+  </section>
+
+  <!-- ============ 10. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Pitfalls</p>
+    <h2>Where this goes wrong in code review.</h2>
+
+    <ul>
+      <li>
+        <strong>Forgetting to subscribe.</strong> <code>http.get()</code> is a
+        <span class="bf-break">cold</span> Observable — no request fires until <code>subscribe()</code>, the
+        <code>async</code> pipe, or <code>toSignal</code>.
+      </li>
+      <li>
+        <strong>Subscribing multiple times.</strong> Each subscription is a new HTTP call. Share with
+        <code>toSignal</code>/<code>async</code> or <code>shareReplay</code>.
+      </li>
+      <li>
+        <strong>Manual subscriptions that leak.</strong> A hand-rolled <code>.subscribe()</code> should be cleaned up
+        (<code>takeUntilDestroyed()</code>); <code>async</code>/<code>toSignal</code> do it for you.
+      </li>
+      <li>
+        <strong>Swallowing errors.</strong> <code>catchError</code> that returns a value hides
+        <span class="bf-break">failures</span> — branch on <code>err.status</code> and surface real problems.
+      </li>
+      <li>
+        <strong>Not typing the response.</strong> <code>get&lt;Post[]&gt;()</code> gives you compile-time safety;
+        <code>get()</code> returns <code>Object</code>.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP / KEY TAKEAWAYS ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Four things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>http.get()</code> hands you a <strong>recipe, not a meal</strong> — nothing is sent until
+        <code>subscribe()</code>, the <code>async</code> pipe, or <code>toSignal</code> cooks it, and every subscriber
+        cooks their own.
+      </li>
+      <li>
+        A request travels <strong>inward</strong> through the interceptor chain to the backend, and the response travels
+        back out through the same chain in reverse — cloning, never mutating, at every step.
+      </li>
+      <li>
+        Type the response with the generic (<code>get&lt;Post[]&gt;()</code>), and branch on
+        <code>err.status</code> in <code>catchError</code> instead of quietly returning a fallback value that hides the
+        failure.
+      </li>
+      <li>
+        Unsubscribing <strong>genuinely cancels</strong> the network call via <code>AbortController</code> — which is
+        why <code>switchMap</code> is the fix for out-of-order responses, not just a way to ignore them.
+      </li>
+    </ul>
+
+    <p><a routerLink="/template-forms">Next: Template-Driven Forms →</a></p>
+  </section>
 </article>
