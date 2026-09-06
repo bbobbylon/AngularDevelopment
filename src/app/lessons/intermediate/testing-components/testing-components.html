@@ -1,651 +1,498 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Testing</span>
-  <h1>Testing Components</h1>
-  <p class="lead">
-    Angular's <code>TestBed</code> spins up a real (but headless) component so you can render it, interact with the DOM
-    and assert on results. Knowing the full toolkit — async helpers, signal inputs, mocking — is what separates a senior
-    developer from someone who only writes basic tests.
-  </p>
-
-  <div class="tab-row">
-    @for (t of tabs; track t.id) {
-      <button [class.active]="activeTab() === t.id" (click)="activeTab.set(t.id)">
-        {{ t.label }}
-      </button>
-    }
-  </div>
-
-  @if (activeTab() === 'basics') {
-    <h2>The anatomy of a component test</h2>
-    <div class="code">
-      <pre>
-// TestBed builds a miniature Angular application just for this test file.
-// ComponentFixture is the type-safe handle it hands back.
-import {{ '{' }} TestBed, ComponentFixture {{ '}' }} from '&#64;angular/core/testing';
-
-describe('CounterComponent', () =&gt; {{ '{' }}
-  // The FIXTURE is the test harness: it owns the component instance, the host
-  // DOM element, and the change-detection trigger. Declared here (not inside
-  // beforeEach) so every it() block in this describe can reach it.
-  let fixture: ComponentFixture&lt;CounterComponent&gt;;
-  // The component INSTANCE — the class itself, for reading/writing its state.
-  let component: CounterComponent;
-
-  // Runs before EVERY it() below, so each test gets a brand-new component.
-  // `async` because compileComponents() returns a Promise.
-  beforeEach(async () =&gt; {{ '{' }}
-    // Describes the module the component will live in for this test — the
-    // testing equivalent of the `imports`/`providers` you'd write in real code.
-    await TestBed.configureTestingModule({{ '{' }}
-      // A standalone component brings its own dependencies, so it goes in
-      // `imports` — the same place it would go in a parent component.
-      imports: [CounterComponent],
-      // Pre-standalone (NgModule) components go in `declarations` instead:
-      // declarations: [CounterComponent]
-    // compileComponents() resolves external templateUrl/styleUrls. With the
-    // Angular CLI these are inlined at build time, so it's usually a no-op —
-    // but awaiting it is harmless and makes the test portable.
-    {{ '}' }}).compileComponents();
-
-    // Instantiates the component and attaches it to a host element in a
-    // detached DOM. Nothing has rendered yet at this point.
-    fixture = TestBed.createComponent(CounterComponent);
-    // Grab the class instance so tests can call methods and read signals.
-    component = fixture.componentInstance;
-    // THE line beginners forget. Change detection has not run yet, so the
-    // template is empty until you call this. It runs ngOnInit and paints the
-    // first render. Query the DOM before this and you get null.
-    fixture.detectChanges();
-  {{ '}' }});
-
-  // Destroys the component: runs ngOnDestroy, unsubscribes, removes the host
-  // element. Skip this and leaked timers/subscriptions from test 1 can make
-  // test 7 fail for no visible reason — the classic "flaky suite".
-  afterEach(() =&gt; fixture.destroy());
-{{ '}' }});</pre>
-    </div>
-
-    <h2>Querying the DOM</h2>
-    <div class="code">
-      <pre>
-// ---- Option 1: nativeElement — the raw DOM node, no Angular involved ----
-// fixture.nativeElement IS the host element. From there it's plain DOM API,
-// exactly what you'd write in the browser console.
-const btn = fixture.nativeElement.querySelector('button');    // first match, or null
-const items = fixture.nativeElement.querySelectorAll('.item'); // NodeList (has .length)
-// .trim() matters: Angular's template formatting leaves whitespace/newlines
-// around interpolated text, so a bare toBe('Click me') often fails.
-expect(btn.textContent.trim()).toBe('Click me');
-
-// ---- Option 2: DebugElement + By predicate — Angular-aware ----
-// `By` is just a namespace of predicate factories for debugElement.query().
-import {{ '{' }} By {{ '}' }} from '&#64;angular/platform-browser';
-// query() returns ONE DebugElement (queryAll() returns an array). A
-// DebugElement wraps the DOM node and adds Angular metadata on top.
-// data-testid is the recommended hook: it survives CSS refactors, unlike
-// class names that a designer may rename tomorrow.
-const de = fixture.debugElement.query(By.css('[data-testid="submit"]'));
-// Calls the (click) handler directly instead of dispatching a real event.
-// Faster and works for outputs on components that have no DOM equivalent.
-de.triggerEventHandler('click');
-
-// ---- Option 3: By.directive — find by TYPE, not by markup ----
-// Locates the child no matter what tag/class its selector uses.
-const child = fixture.debugElement.query(By.directive(ChildComponent));
-// componentInstance is typed `any`, so cast it to get real autocomplete and
-// type-checking on the child's own methods and signals.
-const childInstance = child.componentInstance as ChildComponent;</pre>
-    </div>
-
-    <h2>Clicking, typing, and asserting</h2>
-    <div class="code">
-      <pre>
-it('increments on click', () =&gt; {{ '{' }}
-  // ARRANGE — find the element the user would click.
-  const button = fixture.nativeElement.querySelector('button');
-  // ACT — .click() dispatches a real click event, so the (click) binding fires
-  // and the component's counter signal is updated.
-  button.click();
-  // The signal changed, but the DOM still shows the OLD value until change
-  // detection runs. Forget this line and your assertion fails on stale text.
-  fixture.detectChanges();
-  // ASSERT — read what the user would actually see. toContain, not toBe,
-  // because the element probably renders "Count: 1" rather than bare "1".
-  expect(fixture.nativeElement.querySelector('.count').textContent).toContain('1');
-{{ '}' }});
-
-it('reflects typed input', () =&gt; {{ '{' }}
-  // Annotate the type so TypeScript knows `.value` exists (querySelector
-  // returns the generic Element otherwise).
-  const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
-  // Setting .value in code does NOT notify Angular — the DOM property changes
-  // silently and ngModel/formControl never hears about it.
-  input.value = 'Hello';
-  // THIS is the line that makes it work: it fires the same 'input' event a
-  // real keystroke would, which is what Angular's value accessor listens for.
-  input.dispatchEvent(new Event('input'));
-  // Push the new model value back out to the template.
-  fixture.detectChanges();
-  // Assert on the component's state — `name` is a signal, so call it to read.
-  expect(component.name()).toBe('Hello');
-{{ '}' }});</pre>
-    </div>
-
-    <h2>autoDetectChanges — skip manual detectChanges()</h2>
-    <div class="code">
-      <pre>
-beforeEach(async () =&gt; {{ '{' }}
-  // Same setup as before, written on one line since there's nothing to explain.
-  await TestBed.configureTestingModule({{ '{' }} imports: [MyComp] {{ '}' }}).compileComponents();
-  fixture = TestBed.createComponent(MyComp);
-  // Attaches the fixture to Angular's ApplicationRef so change detection runs
-  // by itself whenever something asks for it — closer to how the real app
-  // behaves. Note it also performs the FIRST render, replacing the initial
-  // detectChanges() call.
-  fixture.autoDetectChanges(true);
-{{ '}' }});
-
-// Now every test drops its detectChanges() calls:
-it('increments on click', () =&gt; {{ '{' }}
-  fixture.nativeElement.querySelector('button').click();
-  // No fixture.detectChanges() here — autoDetect already re-rendered.
-  expect(fixture.nativeElement.querySelector('.count').textContent).toContain('1');
-{{ '}' }});
-
-// The trade-off: auto-detection hides WHEN rendering happens, which makes
-// timing bugs harder to spot. Prefer explicit detectChanges() while you're
-// learning, or in any test where the render order is the thing under test.</pre>
-    </div>
-  }
-
-  @if (activeTab() === 'async') {
-    <h2>Async testing: fakeAsync + tick</h2>
-    <p>
-      <code>fakeAsync</code> gives you synchronous control over timers and promises. Use it instead of
-      <code>async/await</code> for timer-heavy code.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Intermediate · Testing"
+    title="Testing Components"
+    hand="or, how to prove a component works without ever opening a browser"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      <code>TestBed</code> builds a real — but headless — copy of your component so you can render it, click it, type
+      into it, and assert on the result. Almost every confusing test failure comes from one gap: something changed in
+      memory, but nobody told the screen. This page is about closing that gap on purpose, every time.
     </p>
-    <div class="code">
-      <pre>
-// fakeAsync = run this test in a zone with a FAKE clock.
-// tick(ms)   = move that clock forward by a known amount.
-// flush()    = move it forward until every pending timer has fired.
-import {{ '{' }} fakeAsync, tick, flush {{ '}' }} from '&#64;angular/core/testing';
+  </app-chapter>
 
-// Wrapping the callback in fakeAsync() swaps setTimeout/setInterval/Promise
-// for controllable fakes. The test still runs synchronously top to bottom.
-it('shows success after 500ms', fakeAsync(() =&gt; {{ '{' }}
-  // ACT — kicks off something that will finish 500ms from now.
-  fixture.componentInstance.submit();
-  // ASSERT THE "BEFORE" STATE first. The clock hasn't moved, so the component
-  // must still be showing its loading UI. Testing this is what proves the
-  // spinner ever appears at all.
-  expect(fixture.nativeElement.querySelector('.spinner')).toBeTruthy();
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>It works when you click it. How do you prove that to a robot?</h2>
 
-  // Jump the virtual clock forward 500ms. Every timer scheduled to fire at or
-  // before that point runs NOW, synchronously — no waiting, no flakiness.
-  tick(500);
-  // Timers have run and changed state; repaint so the DOM reflects it.
-  fixture.detectChanges();
-  // ASSERT THE "AFTER" STATE.
-  expect(fixture.nativeElement.querySelector('.success')).toBeTruthy();
-{{ '}' }}));
+    <p>
+      Here's a real, running component. No test has touched it yet — it's just an ordinary Angular component, rendered
+      on this page right now.
+    </p>
 
-it('flushes all pending timers', fakeAsync(() =&gt; {{ '{' }}
-  // Starts something whose exact timing you don't know or don't care about.
-  component.startPolling();
-  // flush() drains the whole timer queue instead of you guessing a number.
-  // Use it when you just want "run everything"; use tick(n) when the delay
-  // itself is the behaviour under test.
-  flush();
-  fixture.detectChanges();
-  expect(component.data()).toBeDefined();
-{{ '}' }}));
-
-// THE ERROR YOU WILL HIT: "Error: 1 timer(s) still in the queue." fakeAsync
-// throws if the test ends with work left over — a deliberate safety net that
-// catches intervals you forgot to clear in ngOnDestroy. Fix it by flushing,
-// or by discardPeriodicTasks() when a repeating timer is intentional.</pre>
+    <div class="demo">
+      <p class="demo__title">Live — click it a few times</p>
+      <app-td-counter-demo />
+      <p class="demo__note">
+        This is exactly the shape of component every sample on this page tests: one signal, one button, one thing that
+        should happen when you click it.
+      </p>
     </div>
 
-    <h2>whenStable — wait for promises</h2>
-    <div class="code">
-      <pre>
-// A REAL async test this time — note `async () =&gt;` instead of fakeAsync().
-// Here the clock is genuine; you're waiting rather than fast-forwarding.
-it('loads data from a promise', async () =&gt; {{ '{' }}
-  // First render runs ngOnInit, which starts the promise-based fetch.
-  fixture.detectChanges();
-  // Pauses until Angular's zone reports no pending microtasks — i.e. every
-  // promise started above has settled. This is the async-await counterpart of
-  // tick(): fakeAsync controls time, whenStable() waits for it.
-  await fixture.whenStable();
-  // The data arrived while we were awaiting, so render it.
-  fixture.detectChanges();
-  // Now the list item exists.
-  expect(fixture.nativeElement.querySelector('.item')).toBeTruthy();
-{{ '}' }});
+    <p>
+      You just proved it works, with your own eyes and a mouse. But <strong>your eyes don't run in CI</strong>, and
+      neither does your mouse. Six months from now someone edits this component while chasing an unrelated bug, and
+      nothing on this page will warn them if the button quietly stops incrementing. Something else has to click it, read
+      the screen, and speak up — automatically, on every commit, forever.
+    </p>
 
-// Rule of thumb: whenStable() for promises/HTTP, fakeAsync + tick() for
-// setTimeout/setInterval/debounce. Never mix them in one test — awaiting
-// inside fakeAsync throws, because the promise it awaits can never resolve
-// on a clock that only you can move.</pre>
+    <app-napkin lead="hang on —" label="Think before scrolling">
+      Keep an answer in your head: what would it take to write code that clicks that button and checks the count went
+      up, <em>without</em> a real browser window? You don't need the exact API — just the shape of the problem. The rest
+      of this lesson is Angular's answer, one piece at a time.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>TestBed is a film set. Your component gets a stunt double.</h2>
+
+    <p>
+      <code>TestBed.configureTestingModule()</code> builds the set: it declares which imports and providers exist for
+      this scene, exactly the way a real component's own <code>imports</code> array would. Nothing is standing on it
+      yet.
+    </p>
+
+    <p>
+      <code>TestBed.createComponent(Counter)</code> is where the <strong>stunt double</strong> walks out — a real
+      instance of your component class, constructed for real. But the stage is empty: this double isn't attached to the
+      actual page you'd see in a browser, there's no router watching it, and nobody has called
+      <span class="term">action</span> yet. It is a component that exists but has never been asked to perform.
+    </p>
+
+    <p>
+      The <code>ComponentFixture</code> that call hands back is your <strong>remote control</strong> for that double.
+      <code>fixture.nativeElement</code> lets you read what's currently on the little screen.
+      <code>fixture.debugElement</code>
+      lets you press its buttons without a real finger —
+      <code>.triggerEventHandler('click')</code> instead of a physical click. But the screen stays blank and the buttons
+      do nothing believable until you press the one control that actually starts the performance:
+      <code>fixture.detectChanges()</code>. That's "action" — it runs <code>ngOnInit</code>, evaluates every binding for
+      the first time, and only then is there anything real for your remote to read.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Build the set, cast the double, hand yourself the remote.</strong>
+      <code>configureTestingModule()</code> builds the set, <code>createComponent()</code> casts the double onto an
+      empty stage, and the <code>ComponentFixture</code> it returns is your remote — nothing airs until you press
+      <code>detectChanges()</code>.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="setupTalk"
+      caption="The exact conversation behind every “why does my query return null?” bug"
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — TESTBED'S LIFECYCLE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Five steps happen, in exactly this order.</h2>
+
+    <p>
+      This is the part a paragraph can't say as clearly as a timeline: <span class="key">nothing renders</span> until
+      step four, no matter how confidently steps one and two ran.
+    </p>
+
+    <app-flow
+      [steps]="lifecycleFlow"
+      caption="Query the DOM before detectChanges() and you are querying an empty stage — this is the single most common cause of a `null` in a component spec"
+    />
+
+    <p>Here's the whole thing as a real spec file — the setup every test on this page assumes:</p>
+
+    <app-code-lab
+      file="counter.component.spec.ts"
+      [code]="anatomySample"
+      [notes]="anatomyNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 4. QUERYING THE DOM ============ -->
+  <section>
+    <p class="bf-eyebrow">Reading the result</p>
+    <h2>Once it's rendered, how do you find anything in it?</h2>
+
+    <app-code-lab
+      file="querying.spec.ts — three ways in"
+      [code]="queryingSample"
+      [notes]="queryingNotes"
+      notesLabel="What each option actually does"
+    />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="nativeElement" kicker="plain DOM">
+        The host element itself. <code>querySelector</code> / <code>querySelectorAll</code>, exactly like the browser
+        console. No Angular metadata attached.
+      </app-tape-card>
+      <app-tape-card heading="debugElement + By" kicker="Angular-aware" tone="accent">
+        Wraps the same node with metadata. <code>By.css</code> finds by selector; <code>triggerEventHandler</code>
+        fires a handler with no real DOM event needed.
+      </app-tape-card>
+      <app-tape-card heading="By.directive" kicker="find by type" tone="blue">
+        Locates a child component by its class, whatever markup or selector it happens to render.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 5. CLICKING, TYPING, AND THE FIRST TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">The everyday case</p>
+    <h2>Clicking and typing look easy. One line makes or breaks them.</h2>
+
+    <app-code-lab
+      file="interaction.spec.ts"
+      [code]="interactionSample"
+      [notes]="interactionNotes"
+      notesLabel="Line by line"
+    />
+
+    <div class="warn">
+      <strong>Setting <code>.value</code> in code is not the same as typing.</strong> Angular's form directives listen
+      for a real <code>'input'</code> event — set the DOM property directly and the model never hears about it.
     </div>
 
-    <h2>Testing the async pipe</h2>
-    <div class="code">
-      <pre>
-it('renders Observable via async pipe', fakeAsync(() =&gt; {{ '{' }}
-  // Assume the component's template contains: {{ '{{' }} data$ | async {{ '}}' }}
-  // Replace the real stream with a synchronous one-value Observable. of()
-  // emits immediately and completes, so there's no network in this test.
-  component.data$ = of({{ '{' }} name: 'Test' {{ '}' }});
-  // First pass: the async pipe SUBSCRIBES here. It has no value yet, so the
-  // template renders null — this is why one detectChanges() isn't enough.
-  fixture.detectChanges();
-  // Lets the subscription deliver its value (of() emits on the microtask
-  // queue once the pipe is wired up).
-  tick();
-  // Second pass: now the pipe has a value and the interpolation prints it.
-  fixture.detectChanges();
-  // Search the whole rendered text rather than a specific selector.
-  expect(fixture.nativeElement.textContent).toContain('Test');
-{{ '}' }}));</pre>
+    <app-predict
+      [prompt]="detectChangesPredictPrompt"
+      [answer]="detectChangesPredictAnswer"
+      revealLabel="See what the assertion actually does"
+    />
+  </section>
+
+  <!-- ============ 6. SKIPPING MANUAL DETECTCHANGES ============ -->
+  <section>
+    <p class="bf-eyebrow">The shortcut</p>
+    <h2>Can Angular just check for you? Sometimes — and it's a trade.</h2>
+
+    <app-code-lab
+      file="auto-detect.spec.ts"
+      [code]="autoDetectSample"
+      [notes]="autoDetectNotes"
+      notesLabel="What changed from the manual version"
+    />
+
+    <p>
+      The trade-off: auto-detection hides <em>when</em> rendering happens, which makes timing bugs harder to spot.
+      Prefer explicit <code>detectChanges()</code> while you're learning, or in any test where render order is the thing
+      actually under test.
+    </p>
+
+    <app-remember variant="rule">
+      Change detection in a test is <strong>manual by default</strong>. A signal write, a mutated field, a resolved
+      promise — none of them paint the DOM by themselves. Only <code>detectChanges()</code> (or
+      <code>autoDetectChanges(true)</code>) does, so call it after every state change your assertion depends on.
+    </app-remember>
+
+    <app-quiz
+      question="A test calls `fixture.detectChanges()` once, right after `createComponent()`, and never again. It then runs `component.count.set(5)` and immediately asserts the rendered text shows `5`. What actually happens?"
+      [options]="detectChangesQuizOptions"
+      followUp="This is the same rule the whole lesson keeps returning to: in a test, you are the scheduler."
+    />
+  </section>
+
+  <!-- ============ 7. ASYNC TESTING ============ -->
+  <section>
+    <p class="bf-eyebrow">Time, but controllable</p>
+    <h2>Timers and promises don't wait for your assertions. Make them.</h2>
+
+    <p>
+      <code>fakeAsync</code> gives you a clock you can move by hand — use it for anything driven by
+      <code>setTimeout</code>, <code>setInterval</code> or a debounced stream.
+    </p>
+
+    <app-code-lab
+      file="timers.spec.ts"
+      [code]="fakeAsyncSample"
+      [notes]="fakeAsyncNotes"
+      notesLabel="tick() vs flush()"
+    />
+
+    <div class="note">
+      The error you will hit: <strong>"1 timer(s) still in the queue."</strong> <code>fakeAsync</code> throws if the
+      test ends with work left over — a deliberate safety net that catches an interval you forgot to clear in
+      <code>ngOnDestroy</code>. Fix it by flushing, or by <code>discardPeriodicTasks()</code> when a repeating timer is
+      intentional.
     </div>
 
-    <h2>Testing error states</h2>
-    <div class="code">
-      <pre>
-it('shows error on failed load', fakeAsync(() =&gt; {{ '{' }}
-  // Pull the SAME instance the component will get — TestBed.inject() resolves
-  // from the same injector, so patching this object patches what it uses.
-  const service = TestBed.inject(DataService);
-  // Replace one method with a stub that fails. spyOn keeps the rest of the
-  // service real, and Vitest restores the original after the test.
-  vi.spyOn(service, 'load').mockReturnValue(
-    // throwError takes a FACTORY, not an error value. That's deliberate: it
-    // builds a fresh Error per subscriber, so retries get a clean stack.
-    throwError(() =&gt; new Error('Network error'))
-  );
+    <p>
+      Promises and HTTP calls are a different animal: they settle on a <em>real</em> clock, so you wait for them instead
+      of fast-forwarding.
+    </p>
 
-  // Set the whole thing in motion: first render runs ngOnInit, which calls
-  // service.load() — now the rigged version.
-  fixture.detectChanges();
-  // Let the error propagate through the subscription.
-  tick();
-  // Repaint so the catch/error branch of the template renders.
-  fixture.detectChanges();
+    <app-code-lab
+      file="promise.spec.ts"
+      [code]="whenStableSample"
+      [notes]="whenStableNotes"
+      notesLabel="Waiting vs fast-forwarding"
+    />
 
-  // Assert the user sees the message, not that some internal flag flipped.
-  // Testing the visible outcome is what makes this test survive a refactor.
-  expect(fixture.nativeElement.querySelector('.error').textContent)
-    .toContain('Network error');
-{{ '}' }}));</pre>
-    </div>
-  }
+    <app-predict
+      [prompt]="whenStablePredictPrompt"
+      [answer]="whenStablePredictAnswer"
+      revealLabel="Reveal why it hangs"
+    />
 
-  @if (activeTab() === 'signals') {
-    <h2>Testing signal inputs</h2>
-    <div class="code">
-      <pre>
-// ---- The component under test ----
-&#64;Component({{ '{' }} ... {{ '}' }})
-export class UserCard {{ '{' }}
-  // A signal input. `.required` means there is no initial value — reading it
-  // before the parent supplies one throws, which matters for the test below.
-  user = input.required&lt;User&gt;();
-  // Derived state. Recomputes automatically whenever `user` changes, and only
-  // when something actually reads it.
-  displayName = computed(() =&gt; this.user().firstName + ' ' + this.user().lastName);
-{{ '}' }}
+    <p>The async pipe combines both ideas — it subscribes on one render and delivers its value on a later one:</p>
 
-// ---- The test ----
-it('shows full name from signal input', () =&gt; {{ '{' }}
-  // You CANNOT write `component.user = ...` — a signal input is read-only from
-  // the inside. setInput() goes through componentRef, which is the same path a
-  // real parent template uses, so it also marks the component dirty.
-  // First argument is the PUBLIC name as a string; rename the property and
-  // this silently breaks, so keep an eye on it.
-  fixture.componentRef.setInput('user', {{ '{' }} firstName: 'Ada', lastName: 'Lovelace' {{ '}' }});
-  // Render with the new input value.
-  fixture.detectChanges();
-  expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
-{{ '}' }});
+    <app-code-lab
+      file="async-pipe.spec.ts"
+      [code]="asyncPipeSample"
+      [notes]="asyncPipeNotes"
+      notesLabel="Why one detectChanges() isn't enough"
+    />
 
-it('reacts to input change', () =&gt; {{ '{' }}
-  // Set an initial value...
-  fixture.componentRef.setInput('user', {{ '{' }} firstName: 'Alan', lastName: 'Turing' {{ '}' }});
-  fixture.detectChanges();
-  // ...and confirm the computed picked it up. Note we call displayName() with
-  // parentheses — reading a signal is always a function call.
-  expect(component.displayName()).toBe('Alan Turing');
+    <p>And the same pattern proves an error path, by rigging the dependency to fail instead of succeed:</p>
 
-  // Now change it. THIS is the part worth testing: a computed that's correct
-  // once but never recomputes is a real bug, and only a second assertion
-  // catches it.
-  fixture.componentRef.setInput('user', {{ '{' }} firstName: 'Grace', lastName: 'Hopper' {{ '}' }});
-  fixture.detectChanges();
-  expect(component.displayName()).toBe('Grace Hopper');
-{{ '}' }});</pre>
-    </div>
+    <app-code-lab
+      file="error-state.spec.ts"
+      [code]="errorStateSample"
+      [notes]="errorStateNotes"
+      notesLabel="Rig it, render it, assert the message"
+    />
+  </section>
 
-    <h2>Testing computed signals and effects</h2>
-    <div class="code">
-      <pre>
-it('updates computed when source changes', () =&gt; {{ '{' }}
-  // These are writable signals on the component (signal(), not input()), so
-  // the test can .set() them directly.
-  component.quantity.set(3);
-  component.price.set(10);
+  <!-- ============ 8. TESTING SIGNALS ============ -->
+  <section>
+    <p class="bf-eyebrow">Signals</p>
+    <h2>A signal input isn't a property you can just assign.</h2>
 
-  // No detectChanges() needed yet. A computed is lazy but SYNCHRONOUS: the
-  // moment you read total(), it recalculates from the current values. Change
-  // detection is about the DOM, not about signal maths.
-  expect(component.total()).toBe(30);
+    <app-code-lab
+      file="user-card.spec.ts"
+      [code]="signalInputSample"
+      [notes]="signalInputNotes"
+      notesLabel="setInput(), not component.user = …"
+    />
 
-  // The DOM is a different story — it still shows the pre-set values until
-  // change detection runs.
-  fixture.detectChanges();
-  expect(fixture.nativeElement.querySelector('.total').textContent).toContain('30');
-{{ '}' }});
+    <p>
+      A plain writable <code>signal()</code> field is friendlier — the test can <code>.set()</code> it directly. An
+      <code>effect</code>, though, needs a nudge of its own:
+    </p>
 
-it('effect runs synchronously in tests (with TestBed)', () =&gt; {{ '{' }}
-  // Effects are the opposite of computeds: they're scheduled, not immediate.
-  // Setting the signal only queues the effect for the next tick.
-  component.theme.set('dark');
-  // Runs every pending effect right now, so the assertion below isn't racing
-  // the scheduler. Without this line the test fails intermittently — the
-  // classic "passes locally, fails in CI" signal bug.
-  TestBed.flushEffects();
-  // Assert the effect's SIDE EFFECT, since that's the only thing it produces.
-  expect(document.body.classList.contains('dark')).toBe(true);
-{{ '}' }});</pre>
-    </div>
-  }
+    <app-code-lab
+      file="derived-state.spec.ts"
+      [code]="computedEffectSample"
+      [notes]="computedEffectNotes"
+      notesLabel="computed() is synchronous; effect() is scheduled"
+    />
+  </section>
 
-  @if (activeTab() === 'mocking') {
-    <h2>Mocking services — the three approaches</h2>
+  <!-- ============ 9. MOCKING ============ -->
+  <section>
+    <p class="bf-eyebrow">Dependencies</p>
+    <h2>Three ways to swap out what a component depends on.</h2>
 
-    <h3>1. useValue — simplest mock object</h3>
-    <div class="code">
-      <pre>
-// A plain object that only implements the members NavComponent touches.
-// It does NOT need to satisfy the whole AuthService interface.
-const authServiceMock = {{ '{' }}
-  // vi.fn() creates a spy: it records every call AND lets you script the
-  // return value, so you can later assert toHaveBeenCalledWith(...).
-  isLoggedIn: vi.fn().mockReturnValue(true),
-  // If the real service exposes a signal, the mock must too — the template
-  // will call currentUser() and a plain object would blow up.
-  currentUser: signal({{ '{' }} name: 'Test User', role: 'admin' {{ '}' }}),
-  // A spy with no scripted return: it does nothing but remember it was called,
-  // which is exactly what you want for a "did clicking logout call logout?" test.
-  logout: vi.fn(),
-{{ '}' }};
-
-await TestBed.configureTestingModule({{ '{' }}
-  imports: [NavComponent],
-  providers: [
-    // "When anything asks the injector for AuthService, hand it this object
-    // instead." The real AuthService is never constructed, so its HTTP calls,
-    // timers and localStorage access never happen.
-    {{ '{' }} provide: AuthService, useValue: authServiceMock {{ '}' }}
-  ],
-{{ '}' }}).compileComponents();
-
-// Trade-off: nothing forces the mock to stay in sync with the real service.
-// Rename a method on AuthService and this test keeps passing against a shape
-// that no longer exists. Typing it as `Partial&lt;AuthService&gt;` buys back some
-// of that safety.</pre>
+    <p>The simplest: hand the injector a plain object instead of the real service.</p>
+    <app-code-lab
+      file="mock-value.spec.ts"
+      [code]="mockValueSample"
+      [notes]="mockValueNotes"
+      notesLabel="useValue — a hand-built stand-in"
+    />
+    <div class="note">
+      Nothing forces this mock to stay in sync with the real service — rename a method on <code>AuthService</code> and
+      this test keeps passing against a shape that no longer exists. Typing it as a <code>Partial</code> of the real
+      service buys back some of that safety.
     </div>
 
-    <h3>2. vi.spyOn — partial mock on a real service</h3>
-    <div class="code">
-      <pre>
-it('loads products on init', () =&gt; {{ '{' }}
-  // The REAL service, from the real injector — no `provide` override anywhere.
-  const productService = TestBed.inject(ProductService);
-  // spyOn replaces one method in place and returns the spy handle. Everything
-  // else on productService still runs its genuine implementation, which is the
-  // whole point of a partial mock.
-  const spy = vi.spyOn(productService, 'getAll').mockReturnValue(
-    // of() wraps a value in an Observable that emits once and completes —
-    // the standard stand-in for an HTTP call in a synchronous test.
-    of([{{ '{' }} id: 1, name: 'Widget' {{ '}' }}])
-  );
+    <p>When you want the real service but need to fake one method, layer a spy onto it instead:</p>
+    <app-code-lab
+      file="spy-on.spec.ts"
+      [code]="spyOnSample"
+      [notes]="spyOnNotes"
+      notesLabel="A partial mock on a real instance"
+    />
 
-  // First render runs ngOnInit, which calls getAll() — now the spy.
-  fixture.detectChanges();
-  // Assertion 1: the component actually asked for data. Catches the bug where
-  // someone deletes the ngOnInit call and the list is empty for a new reason.
-  expect(spy).toHaveBeenCalled();
-  // Assertion 2: it rendered one card for the one product it received.
-  expect(fixture.nativeElement.querySelectorAll('.product').length).toBe(1);
-{{ '}' }});</pre>
-    </div>
+    <p>And when only one test out of twenty needs a broken dependency, override it for that test alone:</p>
+    <app-code-lab
+      file="override-provider.spec.ts"
+      [code]="overrideProviderSample"
+      [notes]="overrideProviderNotes"
+      notesLabel="The ordering trap, worked through"
+    />
 
-    <h3>3. overrideProvider — override in a specific test</h3>
-    <div class="code">
-      <pre>
-it('shows error state', () =&gt; {{ '{' }}
-  // Swaps the provider for THIS test only, leaving the describe-level setup
-  // untouched. Useful when one test out of twenty needs a failing dependency.
-  TestBed.overrideProvider(DataService, {{ '{' }}
-    // A throwaway stub: fetch() returns a stream that errors immediately.
-    useValue: {{ '{' }} fetch: () =&gt; throwError(() =&gt; new Error('Boom')) {{ '}' }}
-  {{ '}' }});
-  // THE CATCH, and the reason this approach trips people up: the override only
-  // takes effect on the NEXT resolution. It must come before the component is
-  // created, and anything already holding the old instance keeps it.
-  TestBed.inject(DataService);
-
-  fixture.detectChanges();
-  expect(fixture.nativeElement.querySelector('.error')).toBeTruthy();
-{{ '}' }});</pre>
-    </div>
-
-    <h2>What to mock vs. what to use real</h2>
-    <table class="test-table">
-      <tr>
-        <th>Dependency</th>
-        <th>Recommendation</th>
-      </tr>
-      <tr>
-        <td>HTTP (ApiService)</td>
-        <td class="good">Mock — use HttpTestingController or vi.fn()</td>
-      </tr>
-      <tr>
-        <td>Router</td>
-        <td class="good">Use real Router with RouterTestingModule or provideRouter([]) for nav tests</td>
-      </tr>
-      <tr>
-        <td>Signal stores (pure signals, no HTTP)</td>
-        <td>Use real — they're easy and cheap to test</td>
-      </tr>
-      <tr>
-        <td>localStorage / browser APIs</td>
-        <td class="good">Mock — side-effectful and environment-dependent</td>
-      </tr>
-      <tr>
-        <td>Child components</td>
-        <td>Use real for integration tests; mock (stubs) for unit tests</td>
-      </tr>
-      <tr>
-        <td>Animations</td>
-        <td class="good">Use NoopAnimationsModule to avoid timing issues</td>
-      </tr>
+    <table>
+      <caption class="bf-table-caption">
+        What to mock, what to leave real
+      </caption>
+      <thead>
+        <tr>
+          <th>Dependency</th>
+          <th>Recommendation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>HTTP (an <code>ApiService</code>)</td>
+          <td><strong>Mock</strong> — via <code>HttpTestingController</code> or a <code>vi.fn()</code> stub</td>
+        </tr>
+        <tr>
+          <td>Router</td>
+          <td>
+            <strong>Use real</strong> — <code>provideRouter([])</code> is cheap and catches genuine navigation bugs
+          </td>
+        </tr>
+        <tr>
+          <td>Signal stores (pure signals, no HTTP)</td>
+          <td><strong>Use real</strong> — cheap, fast, and a fake teaches you nothing extra</td>
+        </tr>
+        <tr>
+          <td><code>localStorage</code> / other browser APIs</td>
+          <td><strong>Mock</strong> — side-effectful and environment-dependent</td>
+        </tr>
+        <tr>
+          <td>Child components</td>
+          <td><strong>Depends</strong> — real for an integration test, stubbed for a narrowly focused unit test</td>
+        </tr>
+      </tbody>
     </table>
-  }
+  </section>
 
-  @if (activeTab() === 'patterns') {
-    <h2>Testing forms</h2>
-    <div class="code">
-      <pre>
-// ---- Template-driven form: drive it through the DOM, like a user would ----
-it('submits valid form', () =&gt; {{ '{' }}
-  // Find by the name attribute — that's what ngModel binds to in a
-  // template-driven form, so it's the most stable selector here.
-  const nameInput: HTMLInputElement = fixture.nativeElement.querySelector('[name="username"]');
-  // Set the DOM value...
-  nameInput.value = 'ada';
-  // ...then tell Angular about it. 'input' is what ngModel listens for; skip
-  // this and the form model stays empty while the screen looks filled in.
-  nameInput.dispatchEvent(new Event('input'));
-  // 'blur' is what flips the control from untouched to TOUCHED. Validation
-  // messages usually key off touched, so tests of error UI need this line.
-  nameInput.dispatchEvent(new Event('blur'));
+  <!-- ============ 10. PATTERNS THAT SURVIVE A REFACTOR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Say what you'd actually do</p>
+    <h2>Test what a user would see, not how the class stores it.</h2>
 
-  const form: HTMLFormElement = fixture.nativeElement.querySelector('form');
-  // Dispatching 'submit' fires the (ngSubmit) binding. Note: calling
-  // form.submit() instead would try a real page navigation and do nothing here.
-  form.dispatchEvent(new Event('submit'));
-  fixture.detectChanges();
+    <p>
+      Both form styles below prove the same behaviour. Prefer the reactive style unless the DOM wiring itself is what
+      you're testing — it's faster to write and far less brittle, because the <code>FormGroup</code> is a plain object
+      you already own.
+    </p>
 
-  expect(component.submitted()).toBe(true);
-{{ '}' }});
+    <app-code-lab
+      file="forms.spec.ts"
+      [code]="formsSample"
+      [notes]="formsNotes"
+      notesLabel="Through the DOM, or straight to the model"
+    />
 
-// ---- Reactive form: talk to the model directly, skip the DOM ----
-// Faster and far less brittle, because the FormGroup is a plain object you
-// already own. Use this style unless the DOM wiring is what you're testing.
-it('marks username invalid when empty', () =&gt; {{ '{' }}
-  // The `!` asserts non-null: get() returns AbstractControl | null because the
-  // control name is just a string TypeScript can't verify.
-  const ctrl = component.form.get('username')!;
-  // setValue runs the validators synchronously — no events, no rendering.
-  ctrl.setValue('');
-  // Simulates the user having visited and left the field, which is what most
-  // templates gate their error message on (`&#64;if (ctrl.touched && ctrl.invalid)`).
-  ctrl.markAsTouched();
-  // Render so the template can react to the now-invalid, now-touched control.
-  fixture.detectChanges();
-  // Assert the MODEL: which specific validator failed.
-  expect(ctrl.hasError('required')).toBe(true);
-  // And assert the VIEW: the user is actually being told. Two assertions
-  // because a passing validator with no visible message is still a bug.
-  expect(fixture.nativeElement.querySelector('.error-msg')).toBeTruthy();
-{{ '}' }});</pre>
-    </div>
+    <p>
+      Routing tests follow the same "assert the outcome" rule — check the resulting URL, not a spy on
+      <code>navigate</code>:
+    </p>
 
-    <h2>Testing routing</h2>
-    <div class="code">
-      <pre>
-describe('with router', () =&gt; {{ '{' }}
-  // The real Router — for programmatic navigate() calls and assertions.
-  let router: Router;
-  // Location is the browser-URL abstraction. In tests it's backed by an
-  // in-memory implementation, so nothing touches the actual address bar.
-  let location: Location;
+    <app-code-lab
+      file="routing.spec.ts"
+      [code]="routingSample"
+      [notes]="routingNotes"
+      notesLabel="provideRouter(), the modern way to configure one"
+    />
 
-  beforeEach(async () =&gt; {{ '{' }}
-    await TestBed.configureTestingModule({{ '{' }}
-      // A cut-down route table containing only what this spec exercises.
-      // (Modern equivalent: `providers: [provideRouter([...])]` —
-      // RouterTestingModule is the older NgModule-era API you'll still meet.)
-      imports: [RouterTestingModule.withRoutes([
-        {{ '{' }} path: 'home', component: HomeComponent {{ '}' }},
-        // `:id` is a route parameter — this is the route the link below hits.
-        {{ '{' }} path: 'detail/:id', component: DetailComponent {{ '}' }},
-      ])],
-    {{ '}' }}).compileComponents();
+    <app-compare
+      leftTitle="Older — NgModule-era"
+      rightTitle="Now — function-based"
+      leftTone="neutral"
+      rightTone="good"
+      note="Both configure the same routes for a test. This app uses provideRouter() everywhere; RouterTestingModule still works, but it's the API you'll mostly meet in older code."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ routingOldSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ routingNewSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
 
-    router   = TestBed.inject(Router);
-    location = TestBed.inject(Location);
-    // First render — this is also what activates routerLink directives on the
-    // page, so it must happen before any link is clicked.
-    fixture.detectChanges();
-  {{ '}' }});
+    <p>
+      And for a component library like Angular Material, an official harness beats a hand-rolled selector — it outlives
+      an internal DOM restructure that would otherwise break every test touching it:
+    </p>
 
-  // fakeAsync because navigation is asynchronous even when nothing loads.
-  it('navigates to detail', fakeAsync(() =&gt; {{ '{' }}
-    // Click the anchor the way a user would; routerLink turns it into a
-    // navigation instead of a page load.
-    fixture.nativeElement.querySelector('[data-testid="detail-link"]').click();
-    // Navigation resolves on the microtask queue. Without this the assertion
-    // below runs while the URL is still the old one.
-    tick();
-    // Assert on the resulting URL, not on a spy. This proves the whole
-    // pipeline — link, route config, params — actually lines up.
-    expect(location.path()).toBe('/detail/1');
-  {{ '}' }}));
-{{ '}' }});</pre>
-    </div>
+    <app-code-lab
+      file="harness.spec.ts"
+      [code]="harnessSample"
+      [notes]="harnessNotes"
+      notesLabel="Ask for the behaviour, not the markup"
+    />
 
-    <h2>Component test harnesses (Angular Material)</h2>
-    <div class="code">
-      <pre>
-// A harness is an official test API for a component: you say "click the
-// button", not "find div.mat-mdc-button-touch-target and dispatch a click".
-// Material can restructure its internal DOM in a minor release and your test
-// still passes — that's the entire selling point.
-import {{ '{' }} MatButtonHarness {{ '}' }} from '&#64;angular/material/button/testing';
-import {{ '{' }} HarnessLoader {{ '}' }} from '&#64;angular/cdk/testing';
-import {{ '{' }} TestbedHarnessEnvironment {{ '}' }} from '&#64;angular/cdk/testing/testbed';
-
-// The loader is the factory you ask for harnesses.
-let loader: HarnessLoader;
-beforeEach(() =&gt; {{ '{' }}
-  // Binds the loader to this fixture's DOM. (Use documentRootLoader() instead
-  // for overlays — dialogs and menus render outside the component's host.)
-  loader = TestbedHarnessEnvironment.loader(fixture);
-{{ '}' }});
-
-// Every harness method is async, so the test must be too.
-it('clicks the submit button', async () =&gt; {{ '{' }}
-  // .with() filters when several of the same component exist. Ask for a
-  // harness that doesn't exist and getHarness() rejects with a clear message.
-  const button = await loader.getHarness(MatButtonHarness.with({{ '{' }} text: 'Submit' {{ '}' }}));
-  // The payoff: harness actions run change detection and wait for stability
-  // for you, so there is no detectChanges() to forget.
-  await button.click();
-  expect(component.submitted()).toBe(true);
-{{ '}' }});</pre>
-    </div>
-
-    <h2>Test file naming &amp; organization</h2>
-    <table class="test-table">
-      <tr>
-        <th>Convention</th>
-        <th>Rule</th>
-      </tr>
-      <tr>
-        <td>File name</td>
-        <td><code>my-component.spec.ts</code> next to the component</td>
-      </tr>
-      <tr>
-        <td>describe block</td>
-        <td>Named after the component/service: <code>describe('ProductCard', ...)</code></td>
-      </tr>
-      <tr>
-        <td>it block</td>
-        <td>Describes behavior, not implementation: <code>'shows error when price is negative'</code></td>
-      </tr>
-      <tr>
-        <td>Test runner (this project)</td>
-        <td>Vitest — same TestBed API, faster execution than Karma/Jasmine</td>
-      </tr>
-      <tr>
-        <td>Arrange-Act-Assert</td>
-        <td>Structure every test in three sections for readability</td>
-      </tr>
+    <table>
+      <caption class="bf-table-caption">
+        File naming &amp; organisation
+      </caption>
+      <thead>
+        <tr>
+          <th>Convention</th>
+          <th>Rule</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>File name</td>
+          <td><code>my-component.spec.ts</code>, next to the component</td>
+        </tr>
+        <tr>
+          <td><code>describe</code> block</td>
+          <td>Named after the component: <code>describe('ProductCard', …)</code></td>
+        </tr>
+        <tr>
+          <td><code>it</code> block</td>
+          <td>Describes behaviour, not implementation: "shows an error when price is negative"</td>
+        </tr>
+        <tr>
+          <td>Test runner (this project)</td>
+          <td>Vitest — same <code>TestBed</code> API, faster than Karma/Jasmine</td>
+        </tr>
+        <tr>
+          <td>Arrange-Act-Assert</td>
+          <td>Structure every test in three visible sections for readability</td>
+        </tr>
+      </tbody>
     </table>
-  }
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>TestBed.configureTestingModule</code> → <code>createComponent</code> → <code>detectChanges()</code> is the
-      minimal setup.
-    </li>
-    <li>
-      Query the DOM with <code>nativeElement.querySelector</code> or <code>debugElement.query(By.css(...))</code>.
-    </li>
-    <li>Use <code>fakeAsync + tick</code> for timers; <code>whenStable()</code> for promises.</li>
-    <li>
-      Set signal inputs via <code>fixture.componentRef.setInput()</code>; flush effects with
-      <code>TestBed.flushEffects()</code>.
-    </li>
-    <li>Mock services with <code>useValue</code> objects or <code>vi.spyOn</code> on real instances.</li>
-    <li>Test behavior (what the user sees), not implementation (internal state).</li>
-  </ul>
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <p><a routerLink="/testing-services-http">Next: Testing Services &amp; HTTP →</a></p>
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        Nothing renders until you tell it to. <code>createComponent()</code> builds; only
+        <code>detectChanges()</code> (or <code>autoDetectChanges(true)</code>) paints —
+        <strong>every "why is my query returning null?" bug traces back to that gap</strong>.
+      </li>
+      <li>
+        Two query styles, two jobs: <code>nativeElement</code> for plain DOM reads, <code>debugElement</code> +
+        <code>By</code> when you need Angular awareness — <code>By.directive()</code> by type,
+        <code>triggerEventHandler()</code> for outputs with no real DOM event.
+      </li>
+      <li>
+        Match the async tool to what's actually pending.
+        <strong><code>fakeAsync</code> + <code>tick()</code></strong> for timers on a clock you control;
+        <code>whenStable()</code> (or a plain <code>await</code>) for promises and HTTP that settle on their own. A
+        repeating interval hangs <code>whenStable()</code> forever.
+      </li>
+      <li>
+        Signal inputs go through <code>fixture.componentRef.setInput()</code>, never
+        <code>component.someInput = …</code> — it's the path a real parent uses, and what actually marks the component
+        dirty. Flush pending effects with <code>TestBed.tick()</code>; <code>flushEffects()</code> is the same thing
+        under its old, deprecated name.
+      </li>
+      <li>
+        Mock only what's expensive, slow or unpredictable — HTTP, <code>localStorage</code>, timers. Test real signal
+        stores and real reactive forms; a fake version of something cheap teaches you nothing extra.
+      </li>
+      <li>
+        A green test only proves what it actually looked at. Assert what a user would see, not an internal flag — and
+        check the "before" state (a spinner, a disabled button) as carefully as the "after".
+      </li>
+    </ul>
+
+    <p><a routerLink="/testing-services-http">Next: Testing Services &amp; HTTP →</a></p>
+  </section>
 </article>
