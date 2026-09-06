@@ -1,12 +1,79 @@
-.t {
+/* Table and callout styling comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) once `bf` is on the article, which is why this
+   file only holds the one thing genuinely specific to this lesson: the
+   hand-authored "bridge" diagram showing the two one-way crossings between
+   signals and Observables. Every colour is a --bf-* token, the <svg> is
+   aria-hidden, and the figcaption repeats the same information as a sentence
+   for anyone who cannot see it — same technique as the boundary diagram in
+   view-encapsulation.css. */
+.bridge-fig {
+  margin: 0;
+}
+.bridge {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
+  max-width: 360px;
+  height: auto;
+  margin: 0 auto;
 }
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
+.bridge-fig figcaption {
+  max-width: 56ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--bf-ink-2);
+  text-align: center;
 }
-.t td:first-child {
-  width: 240px;
+.bridge__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+.bridge__title {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+}
+.bridge__sub {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.bridge__stem {
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+.bridge__arrow-toObs {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  fill: none;
+}
+.bridge__head-toObs {
+  fill: var(--bf-accent);
+}
+.bridge__label-toObs {
+  fill: var(--bf-accent);
+  font-family: var(--font-hand);
+  font-size: 13px;
+}
+.bridge__arrow-toSig {
+  stroke: var(--bf-olive);
+  stroke-width: 2;
+  fill: none;
+}
+.bridge__head-toSig {
+  fill: var(--bf-olive);
+}
+.bridge__label-toSig {
+  fill: var(--bf-olive);
+  font-family: var(--font-hand);
+  font-size: 13px;
+}
+.bridge__caption {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 9px;
 }

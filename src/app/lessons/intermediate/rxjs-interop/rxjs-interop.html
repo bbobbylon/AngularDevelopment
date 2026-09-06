@@ -1,228 +1,431 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · RxJS</span>
-  <h1>Signals ↔ RxJS Interop</h1>
-  <p class="lead">
-    Signals and Observables are not rivals — they solve different problems and coexist happily.
-    <strong>Signals</strong> are the right tool for synchronous state you read in a template;
-    <strong>Observables</strong> shine for events that arrive over time and async pipelines (debounce, retry,
-    cancellation). The <code>&#64;angular/core/rxjs-interop</code> package gives you two bridges so you can convert at
-    the boundary and use whichever fits each job.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Angular Intermediate · RxJS"
+    title="Signals ↔ RxJS Interop"
+    hand="or, how to borrow RxJS's operators without giving up your signal"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      Signals and Observables are not rivals. A <strong>signal</strong> is the right tool for synchronous state you read
+      in a template — it always has a value, and reading it never subscribes to anything. An
+      <strong>Observable</strong> is the right tool for events that arrive over time and need operators — debounce,
+      retry, cancellation. <code>&#64;angular/core/rxjs-interop</code> gives you exactly two bridges, one each
+      direction, so you can <span class="key">convert at the boundary</span> and use whichever fits the job in front of
+      you.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: a whiteboard and a ticker tape</h2>
-  <p>
-    A <strong>signal is a whiteboard</strong>. There is always exactly one thing written on it, and you can walk over
-    and read it whenever you like. Walk away for an hour, come back, and the current value is still there waiting.
-  </p>
-  <p>
-    An <strong>Observable is a ticker tape</strong>. Values go past. If you weren't watching when one went by, you
-    missed it — and until the first one arrives there is nothing to see at all.
-  </p>
-  <p>
-    That single difference generates almost everything else on this page. <code>toSignal</code> is someone standing by
-    the tape copying each value onto the whiteboard — and it's why the board needs an <code>initialValue</code> written
-    on it before the first value arrives, or it is blank (<code>undefined</code>). <code>toObservable</code> is a camera
-    pointed at the whiteboard that emits a photo whenever the writing changes.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A signal can't wait. An Observable can't be read.</h2>
 
-  <app-remember>
-    A signal <strong>always has a value</strong>. An Observable <strong>might not have one yet</strong>. Everything
-    about <code>initialValue</code>, <code>requireSync</code> and that <code>| undefined</code> in your types falls out
-    of that one difference.
-  </app-remember>
+    <p>
+      You have a <code>query</code> signal. It changes on every keystroke, because that is what signals are for —
+      synchronous state, always current. Now you want the <em>debounced</em> version: the same text, but only once
+      typing has paused for half a second. Look for a <code>debounce()</code> on the signals API and you will not find
+      one. Signals have no operators at all.
+    </p>
 
-  <h2>Two bridges, two directions</h2>
-  <div class="code">
-    <pre>
-      Signals world                          Observables world
-      ─────────────                          ─────────────────
-        signal()  ──────toObservable()──────▶  Observable&lt;T&gt;
-        Signal&lt;T&gt;  ◀──────toSignal()──────────  Observable&lt;T&gt;
+    <p>
+      Flip it around and there is a second problem waiting. An Observable has <code>debounceTime</code>, and
+      <code>retry</code>, and a dozen more — but it has no
+      <span class="bf-break">current value you can just read</span>. Ask an Observable "what do you have right now?"
+      outside of a subscription and the honest answer is: nothing, it is a set of instructions for what to do when
+      something happens, not a value sitting somewhere waiting.
+    </p>
 
-  • toObservable: react to a signal with RxJS operators (debounce, switchMap…)
-  • toSignal:     consume a stream as plain template-readable state (no async pipe)</pre>
-  </div>
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Nothing in the signals API can debounce, retry or cancel. Nothing in the Observable API can be read synchronously
+      in a template the way <code>count()</code> can. Before you scroll: is that a <strong>missing feature</strong> that
+      both types should eventually grow — or is it evidence that a value should <em>change form</em> depending on which
+      job it is doing at that moment?
+    </app-napkin>
+  </section>
 
-  <h2>toSignal — consume an Observable as a signal</h2>
-  <div class="code">
-    <pre>
-import {{ '{' }} toSignal {{ '}' }} from '&#64;angular/core/rxjs-interop';
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A whiteboard, and a ticker tape.</h2>
 
-// auto-subscribes AND auto-unsubscribes with the component
-clock = toSignal(interval(1000), {{ '{' }} initialValue: 0 {{ '}' }});
-// template: {{ '{{' }} clock() {{ '}}' }}</pre>
-  </div>
-  <p>
-    <code>toSignal</code> replaces the <code>async</code> pipe in the class. It manages the subscription for you — no
-    manual teardown.
-  </p>
-  <div class="note">
-    Provide an <code>initialValue</code> (the signal is that value until the first emission), or pass
-    <code>{{ '{' }} requireSync: true {{ '}' }}</code> when the source emits synchronously (like a
-    <code>BehaviorSubject</code>) to get a non-undefined type immediately. If the Observable <strong>errors</strong>,
-    reading the signal re-throws that error — handle it with <code>catchError</code> in the pipe. Call
-    <code>toSignal</code> in an injection context (or pass an <code>injector</code>).
-  </div>
+    <p>
+      A <strong>signal is a whiteboard</strong>. There is always exactly one thing written on it, and you can walk over
+      and read it whenever you like. Walk away for an hour, come back, and the current value is still there waiting —
+      nobody has to tell you anything for the board to still say what it says.
+    </p>
 
-  <app-predict
-    prompt="A service exposes an HTTP call through `toSignal` with no `initialValue`, and the template reads `.length` off it. What renders during the 200ms before the response lands?"
-    [code]="initialValueSample"
-    answer="Nothing renders — you get `TypeError: Cannot read properties of undefined (reading 'length')`. With no `initialValue`, the signal's type is `User[] | undefined` and its value is genuinely `undefined` until the first emission. The whiteboard is blank because nothing has come off the tape yet. TypeScript will actually warn you here if `strictTemplates` is on, which is one more reason to have it on — fix it with `{ initialValue: [] }`, so an empty list renders instead of a crash."
-  />
+    <p>
+      An <strong>Observable is a ticker tape</strong>. Values print past. If you were not watching when one went by, you
+      missed it — and until the first one has printed, <span class="key">there is nothing to see at all</span>. That
+      machine also happens to have knobs on it: slow the tape down, discard duplicates, splice in another tape. The
+      whiteboard has none of those, because a whiteboard has nothing to turn a knob on.
+    </p>
 
-  <h2>toObservable — expose a signal as a stream</h2>
-  <div class="code">
-    <pre>
-import {{ '{' }} toObservable {{ '}' }} from '&#64;angular/core/rxjs-interop';
+    <app-remember variant="mnemonic">
+      A signal <strong>always has a value</strong>. An Observable <strong>might not have one yet</strong>. Everything
+      about <code>initialValue</code>, <code>requireSync</code> and that <code>| undefined</code> in your types falls
+      out of that one difference.
+    </app-remember>
 
-query = signal('');
-results$ = toObservable(this.query).pipe(
-  debounceTime(300),
-  switchMap(q =&gt; this.api.search(q)),
-);</pre>
-  </div>
-  <p>
-    This lets you apply RxJS operators (debounce, switchMap, retry) to a signal. Under the hood
-    <code>toObservable</code> uses an <code>effect</code>, so it emits the signal's value whenever it changes —
-    including the current value to a new subscriber.
-  </p>
+    <app-bubbles
+      [turns]="bridgeTalk"
+      caption="Neither side changes what it is. `toObservable` visits the tape; `toSignal` comes back to the board."
+    />
+  </section>
 
-  <h2>Try it — the full round-trip</h2>
+  <!-- ============ 3. THE MECHANISM: toSignal ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2><code>toSignal</code> is a subscription wearing a signal's clothes.</h2>
 
-  <p>
-    The demo below is a debounced search box with the network call left out. Traced end to end, the shape is the one you
-    will reach for constantly — and the thing to notice is that both ends are signals:
-  </p>
-  <app-flow
-    [steps]="roundTrip"
-    caption="RxJS is somewhere the value visits, not somewhere it lives. Cross at the boundary and come straight back."
-  />
+    <p>
+      There is no special runtime trick here — <code>toSignal</code> subscribes to the Observable once, and every time
+      it emits, it writes the value into an ordinary signal. Here is that idea with the real error-handling and
+      scheduling stripped out, which is exactly the technique
+      <a routerLink="/rxjs-subjects">the Subjects lesson</a> used for its own <code>MiniSubject</code>.
+    </p>
 
-  <app-quiz
-    question="`results$ = toObservable(query).pipe(debounceTime(300), switchMap(q => api.search(q)))`. The user types 'a', 'n', 'g' in quick succession. How many HTTP requests reach your server?"
-    [options]="pipelineOptions"
-    followUp="Worth separating in your head: `debounceTime` decides how many requests are *sent*, `switchMap` decides how many responses are *listened to*. You usually want both."
-  />
+    <app-code-lab
+      file="to-signal.ts — simplified, not the real internals"
+      [code]="toSignalSample"
+      [notes]="toSignalNotes"
+      notesLabel="What each line is doing"
+    />
 
-  <div class="demo">
-    <p class="demo__title">Live — a signal → debounceTime(500) → back to a signal</p>
-    <div class="row" style="margin-bottom: 10px">
-      <input
-        aria-label="Type quickly"
-        [value]="query()"
-        (input)="setQuery($any($event.target).value)"
-        placeholder="Type quickly…"
-        style="
-          padding: 8px;
-          border-radius: 8px;
-          border: 1px solid var(--border);
-          background: var(--bg);
-          color: var(--text);
-          min-width: 240px;
-        "
-      />
+    <div class="bf-grid-2">
+      <app-tape-card heading="initialValue" kicker="what state() reads first" tone="accent">
+        The value the signal holds until the very first emission arrives. Skip it and the type is
+        <code>T | undefined</code> — exactly the crash the Predict below walks through.
+      </app-tape-card>
+      <app-tape-card heading="requireSync" kicker="the escape hatch" tone="olive">
+        For sources that emit the instant you subscribe — a <code>BehaviorSubject</code>, a
+        <code>startWith(...)</code> pipeline. Trades <code>initialValue</code> for a plain, non-optional
+        <code>T</code> — and throws at creation if the source turns out not to be synchronous after all.
+      </app-tape-card>
+      <app-tape-card heading="errors rethrow on read" kicker="not on arrival" tone="blue">
+        An errored source does not crash the moment it fails. The error waits, and surfaces the next time something
+        <em>reads</em> the signal — usually your template, mid-render. Put <code>catchError</code> in the pipe first.
+      </app-tape-card>
+      <app-tape-card heading="injection context" kicker="field init, or the constructor">
+        <code>toSignal</code> calls <code>inject()</code> underneath, and <code>inject()</code> only works there. Call
+        it from <code>ngOnInit</code> and it throws — see the trap further down this page.
+      </app-tape-card>
     </div>
+
+    <app-predict
+      prompt="A service exposes an HTTP call through `toSignal` with no `initialValue`, and the template reads `.length` off it. What renders during the 200ms before the response lands?"
+      [code]="initialValueSample"
+      answer="Nothing renders — you get `TypeError: Cannot read properties of undefined (reading 'length')`. With no `initialValue`, the signal's type is `User[] | undefined` and its value is genuinely `undefined` until the first emission: the whiteboard is blank because nothing has come off the tape yet. TypeScript will actually warn you here if `strictTemplates` is on — fix it with an explicit empty-array `initialValue`, so an empty list renders instead of a crash."
+    />
+  </section>
+
+  <!-- ============ 4. THE MECHANISM: toObservable ============ -->
+  <section>
+    <p class="bf-eyebrow">The other direction</p>
+    <h2><code>toObservable</code> is an effect wearing an Observable's clothes.</h2>
+
     <p>
-      typed — instant signal: <code>{{ query() || '—' }}</code>
+      This direction runs on the mechanism from the <a routerLink="/signals-advanced">advanced signals lesson</a>: an
+      <code>effect()</code> reruns whenever a signal it reads changes. <code>toObservable</code> puts one of those
+      inside a hand-built Observable, so every time the signal changes, the effect pushes the new value out.
     </p>
+
+    <app-code-lab
+      file="to-observable.ts — simplified"
+      [code]="toObservableSample"
+      [notes]="toObservableNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <figure class="bridge-fig">
+      <svg class="bridge" viewBox="0 0 360 190" aria-hidden="true" focusable="false">
+        <rect class="bridge__box" x="8" y="20" width="140" height="64" rx="12" />
+        <text class="bridge__title" x="78" y="48" text-anchor="middle">Signals</text>
+        <text class="bridge__sub" x="78" y="66" text-anchor="middle">always has a value</text>
+
+        <rect class="bridge__box" x="212" y="20" width="140" height="64" rx="12" />
+        <text class="bridge__title" x="282" y="48" text-anchor="middle">Observables</text>
+        <text class="bridge__sub" x="282" y="66" text-anchor="middle">arrives over time, maybe never yet</text>
+
+        <line class="bridge__stem" x1="78" y1="84" x2="78" y2="152" />
+        <line class="bridge__stem" x1="282" y1="84" x2="282" y2="152" />
+
+        <line class="bridge__arrow-toObs" x1="78" y1="112" x2="272" y2="112" />
+        <path class="bridge__head-toObs" d="M282,112 L272,107 L272,117 Z" />
+        <text class="bridge__label-toObs" x="180" y="102" text-anchor="middle">toObservable()</text>
+        <text class="bridge__caption" x="180" y="128" text-anchor="middle">
+          cross in — pipe(), debounceTime(), switchMap()…
+        </text>
+
+        <line class="bridge__arrow-toSig" x1="282" y1="152" x2="88" y2="152" />
+        <path class="bridge__head-toSig" d="M78,152 L88,147 L88,157 Z" />
+        <text class="bridge__label-toSig" x="180" y="142" text-anchor="middle">toSignal()</text>
+        <text class="bridge__caption" x="180" y="168" text-anchor="middle">
+          come back — read as state, no subscribe()
+        </text>
+      </svg>
+      <figcaption>
+        Two one-way crossings, not a merger. <code>toObservable()</code> carries a signal's current value out to where
+        RxJS's operators live; <code>toSignal()</code> carries a value back, and has to be told what to say before the
+        first one arrives — that is the <code>initialValue</code> from the previous section, arriving from the other
+        side of the bridge.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 5. THE SAME IDEA, FOUR MODES ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it — the round trip</p>
+    <h2>Out to RxJS, and straight back.</h2>
+
     <p>
-      debounced — signal&nbsp;←&nbsp;toSignal&nbsp;←&nbsp;debounceTime&nbsp;←&nbsp;toObservable&nbsp;←&nbsp;signal:
-      <strong style="color: var(--green)">{{ debounced() || '—' }}</strong>
+      Put both bridges together and you get the shape you will reach for constantly: a debounced search box, with the
+      network call left out. Traced end to end, the thing to notice is that both <em>ends</em> are signals — RxJS is
+      somewhere the value visits, not somewhere it lives.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Type fast and the debounced value lags, settling 500ms after you stop. The value made a full trip out to RxJS and
-      back — yet both ends are just signals your template reads. This is exactly the shape of a debounced search box.
-    </p>
-  </div>
 
-  <h2>takeUntilDestroyed — automatic unsubscription</h2>
-  <div class="code">
-    <pre>
-constructor() {{ '{' }}
-  interval(1000).pipe(
-    takeUntilDestroyed()   // completes when the component is destroyed
-  ).subscribe(...);
-{{ '}' }}
-// outside an injection context, pass a DestroyRef:
-// .pipe(takeUntilDestroyed(this.destroyRef))</pre>
-  </div>
+    <app-flow
+      [steps]="roundTrip"
+      caption="Cross at the boundary and come straight back. Nothing downstream of `toSignal()` knows RxJS was ever involved."
+    />
 
-  <h2>Try it — an Observable surfaced as a signal</h2>
-  <div class="demo">
-    <p class="demo__title">Live — toSignal turning interval(1000) into state</p>
+    <app-code-lab
+      file="search.component.ts"
+      [code]="roundTripSample"
+      [notes]="roundTripNotes"
+      notesLabel="The two fields, read top to bottom"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — query, out to debounceTime(500), and back to a signal</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <input
+          aria-label="Type quickly"
+          [value]="query()"
+          (input)="setQuery($any($event.target).value)"
+          placeholder="Type quickly…"
+        />
+      </div>
+      <div class="row" style="flex-wrap: wrap">
+        <span class="pill"
+          >typed, instantly: <code>{{ query() || '—' }}</code></span
+        >
+        <span class="pill"
+          >debounced, 500ms later: <strong style="color: var(--green)">{{ debounced() || '—' }}</strong></span
+        >
+      </div>
+      <p class="demo__note">
+        Type fast and the debounced value visibly lags, settling 500ms after you stop. It made the entire round trip —
+        <code>query</code> → <code>toObservable</code> → <code>debounceTime</code> → <code>toSignal</code> →
+        <code>debounced</code> — and both ends are just signals your template reads directly. This is exactly the shape
+        of a debounced search box.
+      </p>
+    </div>
+
+    <app-quiz
+      question="`results$ = toObservable(query).pipe(debounceTime(300), switchMap(q => api.search(q)))`. The user types 'a', 'n', 'g' in quick succession. How many HTTP requests reach your server?"
+      [options]="pipelineOptions"
+      followUp="Worth separating in your head: `debounceTime` decides how many requests are *sent*, `switchMap` decides how many responses are *listened to*. You usually want both."
+    />
+  </section>
+
+  <!-- ============ 6. AUTOMATIC TEARDOWN ============ -->
+  <section>
+    <p class="bf-eyebrow">Automatic teardown</p>
+    <h2><code>takeUntilDestroyed</code> ends when the component does.</h2>
+
     <p>
-      tick = <strong style="font-size: 1.3rem">{{ tick() }}</strong>
+      Not every stream is going through <code>toSignal</code> — sometimes you want to subscribe and react, not hold a
+      value. <code>takeUntilDestroyed()</code> completes the stream (and so unsubscribes it) the moment the component is
+      destroyed, which is what makes a hand-written <code>.subscribe()</code> in a constructor safe.
     </p>
+
+    <app-code-lab
+      file="ticker.component.ts"
+      [code]="tickerSample"
+      [notes]="tickerNotes"
+      notesLabel="A signal, crossed out and back, annotated"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — toSignal turning interval(1000) into state</p>
+      <div class="row" style="flex-wrap: wrap">
+        <span class="pill"
+          >tick: <strong style="font-size: 1.2rem">{{ tick() }}</strong></span
+        >
+        <span class="pill"
+          >tick × 10, round-tripped through toObservable: <strong>{{ tickTimesTen() }}</strong></span
+        >
+      </div>
+      <p class="demo__note">
+        The interval is an RxJS stream, and <code>tickTimesTen</code> is fed by a second pipeline built from
+        <code>toObservable(tick)</code> in the constructor — yet the template reads both exactly like any other signal,
+        and both tear themselves down automatically the moment you navigate away.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 7. THE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap</p>
+    <h2>Call it from the wrong place, and it throws.</h2>
+
     <p>
-      tick × 10 (computed off the signal) = <strong>{{ tickTimesTen() }}</strong>
+      Every <code>toSignal</code> on this page has been called from a field initializer or a constructor — never from a
+      lifecycle hook. That is not a style choice; it is the one placement rule the bridge actually enforces.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      The interval is an RxJS stream, but the template reads it like any signal — and it tears down automatically when
-      you navigate away.
+
+    <app-predict
+      prompt="You want tidy code, so instead of a field initializer you call `toSignal` from inside `ngOnInit()`. What happens when this component is created?"
+      [code]="injectionMistakeSample"
+      answer="It throws — the same 'can only be used within an injection context' error `inject()` gives on its own, because `toSignal` calls `inject()` underneath. A field initializer and a constructor are injection contexts; a lifecycle hook is not, because by the time `ngOnInit` runs Angular has already left the window where `inject()` can resolve anything. Move the call up to a field initializer, as every example on this page does — or capture an `Injector` earlier with `inject(Injector)` and pass it explicitly through the options object."
+      revealLabel="Reveal what actually happens"
+    />
+  </section>
+
+  <!-- ============ 8. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Two tools, one boundary.</h2>
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        Which one, for what
+      </caption>
+      <thead>
+        <tr>
+          <th>Reach for</th>
+          <th>When</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Signals</strong></td>
+          <td>Synchronous state, derived values, template reactivity.</td>
+        </tr>
+        <tr>
+          <td><strong>Observables</strong></td>
+          <td>Async events over time, complex async pipelines (debounce, retry, cancellation).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Nowhere is the difference more visible than a value that just <em>ticks</em> — which is why it is worth putting
+      the old, imperative way to hold it next to the modern one-liner.
     </p>
-  </div>
 
-  <h2>When to use which</h2>
-  <table class="t">
-    <tr>
-      <td><strong>Signals</strong></td>
-      <td>Synchronous state, derived values, template reactivity.</td>
-    </tr>
-    <tr>
-      <td><strong>Observables</strong></td>
-      <td>Async events over time, complex async pipelines (debounce, retry, cancellation).</td>
-    </tr>
-  </table>
+    <app-compare
+      leftTitle="Before — subscribe by hand"
+      leftTone="bad"
+      rightTitle="Now — let the bridge manage it"
+      rightTone="good"
+      note="Same interval, same destination value. The difference is who remembers to unsubscribe — and who remembers `markForCheck()`."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ oldWayTickerSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ newWayTickerSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
 
-  <h2>Common mistakes</h2>
-  <table class="t">
-    <tr>
-      <td><code>toSignal</code> outside an injection context</td>
-      <td>
-        Call it in a field initializer or constructor, or pass <code>{{ '{' }} injector {{ '}' }}</code> explicitly —
-        otherwise it throws.
-      </td>
-    </tr>
-    <tr>
-      <td>Reading the signal before the first emit</td>
-      <td>
-        It's <code>undefined</code> until then. Provide <code>initialValue</code>, or <code>requireSync: true</code> for
-        synchronous sources.
-      </td>
-    </tr>
-    <tr>
-      <td>Forgetting that errors re-throw on read</td>
-      <td>
-        An errored source makes <code>mySignal()</code> throw. Put <code>catchError</code> in the pipe <em>before</em>
-        <code>toSignal</code>.
-      </td>
-    </tr>
-    <tr>
-      <td>Manual <code>.subscribe()</code> with no teardown</td>
-      <td>
-        Leaks after destroy. Add <code>takeUntilDestroyed()</code>, or prefer <code>toSignal</code> which cleans up for
-        you.
-      </td>
-    </tr>
-    <tr>
-      <td>Bridging when you didn't need to</td>
-      <td>
-        If the data is plain synchronous state, just use a signal. Only reach for RxJS when you genuinely need operators
-        over time.
-      </td>
-    </tr>
-  </table>
+    <table class="t">
+      <caption class="bf-table-caption">
+        Five ways this goes wrong, and the fix
+      </caption>
+      <thead>
+        <tr>
+          <th>Mistake</th>
+          <th>Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>toSignal</code> outside an injection context</td>
+          <td>
+            Call it in a field initializer or constructor, or pass an <code>injector</code> explicitly — the trap above
+            is what happens if you don't.
+          </td>
+        </tr>
+        <tr>
+          <td>Reading the signal before the first emit</td>
+          <td>
+            It's <code>undefined</code> until then. Provide <code>initialValue</code>, or
+            <code>{{ '{' }} requireSync: true {{ '}' }}</code> for synchronous sources.
+          </td>
+        </tr>
+        <tr>
+          <td>Forgetting that errors re-throw on read</td>
+          <td>
+            An errored source makes <code>mySignal()</code> throw. Put <code>catchError</code> in the pipe
+            <em>before</em> <code>toSignal</code>.
+          </td>
+        </tr>
+        <tr>
+          <td>Manual <code>.subscribe()</code> with no teardown</td>
+          <td>
+            Leaks after destroy. Add <code>takeUntilDestroyed()</code>, or prefer <code>toSignal</code> which cleans up
+            for you.
+          </td>
+        </tr>
+        <tr>
+          <td>Bridging when you didn't need to</td>
+          <td>
+            If the data is plain synchronous state, just use a signal. Only reach for RxJS when you genuinely need
+            operators over time.
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-  <app-faq [items]="questions" />
+    <app-remember variant="rule">
+      <strong>Convert only at the boundary.</strong> State lives as signals; orchestration over time happens in RxJS.
+      Anything crossing the bridge for longer than it has to is a sign the state was modelled on the wrong side.
+    </app-remember>
+  </section>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>toSignal(obs$)</code> consumes an Observable as a signal (auto-managed).</li>
-    <li><code>toObservable(sig)</code> exposes a signal as a stream for RxJS operators.</li>
-    <li>Round-trip freely: a signal can go out to RxJS and come back a signal.</li>
-    <li><code>takeUntilDestroyed()</code> auto-unsubscribes when the context is destroyed.</li>
-    <li>Signals for state, RxJS for async orchestration — convert only at the boundary.</li>
-  </ul>
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <p><a routerLink="/custom-pipes">Next: Custom Pipes →</a></p>
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>toSignal(obs$)</code> consumes an Observable as a signal: it subscribes once, seeds itself with
+        <code>initialValue</code>, and <strong>unsubscribes automatically</strong> when the component is destroyed.
+      </li>
+      <li>
+        <code>toObservable(sig)</code> exposes a signal as a stream by wrapping an <code>effect()</code> — so RxJS's
+        operators can reach a value that would otherwise never leave the signal graph.
+      </li>
+      <li>
+        Round-trip freely: a signal can go out to RxJS and come back a signal.
+        <strong>Both ends of the bridge are always signals</strong> — RxJS is a place a value visits, never a place it
+        has to live.
+      </li>
+      <li>
+        <code>takeUntilDestroyed()</code> auto-unsubscribes when the injection context is destroyed —
+        <code>toSignal</code> does the equivalent for you without you writing it.
+      </li>
+      <li>
+        Signals for state, RxJS for orchestration over time — <strong>convert only at the boundary</strong>, and never
+        grow one shape to do the other's job.
+      </li>
+    </ul>
+
+    <p><a routerLink="/custom-pipes">Next: Custom Pipes →</a></p>
+  </section>
 </article>
