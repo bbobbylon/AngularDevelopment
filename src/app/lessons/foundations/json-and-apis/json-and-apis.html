@@ -1,211 +1,317 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Data &amp; the Web</span>
-  <h1>Data on the Web: JSON &amp; APIs</h1>
-  <p class="lead">
-    Apps are mostly about <strong>data</strong> — users, products, messages — and that data usually lives on a server.
-    Two ideas make the whole exchange work: <strong>JSON</strong> (the format data travels in) and
-    <strong>APIs</strong> (the doorways you request it through). This page goes deep on both, because every Angular
-    <code>HttpClient</code> lesson later is built directly on them.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Foundations · Data & the Web"
+    title="Data on the Web: JSON & APIs"
+    hand="or, how a live object becomes a box of flat, boring text and back again"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Nearly everything an app does comes down to <strong>data</strong> — a user's profile, a list of products, a chat
+      message — living on a server somewhere else. Two ideas make that whole exchange possible: <strong>JSON</strong>,
+      the plain-text format the data actually travels in, and <strong>APIs</strong>, the doorways you ask for it
+      through. Every <code>HttpClient</code> lesson later in this course is built directly on top of both, so this page
+      goes deep rather than skimming.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: flat-pack furniture</h2>
-  <p>
-    You cannot post a chair. What you can post is a flat box of planks with a printed instruction sheet, and someone at
-    the other end rebuilds the chair from it. That is the whole idea of JSON.
-    <code>JSON.stringify</code> flat-packs a live object into text; <code>JSON.parse</code> assembles text back into a
-    live object. Different room, different country, different language — the box travels fine because everything in it
-    is flat.
-  </p>
-  <p>
-    Which immediately tells you what <em>cannot</em> go in the box. Not the carpenter — a function is a skill, not a
-    plank, and it does not survive the trip. Not "the leg that isn't there", because an empty slot is just an absent
-    plank. And a <code>Date</code> goes in as a printed label reading <code>2026-08-29T09:00:00Z</code>, so what comes
-    out is a label, not a date. Keep the box in your head and the rest of this page is mostly consequences.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Your object cannot leave the building.</h2>
 
-  <div class="wire">
-    <div class="wire__side">
-      <p class="wire__title">In your app (live values)</p>
-      <ul>
-        <li>objects and arrays</li>
-        <li>strings, numbers, booleans, null</li>
-        <li class="wire__lost">Date instances</li>
-        <li class="wire__lost">functions and methods</li>
-        <li class="wire__lost">undefined</li>
-        <li class="wire__lost">Map, Set, class identity</li>
-      </ul>
-    </div>
-    <div class="wire__pipe">
-      <p class="wire__title">On the wire</p>
-      <p class="wire__bytes">
-        <code>{{ '{' }}"name":"Ada","age":36{{ '}' }}</code>
-      </p>
-      <p class="wire__caption">Characters. Nothing else fits.</p>
-    </div>
-    <div class="wire__side">
-      <p class="wire__title">In the server (live values)</p>
-      <ul>
-        <li>objects and arrays</li>
-        <li>strings, numbers, booleans, null</li>
-        <li class="wire__lost">…and whatever it lost on its side</li>
-      </ul>
-    </div>
-  </div>
-  <p class="wire__legend">
-    Struck-through rows are the ones that do not make the crossing. Six types get on the wire; everything else is
-    converted to one of them or dropped without a word.
-  </p>
+    <p>
+      Somewhere in your running app sits a real, live JavaScript object — it might have methods, a <code>Date</code>,
+      references to three other objects. The moment you try to send it anywhere — across the internet to a server, into
+      a file, into <code>localStorage</code> — you hit a wall: <strong>none of that can travel.</strong> A network
+      connection carries <span class="key">bytes</span>, not live objects. Not methods. Not a
+      <code>Date</code> instance. Just characters, one after another.
+    </p>
 
-  <app-remember>
-    <strong>Only flat things fit in the box.</strong> Six value types cross the wire — string, number, boolean, null,
-    array, object. A <code>Date</code> arrives as a string, and functions and <code>undefined</code> do not arrive at
-    all.
-  </app-remember>
+    <p>
+      And it gets worse before it gets better: the program on the other end of that connection might not even be
+      JavaScript. It could be Java, Python, Rust — a completely different language with its own idea of what an "object"
+      even is. So whatever format you send has to be something <em>every</em> language can read back, not just yours.
+    </p>
 
-  <h2>What is JSON?</h2>
-  <p>
-    JSON (JavaScript Object Notation) is <strong>text</strong> shaped like the objects and arrays you already know. That
-    "text" part matters: over the wire, between programs, in files — data travels as characters, and JSON is the agreed
-    way to write structured data down so <em>any</em> language can read it back. Python, Java, Rust — everyone speaks
-    it.
-  </p>
-  <div class="code">
-    <pre
-      >{{ '{' }}
-  "name": "Ada",                      ← string (double quotes, always)
-  "age": 36,                          ← number (no quotes)
-  "isAdmin": true,                    ← boolean
-  "nickname": null,                   ← null = deliberately empty
-  "hobbies": ["chess", "coding"],     ← array — order preserved
-  "address": {{ '{' }} "city": "London" {{ '}' }}    ← objects nest arbitrarily deep
-{{ '}' }}</pre>
-  </div>
-  <p>
-    It looks like JavaScript but is <em>stricter</em>. The grammar has exactly six value types (string, number, boolean,
-    null, array, object) and hard rules that trip everyone at least once. Spot the error in each:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Try it — four classic almost-JSON mistakes</p>
-    <div class="row" style="flex-wrap: wrap; margin-bottom: 8px">
-      @for (p of pitfalls; track p.label) {
-        <button [class.ghost]="pitfall() !== p" (click)="pitfall.set(p)">{{ p.label }}</button>
-      }
-    </div>
-    @if (pitfall(); as p) {
-      <div class="code">
-        <pre>{{ p.bad }}   ← ❌ invalid JSON</pre>
+    <p>
+      That is the whole problem this page solves. <strong>JSON</strong> is the agreed-upon shape data takes when it
+      travels; an <strong>API</strong> is the agreed-upon set of addresses you send and receive it at. Almost everything
+      below is just a consequence of those two sentences.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      You build <code>const event = &#123; title: 'Launch day', when: new Date() &#125;</code>. You send it to a server,
+      and a moment later you get back what looks like the exact same shape. Before you read on — does
+      <code>event.when.getFullYear()</code> still work on what comes back? Commit to yes or no. You'll get the full
+      proof partway down this page, and the reason it goes the way it does is worth more than the answer itself.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>JSON is a flat-pack box.</h2>
+
+    <p>
+      You cannot post a chair. What you <em>can</em> post is a flat box of planks with a printed instruction sheet, and
+      someone at the other end rebuilds the chair from it. That is the entire idea of JSON.
+      <code>JSON.stringify</code> flat-packs a live object into text; <code>JSON.parse</code> assembles the text back
+      into a live object. Different room, different building, different country, different <em>language even</em> — the
+      box travels fine, because everything inside it is flat.
+    </p>
+
+    <p>
+      Which immediately tells you what <span class="key">cannot</span> go in the box. Not the carpenter — a function is
+      a skill, not a plank, and it does not survive the trip. Not "the leg that isn't there" — an empty slot is just an
+      absent plank, which is what happens to <code>undefined</code>. And a <code>Date</code> goes in as a printed label
+      reading <code>2026-08-29T09:00:00Z</code>, so what comes back out is a label, not a date. Keep the box in your
+      head and most of the rest of this page is just consequences of it.
+    </p>
+
+    <figure class="dia">
+      <svg
+        viewBox="0 0 760 240"
+        role="img"
+        aria-label="A live object on the left holding objects, arrays, strings, numbers, booleans and null — plus a Date instance and a function, both struck through. An arrow labelled stringify leads to a dashed box in the middle showing the raw characters on the wire. A second arrow labelled parse leads to a live object on the right, holding the same six surviving types, plus a note that it lost whatever it could not express on its own side."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="jaa-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
+
+        <!-- left: your live app -->
+        <rect x="16" y="24" width="210" height="210" rx="14" class="dia-box" />
+        <text x="121" y="50" text-anchor="middle" class="dia-mono dia-mono--sm">IN YOUR APP</text>
+        <text x="121" y="76" text-anchor="middle" class="dia-mono">objects, arrays</text>
+        <text x="121" y="98" text-anchor="middle" class="dia-mono">strings, numbers</text>
+        <text x="121" y="120" text-anchor="middle" class="dia-mono">booleans, null</text>
+        <text x="121" y="150" text-anchor="middle" class="dia-mono dia-lost">Date instances</text>
+        <text x="121" y="172" text-anchor="middle" class="dia-mono dia-lost">functions</text>
+        <text x="121" y="194" text-anchor="middle" class="dia-mono dia-lost">undefined</text>
+
+        <!-- arrow 1 -->
+        <path d="M 230 129 L 294 129" class="dia-rule" fill="none" marker-end="url(#jaa-arrow)" />
+        <text x="262" y="115" text-anchor="middle" class="dia-hand">stringify</text>
+
+        <!-- middle: the wire -->
+        <rect x="300" y="79" width="160" height="100" rx="12" class="dia-box dia-box--lit" stroke-dasharray="5 4" />
+        <text x="380" y="124" text-anchor="middle" class="dia-mono dia-mono--sm">{{ wireBytes }}</text>
+        <text x="380" y="150" text-anchor="middle" class="dia-mono dia-mono--sm">characters. nothing else fits</text>
+
+        <!-- arrow 2 -->
+        <path d="M 466 129 L 530 129" class="dia-rule" fill="none" marker-end="url(#jaa-arrow)" />
+        <text x="498" y="115" text-anchor="middle" class="dia-hand">parse</text>
+
+        <!-- right: the server, or another program entirely -->
+        <rect x="534" y="24" width="210" height="210" rx="14" class="dia-box" />
+        <text x="639" y="50" text-anchor="middle" class="dia-mono dia-mono--sm">ON THE SERVER</text>
+        <text x="639" y="76" text-anchor="middle" class="dia-mono">objects, arrays</text>
+        <text x="639" y="98" text-anchor="middle" class="dia-mono">strings, numbers</text>
+        <text x="639" y="120" text-anchor="middle" class="dia-mono">booleans, null</text>
+        <text x="639" y="152" text-anchor="middle" class="dia-mono dia-mono--sm">…and whatever</text>
+        <text x="639" y="172" text-anchor="middle" class="dia-mono dia-mono--sm">IT lost too</text>
+      </svg>
+      <figcaption>
+        Six value types make the crossing in either direction. Everything struck through is either converted to one of
+        them (a <code>Date</code> becomes a string) or silently dropped (functions, <code>undefined</code>) — and
+        nothing warns you when it happens.
+      </figcaption>
+    </figure>
+
+    <app-bubbles
+      [turns]="flatPackTalk"
+      caption="What actually happens to each property when `stringify` runs. Nobody asks the object's permission."
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>Only flat things fit in the box.</strong> Six value types cross the wire — string, number, boolean, null,
+      array, object. A <code>Date</code> arrives as a string, and functions and <code>undefined</code> do not arrive at
+      all.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE GRAMMAR ============ -->
+  <section>
+    <p class="bf-eyebrow">The vocabulary</p>
+    <h2>Six types. That's the whole alphabet.</h2>
+
+    <p>
+      JSON (<strong>J</strong>ava<strong>S</strong>cript <strong>O</strong>bject <strong>N</strong>otation) is
+      <span class="key">text</span> shaped like the objects and arrays you already know from JavaScript. That "text"
+      part is the whole point — over a network, in a file, in <code>localStorage</code>, data always travels as
+      characters, and JSON is simply the agreed way to write structured data down so that <em>any</em> program, in any
+      language, can read it back.
+    </p>
+
+    <app-code-lab file="sample.json" [code]="jsonSample" [notes]="jsonNotes" notesLabel="What each symbol means" />
+
+    <p>
+      It looks like a JavaScript object, but it is <em>stricter</em> — and the rules that trip up almost everyone at
+      least once are exactly the ones a JavaScript object literal doesn't enforce.
+    </p>
+
+    <app-compare
+      leftTitle="What you'd naturally write — a JS object literal"
+      rightTitle="What JSON actually requires"
+      leftTone="bad"
+      rightTone="good"
+      note="Every rule on the right exists because a parser refuses to guess. One wrong quote and the whole document is rejected — not just the field that broke."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ jsObjectSample }}</pre>
+        </div>
+        <p>Bare keys, single quotes, a trailing comma, even a function — all completely normal JavaScript.</p>
       </div>
-      <p style="font-size: 0.9rem">{{ p.why }}</p>
-    } @else {
-      <p style="color: var(--text-muted)">Pick one — each is valid-ish JavaScript but rejected by every JSON parser.</p>
-    }
-  </div>
+      <div right>
+        <div class="code">
+          <pre>{{ jsonCorrectSample }}</pre>
+        </div>
+        <p>Double-quoted keys and strings, no trailing comma, and only values JSON actually understands.</p>
+      </div>
+    </app-compare>
 
-  <h2>Text ⇄ objects: parse and stringify</h2>
-  <p>
-    JSON arrives as one long string. Before you can write
-    <code>data.name</code>, the text must become a real object — and to send data back, the object must become text
-    again. Two built-ins do the converting:
-  </p>
-  <div class="code">
-    <pre>
-const text = '{{ '{' }} "name": "Ada", "age": 36 {{ '}' }}';  // a STRING (note the outer quotes)
+    <div class="demo">
+      <p class="demo__title">Try it — four classic almost-JSON mistakes</p>
+      <p>
+        Click through each one. Before you open the note, try to spot the single change that would make it valid JSON —
+        every one of these is valid-ish JavaScript, and every one is rejected by every JSON parser on Earth.
+      </p>
+      <div class="row" style="flex-wrap: wrap; margin-bottom: 10px">
+        @for (p of pitfalls; track p.label) {
+          <button [class.ghost]="pitfall() !== p" (click)="pitfall.set(p)">{{ p.label }}</button>
+        }
+      </div>
+      <app-code-lab
+        [file]="pitfall().label"
+        [code]="pitfallCode()"
+        [notes]="pitfallNotes()"
+        notesLabel="Why it fails"
+      />
+    </div>
+  </section>
 
-const obj = JSON.parse(text);      // text → live object
-obj.name                           // 'Ada' — now it has properties
-// text.name                       // undefined! strings don't have .name
+  <!-- ============ 4. PARSE & STRINGIFY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Text, meet objects</p>
+    <h2>Two verbs undo each other. Mostly.</h2>
 
-const back = JSON.stringify(obj);         // object → text, one line
-const pretty = JSON.stringify(obj, null, 2);  // …or indented 2 spaces (debugging!)</pre>
-  </div>
-  <ul>
-    <li>
-      <strong><code>parse</code> throws on bad input.</strong> One missing quote and it raises an error rather than
-      returning half the data — which is why real code wraps it in <code>try/catch</code> (the demo below does; feed it
-      junk and watch).
-    </li>
-    <li>
-      <strong><code>stringify</code> silently drops what JSON can't express</strong> — functions and
-      <code>undefined</code> properties just vanish. A <code>Date</code> becomes a plain string, and parsing it back
-      gives you a string, <em>not</em> a Date. Round-trips are not always lossless.
-    </li>
-    <li>The <code>null, 2</code> trick prints readable JSON — you'll use it for debugging weekly.</li>
-  </ul>
-  <div class="demo">
-    <p class="demo__title">Try it — edit JSON text, watch it parse (or fail)</p>
-    <textarea
-      aria-label="JSON text"
-      [value]="raw()"
-      (input)="raw.set($any($event.target).value)"
-      rows="4"
-      style="width: 100%"
-    ></textarea>
-    @if (parsed(); as p) {
-      <div class="code">
-        <pre>
+    <p>
+      JSON always arrives as one long string. Before you can write <code>data.name</code>, that text has to become a
+      real object — and to send something back, the object has to become text again. Two built-ins do the converting,
+      and mixing them up is the single most common beginner JSON bug there is.
+    </p>
+
+    <app-code-lab
+      file="round-trip.ts"
+      [code]="parseStringifySample"
+      [notes]="parseStringifyNotes"
+      notesLabel="Every symbol, and the trap on line 5"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Try it — edit JSON text, watch it parse (or fail)</p>
+      <textarea
+        aria-label="JSON text"
+        [value]="raw()"
+        (input)="raw.set($any($event.target).value)"
+        rows="4"
+        style="width: 100%"
+      ></textarea>
+      @if (parsed(); as p) {
+        <pre class="readout">
 JSON.parse(text).name   → {{ p.name }}
 JSON.parse(text).age    → {{ p.age }}</pre>
-      </div>
-    } @else {
-      <p style="color: var(--accent)">
-        ⚠ JSON.parse threw — not valid JSON yet. (Try removing a quote or adding a trailing comma to see how picky it
-        is.)
-      </p>
-    }
-  </div>
+      } @else {
+        <p style="color: var(--accent)">
+          ⚠ JSON.parse threw — not valid JSON yet. (Try removing a quote or adding a trailing comma to see how picky it
+          is.)
+        </p>
+      }
+    </div>
 
-  <app-quiz
-    question="You round-trip an object through JSON — `JSON.parse(JSON.stringify(user))` — where `user` is `{ id: 1, when: new Date(), tags: undefined, greet() { return 'hi'; } }`. What comes out the other side?"
-    [options]="roundTripOptions"
-    followUp="This is the most common source of the bug where a date works perfectly in the component that created it and throws `.getFullYear is not a function` the moment it comes back from the server. Same object, one wire crossing apart."
-  />
+    <app-quiz
+      question="You round-trip an object through JSON — `JSON.parse(JSON.stringify(user))` — where `user` is `{ id: 1, when: new Date(), tags: undefined, greet() { return 'hi'; } }`. What comes out the other side?"
+      [options]="roundTripOptions"
+      followUp="This is the most common source of the bug where a date works perfectly in the component that created it and throws `.getFullYear is not a function` the moment it comes back from the server. Same object, one wire crossing apart."
+    />
+  </section>
 
-  <h2>What is an API?</h2>
-  <p>
-    An <strong>API</strong> (Application Programming Interface) is a server's
-    <strong>menu of URLs you may request data from</strong>. Each URL is an <em>endpoint</em>; the whole set forms a
-    contract: ask this way, receive this shape. The dominant style, <strong>REST</strong>, organizes endpoints around
-    <em>things</em> (resources) and reuses the HTTP verbs you met in
-    <a routerLink="/how-the-web-works">How the Web Works</a> as actions on them:
-  </p>
-  <div class="code">
-    <pre>
-GET    /users          → the list of users            (read, changes nothing)
-GET    /users/42       → just user #42                (the id lives in the path)
-POST   /users          → create a user                (you SEND JSON in the body)
-PUT    /users/42       → replace user #42 entirely
-PATCH  /users/42       → update SOME fields of #42
-DELETE /users/42       → remove user #42
+  <!-- ============ 5. WHAT IS AN API ============ -->
+  <section>
+    <p class="bf-eyebrow">The doorway</p>
+    <h2>An API is a menu of URLs you're allowed to ask.</h2>
 
-GET    /users/42/orders?status=open&page=2
-       └──── nesting: #42's orders ────┘└── query string: filters & paging ──┘</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Nouns in the path, verbs in the method.</strong> Not <code>/getUsers</code> or
-      <code>/deleteUser?id=42</code> — the resource is <code>/users/42</code> and the verb says what to do to it.
-    </li>
-    <li>
-      <strong>The response pairs a status code with JSON:</strong> 200 + data, 201 ("created") after a successful POST,
-      404 when the id doesn't exist, 400 when your JSON was malformed, 401/403 when you aren't allowed. Your app must
-      branch on these — a good UI shows "user not found", not a blank screen.
-    </li>
-    <li>
-      <strong>Most APIs require identification:</strong> typically a token sent in a header (<code
-        >Authorization: Bearer eyJhbG…</code
-      >) with every request — HTTP is stateless, so you prove who you are each time.
-    </li>
-  </ul>
+    <p>
+      An <strong>API</strong> (Application Programming Interface) is a server's menu of addresses you may request data
+      from. The dominant style, <strong>REST</strong>, organizes those addresses around <em>things</em> — called
+      resources — and reuses the HTTP verbs from <a routerLink="/how-the-web-works">How the Web Works</a> as actions on
+      them.
+    </p>
 
-  <h3>The verbs, and the two words exams ask about</h3>
-  <p>
-    <strong>Safe</strong> means the call changes nothing on the server. <strong>Idempotent</strong> means making the
-    call ten times leaves the world in the same state as making it once. They are not the same thing —
-    <code>DELETE</code> changes plenty, but deleting user 42 five times still leaves exactly one user 42 gone. Almost
-    every REST rule you have been told to follow falls out of this table.
-  </p>
-  <div class="verbs-wrap">
-    <table class="verbs">
+    <div class="bf-grid-2">
+      <app-tape-card heading="Endpoint" kicker="one URL" tone="gold">
+        One specific address the server listens on — <code>/users/42/orders</code>. Each endpoint is a promise: ask this
+        way, get this shape back.
+      </app-tape-card>
+      <app-tape-card heading="Resource" kicker="a noun" tone="accent">
+        The <em>thing</em> the URL names — a user, an order, a comment. REST paths are built from nouns, never verbs.
+      </app-tape-card>
+      <app-tape-card heading="Verb" kicker="the HTTP method" tone="olive">
+        <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code> — the action
+        performed on the resource. The verb lives in the method, never in the path.
+      </app-tape-card>
+      <app-tape-card heading="Status code" kicker="three digits" tone="blue">
+        The server's one-word verdict on how it went — 200 said yes, 404 said no such thing, 500 said something broke on
+        its end.
+      </app-tape-card>
+    </div>
+
+    <app-code-lab
+      file="endpoints.http"
+      [code]="endpointSample"
+      [notes]="endpointNotes"
+      notesLabel="Nouns in the path, verbs in the method"
+    />
+
+    <p>
+      Two more rules fall out of this. First, <strong>the response always pairs a status code with JSON</strong>: 200
+      plus data, 201 ("created") after a successful <code>POST</code>, 404 when the id doesn't exist, 400 when your JSON
+      was malformed, 401/403 when you aren't allowed. Your app must branch on these — a good UI shows "user not found,"
+      not a blank screen. Second, <strong>most APIs require identification</strong>, typically a token sent in a header
+      (<code>Authorization: Bearer eyJhbG…</code>) with every single request — HTTP is stateless, so you prove who you
+      are again each time.
+    </p>
+  </section>
+
+  <!-- ============ 6. SAFE & IDEMPOTENT ============ -->
+  <section>
+    <p class="bf-eyebrow">Exam vocabulary</p>
+    <h2>Safe and idempotent are not the same word.</h2>
+
+    <p>
+      <strong>Safe</strong> means the call changes nothing on the server. <strong>Idempotent</strong> means making the
+      call ten times leaves the world in the same state as making it once. Those are not the same thing —
+      <code>DELETE</code> changes plenty, but deleting user 42 five times still leaves exactly one user 42 gone. Almost
+      every REST rule you have been told to follow falls out of this one table.
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        The two words exams actually test, verb by verb
+      </caption>
       <thead>
         <tr>
           <th>Verb</th>
@@ -231,107 +337,124 @@ GET    /users/42/orders?status=open&page=2
         }
       </tbody>
     </table>
-  </div>
-  <p>
-    Read the last column as advice you can act on. A network blip on a <code>PUT</code> is safe to retry automatically;
-    the same blip on a <code>POST</code> is not, which is the entire reason payment forms disable the button on click.
-  </p>
 
-  <h2>Before you read on: what does this return?</h2>
-  <p>
-    Two bugs live in the snippet below, and they are the two that every developer ships at least once. Commit to an
-    answer before you open it — the point is to find out which of them you already knew about.
-  </p>
-
-  <app-predict
-    prompt="Read it as the runtime does: what is `data`, and does the `catch` ever run?"
-    [code]="fetchSample"
-    answer="It returns `undefined`, and the `catch` never fires. Two separate mistakes stacked on each other. First, `fetch` resolves to a `Response` — status and headers — not to your parsed body, so `data` is a Response object and `data.name` is `undefined`. The variable name is doing the lying here; call it `res` and the bug is obvious. Second, a 404 is a successful exchange as far as `fetch` is concerned: you asked, the server answered. It only rejects when the answer never came at all — offline, DNS failure, CORS block. So the error path you carefully wrote is unreachable for exactly the errors you were worried about. The fix is two lines: check `res.ok` and throw yourself, then `await res.json()`."
-  />
-
-  <h2>What actually happens, step by step</h2>
-
-  <app-flow
-    [steps]="roundTrip"
-    caption="Both classic bugs are really one question — which step am I standing on? `fetch` resolves at step four; the data does not exist until step five."
-  />
-
-  <app-remember>
-    <strong>Two awaits: the envelope, then the letter.</strong> And <code>fetch</code> only rejects when no letter
-    arrived at all — a 404 or a 500 <em>is</em> a letter, so you check <code>res.ok</code> yourself.
-  </app-remember>
-
-  <h2>Try it — ask a real API for data</h2>
-  <div class="demo">
-    <p class="demo__title">Live — a real GET request to a public test API</p>
-    <button (click)="fetchUser()" [disabled]="busy()">{{ busy() ? 'Asking…' : 'GET /users/1' }}</button>
-    @if (apiResult()) {
-      <div class="code">
-        <pre>{{ apiResult() }}</pre>
-      </div>
-    }
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      A real request just crossed the internet and returned JSON. The exact code that ran, line by line:
+    <p>
+      Read the last column as advice you can act on. A network blip on a <code>PUT</code> is safe to retry
+      automatically; the same blip on a <code>POST</code> is not — which is the entire reason payment forms disable
+      their button on click.
     </p>
-    <div class="code">
-      <pre>
-const res  = await fetch('https://jsonplaceholder.typicode.com/users/1');
-//    └ fetch returns a promise of the RESPONSE — headers ready, body still streaming
+  </section>
 
-const data = await res.json();
-//    └ second await! .json() reads the body to the end AND parses it
+  <!-- ============ 7. PREDICT — THE FETCH TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Before you read on</p>
+    <h2>What does this actually return?</h2>
 
-data.address.city   // from here on it's just objects — dot into the nesting</pre>
+    <p>
+      Two bugs live in the snippet below, and they are the two that every developer ships at least once. Commit to an
+      answer before you open it — the point is to find out which of them you already knew about.
+    </p>
+
+    <app-predict
+      prompt="Read it as the runtime does: what is `data`, and does the `catch` ever run?"
+      [code]="fetchSample"
+      answer="It returns `undefined`, and the `catch` never fires. Two separate mistakes stacked on each other. First, `fetch` resolves to a `Response` — status and headers — not to your parsed body, so `data` is a Response object and `data.name` is `undefined`. The variable name is doing the lying here; call it `res` and the bug is obvious. Second, a 404 is a successful exchange as far as `fetch` is concerned: you asked, the server answered. It only rejects when the answer never came at all — offline, DNS failure, CORS block. So the error path you carefully wrote is unreachable for exactly the errors you were worried about. The fix is two lines: check `res.ok` and handle it yourself, then `await res.json()`."
+    />
+  </section>
+
+  <!-- ============ 8. THE MECHANISM, STEP BY STEP ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>What actually happens, step by step.</h2>
+
+    <app-flow
+      [steps]="roundTrip"
+      caption="Both classic bugs are really one question — which step am I standing on? `fetch` resolves at step four; the data doesn't exist until step five."
+    />
+
+    <app-remember variant="rule">
+      <strong>Two awaits: the envelope, then the letter.</strong> And <code>fetch</code> only rejects when no letter
+      arrived at all — a 404 or a 500 <em>is</em> a letter, so you check <code>res.ok</code> yourself.
+    </app-remember>
+  </section>
+
+  <!-- ============ 9. TRY IT FOR REAL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Try it for real</p>
+    <h2>Ask a real API for data.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — a real GET request to a public test API</p>
+      <button (click)="fetchUser()" [disabled]="busy()">{{ busy() ? 'Asking…' : 'GET /users/1' }}</button>
+      @if (apiResult()) {
+        <pre class="readout">{{ apiResult() }}</pre>
+      }
+      <p class="demo__note">
+        A real request just crossed the internet and returned JSON. Two awaits surprise everyone: the first gets the
+        envelope (status, headers), the second finishes reading and parsing the letter inside. And
+        <code>fetch</code> does <em>not</em> reject on a 404/500 — the request "succeeded" in reaching the server; you
+        must check <code>res.ok</code> yourself. Angular's <code>HttpClient</code>, coming later, treats error statuses
+        as errors for you — one of many conveniences it layers on top of exactly this.
+      </p>
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Two awaits surprise everyone: the first gets the envelope (status, headers), the second finishes reading and
-      parsing the letter inside. One more trap:
-      <code>fetch</code> does <em>not</em> reject on a 404/500 — the request "succeeded" in reaching the server. You
-      must check <code>res.ok</code> / <code>res.status</code> yourself. (Angular's <code>HttpClient</code>, coming
-      later, treats error statuses as errors for you — one of many conveniences it layers on top of exactly this.)
+
+    <app-code-lab
+      file="live-fetch.ts"
+      [code]="liveFetchSample"
+      [notes]="liveFetchNotes"
+      notesLabel="The exact code that just ran"
+      prompt="Trace it before scrolling: which line does `data.address.city` actually depend on — the first `await` or the second?"
+      output="The second — `await res.json()` on line 7. The first `await` only gets you a status and headers; nothing under `data` exists until the body has been read and parsed."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 10. EXAM CORNER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Exam corner</p>
+    <h2>Design the endpoint.</h2>
+
+    <p>
+      A classic interview warm-up, and a good test of whether the last two sections actually stuck. Decide before
+      reading on.
     </p>
-  </div>
 
-  <div class="note">
-    The full backbone of nearly every app, in one sentence: the app
-    <strong>asynchronously</strong> asks an <strong>endpoint</strong> for data, the server answers with a
-    <strong>status code</strong> and <strong>JSON</strong>, the app <strong>parses</strong> it, branches on
-    success/failure, and renders objects to the screen. Every piece of that sentence is a lesson you've now had.
-  </div>
+    <app-predict [prompt]="examPrompt" [answer]="examAnswer" revealLabel="Reveal what interviewers want" />
+  </section>
 
-  <h2>Exam corner — design the endpoint</h2>
-  <p>
-    A classic interview warm-up: <em>"mark notification #7 as read."</em> Decide before reading on. The answer most
-    interviewers want is <code>PATCH /notifications/7</code> with the body
-    <code>{{ '{' }} "read": true {{ '}' }}</code> — a partial update of one field on one resource.
-    <code>POST /notifications/7/mark-read</code> is common in the wild and defensible, since not every action maps
-    cleanly onto CRUD. What loses you the point is <code>GET /markRead?id=7</code>, and now you know exactly why: GET is
-    safe, so browsers, proxies and link prefetchers all feel free to call it whenever they like. Ship that and
-    notifications start marking themselves read at random.
-  </p>
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
 
-  <app-faq [items]="questions" />
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Things to remember.</h2>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <strong>JSON</strong> is strict text: double-quoted keys and strings, six value types, no
-      functions/undefined/trailing commas. It looks like JS but a parser rejects what JS tolerates.
-    </li>
-    <li>
-      <code>JSON.parse</code> (throws on bad input — try/catch it) and <code>JSON.stringify</code> (drops the
-      unexpressible; dates become strings) convert between wire text and live objects.
-    </li>
-    <li>
-      A REST <strong>API</strong> = nouns in paths (<code>/users/42</code>), verbs as HTTP methods, filters in query
-      strings, identity in headers, and a status code + JSON in every answer.
-    </li>
-    <li>
-      <code>fetch</code> needs <strong>two awaits</strong> (response, then <code>.json()</code>) and does
-      <em>not</em> reject on 404/500 — check <code>res.ok</code>.
-    </li>
-    <li>GET must never mutate. Ever. Browsers and caches assume it.</li>
-  </ul>
+    <ul>
+      <li>
+        A live object cannot leave the process it lives in. <strong>JSON</strong> is the flat, text-only shape data
+        takes to cross the wire: double-quoted keys and strings, six value types, no functions, no
+        <code>undefined</code>, no trailing commas. It looks like JS but a parser rejects what JS tolerates.
+      </li>
+      <li>
+        <code>JSON.parse</code> (throws on bad input — wrap it in try/catch) and <code>JSON.stringify</code> (drops what
+        it can't express; dates become strings) convert between wire text and live objects. Round trips are not always
+        lossless.
+      </li>
+      <li>
+        A REST <strong>API</strong> is nouns in paths (<code>/users/42</code>), verbs as HTTP methods, filters in query
+        strings, identity in headers, and a status code plus JSON in every single answer.
+      </li>
+      <li>
+        <code>fetch</code> needs <strong>two awaits</strong> (the response, then <code>.json()</code>) and does
+        <em>not</em> reject on 404/500 — you check <code>res.ok</code> yourself.
+      </li>
+      <li><code>GET</code> must never mutate. Ever. Browsers and caches assume it.</li>
+    </ul>
 
-  <p><a routerLink="/terminal-and-npm">Next: The Terminal &amp; npm →</a></p>
+    <p><a routerLink="/terminal-and-npm">Next: The Terminal &amp; npm →</a></p>
+  </section>
 </article>
