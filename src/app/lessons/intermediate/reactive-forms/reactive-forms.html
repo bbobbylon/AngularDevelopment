@@ -1,760 +1,619 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Forms</span>
-  <h1>Reactive Forms</h1>
-  <p class="lead">
-    Reactive (model-driven) forms define the form structure in the component class. The model — a tree of
-    <code>FormControl</code>/<code>FormGroup</code>/ <code>FormArray</code> instances — is the source of truth: fully
-    typed, synchronous to read, and easy to unit test without touching the DOM. This page also bridges that model into
-    Angular <strong>signals</strong> with <code>toSignal()</code>, so the same reactive-forms API you'll be tested on
-    also plays cleanly with the rest of modern Angular.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Intermediate · Forms"
+    title="Reactive Forms"
+    hand="or, meet the filing cabinet your template only ever opens a drawer into"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      Reactive (model-driven) forms put the form's whole structure in the component class instead of the template: a
+      tree of <code>FormControl</code>/<code>FormGroup</code>/<code>FormArray</code> objects that is
+      <strong>the actual source of truth</strong> — typed, readable synchronously, and testable without ever touching
+      the DOM. This page also bridges that model into Angular <strong>signals</strong> with <code>toSignal()</code>, so
+      the same reactive-forms API you'll be tested on plays cleanly with the rest of modern Angular.
+    </p>
+  </app-chapter>
 
-  <h2>Anatomy of a reactive form</h2>
-  <p>
-    Every node in a reactive form extends the same abstract base,
-    <code>AbstractControl</code>, which is why they all share <code>value</code>, <code>status</code>,
-    <code>errors</code>, <code>valueChanges</code> and <code>statusChanges</code>:
-  </p>
-  <ul>
-    <li>
-      <strong><code>FormControl</code></strong> — a single leaf value (an input, a checkbox…).
-    </li>
-    <li>
-      <strong><code>FormGroup</code></strong> — a fixed set of <em>named</em> child controls (an object shape).
-    </li>
-    <li>
-      <strong><code>FormArray</code></strong> — a growable list of <em>indexed</em> child controls (same shape,
-      repeated).
-    </li>
-  </ul>
-  <p>
-    <code>FormBuilder</code> (usually <code>inject</code>ed as <code>fb</code>) is just a typed factory for these three
-    — it saves you writing <code>new FormGroup({{ '{' }} name: new FormControl(...) {{ '}' }})</code> by hand.
-  </p>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Where does a form's truth actually live?</h2>
 
-  <h2>Building the model</h2>
-  <div class="code">
-    <pre>{{ modelSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lb">
-    <tr>
-      <th>Line</th>
-      <th>What &amp; why</th>
-    </tr>
-    <tr>
-      <td><code>private fb = inject(FormBuilder);</code></td>
-      <td>
-        Functional injection — pulls the <code>FormBuilder</code> service via Angular's DI in a field initializer, no
-        constructor required. It runs inside the component's injection context, which is why <code>inject()</code> is
-        legal here but not, say, inside a later method body.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>form = this.fb.group({{ '{' }}</code>
-      </td>
-      <td>
-        <code>.group()</code> builds a <code>FormGroup</code> — the composite node holding the three controls below as
-        named children.
-      </td>
-    </tr>
-    <tr>
-      <td><code>name: ['Ada', [Validators.required, Validators.minLength(2)]],</code></td>
-      <td>
-        Shorthand control config: <code>[initialValue, syncValidators, asyncValidators?]</code>.
-        <code>'Ada'</code> seeds the control's starting value <em>and</em> its static type (typed forms infer
-        <code>string</code> from this literal). The validators array runs on every value change.
-      </td>
-    </tr>
-    <tr>
-      <td><code>email: ['ada@example.com', [Validators.required, Validators.email]],</code></td>
-      <td>
-        Same shape; <code>Validators.email</code> is a built-in regex-based check — it flags obviously malformed
-        addresses, it does not verify the address exists.
-      </td>
-    </tr>
-    <tr>
-      <td><code>age: [36, [Validators.min(0), Validators.max(120)]],</code></td>
-      <td>
-        Initial value <code>36</code> makes this control's type <code>number | null</code>.
-        <code>Validators.min</code>/<code>max</code> are range checks, not HTML <code>min</code>/<code>max</code>
-        attributes — you still get those from the template if you want native constraints too.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>{{ '}' }});</code>
-      </td>
-      <td>
-        Closes the <code>.group()</code> call. The result is fully typed:
-        <code
-          >FormGroup&lt;{{ '{' }} name: FormControl&lt;string|null&gt;, email: FormControl&lt;string|null&gt;, age:
-          FormControl&lt;number|null&gt; {{ '}' }}&gt;</code
-        >
-        — nullable because these are plain (not <code>nonNullable</code>) controls.
-      </td>
-    </tr>
-  </table>
+    <p>
+      With <code>[(ngModel)]</code>, the template <em>is</em> the model — Angular assembles a form object behind the
+      scenes as it renders your markup. That's quick for a login box. It gets painful fast the moment you need two
+      fields to agree with each other, need to add or remove fields while the app is running, or want a test that
+      exercises validation <strong>without</strong> a browser and a DOM fixture — because there is no single object
+      anywhere holding the form's real state; the template is the only place it exists.
+    </p>
+    <p>Reactive forms fix that by building the model in TypeScript, on purpose, before any template exists at all.</p>
 
-  <h2>Binding to the template</h2>
-  <div class="code">
-    <pre>{{ templateSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lb">
-    <tr>
-      <th>Line</th>
-      <th>What &amp; why</th>
-    </tr>
-    <tr>
-      <td><code>&lt;form [formGroup]="form" ...&gt;</code></td>
-      <td>
-        <code>[formGroup]</code> is <code>FormGroupDirective</code> — it binds this DOM <code>&lt;form&gt;</code> to the
-        <code>FormGroup</code> instance built above and takes over the form's lifecycle (including preventing a native
-        full-page submit).
-      </td>
-    </tr>
-    <tr>
-      <td><code>(ngSubmit)="save()"</code></td>
-      <td>
-        Angular's own submit event; it wraps the native <code>submit</code> and calls <code>preventDefault()</code> for
-        you. Using <code>(ngSubmit)</code> instead of <code>(submit)</code> is what stops the browser navigating away.
-      </td>
-    </tr>
-    <tr>
-      <td><code>&lt;input formControlName="name" /&gt;</code></td>
-      <td>
-        <code>FormControlName</code> looks up the sibling control named <code>"name"</code> on the nearest ancestor
-        <code>formGroup</code> and wires a <code>ControlValueAccessor</code> between the DOM element and that control —
-        the model stays the single source of truth, unlike <code>[(ngModel)]</code> which writes straight to a template
-        variable.
-      </td>
-    </tr>
-    <tr>
-      <td><code>&lt;input type="number" formControlName="age" /&gt;</code></td>
-      <td>
-        Same mechanism for the <code>age</code> control; the accessor coerces the DOM's string input value to/from the
-        control's <code>number</code> type.
-      </td>
-    </tr>
-    <tr>
-      <td><code>&lt;button type="submit" [disabled]="form.invalid"&gt;</code></td>
-      <td>
-        Reads <code>form.invalid</code> straight off the <code>FormGroup</code> in the template — no manual subscription
-        needed, because the directives above already keep the view in sync (see "Under the hood").
-      </td>
-    </tr>
-  </table>
+    <app-napkin lead="quick guess —" label="Predict before reading on">
+      Say a signup form needs <code>password</code> and <code>confirm</code> to match. There's an obvious-looking place
+      to put that check: a validator on the <code>confirm</code> control, right next to the field that would show the
+      error. Would that actually work? Hold your guess — "Two fields need to agree", a few sections down, settles it for
+      good.
+    </app-napkin>
+  </section>
 
-  <h2>Try it</h2>
-  <div class="demo">
-    <p class="demo__title">Live — the form, plus its value/status streamed through toSignal()</p>
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <div class="field">
-        <label>Name</label>
-        <input aria-label="Name" formControlName="name" />
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A FormGroup is a filing cabinet, not a spreadsheet.</h2>
+
+    <p>
+      Here's the mental model: a <code>FormGroup</code> is a <strong>filing cabinet</strong>, and every
+      <code>FormControl</code> it holds is a labelled <span class="term">folder</span> inside it — <code>name</code>,
+      <code>email</code>, <code>age</code>, whatever the shape calls for. Each folder is completely independent: it owns
+      its own value, its own <code>status</code>, and its own validators, and it has no idea any other folder even
+      exists.
+    </p>
+    <p>
+      The cabinet itself isn't just a box holding folders — it has <strong>one master status plate</strong> on the
+      front, and that plate always reports the worst thing happening inside. Put something invalid in the email folder
+      and the plate flips to <code>INVALID</code> immediately:
+      <span class="key">one bad folder poisons the whole cabinet</span>, even though the name and age folders never
+      changed. And whenever anything in the cabinet changes, a clerk immediately walks every folder and copies what's
+      currently written on each one onto a brand-new sheet of paper — that sheet is <code>.value</code>. Ask for it any
+      time and you get the clerk's latest sheet. Scribble on that sheet all you like;
+      <span class="bf-break">the folders themselves never see it</span>.
+    </p>
+
+    <figure class="cabinet-fig">
+      <svg class="cabinet" viewBox="0 0 620 300" aria-hidden="true" focusable="false">
+        <text class="cabinet__title" x="150" y="22" text-anchor="middle">FormGroup “form”</text>
+
+        <rect class="cabinet__body" x="20" y="34" width="260" height="246" rx="16" />
+
+        <rect class="cabinet__status cabinet__status--bad" x="40" y="48" width="220" height="34" rx="10" />
+        <text class="cabinet__status-text cabinet__status-text--bad" x="150" y="70" text-anchor="middle">
+          status: INVALID
+        </text>
+
+        <g class="drawer drawer--good">
+          <rect x="40" y="92" width="220" height="52" rx="8" />
+          <text class="drawer__label" x="54" y="114">name</text>
+          <text class="drawer__kind" x="54" y="130">FormControl · 'Ada'</text>
+          <circle class="drawer__dot" cx="246" cy="108" r="6" />
+          <text class="drawer__status" x="246" y="132" text-anchor="end">VALID</text>
+        </g>
+
+        <g class="drawer drawer--bad">
+          <rect x="40" y="152" width="220" height="52" rx="8" />
+          <text class="drawer__label" x="54" y="174">email</text>
+          <text class="drawer__kind" x="54" y="190">FormControl · 'ada&#64;'</text>
+          <circle class="drawer__dot" cx="246" cy="168" r="6" />
+          <text class="drawer__status" x="246" y="192" text-anchor="end">INVALID</text>
+        </g>
+
+        <g class="drawer drawer--good">
+          <rect x="40" y="212" width="220" height="52" rx="8" />
+          <text class="drawer__label" x="54" y="234">age</text>
+          <text class="drawer__kind" x="54" y="250">FormControl · 36</text>
+          <circle class="drawer__dot" cx="246" cy="228" r="6" />
+          <text class="drawer__status" x="246" y="252" text-anchor="end">VALID</text>
+        </g>
+
+        <path class="wire wire--good" d="M260 118 C 300 118, 320 140, 340 140" />
+        <path class="wire wire--bad" d="M260 178 C 300 178, 320 162, 340 162" />
+        <path class="wire wire--good" d="M260 238 C 300 238, 320 184, 340 184" />
+
+        <rect class="snapshot" x="340" y="70" width="250" height="150" rx="12" />
+        <text class="snapshot__caption" x="356" y="92">// rebuilt whenever the cabinet changes</text>
+        <text class="snapshot__code" x="356" y="118">{{ '{' }}</text>
+        <text class="snapshot__code" x="372" y="140">name: 'Ada',</text>
+        <text class="snapshot__code" x="372" y="162">email: 'ada&#64;',</text>
+        <text class="snapshot__code" x="372" y="184">age: 36</text>
+        <text class="snapshot__code" x="356" y="206">{{ '}' }}</text>
+
+        <path class="poison" d="M232 168 C 264 122, 226 86, 206 68" />
+        <path class="poison__head" d="M202 63 L211 68 L204 76 Z" />
+        <text class="poison__label" x="266" y="118">poisons the plate</text>
+      </svg>
+      <figcaption>
+        The <code>form</code> cabinet with three folders. <code>email</code> holds <code>'ada&#64;'</code>, fails its
+        own <code>Validators.email</code> check, and its <code>INVALID</code> status bubbles straight up to the
+        cabinet's own status plate — the other two folders never changed. On the right, <code>form.value</code> is a
+        plain object Angular rebuilds from every folder whenever the cabinet's value changes; it is a
+        <strong>copy</strong>, not a live window back into the drawers, which is exactly why editing it directly never
+        reaches the real controls.
+      </figcaption>
+    </figure>
+
+    <app-remember variant="mnemonic">
+      <strong>Cabinet, folder, snapshot.</strong> A <code>FormGroup</code> is the cabinet. Each
+      <code>FormControl</code> is a folder inside it, with its own value and status. <code>.value</code> is the snapshot
+      — a copy taken off the folders, never a live window back into them.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="cascadeTalk"
+      caption="What actually happens the instant the email folder's value changes — the same cascade “Under the hood”, further down, spells out as pseudocode."
+    />
+  </section>
+
+  <!-- ============ 3. PUTTING IT IN CODE ============ -->
+  <section>
+    <p class="bf-eyebrow">Putting it in code</p>
+    <h2>So what does building one of these cabinets look like?</h2>
+
+    <p>
+      Every folder and every cabinet extends the same abstract base, <code>AbstractControl</code>, which is why they all
+      share <code>value</code>, <code>status</code>, <code>errors</code>, <code>valueChanges</code> and
+      <code>statusChanges</code>:
+    </p>
+    <ul>
+      <li>
+        <strong><code>FormControl</code></strong> — a single leaf value (an input, a checkbox…): one folder.
+      </li>
+      <li>
+        <strong><code>FormGroup</code></strong> — a fixed set of <em>named</em> child controls: the cabinet, with a
+        named drawer for each.
+      </li>
+      <li>
+        <strong><code>FormArray</code></strong> — a growable list of <em>indexed</em> child controls: a numbered drawer
+        of same-shaped folders, covered in full further down.
+      </li>
+    </ul>
+    <p>
+      <code>FormBuilder</code> (usually <code>inject</code>ed as <code>fb</code>) is a typed factory for these three —
+      it saves writing <code>new FormGroup({{ '{' }} name: new FormControl(...) {{ '}' }})</code> by hand.
+    </p>
+
+    <app-code-lab
+      file="reactive-forms.component.ts"
+      [code]="modelSample"
+      [notes]="modelNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 4. WIRING IT TO THE DOM ============ -->
+  <section>
+    <p class="bf-eyebrow">Wiring it up</p>
+    <h2>How does a form element in the template even find this FormGroup?</h2>
+
+    <app-code-lab
+      file="reactive-forms.component.html"
+      [code]="templateSample"
+      [notes]="templateNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the form, plus its value/status streamed through toSignal()</p>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="field">
+          <label>Name</label>
+          <input aria-label="Name" formControlName="name" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input aria-label="Email" formControlName="email" />
+        </div>
+        <div class="field">
+          <label>Age</label>
+          <input aria-label="Age" type="number" formControlName="age" />
+        </div>
+        <div class="row">
+          <button type="submit" [disabled]="form.invalid">Save</button>
+          <button type="button" class="ghost" (click)="form.reset()">Reset</button>
+          <button type="button" class="ghost" (click)="patch()">Patch demo</button>
+        </div>
+      </form>
+
+      <h3>Live form state</h3>
+      <p class="row">
+        <span class="pill">valid: {{ form.valid }}</span>
+        <span class="pill">dirty: {{ form.dirty }}</span>
+        <span class="pill">touched: {{ form.touched }}</span>
+        <span class="pill">status(): {{ liveStatus() }}</span>
+        <span class="pill">name chars(): {{ nameChars() }}</span>
+        <span class="pill" [style.color]="liveStatus() === 'VALID' ? 'var(--green)' : 'var(--amber)'">{{
+          readiness()
+        }}</span>
+      </p>
+      <div class="code">
+        <pre>{{ liveValue() | json }}</pre>
       </div>
-      <div class="field">
-        <label>Email</label>
-        <input aria-label="Email" formControlName="email" />
-      </div>
-      <div class="field">
-        <label>Age</label>
-        <input aria-label="Age" type="number" formControlName="age" />
-      </div>
+      <p class="demo__note">
+        <code>valid</code>/<code>dirty</code>/<code>touched</code> above are plain reads of the
+        <code>FormGroup</code> object; <code>status()</code>, <code>name chars()</code> and the JSON block are real
+        <strong>signals</strong> — <code>form.valueChanges</code> and <code>form.statusChanges</code> piped through
+        <code>toSignal()</code>. Both approaches re-render correctly, even though this app runs zoneless — "Under the
+        hood", further down, explains why.
+      </p>
+      @if (saved()) {
+        <p style="color: var(--green)">✅ Saved: {{ saved() | json }}</p>
+      }
+    </div>
+  </section>
+
+  <!-- ============ 5. READING, WRITING, AND THE TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Reading and writing</p>
+    <h2><code>value</code> or <code>getRawValue</code> — which one is telling you the whole truth?</h2>
+
+    <app-code-lab
+      file="reactive-forms.component.ts — reading &amp; writing"
+      [code]="readWriteSample"
+      [notes]="readWriteNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="tip">
+      With the typed-forms API, <code>form.value</code> and <code>controls</code> are strongly typed from the
+      <code>group()</code> definition — no <code>any</code>. Use <code>patchValue</code> for partial updates,
+      <code>setValue</code> for all fields.
+    </div>
+    <div class="note">
+      Two subtleties: <code>form.value</code> types every field as <em>optional</em> and
+      <strong>omits disabled controls</strong> — use <code>getRawValue()</code> for a complete, non-partial object. And
+      controls are nullable by default (<code>reset()</code> sets <code>null</code>); build with
+      <code>fb.nonNullable.group({{ '{' }}…{{ '}' }})</code> when you want resets to restore the initial value instead —
+      the password form below does exactly that.
+    </div>
+
+    <app-predict
+      [prompt]="mutateTrapPrompt"
+      [code]="mutateTrapSample"
+      [answer]="mutateTrapAnswer"
+      revealLabel="Reveal what actually happens"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same trap, on the form above</p>
       <div class="row">
-        <button type="submit" [disabled]="form.invalid">Save</button>
-        <button type="button" class="ghost" (click)="form.reset()">Reset</button>
-        <button type="button" class="ghost" (click)="patch()">Patch demo</button>
+        <button type="button" (click)="mutateSnapshot()">Mutate the snapshot</button>
+        <span class="pill">real value, from a signal: {{ liveValue().name }}</span>
       </div>
-    </form>
+      @if (mutatedSnapshot()) {
+        <div class="code">
+          <pre>{{ mutatedSnapshot() | json }}</pre>
+        </div>
+      }
+      <p class="demo__note">
+        Every press rewrites the snapshot's <code>name</code> to "Mutated (not saved)". The Name field above, and
+        <code>liveValue().name</code> next to the button, never move — the real <code>FormControl</code> was never
+        touched.
+      </p>
+    </div>
 
-    <h3>Live form state</h3>
-    <p class="row">
-      <span class="pill">valid: {{ form.valid }}</span>
-      <span class="pill">dirty: {{ form.dirty }}</span>
-      <span class="pill">touched: {{ form.touched }}</span>
-      <span class="pill">status(): {{ liveStatus() }}</span>
-      <span class="pill">name chars(): {{ nameChars() }}</span>
-      <span class="pill" [style.color]="liveStatus() === 'VALID' ? 'var(--green)' : 'var(--amber)'">{{
-        readiness()
-      }}</span>
+    <app-remember variant="rule">
+      Only a <strong>control</strong> can change a control. Mutating the object <code>form.value</code> hands you back —
+      or any object nested inside it — never reaches the real <code>FormControl</code>. Change state through
+      <code>patchValue()</code>, <code>setValue()</code>, or the control itself.
+    </app-remember>
+  </section>
+
+  <!-- ============ 6. CROSS-FIELD VALIDATORS ============ -->
+  <section>
+    <p class="bf-eyebrow">Cross-field validation</p>
+    <h2>Two fields need to agree — whose job is it to check?</h2>
+    <p>
+      A validator is just a function: <code>(control: AbstractControl) =&gt; ValidationErrors | null</code>. Put one on
+      a single folder (like <code>Validators.required</code>) when it only needs that folder's own value. The moment a
+      check needs to compare <strong>multiple sibling folders</strong> — the textbook example being "password" and
+      "confirm password" — it has to live on the <code>FormGroup</code> that contains them, because that cabinet is the
+      only thing that can see both at once. Remember the guess from the top of this lesson? This is where it gets
+      settled.
+    </p>
+
+    <app-code-lab
+      file="passwords.validator.ts"
+      [code]="crossFieldValidatorSample"
+      [notes]="crossFieldValidatorNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — group-level cross-field validator</p>
+      <form [formGroup]="passwordForm">
+        <div class="field">
+          <label>Password</label>
+          <input aria-label="Password" type="password" formControlName="password" />
+        </div>
+        <div class="field">
+          <label>Confirm</label>
+          <input aria-label="Confirm" type="password" formControlName="confirm" />
+        </div>
+      </form>
+      <p class="row">
+        <span class="pill">group status(): {{ passwordStatus() }}</span>
+        @if (passwordsMismatch()) {
+          <span class="pill" style="color: var(--amber)">passwordsMismatch error</span>
+        }
+      </p>
+      <p class="demo__note">
+        Neither control carries this error individually — <code>passwordForm.get('confirm')!.errors</code> stays
+        <code>null</code> even while the two values differ. The error lives on the cabinet, because that's the control
+        the validator was attached to.
+      </p>
+    </div>
+
+    <app-quiz
+      question="Where does `passwordsMatch` actually have to be attached for it to see both fields?"
+      [options]="crossFieldQuizOptions"
+      followUp="The demo above proves it: type mismatched passwords and watch the error surface on the group's own status, never on either input's own errors."
+    />
+  </section>
+
+  <!-- ============ 7. ASYNC VALIDATORS ============ -->
+  <section>
+    <p class="bf-eyebrow">Talking to a server</p>
+    <h2>What does the form look like while it's still waiting on an answer?</h2>
+    <p>
+      An async validator has the same job as a sync one, but returns an <code>Observable</code> or
+      <code>Promise</code> of <code>ValidationErrors | null</code> instead of the value directly — for checks that need
+      a round trip, like "is this username taken?". Angular runs <strong>sync validators first</strong>; only if every
+      one of them passes does it start the async ones, and the folder's own status is <span class="term">PENDING</span>
+      for however long that takes.
+    </p>
+
+    <app-code-lab
+      file="username.validator.ts"
+      [code]="asyncValidatorSample"
+      [notes]="asyncValidatorNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — async validator (simulated 600ms availability check)</p>
+      <input aria-label="username" [formControl]="username" placeholder="username" />
+      <p class="row" style="margin-top: 8px">
+        <span
+          class="pill"
+          [style.color]="
+            usernameStatus() === 'PENDING'
+              ? 'var(--amber)'
+              : usernameStatus() === 'VALID'
+                ? 'var(--green)'
+                : 'var(--text-muted)'
+          "
+          >{{ usernameStatus() }}</span
+        >
+        <span>{{ usernameMessage() }}</span>
+      </p>
+      <p class="demo__note">
+        Try "admin", "root" or "ada" — the field goes <strong>PENDING</strong> for ~600ms before resolving to
+        VALID/INVALID. Clear it or type 1–2 characters and notice the async check never even runs — the sync
+        <code>required</code>/<code>minLength</code> validators fail first.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 8. FORMARRAY ============ -->
+  <section>
+    <p class="bf-eyebrow">Dynamic lists</p>
+    <h2>What if you don't know how many folders there'll be?</h2>
+    <p>
+      <code>FormArray</code> is for a variable-length list of same-shaped controls: tags, phone numbers, order line
+      items. Unlike a <code>FormGroup</code>'s fixed named keys, a <code>FormArray</code> is indexed — you grow or
+      shrink it with <code>push()</code>/<code>removeAt()</code>, and the template loop's index <em>is</em> the binding.
+      <a routerLink="/form-arrays">The FormArray lesson</a> takes this shape apart in full; this is the version you need
+      to read the demo below.
+    </p>
+
+    <app-code-lab
+      file="skills-form.component.ts"
+      [code]="formArrayClassSample"
+      [notes]="formArrayClassNotes"
+      notesLabel="What each line is doing"
+    />
+    <app-code-lab
+      file="skills-form.component.html"
+      [code]="formArrayTemplateSample"
+      [notes]="formArrayTemplateNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — FormArray of dynamic controls</p>
+      <div [formGroup]="skillsForm">
+        <div formArrayName="skills" class="row" style="flex-wrap: wrap">
+          @for (ctrl of skills.controls; track $index; let i = $index) {
+            <span class="row" style="gap: 4px">
+              <input [attr.aria-label]="'Skill ' + (i + 1)" [formControlName]="i" style="max-width: 140px" />
+              <button type="button" class="ghost" (click)="removeSkill(i)">✕</button>
+            </span>
+          }
+        </div>
+      </div>
+      <div class="row" style="margin-top: 10px">
+        <button type="button" class="ghost" (click)="addSkill()">+ Add skill</button>
+        <span class="pill">skills(): {{ skillCount() }}</span>
+      </div>
+      <p class="demo__note">
+        <code>skillCount()</code> is a <code>computed()</code> built on top of
+        <code>toSignal(skillsForm.valueChanges, ...)</code> — pushing or removing a control fires
+        <code>valueChanges</code> just like editing a value does, so the signal (and this count) stays correct
+        automatically.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 9. CHOOSING A SIDE ============ -->
+  <section>
+    <p class="bf-eyebrow">Choosing a side</p>
+    <h2>So when do you actually reach for ngModel instead?</h2>
+    <table>
+      <caption class="bf-table-caption">
+        Reactive vs template-driven, side by side
+      </caption>
+      <thead>
+        <tr>
+          <th></th>
+          <th>Reactive</th>
+          <th>Template-driven</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Model lives in</td>
+          <td>the <strong>class</strong> (<code>FormBuilder.group()</code>)</td>
+          <td>the <strong>template</strong> (<code>[(ngModel)]</code> builds it implicitly)</td>
+        </tr>
+        <tr>
+          <td>Import</td>
+          <td><code>ReactiveFormsModule</code></td>
+          <td><code>FormsModule</code></td>
+        </tr>
+        <tr>
+          <td>Typing</td>
+          <td>fully typed from the control config — no <code>any</code></td>
+          <td>weakly typed; the shape only exists once the template renders</td>
+        </tr>
+        <tr>
+          <td>Cross-field / dynamic validation</td>
+          <td>straightforward — group-level validators, <code>FormArray</code></td>
+          <td>awkward — needs custom directives or extra plumbing</td>
+        </tr>
+        <tr>
+          <td>Testability</td>
+          <td>high — assert on the model directly, no DOM needed</td>
+          <td>lower — usually needs <code>TestBed</code> + DOM queries</td>
+        </tr>
+        <tr>
+          <td>Best for</td>
+          <td>non-trivial forms: dynamic controls, complex validation, heavy testing</td>
+          <td>simple, mostly-static forms (a login box, a search field)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 10. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>What does one write actually cascade through?</h2>
+    <p>
+      Every control is a node in a tree, and every write cascades through the same update pipeline — this is the
+      pseudocode version of the folder-and-cabinet dialogue above, and it's what makes cross-field validators,
+      <code>PENDING</code>, and "why does the view update without me subscribing to anything" all click into place:
     </p>
     <div class="code">
-      <pre>{{ liveValue() | json }}</pre>
+      <pre>{{ underTheHoodSample }}</pre>
     </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      <code>valid</code>/<code>dirty</code>/<code>touched</code> above are plain reads of the
-      <code>FormGroup</code> object; <code>status()</code>, <code>name chars()</code> and the JSON block are real
-      <strong>signals</strong> — <code>form.valueChanges</code> and <code>form.statusChanges</code> piped through
-      <code>toSignal()</code>, with <code>nameChars</code>/<code>readiness</code> as <code>computed()</code> on top.
-      Both approaches re-render correctly, even though this app runs zoneless — see "Under the hood" for why.
-    </p>
-    @if (saved()) {
-      <p style="color: var(--green)">✅ Saved: {{ saved() | json }}</p>
-    }
-  </div>
-
-  <h2>Reading &amp; writing programmatically</h2>
-  <div class="code">
-    <pre>{{ readWriteSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lb">
-    <tr>
-      <th>Line</th>
-      <th>What &amp; why</th>
-    </tr>
-    <tr>
-      <td><code>this.form.value</code></td>
-      <td>
-        Typed snapshot of the group's value. Every field is typed <strong>optional</strong>, and
-        <strong>disabled controls are omitted entirely</strong> — this is the API you'll usually send to a server.
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.form.getRawValue()</code></td>
-      <td>
-        Same shape but complete — includes disabled controls. Use this when you need every field regardless of disabled
-        state (e.g. re-hydrating a form, or logging).
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.form.controls.name.value</code></td>
-      <td>
-        Direct, typed access to one control without an optional chain — a typed group's <code>controls</code> property
-        is a plain object literal of its children, known at compile time.
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.form.get('email')?.errors</code></td>
-      <td>
-        <code>get()</code> takes a string/array path and returns <code>AbstractControl | null</code> (hence the
-        <code>?.</code>) — useful for dynamic paths <code>get()</code> can express that dotted property access can't,
-        e.g. inside a loop.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>this.form.patchValue({{ '{' }} name: 'Grace' {{ '}' }})</code>
-      </td>
-      <td>
-        Partial update — only the keys you pass are touched, everything else keeps its current value. No error if some
-        fields are omitted.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>this.form.setValue({{ '{' }} name, email, age {{ '}' }})</code>
-      </td>
-      <td>
-        Full update — every key the group defines must be present, or it <strong>throws</strong>. Angular is
-        deliberately strict here so you can't accidentally forget a field and silently lose it.
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.form.valueChanges.subscribe((v) =&gt; ...)</code></td>
-      <td>
-        An <code>Observable</code> that emits the new value on every edit. A manual <code>subscribe()</code> like this
-        needs manual teardown — see the pitfalls list for the safer alternatives.
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.form.statusChanges.subscribe((s) =&gt; ...)</code></td>
-      <td>
-        An <code>Observable</code> of <code>'VALID' | 'INVALID' | 'PENDING' | 'DISABLED'</code>
-        — fires on every status transition, including the transient
-        <code>PENDING</code> state while an async validator is running.
-      </td>
-    </tr>
-  </table>
-
-  <div class="tip">
-    With the typed-forms API, <code>form.value</code> and <code>controls</code> are strongly typed from the
-    <code>group()</code> definition — no <code>any</code>. Use <code>patchValue</code> for partial updates,
-    <code>setValue</code> for all fields.
-  </div>
-  <div class="note">
-    Two subtleties: <code>form.value</code> types every field as <em>optional</em> and
-    <strong>omits disabled controls</strong> — use <code>getRawValue()</code> for a complete, non-partial object. And
-    controls are nullable by default (<code>reset()</code> sets <code>null</code>); build with
-    <code>fb.nonNullable.group({{ '{' }}…{{ '}' }})</code> (or <code>nonNullable: true</code>) when you want resets to
-    restore the initial value instead — the <code>passwordForm</code> below does exactly that.
-  </div>
-
-  <h2>Custom &amp; cross-field validators</h2>
-  <p>
-    A validator is just a function: <code>(control: AbstractControl) =&gt; ValidationErrors | null</code>. Put one on a
-    single control (like <code>Validators.required</code>) when it only needs that control's own value. When a check
-    needs to compare <strong>multiple sibling controls</strong> — the textbook example being "password" and "confirm
-    password" — it has to live on the <code>FormGroup</code> that contains them, passed as the <em>second</em> argument
-    to <code>group()</code>, because that's the only node that can see both:
-  </p>
-  <div class="code">
-    <pre>{{ crossFieldValidatorSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lb">
-    <tr>
-      <th>Line</th>
-      <th>What &amp; why</th>
-    </tr>
-    <tr>
-      <td>
-        <code>function passwordsMatch(group: AbstractControl): ValidationErrors | null {{ '{' }}</code>
-      </td>
-      <td>
-        A plain function matching Angular's <code>ValidatorFn</code> shape — no decorator, no class needed. It's
-        declared <em>outside</em> the component so it's a pure, easily unit-testable function.
-      </td>
-    </tr>
-    <tr>
-      <td><code>const pass = group.get('password')?.value;</code></td>
-      <td>
-        Because this validator is attached to the group, <code>group</code> here <em>is</em> the FormGroup —
-        <code>.get('password')</code> reaches into its children. A control-level validator has no such access to
-        siblings.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code
-          >return pass &amp;&amp; confirm &amp;&amp; pass !== confirm ? {{ '{' }} passwordsMismatch: true {{ '}' }} :
-          null;</code
+    <ul>
+      <li>
+        <strong>Every write calls <code>updateValueAndValidity()</code>:</strong>
+        that one method runs this control's own sync validators, then (if those passed) its async validators, then emits
+        on <code>valueChanges</code> and <code>statusChanges</code>.
+      </li>
+      <li>
+        <strong>It bubbles up by default:</strong> after updating itself, a control calls
+        <code>parent.updateValueAndValidity()</code> too — exactly how editing <em>either</em> password field re-runs
+        the <em>group's</em> <code>passwordsMatch</code> validator every time.
+      </li>
+      <li>
+        <strong>The directives are the bridge to the view:</strong>
+        <code>FormControlName</code>/<code>FormGroupDirective</code> subscribe to <code>valueChanges</code>/<code
+          >statusChanges</code
         >
-      </td>
-      <td>
-        Returning <code>null</code> means "no error"; returning an object means "invalid", keyed by an error code you
-        choose (<code>passwordsMismatch</code>) that the template/tests check for later with
-        <code>hasError('passwordsMismatch')</code>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>passwordForm = this.fb.nonNullable.group(</code></td>
-      <td>
-        <code>fb.nonNullable</code> produces controls whose value type drops <code>| null</code> and whose
-        <code>reset()</code> restores the <em>initial</em> value instead of <code>null</code> — appropriate for a
-        password field where "reset to null" makes little sense.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>{{ '{' }} validators: passwordsMatch {{ '}' }},</code>
-      </td>
-      <td>
-        The second argument to <code>group()</code> is <code>AbstractControlOptions</code>, not a control config — this
-        is what makes <code>passwordsMatch</code> a <strong>group-level</strong> validator instead of trying (and
-        failing) to attach it to one field.
-      </td>
-    </tr>
-  </table>
-  <div class="demo">
-    <p class="demo__title">Live — group-level cross-field validator</p>
-    <form [formGroup]="passwordForm">
-      <div class="field">
-        <label>Password</label>
-        <input aria-label="Password" type="password" formControlName="password" />
-      </div>
-      <div class="field">
-        <label>Confirm</label>
-        <input aria-label="Confirm" type="password" formControlName="confirm" />
-      </div>
-    </form>
-    <p class="row">
-      <span class="pill">group status(): {{ passwordStatus() }}</span>
-      @if (passwordsMismatch()) {
-        <span class="pill" style="color: var(--amber)">passwordsMismatch error</span>
-      }
-    </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Neither control carries this error individually —
-      <code>passwordForm.get('confirm')!.errors</code> stays <code>null</code>
-      even while the two values differ. The error lives on the
-      <strong>group</strong>, because that's the control the validator was attached to.
-    </p>
-  </div>
+        themselves, and that subscription's callback calls <code>ChangeDetectorRef.markForCheck()</code> on the host
+        view. That's the actual mechanism — not magic — behind why <code>form.valid</code> in a template stays correct
+        with zero manual wiring, even in this app's zoneless setup.
+      </li>
+      <li>
+        <strong><code>toSignal()</code> taps the same stream:</strong> it's just another subscriber to
+        <code>valueChanges</code>/<code>statusChanges</code>, storing the latest emission in a signal. Nothing about the
+        underlying form model changes when signals sit on top — it's a different way to <em>read</em> the same pipeline.
+      </li>
+    </ul>
+  </section>
 
-  <h2>Async validators &amp; the PENDING status</h2>
-  <p>
-    An async validator has the same job as a sync one, but returns an
-    <code>Observable</code> or <code>Promise</code> of <code>ValidationErrors | null</code> instead of the value
-    directly — for checks that need a server round-trip, like "is this username taken?". Angular runs
-    <strong>sync validators first</strong>; only if they all pass does it start the async ones, and the control's status
-    is <code>PENDING</code> for however long that takes:
-  </p>
-  <div class="code">
-    <pre>{{ asyncValidatorSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lb">
-    <tr>
-      <th>Line</th>
-      <th>What &amp; why</th>
-    </tr>
-    <tr>
-      <td>
-        <code>function usernameTaken(taken: string[]): AsyncValidatorFn {{ '{' }}</code>
-      </td>
-      <td>
-        A <em>factory</em> that returns an <code>AsyncValidatorFn</code> — written this way so the list of taken names
-        is configurable per use, rather than hard-coded inside the validator.
-      </td>
-    </tr>
-    <tr>
-      <td><code>timer(600).pipe(</code></td>
-      <td>
-        <code>timer(600)</code> emits once, 600ms later, then completes — standing in for a debounced HTTP call.
-        Completing is essential: an async validator that never completes leaves the control stuck in
-        <code>PENDING</code> forever.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>map(() =&gt; taken.includes(...) ? {{ '{' }} usernameTaken: true {{ '}' }} : null),</code>
-      </td>
-      <td>
-        Same contract as a sync validator's return value — an error object or <code>null</code> — just delivered
-        asynchronously through the Observable instead of returned directly.
-      </td>
-    </tr>
-    <tr>
-      <td><code>validators: [Validators.required, Validators.minLength(3)],</code></td>
-      <td>
-        Sync validators run first, synchronously, on every keystroke. If either fails, Angular
-        <strong>never even calls</strong> the async validator — no point checking availability for an empty or too-short
-        name.
-      </td>
-    </tr>
-    <tr>
-      <td><code>asyncValidators: [usernameTaken(['ada', 'admin', 'root'])],</code></td>
-      <td>
-        Only reached once sync validators pass. While it's in flight, <code>control.status === 'PENDING'</code> — a
-        state most learners forget exists until an exam question tests it.
-      </td>
-    </tr>
-  </table>
-  <div class="demo">
-    <p class="demo__title">Live — async validator (simulated 600ms availability check)</p>
-    <input aria-label="username" [formControl]="username" placeholder="username" />
-    <p class="row" style="margin-top: 8px">
-      <span
-        class="pill"
-        [style.color]="
-          usernameStatus() === 'PENDING'
-            ? 'var(--amber)'
-            : usernameStatus() === 'VALID'
-              ? 'var(--green)'
-              : 'var(--text-muted)'
-        "
-        >{{ usernameStatus() }}</span
-      >
-      <span>{{ usernameMessage() }}</span>
-    </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Try "admin", "root" or "ada" — the field goes <strong>PENDING</strong> for ~600ms before resolving to
-      VALID/INVALID. Clear it or type 1–2 characters and notice the async check never even runs — the sync
-      <code>required</code>/<code>minLength</code> validators fail first.
-    </p>
-  </div>
+  <!-- ============ 11. EXAM PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Exam pitfalls</p>
+    <h2>What trips people up on this, every single time?</h2>
+    <ul>
+      <li>
+        <strong><code>value</code> omits disabled controls.</strong> Use <code>getRawValue()</code> for a complete
+        object including disabled fields.
+      </li>
+      <li>
+        <strong><code>setValue</code> needs every field.</strong> It throws on a partial object — use
+        <code>patchValue</code> for partial updates.
+      </li>
+      <li>
+        <strong>Disabling via the template.</strong> <code>[disabled]</code> on a <code>formControlName</code> input
+        warns — set disabled in the model (<code>disable()</code> / the control config).
+      </li>
+      <li>
+        <strong>Controls are nullable and reset to <code>null</code>.</strong> Use <code>fb.nonNullable</code> when a
+        reset should restore the initial value.
+      </li>
+      <li>
+        <strong>Wrong module.</strong> Reactive forms need <code>ReactiveFormsModule</code>, not
+        <code>FormsModule</code> — mismatched imports give "no known property formControlName".
+      </li>
+      <li>
+        <strong>Cross-field validators go on the group, not a child control.</strong> A single control literally cannot
+        see its siblings' values — attaching a "passwords match" check to the <code>confirm</code> control is a trap
+        answer.
+      </li>
+      <li>
+        <strong
+          >Async validators run only after sync ones pass, and status goes <code>PENDING</code> while they're in
+          flight.</strong
+        >
+        Reading <code>form.valid</code> synchronously right after a change can catch a still-pending result.
+      </li>
+      <li>
+        <strong>An async validator's Observable must complete.</strong> A stream that never completes (e.g. a bare
+        <code>Subject</code> with no <code>take(1)</code>) leaves the control stuck in <code>PENDING</code> forever.
+      </li>
+      <li>
+        <strong>Manual <code>.subscribe()</code> leaks like any Observable subscription.</strong> Prefer
+        <code>toSignal()</code> (auto-cleanup) or <code>takeUntilDestroyed()</code> over a bare
+        <code>valueChanges.subscribe(...)</code> in a component.
+      </li>
+      <li>
+        <strong>Tracking a <code>FormArray</code> loop by <code>$index</code> is correct here</strong> — unlike most
+        <code>&#64;for</code> loops, where a stable id is preferred, <code>[formControlName]="i"</code> IS the position,
+        so the index <em>is</em> the identity that matters.
+      </li>
+    </ul>
+  </section>
 
-  <h2>FormArray — dynamic, repeatable controls</h2>
-  <p>
-    <code>FormArray</code> is for a variable-length list of same-shaped controls: tags, phone numbers, order line items.
-    Unlike a <code>FormGroup</code>'s fixed named keys, a <code>FormArray</code> is indexed — you grow/shrink it with
-    <code>push()</code>/<code>removeAt()</code>, and the template loop's index <em>is</em> the binding:
-  </p>
-  <div class="code">
-    <pre>{{ formArrayClassSample }}</pre>
-  </div>
-  <div class="code">
-    <pre>{{ formArrayTemplateSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="lb">
-    <tr>
-      <th>Line</th>
-      <th>What &amp; why</th>
-    </tr>
-    <tr>
-      <td><code>skills = this.fb.array([this.fb.control('Angular', Validators.required)]);</code></td>
-      <td>
-        <code>fb.array()</code> takes an initial list of controls (here, one pre-filled control) and returns a typed
-        <code>FormArray</code> whose element type is inferred from that first control.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <code>skillsForm = this.fb.group({{ '{' }} skills: this.skills {{ '}' }});</code>
-      </td>
-      <td>
-        A <code>FormArray</code> is still just an <code>AbstractControl</code>, so it can be nested inside a
-        <code>FormGroup</code> like any other control — that's what lets you bind it to a <code>&lt;form&gt;</code>.
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.skills.push(this.fb.control('', Validators.required));</code></td>
-      <td>
-        <code>push()</code> appends a new control <em>and</em> triggers <code>updateValueAndValidity()</code> on the
-        array (and its parent) — the same update pipeline a normal value edit goes through.
-      </td>
-    </tr>
-    <tr>
-      <td><code>this.skills.removeAt(i);</code></td>
-      <td>
-        Removes the control at that index. Because the array is indexed, every control <em>after</em>
-        <code>i</code> shifts down one position — important context for the next code sample's index binding.
-      </td>
-    </tr>
-    <tr>
-      <td><code>&lt;div [formGroup]="skillsForm"&gt; &lt;div formArrayName="skills"&gt;</code></td>
-      <td>
-        <code>formArrayName</code> is the array counterpart of <code>formGroupName</code> — it points at the child named
-        <code>"skills"</code> and puts everything nested inside it in that array's indexing context.
-      </td>
-    </tr>
-    <tr>
-      <td><code>&#64;for (ctrl of skills.controls; track $index; let i = $index)</code></td>
-      <td>
-        <strong>Deliberately</strong> tracking by <code>$index</code> — see the pitfalls list below for why that's the
-        <em>correct</em> choice here, not the anti-pattern it usually is.
-      </td>
-    </tr>
-    <tr>
-      <td><code>&lt;input [formControlName]="i" /&gt;</code></td>
-      <td>
-        <code>formControlName</code> also accepts a <strong>number</strong> when its container is a
-        <code>FormArray</code> — <code>i</code> is the control's position, not a name. This is the binding that makes
-        the index the actual identity that matters.
-      </td>
-    </tr>
-  </table>
-  <div class="demo">
-    <p class="demo__title">Live — FormArray of dynamic controls</p>
-    <div [formGroup]="skillsForm">
-      <div formArrayName="skills" class="row" style="flex-wrap: wrap">
-        @for (ctrl of skills.controls; track $index; let i = $index) {
-          <span class="row" style="gap: 4px">
-            <input [attr.aria-label]="'Skill ' + (i + 1)" [formControlName]="i" style="max-width: 140px" />
-            <button type="button" class="ghost" (click)="removeSkill(i)">✕</button>
-          </span>
-        }
-      </div>
-    </div>
-    <div class="row" style="margin-top: 10px">
-      <button type="button" class="ghost" (click)="addSkill()">+ Add skill</button>
-      <span class="pill">skills(): {{ skillCount() }}</span>
-    </div>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      <code>skillCount()</code> is a <code>computed()</code> built on top of
-      <code>toSignal(skillsForm.valueChanges, ...)</code> — pushing or removing a control fires
-      <code>valueChanges</code> just like editing a value does, so the signal (and this count) stays correct
-      automatically.
-    </p>
-  </div>
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
 
-  <h2>Reactive vs template-driven</h2>
-  <table class="cmp">
-    <tr>
-      <th></th>
-      <th>Reactive</th>
-      <th>Template-driven</th>
-    </tr>
-    <tr>
-      <td>Model lives in</td>
-      <td>the <strong>class</strong> (<code>FormBuilder.group()</code>)</td>
-      <td>the <strong>template</strong> (<code>[(ngModel)]</code> builds it implicitly)</td>
-    </tr>
-    <tr>
-      <td>Import</td>
-      <td><code>ReactiveFormsModule</code></td>
-      <td><code>FormsModule</code></td>
-    </tr>
-    <tr>
-      <td>Typing</td>
-      <td>fully typed from the control config — no <code>any</code></td>
-      <td>weakly typed; the shape only exists once the template renders</td>
-    </tr>
-    <tr>
-      <td>Cross-field / dynamic validation</td>
-      <td>straightforward — group-level validators, <code>FormArray</code></td>
-      <td>awkward — needs custom directives or extra plumbing</td>
-    </tr>
-    <tr>
-      <td>Testability</td>
-      <td>high — assert on the model directly, no DOM needed</td>
-      <td>lower — usually needs <code>TestBed</code> + DOM queries</td>
-    </tr>
-    <tr>
-      <td>Best for</td>
-      <td>non-trivial forms: dynamic controls, complex validation, heavy testing</td>
-      <td>simple, mostly-static forms (a login box, a search field)</td>
-    </tr>
-  </table>
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>What should actually stick?</h2>
+    <ul>
+      <li>
+        <code>FormGroup</code>/<code>FormControl</code>/<code>FormArray</code> are all <code>AbstractControl</code>s —
+        cabinet, folder, and a numbered drawer of folders, sharing one API (<code>value</code>, <code>status</code>,
+        <code>errors</code>, <code>valueChanges</code>, <code>statusChanges</code>).
+      </li>
+      <li>
+        Reading <code>form.value</code> hands you a snapshot object, rebuilt fresh whenever the cabinet changes — mutate
+        it all you like, the real folders never hear about it. <code>patchValue</code>/<code>setValue</code>
+        are the only doors in.
+      </li>
+      <li>
+        A cross-field check can only live on the <strong>group</strong> that can see both siblings — never on either
+        child alone.
+      </li>
+      <li>
+        Async validators run only once every sync validator has passed, and <code>PENDING</code> is the status for
+        "still checking," not a flavour of invalid.
+      </li>
+      <li>
+        Every write cascades through <code>updateValueAndValidity()</code>, bubbles to every ancestor, and the forms
+        directives are what turn that into <code>markForCheck()</code> on the view — no manual wiring, even in a
+        zoneless app.
+      </li>
+    </ul>
 
-  <h2>Under the hood — the AbstractControl tree</h2>
-  <p>
-    Every control is a node in a tree, and every write cascades through the same update pipeline — understanding this is
-    what makes cross-field validators, <code>PENDING</code>, and "why does the view update without me subscribing to
-    anything" all click into place:
-  </p>
-  <div class="code">
-    <pre>{{ underTheHoodSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>Every write calls <code>updateValueAndValidity()</code>:</strong>
-      that one method runs this control's own sync validators, then (if those passed) its async validators, then emits
-      on <code>valueChanges</code> and <code>statusChanges</code>.
-    </li>
-    <li>
-      <strong>It bubbles up by default:</strong> after updating itself, a control calls
-      <code>parent.updateValueAndValidity()</code> too — which is exactly how editing <em>either</em> password field
-      re-runs the <em>group's</em> <code>passwordsMatch</code> validator every time.
-    </li>
-    <li>
-      <strong>The directives are the bridge to the view:</strong>
-      <code>FormControlName</code>/<code>FormGroupDirective</code> subscribe to <code>valueChanges</code>/<code
-        >statusChanges</code
-      >
-      themselves, and that subscription's callback calls <code>ChangeDetectorRef.markForCheck()</code>
-      on the host view. That's the actual mechanism — not magic — behind why
-      <code>form.valid</code> in a template stays correct with zero manual wiring, even in this app's zoneless setup.
-    </li>
-    <li>
-      <strong><code>toSignal()</code> taps the same stream:</strong> it's just another subscriber to
-      <code>valueChanges</code>/<code>statusChanges</code>, storing the latest emission in a signal. Nothing about the
-      underlying form model changes when you add signals on top — you're choosing a different way to <em>read</em> the
-      same update pipeline.
-    </li>
-  </ul>
-
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      <strong><code>value</code> omits disabled controls.</strong> Use <code>getRawValue()</code> for a complete object
-      including disabled fields.
-    </li>
-    <li>
-      <strong><code>setValue</code> needs every field.</strong> It throws on a partial object — use
-      <code>patchValue</code> for partial updates.
-    </li>
-    <li>
-      <strong>Disabling via the template.</strong> <code>[disabled]</code> on a <code>formControlName</code> input warns
-      — set disabled in the model (<code>disable()</code> / the control config).
-    </li>
-    <li>
-      <strong>Controls are nullable and reset to <code>null</code>.</strong> Use <code>fb.nonNullable</code> when a
-      reset should restore the initial value.
-    </li>
-    <li>
-      <strong>Wrong module.</strong> Reactive forms need <code>ReactiveFormsModule</code>, not
-      <code>FormsModule</code> — mismatched imports give "no known property formControlName".
-    </li>
-    <li>
-      <strong>Cross-field validators go on the group, not a child control.</strong> A single control literally cannot
-      see its siblings' values — attaching a "passwords match" check to the <code>confirm</code> control is a trap
-      answer; it belongs in the group's <code>validators</code> option.
-    </li>
-    <li>
-      <strong
-        >Async validators run only after sync ones pass, and status goes <code>PENDING</code> while they're in
-        flight.</strong
-      >
-      Reading <code>form.valid</code> synchronously right after a change can catch a still-pending (neither true nor
-      false) result.
-    </li>
-    <li>
-      <strong>An async validator's Observable must complete.</strong> A stream that never completes (e.g. a bare
-      <code>Subject</code> with no <code>take(1)</code>) leaves the control stuck in <code>PENDING</code> forever.
-    </li>
-    <li>
-      <strong>Manual <code>.subscribe()</code> leaks like any Observable subscription.</strong> Prefer
-      <code>toSignal()</code> (auto-cleanup) or <code>takeUntilDestroyed()</code> over a bare
-      <code>valueChanges.subscribe(...)</code> in a component.
-    </li>
-    <li>
-      <strong>Tracking a <code>FormArray</code> loop by <code>$index</code> is correct here</strong> — unlike most
-      <code>&#64;for</code> loops, where a stable ID is preferred, <code>[formControlName]="i"</code> IS the position,
-      so the index <em>is</em> the identity that matters.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary><code>patchValue</code> vs <code>setValue</code>?</summary>
-    <div>
-      <code>patchValue</code> updates a subset; <code>setValue</code> requires the full shape and throws if a field is
-      missing.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why is a disabled field missing from <code>form.value</code>?</summary>
-    <div>By design — disabled controls are excluded. Use <code>getRawValue()</code> to include them.</div>
-  </details>
-  <details class="qa">
-    <summary>When choose reactive over template-driven forms?</summary>
-    <div>
-      Dynamic controls, cross-field validation, heavy testing, or a typed model in the class. Template-driven suits
-      simple, mostly-static forms.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why must a "passwords match" validator sit on the group instead of the confirm control?</summary>
-    <div>
-      A validator only receives the <code>AbstractControl</code> it's attached to. A control-level validator on
-      <code>confirm</code> has no reference to <code>password</code>'s value — only the parent
-      <code>FormGroup</code> can see both children via <code>group.get('password')</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>What does status <code>PENDING</code> mean, and what two conditions cause it?</summary>
-    <div>
-      The control has one or more async validators currently in flight. It only happens (1) after all synchronous
-      validators on that control have already passed, and (2) before the async validator's Observable/Promise has
-      resolved — <code>PENDING</code> is neither valid nor invalid, it's "still checking".
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      This app runs zoneless. How does typing into a <code>formControlName</code> input still update the template?
-    </summary>
-    <div>
-      Not zone.js, and not signals either (for the plain <code>form.valid</code> reads) — it's the reactive-forms
-      directives themselves. <code>FormControlName</code>/ <code>FormGroupDirective</code> subscribe to the control's
-      <code>valueChanges</code>/<code>statusChanges</code> and call <code>ChangeDetectorRef.markForCheck()</code> on
-      every emission, same as the <code>async</code> pipe does for any other Observable.
-    </div>
-  </details>
-
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      <code>FormBuilder.group()</code> defines a typed form model in the class, built from
-      <code>FormControl</code>/<code>FormGroup</code>/<code>FormArray</code>, all sharing the
-      <code>AbstractControl</code> API.
-    </li>
-    <li>
-      Bind with <code>[formGroup]</code> + <code>formControlName</code> (or <code>formArrayName</code> + a numeric
-      <code>formControlName</code> for arrays).
-    </li>
-    <li>
-      Read state via <code>value</code> / <code>getRawValue()</code>, <code>valid</code>, <code>errors</code>,
-      <code>valueChanges</code>, <code>statusChanges</code> — or wrap those Observables in <code>toSignal()</code>/<code
-        >computed()</code
-      >
-      for signal-based reads.
-    </li>
-    <li>Update with <code>patchValue</code> (partial) or <code>setValue</code> (full, throws if incomplete).</li>
-    <li>
-      Cross-field validators live on the <strong>group</strong>; async validators run after sync ones pass and surface a
-      transient <code>PENDING</code> status.
-    </li>
-    <li>
-      Every write cascades through <code>updateValueAndValidity()</code>, bubbles to the parent, and is what the forms
-      directives use to keep the view in sync — no manual change-detection wiring required, even under OnPush/zoneless.
-    </li>
-  </ul>
-
-  <p><a routerLink="/form-validation">Next: Form Validation →</a></p>
+    <p><a routerLink="/form-validation">Next: Form Validation →</a></p>
+  </section>
 </article>

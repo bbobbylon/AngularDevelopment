@@ -12,12 +12,16 @@ import {
 import { RouterLink } from '@angular/router';
 import { timer } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
 /**
  * Cross-field validator: it needs to read TWO sibling controls at once, so it
  * has to be attached to the FormGroup that contains them — a validator on a
- * single child control can never see its siblings. See "Custom & cross-field
- * validators" below for the line-by-line walkthrough.
+ * single child control can never see its siblings. See "Two fields need to
+ * agree" below for the line-by-line walkthrough.
  */
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const pass = group.get('password')?.value;
@@ -28,7 +32,7 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
 /**
  * Async validator factory: simulates a server round-trip that checks whether
  * a username is already taken. Must return an Observable/Promise that emits
- * AND completes exactly once — see "Async validators & the PENDING status".
+ * AND completes exactly once — see "Talking to a server" below.
  */
 function usernameTaken(taken: string[]): AsyncValidatorFn {
   return (control: AbstractControl) =>
@@ -52,17 +56,45 @@ function usernameTaken(taken: string[]): AsyncValidatorFn {
  * without a fixture. Reactive forms put the model in TypeScript, where it can be
  * inspected, composed and tested.
  *
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (see `shared/brain/` and
+ * `docs/UI-DESIGN.md` §9), following the teaching order recorded on
+ * `expert/change-detection`: pose the problem before naming it (can a single
+ * child control ever see its sibling?), then an analogy that carries the
+ * mechanism — a `FormGroup` as a filing cabinet of named folders, each an
+ * independent `FormControl` — before any API vocabulary appears, then the same
+ * idea in more than one mode (a dialogue between a folder and the cabinet about
+ * `updateValueAndValidity()`, a hand-drawn cabinet diagram, annotated code for
+ * every API surface, and the four live demos this lesson already had). The
+ * cabinet/folder/snapshot language is also used by `intermediate/form-arrays`,
+ * which contrasts a `FormArray`'s numbered slots against it — read this lesson
+ * first.
+ *
  * Four demos build up in difficulty: a basic typed group, a cross-field password
  * match (which has to be attached to the *group*, since it reads siblings), an
  * async availability check with its `PENDING` state, and a `FormArray` of skills.
  *
  * @see intermediate/form-validation — validators in depth.
- * @see intermediate/form-arrays — dynamic arrays in depth.
+ * @see intermediate/form-arrays — dynamic arrays in depth, and the same analogy.
  * @see intermediate/async-validators — the async path in depth.
  */
 @Component({
   selector: 'app-lesson-reactive-forms',
-  imports: [RouterLink, ReactiveFormsModule, JsonPipe],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    JsonPipe,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Napkin,
+    Faq,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   templateUrl: './reactive-forms.html',
   styleUrl: './reactive-forms.css',
 })
@@ -132,6 +164,20 @@ export class ReactiveForms {
   protected patch() {
     this.form.patchValue({ name: 'Grace' });
   }
+
+  /**
+   * Mutates the SNAPSHOT `form.value` hands back, live, so the predict trap
+   * above has a real button to press instead of only a code sample. Nothing in
+   * the form changes — that is the entire point.
+   */
+  protected mutateSnapshot() {
+    const snapshot = this.form.value;
+    snapshot.name = 'Mutated (not saved)';
+    this.mutatedSnapshot.set({ ...snapshot });
+  }
+
+  /** What {@link mutateSnapshot} produced — a throwaway object, never the form itself. */
+  protected readonly mutatedSnapshot = signal<unknown>(null);
 
   /** Cross-field validator demo: a group-level check, not a per-control one. */
   protected readonly passwordForm = this.fb.nonNullable.group(
@@ -219,10 +265,12 @@ export class ReactiveForms {
     this.skills.removeAt(i);
   }
 
+  // ── Code samples shown to the reader ────────────────────────────────────────
+
   /**
    * Sample: defining a typed form with `FormBuilder`.
    */
-  readonly modelSample = `// FormBuilder is sugar. Everything below could be written with \`new
+  protected readonly modelSample = `// FormBuilder is sugar. Everything below could be written with \`new
 // FormGroup({ name: new FormControl(...) })\` — the builder just removes the
 // repetition, and infers the types for you.
 private fb = inject(FormBuilder);
@@ -241,10 +289,38 @@ form = this.fb.group({
   age: [36, [Validators.min(0), Validators.max(120)]],
 });`;
 
+  /** Line-by-line walkthrough of {@link modelSample}. */
+  protected readonly modelNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: "`inject(FormBuilder)` in a field initializer — functional injection. It runs inside the component's own injection context, so no constructor is needed here (it would not be legal inside a later method body).",
+    },
+    {
+      line: 6,
+      text: '`.group()` builds a `FormGroup` — the cabinet from the analogy above, holding the three controls below as its named folders.',
+    },
+    {
+      line: 11,
+      text: "Shorthand control config: `[initialValue, syncValidators, asyncValidators?]`. `'Ada'` seeds this folder's starting value **and** its static type — typed forms infer `string` straight from the literal.",
+    },
+    {
+      line: 14,
+      text: '`Validators.email` is a built-in regex check on shape only. It flags obviously malformed text; it cannot tell you the mailbox actually exists — that needs an async validator, further down this lesson.',
+    },
+    {
+      line: 17,
+      text: "Initial value `36` makes this folder's type `number | null`. `Validators.min`/`max` are range checks, not the HTML `min`/`max` attributes — you can still add those in the template for native constraints too.",
+    },
+    {
+      line: 18,
+      text: 'Closes `.group()`. The whole cabinet is now fully typed — `FormGroup` of three named `FormControl`s — with no `any` anywhere.',
+    },
+  ];
+
   /**
    * Sample: the template side — `[formGroup]`, `formControlName`, `ngSubmit`.
    */
-  readonly templateSample = `<!-- [formGroup] binds the FormGroup you built in the class to this element.
+  protected readonly templateSample = `<!-- [formGroup] binds the FormGroup you built in the class to this element.
      Everything inside can now be addressed by control name. -->
 <!-- (ngSubmit), not (submit): Angular's directive intercepts the native
      event, stops the browser's default page reload, and calls your method. -->
@@ -263,11 +339,31 @@ form = this.fb.group({
   <button type="submit" [disabled]="form.invalid">Save</button>
 </form>`;
 
+  /** Line-by-line walkthrough of {@link templateSample}. */
+  protected readonly templateNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: "`[formGroup]` is `FormGroupDirective` — it binds this `<form>` to the `FormGroup` instance from the class and takes over the submit lifecycle. `(ngSubmit)` is Angular's own submit event: it calls `preventDefault()` for you, which is what stops a native full-page reload.",
+    },
+    {
+      line: 9,
+      text: '`formControlName` looks up the sibling folder named `"name"` on the nearest ancestor `[formGroup]` and wires a `ControlValueAccessor` between the DOM element and that control — the model stays the single source of truth, unlike `[(ngModel)]`, which writes straight to a template variable instead.',
+    },
+    {
+      line: 12,
+      text: "Same mechanism as line 9, but the accessor for a number input coerces the DOM's string value to/from the control's `number` type automatically.",
+    },
+    {
+      line: 17,
+      text: 'Reads `form.invalid` straight off the `FormGroup` in the template — no manual subscription. The directives above already keep the view in sync; "The mechanism" section explains exactly how.',
+    },
+  ];
+
   /**
    * Sample: reading and writing — `value` against `getRawValue()` (disabled
    * controls are omitted from the first), and `setValue` against `patchValue`.
    */
-  readonly readWriteSample = `this.form.value;                          // typed, optional fields, disabled controls OMITTED
+  protected readonly readWriteSample = `this.form.value;                          // typed, optional fields, disabled controls OMITTED
 this.form.getRawValue();                  // same shape but COMPLETE — includes disabled controls
 this.form.controls.name.value;            // read one control directly (typed: string | null)
 this.form.get('email')?.errors;           // ValidationErrors | null for a single control
@@ -276,10 +372,63 @@ this.form.setValue({ name: 'Grace', email: 'g@x.com', age: 40 }); // update ALL 
 this.form.valueChanges.subscribe((v) => console.log(v));   // Observable<value> — fires on every edit
 this.form.statusChanges.subscribe((s) => console.log(s));  // Observable<'VALID'|'INVALID'|'PENDING'|'DISABLED'>`;
 
+  /** Line-by-line walkthrough of {@link readWriteSample}. */
+  protected readonly readWriteNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: "A **fresh snapshot**: a plain object Angular rebuilds from every folder whenever the cabinet's value changes — never a live window into the drawers themselves. Every field is typed optional, and disabled controls are omitted entirely.",
+    },
+    {
+      line: 2,
+      text: 'Same shape, but complete — includes disabled controls. Reach for this when you need every field regardless of disabled state: re-hydrating a form, or logging.',
+    },
+    {
+      line: 3,
+      text: '`.controls` on a typed group is a plain object literal of its children, known at compile time — so this is direct, typed access with no optional chain needed.',
+    },
+    {
+      line: 4,
+      text: "`get()` takes a string/array path and returns `AbstractControl | null` — useful for dynamic paths a dotted property access can't express, e.g. inside a loop.",
+    },
+    {
+      line: 5,
+      text: 'Partial update — only the keys you pass are touched, everything else keeps its current value. No error if fields are omitted.',
+    },
+    {
+      line: 6,
+      text: 'Full update — every key the group defines must be present, or this **throws**. Angular is deliberately strict here so a forgotten field cannot silently vanish.',
+    },
+    {
+      line: 7,
+      text: 'An `Observable` emitting the new value on every edit. A manual `subscribe()` like this needs manual teardown — the exam pitfalls list below has the safer alternatives.',
+    },
+    {
+      line: 8,
+      text: "An `Observable` of `'VALID' | 'INVALID' | 'PENDING' | 'DISABLED'` — fires on every status transition, including the transient `PENDING` state further down this lesson.",
+    },
+  ];
+
+  /**
+   * Sample: the mutate-the-snapshot trap, live below the code as well as here.
+   */
+  protected readonly mutateTrapSample = `const snapshot = this.form.value;
+snapshot.name = 'Mutated (not saved)';   // "changes" the name... or does it?
+
+console.log(snapshot.name);                    // 'Mutated (not saved)'
+console.log(this.form.get('name')!.value);     // ?`;
+
+  /** The prompt for the mutate-trap {@link Predict} box. */
+  protected readonly mutateTrapPrompt =
+    "You grab the snapshot with `const snapshot = this.form.value;` and mutate it directly. `console.log(snapshot.name)` now prints the new text. Does the **Name input on screen** change to match — and does `this.form.get('name')!.value` agree with `snapshot.name`?";
+
+  /** The reveal for the mutate-trap {@link Predict} box. */
+  protected readonly mutateTrapAnswer =
+    "No, and no. Nothing throws or warns — it just silently does not work. `form.value` hands back a plain object that Angular rebuilds from every folder's current value whenever the cabinet's own value changes — exactly the **snapshot** in the filing-cabinet picture above, and never a live view back into the drawers. Writing to `snapshot.name` only edits that disposable object; the real `FormControl` wired to the `name` field never hears about it, so its own `.value`, its `valueChanges` stream, and the input on screen all stay exactly where they were. `this.form.get('name')!.value` still reads the old value. The only way to actually change a control is through the control: `patchValue()`, `setValue()`, or `form.controls.name.setValue(...)`.";
+
   /**
    * Sample: a cross-field validator, and why it attaches to the group.
    */
-  readonly crossFieldValidatorSample = `// A cross-field validator reads MULTIPLE sibling controls, so it has to be
+  protected readonly crossFieldValidatorSample = `// A cross-field validator reads MULTIPLE sibling controls, so it has to be
 // attached to the GROUP that contains them — not to a single child control.
 function passwordsMatch(group: AbstractControl): ValidationErrors | null {
   const pass = group.get('password')?.value;
@@ -295,12 +444,36 @@ passwordForm = this.fb.nonNullable.group(
   { validators: passwordsMatch },  // 2nd arg to group() = GROUP-level options
 );`;
 
+  /** Line-by-line walkthrough of {@link crossFieldValidatorSample}. */
+  protected readonly crossFieldValidatorNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: "A plain function matching Angular's `ValidatorFn` shape — no decorator, no class. Declared outside the component so it stays pure and easy to unit-test on its own.",
+    },
+    {
+      line: 4,
+      text: "Because this validator is attached to the group, `group` here **is** the cabinet — `.get('password')` reaches into a sibling folder. A validator attached to one folder has no such reach.",
+    },
+    {
+      line: 6,
+      text: 'Returning `null` means "no error"; returning an object means "invalid", keyed by an error code you choose — the template/tests check for it later with `hasError(\'passwordsMismatch\')`.',
+    },
+    {
+      line: 9,
+      text: '`fb.nonNullable` produces folders whose value type drops `| null` and whose `reset()` restores the **initial** value instead of `null` — appropriate here, since "reset a password field to null" makes little sense.',
+    },
+    {
+      line: 14,
+      text: 'The second argument to `group()` is `AbstractControlOptions`, not another control config — this is what makes `passwordsMatch` a **group-level** validator instead of (failing to) attach to one field.',
+    },
+  ];
+
   /**
    * Sample: an async validator, including the requirement that it emit **and
    * complete** — a stream that never completes leaves the control `PENDING`
    * forever.
    */
-  readonly asyncValidatorSample = `// AsyncValidatorFn returns an Observable (or Promise) of ValidationErrors | null.
+  protected readonly asyncValidatorSample = `// AsyncValidatorFn returns an Observable (or Promise) of ValidationErrors | null.
 // It must emit AND complete exactly once per run — a never-completing stream
 // leaves the control stuck in PENDING forever.
 function usernameTaken(taken: string[]): AsyncValidatorFn {
@@ -319,10 +492,34 @@ username = this.fb.control('ada', {
   asyncValidators: [usernameTaken(['ada', 'admin', 'root'])],   // async — only if sync passes
 });`;
 
+  /** Line-by-line walkthrough of {@link asyncValidatorSample}. */
+  protected readonly asyncValidatorNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: 'A **factory** returning an `AsyncValidatorFn` — written this way so the list of taken names is configurable per use rather than hard-coded inside the validator itself.',
+    },
+    {
+      line: 6,
+      text: '`timer(600)` emits once, 600ms later, then **completes** — standing in for a debounced HTTP call. Completing is not optional: a validator whose Observable never completes leaves the control stuck in `PENDING` forever.',
+    },
+    {
+      line: 9,
+      text: "Same contract as a sync validator's return value — an error object or `null` — just delivered asynchronously through the Observable instead of returned directly.",
+    },
+    {
+      line: 16,
+      text: 'Sync validators run first, on every keystroke. If either fails, Angular **never even calls** the async validator — no point checking availability for an empty or too-short name.',
+    },
+    {
+      line: 17,
+      text: "Only reached once sync validators pass. While it's in flight, `control.status === 'PENDING'` — a state most learners forget exists until an exam question tests it.",
+    },
+  ];
+
   /**
    * Sample: the class side of a `FormArray`.
    */
-  readonly formArrayClassSample = `// class
+  protected readonly formArrayClassSample = `// class
 // A FormArray holds controls by INDEX rather than by name — the right shape
 // whenever the number of fields is decided at runtime.
 // Seeded with one control so the UI is never empty on first render.
@@ -344,11 +541,31 @@ removeSkill(i: number) {
   this.skills.removeAt(i);
 }`;
 
+  /** Line-by-line walkthrough of {@link formArrayClassSample}. */
+  protected readonly formArrayClassNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: '`fb.array()` takes an initial list of controls (here, one pre-filled one) and returns a typed `FormArray` whose element type is inferred from that first control — a numbered drawer of folders instead of a cabinet of named ones.',
+    },
+    {
+      line: 9,
+      text: 'A `FormArray` is still just an `AbstractControl`, so it nests inside a `FormGroup` like any other folder — that is what lets a `<form>` bind to it at all.',
+    },
+    {
+      line: 14,
+      text: '`push()` appends a new control **and** triggers `updateValueAndValidity()` on the array (and its parent) — the same update pipeline a normal value edit goes through.',
+    },
+    {
+      line: 20,
+      text: "Removes the control at that index. Because the array is indexed, every control **after** `i` shifts down one position — important context for the template sample's `track $index` choice, below.",
+    },
+  ];
+
   /**
    * Sample: the template side of a `FormArray`, with `formArrayName` and the
    * indexed `formControlName`.
    */
-  readonly formArrayTemplateSample = `<!-- template -->
+  protected readonly formArrayTemplateSample = `<!-- template -->
 <div [formGroup]="skillsForm">
   <!-- formArrayName points at the 'skills' key inside skillsForm. Inside this
        element, control names are INDICES rather than strings. -->
@@ -368,11 +585,31 @@ removeSkill(i: number) {
   </div>
 </div>`;
 
+  /** Line-by-line walkthrough of {@link formArrayTemplateSample}. */
+  protected readonly formArrayTemplateNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: '`formArrayName` is the array counterpart of `formGroupName` — it points at the child named `"skills"` and puts everything nested inside it into that array\'s indexing context.',
+    },
+    {
+      line: 9,
+      text: 'Deliberately tracking by `$index` — the exam pitfalls list below explains why that is the **correct** choice here, not the anti-pattern it usually is.',
+    },
+    {
+      line: 13,
+      text: '`formControlName` also accepts a **number** when its container is a `FormArray` — `i` is the control\'s position, not a name. Square brackets bind it as an expression; without them Angular would look for a control literally called `"i"`.',
+    },
+    {
+      line: 16,
+      text: '`type="button"` is essential here: the default button type inside a `<form>` is `submit`, so omitting it would make "Remove" submit the whole form instead.',
+    },
+  ];
+
   /**
    * Sample: the control tree — every node an `AbstractControl`, which is why the
    * same API works at every level.
    */
-  readonly underTheHoodSample = `FormGroup "form"                         ← every node is an AbstractControl
+  protected readonly underTheHoodSample = `FormGroup "form"                         ← every node is an AbstractControl
  ├─ FormControl "name"
  ├─ FormControl "email"
  └─ FormControl "age"
@@ -400,4 +637,91 @@ on setValue / patchValue / a user keystroke via the ControlValueAccessor:
      ChangeDetectorRef.markForCheck() on the host view — the real reason
      reactive forms "just work" under OnPush / zoneless with zero manual
      signal or subscription wiring from you`;
+
+  // ── Presentation data ──────────────────────────────────────────────────────
+
+  /** The Forms track, for the "you are here" rail — intermediate level only. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Reactive Forms' },
+    { label: 'Form Validation', id: 'form-validation' },
+    { label: 'Async Validators', id: 'async-validators' },
+    { label: 'FormArray', id: 'form-arrays' },
+  ];
+
+  /**
+   * The mental-model diagram, staged as dialogue between one folder and the
+   * cabinet — the same `updateValueAndValidity()` cascade "Under the hood"
+   * spells out as pseudocode further down, said once in a mode a reader
+   * follows without holding the whole pipeline in their head at once.
+   */
+  protected readonly cascadeTalk: BubbleTurn[] = [
+    {
+      who: 'The email folder',
+      says: "My value just changed to `'ada@'`. That fails my own `Validators.email` check, so my own status is now `INVALID`.",
+    },
+    {
+      who: 'The email folder',
+      says: "Before I do anything else, I call my parent's `updateValueAndValidity()`. I don't get to keep that to myself.",
+    },
+    {
+      who: 'The cabinet (form)',
+      says: "Noted. I don't re-check my other folders — I just note that my own `status` is `INVALID` too, because **one bad folder is enough**, and I bubble the same call up to whatever contains me.",
+    },
+    {
+      who: 'FormControlName directive',
+      says: "I'm subscribed to both of your `statusChanges`. The moment either of you emits, I call `ChangeDetectorRef.markForCheck()` on the view — that's the entire reason the disabled Save button appears with no `subscribe()` in your component.",
+    },
+  ];
+
+  /**
+   * The self-test: where a cross-field validator actually has to live.
+   *
+   * The distractors are the two placements a learner tries first — on either
+   * single control — plus the "just make it async" guess that confuses
+   * *waiting on something* with *reading more than one value*. Each `why`
+   * names the specific misconception rather than just restating the answer.
+   */
+  protected readonly crossFieldQuizOptions: QuizOption[] = [
+    {
+      text: "On the confirm control, since that's the field usually showing the error",
+      why: "A validator only ever receives the single `AbstractControl` it's attached to. Attached to `confirm`, it can read `confirm`'s own value and nothing else — there is no path from there back to a sibling called `password`.",
+    },
+    {
+      text: "On the password control, since that's the value being confirmed against",
+      why: "Same problem, mirrored: a validator on `password` can see `password`'s value but has no reference to `confirm`. Whichever single folder you pick, it can only ever see itself.",
+    },
+    {
+      text: 'On the FormGroup that contains both controls, passed as its second argument',
+      correct: true,
+      why: "Correct — the group is the only node with both `.get('password')` and `.get('confirm')` in reach. Passing it as the second argument to `group()` runs it as a **group-level** validator, re-evaluated whenever either child changes.",
+    },
+    {
+      text: 'As an async validator on confirm, since comparing two live values is asynchronous',
+      why: 'Comparing two already-known strings needs no round trip. Sync vs async is about whether a check has to **wait** on something external, like a server — not about how many fields it reads. This would just make an instant comparison needlessly slower.',
+    },
+  ];
+
+  /** The doubts this lesson reliably leaves behind. */
+  protected readonly questions: FaqItem[] = [
+    {
+      q: "What's actually different between `patchValue` and `setValue`?",
+      a: "`patchValue` updates only the keys you give it and leaves the rest of the cabinet untouched. `setValue` demands the *entire* shape the group defines — miss one folder and it throws, on purpose, so you can't silently lose a field.",
+    },
+    {
+      q: 'Why is a disabled field missing from `form.value` — is that a bug?',
+      a: 'By design. `value` is meant to be roughly "what you\'d actually submit", and a disabled field usually shouldn\'t be. `getRawValue()` is the escape hatch when you need every folder regardless of disabled state — re-hydrating a form, or logging.',
+    },
+    {
+      q: 'Reactive vs template-driven — when do I actually reach for the other one?',
+      a: "Template-driven earns its keep on something genuinely simple and mostly static — a login box, a one-field search. The moment you need cross-field validation, controls added at runtime, or a test that doesn't need a DOM fixture, reactive forms are the better trade, even for something small.",
+    },
+    {
+      q: 'What does status `PENDING` actually mean, and when do I see it?',
+      a: 'One or more async validators are currently in flight on that control. It only happens after every synchronous validator on the control has already passed, and before the async one\'s Observable/Promise has resolved — neither valid nor invalid, just "still checking".',
+    },
+    {
+      q: 'This app is zoneless. How does typing into a formControlName input still update the Save button?',
+      a: "Not zone.js, and not signals either, for a plain `form.invalid` read — it's the reactive-forms directives themselves, exactly like the cabinet dialogue above shows. `FormControlName`/`FormGroupDirective` subscribe to the control's `statusChanges` and call `ChangeDetectorRef.markForCheck()` on every emission, the same trick the `async` pipe uses for any other Observable.",
+    },
+  ];
 }

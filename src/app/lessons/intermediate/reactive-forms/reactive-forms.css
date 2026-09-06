@@ -1,3 +1,10 @@
+/* Tables, callouts and demo panels are all styled by the shared brain-friendly
+   layer now (src/brain-friendly.css §14–15), so the local `.qa`/`table.lb`/
+   `table.cmp` rules that used to live here are gone — they were per-lesson
+   copies of a rule the theme now owns for every `.lesson.bf table`. What is
+   left is genuinely specific to this lesson: the field layout the live demos
+   share, and the filing-cabinet diagram. */
+
 .field {
   display: flex;
   flex-direction: column;
@@ -5,57 +12,201 @@
   margin-bottom: 12px;
   max-width: 340px;
 }
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+
+/* ── The filing-cabinet diagram ────────────────────────────────────────────
+   Hand-authored SVG rather than <app-layers>, because the shape being taught
+   is one parent with several independently-named siblings, each with its own
+   status bubbling up to a single shared plate — <app-layers> models a single
+   concentric core instead, which is the wrong topology here. Every colour is
+   a --bf-* token so the figure follows the page into dark mode, and the
+   diagram is aria-hidden with the same information repeated in prose in the
+   <figcaption> for anyone who cannot see it. */
+.cabinet-fig {
+  margin: 1.8rem 0;
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+
+.cabinet {
+  display: block;
+  width: 100%;
+  max-width: 620px;
+  height: auto;
+  margin: 0 auto;
 }
-.qa div {
-  padding: 10px 14px;
+
+.cabinet-fig figcaption {
+  max-width: 68ch;
+  margin: 0.9rem auto 0;
   font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
 }
 
-table.lb {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.84rem;
-  margin: 8px 0 18px;
-}
-table.lb th,
-table.lb td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.lb th {
-  background: var(--bg-elevated);
-}
-table.lb td:first-child {
-  width: 38%;
+.cabinet__title {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
 }
 
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
+.cabinet__body {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
 }
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
+
+.cabinet__status {
+  stroke-width: 1.5;
 }
-table.cmp th {
-  background: var(--bg-elevated);
+
+.cabinet__status--bad {
+  fill: var(--bf-danger-wash);
+  stroke: color-mix(in srgb, var(--bf-danger) 55%, transparent);
+}
+
+.cabinet__status-text {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.cabinet__status-text--bad {
+  fill: var(--bf-danger);
+}
+
+.drawer rect {
+  fill: var(--bf-surface-2);
+  stroke: var(--bf-rule);
+  stroke-width: 1.25;
+}
+
+.drawer--bad rect {
+  stroke: color-mix(in srgb, var(--bf-danger) 55%, transparent);
+}
+
+.drawer__label {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.drawer__kind {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.drawer__status {
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.drawer--good .drawer__dot {
+  fill: var(--bf-olive);
+}
+
+.drawer--good .drawer__status {
+  fill: var(--bf-olive);
+}
+
+.drawer--bad .drawer__dot {
+  fill: var(--bf-danger);
+}
+
+.drawer--bad .drawer__status {
+  fill: var(--bf-danger);
+}
+
+.wire {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.wire--good {
+  stroke: color-mix(in srgb, var(--bf-olive) 55%, transparent);
+}
+
+.wire--bad {
+  stroke: var(--bf-danger);
+}
+
+.snapshot {
+  fill: var(--bf-accent-wash);
+  stroke: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+  stroke-width: 1.5;
+}
+
+.snapshot__caption {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-style: italic;
+}
+
+.snapshot__code {
+  fill: var(--bf-ink);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+/* The author's own annotation, in the margin voice — the one thing on the
+   diagram that is a comment rather than a part of the mechanism. */
+.poison,
+.poison__head {
+  fill: none;
+  stroke: var(--bf-gold);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.poison__head {
+  fill: var(--bf-gold);
+  stroke: none;
+}
+
+.poison__label {
+  fill: var(--bf-gold);
+  font-family: var(--font-hand);
+  font-size: 20px;
+}
+
+/* The bad drawer's wire, and the poison arrow it feeds, draw themselves in on
+   first paint — the whole point of the figure is watching one bad value
+   travel from its own folder up to the shared plate. Transform/opacity-free
+   and purely decorative, so dropping it under reduced motion costs nothing. */
+@media (prefers-reduced-motion: no-preference) {
+  .wire--bad {
+    stroke-dasharray: 90;
+    stroke-dashoffset: 90;
+    animation: cabinet-draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+  }
+
+  .poison {
+    stroke-dasharray: 90;
+    stroke-dashoffset: 90;
+    animation: cabinet-draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+  }
+
+  .poison__head,
+  .poison__label {
+    opacity: 0;
+    animation: cabinet-fade 0.4s ease 0.9s forwards;
+  }
+
+  @keyframes cabinet-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes cabinet-fade {
+    to {
+      opacity: 1;
+    }
+  }
 }
