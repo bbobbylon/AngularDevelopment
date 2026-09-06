@@ -1,3 +1,9 @@
+/* Tables, callouts, demo panels and pills are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css), and `.row`/`.pill`/`.code`
+   are global utilities (src/styles.css, brain-friendly.css §14-15). What is
+   left is genuinely specific to this lesson: the field-validity borders on the
+   live demo, and the hand-authored state-flag diagram. */
+
 .field {
   display: flex;
   flex-direction: column;
@@ -5,49 +11,193 @@
   margin-bottom: 14px;
   max-width: 360px;
 }
+
 .err {
-  color: var(--accent);
+  color: var(--bf-danger);
   font-size: 0.8rem;
 }
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
+
+/* ── Live validity feedback ───────────────────────────────────────────────
+   Mirrors the ng-invalid/ng-touched and ng-valid/ng-touched pairing the
+   "state classes" section explains just below the demo — the border colour
+   IS the mechanism being taught, not a decoration on top of it. */
+.field--invalid input,
+.field--invalid select {
+  border-color: var(--bf-danger);
 }
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
+
+.field--valid input,
+.field--valid select {
+  border-color: var(--bf-olive);
 }
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+
+/* ── The state-flag diagram ───────────────────────────────────────────────
+   Hand-authored SVG rather than <app-flow>, because the thing being taught is
+   three INDEPENDENT switches, not one path — a generic flow diagram would
+   force them into a single sequence they don't actually have. Colour-coded
+   accent/gold/olive to match the app-tape-card row directly beneath it, so
+   the diagram and the cards read as one figure in two modes.
+
+   Every colour is a --bf-* token so the figure follows the page into dark
+   mode, and the <svg> is aria-hidden with the full explanation repeated in
+   the <figcaption> for anyone who cannot see it. */
+.state-fig {
+  margin: 1.8rem 0;
 }
-.linebyline {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-left: 1.1em;
-}
-.linebyline li {
-  line-height: 1.5;
-}
-.linebyline-table {
+
+.state-diagram {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
+  max-width: 480px;
+  height: auto;
+  margin: 0 auto;
 }
-.linebyline-table th,
-.linebyline-table td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
+
+.state-fig figcaption {
+  max-width: 62ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  text-align: center;
 }
-.linebyline-table th {
-  background: var(--bg-elevated);
+
+.state__box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
+}
+
+.state__box--a {
+  fill: var(--bf-accent-wash);
+  stroke: color-mix(in srgb, var(--bf-accent) 45%, transparent);
+}
+
+.state__box--b {
+  fill: var(--bf-gold-wash);
+  stroke: color-mix(in srgb, var(--bf-gold) 45%, transparent);
+}
+
+.state__box--c {
+  fill: var(--bf-olive-wash);
+  stroke: color-mix(in srgb, var(--bf-olive) 45%, transparent);
+}
+
+/* Plain-English state word — e.g. "dirty". */
+.state__name {
+  fill: var(--bf-ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* The literal CSS class Angular stamps on — e.g. "NG-DIRTY" — set in the
+   code voice because, unlike the name above it, this text IS a token. */
+.state__role {
+  fill: var(--bf-ink-2);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.state__edge {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.state__edge--a {
+  stroke: var(--bf-accent);
+}
+
+.state__edge--b {
+  stroke: var(--bf-gold);
+}
+
+.state__edge--c {
+  stroke: var(--bf-olive);
+}
+
+.state__head--a {
+  fill: var(--bf-accent);
+}
+
+.state__head--b {
+  fill: var(--bf-gold);
+}
+
+.state__head--c {
+  fill: var(--bf-olive);
+}
+
+/* The trigger for each switch, set in the margin-note voice since it is the
+   author's own annotation rather than part of the mechanism itself. */
+.state__hand {
+  font-family: var(--font-hand);
+  font-size: 13px;
+}
+
+.state__hand--a {
+  fill: var(--bf-accent);
+}
+
+.state__hand--b {
+  fill: var(--bf-gold);
+}
+
+.state__hand--c {
+  fill: var(--bf-olive);
+}
+
+/* Each row draws in top to bottom, echoing the reading order of the prose
+   above it. Transform/opacity- and dash-offset-only, so dropping it under
+   reduced motion costs nothing but the reveal order. */
+@media (prefers-reduced-motion: no-preference) {
+  .state__edge {
+    stroke-dasharray: 140;
+    stroke-dashoffset: 140;
+    animation: state-draw 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .state__head,
+  .state__hand {
+    opacity: 0;
+    animation: state-fade 0.35s ease forwards;
+  }
+
+  .state__edge--a {
+    animation-delay: 0.1s;
+  }
+  .state__edge--b {
+    animation-delay: 0.35s;
+  }
+  .state__edge--c {
+    animation-delay: 0.6s;
+  }
+
+  .state__head--a,
+  .state__hand--a {
+    animation-delay: 0.6s;
+  }
+  .state__head--b,
+  .state__hand--b {
+    animation-delay: 0.85s;
+  }
+  .state__head--c,
+  .state__hand--c {
+    animation-delay: 1.1s;
+  }
+
+  @keyframes state-draw {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes state-fade {
+    to {
+      opacity: 1;
+    }
+  }
 }
