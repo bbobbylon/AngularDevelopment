@@ -1,282 +1,441 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Foundations · Your Dev Toolkit</span>
-  <h1>The Terminal &amp; npm</h1>
-  <p class="lead">
-    To build apps you'll type commands into a <strong>terminal</strong> (also called a command line or shell) — a text
-    window where you tell the computer what to do by typing instead of clicking. It looks intimidating; it isn't. You
-    need about eight commands, one mental model ("I am always standing <em>somewhere</em>"), and the ability to read
-    what comes back. This page gives you all three, plus the npm ecosystem every Angular project lives in.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Foundations · Your Dev Toolkit"
+    title="The Terminal &amp; npm"
+    hand="or, the two tools every tutorial quietly assumes you already have"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      To build apps you'll type instructions into a <strong>terminal</strong> (also called a command line or shell) — a
+      text window where you tell the computer what to do by typing instead of clicking. It looks intimidating from the
+      outside; it isn't once you have the right mental model. This page gives you exactly that model, the eight commands
+      worth knowing cold, and the npm ecosystem every single Angular project quietly depends on.
+    </p>
+  </app-chapter>
 
-  <h2>Why a terminal at all?</h2>
-  <ul>
-    <li>
-      <strong>Precision &amp; repeatability</strong> — <code>ng serve</code> means exactly one thing, on every machine,
-      every time. No hunting through menus that moved in the last update.
-    </li>
-    <li>
-      <strong>Automation</strong> — commands can be chained, scripted and run by robots. Your future CI pipeline is just
-      the terminal commands you're learning now, run by a server on every push.
-    </li>
-    <li>
-      <strong>It's where the tools live</strong> — Angular's CLI, npm, Git: all terminal programs. Every tutorial, error
-      message and Stack Overflow answer assumes you can run them.
-    </li>
-  </ul>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Typing feels slower than clicking. It isn't, and here's why.</h2>
 
-  <h2>Anatomy of a command</h2>
-  <div class="code">
-    <pre>
-ng generate component header --dry-run
-└┬┘ └──┬───┘ └───┬───┘ └─┬──┘ └───┬───┘
-program  sub-     what     its    a FLAG (starts with -):
-to run   command  kind     name   an option — here, "show me
-                                  what you WOULD do, change nothing"</pre>
-  </div>
-  <ul>
-    <li>
-      <strong>First word = the program.</strong> Everything after = arguments handed to it, separated by spaces. (That's
-      why paths with spaces need quotes: <code>cd "My Documents"</code>.)
-    </li>
-    <li>
-      <strong>Flags</strong> start with <code>-</code>/<code>--</code> and switch options on. <code>--help</code> works
-      on almost everything and prints the manual — the single most useful flag in existence.
-    </li>
-    <li>
-      <strong>Pressing Enter runs it; output prints below; then a new prompt appears.</strong> No output at all usually
-      means <em>success</em> — silence is golden in Unix tradition. Errors, by contrast, say so.
-    </li>
-  </ul>
+    <ul>
+      <li>
+        <strong>Precision &amp; repeatability</strong> — <code>ng serve</code> means exactly one thing, on every
+        machine, every time. No hunting through menus that moved in the last update.
+      </li>
+      <li>
+        <strong>Automation</strong> — commands can be chained, scripted and run by robots. Your future CI pipeline is
+        just the commands you're learning now, run by a server on every push, with nobody there to click anything.
+      </li>
+      <li>
+        <strong>It's where the tools live</strong> — the Angular CLI, npm, Git: all terminal programs. Every tutorial,
+        error message and forum answer you will ever read assumes you can run them.
+      </li>
+    </ul>
 
-  <h2>You are always standing somewhere</h2>
-  <p>
-    Every terminal session has a <strong>working directory</strong> — the folder you're "standing in". Commands act
-    relative to it: <code>ls</code> lists <em>this</em> folder, <code>npm install</code> installs into
-    <em>this</em> project. Half of all beginner terminal errors are really "I'm standing in the wrong folder" —
-    <code>pwd</code> is the fix-finder:
-  </p>
-  <table class="t">
-    <tr>
-      <td><code>pwd</code></td>
-      <td>"print working directory" — where am I right now?</td>
-    </tr>
-    <tr>
-      <td><code>ls</code> (or <code>dir</code>)</td>
-      <td>list the files here</td>
-    </tr>
-    <tr>
-      <td><code>cd folder</code></td>
-      <td>move into a folder · <code>cd ..</code> = up one level · <code>cd ~</code> = home</td>
-    </tr>
-    <tr>
-      <td><code>mkdir name</code></td>
-      <td>make a new folder</td>
-    </tr>
-    <tr>
-      <td><code>code .</code></td>
-      <td>open the current folder (<code>.</code> means "here") in VS Code</td>
-    </tr>
-    <tr>
-      <td><kbd>Tab</kbd></td>
-      <td>autocomplete the file/folder name you started typing — use it constantly, it also catches typos</td>
-    </tr>
-    <tr>
-      <td><kbd>↑</kbd></td>
-      <td>recall previous commands instead of retyping</td>
-    </tr>
-    <tr>
-      <td><kbd>Ctrl+C</kbd></td>
-      <td>stop the currently running program (this is how you stop <code>ng serve</code>)</td>
-    </tr>
-  </table>
+    <app-napkin lead="quick guess —" label="Predict before reading on">
+      You're about to type your very first command. When it runs perfectly — no typo, nothing wrong — what do you expect
+      it to print back at you? Hold that guess in your head. The next section has the actual answer, and it surprises
+      almost everyone the first time.
+    </app-napkin>
+  </section>
 
-  <h2>Try it — a working pretend terminal</h2>
-  <div class="demo">
-    <p class="demo__title">Live — click commands, read the output</p>
-    <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
-      @for (c of commands; track c.cmd) {
-        <button class="ghost" (click)="run(c)">{{ c.cmd }}</button>
-      }
-      <button (click)="clear()">clear</button>
-    </div>
-    <div class="terminal">
-      @for (line of history(); track $index) {
-        <div>
-          <span class="prompt">{{
-            line.cmd.startsWith('cd') || cwdFor($index) === '' ? 'my-app $' : 'my-app/' + cwdFor($index) + ' $'
-          }}</span>
-          {{ line.cmd }}
-        </div>
-        @if (line.out) {
-          <div class="out">{{ line.out }}</div>
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>You are always standing in one room of a house.</h2>
+
+    <p>
+      Picture your project as a house. Every folder is a room, and rooms contain other rooms — <code>src/</code> is a
+      room off the front hallway, <code>app/</code> is a room off that one, and so on. Here is the one fact that makes
+      the whole terminal make sense: <span class="key">you are always standing in exactly one room</span>, and every
+      command you type acts on the room you're currently standing in. <code>ls</code> lists what's in
+      <em>this</em> room. <code>npm install</code> installs into <em>this</em> project. Half of all beginner terminal
+      errors are really just "I'm standing in the wrong room" — <code>pwd</code> is how you check.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'main.ts', sub: 'the file open in your editor' }"
+      [rings]="[
+        { label: 'my-app/', sub: 'the project root — run npm install here' },
+        { label: 'src/', sub: 'your source code' },
+        { label: 'app/', sub: 'your components' },
+      ]"
+      arrow="cd src, then cd app"
+      caption="Each hop is one `cd` deeper into the house: `my-app/` is the front door, `src/` is a room off the hallway, `app/` is a room off that room, and `main.ts` is a file sitting on the desk inside it. `pwd`, at any moment, tells you which room you are standing in right now."
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        The eight commands and keys worth knowing cold
+      </caption>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>pwd</code></td>
+          <td>"print working directory" — which room am I standing in right now?</td>
+        </tr>
+        <tr>
+          <td><code>ls</code> (or <code>dir</code> on Command Prompt)</td>
+          <td>list what's in this room</td>
+        </tr>
+        <tr>
+          <td><code>cd folder</code></td>
+          <td>
+            walk through a door into <code>folder</code> · <code>cd ..</code> = step back out · <code>cd ~</code> = go
+            home
+          </td>
+        </tr>
+        <tr>
+          <td><code>mkdir name</code></td>
+          <td>build a brand-new room called <code>name</code></td>
+        </tr>
+        <tr>
+          <td><code>code .</code></td>
+          <td>open the room you're standing in (<code>.</code> always means "here") in VS Code</td>
+        </tr>
+        <tr>
+          <td><kbd>Tab</kbd></td>
+          <td>autocomplete the name you started typing — use it constantly, it also catches typos</td>
+        </tr>
+        <tr>
+          <td><kbd>↑</kbd></td>
+          <td>recall a previous command instead of retyping it</td>
+        </tr>
+        <tr>
+          <td><kbd>Ctrl+C</kbd></td>
+          <td>stop whatever is currently running — this is how you stop <code>ng serve</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-remember variant="mnemonic" label="Three commands, three questions">
+      <strong><code>pwd</code> asks "where am I?"</strong>, <code>ls</code> asks "what's here?", and <code>cd</code>
+      says "take me there." When a command misbehaves, ask those three questions in that order before anything else —
+      most beginner terminal errors really are just standing in the wrong room.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. ANATOMY OF A COMMAND ============ -->
+  <section>
+    <p class="bf-eyebrow">The shape of a command</p>
+    <h2>Every command has the same four parts.</h2>
+
+    <p>
+      <code>ng generate component header --dry-run</code> looks like one long instruction. It's actually four separate
+      parts handed to each other in a chain, and a beginner reliably mixes them up. Watch each part introduce itself:
+    </p>
+
+    <app-bubbles
+      [turns]="anatomyTalk"
+      caption="The shell only ever runs the first word. Everything after it is just a list of words being passed along, one link at a time, until something decides what each word means."
+    />
+
+    <p>
+      Which finally answers the question from the napkin above: <strong>silence usually means success.</strong> A
+      command prints something when it has something to report — a listing, a warning, an error. When it works exactly
+      as expected and there's nothing new to say, most well-behaved terminal programs say nothing at all and simply hand
+      you a fresh prompt. Silence is not the program ignoring you; silence is the program telling you "done, no news."
+    </p>
+  </section>
+
+  <!-- ============ 4. READING REAL OUTPUT ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Reading real output</p>
+    <h2>Practice reading a transcript before you drive the wheel yourself.</h2>
+
+    <p>
+      Here is a real session, narrated line by line. Read the prompt and the command together, then look at what comes
+      back — or doesn't.
+    </p>
+
+    <app-code-lab
+      file="terminal session"
+      [code]="dirTranscriptSample"
+      [notes]="dirTranscriptNotes"
+      notesLabel="What each line proves"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Try it — a working pretend terminal</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        @for (c of commands; track c.cmd) {
+          <button class="ghost" (click)="run(c)">{{ c.cmd }}</button>
         }
-      } @empty {
-        <div class="out">// click a command above… (try ls, then cd src, then ls again)</div>
+        <button (click)="clear()">clear</button>
+      </div>
+      <div class="terminal">
+        @for (line of history(); track $index) {
+          <div>
+            <span class="prompt">{{ cwdFor($index) === '' ? 'my-app $' : 'my-app/' + cwdFor($index) + ' $' }}</span>
+            {{ line.cmd }}
+          </div>
+          @if (line.out) {
+            <div class="out">{{ line.out }}</div>
+          }
+        } @empty {
+          <div class="out">// click a command above… try ls, then cd src, then ls again</div>
+        }
+      </div>
+      @if (lastNote()) {
+        <p class="demo__note">{{ lastNote() }}</p>
       }
     </div>
-    @if (lastNote()) {
-      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 8px">💡 {{ lastNote() }}</p>
-    }
-  </div>
+  </section>
 
-  <h2>Node &amp; npm — the ecosystem under every Angular app</h2>
-  <p>
-    <strong>Node.js</strong> lets JavaScript run <em>outside</em> the browser — it's the engine that Angular's build
-    tools, dev server and CLI all run on. Installing Node also installs <strong>npm</strong> (Node Package Manager),
-    whose job is managing <em>packages</em>: folders of open-source code your project depends on. Three files/folders
-    form the system — know what each is for and who owns it:
-  </p>
-  <table class="t">
-    <tr>
-      <td><code>package.json</code></td>
-      <td>
-        <strong>Yours.</strong> The project manifest: name, scripts, and the list of dependencies
-        <em>with version ranges</em>. Small, human-edited, committed to Git.
-      </td>
-    </tr>
-    <tr>
-      <td><code>package-lock.json</code></td>
-      <td>
-        <strong>npm's, but committed.</strong> The exact resolved version of every package (including
-        dependencies-of-dependencies). Guarantees teammates and CI get byte-identical installs.
-      </td>
-    </tr>
-    <tr>
-      <td><code>node_modules/</code></td>
-      <td>
-        <strong>Disposable.</strong> The downloaded packages themselves — often 100s of MB. Never edit it, never commit
-        it; anyone can rebuild it from the two files above with one command.
-      </td>
-    </tr>
-  </table>
-  <div class="code">
-    <pre>
-node --version      # is Node installed, and which version?
-npm install         # read package.json → download everything → node_modules/
-                    #   (the first command to run in ANY freshly-cloned project)
-npm install lodash  # add one package + record it in package.json
-npm run build       # run the "build" script defined in package.json
-npx create-thing    # run a tool ONCE without permanently installing it</pre>
-  </div>
-  <p>
-    Version ranges in <code>package.json</code> follow <strong>semver</strong> (semantic versioning) —
-    <code>major.minor.patch</code>, where a major bump signals breaking changes:
-  </p>
-  <div class="code">
-    <pre>
-"dependencies": {{ '{' }}
-  "&#64;angular/core": "^21.2.0",   // ^ = any 21.x.y from 21.2.0 up — minors ok, never 22
-  "some-lib":      "~3.4.1",    // ~ = only patches: 3.4.x
-  "fragile-lib":   "3.4.1"      // exact — no surprises, and no automatic fixes either
-{{ '}' }}</pre>
-  </div>
-  <div class="note">
-    The two npm facts that solve most day-one confusion: (1) <code>node_modules</code> missing after cloning a repo is
-    <em>normal</em> — run <code>npm install</code>. (2) "Weird" unexplainable errors are sometimes a corrupted install —
-    deleting <code>node_modules</code> and re-running <code>npm install</code> is the developer's
-    turn-it-off-and-on-again, and it's completely safe <em>because</em> that folder is disposable.
-  </div>
+  <!-- ============ 5. THE NPM ECOSYSTEM ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The npm ecosystem</p>
+    <h2>Three files, one job each, and only one of them is yours.</h2>
 
-  <h2>npm scripts — the project's command palette</h2>
-  <div class="code">
-    <pre>
-// in package.json:
-"scripts": {{ '{' }}
-  "start": "ng serve",
-  "build": "ng build",
-  "test":  "ng test"
-{{ '}' }}
+    <p>
+      <strong>Node.js</strong> lets JavaScript run <em>outside</em> the browser — it's the engine Angular's build tools,
+      dev server and CLI all run on. Installing Node also installs <strong>npm</strong> (Node Package Manager), whose
+      entire job is managing <em>packages</em>: folders of code someone else wrote that your project depends on. Three
+      files and folders make up the system, and mixing up who owns which one is the single most common npm mistake a
+      beginner makes.
+    </p>
 
-npm start           # → runs "ng serve"
-npm run build       # → runs "ng build"   (only start/test skip the word "run")</pre>
-  </div>
-  <p>
-    Why not just type <code>ng serve</code>? Two reasons: scripts document the project's standard workflows in one
-    place, and npm puts the project's own <code>node_modules/.bin</code> on the PATH first — so the
-    <em>project's pinned</em> CLI version runs, not whatever's globally installed. Teams rely on this for
-    reproducibility.
-  </p>
+    <figure class="dia">
+      <svg
+        viewBox="0 0 760 230"
+        role="img"
+        aria-label="A flow diagram. package.json, which you write, flows through npm install into package-lock.json, the exact receipt npm keeps, which flows into node_modules, the actual downloaded packages, labelled safe to delete anytime."
+        class="dia__svg"
+      >
+        <defs>
+          <marker
+            id="tni-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
+          </marker>
+        </defs>
 
-  <h2>The Angular CLI</h2>
-  <div class="code">
-    <pre>
-npm install -g &#64;angular/cli    # -g = global: install the "ng" command itself, once
-ng new my-app                  # scaffold a complete project (asks a few questions)
-cd my-app                      # ⚠ step into it — ng commands must run INSIDE a project
-ng serve                       # dev server → http://localhost:4200, rebuilds on save
-ng generate component header   # scaffold a component (shorthand: ng g c header)
-ng build                       # production build → dist/
-ng test                        # run the unit tests</pre>
-  </div>
-  <p>
-    <code>ng serve</code> is where you'll live: it compiles the app, serves it locally, and recompiles + refreshes the
-    browser every time you save a file. It keeps running (that's why the prompt doesn't come back) —
-    <kbd>Ctrl+C</kbd> stops it. <code>localhost:4200</code> means "this machine, door 4200" — connecting the URL-anatomy
-    lesson to your own dev loop.
-  </p>
+        <!-- box 1: package.json -->
+        <rect x="15" y="70" width="210" height="90" rx="14" class="dia-box" />
+        <text x="120" y="106" text-anchor="middle" class="dia-mono">package.json</text>
+        <text x="120" y="130" text-anchor="middle" class="dia-mono--sm">you write this</text>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>
-      You clone a project, run <code>ng serve</code>, and get "Cannot find module …". What's the almost-certain fix?
-    </summary>
-    <div>
-      <code>npm install</code>. Freshly-cloned projects have no <code>node_modules</code> (it's gitignored by design);
-      nothing can run until the dependencies in package.json are downloaded. Second suspect if that fails: you're in the
-      wrong folder — check with <code>pwd</code>.
+        <!-- arrow 1 -->
+        <path d="M 232 115 L 268 115" class="dia-rule" fill="none" marker-end="url(#tni-arrow)" />
+        <text x="250" y="95" text-anchor="middle" class="dia-mono--sm">npm</text>
+        <text x="250" y="108" text-anchor="middle" class="dia-mono--sm">install</text>
+
+        <!-- box 2: package-lock.json -->
+        <rect x="275" y="70" width="210" height="90" rx="14" class="dia-box dia-box--lit" />
+        <text x="380" y="106" text-anchor="middle" class="dia-mono">package-lock.json</text>
+        <text x="380" y="130" text-anchor="middle" class="dia-mono--sm">npm writes this</text>
+
+        <!-- arrow 2 -->
+        <path d="M 492 115 L 528 115" class="dia-rule" fill="none" marker-end="url(#tni-arrow)" />
+        <text x="510" y="95" text-anchor="middle" class="dia-mono--sm">then</text>
+        <text x="510" y="108" text-anchor="middle" class="dia-mono--sm">downloads</text>
+
+        <!-- box 3: node_modules -->
+        <rect x="535" y="70" width="210" height="90" rx="14" class="dia-box dia-box--solid" />
+        <text x="640" y="106" text-anchor="middle" class="dia-mono dia-mono--on-solid">node_modules/</text>
+        <text x="640" y="130" text-anchor="middle" class="dia-mono--sm">the real packages</text>
+
+        <text x="640" y="200" text-anchor="middle" class="dia-hand">safe to delete anytime!</text>
+      </svg>
+      <figcaption>
+        <code>package.json</code> is the shopping list you write by hand. <code>npm install</code> reads it and writes
+        <code>package-lock.json</code> — the exact receipt of which version of everything it actually chose — then
+        downloads the real packages into <code>node_modules/</code>. Everything to the right of the list you wrote is
+        generated output, not source.
+      </figcaption>
+    </figure>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="package.json" kicker="yours" tone="gold">
+        The project manifest: name, npm scripts, and your dependencies <em>with version ranges</em>. Small,
+        human-edited, and committed to Git.
+      </app-tape-card>
+      <app-tape-card heading="package-lock.json" kicker="npm's, but committed" tone="accent">
+        The exact resolved version of every package, including dependencies of dependencies. It's what guarantees you
+        and a teammate get byte-identical installs.
+      </app-tape-card>
+      <app-tape-card heading="node_modules/" kicker="disposable" tone="olive">
+        The downloaded packages themselves — often hundreds of megabytes. Never edit it by hand, never commit it; anyone
+        can rebuild it from the two files above with one command.
+      </app-tape-card>
     </div>
-  </details>
-  <details class="qa">
-    <summary>What's the difference between <code>npm</code> and <code>npx</code>?</summary>
-    <div>
-      <code>npm install</code> downloads a package into the project for repeated use. <code>npx tool</code> fetches (if
-      needed) and runs a tool <em>once</em> without adding it to anything — perfect for scaffolders like
-      <code>npx create-vite</code> that you run one time per project.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Why commit <code>package-lock.json</code> but never <code>node_modules</code>?</summary>
-    <div>
-      The lock file is tiny and pins exact versions so every machine installs identical code — deleting it invites
-      "works on my machine" drift. <code>node_modules</code> is hundreds of MB of <em>reproducible output</em> — anyone
-      can regenerate it from the lock file, so committing it is pure bloat.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      With <code>"^21.2.0"</code> in package.json, can <code>npm install</code> ever give you Angular 22?
-    </summary>
-    <div>
-      No — caret ranges stop at the next major version, because majors may contain breaking changes (that's semver's
-      promise). You'd get the newest 21.x.y. Moving to 22 is a deliberate act (<code>ng update</code> for Angular, which
-      also runs code migrations).
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      A command = program + arguments + flags; <code>--help</code> explains any of them; silence usually means success;
-      <kbd>Tab</kbd>, <kbd>↑</kbd> and <kbd>Ctrl+C</kbd> are your quality of life.
-    </li>
-    <li>
-      You're always standing in a <strong>working directory</strong> (<code>pwd</code>, <code>ls</code>,
-      <code>cd</code>) — wrong-folder is the #1 beginner error.
-    </li>
-    <li>
-      <strong>Node</strong> runs JS outside the browser; <strong>npm</strong> manages packages: manifest
-      (<code>package.json</code>, yours) + lock file (exact versions, committed) + <code>node_modules</code> (huge,
-      disposable, never committed).
-    </li>
-    <li>
-      <code>npm install</code> is the first command in any cloned project; npm scripts (<code>npm start</code>) are the
-      documented, version-pinned way to run things.
-    </li>
-    <li>
-      The <strong>Angular CLI</strong>: <code>ng new</code>, <code>ng serve</code> (Ctrl+C to stop),
-      <code>ng generate</code>, <code>ng build</code> — your daily loop.
-    </li>
-  </ul>
+    <app-remember variant="rule" label="Who owns which file">
+      <strong>
+        You write <code>package.json</code>. npm writes <code>package-lock.json</code>. Nobody edits
+        <code>node_modules/</code> by hand.
+      </strong>
+      It is pure generated output, safe to delete, and rebuilt byte-for-byte by running <code>npm install</code>
+      again.
+    </app-remember>
 
-  <p><a routerLink="/git-basics">Next: Git &amp; Version Control →</a></p>
+    <app-quiz
+      question="A teammate suggests committing `node_modules/` to Git 'just to be safe, so everyone has the exact same files.' What's the real risk?"
+      [options]="gitQuizOptions"
+      followUp="This is why the folder is gitignored by default in every Angular project — it isn't an oversight."
+    />
+  </section>
+
+  <!-- ============ 6. COMMANDS WORTH KNOWING ============ -->
+  <section>
+    <p class="bf-eyebrow">Commands worth knowing by heart</p>
+    <h2>Five commands, and what each one actually does.</h2>
+
+    <p>
+      Three of these start with the same word and do genuinely different jobs — that's the part worth slowing down for.
+    </p>
+
+    <app-code-lab
+      file="terminal"
+      [code]="cmdReferenceSample"
+      [notes]="cmdReferenceNotes"
+      notesLabel="What each one actually does"
+    />
+  </section>
+
+  <!-- ============ 7. SEMVER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Version ranges</p>
+    <h2>That caret in package.json is a promise, not decoration.</h2>
+
+    <p>
+      Version numbers in <code>package.json</code> follow <span class="term">semver</span> (semantic versioning) —
+      <code>major.minor.patch</code>, where a major bump is the number's own way of warning you it might break
+      something. The symbol in front of the number controls exactly how much npm is allowed to move on your behalf.
+    </p>
+
+    <app-code-lab
+      file="package.json"
+      [code]="semverSample"
+      [notes]="semverNotes"
+      notesLabel="What each symbol actually promises"
+    />
+
+    <app-quiz
+      question="Your package.json pins `&#64;angular/core` to `^18.0.0`. Which of these could `npm install` legally pick?"
+      [options]="semverQuizOptions"
+      followUp="This is the same rule the FAQ below applies to Angular 22 — a caret never lets npm cross into the next major on its own."
+    />
+  </section>
+
+  <!-- ============ 8. NPM SCRIPTS ============ -->
+  <section>
+    <p class="bf-eyebrow">npm scripts</p>
+    <h2>package.json is also where a team agrees on shortcuts.</h2>
+
+    <app-code-lab
+      file="package.json"
+      [code]="scriptsSample"
+      [notes]="scriptsNotes"
+      notesLabel="Which names get the shortcut"
+    />
+
+    <p>
+      Why not just type <code>ng serve</code> directly? Two reasons. Scripts document the project's standard workflows
+      in one place that every teammate can read, and npm quietly puts this project's own
+      <code>node_modules/.bin</code> first on the PATH while a script runs — so the <em>project's pinned</em> CLI
+      version runs, not whatever version happens to be installed globally on your machine. Teams rely on that for
+      reproducibility.
+    </p>
+  </section>
+
+  <!-- ============ 9. INSTALL VS CI ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">install vs. ci</p>
+    <h2>npm install and npm ci both "install the dependencies." They disagree about how strict to be.</h2>
+
+    <app-predict [prompt]="npmCiPrompt" [answer]="npmCiAnswer" revealLabel="Reveal why they disagree" />
+
+    <app-compare
+      leftTitle="npm install — flexible"
+      rightTitle="npm ci — strict"
+      leftTone="neutral"
+      rightTone="good"
+      note="Use `npm install` day to day, on your own machine, while you're actively adding or upgrading packages. Reach for `npm ci` anywhere reproducibility matters more than convenience — CI pipelines, Docker builds, a fresh deploy."
+    >
+      <div left>
+        <div class="code"><pre>npm install</pre></div>
+        <p>
+          Reads <code>package.json</code>. If it and <code>package-lock.json</code> have drifted apart, npm quietly
+          reconciles them — rewriting the lock file to match — and installs anyway. Nothing stops; nothing is deleted
+          first.
+        </p>
+      </div>
+      <div right>
+        <div class="code"><pre>npm ci</pre></div>
+        <p>
+          Deletes <code>node_modules/</code> completely, then installs <strong>exactly</strong> what
+          <code>package-lock.json</code> already says. If that disagrees with <code>package.json</code>, it stops
+          immediately with an error instead of guessing.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
+  <!-- ============ 10. THE ANGULAR CLI ============ -->
+  <section>
+    <p class="bf-eyebrow">The Angular CLI</p>
+    <h2>One command per verb: new, serve, generate, build, test.</h2>
+
+    <app-code-lab file="terminal" [code]="cliSample" [notes]="cliNotes" notesLabel="A typical day, start to finish" />
+
+    <p>
+      <code>ng serve</code> is where you'll live: it compiles the app, serves it locally, and recompiles plus refreshes
+      the browser every time you save a file. It keeps running — that's why the prompt never comes back — until
+      <kbd>Ctrl+C</kbd> stops it. <code>localhost:4200</code> means "this machine, door 4200."
+    </p>
+  </section>
+
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 12. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Recap</p>
+    <h2>Five things worth remembering.</h2>
+
+    <ul>
+      <li>
+        <strong>You are always standing somewhere.</strong> <code>pwd</code> tells you where, <code>ls</code> lists
+        what's there, and <code>cd</code> moves you — most beginner errors are just the wrong room.
+      </li>
+      <li>
+        <strong>Silence usually means success.</strong> A command that finishes cleanly, with nothing new to report,
+        typically prints nothing at all and hands you a fresh prompt. Errors, by contrast, always say so.
+      </li>
+      <li>
+        <strong>Three files, three owners.</strong> You write <code>package.json</code>; npm writes
+        <code>package-lock.json</code>; nobody touches <code>node_modules/</code> by hand — and never, ever commit it,
+        partly for size and partly because its compiled binaries can be tied to one specific machine.
+      </li>
+      <li>
+        <strong><code>npm install</code> is forgiving, <code>npm ci</code> is strict.</strong> Use install on your own
+        machine; reach for ci anywhere reproducibility matters more than convenience.
+      </li>
+      <li>
+        <strong>A caret never crosses a major version on its own.</strong> <code>^18.0.0</code> can climb to any newer
+        <code>18.x.y</code>, but never to <code>19.0.0</code> — that's a deliberate upgrade, not something
+        <code>npm install</code> decides for you.
+      </li>
+    </ul>
+
+    <p><a routerLink="/git-basics">Next: Git &amp; Version Control →</a></p>
+  </section>
 </article>

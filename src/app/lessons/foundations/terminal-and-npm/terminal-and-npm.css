@@ -1,61 +1,131 @@
-.t {
+/* Tables, callouts, demo panels, pills and the code window are all styled by the shared
+   brain-friendly layer now (src/brain-friendly.css §14-15), so the `.qa` accordion and the
+   bare `.t` table rules that used to live here are gone — the exam questions on this page
+   are an `<app-faq>`, and the two kept tables use the shared `<table>`/`<caption>` styling.
+
+   What is left is genuinely specific to this lesson: the hand-drawn npm-ecosystem diagram,
+   and the pretend terminal panel the live demo prints into. Every colour below comes from a
+   --bf-* token so both follow the reader's light/dark choice with no duplicate rules. */
+
+/* ------------------------------------------------------------------
+   1. THE DIAGRAM
+   One SVG carries the primary visual: package.json (what you write) flowing
+   through npm install into package-lock.json (the exact receipt npm keeps)
+   and node_modules/ (the actual, disposable packages on disk).
+   ------------------------------------------------------------------ */
+.dia {
+  margin: 1.8rem 0;
+}
+
+.dia__svg {
+  display: block;
   width: 100%;
-  border-collapse: collapse;
-  margin: 8px 0;
+  height: auto;
+  overflow: visible;
 }
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
+
+.dia figcaption {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--bf-ink-2);
+  max-width: var(--bf-measure);
 }
-.t td:first-child {
-  width: 150px;
-  white-space: nowrap;
+
+/* A container drawn on the page — the same surface + hairline as a card, so a
+   box in the diagram reads as the same kind of object as a box in the layout. */
+.dia-box {
+  fill: var(--bf-surface);
+  stroke: var(--bf-rule);
+  stroke-width: 1.5;
 }
+
+/* The artifact the arrow is pointing at right now. */
+.dia-box--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+/* The physical thing at the end of the chain — clay, per the layer's
+   convention that clay means "the solid object in a diagram". */
+.dia-box--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+.dia-rule {
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dia-head {
+  fill: var(--bf-accent);
+}
+
+.dia-mono {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--bf-ink);
+}
+
+.dia-mono--sm {
+  font-size: 12px;
+  fill: var(--bf-ink-2);
+}
+
+.dia-mono--on-solid {
+  fill: var(--bf-clay-ink);
+  font-weight: 600;
+}
+
+.dia-hand {
+  font-family: var(--font-hand);
+  font-size: 20px;
+  fill: var(--bf-accent);
+}
+
+/* ------------------------------------------------------------------
+   2. THE PRETEND TERMINAL
+   Deliberately not `.code pre`: app.ts re-highlights every `.code pre` after
+   navigation, and this panel's content re-renders from a signal on every
+   click — a tokeniser overwriting it would wipe the transcript on the first
+   command. Same reason as the live readouts in arrays-objects-basics.css.
+   ------------------------------------------------------------------ */
+.terminal {
+  background: var(--bf-code-bg);
+  color: var(--bf-code-ink);
+  border: 1px solid var(--bf-rule);
+  border-radius: var(--bf-r);
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  min-height: 120px;
+  box-shadow: var(--bf-shadow);
+  overflow-x: auto;
+}
+
+.terminal .prompt {
+  color: var(--bf-olive);
+  font-weight: 700;
+  margin-right: 0.5em;
+}
+
+.terminal .out {
+  color: var(--bf-code-ink);
+  opacity: 0.75;
+  margin: 2px 0 10px;
+  white-space: pre-wrap;
+}
+
 kbd {
-  border: 1px solid var(--border);
+  border: 1px solid var(--bf-rule);
   border-bottom-width: 2px;
   border-radius: 4px;
   padding: 1px 6px;
   font-size: 0.8rem;
-  font-family: monospace;
-  background: var(--bg-elevated);
-}
-/* Fixed dark panel — text colours must NOT come from theme vars (--text /
-        --text-muted are near-black in light mode and vanish on this background). */
-.terminal {
-  background: #0a0c12;
-  color: #d4d4e4;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 0.82rem;
-  min-height: 120px;
-}
-.terminal .prompt {
-  color: var(--green);
-}
-.terminal .out {
-  color: #8b93a8;
-  margin: 2px 0 8px;
-  white-space: pre-wrap;
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  background: var(--bf-surface-2);
+  color: var(--bf-ink);
 }
