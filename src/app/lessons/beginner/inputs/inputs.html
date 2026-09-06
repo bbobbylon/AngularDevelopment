@@ -1,242 +1,405 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Beginner · Component Communication</span>
-  <h1>Component Inputs</h1>
-  <p class="lead">
-    Inputs let a parent pass data <em>into</em> a child component. Modern Angular uses the
-    <code>input()</code> function, which returns a read-only <strong>signal</strong> — so inputs are reactive out of the
-    box.
-  </p>
-
-  <p>
-    The mental model worth carrying: <strong>an input is a function parameter</strong>. A component is a function that
-    returns UI, and its inputs are the arguments. That framing gets you a surprising amount for free —
-    <code>input.required&lt;T&gt;()</code> is a parameter with no default, <code>input(0)</code> is a parameter
-    <em>with</em> one, <code>transform</code> is coercion at the boundary, and "don't mutate an object you were passed"
-    is advice you already follow in ordinary functions.
-  </p>
-  <p>
-    The one place the analogy stops: a function is called once, but an input can change while the component is alive.
-    That is the part signals exist to handle.
-  </p>
-
-  <h2>Signal inputs</h2>
-  <div class="code">
-    <pre>
-export class Badge {{ '{' }}
-  label = input.required&lt;string&gt;();              // must be provided
-  color = input('#7c4dff');                       // optional + default
-  big   = input(false, {{ '{' }} alias: 'large',        // rename for the template
-                        transform: booleanAttribute {{ '}' }});
-{{ '}' }}</pre>
-  </div>
-
-  <h2>Try it</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <div class="row" style="margin-bottom: 14px">
-      <input aria-label="label" [value]="label()" (input)="label.set($any($event.target).value)" placeholder="label" />
-      <input aria-label="Badge color" type="color" [value]="color()" (input)="color.set($any($event.target).value)" />
-      <input
-        aria-label="count"
-        type="number"
-        [value]="count()"
-        (input)="count.set(+$any($event.target).value)"
-        style="width: 90px"
-        placeholder="count"
-      />
-      <label
-        ><input type="checkbox" [checked]="large()" (change)="large.set($any($event.target).checked)" /> large</label
-      >
-    </div>
-    <app-badge [label]="label()" [color]="color()" [count]="count()" [large]="large()" />
-  </div>
-
-  <div class="code">
-    <pre>
-&lt;!-- SQUARE BRACKETS mean "evaluate this as an expression". Without them,
-     label="label()" would pass the literal seven-character string. --&gt;
-&lt;!-- The parens are the parent READING its own signals. What the child
-     receives is the plain value, not the signal itself. --&gt;
-&lt;!-- Numbers and booleans especially need the brackets: [count]="3" passes
-     the number 3, while count="3" passes the string "3" — and [large]="false"
-     passes false, while large="false" passes a truthy non-empty string. --&gt;
-&lt;app-badge
-  [label]="label()"
-  [color]="color()"
-  [count]="count()"
-  [large]="large()" /&gt;</pre>
-  </div>
-
-  <h2>Reacting to inputs with computed()</h2>
-  <p>
-    Because inputs are signals, you derive from them with <code>computed()</code> — no <code>ngOnChanges</code> needed:
-  </p>
-  <div class="code">
-    <pre>readonly initials = computed(() =&gt; this.label().slice(0, 2).toUpperCase());</pre>
-  </div>
-  <p>
-    Preview: <span class="pill">{{ initials() }}</span>
-  </p>
-
-  <app-predict
-    prompt='The child has a boolean input and no transform. The parent writes `disabled="false"`. Is the button disabled?'
-    [code]="coercionTrapSample"
-    answer="Yes — it is disabled, which is the opposite of what the parent said. An attribute in a template is always a *string*, and the string `'false'` is truthy. The child receives `'false'`, checks it, and finds it true. This is the single most common input bug in Angular, and `booleanAttribute` is the fix."
-  />
-
-  <h2>Transforms & read-timing</h2>
-  <p>
-    A <code>transform</code> coerces the bound value before it reaches the signal — Angular ships
-    <code>booleanAttribute</code> and <code>numberAttribute</code>, and you can pass any pure function:
-  </p>
-  <div class="code">
-    <pre>
-size = input(0, {{ '{' }} transform: numberAttribute {{ '}' }});       // "8" → 8
-slug = input('', {{ '{' }} transform: (v: string) =&gt; v.trim().toLowerCase() {{ '}' }});</pre>
-  </div>
-  <div class="warn">
-    Signal inputs are <strong>read-only</strong> from inside the component — only the parent sets them (use
-    <code>model()</code> for two-way). And don't read an input in the <strong>constructor</strong>: bindings aren't
-    applied yet, so a <code>required</code> input throws there. Read it in <code>ngOnInit</code>, a
-    <code>computed</code>, or the template.
-  </div>
-
-  <h2>The classic &#64;Input decorator</h2>
-  <p>You will still see the decorator form in many codebases and exams:</p>
-  <div class="code">
-    <pre>
-&#64;Input() label = '';
-&#64;Input({{ '{' }} required: true {{ '}' }}) id!: string;
-&#64;Input({{ '{' }} transform: booleanAttribute {{ '}' }}) disabled = false;</pre>
-  </div>
-  <app-compare
-    leftTitle="Decorator — react with a lifecycle hook"
-    leftTone="bad"
-    rightTitle="Signal — react by deriving"
-    rightTone="good"
-    note="Same feature, but the right-hand version has no hook, no string key to typo, and no branch that silently stops running when someone adds a second input."
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Beginner · Component Communication"
+    title="Component Inputs"
+    hand="or, how a parent hands data down without the child ever having to ask"
+    [stops]="stops"
+    [current]="1"
   >
-    <div left>
-      <div class="code">
-        <pre>
-// The OLD way. Derived state has to
-// be stored in its own field...
-&#64;Input() label = '';
-initials = '';
+    <p class="lead">
+      A component's fields are its own — a parent cannot reach inside a child and set one, and a child cannot reach up
+      and read one off its parent. <strong>An input is the one door Angular builds between them.</strong> Modern
+      Angular's <code>input()</code> function returns a read-only <span class="term">signal</span> on the child's side,
+      so the connection stays reactive for as long as both components are alive.
+    </p>
+  </app-chapter>
 
-// ...and manually recomputed in a
-// lifecycle hook.
-ngOnChanges(c: SimpleChanges) {{ '{' }}
-  // SimpleChanges is a plain object
-  // keyed by input NAME AS A STRING.
-  // Rename the input and this key
-  // silently stops matching — no
-  // compile error, no warning.
-  if (c['label']) {{ '{' }}
-    // Forget this guard and it runs
-    // on EVERY input change, not just
-    // label's.
-    this.initials =
-      this.label.slice(0, 2).toUpperCase();
-  {{ '}' }}
-{{ '}' }}</pre>
+  <!-- ============ 1. THE PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>How does data get into a component you don't control?</h2>
+
+    <p>
+      Say a parent renders <code>&lt;app-badge /&gt;</code> somewhere in its template. The parent has a signal called
+      <code>theme</code>; the badge needs to know its value to pick a colour. Nothing about JavaScript's ordinary rules
+      makes that easy — <code>Badge</code> is a separate class, with its own fields, and nothing links one class's
+      fields to another's just because one happens to render the other.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before scrolling">
+      Before you scroll: could <code>Badge</code>'s class simply reach up and read <code>theme</code> straight off its
+      parent — the way a method might read a sibling field on the very same class?
+    </app-napkin>
+
+    <p>
+      It can't. A component's fields are private to it in every way that matters here — there is no ambient path from
+      child back to parent, and Angular has no interest in inventing one. What Angular gives you instead is a single,
+      <strong>deliberate</strong> channel built for exactly this job: an <span class="key">input</span>.
+    </p>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>An input is a function parameter.</h2>
+
+    <p>
+      Here's the mental model worth carrying: <strong>an input is a function parameter.</strong> A component is a
+      function that returns UI, and its inputs are the arguments. That framing buys you more than it looks like it
+      should — <code>input.required&lt;T&gt;()</code> is a parameter with no default, <code>input(0)</code> is one
+      <em>with</em> a default already filled in, <span class="term">transform</span> is coercion at the boundary, and
+      "don't mutate an object you were handed" is advice you already follow with ordinary function arguments.
+    </p>
+
+    <p>
+      The one place the analogy breaks down: a function is called once and is done. An input can change
+      <em>while the component is still alive</em> — and reacting to that without a callback of your own is the one job
+      <span class="key">signals</span> exist to do.
+    </p>
+
+    <app-bubbles
+      [turns]="contractTalk"
+      caption="The contract underneath every input, staged as the negotiation it actually is."
+    />
+
+    <app-remember variant="mnemonic">
+      <strong>A component is a function; its inputs are the arguments.</strong>
+      <code>input.required&lt;T&gt;()</code> is a parameter with nothing to fall back on. <code>input(0)</code> is one
+      with a default already filled in. And a <code>transform</code> is exactly what it sounds like in a plain function
+      too — coercion, run once, right at the door.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One binding. One direction.</h2>
+
+    <p>
+      Strip away the syntax and every input makes the same trip: the parent writes a <strong>property binding</strong>,
+      Angular's change detection carries that value across on its next pass, and the child's <code>input()</code>
+      signal is what receives it on the other side. Here's that whole trip drawn as one arrow:
+    </p>
+
+    <app-flow
+      [steps]="dataFlowSteps"
+      caption="Only one arrow, and it only points down. The parent's binding is the only thing that ever writes into
+        this channel — nothing here lets the child send a value back up, no matter what it does with its own copy."
+    />
+
+    <p>And here's the child side of that arrow — the exact three inputs the live demo below is built from:</p>
+
+    <app-code-lab
+      file="badge.ts"
+      [code]="badgeInputsSample"
+      [notes]="badgeInputsNotes"
+      notesLabel="Three inputs, three shapes"
+    />
+
+    <p>Three inputs, three different jobs. Pin them down side by side:</p>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="input.required<T>()" kicker="no default" tone="accent">
+        The parent must provide a value or Angular throws before the component ever renders. Reach for this when a
+        missing value would be a bug, not a preference.
+      </app-tape-card>
+      <app-tape-card heading="input(default)" kicker="optional" tone="olive">
+        Holds the default until a parent's binding overrides it. The safe choice whenever the feature works fine without
+        the parent's involvement.
+      </app-tape-card>
+      <app-tape-card heading="input(default, transform)" kicker="coerced" tone="gold">
+        Runs a pure function on whatever the parent binds — <code>booleanAttribute</code> and
+        <code>numberAttribute</code> fix the classic string-attribute traps — before the value ever reaches the signal.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 4. TRY IT ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Watch the arrow work.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <div class="row" style="margin-bottom: 14px">
+        <input
+          aria-label="label"
+          [value]="label()"
+          (input)="label.set($any($event.target).value)"
+          placeholder="label"
+        />
+        <input aria-label="Badge color" type="color" [value]="color()" (input)="color.set($any($event.target).value)" />
+        <input
+          aria-label="count"
+          type="number"
+          [value]="count()"
+          (input)="count.set(+$any($event.target).value)"
+          style="width: 90px"
+          placeholder="count"
+        />
+        <label
+          ><input type="checkbox" [checked]="large()" (change)="large.set($any($event.target).checked)" /> large</label
+        >
       </div>
+      <app-badge [label]="label()" [color]="color()" [count]="count()" [large]="large()" />
     </div>
-    <div right>
-      <div class="code">
-        <pre>
-label = input('');
 
-initials = computed(() =&gt;
-  this.label().slice(0, 2).toUpperCase()
-);</pre>
+    <p>Here's the parent side of the very same arrow — the template driving everything you just typed into:</p>
+
+    <app-code-lab
+      file="parent.html"
+      [code]="parentBindingsSample"
+      [notes]="parentBindingsNotes"
+      notesLabel="Why the brackets aren't decoration"
+    />
+  </section>
+
+  <!-- ============ 5. DERIVING ============ -->
+  <section>
+    <p class="bf-eyebrow">Deriving</p>
+    <h2>Reacting to inputs with computed() — no ngOnChanges required.</h2>
+
+    <p>
+      Because inputs are signals, you derive from them with <code>computed()</code> the same way you would derive from
+      any other signal:
+    </p>
+    <div class="code">
+      <pre>readonly initials = computed(() =&gt; this.label().slice(0, 2).toUpperCase());</pre>
+    </div>
+    <p>
+      Preview: <span class="pill">{{ initials() }}</span>
+    </p>
+
+    <app-predict
+      prompt='The child has a boolean input and no transform. The parent writes `disabled="false"`. Is the button disabled?'
+      [code]="coercionTrapSample"
+      answer="Yes — it is disabled, which is the opposite of what the parent said. An attribute in a template is always a *string*, and the string `'false'` is truthy. The child receives `'false'`, checks it, and finds it true. This is the single most common input bug in Angular, and `booleanAttribute` is the fix."
+    />
+  </section>
+
+  <!-- ============ 6. TRANSFORMS & READ-TIMING ============ -->
+  <section>
+    <p class="bf-eyebrow">The trap, fixed</p>
+    <h2>Transforms fix what strings break.</h2>
+
+    <p>
+      A <code>transform</code> coerces the bound value <strong>before</strong> it ever reaches the signal — Angular
+      ships <code>booleanAttribute</code> and <code>numberAttribute</code>, and you can hand it any pure function of
+      your own:
+    </p>
+
+    <app-code-lab
+      file="badge.ts"
+      [code]="transformSample"
+      [notes]="transformNotes"
+      notesLabel="Coercion, run once, on the way in"
+    />
+
+    <div class="warn">
+      Signal inputs are <strong>read-only</strong> from inside the component — only the parent sets them (use
+      <code>model()</code> for two-way). And don't read an input in the <strong>constructor</strong>: bindings aren't
+      applied yet, so a <code>required</code> input <span class="bf-break">throws</span> there. Read it in
+      <code>ngOnInit</code>, a <code>computed</code>, or the template.
+    </div>
+  </section>
+
+  <!-- ============ 7. THE CLASSIC @INPUT DECORATOR ============ -->
+  <section>
+    <p class="bf-eyebrow">An older API, still everywhere</p>
+    <h2>You'll still meet &#64;Input() constantly.</h2>
+
+    <p>You will still see the decorator form in many codebases and exams:</p>
+
+    <app-code-lab
+      file="legacy-badge.ts"
+      [code]="decoratorSample"
+      [notes]="decoratorNotes"
+      notesLabel="Same jobs, older syntax"
+    />
+
+    <app-compare
+      leftTitle="Decorator — react with a lifecycle hook"
+      leftTone="bad"
+      rightTitle="Signal — react by deriving"
+      rightTone="good"
+      note="Same feature, but the right-hand version has no hook, no string key to typo, and no branch that silently stops running when someone adds a second input."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ compareOldSample }}</pre>
+        </div>
       </div>
+      <div right>
+        <div class="code">
+          <pre>{{ compareNewSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-remember variant="rule">
+      An input is <strong>just a signal you do not own</strong>. Read it with <code>()</code>, derive from it with
+      <code>computed()</code>, and never write to it.
+    </app-remember>
+
+    <div class="note">
+      Both styles work. Prefer <strong>signal inputs</strong> in new code: they are reactive, type-safe, and play
+      perfectly with <code>computed</code> and <code>effect</code>.
     </div>
-  </app-compare>
+  </section>
 
-  <app-remember variant="rule">
-    An input is <strong>just a signal you do not own</strong>. Read it with <code>()</code>, derive from it with
-    <code>computed()</code>, and never write to it.
-  </app-remember>
+  <!-- ============ 8. LIVE #2 — COERCION ============ -->
+  <section>
+    <p class="bf-eyebrow">Live #2</p>
+    <h2>A transform runs before the signal ever sees a value.</h2>
 
-  <div class="note">
-    Both styles work. Prefer <strong>signal inputs</strong> in new code: they are reactive, type-safe, and play
-    perfectly with <code>computed</code> and <code>effect</code>.
-  </div>
-
-  <h2>Live #2 — a transform coerces before the signal sees it</h2>
-  <p>
-    Type into the box below. The parent binds a <em>string</em>, but the child declares
-    <code>size = input(0, {{ '{' }} transform: numberAttribute {{ '}' }})</code> — so the value is coerced on the way in
-    and the child receives a real <code>number</code> (watch the "runtime type" line, and that
-    <code>size + 1</code> does math, not string concatenation):
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — parent passes the string "{{ raw() }}"</p>
-    <div class="row" style="margin-bottom: 12px">
-      <input
-        aria-label="type a number"
-        [value]="raw()"
-        (input)="raw.set($any($event.target).value)"
-        placeholder="type a number"
-        style="width: 140px"
-      />
+    <p>
+      Type into the box below. The parent binds a <em>string</em>, but the child declares
+      <code>size = input(0, {{ '{' }} transform: numberAttribute {{ '}' }})</code> — so the value is coerced on the way
+      in and the child receives a real <code>number</code> (watch the "runtime type" line, and that
+      <code>size + 1</code> does math, not string concatenation):
+    </p>
+    <div class="demo">
+      <p class="demo__title">Live — parent passes the string "{{ raw() }}"</p>
+      <div class="row" style="margin-bottom: 12px">
+        <input
+          aria-label="type a number"
+          [value]="raw()"
+          (input)="raw.set($any($event.target).value)"
+          placeholder="type a number"
+          style="width: 140px"
+        />
+      </div>
+      <app-coerce-demo [size]="raw()" />
     </div>
-    <app-coerce-demo [size]="raw()" />
-  </div>
+  </section>
 
-  <h2>Under the hood — inputs are reactive consumers</h2>
-  <p>
-    A signal input isn't a plain property that Angular happens to set. When the parent's binding produces a new value,
-    Angular writes it into the input signal, which
-    <strong>notifies every <code>computed</code> and view that read it</strong> — exactly like any other signal. That's
-    why deriving with <code>computed()</code> "just works" and why <code>ngOnChanges</code> is unnecessary: the
-    reactivity graph already knows who depends on the input. It also means an input read is only tracked where you
-    actually call <code>label()</code>; untouched inputs cost nothing.
-  </p>
+  <!-- ============ 9. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Inputs are reactive consumers, not passive properties.</h2>
 
-  <app-quiz
-    question="A child declares `id = input.required<string>()` and logs `this.id()` in its constructor. What happens?"
-    [options]="timingOptions"
-    followUp="The rule of thumb: the constructor builds the object, bindings arrive afterwards."
-  />
+    <p>
+      A signal input isn't a plain property that Angular happens to set. When the parent's binding produces a new value,
+      Angular writes it into the input signal, which
+      <strong>notifies every <code>computed</code> and view that read it</strong> — exactly like any other signal.
+      That's why deriving with <code>computed()</code> "just works" and why <code>ngOnChanges</code> is unnecessary: the
+      reactivity graph already knows who depends on the input. It also means an input read is only tracked where you
+      actually call <code>label()</code>; untouched inputs cost nothing.
+    </p>
 
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      <strong>Reading a <code>required</code> input in the constructor throws.</strong> Bindings aren't applied yet at
-      construction — read it in a <code>computed</code>, <code>ngOnInit</code>, or the template.
-    </li>
-    <li>
-      <strong>Inputs are one-way and read-only inside the child.</strong> You can't <code>label.set(...)</code> on an
-      input; use <code>model()</code> for two-way binding.
-    </li>
-    <li>
-      <strong>The string-attribute coercion trap.</strong> Without <code>booleanAttribute</code>,
-      <code>disabled="false"</code> passes the <em>string</em> <code>'false'</code> — which is truthy — so the child
-      looks disabled. The transform fixes it.
-    </li>
-    <li>
-      <strong>Alias confusion.</strong> With <code>{{ '{' }} alias: 'large' {{ '}' }}</code> the <em>template</em> binds
-      <code>[large]</code> but the field is <code>big</code>. Bind the alias, read the field.
-    </li>
-    <li>
-      <strong>Mutating an object input in the child.</strong> You share the parent's reference — mutating it is a hidden
-      two-way channel and breaks OnPush assumptions. Treat inputs as immutable.
-    </li>
-  </ul>
+    <app-quiz
+      question="A child declares `id = input.required<string>()` and logs `this.id()` in its constructor. What happens?"
+      [options]="timingOptions"
+      followUp="The rule of thumb: the constructor builds the object, bindings arrive afterwards."
+    />
+  </section>
 
-  <app-faq [items]="questions" />
+  <!-- ============ 10. EXAM PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Exam pitfalls</p>
+    <h2>Five ways this bites in an exam.</h2>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li><code>input()</code> returns a read-only signal; read it as <code>label()</code>.</li>
-    <li><code>input.required&lt;T&gt;()</code> forces the parent to provide a value.</li>
-    <li>
-      Options: <code>alias</code> to rename, <code>transform</code> to coerce (e.g. <code>booleanAttribute</code>).
-    </li>
-    <li>Derive from inputs with <code>computed()</code> instead of <code>ngOnChanges</code>.</li>
-  </ul>
+    <ul>
+      <li>
+        <strong>Reading a <code>required</code> input in the constructor throws.</strong> Bindings aren't applied yet at
+        construction — read it in a <code>computed</code>, <code>ngOnInit</code>, or the template.
+      </li>
+      <li>
+        <strong>Inputs are one-way and read-only inside the child.</strong> You can't <code>label.set(...)</code> on an
+        input; use <code>model()</code> for two-way binding.
+      </li>
+      <li>
+        <strong>The string-attribute coercion trap.</strong> Without <code>booleanAttribute</code>,
+        <code>disabled="false"</code> passes the <em>string</em> <code>'false'</code> — which is
+        <span class="bf-break">truthy</span> — so the child looks disabled. The transform fixes it.
+      </li>
+      <li>
+        <strong>Alias confusion.</strong> With <code>{{ '{' }} alias: 'large' {{ '}' }}</code> the
+        <em>template</em> binds <code>[large]</code> but the field is <code>big</code>. Bind the alias, read the field.
+      </li>
+      <li>
+        <strong>Mutating an object input in the child.</strong> You share the parent's reference — mutating it is a
+        <span class="bf-break">hidden two-way channel</span> and breaks OnPush assumptions. Treat inputs as immutable.
+      </li>
+    </ul>
+  </section>
 
-  <p><a routerLink="/outputs">Next: Component Outputs →</a></p>
+  <!-- ============ 11. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 12. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>The shapes of an input, side by side.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        the four shapes an input can take
+      </caption>
+      <thead>
+        <tr>
+          <th>Form</th>
+          <th>Syntax</th>
+          <th>What changes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Optional</td>
+          <td><code>input(default)</code></td>
+          <td>Parent may skip the binding entirely; the default holds until it doesn't.</td>
+        </tr>
+        <tr>
+          <td>Required</td>
+          <td><code>input.required&lt;T&gt;()</code></td>
+          <td>Angular throws before render if the parent never binds a value.</td>
+        </tr>
+        <tr>
+          <td>Aliased</td>
+          <td>
+            <code>input(v, {{ '{' }} alias: 'x' {{ '}' }})</code>
+          </td>
+          <td>Template binds <code>[x]</code>; the class still reads its own field name.</td>
+        </tr>
+        <tr>
+          <td>Coerced</td>
+          <td>
+            <code>input(v, {{ '{' }} transform {{ '}' }})</code>
+          </td>
+          <td>A pure function runs on the bound value before the signal ever stores it.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Four things to remember.</h2>
+
+    <ul>
+      <li>
+        Think of it as a <strong>function parameter</strong>: <code>input.required&lt;T&gt;()</code> has no default,
+        <code>input(0)</code> has one, and <code>transform</code> is coercion at the door.
+      </li>
+      <li>
+        Data only flows <strong>one way — down</strong>. The parent's binding is the only thing that ever writes into an
+        input; the child reads it with <code>()</code> and never sets it.
+      </li>
+      <li>
+        Derive from an input with <code>computed()</code> instead of <code>ngOnChanges</code> — no string keys to typo,
+        no guard to forget.
+      </li>
+      <li>
+        Never read a <code>required</code> input in the constructor — bindings land after construction, so it throws.
+        And never trust an unaliased boolean or number attribute without a <code>transform</code>.
+      </li>
+    </ul>
+
+    <p><a routerLink="/outputs">Next: Component Outputs →</a></p>
+  </section>
 </article>
