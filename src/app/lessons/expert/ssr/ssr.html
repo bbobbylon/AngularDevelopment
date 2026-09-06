@@ -1,212 +1,429 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Expert · Rendering &amp; Delivery</span>
-  <h1>Server-Side Rendering (SSR)</h1>
-  <p class="lead">
-    With SSR, Angular renders your components to HTML on the server, so the browser paints real content before a single
-    byte of JavaScript executes — then the same app boots on the client and <em>hydrates</em> the existing DOM. This
-    page covers the three delivery strategies, per-route render modes, SSR-safe coding patterns, and the transfer cache
-    that prevents double-fetching.
-  </p>
-
-  <h2>Three delivery strategies, one framework</h2>
-  <div class="demo">
-    <p class="demo__title">Interactive — follow a request through each strategy</p>
-    <div class="chips">
-      @for (s of strategies; track s) {
-        <button [class.on]="strategy() === s" (click)="strategy.set(s)">{{ s }}</button>
-      }
-    </div>
-    <p style="font-size: 0.9rem">{{ timelines[strategy()].blurb }}</p>
-    <ul class="timeline">
-      @for (step of timelines[strategy()].steps; track $index) {
-        <li>
-          <span class="actor" [class]="'actor ' + step.actor">{{ step.actor }}</span>
-          <span>{{ step.text }}</span>
-          @if (step.marker) {
-            <span class="marker">{{ step.marker }}</span>
-          }
-        </li>
-      }
-    </ul>
-    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
-      Note where FCP (first contentful paint) lands: CSR pays for download + bootstrap + data fetch before showing
-      anything; SSR/SSG paint before JavaScript even arrives. Crawlers and link previews read the initial HTML — with
-      CSR they may see an empty shell.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="1"
+    kicker="Angular Expert · Rendering"
+    title="Server-Side Rendering"
+    hand="or, why the appetizer is already on the table when you sit down"
+    [stops]="stops"
+    [current]="0"
+  >
+    <p class="lead">
+      With SSR, Angular renders your components to real HTML on a server, so the browser paints something real the
+      instant the response arrives — before a single line of your JavaScript has executed. This page is about earning
+      that first paint: turning the capability on, choosing it per route, writing code that survives actually running in
+      Node, and the trap of assuming SSR did more than it did. What the client does with that HTML once its own
+      JavaScript finally shows up is a different lesson's job — hydration's, covered next.
     </p>
-  </div>
+  </app-chapter>
 
-  <h2>Adding SSR</h2>
-  <div class="code">
-    <pre>{{ setupSample }}</pre>
-  </div>
-  <p>
-    The build now emits a <strong>browser</strong> bundle and a <strong>server</strong> bundle, plus a small Node server
-    (<code>server.ts</code>, Express-based) you can deploy or adapt. <code>ng serve</code> renders through the server
-    engine in development too — so SSR bugs surface immediately instead of in production.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Your JavaScript hasn't even downloaded yet. What's on screen?</h2>
 
-  <h2>Per-route render modes — the real architecture decision</h2>
-  <p>
-    Modern Angular doesn't force one strategy on the whole app. A
-    <code>ServerRoute[]</code> config assigns each route <code>RenderMode.Server</code>,
-    <code>RenderMode.Prerender</code> (default), or <code>RenderMode.Client</code> — so a single deployment mixes static
-    marketing pages, per-request SSR, and client-only authenticated areas:
-  </p>
-  <div class="code">
-    <pre>{{ renderModeSample }}</pre>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Decision lab — pick a page, get the mode + the reasoning</p>
-    <div class="chips">
-      @for (p of pageKinds; track p.label) {
-        <button [class.on]="activePage() === p" (click)="activePage.set(p)">{{ p.label }}</button>
+    <p>
+      Ship an Angular app the plain way and the server's answer is <span class="key">almost nothing</span>. It sends one
+      HTML file with an empty <code>&lt;app-root&gt;&lt;/app-root&gt;</code> in it, and everything a visitor actually
+      sees has to wait for a chain of events: download the bundles, parse them, boot Angular, run change detection, then
+      — usually — fire off an HTTP request and wait for <em>that</em> before there's real content on the screen. A slow
+      connection or a search-engine crawler that doesn't execute JavaScript sees a blank page and nothing else.
+    </p>
+
+    <p>
+      <strong>Server-side rendering answers a narrower question than people think it does:</strong> not "how do I make
+      my app faster," but "how do I make the very first thing the browser paints not be blank."
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before you scroll">
+      Two visitors load the same product page: one over CSR, one over SSR. Both are on a slow connection, and both are
+      running the exact same client JavaScript bundle. <strong>Whose bundle finishes downloading first?</strong> Flip
+      through the three strategies below and watch where each one's <code>FCP</code> marker lands relative to the JS
+      download step — the answer is not what most people guess.
+    </app-napkin>
+
+    <div class="demo">
+      <p class="demo__title">Interactive — follow a request through each strategy</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        @for (s of strategies; track s) {
+          <button
+            class="bf-btn"
+            [class.bf-btn--ghost]="strategy() !== s"
+            [attr.aria-pressed]="strategy() === s"
+            (click)="strategy.set(s)"
+          >
+            {{ s }}
+          </button>
+        }
+      </div>
+      <p><app-rich-text [text]="timelines[strategy()].blurb" /></p>
+      <ul class="timeline">
+        @for (step of timelines[strategy()].steps; track $index) {
+          <li>
+            <span class="actor" [class]="'actor ' + step.actor">{{ step.actor }}</span>
+            <span><app-rich-text [text]="step.text" /></span>
+            @if (step.marker) {
+              <span class="marker">{{ step.marker }}</span>
+            }
+          </li>
+        }
+      </ul>
+      <p class="demo__note">
+        The JS download step is identical in every column — same bundle, same size, same network. What moves is only
+        where <code>FCP</code> lands relative to it: CSR pays for the whole chain before painting anything; SSR and
+        prerendering paint before a single script has even started downloading. Nothing about the download itself got
+        faster.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>SSR is a restaurant that plates your appetizer in the kitchen.</h2>
+
+    <p>
+      Picture two restaurants. In the first, you sit down and your appetizer lands on the table almost immediately — it
+      was cooked out of sight, in the kitchen, before you even arrived. In the second, the chef wheels a portable stove
+      to your table and cooks from scratch in front of you: no food at all until several minutes of chopping and searing
+      finish first. Both restaurants serve <em>exactly the same dish</em>. The only thing that differs is when you get
+      to look at it.
+    </p>
+
+    <p>
+      The second restaurant is plain client-side rendering: your browser is the chef, cooking at your own table, and it
+      cannot start until every raw ingredient — the JS bundles — has actually arrived in the room. The first is SSR: the
+      kitchen (a Node server) does the same cooking somewhere you can't see, using the same recipe, and what reaches
+      your table is already-finished HTML. Nothing about the size of the kitchen or the recipe changed — only
+      <span class="key">where and when</span> the cooking happened.
+    </p>
+
+    <p>
+      And here's the part that trips people up: hiring a kitchen doesn't mean you fire the chef at the table. The exact
+      same client bundle still ships, still has to arrive, and still has to <em>do its own cooking</em> once it gets
+      there — taking over from the plated appetizer so the rest of the meal (interactivity) can happen. That takeover is
+      what the next lesson, hydration, is entirely about.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Same dish, earlier table.</strong> SSR moves <em>where</em> the first course gets cooked — never
+      <em>what's on the menu</em>. The same client bundle still has to arrive and take over; that hand-off is
+      hydration's job, not SSR's.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="What actually happens between a request and a painted page — in the real APIs, not just the metaphor."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Turning the kitchen on is one provider and one class.</h2>
+
+    <p>
+      SSR isn't the default — a plain Angular app has no kitchen at all until you add one. Here's the whole thing: the
+      config that turns it on, and — underneath that config — the class actually doing the cooking.
+    </p>
+
+    <app-code-lab
+      file="app.config.server.ts + server.ts"
+      [code]="turningOnSample"
+      [notes]="turningOnNotes"
+      notesLabel="What each piece is actually doing"
+    />
+
+    <app-flow
+      caption="The request lifecycle SSR runs — hydration is stop five, not this page's job"
+      [steps]="requestFlow"
+    />
+
+    <div class="tip">
+      <strong>The build now ships two bundles.</strong> A browser bundle (same as always) and a server bundle, plus a
+      small Node entry point you deploy or adapt. <code>ng serve</code> renders through the server engine in development
+      too, specifically so SSR bugs surface immediately instead of after a deploy.
+    </div>
+  </section>
+
+  <!-- ============ 4. PER-ROUTE RENDER MODES ============ -->
+  <section>
+    <p class="bf-eyebrow">The real architecture decision</p>
+    <h2>Not every page needs the same kitchen.</h2>
+
+    <p>
+      Modern Angular doesn't force one strategy on the whole app. A <code>ServerRoute[]</code> table assigns each route
+      its own <code>RenderMode</code> — so a single deployment mixes static marketing pages, per-request SSR, and
+      client-only authenticated areas without contradiction.
+    </p>
+
+    <app-code-lab
+      file="app.routes.server.ts"
+      [code]="renderModeSample"
+      [notes]="renderModeNotes"
+      notesLabel="Reading the route table"
+    />
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="RenderMode.Prerender" kicker="the default" tone="gold">
+        Rendered once, at build time, into a real <code>.html</code> file. Zero per-request compute — the fastest
+        possible delivery for content that's identical for every visitor.
+      </app-tape-card>
+      <app-tape-card heading="RenderMode.Server" kicker="per request" tone="accent">
+        The same <code>engine.render()</code> call from above, run again for every request. Right for content that's
+        fresh, personalized-but-crawlable, or too large a param space to prerender.
+      </app-tape-card>
+      <app-tape-card heading="RenderMode.Client" kicker="opts out" tone="olive">
+        No server render at all — the plain CSR shell from the top of this page. For content that gains nothing from
+        being pre-painted, like a dashboard sitting behind a login wall.
+      </app-tape-card>
+    </div>
+
+    <div class="demo">
+      <p class="demo__title">Decision lab — pick a page, get the mode and the reasoning</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        @for (p of pageKinds; track p.label) {
+          <button
+            class="bf-btn"
+            [class.bf-btn--ghost]="activePage() !== p"
+            [attr.aria-pressed]="activePage() === p"
+            (click)="activePage.set(p)"
+          >
+            {{ p.label }}
+          </button>
+        }
+      </div>
+      @if (activePage(); as p) {
+        <span class="pill">RenderMode.{{ p.mode }}</span>
+        <p style="margin: 10px 0"><app-rich-text [text]="p.why" /></p>
+        <div class="code" style="font-size: 0.86rem">
+          <pre>{{ p.snippet }}</pre>
+        </div>
+      } @else {
+        <p class="demo__note">Select a page above to see which mode fits and why.</p>
       }
     </div>
-    @if (activePage(); as p) {
-      <span class="mode-pill">RenderMode.{{ p.mode }}</span>
-      <p style="font-size: 0.9rem; margin: 6px 0 10px">{{ p.why }}</p>
-      <div class="code" style="font-size: 0.82rem">
-        <pre>{{ p.snippet }}</pre>
+  </section>
+
+  <!-- ============ 5. SSR-SAFE CODE — THE CRASH TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The exam trap</p>
+    <h2>There's no window, document or localStorage in that kitchen.</h2>
+
+    <p>
+      Node has no browser globals at all — no layout engine, no <code>window</code>, no <code>document</code>, no
+      <code>localStorage</code>, no <code>navigator</code>. The single most common real SSR bug is code that touches one
+      of these unconditionally, because it works perfectly in the browser and nobody thinks to ask what happens on the
+      other side of the fence.
+    </p>
+
+    <app-predict
+      [prompt]="trapPrompt"
+      [code]="brokenWindowSample"
+      [answer]="trapAnswer"
+      revealLabel="Reveal what actually happens"
+    />
+
+    <p>Both of these fix it — pick whichever fits what the code actually needs to do:</p>
+
+    <app-code-lab
+      file="chart.component.ts"
+      [code]="safeFixSample"
+      [notes]="safeFixNotes"
+      notesLabel="Two SSR-safe patterns, one line each"
+    />
+
+    <table class="t">
+      <caption class="bf-table-caption">
+        Where browser-only work actually goes
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Need</th>
+          <th scope="col">SSR-safe tool</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Measure or manipulate the DOM after paint</td>
+          <td><code>afterNextRender()</code> — browser-only by design, never runs on the server</td>
+        </tr>
+        <tr>
+          <td>Branch logic per platform</td>
+          <td><code>isPlatformBrowser(inject(PLATFORM_ID))</code></td>
+        </tr>
+        <tr>
+          <td>Read the incoming request (cookies, headers)</td>
+          <td>inject Angular's server-only <code>REQUEST</code> token</td>
+        </tr>
+        <tr>
+          <td>A third-party browser-only library</td>
+          <td>
+            dynamic <code>import()</code> inside <code>afterNextRender</code>, or <code>&#64;defer</code> the component
+            using it
+          </td>
+        </tr>
+        <tr>
+          <td>Storage</td>
+          <td>cookies (exist on both sides), or guard <code>localStorage</code> behind a platform check</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 6. THE SILENT TRAP — LEAKS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">A second, quieter trap</p>
+    <h2>A leaked timer doesn't die when the "page" does.</h2>
+
+    <p>
+      A crash is the easy failure to catch — it shows up in every log, on the very first request. This one doesn't. A
+      server render isn't a browser tab: closing a tab tears down its entire JavaScript context, timers included.
+      Finishing an SSR response does <span class="bf-break">not</span> do that. The Node process serving that request
+      keeps running, and keeps running, and serves the next ten thousand requests in the exact same process.
+    </p>
+
+    <div class="warn">
+      <strong>Stability trap, restated:</strong> the server also waits for the app to become <em>stable</em> (pending
+      <code>HttpClient</code> requests resolved, no queued macrotasks) before it will serialize anything at all. An
+      innocent <code>setInterval</code> started in a constructor doesn't just leak later — it can hang
+      <em>that very render</em> until a timeout fires. Start recurring timers in <code>afterNextRender</code> so they
+      only ever exist in the browser.
+    </div>
+
+    <app-quiz
+      question="A component's constructor starts a repeating `setInterval` with no cleanup, on a route rendered with `RenderMode.Server`. Once that one request's HTML has been sent, what happens to the interval?"
+      [options]="quizOptions"
+      followUp="The pitfalls list further down names the real-world shape of this bug: a leak that costs one browser tab now costs a long-running server process handling everyone."
+    />
+  </section>
+
+  <!-- ============ 7. THE DOUBLE-FETCH PROBLEM ============ -->
+  <section>
+    <p class="bf-eyebrow">Killing the double fetch</p>
+    <h2>The server already has the data. Don't ask twice.</h2>
+
+    <p>
+      The server fetched your data to render the page — and then the client app boots and, left to its own devices,
+      fetches <em>the same data again</em>. The HTTP transfer cache is what stops that: server-side
+      <code>HttpClient</code> responses are embedded in the HTML and replayed as instant cache hits during hydration,
+      then discarded once they've served their purpose.
+    </p>
+
+    <app-code-lab
+      file="app.config.ts + a manual cache key"
+      [code]="transferSample"
+      [notes]="transferNotes"
+      notesLabel="Automatic cache, and the manual escape hatch"
+    />
+  </section>
+
+  <!-- ============ 8. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Seen in real deployments</p>
+    <h2>The mistakes that actually ship.</h2>
+
+    <ul>
+      <li>
+        <strong>Auth-gated APIs return 401 during SSR</strong> — the server's <code>HttpClient</code> does not
+        automatically forward the user's cookies. Read them from the <code>REQUEST</code> token and attach them
+        explicitly, or make those routes <code>RenderMode.Client</code>.
+      </li>
+      <li>
+        <strong>Absolute vs relative URLs</strong> — on the server, a relative <code>/api/…</code> URL has no origin to
+        resolve against unless the server entry configures one. An interceptor that prefixes the API origin is the
+        standard fix.
+      </li>
+      <li>
+        <strong>Memory leaks are amplified</strong> — the exact trap from the quiz above. A leak that costs one browser
+        tab now costs a long-running Node process serving every visitor. Clean up in <code>DestroyRef</code>/<code
+          >ngOnDestroy</code
+        >
+        religiously.
+      </li>
+      <li>
+        <strong>Different output per render</strong> — randomness or timestamps in a template make the server's HTML
+        differ from the client's first render; that's a hydration mismatch, covered fully in the
+        <a routerLink="/hydration">hydration lesson</a>.
+      </li>
+      <li>
+        <strong>Prerender plus late data</strong> — an SSG page is frozen at build time. If its data changes hourly,
+        either rebuild on a schedule, switch that route to <code>RenderMode.Server</code>, or fetch the volatile part
+        client-side.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 9. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>What SSR buys you — and what it never promised.</h2>
+
+    <div class="bf-grid-2">
+      <div class="bf-card bf-card--solution">
+        <p class="bf-card__label">Buys</p>
+        <ul>
+          <li>Real HTML in the very first response — visible before any JS downloads</li>
+          <li>Content search-engine crawlers and link-preview bots can actually read</li>
+          <li>A faster <strong>first paint</strong>, specifically</li>
+          <li>Per-route control: static, per-request, or skip it entirely</li>
+        </ul>
       </div>
-    }
-  </div>
-
-  <h2>Writing SSR-safe code</h2>
-  <p>
-    On the server there is no <code>window</code>, <code>document</code>, <code>localStorage</code>,
-    <code>navigator</code>, or layout engine. The number-one SSR bug is touching them during construction or rendering —
-    the render crashes (or silently produces wrong HTML) for every request:
-  </p>
-  <div class="code">
-    <pre>{{ safeCodeSample }}</pre>
-  </div>
-  <table class="cmp">
-    <tr>
-      <th>Need</th>
-      <th>SSR-safe tool</th>
-    </tr>
-    <tr>
-      <td>Measure/manipulate the DOM after paint</td>
-      <td><code>afterNextRender()</code> — browser-only by design, never runs on the server</td>
-    </tr>
-    <tr>
-      <td>Branch logic per platform</td>
-      <td><code>isPlatformBrowser(inject(PLATFORM_ID))</code></td>
-    </tr>
-    <tr>
-      <td>Read the incoming request (cookies, headers)</td>
-      <td>inject <code>REQUEST</code> (Angular's server DI tokens)</td>
-    </tr>
-    <tr>
-      <td>Third-party browser-only library</td>
-      <td>
-        dynamic <code>import()</code> inside <code>afterNextRender</code>, or <code>&#64;defer</code> the component
-        using it
-      </td>
-    </tr>
-    <tr>
-      <td>Storage</td>
-      <td>cookies (exist on both sides) or guard localStorage behind a platform check</td>
-    </tr>
-  </table>
-  <div class="warn">
-    <strong>Stability trap:</strong> the server waits for the app to become <em>stable</em> (pending HttpClient requests
-    resolved, no queued macrotasks) before serializing. An innocent <code>setInterval</code> started in a constructor
-    keeps the app unstable — the server render hangs until a timeout. Start recurring timers in
-    <code>afterNextRender</code> so they only ever exist in the browser.
-  </div>
-
-  <h2>The double-fetch problem &amp; the transfer cache</h2>
-  <p>
-    The server fetched your data to render the page — then the client app boots and fetches
-    <em>the same data again</em>. Angular solves this with the <strong>HTTP transfer cache</strong> (on by default with
-    <code>provideClientHydration()</code>): server-side <code>HttpClient</code>
-    responses are embedded in the HTML and replayed as instant cache hits during hydration, then the cache is discarded:
-  </p>
-  <div class="code">
-    <pre>{{ transferSample }}</pre>
-  </div>
-  <p>
-    For non-HttpClient data (a database read in a server route, a heavy computation), use
-    <code>TransferState</code> directly with <code>makeStateKey</code> — same mechanism, manual keys.
-  </p>
-
-  <h2>Pitfalls seen in real deployments</h2>
-  <ul>
-    <li>
-      <strong>Auth-gated APIs return 401 during SSR</strong> — the server's HttpClient does not automatically forward
-      the user's cookies. Read them from the <code>REQUEST</code> token and attach explicitly (or make those routes
-      <code>RenderMode.Client</code>).
-    </li>
-    <li>
-      <strong>Absolute vs relative URLs</strong> — on the server, a relative <code>/api/...</code> URL has no origin to
-      resolve against unless the server entry configures one. Interceptor that prefixes the API origin is the standard
-      fix.
-    </li>
-    <li>
-      <strong>Memory leaks are amplified</strong> — a leak that costs one browser tab now costs a long-running Node
-      process serving every user. Clean up in <code>DestroyRef</code>/<code>ngOnDestroy</code> religiously.
-    </li>
-    <li>
-      <strong>Different output per render</strong> — randomness or timestamps in templates make the server HTML differ
-      from the client's first render; that's a hydration mismatch (covered in the
-      <a routerLink="/hydration">Hydration lesson</a>).
-    </li>
-    <li>
-      <strong>Prerender + late data</strong> — an SSG page is frozen at build time; if its data changes hourly, either
-      rebuild on a schedule, switch that route to <code>RenderMode.Server</code>, or fetch the volatile part
-      client-side.
-    </li>
-  </ul>
-
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>When would you choose Prerender over Server rendering?</summary>
-    <div>
-      When the page is the same for every visitor at request time — marketing pages, docs, blog posts, enumerable
-      product pages. It's rendered once at build (per param set via <code>getPrerenderParams</code>) and served
-      statically: no per-request compute, best TTFB. Server mode is for per-request/personalized-but-crawlable content.
+      <div class="bf-card bf-card--problem">
+        <p class="bf-card__label">Doesn't buy</p>
+        <ul>
+          <li>A smaller client JavaScript bundle — it's exactly the same bundle either way</li>
+          <li>Skipping hydration or its rules — the same client app still has to boot and adopt the DOM</li>
+          <li>Freedom from SSR-unsafe code — <code>window</code>, timers and cookies are still the server's problem</li>
+          <li>A faster app overall — only a faster <em>first</em> paint</li>
+        </ul>
+      </div>
     </div>
-  </details>
-  <details class="qa">
-    <summary>Why did the SSR response take 30 seconds, then render fine?</summary>
-    <div>
-      Something kept the app from becoming stable — usually a recurring timer or a never-completing observable tied to a
-      macrotask started during bootstrap. The server waits for stability before serializing. Move timers into
-      <code>afterNextRender</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How does Angular avoid fetching data twice (server + client)?</summary>
-    <div>
-      The HTTP transfer cache: server-side HttpClient responses are serialized into the HTML and replayed on the client
-      during hydration. Enabled by default with <code>provideClientHydration()</code>; tune with
-      <code>withHttpTransferCacheOptions()</code> (e.g. include POST or requests with auth headers). Manual data goes
-      through <code>TransferState</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Where does <code>localStorage</code> access belong in an SSR app?</summary>
-    <div>
-      Behind a browser boundary: inside <code>afterNextRender()</code>, or guarded by <code>isPlatformBrowser</code>. On
-      the server it doesn't exist — unguarded access throws for every request.
-    </div>
-  </details>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      SSR renders per request; prerender renders at build; client mode opts a route out — mix all three via
-      <code>ServerRoute</code> configs.
-    </li>
-    <li>FCP happens before JavaScript with SSR/SSG; crawlers and previews see real HTML.</li>
-    <li>
-      Guard browser globals (<code>afterNextRender</code> / <code>isPlatformBrowser</code>); keep timers out of
-      bootstrap or the server render hangs.
-    </li>
-    <li>The HTTP transfer cache kills the double fetch; <code>TransferState</code> is the manual escape hatch.</li>
-    <li>Server-side HttpClient forwards no cookies by itself — handle auth explicitly.</li>
-  </ul>
+    <app-remember variant="rule">
+      SSR buys a faster <strong>first paint</strong> and crawlable HTML. It never buys a smaller client bundle, skips a
+      single SSR-safety rule, or does hydration's job for it.
+    </app-remember>
+  </section>
 
-  <p><a routerLink="/hydration">Next: Hydration →</a></p>
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        SSR moves <strong>where</strong> the first render happens, not <strong>how much</strong> JavaScript ships — the
+        same client bundle still has to arrive and hydrate.
+      </li>
+      <li>
+        Turning it on is one provider, <code>provideServerRendering()</code>, plus a route table. The real work happens
+        inside <code>CommonEngine</code>'s <code>render()</code>, once per request that isn't prerendered.
+      </li>
+      <li>
+        <strong>Prerender</strong> bakes one HTML file per param set at build time; <strong>Server</strong> re-renders
+        every request; <strong>Client</strong> opts a route out entirely — pick per route, not per app.
+      </li>
+      <li>
+        No <code>window</code>, <code>document</code>, <code>localStorage</code> or <code>navigator</code> on the
+        server. Guard with <code>isPlatformBrowser()</code> when logic must branch; reach for
+        <code>afterNextRender()</code> for anything that just needs the DOM.
+      </li>
+      <li>
+        A leaked timer doesn't die with the "page" the way it would in a closed browser tab —
+        <strong>it keeps running in the same long-lived Node process</strong>, compounding with every request.
+      </li>
+      <li>
+        The HTTP transfer cache stops the client re-fetching data the server already fetched;
+        <code>TransferState</code> is the manual version for anything that skipped <code>HttpClient</code>.
+      </li>
+    </ul>
+
+    <p><a routerLink="/hydration">Next: Hydration →</a></p>
+  </section>
 </article>

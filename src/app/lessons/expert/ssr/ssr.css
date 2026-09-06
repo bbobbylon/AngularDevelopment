@@ -1,115 +1,67 @@
-.chips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 0 0 12px;
-}
-.chips button {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 18px;
-  padding: 6px 14px;
-  font-size: 0.84rem;
-}
-.chips button.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
+/* Table, callout, button and pill styling now comes from the shared
+   brain-friendly layer (src/brain-friendly.css §8, §14, §15) — the
+   `.chips` / `.qa` / `table.cmp` / `.mode-pill` blocks that used to live
+   here were per-lesson copies of rules the theme now owns. `.qa` in
+   particular is gone for good: the exam corner is an `<app-faq>` now, and
+   the decision lab's readout reuses the theme's shared `.pill`.
 
-.timeline {
+   What's left is genuinely specific to this lesson's one interactive
+   demo: the request-timeline's actor badges and milestone marker. */
+
+.lesson.bf .timeline {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.timeline li {
+
+.lesson.bf .timeline li {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  padding: 7px 0;
-  border-bottom: 1px dashed var(--border);
-  font-size: 0.9rem;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--bf-rule);
+  font-size: 0.94rem;
+  flex-wrap: wrap;
 }
-.timeline li:last-child {
+
+.lesson.bf .timeline li:last-child {
   border-bottom: none;
 }
-.actor {
+
+.lesson.bf .actor {
   flex: 0 0 70px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: 6px;
   text-align: center;
-  padding: 2px 0;
+  padding: 3px 0;
 }
-.actor.browser {
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--accent);
+
+.lesson.bf .actor.browser {
+  background: color-mix(in srgb, var(--bf-accent) 14%, transparent);
+  color: var(--bf-accent);
 }
-.actor.server {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--green);
+
+.lesson.bf .actor.server {
+  background: color-mix(in srgb, var(--bf-olive) 16%, transparent);
+  color: var(--bf-olive);
 }
-.actor.build {
-  background: rgba(245, 158, 11, 0.14);
-  color: var(--amber);
+
+.lesson.bf .actor.build {
+  background: color-mix(in srgb, var(--bf-gold) 18%, transparent);
+  color: var(--bf-gold);
 }
-.marker {
+
+.lesson.bf .marker {
   margin-left: auto;
-  font-family: monospace;
-  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--green);
-  border: 1px solid var(--green);
+  color: var(--bf-olive);
+  border: 1px solid var(--bf-olive);
   border-radius: 6px;
   padding: 1px 8px;
-}
-
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
-}
-
-.mode-pill {
-  display: inline-block;
-  font-family: monospace;
-  font-weight: 700;
-  font-size: 0.88rem;
-  padding: 4px 12px;
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.12);
-  color: var(--accent);
-  margin: 10px 0 6px;
 }
