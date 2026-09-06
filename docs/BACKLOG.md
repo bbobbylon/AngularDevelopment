@@ -311,13 +311,39 @@ not any one lesson being slow in isolation. Exactly the same shape as the a11y
 `SCAN_TIMEOUT_MS` fix in batch 8: the fix is headroom, not trimming content. Expect this
 class of timeout to need raising again as density keeps growing.
 
-**Lessons — remaining: 22.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Batch 11 — 8 more lessons landed 2026-09-06, rollout now 86 of 100.** All already 9/9,
+presentation-only: `beginner/lifecycle`, `beginner/class-style-binding`,
+`intermediate/rxjs-interop`, `intermediate/form-validation`, `beginner/control-flow-for`,
+`beginner/workspace-config`, `beginner/routing-basics`, `beginner/http-basics`. Run as 8
+parallel fresh agents; verified the same way as batches 8–10 — `prettier --check`,
+`tsc --noEmit`, `audit-retention.mjs` to 9/9, and every `CodeNote` line number manually
+recounted against its exact sample string, not trusted from the agent's report.
+
+Two path corrections worth recording: `routing-basics` and `http-basics` both live under
+`beginner/`, not `intermediate/` — the coordinating session's own batch prompt guessed the
+wrong tier for both, and both agents caught it themselves via `curriculum.ts` before doing
+any work. If a lesson's assigned path 404s, check `curriculum.ts` for its real one rather
+than assuming the backlog list is wrong about the lesson itself.
+
+One real bug found by independent verification, not tooling: `form-validation`'s
+`customValidatorNotes` had a note anchored to line 9 (a plain comment) describing the
+`hasDigit()` call that actually sits on line 10. Caught by manually recounting the sample
+string line-by-line, exactly the discipline that has now caught a real bug in three of the
+last four batches — keep doing it, it is not theatre.
+
+One more real regression, caught only by a real `ng build` (not `tsc --noEmit`, which
+cannot see template diagnostics): `lifecycle.html` used `<app-napkin>` but the lesson's own
+commit never added `Napkin` to its `.ts` imports (NG8001) — the same class of miss as the
+`ngmodules-migration`/`Napkin` bug in batch 9. Two concurrently-running batch-11 agents,
+each building their own unrelated lesson, independently noticed the resulting build failure
+and flagged it — a small win of running full builds inside agent verification even when
+their own lesson isn't the culprit. Fixed in a standalone commit before continuing.
+
+**Lessons — remaining: 14.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
-means rewriting it against the nine-point bar anyway. All 22 already score 9/9 from an
+means rewriting it against the nine-point bar anyway. All 14 already score 9/9 from an
 earlier (pre-brain-friendly) retention pass and just need the presentation layer built on
-top: `rxjs-interop`, `routing-basics`, `class-style-binding`, `lifecycle`,
-`form-validation`, `workspace-config`, `control-flow-for`, `http-basics`,
-`rxjs-operators`, `keyof-typeof`, `modules`, `structural-directives`,
+top: `rxjs-operators`, `keyof-typeof`, `modules`, `structural-directives`,
 `ng-template-outlet`, `builtin-directives`, `route-params`, `content-projection`,
 `json-and-apis`, `attribute-directives`, `testing-services-http`, `data-dashboard`,
 `task-manager`, `auth-flow`. Roughly an hour each; the copy is the work, not the wiring.
