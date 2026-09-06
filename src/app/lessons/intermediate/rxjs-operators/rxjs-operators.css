@@ -1,13 +1,7 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-}
-.t td {
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-.t td:first-child {
-  width: 130px;
-  white-space: nowrap;
-}
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15 — `.lesson.bf table`), which is why this file
+   is empty. The `.t` rules that used to live here were a per-lesson copy of
+   rules the theme now owns for every migrated lesson.
+
+   Nothing here is specific to Core Operators. Add rules only if a future
+   demo on this page needs something the shared layer does not provide. */

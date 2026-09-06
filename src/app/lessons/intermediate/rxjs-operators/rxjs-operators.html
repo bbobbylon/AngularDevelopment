@@ -1,272 +1,384 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · RxJS</span>
-  <h1>Core Operators</h1>
-  <p class="lead">
-    Operators are functions that transform a stream into a new stream. You chain them inside
-    <code>.pipe(...)</code> like an assembly line: each operator takes the values flowing through, does one job, and
-    passes the result to the next. The source is never changed — every operator returns a brand-new Observable.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Intermediate · RxJS"
+    title="Core Operators"
+    hand="or, the four receptionists who decide what happens to your second phone call"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      An <span class="term">operator</span> is a function that takes a stream and returns a brand-new one — never the
+      same stream, never mutated. Chain them inside <code>.pipe(...)</code> and you've built
+      <span class="key">an assembly line</span>: each operator does one job to the values flowing through, then hands
+      its output to the next. This page is about picking the right operators for a real interface — a search box — and
+      about the one choice that actually causes production bugs: what to do when a new value arrives while the last one
+      is still being handled.
+    </p>
+  </app-chapter>
 
-  <h2>The assembly-line idea</h2>
-  <div class="code">
-    <pre>
-source$.pipe(
-  operatorA,   // value flows in here…
-  operatorB,   // …then through here…
-  operatorC,   // …and out the bottom
-).subscribe(result =&gt; ...);</pre>
-  </div>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Type "angular" into a search box. How many network requests should that cause?</h2>
 
-  <h2>Transforming & filtering (with marbles)</h2>
-  <p>Read <code>--1--2--3--|</code> as "emits 1, 2, 3 over time, then completes":</p>
-  <div class="code">
-    <pre>
-source:           --1--2--3--4--|
-
-map(x =&gt; x * 10):  --10-20-30-40-|     transform each value
-filter(x =&gt; x%2): -----2-----4--|     keep values that pass a test
-take(2):           --1--2|             first 2, then complete
-tap(log):          --1--2--3--4--|     side effect, value passes through unchanged
-scan((a,b)=&gt;a+b):  --1--3--6--10-|     running total (like reduce, but emits each step)
-startWith(0):      0-1--2--3--4--|     emit a seed value first</pre>
-  </div>
-
-  <h2>Time-based filtering</h2>
-  <div class="code">
-    <pre>
-debounceTime(300):        wait for a 300ms PAUSE, then emit the latest
-                          (collapses a burst of keystrokes into one)
-throttleTime(300):        emit, then ignore for 300ms (rate-limit)
-distinctUntilChanged():   drop a value if it equals the previous one
-auditTime / sampleTime:   emit the latest value on a timer</pre>
-  </div>
-
-  <h2>The flattening operators (higher-order)</h2>
-  <p>
-    The hardest — and most important — operators handle a stream whose values each
-    <em>start another stream</em> (e.g. a keystroke that triggers an HTTP call). Your choice controls what happens when
-    a new value arrives while a previous inner stream is still running:
-  </p>
-
-  <h3>The mental model: four receptionists</h3>
-  <p>
-    You are already on a call and a second one comes in. There are exactly four sensible policies, and the four
-    operators are those four receptionists:
-  </p>
-  <ul>
-    <li>
-      <strong><code>switchMap</code> hangs up on the current caller</strong> to take the new one. Rude, and exactly
-      right when the old conversation is now pointless — nobody wants search results for the query they already finished
-      typing.
-    </li>
-    <li>
-      <strong><code>mergeMap</code> puts everyone on speakerphone</strong> and talks to all of them at once. Fastest,
-      and fine when the calls have nothing to do with each other.
-    </li>
-    <li>
-      <strong><code>concatMap</code> takes a message</strong> and calls each person back in the order they rang.
-      Slowest, and the only one that guarantees order.
-    </li>
-    <li>
-      <strong><code>exhaustMap</code> lets it ring out.</strong> Busy is busy. This is the receptionist you want on a
-      submit button, because the second and third impatient clicks are simply not answered.
-    </li>
-  </ul>
-
-  <app-remember>
-    <strong>Reads want <code>switchMap</code>. Writes never do.</strong> Cancelling a stale search is a feature;
-    cancelling a half-finished save is data loss. When the values represent something the server should keep, reach for
-    <code>concatMap</code> or <code>mergeMap</code>.
-  </app-remember>
-
-  <div class="code">
-    <pre>
-outer:          --a------b--------c----
-inner per item: (each letter starts a 2-tick request: --1--2|)
-
-switchMap:      --a1-a2--b1--CANCELS-b2|c1--c2   cancel previous, keep newest
-mergeMap:       --a1-a2--b1-a?-b2----c1--c2      run ALL at once (concurrent)
-concatMap:      --a1-a2----b1-b2----c1-c2        queue, one after another, in order
-exhaustMap:     --a1-a2----------c1-c2           ignore new while one is in flight</pre>
-  </div>
-  <table class="t">
-    <tr>
-      <td><code>switchMap</code></td>
-      <td>
-        Cancel the previous inner stream when a new value arrives. <strong>Type-ahead search</strong> — you only want
-        results for the latest query.
-      </td>
-    </tr>
-    <tr>
-      <td><code>mergeMap</code></td>
-      <td>
-        Run all inner streams concurrently. <strong>Independent writes</strong> (e.g. save several items at once).
-      </td>
-    </tr>
-    <tr>
-      <td><code>concatMap</code></td>
-      <td>
-        Queue inner streams in order, one completing before the next starts. <strong>Order-sensitive</strong> work.
-      </td>
-    </tr>
-    <tr>
-      <td><code>exhaustMap</code></td>
-      <td>Ignore new values while one is in flight. <strong>Submit buttons</strong> — block double-submits.</td>
-    </tr>
-  </table>
-
-  <p>In practice you never weigh all four. You ask these in order and stop at the first yes:</p>
-
-  <app-flow
-    [steps]="choosing"
-    caption="Note that the first question settles most cases — which is also why `switchMap` ends up pasted into places it does not belong."
-  />
-
-  <app-predict
-    prompt="Speaking of which. This is `switchMap` doing exactly what it promises, in a place where that promise is a disaster. What reaches the server?"
-    [code]="autosaveSample"
-    answer="Almost nothing — plausibly just the very last draft, and possibly not even that. Every time the debounce settles, `switchMap` unsubscribes from the save that is still in flight, which aborts the request mid-write. Ten seconds of typing produces a handful of cancelled POSTs and one survivor. The cruel part is that it *looks* like it works in development, where the API answers in 20ms and nothing is ever still in flight when the next draft arrives. It only breaks on a slow connection, which is exactly when losing someone's work hurts most. `concatMap` queues the saves so every one lands in order; `exhaustMap` is the other reasonable answer if you would rather skip intermediate drafts than queue them."
-  />
-
-  <h2>Try it — debounced, switchMapped "search"</h2>
-  <div class="demo">
-    <p class="demo__title">Live — type fast; only the settled query "searches"</p>
-    <input
-      aria-label="search"
-      (input)="onType($any($event.target).value)"
-      placeholder="search…"
-      style="width: 100%; margin-bottom: 10px"
-    />
     <p>
-      raw keystrokes: <strong>{{ keystrokes() }}</strong>
+      A raw DOM <code>(input)</code> event fires once per keystroke — no waiting, no judgment, no memory of what you
+      searched a moment ago. Wire it straight to <code>this.api.search(value)</code> and typing a seven-letter word
+      fires <strong>seven separate HTTP requests</strong>, most of them for a query you'd already moved past by the time
+      the response came back. And if the third response happens to arrive after the seventh, the box briefly shows
+      results for "ang" long after you've typed "angular".
     </p>
-    <p>
-      actual searches fired: <strong style="color: var(--green)">{{ searches() }}</strong>
-    </p>
-    <p>
-      result: <code>{{ result() }}</code>
-    </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      debounceTime(400) + distinctUntilChanged() collapse the bursts; switchMap cancels stale lookups so only the last
-      query's result shows.
-    </p>
-  </div>
 
-  <div class="code">
-    <pre>
-this.query$.pipe(
-  debounceTime(400),
-  distinctUntilChanged(),
-  switchMap(q =&gt; this.api.search(q).pipe(   // ← catchError goes INSIDE
-    catchError(() =&gt; of([])),               // so one failure won't kill the outer stream
-  )),
-).subscribe(r =&gt; this.result.set(r));</pre>
-  </div>
-  <div class="warn">
-    Put <code>catchError</code> on the <strong>inner</strong> stream of a <code>switchMap</code>/<code>mergeMap</code>.
-    If an error reaches the <em>outer</em> stream, that stream completes and stops reacting to future keystrokes — the
-    search box goes dead. All pipeable operators are tree-shakable, so you only bundle the ones you import.
-  </div>
-
-  <h2>Live #2 — switchMap cancels, mergeMap keeps all</h2>
-  <p>
-    Press <strong>Fire</strong> a few times quickly. Each press starts a ~700ms async task tagged with its number.
-    <code>switchMap</code> cancels any in-flight task when a new one starts — so only the <em>last</em> of a burst
-    finishes. <code>mergeMap</code> lets them all run — so every task finishes. This is exactly why
-    <code>switchMap</code> is right for search but <strong>wrong for saving data</strong>:
-  </p>
-  <div class="demo">
-    <p class="demo__title">
-      Live — fired: <code>{{ fired().join(', ') || '—' }}</code>
+    <p>
+      None of that is a bug in the browser or in HTTP. It's what happens when nothing stands between the event and the
+      request. Operators are that something — and the four you're about to meet exist entirely to answer one question:
+      <span class="key">what happens when a new value shows up before the last one finished being handled?</span>
     </p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="fire()">Fire task #{{ fired().length + 1 }}</button>
-      <button class="ghost" (click)="resetRace()">reset</button>
+
+    <app-napkin lead="before you scroll —" label="Predict before reading on">
+      Of those seven keystroke-triggered requests, how many results should the user actually <em>see</em> land in the
+      box, if you did nothing else at all? There's a live version of this exact scenario further down this page — count
+      the real number against your guess.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY ONE: THE PIPE ITSELF ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Every operator is a small machine bolted onto a conveyor belt.</h2>
+
+    <p>
+      <code>.pipe(...)</code> is the belt. Each operator you place on it is a machine with exactly one job — transform a
+      value, drop one, wait, count — and each machine's output becomes the next machine's input. A value shows up at one
+      end and comes out the other, machine by machine, in the order you wrote them:
+    </p>
+
+    <div class="code">
+      <pre>{{ assemblyLineSample }}</pre>
     </div>
+
+    <p>
+      Two things about this belt are easy to say and easy to forget. First,
+      <strong>the source is never touched</strong> — every operator, from <code>map</code> to the four you're about to
+      meet, returns a brand-new Observable and leaves the one it was given alone. Second, the belt doesn't run itself:
+      wiring up ten machines builds the machinery but moves nothing. Nothing happens until something calls
+      <code>.subscribe()</code> at the far end and starts pulling values through.
+    </p>
+
+    <app-remember variant="hook">
+      An operator's whole contract is <strong>one input stream in, one new stream out</strong>. The moment you find
+      yourself mutating the source, or reaching outside the pipe to fire a side effect that has to happen exactly once,
+      you've stepped outside what an operator is for.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE EVERYDAY MACHINES ============ -->
+  <section>
+    <p class="bf-eyebrow">The everyday machines</p>
+    <h2>Most days, you only need a handful of these.</h2>
+
+    <p>
+      Read <code>--1--2--3--|</code> as "emits 1, 2, 3 over time, then completes." Each row below is the exact same
+      source, through a different single machine:
+    </p>
+    <div class="code">
+      <pre>{{ transformFilterSample }}</pre>
+    </div>
+
+    <p>
+      A second family filters by <span class="term">time</span> instead of by value — essential for anything driven by a
+      fast, noisy source like keystrokes or scroll events:
+    </p>
+    <div class="code">
+      <pre>{{ timeFilterSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ 4. ANALOGY TWO: FOUR RECEPTIONISTS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, continued</p>
+    <h2>Four of those machines are receptionists, and the belt just handed them a second phone call.</h2>
+
+    <p>
+      The hardest — and most useful — operators handle a stream whose values each
+      <span class="term">start another stream</span>: a keystroke that triggers an HTTP call, a click that triggers a
+      save. Call that inner stream "the phone call." The moment a receptionist is already on one call and a second one
+      rings, there are exactly four sensible policies — and RxJS ships one operator per policy:
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="switchMap" kicker="hangs up on the current caller" tone="accent">
+        Cancels the in-flight inner stream and starts the new one. Rude — and exactly right when the old conversation is
+        now pointless. Nobody wants search results for a query you've already finished typing.
+      </app-tape-card>
+      <app-tape-card heading="mergeMap" kicker="puts everyone on speakerphone" tone="blue">
+        Starts the new inner stream without touching the old one — every call runs concurrently. Fast, and fine exactly
+        when the calls have nothing to do with each other.
+      </app-tape-card>
+      <app-tape-card heading="concatMap" kicker="takes a message, calls back in order" tone="olive">
+        Queues the new inner stream behind whichever one is still running. Slowest of the four — and the only one that
+        guarantees the order they arrived in.
+      </app-tape-card>
+      <app-tape-card heading="exhaustMap" kicker="lets it ring out" tone="gold">
+        Ignores the new value entirely while the current inner stream is still running. The one you want on a submit
+        button — a second, impatient click is simply not answered.
+      </app-tape-card>
+    </div>
+
+    <app-remember variant="rule">
+      <strong>Reads want <code>switchMap</code>. Writes never do.</strong> Cancelling a stale search is a feature;
+      cancelling a half-finished save is data loss. When the values represent something the server should keep, reach
+      for <code>concatMap</code> or <code>mergeMap</code>.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="switchMapTalk"
+      caption="What `switchMap` actually does to the abandoned call — it doesn't just stop listening, it hangs up."
+    />
+  </section>
+
+  <!-- ============ 5. THE SAME IDEA, AS A TIMING DIAGRAM ============ -->
+  <section>
+    <p class="bf-eyebrow">The same idea, as a timing diagram</p>
+    <h2>Read the marbles: same three calls, four different outcomes.</h2>
+
+    <p>
+      Three calls land on the outer stream — <code>a</code>, then <code>b</code>, then <code>c</code> — each one kicking
+      off a two-tick inner stream of its own. Nothing about the outer stream changes between the four rows below. Only
+      the flattening operator does:
+    </p>
+    <div class="code">
+      <pre>{{ flattenMarbleSample }}</pre>
+    </div>
+
     <table class="t">
-      <tr>
-        <th>Operator</th>
-        <th>Tasks that actually completed</th>
-      </tr>
-      <tr>
-        <td><code>switchMap</code></td>
-        <td>
-          <code>{{ switchOut().join(', ') || '(waiting…)' }}</code>
-          <span style="color: var(--text-muted)">← stale ones were cancelled</span>
-        </td>
-      </tr>
-      <tr>
-        <td><code>mergeMap</code></td>
-        <td>
-          <code>{{ mergeOut().join(', ') || '(waiting…)' }}</code>
-          <span style="color: var(--text-muted)">← all ran to completion</span>
-        </td>
-      </tr>
+      <caption class="bf-table-caption">
+        Same four policies, as a quick reference
+      </caption>
+      <thead>
+        <tr>
+          <th>Operator</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>switchMap</code></td>
+          <td>
+            Cancel the previous inner stream when a new value arrives. <strong>Type-ahead search</strong> — you only
+            want results for the latest query.
+          </td>
+        </tr>
+        <tr>
+          <td><code>mergeMap</code></td>
+          <td>
+            Run all inner streams concurrently. <strong>Independent writes</strong> (e.g. save several items at once).
+          </td>
+        </tr>
+        <tr>
+          <td><code>concatMap</code></td>
+          <td>
+            Queue inner streams in order, one completing before the next starts. <strong>Order-sensitive</strong>
+            work.
+          </td>
+        </tr>
+        <tr>
+          <td><code>exhaustMap</code></td>
+          <td>Ignore new values while one is in flight. <strong>Submit buttons</strong> — block double-submits.</td>
+        </tr>
+      </tbody>
     </table>
-  </div>
 
-  <h2>Under the hood — an operator is just a function</h2>
-  <p>
-    A pipeable operator is a plain function with the shape
-    <code>(source: Observable&lt;T&gt;) =&gt; Observable&lt;R&gt;</code>. <code>pipe(a, b, c)</code> simply feeds the
-    source through <code>a</code>, its output through <code>b</code>, and so on — it's function composition, nothing
-    more. Crucially, all of this is still <strong>lazy</strong>: building a pipe wires up the machinery but runs no
-    code. Only <code>subscribe()</code> pulls values through. And because operators are standalone imports, the bundler
-    tree-shakes the ones you never use.
-  </p>
+    <p>In practice you never weigh all four. You ask these in order and stop at the first yes:</p>
 
-  <h2>Exam pitfalls</h2>
-  <ul>
-    <li>
-      <strong>Nothing happens without <code>subscribe()</code>.</strong> A pipe with no subscriber (and no
-      <code>async</code> pipe / <code>toSignal</code>) never executes.
-    </li>
-    <li>
-      <strong><code>switchMap</code> for writes loses data.</strong> A second save cancels the first in-flight request.
-      Use <code>concatMap</code> (ordered) or <code>mergeMap</code> (parallel) for mutations; reserve
-      <code>switchMap</code> for reads where only the latest matters.
-    </li>
-    <li>
-      <strong><code>catchError</code> in the wrong place.</strong> On the outer stream it kills the whole pipeline; put
-      it on the <em>inner</em> stream so one failure doesn't deaden the source.
-    </li>
-    <li>
-      <strong>Nested subscribes.</strong> <code>a$.subscribe(x =&gt; b$.subscribe(...))</code> is an anti-pattern — you
-      lose cancellation and error propagation. Flatten with a <code>*Map</code> operator instead.
-    </li>
-    <li>
-      <strong><code>debounceTime</code> without <code>distinctUntilChanged</code></strong> still re-fires when the
-      settled value equals the previous one (e.g. type, delete, retype the same query).
-    </li>
-  </ul>
+    <app-flow
+      [steps]="choosing"
+      caption="Note that the first question settles most cases — which is also why `switchMap` ends up pasted into places it does not belong."
+    />
+  </section>
 
-  <app-quiz
-    question="A type-ahead moves its `catchError(() => of([]))` from inside the `switchMap` callback to the end of the outer `.pipe()`. The next search request fails with a 500. What does the user experience?"
-    [options]="catchOptions"
-    followUp="A rule that saves you every time: `catchError` belongs as close to the thing that can fail as you can put it. On the inner request it protects one lookup; on the outer stream it protects nothing and kills everything."
-  />
+  <!-- ============ 6. TRY IT — TYPE-AHEAD ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it — reads want switchMap</p>
+    <h2>The type-ahead from the top of this page, for real.</h2>
 
-  <app-faq [items]="questions" />
+    <p>
+      Same scenario as the very first question here. Type into the box below — fast, slow, delete and retype — and watch
+      the gap between raw keystrokes and searches actually issued.
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Operators chain in <code>.pipe()</code>; each returns a new Observable, never mutating the source.</li>
-    <li>
-      Daily drivers: <code>map</code>, <code>filter</code>, <code>tap</code>, <code>debounceTime</code>,
-      <code>distinctUntilChanged</code>, <code>take</code>, <code>scan</code>, <code>startWith</code>.
-    </li>
-    <li>
-      Flatten nested streams with <code>switchMap</code>/<code>mergeMap</code>/<code>concatMap</code>/<code
-        >exhaustMap</code
-      >
-      — the choice is about concurrency.
-    </li>
-    <li>
-      Type-ahead → <code>switchMap</code>; parallel writes → <code>mergeMap</code>; ordered → <code>concatMap</code>;
-      submit → <code>exhaustMap</code>.
-    </li>
-    <li>Marble diagrams are the fastest way to reason about what an operator does.</li>
-  </ul>
+    <div class="demo">
+      <p class="demo__title">Live — type fast; only the settled query "searches"</p>
+      <input
+        aria-label="search"
+        (input)="onType($any($event.target).value)"
+        placeholder="search…"
+        style="width: 100%; margin-bottom: 10px"
+      />
+      <p>
+        raw keystrokes: <strong>{{ keystrokes() }}</strong>
+      </p>
+      <p>
+        actual searches fired: <strong style="color: var(--green)">{{ searches() }}</strong>
+      </p>
+      <p>
+        result: <code>{{ result() }}</code>
+      </p>
+      <p class="demo__note">
+        <code>debounceTime(400)</code> + <code>distinctUntilChanged()</code> collapse the bursts;
+        <code>switchMap</code> cancels stale lookups so only the last query's result shows.
+      </p>
+    </div>
 
-  <p><a routerLink="/rxjs-subjects">Next: Subjects →</a></p>
+    <app-code-lab
+      file="search-box.component.ts"
+      [code]="typeaheadSample"
+      [notes]="typeaheadNotes"
+      notesLabel="What each operator in this pipe is doing"
+    />
+
+    <app-napkin lead="try it —" label="Hands-on prompt">
+      Open your browser's Network tab, then type a whole word into the search box above at a normal typing speed. Watch
+      requests appear — there's no real network call here, but imagine each "search fired" as one. You should see far
+      fewer than one per keystroke.
+    </app-napkin>
+
+    <app-quiz
+      question="A type-ahead moves its `catchError(() => of([]))` from inside the `switchMap` callback to the end of the outer `.pipe()`. The next search request fails with a 500. What does the user experience?"
+      [options]="catchOptions"
+      followUp="A rule that saves you every time: `catchError` belongs as close to the thing that can fail as you can put it. On the inner request it protects one lookup; on the outer stream it protects nothing and kills everything."
+    />
+  </section>
+
+  <!-- ============ 7. TRY IT — THE RACE ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it — same trigger, two policies, raced live</p>
+    <h2>Fire the same event through both operators and watch them diverge.</h2>
+
+    <p>
+      Press <strong>Fire</strong> a few times quickly. Each press starts a ~700ms async task tagged with its number.
+      <code>switchMap</code> cancels any in-flight task when a new one starts — so only the <em>last</em> of a burst
+      finishes. <code>mergeMap</code> lets them all run — so every task finishes. This is exactly why
+      <code>switchMap</code> is right for search but <strong>wrong for saving data</strong>:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">
+        Live — fired: <code>{{ fired().join(', ') || '—' }}</code>
+      </p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="fire()">Fire task #{{ fired().length + 1 }}</button>
+        <button class="ghost" (click)="resetRace()">reset</button>
+      </div>
+      <table class="t">
+        <thead>
+          <tr>
+            <th>Operator</th>
+            <th>Tasks that actually completed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>switchMap</code></td>
+            <td>
+              <code>{{ switchOut().join(', ') || '(waiting…)' }}</code>
+              <span style="color: var(--text-muted)">← stale ones were cancelled</span>
+            </td>
+          </tr>
+          <tr>
+            <td><code>mergeMap</code></td>
+            <td>
+              <code>{{ mergeOut().join(', ') || '(waiting…)' }}</code>
+              <span style="color: var(--text-muted)">← all ran to completion</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <app-code-lab
+      file="race.component.ts"
+      [code]="raceSample"
+      [notes]="raceNotes"
+      notesLabel="The one-word difference that causes this"
+    />
+
+    <app-napkin lead="predict first —" label="Guess before you press reset">
+      Reset, then click Fire five times as fast as you can. Guess both arrays before you look: how many entries in
+      <code>switchOut</code>, and how many in <code>mergeOut</code>? Now try clicking once every second instead — did
+      your guess for <code>switchOut</code> change?
+    </app-napkin>
+  </section>
+
+  <!-- ============ 8. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>An operator isn't special syntax. It's a function you could write yourself.</h2>
+
+    <p>
+      A pipeable operator is a plain function shaped
+      <code>(source: Observable&lt;T&gt;) =&gt; Observable&lt;R&gt;</code>. <code>pipe(a, b, c)</code> is just calling
+      <code>a</code> on the source, then <code>b</code> on that result, then <code>c</code> — function composition,
+      nothing more. Here's <code>map</code>, minus the library, written by hand:
+    </p>
+
+    <app-code-lab
+      file="double.operator.ts"
+      [code]="operatorSample"
+      [notes]="operatorNotes"
+      notesLabel="Building a pipeable operator from scratch"
+    />
+
+    <p>
+      This is also why the whole pipe is <strong>lazy</strong>: building it wires up nested functions but calls none of
+      them. Only <code>subscribe()</code> — right at the bottom of <code>double</code>, when something downstream
+      finally subscribes to the Observable it returns — pulls a value through the whole chain.
+    </p>
+
+    <app-predict
+      prompt="This is `switchMap` doing exactly what it promises, in a place where that promise is a disaster. What reaches the server?"
+      [code]="autosaveSample"
+      answer="Almost nothing — plausibly just the very last draft, and possibly not even that. Every time the debounce settles, `switchMap` unsubscribes from the save that is still in flight, which aborts the request mid-write. Ten seconds of typing produces a handful of cancelled POSTs and one survivor. The cruel part is that it *looks* like it works in development, where the API answers in 20ms and nothing is ever still in flight when the next draft arrives. It only breaks on a slow connection, which is exactly when losing someone's work hurts most. `concatMap` queues the saves so every one lands in order; `exhaustMap` is the other reasonable answer if you would rather skip intermediate drafts than queue them."
+    />
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        Operators chain in <code>.pipe()</code>; each returns a <strong>new</strong> Observable, never mutating the
+        source. Nothing runs until something <code>.subscribe()</code>s.
+      </li>
+      <li>
+        Daily drivers: <code>map</code>, <code>filter</code>, <code>tap</code>, <code>debounceTime</code>,
+        <code>distinctUntilChanged</code>, <code>take</code>, <code>scan</code>, <code>startWith</code>.
+      </li>
+      <li>
+        Flatten nested streams with the <strong>four receptionists</strong> —
+        <code>switchMap</code>/<code>mergeMap</code>/<code>concatMap</code>/<code>exhaustMap</code> — the choice is
+        about what happens to the call still in progress.
+      </li>
+      <li>
+        <span class="key">Reads want <code>switchMap</code>. Writes never do.</span> Type-ahead →
+        <code>switchMap</code>; parallel writes → <code>mergeMap</code>; ordered → <code>concatMap</code>; submit →
+        <code>exhaustMap</code>.
+      </li>
+      <li>
+        <code>catchError</code> belongs on the <strong>inner</strong> observable, inside the flattening callback — on
+        the outer stream it terminates the whole pipeline instead of just one failed request.
+      </li>
+    </ul>
+
+    <p><a routerLink="/rxjs-subjects">Next: Subjects →</a></p>
+  </section>
 </article>
