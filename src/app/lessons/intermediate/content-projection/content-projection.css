@@ -1,20 +1,8 @@
-.t {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-  margin: 12px 0;
-}
-.t th,
-.t td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-  text-align: left;
-}
-.t th {
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+/* Table styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15) — the `.t` block that used to live here was a
+   per-lesson copy of a rule the theme now owns for every `<table>` inside a
+   `.lesson.bf` article, so it has been deleted rather than kept dead.
+
+   Nothing else in this lesson needs styling of its own: Panel, TabGroup and
+   BadgeHost (the live demo components) carry their own component styles, and
+   every callout/code/demo shell comes from the shared theme. */
