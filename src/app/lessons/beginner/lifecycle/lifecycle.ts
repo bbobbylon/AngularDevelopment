@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LifecycleLog } from './lifecycle.shared';
 import { LifecycleChild } from './lifecycle-child/lifecycle-child';
-import { BfPage, Bubbles, Chapter, CodeLab, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
@@ -49,6 +49,7 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     Bubbles,
     Chapter,
     CodeLab,
+    Napkin,
     TapeCard,
     Compare,
     Faq,
