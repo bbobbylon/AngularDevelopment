@@ -1,7 +1,7 @@
 # Backlog
 
 **Version:** 1.1
-**Last Updated:** 2026-08-31
+**Last Updated:** 2026-09-06
 **Status:** Living document
 
 ## Overview
@@ -238,7 +238,27 @@ reflect batch 6 yet (see the trap below). Its batch-7 pass fully superseded the 
 one and reached 9/9, so nothing needs redoing, but batch 7 therefore added 7 _new_ lessons,
 not 8. Net new since the 37-of-100 count above: 10 (batches 5–6) + 7 (batch 7) = 17.
 
-**Lessons — remaining: 46.** Order them worst-first by `node scripts/audit-retention.mjs`,
+**Batch 8 — 8 more lessons landed 2026-09-06, rollout now 62 of 100.** Cleared the entire
+4/9 band and the two smallest of the 5/9 band: `intermediate/async-validators`,
+`intermediate/route-guards`, `intermediate/testing-components`, `typescript/interfaces`,
+`beginner/template-forms`, `intermediate/reactive-forms`, `beginner/interpolation`,
+`foundations/terminal-and-npm`. Run as 8 parallel fresh agents, each scoped to touch only
+its own lesson folder; the coordinating session independently verified every one before
+committing it individually (`prettier --check`, `tsc --noEmit`, `audit-retention.mjs` to
+9/9, greps for the raw-`{`/raw-`@`/accessible-name traps) plus one full `npm run test:ci`
+and one production `ng build` at the end of the batch — not per lesson, to avoid running
+eight builds/test-suites concurrently. All 8 landed at 9/9 with no rewrites needed.
+
+One real regression surfaced only in the full-suite run, not in per-lesson checks: **the
+a11y WCAG scan timeout (`src/app/a11y.spec.ts`, `SCAN_TIMEOUT_MS`) had to be raised from
+30s to 60s.** `intermediate/testing-components` is now the densest lesson in the curriculum
+(16 `<app-code-lab>` blocks) and ran ~21s in isolation — comfortably under 30s alone, but
+tipped past it under the memory/GC pressure of mounting and destroying ~120 other lesson
+components earlier in the same suite run. This is the same constant that was already raised
+once before, from a 5s default, for `/interview`. Content density is legitimate here (bar 1
+depth), so the fix was the timeout, not trimming the lesson.
+
+**Lessons — remaining: 38.** Order them worst-first by `node scripts/audit-retention.mjs`,
 exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
 means rewriting it against the nine-point bar anyway. Six lessons already have a solid
 retention pass from an earlier (pre-brain-friendly) session and just need the presentation
