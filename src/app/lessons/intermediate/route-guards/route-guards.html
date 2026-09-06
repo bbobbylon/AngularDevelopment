@@ -1,347 +1,465 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Routing</span>
-  <h1>Functional Route Guards</h1>
-  <p class="lead">
-    Guards decide whether navigation may proceed. Modern guards are just functions that <code>inject()</code> services
-    and return <code>boolean</code>, a <code>UrlTree</code> / <code>RedirectCommand</code> (to redirect), or an
-    <code>Observable</code>/<code>Promise</code> of those.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Intermediate · Routing"
+    title="Functional Route Guards"
+    hand="or, the airport security line your navigation has to clear"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Guards are the yes/no checkpoints a navigation has to clear before Angular lets it happen — and a modern guard is
+      nothing more than a plain function. Each one <code>inject()</code>s whatever it needs and returns
+      <strong>boolean</strong>, a <strong>UrlTree</strong>/<strong>RedirectCommand</strong> (redirect instead), or an
+      <strong>Observable</strong>/<strong>Promise</strong> of either. This page walks the whole checkpoint line in the
+      order a real navigation actually clears it.
+    </p>
+  </app-chapter>
 
-  <h2>CanActivate — protect a route</h2>
-  <div class="code">
-    <pre>{{ authSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="breakdown">
-    <tr>
-      <th>Line</th>
-      <th>What it does</th>
-    </tr>
-    @for (item of authBreakdown; track item.code) {
-      <tr>
-        <td>
-          <code>{{ item.code }}</code>
-        </td>
-        <td>{{ item.explain }}</td>
-      </tr>
-    }
-  </table>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Can your app actually say no to a navigation?</h2>
 
-  <h2>Guard return types — the full menu</h2>
-  <p>
-    Every guard type accepts the same union of return values. The type you pick changes what the router does next —
-    memorize this table, exam questions love to swap one row for another:
-  </p>
-  <table class="breakdown">
-    <tr>
-      <th>Return</th>
-      <th>Meaning</th>
-      <th>Example</th>
-    </tr>
-    <tr>
-      <td><code>true</code></td>
-      <td>Allow navigation to proceed exactly as requested.</td>
-      <td><code>return true;</code></td>
-    </tr>
-    <tr>
-      <td><code>false</code></td>
-      <td>Block navigation outright — no redirect, no message, just cancelled.</td>
-      <td><code>return false;</code></td>
-    </tr>
-    <tr>
-      <td><code>UrlTree</code></td>
-      <td>Cancel this navigation and atomically start a new one at the given URL.</td>
-      <td><code>return router.createUrlTree(['/login']);</code></td>
-    </tr>
-    <tr>
-      <td><code>RedirectCommand</code></td>
-      <td>
-        Same redirect behaviour as <code>UrlTree</code>, but also lets you pass navigation options (e.g.
-        <code>skipLocationChange</code>).
-      </td>
-      <td><code>return new RedirectCommand(router.parseUrl('/login'));</code></td>
-    </tr>
-    <tr>
-      <td><code>Observable&lt;...&gt;</code></td>
-      <td>
-        Any of the above, resolved asynchronously. The router takes the FIRST emitted value and unsubscribes — the
-        source must complete or navigation hangs.
-      </td>
-      <td><code>return this.auth.isLoggedIn$.pipe(first());</code></td>
-    </tr>
-    <tr>
-      <td><code>Promise&lt;...&gt;</code></td>
-      <td>Same async contract as an Observable, resolved once.</td>
-      <td><code>return firstValueFrom(this.http.get('/api/check'));</code></td>
-    </tr>
-  </table>
-
-  <h2>The guard types</h2>
-  <table class="cmp">
-    <tr>
-      <td><code>CanActivateFn</code></td>
-      <td>Can the user enter this route?</td>
-    </tr>
-    <tr>
-      <td><code>CanActivateChildFn</code></td>
-      <td>Can the user enter any child route? (guard a parent's children once)</td>
-    </tr>
-    <tr>
-      <td><code>CanDeactivateFn</code></td>
-      <td>May the user leave? (e.g. unsaved-changes prompt)</td>
-    </tr>
-    <tr>
-      <td><code>CanMatchFn</code></td>
-      <td>
-        Should this route even match? Runs <em>before</em> lazy loading — feature flags, role-based bundles, A/B routes.
-      </td>
-    </tr>
-  </table>
-
-  <h2>Execution order</h2>
-  <p>
-    A single navigation runs guards in a fixed sequence — and only reaches resolvers if every guard passes. Knowing the
-    order explains a lot of "why didn't my guard run?" confusion:
-  </p>
-  <div class="code">
-    <pre>{{ orderSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="breakdown">
-    <tr>
-      <th>Step</th>
-      <th>Why it's there</th>
-    </tr>
-    @for (item of orderBreakdown; track item.code) {
-      <tr>
-        <td>
-          <code>{{ item.code }}</code>
-        </td>
-        <td>{{ item.explain }}</td>
-      </tr>
-    }
-  </table>
-
-  <h2>Live — auth guard &amp; unsaved-changes guard</h2>
-  <div class="demo">
-    <p class="demo__title">Live — CanActivate</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="loggedIn.set(!loggedIn())">{{ loggedIn() ? 'Log out' : 'Log in' }}</button>
-      <span class="pill">isLoggedIn: {{ loggedIn() }}</span>
-      <button class="ghost" (click)="attempt()">Navigate to /admin</button>
-    </div>
     <p>
-      guard result: <strong>{{ outcome() }}</strong>
+      Click a link in Angular and, left alone, <strong>nothing stops it</strong>: the router matches a URL, builds a
+      component, and puts it on screen. If a page has to stay behind a login, or a form shouldn't be abandoned with
+      unsaved changes, <em>something</em> has to be able to interrupt that process before it finishes. A guard is
+      exactly that — a function the router asks a yes/no question at a specific moment, with the power to cancel the
+      whole thing or send it somewhere else instead.
     </p>
-  </div>
-  <div class="demo">
-    <p class="demo__title">Live — CanDeactivate</p>
-    <div class="row" style="margin-bottom: 10px">
-      <input aria-label="edit me" placeholder="edit me…" (input)="dirty.set(true)" style="width: 240px" />
-      <button (click)="dirty.set(false)">Save</button>
-      <button class="ghost" (click)="leave()">Leave page</button>
-    </div>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      A route guard for <code>/admin</code> returns <code>false</code>. Does the browser's address bar change? Now
+      imagine it returns a <code>UrlTree</code> pointing at <code>/login</code> instead — does the address bar change
+      <em>then</em>? The two answers are not the same, and the reason why is most of the first half of this page.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular's guards are an airport security line.</h2>
+
     <p>
-      guard result: <strong>{{ leaveOutcome() }}</strong>
+      Picture a single line strung between where you are and where you're trying to go, with four checkpoints on it —
+      and, crucially, each one is asked at a <strong>different moment</strong>, not all at once.
     </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Type to make the form dirty, then "Leave" — the guard blocks. Save first, and it lets you go.
-    </p>
-  </div>
 
-  <h2>Live — canMatch vs canActivate on a lazy route</h2>
-  <p>
-    Same feature flag, two different guard types, two very different costs when the flag is off. Toggle the flag, reset
-    the "chunk downloaded" indicator, then fire both buttons and watch exactly when the (simulated) network request
-    happens.
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — /beta is lazy-loaded; guarding it two ways</p>
-    <div class="row" style="margin-bottom: 10px">
-      <button (click)="betaFlag.set(!betaFlag())">{{ betaFlag() ? 'Feature flag: ON' : 'Feature flag: OFF' }}</button>
-      <span class="pill">chunk downloaded: {{ chunkDownloaded() }}</span>
-      <button class="ghost" (click)="resetChunk()">Reset chunk</button>
-    </div>
-    <div class="row" style="margin-bottom: 10px">
-      <button class="ghost" (click)="tryCanActivate()">Navigate to /beta (canActivate guard)</button>
-      <button class="ghost" (click)="tryCanMatch()">Navigate to /beta (canMatch guard)</button>
-    </div>
     <p>
-      canActivate result: <strong>{{ activateOutcome() }}</strong>
+      <span class="term">CanMatch</span> is the departures board. Before you've walked anywhere, it decides whether a
+      gate for your flight is even <em>listed</em> — if your ticket doesn't clear it, the destination was never
+      announced, not denied. <span class="term">CanActivate</span> is the ID check at the gate: you've already walked
+      all the way there (the chunk is downloaded), and now someone checks whether <em>you</em>, specifically, may go
+      through. <span class="term">CanActivateChild</span> is that same ID check, posted once at the entrance to a whole
+      terminal and re-applied at every gate inside it. <span class="term">CanDeactivate</span> is customs on your way
+      <strong>out</strong> — before the airport even looks at where you're headed next, it checks whether you're trying
+      to leave your current spot with something undeclared, like a form full of unsaved changes.
     </p>
+
     <p>
-      canMatch result: <strong>{{ matchOutcome() }}</strong>
-    </p>
-    <p style="color: var(--text-muted); font-size: 0.85rem">
-      Turn the flag off, reset the chunk, then try each button in turn: canActivate always downloads the lazy chunk
-      before it even asks the guard a question, while canMatch never requests it when the flag is off — it just falls
-      through as if the route weren't registered at all.
-    </p>
-  </div>
-
-  <h2>CanDeactivate &amp; CanMatch in code</h2>
-  <div class="code">
-    <pre>{{ deactivateSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="breakdown">
-    <tr>
-      <th>Line</th>
-      <th>What it does</th>
-    </tr>
-    @for (item of deactivateBreakdown; track item.code) {
-      <tr>
-        <td>
-          <code>{{ item.code }}</code>
-        </td>
-        <td>{{ item.explain }}</td>
-      </tr>
-    }
-  </table>
-  <div class="warn">
-    To redirect, <strong>return</strong> a <code>UrlTree</code> (<code>router.createUrlTree([...])</code>) or a
-    <code>RedirectCommand</code> — don't call <code>router.navigate()</code> yourself, which races the navigation the
-    guard is resolving. Returning a redirect cancels the current navigation and starts the new one atomically. Multiple
-    guards on a route <strong>all</strong> must pass (logical AND, in array order); the first falsy/redirect result
-    stops the rest.
-  </div>
-
-  <h2>Under the hood — how the router actually runs a guard</h2>
-  <p>
-    Guards feel like magic — a bare function suddenly has DI and the ability to reroute the whole app. Here's the
-    (simplified, conceptual) shape of what
-    <code>Router.navigateByUrl()</code> is doing so none of it feels like magic anymore:
-  </p>
-  <div class="code">
-    <pre>{{ underTheHoodSample }}</pre>
-  </div>
-  <h3>Line-by-line</h3>
-  <table class="breakdown">
-    <tr>
-      <th>Line</th>
-      <th>What's really happening</th>
-    </tr>
-    @for (item of underTheHoodBreakdown; track item.code) {
-      <tr>
-        <td>
-          <code>{{ item.code }}</code>
-        </td>
-        <td>{{ item.explain }}</td>
-      </tr>
-    }
-  </table>
-  <div class="note">
-    The single most exam-relevant detail here: <code>inject()</code> only works because the router wraps your guard call
-    in <code>runInInjectionContext()</code>, and that wrapping only covers the <strong>synchronous</strong> call. Call
-    <code>inject()</code> after an <code>await</code>, inside a <code>.then()</code>, or inside a
-    <code>setTimeout</code> and it throws — grab every service you need at the very top of the guard, before anything
-    async happens.
-  </div>
-
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong><code>navigate()</code> inside a guard.</strong> Return a <code>UrlTree</code>/<code
-        >RedirectCommand</code
+      In code, every one of those checkpoints is the exact same shape: a function typed <code>CanActivateFn</code>,
+      <code>CanMatchFn</code>, <code>CanActivateChildFn</code> or <code>CanDeactivateFn</code>, returning
+      <code>boolean</code> (yes/no), a <code>UrlTree</code> (go here instead), or an <code>Observable</code>/<code
+        >Promise</code
       >
-      instead — imperative navigation races the in-flight one.
-    </li>
-    <li>
-      <strong>Guarding a lazy route's download.</strong> <code>canActivate</code> fetches the chunk first, then denies.
-      Use <code>canMatch</code> to skip the download.
-    </li>
-    <li>
-      <strong>Assuming guards run in parallel.</strong> They're sequential per phase and short-circuit on the first
-      block.
-    </li>
-    <li>
-      <strong>Async guard that never completes.</strong> Like resolvers, an Observable guard must emit and complete, or
-      navigation hangs — pipe <code>first()</code>.
-    </li>
-    <li>
-      <strong>Forgetting <code>CanDeactivate</code> gets the component instance.</strong> Its first arg is your
-      component, so you can read <code>hasUnsavedChanges()</code>.
-    </li>
-    <li>
-      <strong>Treating a rejected <code>canMatch</code> like a rejected <code>canActivate</code>.</strong> A false
-      <code>canMatch</code> just removes that route from consideration and the router tries the next matching route — it
-      does <em>not</em> cancel the navigation the way a false <code>canActivate</code> does.
-    </li>
-    <li>
-      <strong>Calling <code>inject()</code> asynchronously inside a guard.</strong> It only works synchronously at the
-      top of the function, before any <code>await</code>/ <code>.then()</code>/<code>setTimeout</code> — the injection
-      context is gone by then.
-    </li>
-  </ul>
+      of either when the checkpoint needs to ask someone first.
+    </p>
 
-  <h2>Exam corner</h2>
-  <details class="qa">
-    <summary>How do you redirect from a guard?</summary>
-    <div>
-      Return <code>router.createUrlTree(['/login'])</code> or a <code>RedirectCommand</code>. Never call
-      <code>navigate()</code> — it races the current navigation.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Which guard stops a lazy chunk from downloading for the wrong user?</summary>
-    <div>
-      <code>canMatch</code> — it runs before the route matches, so the chunk is never fetched.
-      <code>canActivate</code> fetches first.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>Two <code>canActivate</code> guards — do both run?</summary>
-    <div>
-      Yes, in array order, and both must pass. The first to return <code>false</code>/a redirect stops navigation and
-      skips the rest.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>How does <code>CanDeactivate</code> know the form is dirty?</summary>
-    <div>
-      Its signature includes the component being left as the first argument, so it can call something like
-      <code>component.hasUnsavedChanges()</code>.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A <code>canMatch</code> guard on <code>/beta</code> returns false. What happens to the navigation?
-    </summary>
-    <div>
-      Nothing is cancelled — the router treats <code>/beta</code> as though it never matched and tries the next route in
-      the config with the same path (or a wildcard). Compare a false <code>canActivate</code>, which cancels the whole
-      navigation outright unless a redirect was returned.
-    </div>
-  </details>
-  <details class="qa">
-    <summary>
-      A guard calls <code>inject(AuthService)</code> inside a <code>.then()</code> callback and Angular throws. Why?
-    </summary>
-    <div>
-      <code>inject()</code> only works inside an active injection context, and the router only wraps the
-      <em>synchronous</em> call to your guard in that context. By the time a <code>.then()</code> callback runs, the
-      context is already gone — inject everything you need synchronously, at the top of the guard, before going async.
-    </div>
-  </details>
+    <app-remember variant="mnemonic">
+      <strong>Leave, then match, then enter.</strong> Every guard question is really "which of these three checkpoints
+      failed?" <code>CanDeactivate</code> always runs first, on the OLD route — before the router has even decided
+      whether the new one exists.
+    </app-remember>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      Guards are functions returning <code>boolean</code> | <code>UrlTree</code> | <code>RedirectCommand</code> |
-      <code>Observable</code>/<code>Promise</code>.
-    </li>
-    <li>Order: deactivate → canMatch → canActivate → canActivateChild → resolvers.</li>
-    <li>Return a redirect to reroute; never call <code>navigate()</code> inside a guard.</li>
-    <li><code>canMatch</code> gates lazy loading; <code>canDeactivate</code> protects unsaved work.</li>
-    <li>
-      A false <code>canMatch</code> lets the router fall through to the next route; a false
-      <code>canActivate</code> cancels the navigation outright — they are not interchangeable.
-    </li>
-    <li>
-      <code>inject()</code> inside a guard only works synchronously, at the top of the function, thanks to
-      <code>runInInjectionContext()</code> — grab your services before any async work.
-    </li>
-  </ul>
+    <app-bubbles
+      [turns]="navigationTalk"
+      caption="One click, from `/admin/edit` to `/admin/settings` — every checkpoint it clears, in order"
+    />
+  </section>
 
-  <p><a routerLink="/resolvers">Next: Resolvers &amp; Route Data →</a></p>
+  <!-- ============ 3. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One guard is one function that answers one question.</h2>
+
+    <p>
+      No classes, no decorators, no lifecycle to implement — a guard is a plain function the router calls at the right
+      moment and reads a return value from. Here's the classic one: does the current user get into <code>/admin</code>?
+    </p>
+
+    <app-code-lab file="auth.guard.ts" [code]="authSample" [notes]="authNotes" notesLabel="What each line is doing" />
+
+    <p>
+      Four guard types exist, and every one of them shares that exact shape. What changes between them is only
+      <strong>when</strong> the router asks the question — mapped here onto the checkpoints from the analogy above:
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="CanMatch" kicker="does the gate exist?" tone="blue">
+        Checked while the router is still matching a URL to a route — before any lazy chunk downloads. A
+        <code>false</code> doesn't cancel anything; the router just tries the next route registered at the same path.
+      </app-tape-card>
+      <app-tape-card heading="CanActivate" kicker="ID check at the gate" tone="gold">
+        The route already matched — its chunk is downloaded either way. This asks whether THIS user, specifically, may
+        enter it. A <code>false</code> cancels the navigation outright.
+      </app-tape-card>
+      <app-tape-card heading="CanActivateChild" kicker="covers every gate past this one" tone="accent">
+        Declared once on a parent route, but Angular re-asks it for every matched child beneath that parent — one guard
+        protecting a whole section.
+      </app-tape-card>
+      <app-tape-card heading="CanDeactivate" kicker="customs on the way out" tone="olive">
+        Checked on the route you're LEAVING, before the router has looked at the destination at all. The only guard type
+        that receives your live component instance.
+      </app-tape-card>
+    </div>
+
+    <div class="note">
+      Learn that one return-value contract once and you've learned all four guard types. The only real differences are
+      <em>when</em> each one is asked, and — for <code>CanDeactivate</code> — the extra argument it receives.
+    </div>
+  </section>
+
+  <!-- ============ 4. CHECKPOINT 1 — MATCHING ============ -->
+  <section>
+    <p class="bf-eyebrow">Checkpoint 1 of 3 · matching</p>
+    <h2>Does a route even exist for this URL, for this user?</h2>
+
+    <p>
+      Same feature flag, same lazy route, two different guard types — and two very different costs when the flag is off:
+    </p>
+
+    <app-compare
+      leftTitle="canActivate — blunt"
+      rightTitle="canMatch — precise"
+      leftTone="bad"
+      rightTone="good"
+      note="Same feature flag, same lazy route — only the guard type changes which side of the network request the decision lands on."
+    >
+      <div left>
+        <p>
+          The route matches regardless of the flag. Its lazy chunk downloads <strong>before</strong> the guard is even
+          consulted. If the flag is off, the download already happened for a user who was never getting in — bytes spent
+          on nothing.
+        </p>
+      </div>
+      <div right>
+        <p>
+          <code>canMatch</code> runs <strong>during</strong> matching. If the flag is off, this
+          <code>Route</code> object is never selected — the <code>import()</code> behind
+          <code>loadComponent</code> never executes, and the router simply tries the next <code>Route</code> registered
+          at the same path.
+        </p>
+      </div>
+    </app-compare>
+
+    <app-code-lab
+      file="feature-flag.guard.ts"
+      [code]="canMatchSample"
+      [notes]="canMatchNotes"
+      notesLabel="A guard factory, and a route that falls through"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — /beta is lazy-loaded; guarding it two ways</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="betaFlag.set(!betaFlag())">{{ betaFlag() ? 'Feature flag: ON' : 'Feature flag: OFF' }}</button>
+        <span class="pill">chunk downloaded: {{ chunkDownloaded() }}</span>
+        <button class="ghost" (click)="resetChunk()">Reset chunk</button>
+      </div>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button class="ghost" (click)="tryCanActivate()">Navigate to /beta (canActivate guard)</button>
+        <button class="ghost" (click)="tryCanMatch()">Navigate to /beta (canMatch guard)</button>
+      </div>
+      <p>
+        canActivate result: <strong>{{ activateOutcome() }}</strong>
+      </p>
+      <p>
+        canMatch result: <strong>{{ matchOutcome() }}</strong>
+      </p>
+      <p class="demo__note">
+        Turn the flag off, reset the chunk, then try each button in turn: <code>canActivate</code> always downloads the
+        lazy chunk before it even asks the guard a question, while <code>canMatch</code> never requests it when the flag
+        is off — it just falls through as if the route weren't registered at all.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. CHECKPOINT 2 — ENTERING ============ -->
+  <section>
+    <p class="bf-eyebrow">Checkpoint 2 of 3 · activating</p>
+    <h2>The route exists. May this user actually enter it?</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — CanActivate</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="loggedIn.set(!loggedIn())">{{ loggedIn() ? 'Log out' : 'Log in' }}</button>
+        <span class="pill">isLoggedIn: {{ loggedIn() }}</span>
+        <button class="ghost" (click)="attempt()">Navigate to /admin</button>
+      </div>
+      <p>
+        guard result: <strong>{{ outcome() }}</strong>
+      </p>
+    </div>
+
+    <p>Every guard type accepts the exact same union of return values. The type you pick changes what happens next:</p>
+
+    <table>
+      <caption class="bf-table-caption">
+        The whole return-value menu — shared by every guard type
+      </caption>
+      <thead>
+        <tr>
+          <th>Return</th>
+          <th>Meaning</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>true</code></td>
+          <td>Allow navigation to proceed exactly as requested.</td>
+          <td><code>return true;</code></td>
+        </tr>
+        <tr>
+          <td><code>false</code></td>
+          <td>Block navigation outright — no redirect, no message, just cancelled.</td>
+          <td><code>return false;</code></td>
+        </tr>
+        <tr>
+          <td><code>UrlTree</code></td>
+          <td>Cancel this navigation and atomically start a new one at the given URL.</td>
+          <td><code>return router.createUrlTree(['/login']);</code></td>
+        </tr>
+        <tr>
+          <td><code>RedirectCommand</code></td>
+          <td>
+            Same redirect behaviour as <code>UrlTree</code>, but also lets you pass navigation options (e.g.
+            <code>skipLocationChange</code>).
+          </td>
+          <td><code>return new RedirectCommand(router.parseUrl('/login'));</code></td>
+        </tr>
+        <tr>
+          <td><code>Observable&lt;...&gt;</code></td>
+          <td>
+            Any of the above, resolved asynchronously. The router takes the FIRST emitted value and unsubscribes — the
+            source must complete or navigation hangs.
+          </td>
+          <td><code>return this.auth.isLoggedIn$.pipe(first());</code></td>
+        </tr>
+        <tr>
+          <td><code>Promise&lt;...&gt;</code></td>
+          <td>Same async contract as an Observable, resolved once.</td>
+          <td><code>return firstValueFrom(this.http.get('/api/check'));</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <app-remember variant="rule">
+      <strong>Return the redirect, don't drive it.</strong> A guard hands the router a <code>UrlTree</code> and lets the
+      router act on it as one atomic decision. Calling <code>router.navigate()</code> yourself starts a second,
+      independent navigation that races the one already in flight.
+    </app-remember>
+
+    <app-predict
+      prompt="A developer writes this guard, tests it by hand, and it looks correct — clicking a protected link while logged out lands them on `/login`. What's actually wrong with it, and when does it show up?"
+      [code]="navigateRaceSample"
+      answer="Returning `false` tells the router “cancel this navigation, no destination” — a `NavigationCancel` and nothing else. But this guard ALSO imperatively fires `router.navigate(['/login'])` in the same breath, which the router treats as a completely separate second navigation it did not initiate. For one manual click the two rarely collide, so it looks correct. The bug shows up under load — a slower guard, a double-click, anything else redirecting around the same time — where the two competing navigations can race: the guarded page can flash on screen for a frame before the redirect lands, or the wrong one of the two can win. Returning a `UrlTree` instead makes the redirect part of the SAME atomic decision the router is already making, so there's nothing left to race."
+      revealLabel="See the race"
+    />
+  </section>
+
+  <!-- ============ 6. CHECKPOINT 3 — LEAVING ============ -->
+  <section>
+    <p class="bf-eyebrow">Checkpoint 3 of 3 · leaving</p>
+    <h2>Before any of that — were you even allowed to leave where you were?</h2>
+
+    <p>
+      This checkpoint is numbered third here because it's the one people forget, but remember the mnemonic above:
+      <code>CanDeactivate</code> actually runs <strong>first</strong>, chronologically, on every real navigation — the
+      router has to know you can leave before it spends any effort on where you're going.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — CanDeactivate</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <input aria-label="edit me" placeholder="edit me…" (input)="dirty.set(true)" style="width: 240px" />
+        <button (click)="dirty.set(false)">Save</button>
+        <button class="ghost" (click)="leave()">Leave page</button>
+      </div>
+      <p>
+        guard result: <strong>{{ leaveOutcome() }}</strong>
+      </p>
+      <p class="demo__note">
+        Type to make the form dirty, then "Leave" — the guard blocks. Save first, and it lets you go.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="unsaved.guard.ts"
+      [code]="deactivateSample"
+      [notes]="deactivateNotes"
+      notesLabel="The one guard type that sees your component"
+    />
+  </section>
+
+  <!-- ============ 7. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What is <code>Router.navigateByUrl()</code> actually doing?</h2>
+
+    <p>
+      Guards feel like magic — a bare function suddenly has DI and the power to reroute the whole app. Here's the
+      (simplified, conceptual) shape of what's really happening, so none of it stays magic:
+    </p>
+
+    <app-code-lab
+      file="router.ts — navigateByUrl(), simplified"
+      [code]="underTheHoodSample"
+      [notes]="underTheHoodNotes"
+      notesLabel="What the router is really doing, step by step"
+      prompt="Does a rejected `canMatch` guard produce the same `NavigationCancel` event on `Router.events` that a rejected `canActivate` does?"
+      output="No — `canMatch` failing isn't a cancellation at all. The router just discards that `Route` object as a non-match and tries the next one at the same path, so there's no `NavigationCancel` and no error. `canActivate`, `canActivateChild` and `canDeactivate` are the three that actually cancel and fire `NavigationCancel` when they fail."
+      revealLabel="Reveal the answer"
+    />
+
+    <div class="note">
+      The single most exam-relevant detail here: <code>inject()</code> only works because the router wraps the call to
+      your guard in <code>runInInjectionContext()</code>, and that wrapping only covers the
+      <span class="bf-break">synchronous</span> part of the call. Call <code>inject()</code> after an
+      <code>await</code>, inside a <code>.then()</code>, or inside a <code>setTimeout</code> and it throws — grab every
+      service you need at the very top of the guard, before anything async happens.
+    </div>
+  </section>
+
+  <!-- ============ 8. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Three checkpoints, one shared answer shape.</h2>
+
+    <app-flow
+      [steps]="guardOrderFlow"
+      direction="vertical"
+      caption="The full order for a navigation from `/admin/edit` (dirty) to `/admin/settings` — notice CanDeactivate is checked against a completely different route than everything below it"
+    />
+
+    <table>
+      <caption class="bf-table-caption">
+        What a false or a redirect actually does, checkpoint by checkpoint
+      </caption>
+      <thead>
+        <tr>
+          <th>Checkpoint</th>
+          <th>A <code>false</code> result</th>
+          <th>A <code>UrlTree</code> / <code>RedirectCommand</code> result</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>CanDeactivate</code> — leaving</td>
+          <td>Navigation is cancelled — you stay exactly where you were.</td>
+          <td>Cancelled, then a new navigation starts at the returned URL instead.</td>
+        </tr>
+        <tr>
+          <td><code>CanMatch</code> — matching</td>
+          <td>This <code>Route</code> is skipped; the router tries the next <code>Route</code> at the same path.</td>
+          <td>
+            The same atomic redirect as any other guard — though most <code>canMatch</code> guards only ever return a
+            plain boolean.
+          </td>
+        </tr>
+        <tr>
+          <td><code>CanActivate</code> / <code>CanActivateChild</code> — entering</td>
+          <td>Navigation is cancelled outright.</td>
+          <td>Cancelled, then a new navigation starts at the returned URL instead.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="warn">
+      <strong>A guard on a parent route does not automatically protect its children.</strong>
+      <code>canActivate: [authGuard]</code> on <code>/admin</code> only ever runs for <code>/admin</code> itself — a
+      child like <code>/admin/settings</code> activates completely unguarded unless the parent also declares
+      <code>canActivateChild</code> (or every child repeats its own <code>canActivate</code>). There is no error or
+      warning when this is forgotten.
+    </div>
+
+    <app-quiz
+      question="`/admin` has `canActivate: [authGuard]` and no `canActivateChild`. A logged-out user pastes the URL `/admin/settings` — a child route of `/admin` with no guard of its own — directly into the address bar. What actually happens?"
+      [options]="cascadeQuizOptions"
+    />
+  </section>
+
+  <!-- ============ 9. PITFALLS ============ -->
+  <section>
+    <p class="bf-eyebrow">Exam corner</p>
+    <h2>Five ways this bites people in real code and in exams.</h2>
+
+    <ul>
+      <li>
+        <strong><code>navigate()</code> inside a guard.</strong> Return a <code>UrlTree</code>/<code
+          >RedirectCommand</code
+        >
+        instead — imperative navigation races the in-flight one, exactly as the predict box above demonstrated.
+      </li>
+      <li>
+        <strong>Guarding a lazy route's download.</strong> <code>canActivate</code> fetches the chunk first, then
+        denies. Use <code>canMatch</code> to skip the download entirely.
+      </li>
+      <li>
+        <strong>Assuming a parent's <code>canActivate</code> covers its children.</strong> It never does — that's what
+        <code>canActivateChild</code> is for, and forgetting it fails silently.
+      </li>
+      <li>
+        <strong>An async guard that never completes.</strong> Like resolvers, an <code>Observable</code> guard must emit
+        and complete, or navigation hangs forever — pipe <code>first()</code>.
+      </li>
+      <li>
+        <strong>Calling <code>inject()</code> asynchronously inside a guard.</strong> It only works synchronously at the
+        top of the function, before any <code>await</code>/<code>.then()</code>/<code>setTimeout</code> — the injection
+        context is gone by then.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 10. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 11. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        Guards are functions returning <code>boolean</code> | <code>UrlTree</code> | <code>RedirectCommand</code> — or
+        an <code>Observable</code>/<code>Promise</code> of any of those. All four guard types share this exact contract.
+      </li>
+      <li>
+        Order in one navigation: <code>CanDeactivate</code> (old route) → <code>CanMatch</code> →
+        <code>CanActivate</code> → <code>CanActivateChild</code> → resolvers → activate. The route you're
+        <strong>leaving</strong> is checked before the router has looked at where you're going.
+      </li>
+      <li>
+        <strong>Return the redirect, don't drive it.</strong> A <code>UrlTree</code>/<code>RedirectCommand</code> is one
+        atomic decision the router acts on; calling <code>router.navigate()</code> inside a guard starts a second,
+        racing navigation.
+      </li>
+      <li>
+        <code>canMatch</code> decides before the lazy chunk downloads; <code>canActivate</code> decides after. A false
+        <code>canMatch</code> quietly tries the next route at the same path — a false <code>canActivate</code> cancels
+        the navigation outright.
+      </li>
+      <li>
+        <code>canActivate</code> on a parent does <strong>not</strong> protect its children on its own —
+        <code>canActivateChild</code> is what closes that gap. And <code>inject()</code> inside any guard only works
+        synchronously, before the first <code>await</code>.
+      </li>
+    </ul>
+
+    <p><a routerLink="/resolvers">Next: Resolvers &amp; Route Data →</a></p>
+  </section>
 </article>
