@@ -1,3 +1,10 @@
+/* Tables, callouts and demo panels are all styled by the shared brain-friendly
+   layer now (src/brain-friendly.css §14–15), so the local `.qa`/table rules
+   that used to live here are gone — they were per-lesson copies of a rule the
+   theme now owns for every `.lesson.bf table`. What is left is genuinely
+   specific to this lesson: the field layout the live demos share, and the
+   inline error text colour. */
+
 .field {
   display: flex;
   flex-direction: column;
@@ -5,24 +12,8 @@
   margin-bottom: 12px;
   max-width: 340px;
 }
+
 .err {
-  color: var(--accent);
+  color: var(--bf-danger);
   font-size: 0.8rem;
-}
-.qa {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 10px 0;
-  overflow: hidden;
-}
-.qa summary {
-  cursor: pointer;
-  padding: 10px 14px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  background: var(--bg-elevated);
-}
-.qa div {
-  padding: 10px 14px;
-  font-size: 0.9rem;
 }

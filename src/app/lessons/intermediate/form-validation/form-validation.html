@@ -1,276 +1,526 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Forms</span>
-  <h1>Form Validation</h1>
-  <p class="lead">
-    Angular ships built-in validators and lets you write your own — including cross-field validators. Each control
-    exposes an <code>errors</code> object you use to show messages.
-  </p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="2"
+    kicker="Angular Intermediate · Forms"
+    title="Form Validation"
+    hand="or, how a control decides it's unhappy — and who's allowed to hear about it, and when"
+    [stops]="stops"
+    [current]="1"
+  >
+    <p class="lead">
+      Angular ships built-in validators, lets you write your own, and lets several fields gang up on one check together
+      — but almost every real bug in this area comes from two questions hiding underneath all of that:
+      <strong>when does a validator actually run</strong>, and
+      <strong>when is the user allowed to find out it failed</strong>? Get the first wrong and an async validator hits
+      your server on every keystroke. Get the second wrong and a brand-new empty form greets the user with a wall of red
+      before they've typed a single key. This page answers both, live.
+    </p>
+  </app-chapter>
 
-  <h2>The mental model: a pad of sticky notes</h2>
-  <p>
-    Picture every control with a small pad stuck to it. Each validator that <em>fails</em> writes one note with its own
-    name on it — <code>required</code>, <code>minlength</code>, <code>hasDigit</code>. Angular collects the notes into
-    one object, and that object is <code>control.errors</code>.
-  </p>
-  <p>
-    A clean control has no notes at all, which is why <code>errors</code> is <code>null</code> rather than
-    <code>&#123;&#125;</code> — and why a validator returns <code>null</code> to mean "valid". It isn't reporting
-    success; it's reporting <em>nothing to complain about</em>. Hold on to the pad: it explains two things later in this
-    lesson that otherwise look arbitrary.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>A required field is invalid the instant it's created. So why isn't it already red?</h2>
 
-  <app-remember>
-    A validator returns <code>null</code> when it is <strong>happy</strong>, and an object when it is not. It hands back
-    <em>the complaints it found</em> — so no complaints means nothing to hand back.
-  </app-remember>
+    <p>
+      Create <code>new FormControl('', Validators.required)</code> and, before anything else happens, that control
+      already has <code>errors: &#123; required: true &#125;</code>. Nobody clicked into it. Nobody typed anything. The
+      validator ran the moment the control existed, because that is simply what a validator <em>is</em> — a function
+      that gets asked "any complaints?" and the empty string already fails <code>required</code>.
+    </p>
 
-  <h2>Built-in validators</h2>
-  <div class="code">
-    <pre>
-Validators.required
-Validators.minLength(2) / maxLength(20)
-Validators.min(0) / max(100)
-Validators.email
-Validators.pattern(/^[a-z]+$/)
-Validators.requiredTrue   // for "accept terms" checkboxes</pre>
-  </div>
+    <p>
+      And yet the demo further down this page doesn't show a single red message on load. You have to click into the
+      username field and click back out again before anything appears.
+      <span class="key">Same control, same validator, same result</span> — so something else entirely is deciding
+      whether the user ever gets told.
+    </p>
 
-  <h2>Custom validator (a function returning errors or null)</h2>
-  <div class="code">
-    <pre>
-function hasDigit(): ValidatorFn {{ '{' }}
-  return (c: AbstractControl): ValidationErrors | null =&gt;
-    /\d/.test(c.value ?? '') ? null : {{ '{' }} hasDigit: true {{ '}' }};
-{{ '}' }}</pre>
-  </div>
+    <app-napkin lead="quick guess —" label="Predict before you scroll">
+      Two things are true at once here: the control really is <code>INVALID</code> from the first render, and the page
+      shows nothing wrong until you visit and leave the field. What flag do you think is standing between "invalid" and
+      "displayed as invalid"? "Which flag decides whether the user actually sees it?" further down names it exactly.
+    </app-napkin>
+  </section>
 
-  <h2>Cross-field validator (placed on the group)</h2>
-  <div class="code">
-    <pre>
-this.fb.group({{ '{' }} password: [''], confirm: [''] {{ '}' }},
-  {{ '{' }} validators: passwordsMatch {{ '}' }});   // group-level</pre>
-  </div>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Every control carries a small pad of sticky notes.</h2>
 
-  <h2>Try it</h2>
-  <div class="demo">
-    <p class="demo__title">Live</p>
-    <form [formGroup]="form">
-      <div class="field">
-        <label>Username (required, must contain a digit)</label>
-        <input aria-label="Username" formControlName="username" />
-        @if (ctrl('username').touched && ctrl('username').invalid) {
-          <small class="err">
-            @if (ctrl('username').errors?.['required']) {
-              Required.
-            }
-            @if (ctrl('username').errors?.['hasDigit']) {
-              Must contain a digit.
-            }
-          </small>
-        }
+    <p>
+      Picture every control with a pad stuck to it. Each validator that <em>fails</em> writes one note with its own name
+      on it — <code>required</code>, <code>minlength</code>, <code>hasDigit</code>. Angular collects the notes into one
+      object, and that object is <code>control.errors</code>.
+    </p>
+
+    <p>
+      A clean control has no notes at all, which is why <code>errors</code> is <code>null</code> rather than
+      <code>&#123;&#125;</code> — and why a validator returns <code>null</code> to mean "valid". It isn't reporting
+      success; it's reporting <em>nothing to complain about</em>. Hold on to the pad: it is doing more work in this
+      lesson than it looks like at first.
+    </p>
+
+    <app-remember variant="mnemonic">
+      A validator returns <code>null</code> when it is <strong>happy</strong>, and an object when it is not. It hands
+      back <em>the complaints it found</em> — so no complaints means nothing to hand back.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="mergeTalk"
+      caption="The pad and the touched flag from the napkin above, in one exchange — the control keeps its own notes, and the template decides on its own whether to repeat them."
+    />
+  </section>
+
+  <!-- ============ 3. THE SHAPE — CUSTOM VALIDATOR ============ -->
+  <section>
+    <p class="bf-eyebrow">The shape</p>
+    <h2>What does a custom validator actually look like?</h2>
+
+    <p>
+      Not special syntax — a plain function matching one signature: take a control, hand back an error object or
+      <code>null</code>. <code>Validators.required</code> and every other built-in validator match this exact shape,
+      which is the whole reason a hand-written one composes with them so easily.
+    </p>
+
+    <app-code-lab
+      file="username.validator.ts"
+      [code]="customValidatorSample"
+      [notes]="customValidatorNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
+  <!-- ============ 4. CROSS-FIELD VALIDATORS ============ -->
+  <section>
+    <p class="bf-eyebrow">One level up</p>
+    <h2>Where does a cross-field check actually go?</h2>
+
+    <p>
+      A validator that needs to compare <em>two</em> fields has a problem: it is only ever handed the one control it is
+      attached to. The fix isn't a cleverer function — it's attaching the exact same kind of function to a different
+      node in the tree, one that can actually see both fields.
+    </p>
+
+    <app-code-lab
+      file="password-form.ts"
+      [code]="crossFieldSample"
+      [notes]="crossFieldNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-compare
+      leftTitle="Wrong — attached to a control"
+      rightTitle="Right — attached to the group"
+      leftTone="bad"
+      rightTone="good"
+      note="Same function, same signature. The only thing that changed is which node in the tree it's attached to."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ wrongPlacementSample }}</pre>
+        </div>
+        <p>
+          Compiles fine, runs on every keystroke, and can <strong>never work</strong> — <code>control</code> here is
+          just the <code>confirm</code> field, and a `FormControl` has no method for reaching a sibling it doesn't even
+          know exists.
+        </p>
       </div>
-      <div class="field">
-        <label>Password (min 6)</label>
-        <input aria-label="Password" type="password" formControlName="password" />
+      <div right>
+        <div class="code">
+          <pre>{{ rightPlacementSample }}</pre>
+        </div>
+        <p>
+          The group is the one node with both <code>.get('password')</code> and <code>.get('confirm')</code> in reach.
+          Read the result from <code>form.errors</code> — not <code>confirm.errors</code>, which stays empty forever.
+        </p>
       </div>
-      <div class="field">
-        <label>Confirm password</label>
-        <input aria-label="Confirm" type="password" formControlName="confirm" />
-        @if (form.errors?.['mismatch'] && ctrl('confirm').touched) {
-          <small class="err">Passwords do not match.</small>
-        }
-      </div>
-      <p class="row">
-        <span class="pill">form valid: {{ form.valid }}</span>
+    </app-compare>
+  </section>
+
+  <!-- ============ 5. WHERE VALIDATORS CAN ATTACH ============ -->
+  <section>
+    <p class="bf-eyebrow">Zooming out</p>
+    <h2>Four places, and only four, a validator can attach.</h2>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="Control (array form)" kicker="sync only" tone="gold">
+        <code>['', [Validators.required]]</code> — the shorthand used everywhere in this lesson. Sync validators only;
+        it has no slot for an async one at all.
+      </app-tape-card>
+      <app-tape-card heading="Control (options object)" kicker="sync + async" tone="accent">
+        <code>&#123; validators: [...], asyncValidators: [...] &#125;</code> — the longer form, and the only one that
+        accepts <code>asyncValidators</code> or <code>updateOn</code>.
+      </app-tape-card>
+      <app-tape-card heading="FormGroup" kicker="cross-field" tone="olive">
+        The second argument to <code>.group()</code>. Sees every named child — this is where <code>passwordsMatch</code>
+        lives, above.
+      </app-tape-card>
+      <app-tape-card heading="FormArray" kicker="the list itself" tone="blue">
+        The second argument to <code>.array()</code>. Validates the array's own value — "at least one item" — never any
+        one element. See <a routerLink="/form-arrays">the FormArray lesson</a>.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 6. BUILT-IN VALIDATORS ============ -->
+  <section>
+    <p class="bf-eyebrow">The library</p>
+    <h2>Six you'll reach for in almost every form.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Every one follows the same contract: an object means unhappy, null means happy
+      </caption>
+      <thead>
+        <tr>
+          <th>Validator</th>
+          <th>Fails when</th>
+          <th>Error key</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Validators.required</code></td>
+          <td>Value is empty — <code>''</code>, <code>null</code>, or an empty array</td>
+          <td><code>required</code></td>
+        </tr>
+        <tr>
+          <td><code>Validators.requiredTrue</code></td>
+          <td>Value isn't exactly <code>true</code> — "accept the terms" checkboxes</td>
+          <td><code>required</code></td>
+        </tr>
+        <tr>
+          <td><code>Validators.minLength(n)</code> / <code>maxLength(n)</code></td>
+          <td>String or array length is out of range</td>
+          <td><code>minlength</code> / <code>maxlength</code></td>
+        </tr>
+        <tr>
+          <td><code>Validators.min(n)</code> / <code>max(n)</code></td>
+          <td>Numeric value is out of range</td>
+          <td><code>min</code> / <code>max</code></td>
+        </tr>
+        <tr>
+          <td><code>Validators.email</code></td>
+          <td>Value doesn't match a (loose) email shape — checks shape only, never that a mailbox exists</td>
+          <td><code>email</code></td>
+        </tr>
+        <tr>
+          <td><code>Validators.pattern(regex)</code></td>
+          <td>Value doesn't match your own <code>RegExp</code></td>
+          <td><code>pattern</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="warn">
+      <strong>The function is camelCase; the error key is not.</strong>
+      <code>Validators.minLength(6)</code> produces <code>errors?.['minlength']</code> — all lowercase, no capital L.
+      <code>errors?.['minLength']</code> compiles, runs, and
+      <span class="bf-break">silently reads <code>undefined</code> forever</span>. Same trap for
+      <code>maxLength</code> / <code>maxlength</code>.
+    </div>
+  </section>
+
+  <!-- ============ 7. TRY IT ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>Three validators, one form, live.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      <form [formGroup]="form">
+        <div class="field">
+          <label>Username (required, must contain a digit)</label>
+          <input aria-label="Username" formControlName="username" />
+          @if (ctrl('username').touched && ctrl('username').invalid) {
+            <small class="err">
+              @if (ctrl('username').errors?.['required']) {
+                Required.
+              }
+              @if (ctrl('username').errors?.['hasDigit']) {
+                Must contain a digit.
+              }
+            </small>
+          }
+        </div>
+        <div class="field">
+          <label>Password (min 6)</label>
+          <input aria-label="Password" type="password" formControlName="password" />
+          @if (ctrl('password').touched && ctrl('password').errors?.['minlength']) {
+            <small class="err">Needs at least 6 characters.</small>
+          }
+        </div>
+        <div class="field">
+          <label>Confirm password</label>
+          <input aria-label="Confirm" type="password" formControlName="confirm" />
+          @if (form.errors?.['mismatch'] && ctrl('confirm').touched) {
+            <small class="err">Passwords do not match.</small>
+          }
+        </div>
+        <p class="row">
+          <span class="pill">form valid: {{ form.valid }}</span>
+          <span class="pill">form status: {{ form.status }}</span>
+        </p>
+      </form>
+      <p class="demo__note">
+        Click into the username field and back out without typing anything — <code>required</code> appears the moment
+        it's <code>touched</code>, before you've changed a single character. Type a name with no digit in it and the
+        second note joins the pad. Mistype the confirm field and the mismatch message reads from
+        <code>form.errors</code>, not <code>confirm.errors</code> — exactly the placement from the compare panel above.
       </p>
-    </form>
-  </div>
-
-  <h2>Showing errors at the right time</h2>
-  <p>
-    Only show errors once a control is <code>touched</code> or <code>dirty</code>, so users are not yelled at before
-    they type. Read errors with <code>control.errors?.['errorKey']</code>.
-  </p>
-  <p>
-    Those two words are not interchangeable, and picking the wrong one is why a form either nags too early or stays
-    silent too long. Every control carries five independent flags:
-  </p>
-  <table class="cmp">
-    <tr>
-      <th>Flag</th>
-      <th>Means</th>
-      <th>Flips when</th>
-    </tr>
-    <tr>
-      <td><code>touched</code> / <code>untouched</code></td>
-      <td>The user <em>visited</em> the field</td>
-      <td>On <code>blur</code> — focus left, whether or not anything was typed</td>
-    </tr>
-    <tr>
-      <td><code>dirty</code> / <code>pristine</code></td>
-      <td>The user <em>changed</em> the value</td>
-      <td>On the first value change from the UI (not from <code>setValue</code>)</td>
-    </tr>
-    <tr>
-      <td><code>valid</code> / <code>invalid</code></td>
-      <td>Validators are satisfied</td>
-      <td>Whenever <code>updateValueAndValidity()</code> runs</td>
-    </tr>
-    <tr>
-      <td><code>pending</code></td>
-      <td>An async validator is still deciding</td>
-      <td>Sync pass came back clean and the async queue started</td>
-    </tr>
-    <tr>
-      <td><code>disabled</code></td>
-      <td>Excluded from the form entirely</td>
-      <td>
-        <code>disable()</code> — note it drops out of <code>form.value</code> and always reports
-        <code>valid</code>
-      </td>
-    </tr>
-  </table>
-  <p>
-    Tab straight through a form without typing and every control is <strong>touched but pristine</strong>. That is the
-    case that decides which flag you want: <code>touched</code> means "they have had their chance at this field", which
-    is almost always the right moment to speak up.
-  </p>
-
-  <h2>Controlling when validation runs</h2>
-  <div class="code">
-    <pre>
-// validate on blur/submit instead of every keystroke:
-new FormControl('', {{ '{' }} validators: [Validators.required], updateOn: 'blur' {{ '}' }});
-
-// react to validity changes:
-this.form.statusChanges.subscribe(s =&gt; ...);   // 'VALID' | 'INVALID' | 'PENDING'…
-
-// set/clear errors imperatively (e.g. from a server response):
-ctrl.setErrors({{ '{' }} taken: true {{ '}' }});
-ctrl.updateValueAndValidity();</pre>
-  </div>
-  <p>
-    <code>Validators.compose([...])</code> merges several validators into one; a validator returns an
-    <strong>error object</strong> (merged across all validators) or <code>null</code> when valid.
-  </p>
-
-  <h2>updateOn: 'change' vs 'blur'</h2>
-  <div class="demo">
-    <p class="demo__title">Live — clear a box, then look at its status before clicking away</p>
-    <div class="field">
-      <label>Live validation (<code>updateOn: 'change'</code>, the default)</label>
-      <input aria-label="Live Field" [formControl]="liveField" />
-      <small class="pill">status: {{ liveField.status }}</small>
     </div>
-    <div class="field">
-      <label>Deferred validation (<code>updateOn: 'blur'</code>)</label>
-      <input aria-label="Blur Field" [formControl]="blurField" />
-      <small class="pill">status: {{ blurField.status }}</small>
+  </section>
+
+  <!-- ============ 8. SHOWING ERRORS AT THE RIGHT TIME ============ -->
+  <section>
+    <p class="bf-eyebrow">Resolving the napkin</p>
+    <h2>Which flag decides whether the user actually sees it?</h2>
+
+    <p>
+      <code>touched</code> and <code>dirty</code> are not interchangeable, and picking the wrong one is why a form
+      either nags too early or stays silent too long. Every control carries five independent flags:
+    </p>
+
+    <table>
+      <caption class="bf-table-caption">
+        The five flags every control carries
+      </caption>
+      <thead>
+        <tr>
+          <th>Flag</th>
+          <th>Means</th>
+          <th>Flips when</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>touched</code> / <code>untouched</code></td>
+          <td>The user <em>visited</em> the field</td>
+          <td>On <code>blur</code> — focus left, whether or not anything was typed</td>
+        </tr>
+        <tr>
+          <td><code>dirty</code> / <code>pristine</code></td>
+          <td>The user <em>changed</em> the value</td>
+          <td>On the first value change from the UI (not from <code>setValue</code>)</td>
+        </tr>
+        <tr>
+          <td><code>valid</code> / <code>invalid</code></td>
+          <td>Validators are satisfied</td>
+          <td>Whenever <code>updateValueAndValidity()</code> runs</td>
+        </tr>
+        <tr>
+          <td><code>pending</code></td>
+          <td>An async validator is still deciding</td>
+          <td>Sync pass came back clean and the async queue started</td>
+        </tr>
+        <tr>
+          <td><code>disabled</code></td>
+          <td>Excluded from the form entirely</td>
+          <td>
+            <code>disable()</code> — note it drops out of <code>form.value</code> and always reports
+            <code>valid</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Tab straight through a form without typing and every control ends up <strong>touched but pristine</strong>. That
+      is the case that answers the napkin: <code>touched</code> means "they have had their chance at this field", which
+      is almost always the right moment to speak up — and it is exactly the flag the demo above gates its messages on.
+    </p>
+  </section>
+
+  <!-- ============ 9. CONTROLLING WHEN VALIDATION RUNS ============ -->
+  <section>
+    <p class="bf-eyebrow">One more control</p>
+    <h2>Controlling exactly when a validator fires.</h2>
+
+    <div class="code">
+      <pre>{{ controlSample }}</pre>
     </div>
-  </div>
-  <p style="color: var(--text-muted); font-size: 0.85rem">
-    Clear the first box and its status flips to <code>INVALID</code> immediately, on every keystroke. Clear the second
-    box — the status stays <code>VALID</code> (stale) until you tab or click away, because with
-    <code>updateOn: 'blur'</code> the control only reruns validation on the <code>blur</code> DOM event, not on every
-    <code>input</code> event.
-  </p>
 
-  <div class="tip">
-    Control states drive CSS classes too: <code>ng-valid</code>, <code>ng-invalid</code>, <code>ng-touched</code>,
-    <code>ng-dirty</code>, <code>ng-pending</code> — handy for styling without extra logic.
-  </div>
+    <p>
+      <code>Validators.compose([...])</code> merges several validators into one; a validator returns an
+      <strong>error object</strong> (merged across all validators) or <code>null</code> when valid.
+    </p>
 
-  <h2>Pitfalls that show up in exams &amp; code review</h2>
-  <ul>
-    <li>
-      <strong>Cross-field validator on a control.</strong> It belongs on the <code>FormGroup</code> — a single control
-      can't see its siblings. Read the error from <code>form.errors</code>, not the control's.
-    </li>
-    <li>
-      <strong>Showing errors immediately.</strong> Gate on <code>touched</code>/<code>dirty</code> so users aren't
-      warned before typing.
-    </li>
-    <li>
-      <strong>Reading a missing error key.</strong> <code>errors</code> is <code>null</code> when valid — use
-      <code>errors?.['required']</code>, never <code>errors['required']</code>.
-    </li>
-    <li>
-      <strong>setErrors clobbers other errors.</strong> <code>setErrors</code> replaces the whole object; merge if you
-      must keep existing keys, and call <code>updateValueAndValidity()</code> after imperative changes.
-    </li>
-    <li>
-      <strong>A validator with side effects.</strong> Validators must be pure and synchronous (async ones are a separate
-      slot) — no HTTP, no state mutation.
-    </li>
-  </ul>
+    <div class="tip">
+      Control states drive CSS classes too: <code>ng-valid</code>, <code>ng-invalid</code>, <code>ng-touched</code>,
+      <code>ng-dirty</code>, <code>ng-pending</code> — handy for styling without extra logic.
+    </div>
+  </section>
 
-  <app-faq [items]="questions" />
+  <!-- ============ 10. LIVE — change vs blur ============ -->
+  <section>
+    <p class="bf-eyebrow">Try it</p>
+    <h2>The same validator, two different triggers.</h2>
 
-  <app-predict
-    prompt="You mark a field invalid by hand after a server rejects it, then the user types one character. Is the message still there?"
-    [code]="setErrorsSample"
-    answer="It is gone. That keystroke triggers `updateValueAndValidity()`, which rebuilds `errors` from the validator functions — and none of them know anything about `taken`. Back to the sticky-note pad: `setErrors()` doesn't add a note, it throws away the whole pad and puts down a new one. The next revalidation does exactly the same thing to yours. To make a server error survive, it has to come from a validator the control actually owns (usually an async one), not be stapled on from outside."
-  />
+    <div class="demo">
+      <p class="demo__title">Live — clear a box, then look at its status before clicking away</p>
+      <div class="field">
+        <label>Live validation (<code>updateOn: 'change'</code>, the default)</label>
+        <input aria-label="Live Field" [formControl]="liveField" />
+        <small class="pill">status: {{ liveField.status }}</small>
+      </div>
+      <div class="field">
+        <label>Deferred validation (<code>updateOn: 'blur'</code>)</label>
+        <input aria-label="Blur Field" [formControl]="blurField" />
+        <small class="pill">status: {{ blurField.status }}</small>
+      </div>
+      <p class="demo__note">
+        Clear the first box and its status flips to <code>INVALID</code> immediately, on every keystroke. Clear the
+        second box — the status stays <code>VALID</code> (stale) until you tab or click away, because with
+        <code>updateOn: 'blur'</code> the control only reruns validation on the <code>blur</code> DOM event, not on
+        every <code>input</code> event.
+      </p>
+    </div>
+  </section>
 
-  <h2>Under the hood</h2>
+  <!-- ============ 11. THE SETERRORS TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Spot the trap</p>
+    <h2>You mark a field invalid by hand. Does it survive the next keystroke?</h2>
 
-  <p>Six steps run every time a control revalidates. The gate at step four is the one worth memorising:</p>
-  <app-flow
-    [steps]="pipeline"
-    caption="Sync validators are a filter, not just a first pass — the async queue never runs behind a failing one."
-  />
+    <app-predict
+      prompt="You mark a field invalid by hand after a server rejects it, then the user types one character. Is the message still there?"
+      [code]="setErrorsSample"
+      answer="It is gone. That keystroke triggers `updateValueAndValidity()`, which rebuilds `errors` from the validator functions — and none of them know anything about `taken`. Back to the sticky-note pad: `setErrors()` doesn't add a note, it throws away the whole pad and puts down a new one. The next revalidation does exactly the same thing to yours. To make a server error survive, it has to come from a validator the control actually owns (usually an async one), not be stapled on from outside."
+    />
+  </section>
 
-  <app-quiz
-    question="A username control has `Validators.required` (sync) and a `uniqueUsername` async validator that calls your API. The field is empty. Does the HTTP request fire?"
-    [options]="asyncGateOptions"
-    followUp="Worth knowing for real apps too: this gate is free debouncing against your own backend, and it is why an async validator behind a `required` never sees an empty value."
-  />
+  <!-- ============ 12. UNDER THE HOOD ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>Six steps run every time a control revalidates.</h2>
 
-  <ul>
-    <li>
-      <strong>A validator is just a function <code>(control) =&gt; ValidationErrors | null</code>.</strong>
-      <code>Validators.required</code> and friends are all plain functions matching <code>ValidatorFn</code>; the custom
-      <code>hasDigit()</code> above isn't special syntax — it's the exact same signature, which is why validators
-      compose so easily.
-    </li>
-    <li>
-      <strong><code>valueChanges</code> and <code>statusChanges</code> are Observables</strong>, not bespoke Angular
-      machinery — every <code>AbstractControl</code> exposes them as RxJS streams. The reactive-forms directives
-      (<code>formControlName</code>, <code>formGroup</code>, …) are themselves just subscribers wired up for you at bind
-      time.
-    </li>
-    <li>
-      <strong
-        >Sync validators run first, every time; async validators only run once every sync validator returns
-        <code>null</code>.</strong
-      >
-      Each control keeps two separate validator queues internally. <code>updateValueAndValidity()</code> runs the
-      synchronous queue immediately, and only if the control comes out <code>VALID</code> from that pass does it kick
-      off the async queue, flipping status to <code>PENDING</code> until every async validator resolves.
-    </li>
-    <li>
-      <strong
-        ><code>updateOn</code> decides which DOM event triggers that <code>updateValueAndValidity()</code> call</strong
-      >
-      — <code>'change'</code> (default) hooks the <code>input</code> event, <code>'blur'</code> hooks <code>blur</code>,
-      <code>'submit'</code> waits for the form's submit event. It changes <em>when</em> validators run, never
-      <em>what</em> they check.
-    </li>
-    <li>
-      <strong><code>setErrors()</code> bypasses the validator pipeline entirely.</strong> It writes directly to
-      <code>control.errors</code>, which is why it clobbers the whole object instead of merging — the next
-      <code>updateValueAndValidity()</code> call (from a value change, a blur, …) throws that away and rebuilds
-      <code>errors</code> from the validator functions again.
-    </li>
-  </ul>
+    <p>
+      The gate at step four is the one worth memorising — it's the reason an async validator is conditional, not just
+      slower:
+    </p>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>Compose built-in validators in the control's validator array.</li>
-    <li>A custom validator is <code>(control) =&gt; ValidationErrors | null</code>.</li>
-    <li>Cross-field validators go on the <code>FormGroup</code>, not a single control.</li>
-    <li>Gate error messages on <code>touched</code>/<code>dirty</code>; read via <code>errors</code>.</li>
-  </ul>
+    <app-flow
+      [steps]="pipeline"
+      caption="Sync validators are a filter, not just a first pass — the async queue never runs behind a failing one."
+    />
 
-  <p><a routerLink="/async-validators">Next: Async Validators →</a></p>
+    <app-quiz
+      question="A username control has `Validators.required` (sync) and a `uniqueUsername` async validator that calls your API. The field is empty. Does the HTTP request fire?"
+      [options]="asyncGateOptions"
+      followUp="Worth knowing for real apps too: this gate is free debouncing against your own backend, and it is why an async validator behind a `required` never sees an empty value. `intermediate/async-validators` picks up exactly here."
+    />
+
+    <ul>
+      <li>
+        <strong>A validator is just a function <code>(control) =&gt; ValidationErrors | null</code>.</strong>
+        <code>Validators.required</code> and friends are all plain functions matching <code>ValidatorFn</code>; the
+        custom <code>hasDigit()</code> above isn't special syntax — it's the exact same signature, which is why
+        validators compose so easily.
+      </li>
+      <li>
+        <strong><code>valueChanges</code> and <code>statusChanges</code> are Observables</strong>, not bespoke Angular
+        machinery — every <code>AbstractControl</code> exposes them as RxJS streams. The reactive-forms directives
+        (<code>formControlName</code>, <code>formGroup</code>, …) are themselves just subscribers wired up for you at
+        bind time.
+      </li>
+      <li>
+        <strong
+          >Sync validators run first, every time; async validators only run once every sync validator returns
+          <code>null</code>.</strong
+        >
+        Each control keeps two separate validator queues internally. <code>updateValueAndValidity()</code> runs the
+        synchronous queue immediately, and only if the control comes out <code>VALID</code> from that pass does it kick
+        off the async queue, flipping status to <code>PENDING</code> until every async validator resolves.
+      </li>
+      <li>
+        <strong
+          ><code>updateOn</code> decides which DOM event triggers that
+          <code>updateValueAndValidity()</code> call</strong
+        >
+        — <code>'change'</code> (default) hooks the <code>input</code> event, <code>'blur'</code> hooks
+        <code>blur</code>, <code>'submit'</code> waits for the form's submit event. It changes <em>when</em> validators
+        run, never <em>what</em> they check.
+      </li>
+      <li>
+        <strong><code>setErrors()</code> bypasses the validator pipeline entirely.</strong> It writes directly to
+        <code>control.errors</code>, which is why it clobbers the whole object instead of merging — the next
+        <code>updateValueAndValidity()</code> call (from a value change, a blur, …) throws that away and rebuilds
+        <code>errors</code> from the validator functions again.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 13. FIELD NOTES ============ -->
+  <section>
+    <p class="bf-eyebrow">Field notes</p>
+    <h2>What actually goes wrong in code review.</h2>
+    <ul>
+      <li>
+        <strong>Cross-field validator on a control.</strong> It belongs on the <code>FormGroup</code> — a single control
+        can't see its siblings. Read the error from <code>form.errors</code>, not the control's.
+      </li>
+      <li>
+        <strong>Showing errors immediately.</strong> Gate on <code>touched</code>/<code>dirty</code> so users aren't
+        warned before typing.
+      </li>
+      <li>
+        <strong>Reading a missing error key.</strong> <code>errors</code> is <code>null</code> when valid — use
+        <code>errors?.['required']</code>, never <code>errors['required']</code>.
+      </li>
+      <li>
+        <strong>setErrors clobbers other errors.</strong> <code>setErrors</code> replaces the whole object; merge if you
+        must keep existing keys, and call <code>updateValueAndValidity()</code> after imperative changes.
+      </li>
+      <li>
+        <strong>A validator with side effects.</strong> Validators must be pure and synchronous (async ones are a
+        separate slot) — no HTTP, no state mutation.
+      </li>
+      <li>
+        <strong>Wrong-case error key.</strong> <code>minlength</code> / <code>maxlength</code> are lowercase; there's a
+        callout on exactly this above the built-in validators table.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 14. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" />
+  </section>
+
+  <!-- ============ 15. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        A validator returns <code>null</code> when it's happy and an object when it isn't — it's reporting
+        <strong>complaints, not verdicts</strong>, which is why "nothing wrong" is <code>null</code> rather than
+        <code>&#123;&#125;</code>.
+      </li>
+      <li>
+        Cross-field validators go on the <strong>FormGroup</strong>, via its second argument — never on a single
+        control, which can only ever see itself.
+      </li>
+      <li>
+        <code>touched</code> means visited, <code>dirty</code> means edited.
+        <strong>Gate error messages on <code>touched</code></strong> so a form doesn't nag before anyone has had a
+        chance to type.
+      </li>
+      <li>
+        Sync validators run first, every time;
+        <strong>the async queue only starts once every sync validator returns <code>null</code></strong> — a deliberate
+        gate, not a coincidence.
+      </li>
+      <li>
+        <code>setErrors()</code> bypasses the whole pipeline and <strong>replaces</strong> the entire errors object —
+        the next <code>updateValueAndValidity()</code>, from any keystroke or blur, throws it away and rebuilds from the
+        real validators again.
+      </li>
+    </ul>
+
+    <p><a routerLink="/async-validators">Next: Async Validators →</a></p>
+  </section>
 </article>
