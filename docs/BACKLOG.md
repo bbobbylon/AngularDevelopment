@@ -1,6 +1,6 @@
 # Backlog
 
-**Version:** 1.2
+**Version:** 1.3
 **Last Updated:** 2026-09-06
 **Status:** Living document
 
@@ -369,19 +369,48 @@ segfault memory), not a real regression; one of the 8 agents independently confi
 same flakiness exists on a clean `master` with no lesson changes at all, and that `npm ci`
 (which also repaired a corrupted cached esbuild/rollup tarball) reliably clears it.
 
-**Lessons — remaining: 6.** Order them worst-first by `node scripts/audit-retention.mjs`,
-exactly as §1.1 does — the two passes are now the same pass, because migrating a lesson
-means rewriting it against the nine-point bar anyway. All 6 already score 9/9 from an
-earlier (pre-brain-friendly) retention pass and just need the presentation layer built on
-top: `foundations/json-and-apis`, `intermediate/attribute-directives`,
+**Batch 13 — the final 6 lessons landed 2026-09-06, rollout now 100 of 100. Lesson rollout
+complete.** `foundations/json-and-apis`, `intermediate/attribute-directives`,
 `intermediate/testing-services-http`, `projects/data-dashboard`, `projects/task-manager`,
-`projects/auth-flow`. Roughly an hour each; the copy is the work, not the wiring. The last
-three are `projects/` tier — full interactive builds (Kanban board, JWT login flow, sales
-dashboard), not single-concept lessons — so expect the migration to need more care staging
-the existing app-sized demo inside the new structure than a concept lesson does. Read
-`src/app/lessons/expert/change-detection/change-detection.ts` first: its class JSDoc
-records the teaching order the layer is designed around (pose the problem → analogy →
-mechanism → same idea in four modes), and copying that shape is most of the job.
+`projects/auth-flow` — the last three `projects/`-tier, full interactive builds (a JSON/API
+explorer, a Kanban board, a JWT login flow, a sales dashboard) rather than single-concept
+lessons. Run as 6 parallel fresh agents; verified the same way as every batch since 8 —
+`prettier --check` (`task-manager.html` excluded per its `.prettierignore` entry — see
+`CONTRIBUTING.md` §8), `tsc --noEmit`, `audit-retention.mjs` to 9/9, and every `CodeNote`
+line number manually recounted against its exact sample string using `awk`-numbered ground
+truth rather than eyeballing tool output — visually parsing dense code blocks by eye proved
+unreliable partway through this batch and produced one false positive that a second,
+programmatic count corrected.
+
+Off-by-one `CodeNote` bugs survived the agents' own drafts and were caught only by this
+manual recount: `intermediate/attribute-directives`' `badgeNotes` had the `.update()` note
+tagged line 22 instead of 21, and the `#b="appBadge"` note tagged line 27 instead of 26; its
+`tooltipNotes` had the `if (this.tip)` guard note tagged line 26 instead of 25;
+`projects/data-dashboard`'s `writersNotes` had the `setSort()` page-reset note tagged line
+12 instead of 13. All four fixed in place before committing. Every other `CodeNote` across
+all 6 lessons' ~45 annotated samples checked out exactly. This continues the pattern from
+every prior batch's manual pass: real bugs keep surviving agents' own verification, so the
+recount is load-bearing, not a formality.
+
+Each agent also self-caught real content bugs in its own first draft before handing off,
+independently confirmed correct once fixed: `testing-services-http`'s `coldOptions` quiz
+distractor originally claimed `provideHttpClient()`/`provideHttpClientTesting()` order
+doesn't matter, contradicting the lesson's own code — corrected to say Angular resolves the
+last provider for a token, so order does matter; `task-manager` had 8 instances of
+unsupported single-`*asterisk*` emphasis (the shared `RichText` renderer only supports
+backtick spans and `**bold**`) across both new and pre-existing Faq/Quiz/Flow copy;
+`auth-flow` self-caught and fixed 6 off-by-line-number `CodeNote` bugs in its own first
+draft, and its live demo form correctly binds `email`/`password` signals through
+`[ngModel]`/`(ngModelChange)` rather than `[(ngModel)]`, since a signal isn't a plain
+settable property — worth a second look if that wiring is ever touched again;
+`attribute-directives` fixed a dead unused `ElementRef`/`Renderer2` injection in
+`BadgeDirective`, a broken "Next" link that skipped the now-existing `structural-directives`
+lesson, and a redundant `.t` CSS class per `brain-friendly.css`'s own guidance that a
+migrated lesson can delete its table CSS entirely.
+
+Full `npm run test:ci` (469/469, all 23 spec files) and a production `ng build` both passed
+clean at the end of this batch, confirming all 6 lessons are mutually compatible and the
+rollout is genuinely finished, not just individually verified.
 
 **Non-lesson pages — new as of 2026-09-03, 5 of 15 done.** The theme flip above fixed
 colour/type consistency for free; it does not fix a page's own hard-coded colours or give

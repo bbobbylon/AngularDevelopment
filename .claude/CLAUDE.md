@@ -416,15 +416,16 @@ section rhythm, and the line-annotation rules.
 
 **Rollout state (2026-09-06):** the brain-friendly palette and typography are now the
 app's ONE unconditional default theme — every page, migrated or not, chrome included,
-inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). On top of that: 94 of 100
-lessons are through the combined retention + brain-friendly pass, and 5 of 15 non-lesson
-pages (home, certification, practice, mock-exam, review) have had their own colour/motion
-restyle. See `docs/BACKLOG.md` §1.2 for the current count before starting a batch — it is
-the shared source of truth and has been caught stale before, causing a wasted duplicate
-rewrite — plus the build-breaking traps found so far. Nothing sits below 9/9 any more.
-Continue worst-first on both lessons and the remaining non-lesson pages — the non-lesson
-pages get a restyle pass (tokens, colour audit, motion), never the lesson component set
-(no Chapter/CodeLab/Quiz/Predict/Faq on a dashboard or practice engine).
+inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). On top of that: **100 of 100
+lessons are through the combined retention + brain-friendly pass — the lesson rollout is
+complete.** 5 of 15 non-lesson pages (home, certification, practice, mock-exam, review)
+have had their own colour/motion restyle; 10 remain (progress, coding-tasks,
+api-playground, exam-day, flashcards, interview, glossary, bookmarks, coming-soon,
+not-found). See `docs/BACKLOG.md` §1.2 for detail — it is the shared source of truth and
+has been caught stale before, causing a wasted duplicate rewrite — plus the build-breaking
+traps found so far. Nothing sits below 9/9 any more. Continue worst-first on the remaining
+non-lesson pages — a restyle pass (tokens, colour audit, motion), never the lesson
+component set (no Chapter/CodeLab/Quiz/Predict/Faq on a dashboard or practice engine).
 
 **The retention pass and the presentation pass are now one pass.** Since 2026-08-31,
 migrating a lesson to the brain-friendly layer means rewriting it against the nine-point
