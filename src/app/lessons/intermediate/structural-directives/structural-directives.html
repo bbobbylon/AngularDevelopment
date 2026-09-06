@@ -1,218 +1,341 @@
-<article class="lesson">
-  <span class="lesson__eyebrow">Intermediate · Pipes &amp; Directives</span>
-  <h1>Custom Structural Directives</h1>
-  <p class="lead">
-    A <strong>structural</strong> directive changes the shape of the DOM — it adds and removes whole template blocks.
-    It's the exact mechanism behind <code>&#64;if</code>, <code>&#64;for</code> and the legacy
-    <code>*ngIf</code>/<code>*ngFor</code>. The trick it's built on: a directive can inject the <em>template</em> it's
-    attached to (<code>TemplateRef</code>) and a place to render copies of it (<code>ViewContainerRef</code>), then
-    stamp or clear that template on demand.
-  </p>
-
-  <h2>The mental model: blueprints and a building lot</h2>
-  <p>
-    A <code>TemplateRef</code> is a set of architectural drawings. It is a real, complete description of a building —
-    every wall, every wire — and absolutely nobody lives in it. A <code>ViewContainerRef</code> is an empty lot with a
-    surveyor's stake in the ground. Your structural directive is the developer holding both, and
-    <code>createEmbeddedView</code> is the moment it decides to actually build.
-  </p>
-  <p>
-    Three things fall straight out of that picture. You can build the same drawings on the lot five times, which is
-    exactly what <code>*appRepeat</code> does below. <code>vcr.clear()</code> is demolition rather than boarding up the
-    windows — the components inside are destroyed and their subscriptions torn down, which is the real difference
-    between a structural directive and <code>[hidden]</code>. And the stake stays in the ground whether or not anything
-    is built on it, which is that <code>&lt;!--container--&gt;</code> comment you keep seeing in DevTools.
-  </p>
-
-  <app-remember>
-    <strong><code>TemplateRef</code> is the blueprint; <code>ViewContainerRef</code> is the lot.</strong> The
-    <code>*</code> is just the paperwork that turns your markup into drawings instead of a house.
-  </app-remember>
-
-  <h2>The <code>*</code> is pure syntax sugar</h2>
-  <p>
-    The asterisk has no magic of its own — it tells Angular to wrap the host element in an
-    <code>&lt;ng-template&gt;</code> and move the directive onto it. These two are compiled to exactly the same thing:
-  </p>
-  <div class="code">
-    <pre>{{ desugarSample }}</pre>
-  </div>
-  <p>
-    This is why you can't put two structural directives on one element: there's only one host to wrap, so
-    <code>*ngIf</code> and <code>*ngFor</code> together is a compile error. You nest them (or, in modern Angular, use
-    <code>&#64;if</code> inside <code>&#64;for</code>).
-  </p>
-
-  <h2>The whole pipeline, in order</h2>
-
-  <app-flow
-    [steps]="pipeline"
-    caption="Only one element can be wrapped, which is why only one star per element. The wrapper is what the directive matches — your element is now cargo inside it."
-  />
-
-  <h2>Anatomy of the directive</h2>
-  <div class="code">
-    <pre>{{ directiveSample }}</pre>
-  </div>
-  <ul>
-    <li>
-      <code>selector: '[appUnless]'</code> — an attribute selector; the template writes it as <code>*appUnless</code>.
-    </li>
-    <li>
-      <code>inject(TemplateRef)</code> — a handle to the content between the tags. It is <em>not</em> rendered yet; it's
-      a blueprint.
-    </li>
-    <li><code>inject(ViewContainerRef)</code> — the anchor in the DOM where copies get inserted.</li>
-    <li>
-      <code>&#64;Input() set appUnless(...)</code> — a <strong>setter</strong> input. It runs every time the bound value
-      changes, which is where we decide to stamp or clear.
-    </li>
-    <li><code>createEmbeddedView(tpl)</code> — instantiates the template into the container (renders it).</li>
-    <li>
-      <code>vcr.clear()</code> — destroys the rendered view. The <code>rendered</code> flag stops us doing redundant
-      work.
-    </li>
-  </ul>
-
-  <h2>Live #1 — toggle with <code>*appUnless</code></h2>
-  <div class="demo">
-    <p class="demo__title">Live — renders only while <code>hidden</code> is false</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="hidden.set(!hidden())">{{ hidden() ? 'Show' : 'Hide' }} the message</button>
-      <span class="pill">hidden = {{ hidden() }}</span>
-    </div>
-    <p *appUnless="hidden()" style="color: var(--green)">
-      ✅ I exist in the DOM because <code>hidden</code> is false. Toggle it and this whole element is created/destroyed
-      — not just hidden with CSS.
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="3"
+    kicker="Angular Intermediate · Pipes &amp; Directives"
+    title="Custom Structural Directives"
+    hand="or, how &#64;if and &#64;for get built from nothing but two injectable handles"
+    [stops]="stops"
+    [current]="2"
+  >
+    <p class="lead">
+      A <strong>structural</strong> directive changes the shape of the DOM — it adds and removes whole template blocks.
+      It's the exact mechanism behind <code>&#64;if</code>, <code>&#64;for</code> and the legacy
+      <code>*ngIf</code>/<code>*ngFor</code>. The trick it's built on: a directive can inject the <em>template</em>
+      it's attached to (<code>TemplateRef</code>) and a place to render copies of it (<code>ViewContainerRef</code>),
+      then stamp or clear that template on demand.
     </p>
-  </div>
-  <div class="tip">
-    Structural directives <strong>remove</strong> elements from the DOM, they don't hide them. That's different from
-    <code>[hidden]</code> or <code>display:none</code>, where the element still exists. Removal means child components
-    are destroyed and their subscriptions cleaned up.
-  </div>
+  </app-chapter>
 
-  <h2>One character, and the whole thing inverts</h2>
-  <p>
-    Look at the binding below and decide before reading on. The directive is byte-for-byte the one you just read, and
-    the signal really is <code>false</code>.
-  </p>
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Why not just <code>[hidden]</code> it?</h2>
 
-  <app-predict
-    prompt="`hidden` is a signal holding `false`. Does the paragraph render?"
-    [code]="signalSample"
-    answer="No — and worse, it will never render, no matter what you set the signal to. Without the parentheses you passed the signal **function itself**, not its value. A function object is truthy, so `condition` is permanently truthy, so the directive permanently takes the clear branch. Nothing warns you: `boolean` is what the setter declares, but a `*` binding is microsyntax rather than a normal type-checked expression, so `hidden` sails through. The tell is a condition that appears completely stuck — always on, or always off, regardless of the value you see in DevTools. Two habits kill it: read every template binding as *is this a value or a function?*, and prefer `input<boolean>()` over an `@Input` setter so the strict template checker gets a look at it."
-  />
+    <p>
+      Angular already has <code>[hidden]</code> and <code>[style.display]</code>. Both are one binding, both are simple,
+      and both would make <code>*ngIf</code> and <code>*ngFor</code> pointless reading if that were the whole story. So
+      here is the actual question: <span class="key">what does a star do that a plain attribute binding cannot?</span>
+    </p>
+    <p>
+      It isn't "handles conditions and lists" — <code>[hidden]</code> handles the condition case just fine. The real
+      difference is what a star directive does to <strong>memory</strong>: it doesn't just paint pixels on or off, it
+      can create real nodes and destroy them, subscriptions and all.
+    </p>
 
-  <h2>The microsyntax, decoded</h2>
-  <p>
-    The string after <code>*appRepeat=</code> isn't a normal expression — it's <strong>microsyntax</strong>, a
-    mini-grammar Angular parses into template inputs and <code>let</code> bindings. Take the loop form:
-  </p>
-  <div class="code">
-    <pre>{{ microsyntaxSample }}</pre>
-  </div>
-  <ul>
-    <li><code>let n</code> — declares a template variable; it receives the context's <code>$implicit</code>.</li>
-    <li><code>of items</code> — the word after <code>of</code> becomes the directive's main input.</li>
-    <li><code>let i = index</code> — binds a named context property (<code>index</code>) to a local.</li>
-    <li><code>;</code> — separates clauses. Semicolons, not commas.</li>
-  </ul>
+    <app-napkin lead="guess first —" label="Predict before reading on">
+      Two paragraphs, side by side. One sits behind <code>[hidden]="cond"</code>, the other behind
+      <code>*appUnless="cond"</code>. Right now, both look identically hidden. Each one contains a tiny child component
+      whose <code>ngOnDestroy</code> logs a line to the console. Flip <code>cond</code> to hide both — which one logs,
+      and which one stays completely silent? There's a live version of exactly this further down the page to check
+      yourself against.
+    </app-napkin>
+  </section>
 
-  <h2>Live #2 — passing context with <code>*appRepeat</code></h2>
-  <p>
-    This directive stamps its template N times, handing each copy a context object. The template pulls values out of
-    that context with <code>let</code>:
-  </p>
-  <div class="demo">
-    <p class="demo__title">Live — {{ times() }} cop{{ times() === 1 ? 'y' : 'ies' }}</p>
-    <div class="row" style="margin-bottom: 12px">
-      <button (click)="times.set(Math.max(0, times() - 1))">−</button>
-      <button (click)="times.set(times() + 1)">+</button>
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Picture a developer holding blueprints, standing on an empty lot.</h2>
+
+    <p>
+      A <code>TemplateRef</code> is a set of architectural drawings. It is a real, complete description of a building —
+      every wall, every wire — and absolutely nobody lives in it. A <code>ViewContainerRef</code> is an empty lot with a
+      surveyor's stake in the ground. Your structural directive is the developer holding both, and
+      <code>createEmbeddedView</code> is the moment it decides to actually build.
+    </p>
+    <p>
+      Three things fall straight out of that picture. You can build the same drawings on the lot five times, which is
+      exactly what <code>*appRepeat</code> does below. <code>vcr.clear()</code> is demolition rather than boarding up
+      the windows — <span class="bf-break">the components inside are destroyed and their subscriptions torn down</span>,
+      which is the real difference between a structural directive and <code>[hidden]</code>. And the stake stays in the
+      ground whether or not anything is built on it, which is that <code>&lt;!--container--&gt;</code> comment you keep
+      seeing in DevTools.
+    </p>
+
+    <app-remember>
+      <strong><code>TemplateRef</code> is the blueprint; <code>ViewContainerRef</code> is the lot.</strong> The
+      <code>*</code> is just the paperwork that turns your markup into drawings instead of a house.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="handoffTalk"
+      caption="What actually passes between the two injected handles when a directive stamps its content in."
+    />
+  </section>
+
+  <!-- ============ 3. THE MECHANISM, IN ORDER ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>The whole pipeline, in order.</h2>
+
+    <app-flow
+      [steps]="pipeline"
+      caption="Only one element can be wrapped, which is why only one star per element. The wrapper is what the directive matches — your element is now cargo inside it."
+    />
+  </section>
+
+  <!-- ============ 4. THE DESUGARING ============ -->
+  <section>
+    <p class="bf-eyebrow">The desugaring</p>
+    <h2>The <code>*</code> is pure syntax sugar.</h2>
+    <p>
+      The asterisk has no magic of its own — it tells Angular to wrap the host element in an
+      <code>&lt;ng-template&gt;</code> and move the directive onto <em>that</em>. These two compile to exactly the same
+      thing:
+    </p>
+
+    <app-compare leftTitle="What you write" rightTitle="What the compiler produces" leftTone="neutral" rightTone="good">
+      <div left class="code">
+        <pre>{{ desugarBefore }}</pre>
+      </div>
+      <div right class="code">
+        <pre>{{ desugarAfter }}</pre>
+      </div>
+    </app-compare>
+
+    <p>
+      This is why you can't put two structural directives on one element: there's only one host to wrap, so
+      <code>*ngIf</code> and <code>*ngFor</code> together is a compile error. You nest them instead — one
+      <code>&lt;ng-template&gt;</code> wrapping another, and only the innermost one wrapping your actual element:
+    </p>
+
+    <app-layers
+      [core]="{ label: '<li>', sub: 'your real element' }"
+      [rings]="[
+        { label: '<ng-template appRepeat>', sub: 'outer wrapper' },
+        { label: '<ng-template appUnless>', sub: 'inner wrapper' },
+      ]"
+      arrow="createEmbeddedView reaches here"
+      caption="Nest two stars instead of stacking them, and this is what you get: two separate `<ng-template>` wrappers, one inside the other, each matched by its own directive. There is still only one host element — the innermost layer — which is the whole rule in picture form."
+    />
+  </section>
+
+  <!-- ============ 5. ANATOMY ============ -->
+  <section>
+    <p class="bf-eyebrow">Anatomy</p>
+    <h2>Anatomy of <code>*appUnless</code>.</h2>
+
+    <app-code-lab
+      file="unless-directive.ts"
+      [code]="directiveSample"
+      [notes]="directiveNotes"
+      notesLabel="What each part is doing"
+    />
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="TemplateRef" kicker="inject(TemplateRef)" tone="blue">
+        The blueprint. A real, complete description of the content between the tags — and nothing rendered yet.
+      </app-tape-card>
+      <app-tape-card heading="ViewContainerRef" kicker="inject(ViewContainerRef)" tone="accent">
+        The lot. An anchor already sitting in the DOM — the <code>&lt;!--container--&gt;</code> comment — where copies
+        get inserted.
+      </app-tape-card>
+      <app-tape-card heading="createEmbeddedView()" kicker="vcr.createEmbeddedView(tpl)" tone="olive">
+        Build day. Instantiates the template's nodes and inserts real DOM, right after the anchor.
+      </app-tape-card>
+      <app-tape-card heading="clear()" kicker="vcr.clear()" tone="gold">
+        Demolition, not boarding up. Every view in the container is destroyed — child components included.
+      </app-tape-card>
     </div>
-    <div style="display: flex; flex-wrap: wrap; gap: 6px">
-      <span *appRepeat="times(); let n; let i = index; let f = first" class="pill">
-        n={{ n }} · index={{ i }}{{ f ? ' · first' : '' }}
-      </span>
+  </section>
+
+  <!-- ============ 6. LIVE #1 ============ -->
+  <section>
+    <p class="bf-eyebrow">Live demo</p>
+    <h2>Live #1 — toggle with <code>*appUnless</code>.</h2>
+    <div class="demo">
+      <p class="demo__title">Live — renders only while <code>hidden</code> is false</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="hidden.set(!hidden())">{{ hidden() ? 'Show' : 'Hide' }} the message</button>
+        <span class="pill">hidden = {{ hidden() }}</span>
+      </div>
+      <p *appUnless="hidden()" style="color: var(--green)">
+        ✅ I exist in the DOM because <code>hidden</code> is false. Toggle it and this whole element is
+        created/destroyed — not just hidden with CSS.
+      </p>
     </div>
-  </div>
-  <div class="code">
-    <pre>{{ repeatSample }}</pre>
-  </div>
-  <ul>
-    <li><code>$implicit</code> in the context fills the bare <code>let n</code>.</li>
-    <li>
-      Named keys (<code>index</code>, <code>first</code>) fill <code>let i = index</code>, <code>let f = first</code>.
-    </li>
-    <li>
-      This is precisely how <code>&#64;for</code> exposes <code>$index</code>, <code>$first</code>, <code>$last</code>,
-      etc.
-    </li>
-  </ul>
+    <div class="tip">
+      Structural directives <strong>remove</strong> elements from the DOM, they don't hide them. That answers the napkin
+      question from the top of the page: the <code>[hidden]</code> paragraph's child is still alive under the hood, so
+      its <code>ngOnDestroy</code> never fires. The <code>*appUnless</code> paragraph's child is actually destroyed, so
+      it logs every time.
+    </div>
+  </section>
 
-  <app-quiz
-    question="Take the `*appRepeat` above and delete the `this.vcr.clear()` line. The input goes from 3 to 5. How many elements are on the page afterwards?"
-    [options]="clearOptions"
-    followUp="The general rule for anything holding a `ViewContainerRef`: it is an imperative API. Nothing reconciles for you, nothing diffs, nothing cleans up. Every view that exists is one you inserted and did not remove — which is precisely the bookkeeping `@for`'s `track` was built to take off your hands."
-  />
+  <!-- ============ 7. THE TRAP: SIGNAL AS VALUE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The trap</p>
+    <h2>One character, and the whole thing inverts.</h2>
+    <p>
+      Look at the binding below and decide before reading on. The directive is byte-for-byte the one you just read, and
+      the signal really is <code>false</code>.
+    </p>
 
-  <h2>Type-checking the context</h2>
-  <p>
-    By default the template compiler doesn't know what type <code>n</code> or <code>i</code> are. A static
-    <code>ngTemplateContextGuard</code> tells it — so <code>let n</code> is typed as <code>number</code> and typos in
-    <code>let x = indx</code> become compile errors:
-  </p>
-  <div class="code">
-    <pre>{{ guardSample }}</pre>
-  </div>
+    <app-predict
+      prompt="`hidden` is a signal holding `false`. Does the paragraph render?"
+      [code]="signalSample"
+      answer="No — and worse, it will never render, no matter what you set the signal to. Without the parentheses you passed the signal **function itself**, not its value. A function object is truthy, so `condition` is permanently truthy, so the directive permanently takes the clear branch. Nothing warns you: `boolean` is what the setter declares, but a `*` binding is microsyntax rather than a normal type-checked expression, so `hidden` sails through. The tell is a condition that appears completely stuck — always on, or always off, regardless of the value you see in DevTools. Two habits kill it: read every template binding as *is this a value or a function?*, and prefer `input<boolean>()` over an `@Input` setter so the strict template checker gets a look at it."
+    />
+  </section>
 
-  <h2>Wrong way vs right way</h2>
-  <table class="cmp">
-    <tr>
-      <th>Trap</th>
-      <th>Fix</th>
-    </tr>
-    <tr>
-      <td>Two structural directives on one element (<code>*ngIf</code> + <code>*ngFor</code>)</td>
-      <td>Nest them, or use <code>&#64;if</code> inside <code>&#64;for</code></td>
-    </tr>
-    <tr>
-      <td>Re-creating the view on every setter call without checking state</td>
-      <td>Track a <code>rendered</code> flag (or diff the input) before stamping/clearing</td>
-    </tr>
-    <tr>
-      <td>Rebuilding the whole list each change (like our simple <code>*appRepeat</code>)</td>
-      <td>Real lists should diff & reuse views — that's what <code>&#64;for</code>'s <code>track</code> does</td>
-    </tr>
-    <tr>
-      <td>Untyped context vars</td>
-      <td>Add <code>ngTemplateContextGuard</code></td>
-    </tr>
-  </table>
+  <!-- ============ 8. THE SYNTAX ============ -->
+  <section>
+    <p class="bf-eyebrow">The syntax</p>
+    <h2>The microsyntax, decoded.</h2>
+    <p>
+      The string after <code>*appRepeat=</code> (or <code>*ngFor=</code>) isn't a normal expression — it's
+      <span class="term">microsyntax</span>, a mini-grammar Angular parses into template inputs and <code>let</code>
+      bindings. Take the loop form:
+    </p>
 
-  <div class="note">
-    Modern Angular favours the built-in <code>&#64;if</code>/<code>&#64;for</code> blocks for everyday conditionals and
-    lists — they're faster and need no import. Reach for a <strong>custom</strong> structural directive when you have a
-    reusable rendering pattern: role-based access (<code>*appHasRole</code>), a permission gate, or custom repetition
-    with bespoke context.
-  </div>
+    <app-code-lab
+      file="template.html — microsyntax"
+      [code]="microsyntaxSample"
+      [notes]="microsyntaxNotes"
+      notesLabel="Clause by clause"
+    />
+  </section>
 
-  <app-faq [items]="questions" />
+  <!-- ============ 9. PASSING CONTEXT ============ -->
+  <section>
+    <p class="bf-eyebrow">Passing context</p>
+    <h2>Live #2 — passing context with <code>*appRepeat</code>.</h2>
+    <p>
+      This directive stamps its template N times, handing each copy a context object. The template pulls values out of
+      that context with <code>let</code>:
+    </p>
+    <div class="demo">
+      <p class="demo__title">Live — {{ times() }} cop{{ times() === 1 ? 'y' : 'ies' }}</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="times.set(Math.max(0, times() - 1))">−</button>
+        <button (click)="times.set(times() + 1)">+</button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px">
+        <span *appRepeat="times(); let n; let i = index; let f = first" class="pill">
+          n={{ n }} · index={{ i }}{{ f ? ' · first' : '' }}
+        </span>
+      </div>
+    </div>
 
-  <h2>Key takeaways</h2>
-  <ul>
-    <li>
-      The <code>*</code> prefix desugars to an <code>&lt;ng-template&gt;</code> wrapper — that's why only one per
-      element.
-    </li>
-    <li>Inject <code>TemplateRef</code> (the blueprint) and <code>ViewContainerRef</code> (where to stamp it).</li>
-    <li><code>createEmbeddedView(tpl, context)</code> renders; <code>vcr.clear()</code> removes and destroys.</li>
-    <li>The context's <code>$implicit</code> feeds bare <code>let</code>; named keys feed <code>let x = key</code>.</li>
-    <li>
-      Add <code>ngTemplateContextGuard</code> to type-check <code>let</code> variables; prefer
-      <code>&#64;if</code>/<code>&#64;for</code> for the common cases.
-    </li>
-  </ul>
+    <app-code-lab
+      file="repeat-directive.ts"
+      [code]="repeatSample"
+      [notes]="repeatNotes"
+      notesLabel="How the context reaches the template"
+    />
 
-  <p><a routerLink="/content-projection">Next: Content Projection →</a></p>
+    <p>
+      <code>$implicit</code> in the context fills the bare <code>let n</code>; named keys (<code>index</code>,
+      <code>first</code>) fill <code>let i = index</code> and <code>let f = first</code>. This is precisely how
+      <code>&#64;for</code> exposes <code>$index</code>, <code>$first</code>, <code>$last</code>, and the rest.
+    </p>
+
+    <app-quiz
+      question="Take the `*appRepeat` above and delete the `this.vcr.clear()` line. The input goes from 3 to 5. How many elements are on the page afterwards?"
+      [options]="clearOptions"
+      followUp="The general rule for anything holding a `ViewContainerRef`: it is an imperative API. Nothing reconciles for you, nothing diffs, nothing cleans up. Every view that exists is one you inserted and did not remove — which is precisely the bookkeeping `@for`'s `track` was built to take off your hands."
+    />
+  </section>
+
+  <!-- ============ 10. TYPE SAFETY ============ -->
+  <section>
+    <p class="bf-eyebrow">Type safety</p>
+    <h2>Type-checking the context.</h2>
+    <p>
+      By default the template compiler doesn't know what type <code>n</code> or <code>i</code> are. A static
+      <code>ngTemplateContextGuard</code> tells it — so <code>let n</code> is typed as <code>number</code> and typos in
+      <code>let x = indx</code> become compile errors:
+    </p>
+
+    <app-code-lab
+      file="repeat-directive.ts — context guard"
+      [code]="guardSample"
+      [notes]="guardNotes"
+      notesLabel="Compile-time only, line by line"
+    />
+  </section>
+
+  <!-- ============ 11. PULLING IT TOGETHER ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
+    <h2>Wrong way vs right way.</h2>
+
+    <table>
+      <caption class="bf-table-caption">
+        Traps this pattern invites
+      </caption>
+      <thead>
+        <tr>
+          <th>Trap</th>
+          <th>Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Two structural directives on one element (<code>*ngIf</code> + <code>*ngFor</code>)</td>
+          <td>Nest them, or use <code>&#64;if</code> inside <code>&#64;for</code></td>
+        </tr>
+        <tr>
+          <td>Re-creating the view on every setter call without checking state</td>
+          <td>Track a <code>rendered</code> flag (or diff the input) before stamping/clearing</td>
+        </tr>
+        <tr>
+          <td>Rebuilding the whole list each change (like our simple <code>*appRepeat</code>)</td>
+          <td>
+            Real lists should diff &amp; reuse views — that's what <code>&#64;for</code>'s <code>track</code> does
+          </td>
+        </tr>
+        <tr>
+          <td>Untyped context vars</td>
+          <td>Add <code>ngTemplateContextGuard</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      Modern Angular favours the built-in <code>&#64;if</code>/<code>&#64;for</code> blocks for everyday conditionals
+      and lists — they're faster and need no import. Reach for a <strong>custom</strong> structural directive when you
+      have a reusable rendering pattern: role-based access (<code>*appHasRole</code>), a permission gate, or custom
+      repetition with bespoke context.
+    </div>
+  </section>
+
+  <!-- ============ 12. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 13. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Things to remember.</h2>
+    <ul>
+      <li>
+        The <code>*</code> prefix desugars to an <code>&lt;ng-template&gt;</code> wrapper — that's why only one per
+        element, and why nesting (not stacking) is how you combine two.
+      </li>
+      <li>Inject <code>TemplateRef</code> (the blueprint) and <code>ViewContainerRef</code> (where to stamp it).</li>
+      <li><code>createEmbeddedView(tpl, context)</code> renders; <code>vcr.clear()</code> removes and destroys.</li>
+      <li>
+        The context's <code>$implicit</code> feeds bare <code>let</code>; named keys feed <code>let x = key</code>.
+      </li>
+      <li>
+        Add <code>ngTemplateContextGuard</code> to type-check <code>let</code> variables; prefer
+        <code>&#64;if</code>/<code>&#64;for</code> for the common cases and save a custom directive for a reusable
+        decision.
+      </li>
+    </ul>
+
+    <p><a routerLink="/content-projection">Next: Content Projection →</a></p>
+  </section>
 </article>

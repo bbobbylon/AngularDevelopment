@@ -1,31 +1,7 @@
-table.cmp {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.86rem;
-  margin: 12px 0;
-}
-table.cmp th,
-table.cmp td {
-  border: 1px solid var(--border);
-  padding: 8px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-table.cmp th {
-  background: var(--bg-elevated);
-}
-.pill {
-  display: inline-block;
-  padding: 3px 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 0.8rem;
-}
-.note {
-  border-left: 3px solid var(--violet);
-  background: var(--bg-elevated);
-  padding: 10px 14px;
-  border-radius: 0 8px 8px 0;
-  margin: 14px 0;
-  font-size: 0.92rem;
-}
+/* Table, pill and callout styling now comes from the shared brain-friendly layer
+   (src/brain-friendly.css §15), which is why this file is nearly empty — the
+   `table.cmp`, `.pill` and `.note` rules that used to live here were per-lesson
+   copies of rules the theme now owns for any `.lesson.bf` page.
+
+   Nothing left here is genuinely specific to structural directives, so there is
+   nothing to keep. The file stays as an (empty) hook for `styleUrl`. */

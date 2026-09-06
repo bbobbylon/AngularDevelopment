@@ -2,7 +2,12 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { UnlessDirective } from './unless-directive/unless-directive';
 import { RepeatDirective } from './repeat-directive/repeat-directive';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+
+// ── Main lesson component ─────────────────────────────────────────────────────
 
 /**
  * Lesson: Custom Structural Directives.
@@ -13,14 +18,62 @@ import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
  * *appRepeat, covers type-safe context via ngTemplateContextGuard, and lists the
  * real traps (two structural directives on one element, forgetting to clear,
  * when to prefer built-in @if/@for).
+ *
+ * ## Presentation
+ *
+ * Migrated to the brain-friendly layer (see `shared/brain/` and
+ * `docs/UI-DESIGN.md` §9), copying the teaching order documented on
+ * `ChangeDetection` — the reference implementation:
+ *
+ * 1. **Pose the problem before naming it.** The lesson opens on "why not just
+ *    `[hidden]` it?" and makes the reader commit to a guess (which paragraph's
+ *    child gets destroyed) before any mechanism is described.
+ * 2. **Analogy next, mechanism after.** The blueprint-and-building-lot frame for
+ *    `TemplateRef`/`ViewContainerRef` gives the reader somewhere to put those two
+ *    words before they show up as `inject()` calls.
+ * 3. **Then the same idea in several modes** — a dialogue between the two
+ *    injected handles, a containment diagram for why only one star fits on one
+ *    element, a seven-step flow, annotated source via `app-code-lab`, and two
+ *    live directives (`*appUnless`, `*appRepeat`) — because the retention bar is
+ *    redundancy across modes, not repetition in one.
+ * 4. **Every non-trivial snippet is annotated line by line** via `app-code-lab`.
+ *    Nothing here assumes the reader can already parse the snippet.
+ *
+ * This lesson already scored 9/9 on the retention audit before this migration;
+ * the analogy, the traps and the two live directives are the same ones that
+ * earned that score, reshaped rather than replaced.
  */
 @Component({
   selector: 'app-lesson-structural-directives',
-  imports: [RouterLink, UnlessDirective, RepeatDirective, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Layers,
+    Napkin,
+    TapeCard,
+    Compare,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+    UnlessDirective,
+    RepeatDirective,
+  ],
   templateUrl: './structural-directives.html',
   styleUrl: './structural-directives.css',
 })
 export class StructuralDirectives {
+  /** The Pipes & Directives track, for the "you are here" rail. */
+  protected readonly stops: ChapterStop[] = [
+    { label: 'Custom Pipes', id: 'custom-pipes' },
+    { label: 'Attribute Directives', id: 'attribute-directives' },
+    { label: 'Structural Directives' },
+  ];
+
   /**
    * From written markup to nodes on the page. Drawn out because almost every
    * question people have here — why the comment node is in the DOM, why only one
@@ -28,11 +81,11 @@ export class StructuralDirectives {
    * answered by one of these seven steps rather than by any rule worth
    * memorising separately.
    */
-  protected readonly pipeline = [
+  protected readonly pipeline: FlowStep[] = [
     {
       label: 'You write `*appUnless="hidden()"`',
       detail: 'One element, one star. That is all the source you have',
-      tone: 'accent' as const,
+      tone: 'accent',
     },
     {
       label: 'The compiler wraps the host',
@@ -57,7 +110,45 @@ export class StructuralDirectives {
     {
       label: '`createEmbeddedView` inserts *after* the anchor',
       detail: 'Real nodes, real components, real lifecycle hooks',
-      tone: 'good' as const,
+      tone: 'good',
+    },
+  ];
+
+  /**
+   * The exchange a `*appUnless="hidden()"` binding actually sets off.
+   *
+   * This exists because the analogy in prose gives the reader a picture, but a
+   * picture alone still leaves "who calls whom" to be inferred. Staging it as a
+   * conversation makes the division of labour explicit: the directive orchestrates,
+   * `TemplateRef` never touches the DOM, and `ViewContainerRef` neither knows nor
+   * cares what a template even is.
+   */
+  protected readonly handoffTalk: BubbleTurn[] = [
+    {
+      who: 'The directive',
+      says: 'I just got created. `inject(TemplateRef)` and `inject(ViewContainerRef)` — what do I actually have?',
+    },
+    {
+      who: 'TemplateRef',
+      says:
+        "I'm the drawings between your `<ng-template>` tags. I don't render anything myself — " +
+        'call `createEmbeddedView` on the container if you want a copy built.',
+    },
+    {
+      who: 'ViewContainerRef',
+      says:
+        "I'm the anchor already sitting in the DOM — that `<!--container-->` comment you keep " +
+        "seeing in DevTools. I don't know what a template is; I just insert whatever view you hand me.",
+    },
+    {
+      who: 'The directive',
+      says: '`vcr.createEmbeddedView(tpl)`, then. One call, and now there is a real `<p>` in the DOM.',
+    },
+    {
+      who: 'ViewContainerRef',
+      says:
+        "Call `clear()` next and I destroy it — subscriptions, child components, all of it. " +
+        "I don't hide. I demolish.",
     },
   ];
 
@@ -77,7 +168,7 @@ protected readonly hidden = signal(false);
 <!-- hidden() is false. Does the paragraph render? -->`;
 
   /** Choices for the missing-clear check. */
-  protected readonly clearOptions = [
+  protected readonly clearOptions: QuizOption[] = [
     {
       text: 'Five — the container replaces its contents on each call',
       why: 'A reasonable expectation, and what `@for` appears to do, but nothing about a `ViewContainerRef` is declarative. It has `insert`, `remove` and `clear` methods, and it does exactly what you call and nothing more.',
@@ -98,7 +189,7 @@ protected readonly hidden = signal(false);
   ];
 
   /** The doubts this lesson reliably leaves behind. */
-  protected readonly questions = [
+  protected readonly questions: FaqItem[] = [
     {
       q: 'Should I still write these now that `@if` and `@for` exist?',
       a: "For conditionals and lists, no — the built-in blocks are faster, need no import and are what a reviewer expects. Custom structural directives earn their place when the *decision* is the reusable part: `*appHasRole=\"'admin'\"`, `*appFeatureFlag=\"'new-checkout'\"`, `*appHasPermission`. Writing `@if (auth.hasRole('admin')) {}` in forty templates is the smell that means you wanted a directive.",
@@ -136,54 +227,99 @@ protected readonly hidden = signal(false);
   protected readonly times = signal(3);
 
   /**
-   * Sample: what the star syntax desugars to — an `<ng-template>` plus an input
-   * binding, which is why a structural directive is a normal directive that
-   * happens to inject `TemplateRef`.
+   * Sample: what the star syntax desugars to, left side — an `<ng-template>` is
+   * what actually gets the directive, which is why a structural directive is a
+   * normal directive that happens to inject `TemplateRef`.
    */
-  protected readonly desugarSample = `<!-- what you write -->
-<p *appUnless="hidden()">Visible when NOT hidden</p>
+  protected readonly desugarBefore = `<p *appUnless="hidden()">Visible when NOT hidden</p>`;
 
-<!-- what the compiler produces -->
-<ng-template [appUnless]="hidden()">
+  /** Sample: the same thing, right side — what the compiler actually produces. */
+  protected readonly desugarAfter = `<ng-template [appUnless]="hidden()">
   <p>Visible when NOT hidden</p>
 </ng-template>`;
 
   /**
-   * Sample: the `*appUnless` directive in full.
+   * Sample: the `*appUnless` directive in full, stripped of its own trailing
+   * comments — the {@link directiveNotes} carry that job instead.
    */
   protected readonly directiveSample = `@Directive({ selector: '[appUnless]' })
 export class UnlessDirective {
-  private tpl = inject(TemplateRef<unknown>);   // the content (a blueprint)
-  private vcr = inject(ViewContainerRef);        // where to render copies
+  private tpl = inject(TemplateRef<unknown>);
+  private vcr = inject(ViewContainerRef);
   private rendered = false;
 
-  @Input() set appUnless(condition: boolean) {   // runs on every value change
+  @Input() set appUnless(condition: boolean) {
     if (!condition && !this.rendered) {
-      this.vcr.createEmbeddedView(this.tpl);     // stamp it in
+      this.vcr.createEmbeddedView(this.tpl);
       this.rendered = true;
     } else if (condition && this.rendered) {
-      this.vcr.clear();                          // tear it down
+      this.vcr.clear();
       this.rendered = false;
     }
   }
 }`;
 
+  /** Line-by-line walkthrough of {@link directiveSample}. */
+  protected readonly directiveNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: "`selector: '[appUnless]'` — an attribute selector. The template writes it with a star, `*appUnless`, but the compiled form is exactly this attribute on an `<ng-template>` — no different from any other directive's selector.",
+    },
+    {
+      line: 3,
+      text: '`inject(TemplateRef)` — a handle to the content between the tags. It is *not* rendered yet; it is a blueprint you are holding, not a house.',
+    },
+    {
+      line: 4,
+      text: '`inject(ViewContainerRef)` — the anchor already sitting in the DOM (that `<!--container-->` comment), where copies of the template get inserted.',
+    },
+    {
+      line: 5,
+      text: 'A plain flag, not framework state. Its whole job is to stop the setter re-stamping or re-clearing when asked to do something it already did.',
+    },
+    {
+      line: 7,
+      text: '`@Input() set appUnless(...)` — a setter input, not a signal. It runs every single time the bound value changes, which is where you decide: stamp, or clear?',
+    },
+    {
+      line: 9,
+      text: '`createEmbeddedView(tpl)` — instantiates the template into the container. This is the moment real DOM nodes, real components and real lifecycle hooks come into existence.',
+    },
+    {
+      line: 12,
+      text: '`vcr.clear()` — destroys the view. Not hidden, not detached: destroyed. Child components inside it run `ngOnDestroy`, and their subscriptions are torn down.',
+    },
+  ];
+
   /**
    * Sample: microsyntax. Not an expression but a small grammar of its own, which
    * is why `let i = index` parses at all.
    */
-  protected readonly microsyntaxSample = `<!-- microsyntax (a mini-grammar), NOT a plain expression -->
-<li *ngFor="let item of items; let i = index; let last = last">…</li>
+  protected readonly microsyntaxSample = `<li *ngFor="let item of items;
+            let i = index;
+            let last = last">
+  …
+</li>`;
 
-<!--
-  let item      → template var, gets context.$implicit
-  of items      → 'items' becomes the directive's ngForOf input
-  let i = index → binds context.index to a local
-  ;             → clause separator
--->`;
+  /** Line-by-line walkthrough of {@link microsyntaxSample}. */
+  protected readonly microsyntaxNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'Two clauses share this line. `let item` declares a template variable that receives the context\'s `$implicit` value. `of items` is different: the word after `of` becomes the directive\'s *main input* — `items` gets bound to `ngForOf`, not to a local variable.',
+    },
+    {
+      line: 2,
+      text: '`let i = index` binds a *named* context property, `index`, to the local `i`. This is the shape every `let x = key` clause uses: key on the right, local name on the left.',
+    },
+    {
+      line: 3,
+      text: 'One more named binding, then the closing quote. The semicolons throughout are clause separators — this is microsyntax, not a JavaScript expression, so semicolons belong where a real expression would never allow them.',
+    },
+  ];
 
   /**
-   * Sample: `*appRepeat` and its context object.
+   * Sample: `*appRepeat` and its context object, stripped of trailing comments —
+   * {@link repeatNotes} carries that job instead.
    */
   protected readonly repeatSample = `@Directive({ selector: '[appRepeat]' })
 export class RepeatDirective {
@@ -194,9 +330,9 @@ export class RepeatDirective {
     this.vcr.clear();
     for (let i = 0; i < times; i++) {
       this.vcr.createEmbeddedView(this.tpl, {
-        $implicit: i + 1,   // → let n
-        index: i,           // → let i = index
-        first: i === 0,     // → let f = first
+        $implicit: i + 1,
+        index: i,
+        first: i === 0,
       });
     }
   }
@@ -204,6 +340,38 @@ export class RepeatDirective {
 
 // template:
 // <span *appRepeat="times; let n; let i = index; let f = first">…</span>`;
+
+  /** Line-by-line walkthrough of {@link repeatSample}. */
+  protected readonly repeatNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: 'Typed this time: `TemplateRef<RepeatContext>` tells TypeScript — and, with the guard further down, the template compiler too — exactly what shape the context object will be.',
+    },
+    {
+      line: 7,
+      text: '`vcr.clear()` runs first, unconditionally, on *every* call. Delete this one line and you get the missing-clear bug the quiz below is about.',
+    },
+    {
+      line: 9,
+      text: 'One `createEmbeddedView` call per copy, which is why the loop matters. The second argument is the context object — a plain object, handed to this exact template instance.',
+    },
+    {
+      line: 10,
+      text: '`$implicit` is the special key that fills a *bare* `let n`, with no `= key`. Here it is a 1-based count rather than the raw loop index.',
+    },
+    {
+      line: 11,
+      text: 'A named key, `index`, fills `let i = index` in the template. The local name on the left does not have to match the key on the right.',
+    },
+    {
+      line: 12,
+      text: 'Same idea again: `first` fills `let f = first`. Three context keys, three different `let` clauses, one object.',
+    },
+    {
+      line: 19,
+      text: 'The template that actually consumes this context: `let n`, `let i = index` and `let f = first` — three separate clauses, each pulling a different key out of the one object built above.',
+    },
+  ];
 
   /**
    * Sample: `ngTemplateContextGuard`, the purely compile-time hook that tells the
@@ -215,12 +383,32 @@ export class RepeatDirective {
   first: boolean;
 }
 
-// Static guard: purely compile-time, tells the template checker the shape.
 static ngTemplateContextGuard(
   _dir: RepeatDirective,
   _ctx: unknown,
 ): _ctx is RepeatContext {
   return true;
 }
+
 // Now 'let n' is typed as number; 'let x = indx' fails to compile.`;
+
+  /** Line-by-line walkthrough of {@link guardSample}. */
+  protected readonly guardNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'The shape of the context object, named so it can be reused elsewhere — this is the same interface `RepeatDirective` uses to type its `TemplateRef`.',
+    },
+    {
+      line: 7,
+      text: 'A *static* method — called by the template type-checker at compile time, never at runtime. Neither `_dir` nor `_ctx` is ever a real value, hence the leading underscores.',
+    },
+    {
+      line: 10,
+      text: 'The return type is the whole trick: `_ctx is RepeatContext` is a TypeScript type predicate. The compiler calls this purely to read that annotation — the `return true` on the next line is never actually run against real data.',
+    },
+    {
+      line: 14,
+      text: "The payoff: once this guard exists, `let n` in a template is typed `number`, and a typo like `let x = indx` becomes a compile error instead of a silently `undefined` value.",
+    },
+  ];
 }
