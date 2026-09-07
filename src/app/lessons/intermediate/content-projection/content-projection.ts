@@ -144,7 +144,7 @@ export class Callout {}
     },
     {
       line: 3,
-      text: "`templateUrl` points at a separate file — the one shown right below it, same convention as every lesson in this app.",
+      text: '`templateUrl` points at a separate file — the one shown right below it, same convention as every lesson in this app.',
     },
     {
       line: 5,
@@ -256,7 +256,7 @@ export class TabGroup implements AfterContentInit {
   protected readonly contentQueryNotes: CodeNote[] = [
     {
       line: 2,
-      text: "`AfterContentInit` — the lifecycle interface for the hook implemented on line 6. It exists specifically because content queries resolve **later** than view ones.",
+      text: '`AfterContentInit` — the lifecycle interface for the hook implemented on line 6. It exists specifically because content queries resolve **later** than view ones.',
     },
     {
       line: 3,
@@ -298,7 +298,7 @@ export class TabGroup implements AfterContentInit {
   protected readonly projectAsNotes: CodeNote[] = [
     {
       line: 2,
-      text: "The slot is matched against a **class** selector, `.badge`. An `<ng-container>` has no class of its own to offer it — exactly the problem `ngProjectAs` exists to solve.",
+      text: 'The slot is matched against a **class** selector, `.badge`. An `<ng-container>` has no class of its own to offer it — exactly the problem `ngProjectAs` exists to solve.',
     },
     {
       line: 6,

@@ -217,7 +217,7 @@ type UserShape = ReturnType<typeof makeUser>;
     },
     {
       line: 3,
-      text: 'The type-level `typeof`. It shares a keyword with the **runtime** `typeof x === \'string\'` from the narrowing lesson, but this one only exists in a type position and is resolved — then discarded — entirely at compile time.',
+      text: "The type-level `typeof`. It shares a keyword with the **runtime** `typeof x === 'string'` from the narrowing lesson, but this one only exists in a type position and is resolved — then discarded — entirely at compile time.",
     },
     {
       line: 4,
@@ -225,7 +225,7 @@ type UserShape = ReturnType<typeof makeUser>;
     },
     {
       line: 6,
-      text: "An ordinary function that builds an object. `typeof makeUser` alone would give you its whole function type; the combination on the next real line is what makes that useful.",
+      text: 'An ordinary function that builds an object. `typeof makeUser` alone would give you its whole function type; the combination on the next real line is what makes that useful.',
     },
     {
       line: 10,
@@ -259,7 +259,7 @@ type ArrKeys = keyof string[];
     },
     {
       line: 7,
-      text: "Arrays are objects with methods. `keyof` has no way to know you meant \"the valid indexes\" — it walks every member `string[]` genuinely has, methods included.",
+      text: 'Arrays are objects with methods. `keyof` has no way to know you meant "the valid indexes" — it walks every member `string[]` genuinely has, methods included.',
     },
     {
       line: 8,
@@ -294,7 +294,7 @@ type Second = Tuple[1];
   protected readonly indexedNotes: CodeNote[] = [
     {
       line: 1,
-      text: "A plain interface, nothing special yet — including one nested object member, `address`. Every bracket trick below operates on this one shape.",
+      text: 'A plain interface, nothing special yet — including one nested object member, `address`. Every bracket trick below operates on this one shape.',
     },
     {
       line: 7,
@@ -427,7 +427,7 @@ setRole('emperor');
     },
     {
       text: 'Yes, but only because `K` was inferred as `keyof Config` rather than a single key',
-      why: 'K is inferred as the literal `\'retries\'` here — that narrowing is exactly what makes `Config[K]` resolve to one specific type rather than a union. It is working correctly; it is just working against you.',
+      why: "K is inferred as the literal `'retries'` here — that narrowing is exactly what makes `Config[K]` resolve to one specific type rather than a union. It is working correctly; it is just working against you.",
     },
   ];
 

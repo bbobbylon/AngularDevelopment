@@ -147,7 +147,7 @@ export class StructuralDirectives {
     {
       who: 'ViewContainerRef',
       says:
-        "Call `clear()` next and I destroy it — subscriptions, child components, all of it. " +
+        'Call `clear()` next and I destroy it — subscriptions, child components, all of it. ' +
         "I don't hide. I demolish.",
     },
   ];
@@ -305,7 +305,7 @@ export class UnlessDirective {
   protected readonly microsyntaxNotes: CodeNote[] = [
     {
       line: 1,
-      text: 'Two clauses share this line. `let item` declares a template variable that receives the context\'s `$implicit` value. `of items` is different: the word after `of` becomes the directive\'s *main input* — `items` gets bound to `ngForOf`, not to a local variable.',
+      text: "Two clauses share this line. `let item` declares a template variable that receives the context's `$implicit` value. `of items` is different: the word after `of` becomes the directive's *main input* — `items` gets bound to `ngForOf`, not to a local variable.",
     },
     {
       line: 2,
@@ -408,7 +408,7 @@ static ngTemplateContextGuard(
     },
     {
       line: 14,
-      text: "The payoff: once this guard exists, `let n` in a template is typed `number`, and a typo like `let x = indx` becomes a compile error instead of a silently `undefined` value.",
+      text: 'The payoff: once this guard exists, `let n` in a template is typed `number`, and a typo like `let x = indx` becomes a compile error instead of a silently `undefined` value.',
     },
   ];
 }
