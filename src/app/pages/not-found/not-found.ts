@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
 
 /**
  * 404 page — the router's wildcard destination.
@@ -10,7 +11,7 @@ import { RouterLink } from '@angular/router';
  */
 @Component({
   selector: 'app-not-found',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective],
   styleUrl: './not-found.css',
   templateUrl: './not-found.html',
 })

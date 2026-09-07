@@ -1,6 +1,8 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GLOSSARY, type GlossaryTerm } from '../../core/glossary-data';
+import { Bubbles, Napkin, type BubbleTurn } from '../../shared/brain';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
 
 /** One letter's worth of the A-Z listing. */
 interface GlossaryGroup {
@@ -24,7 +26,7 @@ const SORTED = [...GLOSSARY].sort((a, b) => a.term.localeCompare(b.term));
  */
 @Component({
   selector: 'app-glossary',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, Napkin, Bubbles],
   styleUrl: './glossary.css',
   templateUrl: './glossary.html',
 })
@@ -82,6 +84,22 @@ export class Glossary {
   protected letterHasTerms(letter: string): boolean {
     return this.allLetters().has(letter);
   }
+
+  /**
+   * Purely presentational: the two-line "You asked / nothing back" exchange
+   * shown by `<app-bubbles>` when {@link groups} comes back empty. Mirrors the
+   * same device on the Practice page's own empty state — echoes the search
+   * back so the reader can see at a glance whether it was a typo before
+   * trying again. Does not change what the empty state IS, only how it reads;
+   * {@link groups}, the actual filtering, is untouched.
+   */
+  protected readonly emptyStateTurns = computed<BubbleTurn[]>(() => {
+    const q = this.query().trim();
+    return [
+      { who: 'You', says: q ? `Got anything for **"${q}"**?` : 'Got anything for that?' },
+      { who: 'Glossary', says: 'Nothing yet — double-check the spelling, or try a shorter word.' },
+    ];
+  });
 
   /**
    * Opens the browser print dialog for a paper cheat-sheet.

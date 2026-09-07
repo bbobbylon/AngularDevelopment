@@ -1,8 +1,40 @@
+/* ============================================================
+   Coding-Task Simulator — timeboxed practical-exam briefs with a
+   self-check requirements list.
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a study tool, not a lesson, so it does not opt into `.lesson.bf`
+   — no Chapter/CodeLab/annotated-code treatment here. It picks up the warm
+   palette and type for free from the app-wide remap in that file's §3; what
+   follows is (a) retinting every literal colour this page used to hard-code
+   against the old indigo/zinc theme, and (b) the room, radii and motion the
+   rest of the restyled app now has.
+
+   Colour roles follow the same six-hue legend as the rest of the app (see
+   styles.css's own legend comment, and practice.css/certification.css for
+   the same convention applied to a near-identical brief/question card):
+     --accent  interactive — buttons, the "total" stat, the thing you press
+     --amber   commit to something not yet verified — hints (a nudge toward
+               an answer you haven't confirmed) and the "remaining" stat
+     --green   verified / complete — checked requirements, the done state
+     --violet  new vocabulary — reused here for the category badge, since a
+               category ("Forms", "RxJS") names a subject, not a
+               correctness signal, same reasoning as practice.css's own
+               category chip
+   Difficulty badges (junior/mid/senior) follow the same convention as
+   every other exam-prep page in the app — green/amber/accent, never red —
+   so all four brief/question surfaces (here, practice, certification,
+   mock-exam) read as one system rather than four palettes.
+   ============================================================ */
+
 .ct-hero {
   text-align: center;
   padding: 48px 24px 24px;
 }
 .ct-hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   margin: 12px 0;
 }
@@ -11,21 +43,34 @@
   margin: 0 auto;
   color: var(--text-muted);
 }
-.pill {
-  display: inline-block;
-  font-size: 0.74rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
-  font-weight: 600;
+
+/* ---- Stat tiles — app-tape-card, one per running total ---- */
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 24px auto 8px;
+  max-width: 900px;
 }
-.done-line {
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin: 16px 0 0;
+.stats-row app-tape-card {
+  flex: 1 1 170px;
+  max-width: 210px;
+  text-align: left;
+}
+.stat-num {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.9rem;
+  line-height: 1.1;
+  color: var(--bf-ink);
+}
+.stat-label {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--bf-ink-2);
 }
 
 .task-grid {
@@ -40,24 +85,35 @@
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--bf-r-lg);
   padding: 18px 20px;
   cursor: pointer;
   color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 10px;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.15s ease,
+    box-shadow 0.2s ease;
 }
 .task-card:hover {
-  border-color: #6366f1;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--bf-shadow-lift);
+}
+.task-card:active {
+  transform: translateY(0);
 }
 .task-card.completed {
-  border-color: #22c55e;
+  border-color: var(--green);
 }
 .task-card h3 {
   margin: 0;
   font-size: 1rem;
   line-height: 1.4;
+  color: var(--text);
 }
 .card-badges {
   display: flex;
@@ -67,30 +123,32 @@
 }
 .badge-diff {
   font-size: 0.72rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--bf-r-pill, 999px);
+  font-weight: 700;
   text-transform: capitalize;
 }
 .badge-diff.junior {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--bf-olive-wash);
+  color: var(--green);
 }
 .badge-diff.mid {
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--bf-gold-wash);
+  color: var(--amber);
 }
 .badge-diff.senior {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bf-accent-wash);
+  color: var(--accent);
 }
+/* Category — names a subject rather than a correctness state, so it reuses
+   .term's "new vocabulary" hue instead of a fourth meaning for green/amber/accent. */
 .badge-cat {
   font-size: 0.72rem;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid #6366f1;
-  color: #6366f1;
+  padding: 3px 9px;
+  border-radius: var(--bf-r-pill, 999px);
+  background: color-mix(in srgb, var(--violet) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--violet) 32%, transparent);
+  color: var(--violet);
 }
 .badge-time {
   font-size: 0.72rem;
@@ -100,7 +158,7 @@
 .done-tick {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #16a34a;
+  color: var(--green);
   margin-top: auto;
 }
 
@@ -118,23 +176,37 @@
 }
 .back-btn {
   padding: 7px 16px;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
   cursor: pointer;
   font-size: 0.86rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.back-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateX(-2px);
 }
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--bf-r-lg);
   padding: 22px 26px;
   margin-bottom: 16px;
+  box-shadow: var(--shadow);
 }
 .panel h2 {
   margin: 0 0 10px;
-  font-size: 1.3rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  letter-spacing: -0.005em;
+  color: var(--text);
 }
 .panel h3 {
   font-size: 0.82rem;
@@ -147,14 +219,15 @@
   font-size: 0.94rem;
   line-height: 1.65;
   margin: 0;
+  color: var(--text);
 }
 .code-block {
-  background: #1e1e2e;
-  color: #cdd6f4;
-  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-radius: var(--radius);
   padding: 14px 16px;
   font-size: 0.8rem;
-  font-family: monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   overflow-x: auto;
   margin: 0;
@@ -162,26 +235,70 @@
 .copy-btn {
   margin-top: 10px;
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
   cursor: pointer;
   font-size: 0.82rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.copy-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+/* Transient "copied!" confirmation — driven by the same `copied()` signal
+   the button's own label already reads, so this is a pure style hook, not
+   a new piece of state. */
+.copy-btn--done {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--bf-olive-wash);
 }
 
 .req {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 9px 0;
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border-radius: 10px;
   font-size: 0.9rem;
   line-height: 1.5;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.req:hover {
+  background: var(--bg-elevated);
+}
+/* `.req` isn't a <button>, so the global `button, button::after { transition:
+   none }` reduced-motion rule in styles.css never reaches it. And even for
+   the real <button>s below, that global rule loses the cascade: Angular's
+   emulated view encapsulation adds a scoping attribute to every selector in
+   this file, so e.g. `.task-card`'s own always-on `transition` is MORE
+   specific than the bare `button` selector the global rule targets, and wins
+   regardless of source order — the global guard never actually fires here.
+   review.css's `.opt`/`.primary-btn`/`.ghost-btn` block hits the same thing
+   and fixes it the same way: list every page-level class with its own
+   transition here, button or not (same pattern as glossary.css's `.gl-link`). */
+@media (prefers-reduced-motion: reduce) {
+  .req,
+  .task-card,
+  .back-btn,
+  .copy-btn,
+  .ghost-btn,
+  .primary-btn {
+    transition: none;
+  }
 }
 .req input {
   margin-top: 3px;
-  accent-color: #22c55e;
+  accent-color: var(--green);
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -196,40 +313,66 @@
   margin: 8px 0 0;
 }
 
+/* Hints — a nudge toward an answer you haven't verified yet, so this reuses
+   the "commit to an answer" gold that Predict/reveal affordances use
+   elsewhere in the app, dashed to read as a sketch rather than a finished box. */
 .hint {
-  background: rgba(99, 102, 241, 0.06);
-  border: 1px dashed #6366f1;
-  border-radius: 10px;
+  background: var(--bf-gold-wash);
+  border: 1px dashed var(--amber);
+  border-radius: var(--bf-r);
   padding: 10px 14px;
   font-size: 0.87rem;
   line-height: 1.5;
   margin: 0 0 10px;
+  color: var(--text);
 }
 .ghost-btn {
   padding: 8px 18px;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
   cursor: pointer;
   font-size: 0.88rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ghost-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
 }
 .primary-btn {
   padding: 10px 22px;
-  background: #6366f1;
-  color: #fff;
+  /* --accent-solid, not plain --accent — see its comment (brain-friendly.css §3). */
+  background: var(--accent-solid);
+  color: var(--bg);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--bf-r-pill, 999px);
   cursor: pointer;
   font-size: 0.92rem;
-  font-weight: 600;
+  font-weight: 700;
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+.primary-btn:hover:not(:disabled) {
+  background: var(--accent-bright-solid); /* not plain --bf-accent-bright — brain-friendly.css §3 */
+  transform: translateY(-1px);
+  box-shadow: var(--bf-shadow-lift);
+}
+.primary-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.975);
 }
 .primary-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
 .primary-btn.done {
-  background: #22c55e;
+  background: var(--green);
 }
 .explanation {
   font-size: 0.88rem;
@@ -243,6 +386,7 @@
   font-size: 0.82rem;
   color: var(--blue);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .ws-actions {
   display: flex;

@@ -1,8 +1,13 @@
 <div class="not-found">
-  <div class="code">404</div>
-  <h1>Page not found</h1>
-  <p>That URL doesn't match any lesson or page. Head home to browse all 98 concepts.</p>
-  <div class="actions">
+  <p class="aside bf-hand bf-hand--note" appReveal>
+    <span class="hand">well, you've wandered off the map</span>
+  </p>
+  <div class="code" appReveal [appRevealDelay]="70">404</div>
+  <h1 appReveal [appRevealDelay]="140">Page not found</h1>
+  <p class="lead" appReveal [appRevealDelay]="200">
+    That URL doesn't match any lesson or page. Head home to browse all 98 concepts.
+  </p>
+  <div class="actions" appReveal [appRevealDelay]="260">
     <a routerLink="/" class="btn-primary">Back to all concepts</a>
     <a routerLink="/practice" class="btn-ghost">Practice challenges</a>
   </div>

@@ -1,13 +1,17 @@
 <div class="gl-hero">
-  <span class="pill">Reference</span>
-  <h1>Glossary &amp; Cheat Sheet</h1>
-  <p>
-    {{ totalCount }} Angular and TypeScript terms used across the curriculum, in one searchable, printable A-Z
-    reference.
+  <span class="pill" appReveal>Reference</span>
+  <h1 appReveal [appRevealDelay]="80">Glossary &amp; Cheat Sheet</h1>
+  <p appReveal [appRevealDelay]="160">
+    <span class="gl-count">{{ totalCount }}</span> Angular and TypeScript terms used across the curriculum, in one
+    searchable, printable A-Z reference.
   </p>
 </div>
 
-<div class="gl-toolbar">
+<app-napkin lead="psst —" label="Printing tip" class="gl-napkin" appReveal [appRevealDelay]="200">
+  Cramming before the exam? Hit <strong>Print</strong> below and take the whole reference with you on paper.
+</app-napkin>
+
+<div class="gl-toolbar" appReveal [appRevealDelay]="240">
   <input
     aria-label="Search terms or definitions"
     class="gl-search"
@@ -19,7 +23,7 @@
   <button class="print-btn" (click)="print()">🖨 Print</button>
 </div>
 
-<div class="gl-jump">
+<div class="gl-jump" appReveal [appRevealDelay]="280">
   @for (letter of alphabet; track letter) {
     <a
       [class.has-terms]="letterHasTerms(letter)"
@@ -32,11 +36,15 @@
 
 <div class="gl-body">
   @if (groups().length === 0) {
-    <div class="empty-state">No terms match "{{ query() }}".</div>
+    <div class="empty-state" appReveal>
+      <app-bubbles [turns]="emptyStateTurns()" caption="Try a shorter word, or browse the A-Z bar above instead." />
+    </div>
   } @else {
-    @for (group of groups(); track group.letter) {
-      <div class="gl-group" [id]="'letter-' + group.letter">
-        <h2>{{ group.letter }}</h2>
+    @for (group of groups(); track group.letter; let gi = $index) {
+      <div class="gl-group" [id]="'letter-' + group.letter" appReveal [appRevealDelay]="(gi % 6) * 50">
+        <h2>
+          <span class="gl-letter-badge">{{ group.letter }}</span>
+        </h2>
         <dl>
           @for (t of group.terms; track t.term) {
             <div class="gl-term">

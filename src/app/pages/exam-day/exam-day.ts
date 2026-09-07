@@ -7,6 +7,8 @@ import { recordMisses } from '../practice/review-queue';
 import { CODING_TASKS, type CodingTask } from '../coding-tasks/coding-tasks-data';
 import { downloadTextFile } from '../../shared/download-file';
 import { STORAGE_KEYS, readJson, removeKey, writeJson } from '../../core/storage';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Napkin, TapeCard } from '../../shared/brain';
 
 /** Which leg of the readiness check is on screen. See {@link ExamDay}. */
 type Phase = 'idle' | 'exam' | 'tasks' | 'result';
@@ -136,7 +138,7 @@ function formatClock(totalSeconds: number): string {
  */
 @Component({
   selector: 'app-exam-day',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, RevealOnScrollDirective, TapeCard, Napkin],
   styleUrl: './exam-day.css',
   templateUrl: './exam-day.html',
 })

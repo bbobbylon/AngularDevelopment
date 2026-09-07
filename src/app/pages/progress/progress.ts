@@ -11,6 +11,8 @@ import { dueCount, loadMastered, loadQueue } from '../practice/review-queue';
 import { CODING_TASKS } from '../coding-tasks/coding-tasks-data';
 import { downloadTextFile } from '../../shared/download-file';
 import { STORAGE_KEYS, readJson } from '../../core/storage';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { TapeCard } from '../../shared/brain';
 
 /*
  * The three interfaces below mirror data owned by *other* pages.
@@ -102,7 +104,7 @@ const WEAK_THRESHOLD = 70;
  */
 @Component({
   selector: 'app-progress',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, RevealOnScrollDirective, TapeCard],
   styleUrl: './progress.css',
   templateUrl: './progress.html',
 })

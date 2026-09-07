@@ -1,0 +1,165 @@
+/* ============================================================
+   Coming Soon — the placeholder shown for a curriculum entry with no
+   lesson written yet.
+
+   Restyled onto the brain-friendly tokens (see src/brain-friendly.css).
+   This is a status/fallback page, not a lesson, so it does not opt into
+   `.lesson.bf` — no Chapter/CodeLab/annotated-code treatment here. It
+   picks up the warm palette and type for free from the app-wide remap in
+   that file's §3; what follows is the room, radii, motion and hand-rolled
+   link treatment the rest of the restyled app now has (see certification.css
+   and review.css for the same recipe on this app's other non-lesson pages).
+
+   Two presentation devices are used, each because the page's own content
+   already has that shape rather than because a device was owed here:
+     - app-bubbles stages the "is it ready yet?" status as a two-line
+       exchange instead of a status paragraph;
+     - app-napkin holds the one thing a reader can actually do about it
+       (open a PR), matching its own "stop and do this one thing" brief.
+   Nothing else on this small a page earns a device — see Layers/TapeCard's
+   own docs for why they don't fit a single placeholder.
+   ============================================================ */
+
+:host {
+  display: block;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 8px 4px 64px;
+}
+
+/* ─── hero ─────────────────────────────────── */
+.hero {
+  text-align: center;
+  padding: 24px 0 4px;
+}
+
+.hero .pill {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  /* Same hand-measured nudge as the home/certification hero pill: plain
+     --bf-accent on --bf-accent-wash lands under the 4.5:1 AA line for
+     normal text at this size, so it's mixed toward ink for a safer ~5:1. */
+  color: color-mix(in srgb, var(--bf-accent) 80%, var(--bf-ink));
+  background: var(--bf-accent-wash);
+  border-color: color-mix(in srgb, var(--bf-accent) 30%, transparent);
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4.6vw, 2.7rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 14px 0 10px;
+  color: var(--text);
+}
+
+.hero .lead {
+  max-width: 50ch;
+  margin: 0 auto;
+  color: var(--text-muted);
+}
+
+/* ─── status — the "is it ready yet?" exchange ────────────── */
+.status {
+  margin: 36px 0 4px;
+}
+
+/* Centered and its own hue (gold — "not yet resolved"), rather than the
+   page's interactive accent, so it doesn't compete with the pill above. */
+.status .bf-eyebrow {
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+/* ─── contribute — app-napkin ──────────────────────────────
+   The one actionable thing on the page, so it gets the "author
+   interrupting" treatment rather than another tinted rectangle. */
+.contribute {
+  margin: 32px 0;
+}
+
+.contribute p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--bf-ink) 88%, var(--bf-bg));
+}
+
+/* Hand-rolled inline code — this page is outside `.lesson`, so the base
+   theme's `.lesson :not(pre) > code` rule does not reach it (see the task
+   brief's note on scoped vs. bare classes). Same tinted treatment the
+   brain-friendly layer gives inline code inside a lesson, applied by hand. */
+.contribute code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  color: var(--bf-accent);
+  background: var(--bf-accent-wash);
+  border: 1px solid color-mix(in srgb, var(--bf-accent) 22%, transparent);
+  border-radius: 6px;
+  padding: 0.08em 0.4em;
+}
+
+/* ─── back link ─────────────────────────────── */
+.back {
+  text-align: center;
+  margin: 36px 0 8px;
+}
+
+.back a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--blue) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.back a:hover {
+  color: var(--accent);
+}
+
+/* ─── "lesson not found" state ──────────────────────────────
+   Reached only via a stale or hand-typed URL — rare, so it stays a small,
+   quiet moment rather than a full second layout. */
+.not-found {
+  text-align: center;
+  padding: 64px 16px;
+}
+
+.not-found__hand {
+  display: block;
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+  transform: rotate(-1deg);
+}
+
+.not-found h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  margin: 0 0 16px;
+  color: var(--text);
+}
+
+.not-found p a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--blue) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.not-found p a:hover {
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back a,
+  .not-found p a {
+    transition: none;
+  }
+}

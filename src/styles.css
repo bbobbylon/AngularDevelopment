@@ -311,14 +311,23 @@ samp {
   padding: 0 0.12em;
 }
 
+/* .good/.bad are the pre-rename names, kept as aliases: 7 already-shipped
+   lessons (including two already through the brain-friendly rewrite —
+   two-way-binding, control-flow-if, security) still use them, and a class
+   rename across the whole curriculum is its own separate sweep, not a
+   side effect of this file. */
 .lesson .right,
-.lesson .wrong {
+.lesson .wrong,
+.lesson .good,
+.lesson .bad {
   font-weight: 600;
 }
-.lesson .right {
+.lesson .right,
+.lesson .good {
   color: var(--green);
 }
-.lesson .wrong {
+.lesson .wrong,
+.lesson .bad {
   color: var(--red);
 }
 
@@ -328,10 +337,12 @@ samp {
    entirely. `aria-hidden` equivalent — generated content is not
    announced by screen readers, and the surrounding prose already
    says which is which. */
-.lesson .right::before {
+.lesson .right::before,
+.lesson .good::before {
   content: "✓ ";
 }
-.lesson .wrong::before {
+.lesson .wrong::before,
+.lesson .bad::before {
   content: "✗ ";
 }
 
@@ -505,8 +516,14 @@ samp {
 button {
   font: inherit;
   cursor: pointer;
-  background: var(--accent);
-  color: #fff;
+  /* --accent-solid, not plain --accent, and --bg rather than a literal
+     white: fixed white-on-accent fails WCAG AA in the brain-friendly dark
+     scheme (3.03:1, under the 4.5:1 AA-normal line) — --accent-solid
+     (brain-friendly.css §3) is the fix, and its own comment has the
+     numbers. This is the base style for every plain, unstyled <button> in
+     the app, so it is the single highest-leverage place to fix it. */
+  background: var(--accent-solid, var(--accent));
+  color: var(--bg);
   border: none;
   border-radius: 8px;
   padding: 8px 14px;

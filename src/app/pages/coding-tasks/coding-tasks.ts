@@ -2,6 +2,8 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CODING_TASKS, type CodingTask } from './coding-tasks-data';
 import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
+import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { Napkin, TapeCard } from '../../shared/brain';
 
 /** Everything remembered about one brief. Persisted; see {@link loadStates}. */
 interface TaskState {
@@ -72,7 +74,7 @@ function saveStates(states: TaskStates): void {
  */
 @Component({
   selector: 'app-coding-tasks',
-  imports: [RouterLink],
+  imports: [RouterLink, RevealOnScrollDirective, TapeCard, Napkin],
   styleUrl: './coding-tasks.css',
   templateUrl: './coding-tasks.html',
 })
@@ -95,6 +97,10 @@ export class CodingTasks {
   readonly completedCount = computed(
     () => this.tasks.filter((t) => this.states()[t.id]?.done).length,
   );
+
+  /** Briefs not yet marked complete — presentational only, drives the hero
+   *  stat row's "Remaining" tile. Nothing reads this but the template. */
+  readonly remainingCount = computed(() => this.tasks.length - this.completedCount());
 
   /**
    * Mirrors {@link states} to storage on every change.
