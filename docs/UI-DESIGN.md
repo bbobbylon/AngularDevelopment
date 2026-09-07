@@ -523,8 +523,8 @@ restate the line in English.**
 **Theme: unconditional app-wide, since 2026-09-03** (§9.1). Every page inherits the
 palette and typography with zero opt-in.
 
-**Lessons: 37 of 100 through the full component-set migration as of 2026-09-04**, all
-through the write-then-adversarially-review cycle and scoring 8-9/9 on the retention audit.
+**Lessons: 100 of 100 through the full component-set migration as of 2026-09-06**, all
+through the write-then-adversarially-review cycle and scoring 9/9 on the retention audit.
 Started 2026-08-31 with five pilots — `expert/change-detection` (the reference
 implementation — copy its shape), `beginner/signals`, `intermediate/rxjs-subjects`,
 `typescript/narrowing`, `foundations/arrays-objects-basics` — one per track, so the layer
@@ -534,15 +534,18 @@ in `narrowing.ts`, a fictional signal named in a diagram in `signals.html`, a de
 `arrays-objects-basics` that contradicted its own teaching point, an `ng build`-only NG5002
 from a single unescaped brace in a JS template-literal sample, and (batch 4) a real doc/code
 mismatch in the shared `Layers` component itself (`src/app/shared/brain/layers/layers.ts`)
-that a lesson reviewer caught while reading the component it used. Remaining 63 tracked in
-`BACKLOG.md` §1.2, worst-first by `node scripts/audit-retention.mjs`.
+that a lesson reviewer caught while reading the component it used. The batch-by-batch
+record is in `BACKLOG.md` §1.2; `node scripts/audit-retention.mjs` still ranks lessons
+worst-first if any ever regresses.
 
-**Non-lesson pages: 5 of 15 restyled as of 2026-09-04** — home, certification, practice,
-mock-exam, review. These do NOT get the lesson component set (no Chapter/CodeLab/Quiz); a
+**Non-lesson pages: 15 of 15 restyled as of 2026-09-07** — home, certification, practice,
+mock-exam, review (2026-09-03/04), then progress, coding-tasks, api-playground, exam-day,
+flashcards, interview, glossary, bookmarks, coming-soon, not-found (2026-09-05, merged to
+master 2026-09-07). These do NOT get the lesson component set (no Chapter/CodeLab/Quiz); a
 restyle pass audits hard-coded colour, applies the design-system tokens, and adds motion,
-while preserving every existing feature exactly. Remaining 10 (progress, coding-tasks,
-api-playground, exam-day, flashcards, interview, glossary, bookmarks, coming-soon,
-not-found) tracked in `BACKLOG.md` §1.2.
+while preserving every existing feature exactly. The same merge fixed the app-wide base
+`button` contrast failure (white on `--accent`, 3.03:1 in the dark scheme) by painting
+`--bg` on `--accent-solid` — see `brain-friendly.css` §3 for the measured ratios.
 
 ---
 

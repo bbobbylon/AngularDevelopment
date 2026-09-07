@@ -414,18 +414,28 @@ strictly worse. `docs/CONTRIBUTING.md` §2A has the retention budgets and copy c
 lesson, and that long copy lives in the `.ts` — and §2B has the presentation budgets, the
 section rhythm, and the line-annotation rules.
 
-**Rollout state (2026-09-06):** the brain-friendly palette and typography are now the
-app's ONE unconditional default theme — every page, migrated or not, chrome included,
-inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). On top of that: **100 of 100
-lessons are through the combined retention + brain-friendly pass — the lesson rollout is
-complete.** 5 of 15 non-lesson pages (home, certification, practice, mock-exam, review)
-have had their own colour/motion restyle; 10 remain (progress, coding-tasks,
-api-playground, exam-day, flashcards, interview, glossary, bookmarks, coming-soon,
-not-found). See `docs/BACKLOG.md` §1.2 for detail — it is the shared source of truth and
-has been caught stale before, causing a wasted duplicate rewrite — plus the build-breaking
-traps found so far. Nothing sits below 9/9 any more. Continue worst-first on the remaining
-non-lesson pages — a restyle pass (tokens, colour audit, motion), never the lesson
-component set (no Chapter/CodeLab/Quiz/Predict/Faq on a dashboard or practice engine).
+**Rollout state (2026-09-07): the rollout is complete.** The brain-friendly palette and
+typography are the app's ONE unconditional default theme — every page, chrome included,
+inherits it with zero opt-in (see `docs/UI-DESIGN.md` §9.1). **100 of 100 lessons** are
+through the combined retention + brain-friendly pass and **15 of 15 non-lesson pages** have
+had their colour/motion restyle (the last ten arrived via the 2026-09-07 merge of the
+`claude/brain-friendly-redesign-m21bo1` branch). Nothing sits below 9/9. `docs/BACKLOG.md`
+§1.2 holds the batch record and the build-breaking traps found along the way — it is the
+shared source of truth and has been caught stale before, causing a wasted duplicate
+rewrite, so log anything you land there immediately. If a page or lesson ever needs
+re-touching, the rule stands: non-lesson pages get a restyle pass (tokens, colour audit,
+motion), never the lesson component set (no Chapter/CodeLab/Quiz/Predict/Faq on a
+dashboard or practice engine).
+
+**What is next (filed 2026-09-07).** The remaining feature/enhancement work is
+`docs/BACKLOG.md` §1.3 (coverage gaps — theme 2, the Angular 21 API surface, first),
+§2.1 (motion still to do), §2.4 (highlighter), and the author-decision items §2.5/§2.6.
+**After all of that, and not before, comes §2.8 — the documentation pass**: a header on
+every file saying what it is, what it uses, what uses it and where it sits in the app; a
+JSDoc line on every remaining member; and a concise `docs/FILE-MAP.md`. Its standing
+measure is `node scripts/audit-docs.mjs` (19/252 files have a header today; 343 members
+lack a comment). The author asked for that order explicitly — do not start §2.8 while
+feature work is still open.
 
 **The retention pass and the presentation pass are now one pass.** Since 2026-08-31,
 migrating a lesson to the brain-friendly layer means rewriting it against the nine-point

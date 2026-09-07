@@ -1,7 +1,7 @@
 # Backlog
 
-**Version:** 1.3
-**Last Updated:** 2026-09-06
+**Version:** 1.4
+**Last Updated:** 2026-09-07
 **Status:** Living document
 
 ## Overview
@@ -412,20 +412,38 @@ Full `npm run test:ci` (469/469, all 23 spec files) and a production `ng build` 
 clean at the end of this batch, confirming all 6 lessons are mutually compatible and the
 rollout is genuinely finished, not just individually verified.
 
-**Non-lesson pages — new as of 2026-09-03, 5 of 15 done.** The theme flip above fixed
+**Non-lesson pages — 15 of 15 done as of 2026-09-07.** The theme flip above fixed
 colour/type consistency for free; it does not fix a page's own hard-coded colours or give
-it the warmth/motion a migrated lesson has. `home`, `certification`, `practice`,
-`mock-exam`, `review` are restyled — a colour audit onto tokens, motion, and (where it
-genuinely fits, e.g. Home's hero stats) reuse of a presentation component, while preserving
-every existing feature exactly. These are NOT lessons: no Chapter/CodeLab/Quiz/Predict/Faq,
+it the warmth/motion a migrated lesson has. All fifteen are now restyled — a colour audit
+onto tokens, motion, and (where it genuinely fits, e.g. Home's hero stats) reuse of a
+presentation component, while preserving every existing feature exactly. `home`,
+`certification`, `practice`, `mock-exam`, `review` landed on master 2026-09-03/04;
+the other ten (`progress`, `coding-tasks`, `api-playground`, `exam-day`,
+`flashcards`, `interview`, `glossary`, `bookmarks`, `coming-soon`, `not-found`)
+landed 2026-09-05 on the `claude/brain-friendly-redesign-m21bo1` branch and reached
+master in the 2026-09-07 merge described below. These are NOT lessons: no Chapter/CodeLab/Quiz/Predict/Faq,
 no `.lesson.bf` wrapper — forcing lesson-shaped teaching devices onto a dashboard or a
 practice engine would be decoration without information. Three independent restyle passes
 converged on the same real gap: `.bf-btn`/`.key`/`.term`/`.bf-break` in
 `src/brain-friendly.css` are still scoped under `.lesson.bf` (and `.key`/`.term` have a
 second, `.lesson`-scoped rule in `styles.css`) despite being usable-sounding — they render
 unstyled on a non-lesson page. Hand-roll from the raw tokens instead, as all three did.
-Remaining 10: `progress`, `coding-tasks`, `api-playground`, `exam-day`, `flashcards`,
-`interview`, `glossary`, `bookmarks`, `coming-soon`, `not-found`.
+
+**2026-09-07 — branch merged, §1.1 and §1.2 both closed.** The
+`claude/brain-friendly-redesign-m21bo1` branch had diverged from master on 2026-09-04.
+Master went on to finish the lesson rollout (batches 7–13); the branch finished the ten
+non-lesson pages, added `.good`/`.bad` as aliases of `.right`/`.wrong` in
+`styles.css` (seven shipped lessons still use the old names), and fixed a real WCAG AA
+failure app-wide — the base `button` rule painted white on `--accent`, 3.03:1 in the
+dark scheme; it now paints `--bg` on `--accent-solid` (`brain-friendly.css` §3 has the
+numbers). The merge took master's versions of the eight lessons both sides had rewritten
+(`property-binding`, `two-way-binding`, `animations`, `deferrable-views`,
+`pwa-service-worker`, `view-transitions`, `typescript/classes`,
+`typescript/decorators`) because master's batch-7..13 passes were the later ones;
+everything else merged clean. `npm run verify` passed afterwards (469/469, production
+build) — but only after three batch-12 lessons (`content-projection`,
+`structural-directives`, `keyof-typeof`) were run through Prettier: they had been
+committed unformatted and master's `format:check` step had been failing on them.
 
 **Traps worth knowing before the next batch** (each cost a build break to discover):
 
@@ -665,6 +683,82 @@ here is Angular + TypeScript only (foundations, TypeScript, beginner, intermedia
 projects) and has no Ruby/Java/PHP tracks. The equivalent check here is lesson _depth_,
 which §1.1 already tracks.
 
+### 2.8 Documentation pass — every file, every member, and the map
+
+**Requested 2026-09-07, with an explicit sequencing rule: this runs _after_ whatever
+features and enhancements remain, not interleaved with them.** A documentation pass over
+code that is still moving has to be redone, so it goes last. The ask, in the author's
+words: make sure all the methods/variables — everything — are documented in comments in
+the code, plus an overall concise doc for the app; each file explained thoroughly, how it
+relates to other files in the project, and how it relates to the project overall.
+
+**What is still ahead of it** (the "features/enhancements that remain", as of the day it
+was filed — §1.1 and §1.2 are closed):
+
+- §1.3 theme 2 — the Angular 21 surface (`httpResource`, Signal Forms, `linkedSignal`,
+  `router.events`, `EnvironmentProviders`) is the time-sensitive one. Theme 1 (failure
+  modes) was meant to fold into the §1.2 rewrites, which are now finished, so it is its
+  own pass. Themes 3 and 4 are scope decisions for the author.
+- §2.1 — panel/accordion open-close, list add/remove, richer route transitions.
+- §2.2 items 1, 2, 4, 5 — largely absorbed by the brain-friendly rollout; verify each
+  against a migrated lesson and close the ones that hold.
+- §2.4 — the highlighter's `MutationObserver` sweep, an HTML/template mode, explicit
+  `lang`.
+- §2.5 / §2.6 — the live editor and "code with me"; author decisions, not backlog grind.
+
+**Where it stands** (measured 2026-09-07 with `node scripts/audit-docs.mjs`, which is the
+standing measure for this item the way `audit-retention.mjs` is for §1.1). The
+2026-08-28 JSDoc sweep (§4) covered _declarations_, not _files_:
+
+| what                                                    | total | documented | missing |
+| ------------------------------------------------------- | ----: | ---------: | ------: |
+| classes, interfaces, functions, enums, accessors        |   407 |        407 |       0 |
+| class properties                                        | 3,141 |      3,108 |      33 |
+| class methods                                           |   542 |        525 |      17 |
+| top-level `const`s                                      |   136 |         92 |      44 |
+| type aliases                                            |    56 |         55 |       1 |
+| interface members                                       |   426 |        178 |     248 |
+| **files with a top-of-file "what this file is" header** |   252 |     **19** | **233** |
+
+So the member-level gap is small — 343 declarations, three-quarters of them interface
+fields in data models (`cheat-sheet.model.ts`, `lesson.model.ts`) and quiz/demo option
+shapes inside lessons — and the real gap is the one the author named: a per-file header
+that says what the file is for, what it depends on, what depends on it, and where it sits
+in the app. Every class has JSDoc, but it describes the component, not the file's place in
+the project.
+
+**Scope — three deliverables:**
+
+1. **Every `.ts` file gets a header block above its imports.** Purpose in one or two
+   sentences; _uses_ — what it imports and why; _used by_ — what imports it (the route
+   table, a barrel, a parent lesson); _place in the app_ — which layer of ARCHITECTURE.md
+   §1 it belongs to. Spec files included: say which behaviour the spec guards. `.html` /
+   `.css` files get a one-line comment header only where the file is not obvious from its
+   `.ts` sibling (shared components, `styles.css`, `brain-friendly.css`, `fonts.css`).
+2. **Every remaining member gets a JSDoc line** — the 343 above, to zero. Interface members
+   carry the unit, shape, or reason, not a restatement of the name. Same rule as §2.3: a
+   comment must say something the code does not; `/** The title. */` on `title` is worse
+   than nothing.
+3. **One concise map, `docs/FILE-MAP.md`.** Every directory and every non-lesson file, one
+   line each — purpose plus nearest relationships — and one line per lesson folder, since
+   all lessons share one shape that is documented once at the top. ARCHITECTURE.md §3 is
+   the seed but is already stale (no `shared/brain/`, no `scripts/`, `aws/`, `.github/`,
+   `public/fonts/`); fix it there and have the map link into it rather than duplicate the
+   prose. Cross-link every file header's _place in the app_ line to the same section names
+   so the two stay in lockstep.
+
+**Gate.** `node scripts/audit-docs.mjs` reports 0 undocumented members and 0 files without
+a header; CONTRIBUTING.md gains a short "documenting a file" section with the header shape
+so new files follow it; the audit joins `npm run verify` if it stays fast (it is ~1s now).
+
+**Order of work when it starts.** `core/` and `shared/` first — they are the most
+imported, so their headers anchor everyone else's _used by_ lines — then `pages/`, then
+`app.*`, `main.ts` and the styles, then lessons. Lessons are ~200 of the 252 files but
+the most uniform: a template header plus the lesson-specific sentence is most of the work,
+and it can run as parallel per-track agents the way the §1.2 batches did — with the same
+lesson learned there: verify each batch by re-running the audit, not by trusting the
+agent's report.
+
 ---
 
 ## 3. Later
@@ -690,6 +784,8 @@ Kept short — detail lives in the docs each item updated.
 
 | Shipped       | What                                                                      |
 | ------------- | ------------------------------------------------------------------------- |
+| 2026-09-07    | Brain-friendly branch merged to master; 100/100 lessons + 15/15 pages     |
+| 2026-09-06    | Lesson rollout complete — every lesson through the retention + brain pass |
 | 2026-08-29    | `aws/` boilerplate — S3 + CloudFront + OAC + ACM, four idempotent scripts |
 | 2026-08-29    | Prettier normalization + `format:check` gated in CI                       |
 | 2026-08-29    | axe-core a11y suite over every route; 27 WCAG violations found and fixed  |
