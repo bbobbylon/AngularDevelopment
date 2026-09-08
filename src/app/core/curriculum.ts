@@ -523,6 +523,16 @@ export const CURRICULUM: Lesson[] = [
       import('../lessons/intermediate/form-arrays/form-arrays').then((m) => m.FormArrays),
   },
   {
+    id: 'signal-forms',
+    title: 'Signal Forms',
+    summary:
+      "Angular 21's signal-native forms: form() over a signal model, schema() rules, field state as signals, submit().",
+    level: 'intermediate',
+    category: 'Forms',
+    loadComponent: () =>
+      import('../lessons/intermediate/signal-forms/signal-forms').then((m) => m.SignalForms),
+  },
+  {
     id: 'router-children-lazy',
     title: 'Child Routes & Lazy Loading',
     summary: 'Nested outlets, feature routes and loadChildren / loadComponent.',
@@ -561,6 +571,18 @@ export const CURRICULUM: Lesson[] = [
       import('../lessons/intermediate/route-params/route-params').then((m) => m.RouteParams),
   },
   {
+    id: 'router-events',
+    title: 'Navigation Events & the Router Lifecycle',
+    summary:
+      'router.events from NavigationStart to End, Cancel and Error — loading bars, cancelled guards, failed chunks, and the order a navigation runs in.',
+    level: 'intermediate',
+    category: 'Routing',
+    loadComponent: () =>
+      import('../lessons/intermediate/router-events/router-events').then(
+        (m) => m.RouterEventsLesson,
+      ),
+  },
+  {
     id: 'http-crud',
     title: 'HttpClient CRUD',
     summary: 'POST/PUT/PATCH/DELETE, headers, params and typed responses.',
@@ -578,6 +600,18 @@ export const CURRICULUM: Lesson[] = [
     loadComponent: () =>
       import('../lessons/intermediate/http-interceptors/http-interceptors').then(
         (m) => m.HttpInterceptors,
+      ),
+  },
+  {
+    id: 'http-resource',
+    title: 'httpResource(): Signal-Based HTTP',
+    summary:
+      'A GET whose URL is a reactive computation — value, status, error and reload as signals; where it beats HttpClient and where it must not be used.',
+    level: 'intermediate',
+    category: 'HTTP',
+    loadComponent: () =>
+      import('../lessons/intermediate/http-resource/http-resource').then(
+        (m) => m.HttpResourceLesson,
       ),
   },
   {
