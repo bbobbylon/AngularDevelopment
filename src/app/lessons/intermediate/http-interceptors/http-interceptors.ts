@@ -66,6 +66,7 @@ export class HttpInterceptors {
     { label: 'Basics', id: 'http-basics' },
     { label: 'CRUD', id: 'http-crud' },
     { label: 'Interceptors' },
+    { label: 'httpResource()', id: 'http-resource' },
   ];
 
   // ── The onion-chain demo (unchanged behaviour from the previous version) ───────

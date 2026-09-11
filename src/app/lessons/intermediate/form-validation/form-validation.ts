@@ -154,6 +154,7 @@ export class FormValidation {
     { label: 'Form Validation' },
     { label: 'Async Validators', id: 'async-validators' },
     { label: 'FormArray', id: 'form-arrays' },
+    { label: 'Signal Forms', id: 'signal-forms' },
   ];
 
   /**

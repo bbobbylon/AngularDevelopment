@@ -71,6 +71,7 @@ export class ControlValueAccessorLesson {
     { label: 'Reactive Forms', id: 'reactive-forms' },
     { label: 'Async Validators', id: 'async-validators' },
     { label: 'Form Arrays', id: 'form-arrays' },
+    { label: 'Signal Forms', id: 'signal-forms' },
     { label: 'Custom Controls (CVA)' },
   ];
 

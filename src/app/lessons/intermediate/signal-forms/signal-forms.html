@@ -1,4 +1,419 @@
-<article class="lesson">
-  <h1>Signal Forms</h1>
-  <p>This lesson is being written.</p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="5"
+    kicker="Angular Intermediate · Forms"
+    title="Signal Forms"
+    hand="or, what happens when a form is just a signal wearing a schema"
+    [stops]="stops"
+    [current]="5"
+  >
+    <p class="lead">
+      Every form API so far in this track has needed its own bespoke object — a
+      <code>FormGroup</code>, a tree of <code>FormControl</code>s — kept in sync with whatever state your component
+      actually cares about. Signal Forms deletes the sync problem: you keep the plain signal you already had, and
+      <code>form()</code> wraps it. <strong>No parallel object, no two sources of truth.</strong> This page builds one
+      signup form from nothing, adding a capability at a time, so the API earns its keep in front of you instead of in
+      the abstract.
+    </p>
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>Reactive Forms makes you keep two copies of everything.</h2>
+
+    <p>
+      A <code>FormGroup</code> is not your data — it is a <em>second</em> object that happens to shadow your data. Want
+      the value somewhere else in your app? You call <code>.value</code> and copy it out. Want to set it from outside?
+      You call <code>.patchValue()</code> and hope the shape matches.
+      <span class="key"
+        >The control tree and your actual model are always two things, kept in sync by convention, not by the type
+        system.</span
+      >
+    </p>
+
+    <p>
+      Signal Forms starts from a different premise: <strong>your model was already reactive.</strong> It's a signal. The
+      form doesn't need its own copy of the data — it needs a way to read and write the signal you already have, plus
+      somewhere to hang validation rules and interaction state. That "somewhere" is what <code>form()</code> returns.
+    </p>
+
+    <app-napkin lead="predict before reading on —" label="What would you guess?">
+      If <code>form()</code> takes your signal and hands back something new, what do you think that new thing actually
+      <em>is</em>? A class instance, like <code>FormGroup</code>? A plain object of getters? Keep that guess in mind —
+      the next section answers it, and the answer is stranger than either option.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MECHANISM ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2><code>userForm.email</code> is not a value. It's a function.</h2>
+
+    <p>
+      This is the one thing every reactive-forms veteran gets backwards on their first try, so it's worth slowing down
+      for. <code>form(mySignal)</code> returns a <strong class="term">FieldTree</strong> — and a
+      <code>FieldTree</code> is <em>callable</em>. Calling it gives you that field's state. Reading a property off it,
+      like <code>.email</code>, doesn't read a value — it gives you <em>another</em> callable, scoped one level deeper.
+      Nothing resolves to a plain value until you call something.
+    </p>
+
+    <p>
+      Think of it like a stack of labelled, sealed envelopes rather than an open filing tray.
+      <code>userForm</code> is the outer envelope for the whole form. <code>userForm.email</code> hands you the
+      <em>next</em> sealed envelope, addressed "email" — still unopened. Only opening it, by calling it, shows you
+      what's inside: the value, plus whether anyone's touched it, plus any errors. You can hold an unopened envelope,
+      pass it around, check its label — but you can't read what's in it without that final call.
+    </p>
+
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="The conversation to have with yourself the first time `userForm.email` doesn't look like a string."
+    />
+
+    <app-code-lab
+      file="signal-forms-mechanism.ts"
+      [code]="mechanismSample"
+      [notes]="mechanismNotes"
+      notesLabel="Line by line"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — the same three lines, typed at</p>
+      <div class="field">
+        <label>Nickname</label>
+        <input aria-label="Nickname" [formField]="nicknameForm.nickname" />
+      </div>
+      <p class="row">
+        <span class="pill">typeof userForm: {{ whatIsIt.theForm() }}</span>
+        <span class="pill">typeof userForm.nickname: {{ whatIsIt.theField() }}</span>
+        <span class="pill">typeof userForm.nickname(): {{ whatIsIt.theState() }}</span>
+      </p>
+      <p class="row">
+        <span class="pill">value(): "{{ nicknameForm.nickname().value() }}"</span>
+        <span class="pill">touched(): {{ nicknameForm.nickname().touched() }}</span>
+      </p>
+      <p class="demo__note">
+        All three <code>typeof</code> readouts say <code>"function"</code> — the form, the field, and even calling the
+        field once more all land you back on more callables, until <code>.value()</code> finally hands you the string.
+      </p>
+    </div>
+
+    <div class="bf-grid-3">
+      <app-tape-card heading="value / touched / dirty" kicker="did it change, did they leave it">
+        <code>.value()</code> is itself a <code>WritableSignal</code>. <code>.touched()</code> flips on blur;
+        <code>.dirty()</code> flips the instant the value differs from its initial one.
+      </app-tape-card>
+      <app-tape-card heading="errors / pending" kicker="what's wrong, and is it still checking">
+        <code>.errors()</code> is a list, not one message — a field can fail several rules at once.
+        <code>.pending()</code> is <code>true</code> while an async or HTTP validator is still running.
+      </app-tape-card>
+      <app-tape-card heading="valid / invalid" kicker="the trap covered below">
+        Not opposites. <code>valid()</code> needs zero errors <em>and</em> zero pending validators;
+        <code>invalid()</code> only needs one error. A pending field is neither.
+      </app-tape-card>
+    </div>
+
+    <app-remember variant="mnemonic">
+      <strong>Call it once for the tree, call it again for the state.</strong> A <code>FieldTree</code> property access
+      walks the shape of your model; calling what you land on is what actually produces a <code>FieldState</code> with
+      signals on it.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE FLOW OF A KEYSTROKE ============ -->
+  <section>
+    <p class="bf-eyebrow">Under the hood</p>
+    <h2>What actually happens between a keystroke and a red border.</h2>
+
+    <app-flow
+      [steps]="keystrokeFlow"
+      caption="No `(input)` handler was written anywhere in this lesson — `[formField]` supplies all of it."
+    />
+
+    <p>
+      Notice what's absent: no subscription, no <code>.valueChanges.subscribe()</code>, no manual
+      <code>markForCheck()</code>. <code>[formField]</code> writes to the value signal directly, the schema is
+      <span class="key">re-run automatically</span> because it reads that signal, and the template updates because it
+      reads the resulting <code>FieldState</code> signals. It's signals the whole way down — the form layer doesn't
+      introduce a second change-detection story.
+    </p>
+  </section>
+
+  <!-- ============ 4. VALIDATION, DECLARED BESIDE THE MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow">Validation</p>
+    <h2>Rules live next to the shape they validate, not scattered through the template.</h2>
+
+    <p>
+      <code>schema()</code> takes a function that receives a path matching your model's shape, and you attach validators
+      to pieces of that path — <code>required(p.username, …)</code>, <code>minLength(p.password, 8, …)</code>. Angular
+      runs the whole schema function once and caches the rules; it does <strong>not</strong> re-run your setup code on
+      every keystroke, only the individual rule checks that actually depend on what changed.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the signup form, validated</p>
+      <div class="field">
+        <label>Username (3+ characters)</label>
+        <input aria-label="Username" [formField]="signupForm.username" />
+        @if (signupForm.username().touched() && signupForm.username().invalid()) {
+          <small class="err">
+            @for (e of signupForm.username().errors(); track e.kind) {
+              {{ e.message }}
+            }
+          </small>
+        }
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input aria-label="Email" [formField]="signupForm.email" />
+        @if (signupForm.email().touched() && signupForm.email().invalid()) {
+          <small class="err">
+            @for (e of signupForm.email().errors(); track e.kind) {
+              {{ e.message }}
+            }
+          </small>
+        }
+      </div>
+      <div class="field">
+        <label>Password (8+ characters)</label>
+        <input aria-label="Password" type="password" [formField]="signupForm.password" />
+        @if (signupForm.password().touched() && signupForm.password().invalid()) {
+          <small class="err">
+            @for (e of signupForm.password().errors(); track e.kind) {
+              {{ e.message }}
+            }
+          </small>
+        }
+      </div>
+      <div class="field">
+        <label>Confirm password</label>
+        <input aria-label="Confirm password" type="password" [formField]="signupForm.confirmPassword" />
+        @if (signupForm.confirmPassword().touched() && signupForm.confirmPassword().invalid()) {
+          <small class="err">
+            @for (e of signupForm.confirmPassword().errors(); track e.kind) {
+              {{ e.message }}
+            }
+          </small>
+        }
+      </div>
+      <p class="row">
+        <span class="pill">form valid: {{ signupForm().valid() }}</span>
+        <span class="pill">form invalid: {{ signupForm().invalid() }}</span>
+      </p>
+      <p class="demo__note">
+        The password-match error is attached to <strong>Confirm password</strong> even though the rule that produced it
+        reads both fields — that's <code>validateTree</code>, next.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>Where did <code>Validators.required</code> go?</strong> It didn't move — it isn't the same function.
+      <code>required</code>, <code>email</code>, <code>minLength</code> and friends here are a separate export, shaped
+      for a <code>SchemaPath</code> instead of a <code>FormControl</code>. They share a package and a name with the
+      reactive-forms <code>Validators</code> namespace by coincidence, not by design.
+    </div>
+  </section>
+
+  <!-- ============ 5. CROSS-FIELD VALIDATION ============ -->
+  <section>
+    <p class="bf-eyebrow">Cross-field rules</p>
+    <h2>Some checks can't live on one field, because they need two.</h2>
+
+    <p>
+      A password-confirmation check can't be a rule on <code>confirmPassword</code> alone — that field's own validator
+      never sees <code>password</code>. It has to run on the <strong>tree</strong>, with access to the whole model, and
+      then explicitly say which field the resulting error belongs to.
+    </p>
+
+    <app-code-lab
+      file="signup.schema.ts — the whole rule set"
+      [code]="submitSample"
+      [notes]="submitNotes"
+      notesLabel="Line by line"
+      prompt="This is the same schema powering the demo above — see the server-error branch in the middle."
+    />
+
+    <app-napkin lead="worth noticing —" label="Why the error lands on confirmPassword">
+      <code>validateTree(p, (ctx) =&gt; …)</code> runs with the whole model in scope, but the
+      <code>ValidationError</code> it returns still names a target: <code>fieldTree: p.confirmPassword</code>. That's
+      the same mechanism <code>submit()</code> uses to route a server rejection back to one exact field — cross-field
+      validation and server-error mapping are the same primitive.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 6. CONDITIONAL FIELDS ============ -->
+  <section>
+    <p class="bf-eyebrow">Conditional logic</p>
+    <h2>A field can be required only sometimes — reactively, not with an <code>*ngIf</code> guess.</h2>
+
+    <div class="demo">
+      <p class="demo__title">Live — check the box</p>
+      <div class="field">
+        <label>
+          <input
+            type="checkbox"
+            aria-label="I'm setting this up for a company"
+            [formField]="signupForm.wantsCompanyAccount"
+          />
+          I'm setting this up for a company
+        </label>
+      </div>
+      @if (!signupForm.companyName().hidden()) {
+        <div class="field">
+          <label>Company name</label>
+          <input aria-label="Company name" [formField]="signupForm.companyName" />
+          @if (signupForm.companyName().touched() && signupForm.companyName().invalid()) {
+            <small class="err">
+              @for (e of signupForm.companyName().errors(); track e.kind) {
+                {{ e.message }}
+              }
+            </small>
+          }
+        </div>
+      }
+      <p class="demo__note">
+        <code>required(p.companyName, …)</code> is registered unconditionally in the schema — it's
+        <code>hidden(p.companyName, …)</code> that decides, live, whether it's currently in force.
+      </p>
+    </div>
+
+    <app-quiz
+      question="hidden(p.companyName, ({ valueOf }) => !valueOf(p.wantsCompanyAccount)) runs. The checkbox is unticked. What happened to the &lt;input&gt; in the DOM?"
+      [options]="stateQuizOptions"
+      followUp="The field's own errors() and disabled-adjacent state change — the markup around it changes only because this lesson's template wraps it in an @if by hand."
+    />
+  </section>
+
+  <!-- ============ 7. SUBMIT() AND SERVER ERRORS ============ -->
+  <section>
+    <p class="bf-eyebrow">Submission</p>
+    <h2>A rejected username isn't a special case — it's one more validation error.</h2>
+
+    <p>
+      <code>submit()</code> runs your <code>action</code>, awaits it, and — if it returns errors — attaches each one to
+      the exact <code>fieldTree</code> it names. Your template never learns the difference between a client-side rule
+      and a server rejection; both surface through the same <code>.errors()</code> signal.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — try the username "admin" (everything else already fills in above)</p>
+      <button type="button" [disabled]="signupForm().invalid()" (click)="submitSignup()">Create account</button>
+      <p class="row" style="margin-top: 10px">
+        <span class="pill">outcome: {{ submitOutcome() }}</span>
+      </p>
+      @if (signupForm.username().errors().length > 0) {
+        <small class="err">
+          @for (e of signupForm.username().errors(); track e.kind) {
+            {{ e.message }}
+          }
+        </small>
+      }
+      <p class="demo__note">
+        The button is disabled while the form is client-side invalid — <code>submit()</code> itself doesn't gate on that
+        for you, so it's worth doing yourself, the same way you would with any other form API.
+      </p>
+    </div>
+
+    <div class="tip">
+      <strong>Concurrent submissions are prohibited</strong> — a <code>submit()</code> already in flight for a field (or
+      any ancestor of it) makes every other call on it a same-tick no-op that resolves <code>false</code> without ever
+      running <code>action</code>.
+    </div>
+
+    <app-quiz
+      question="You click Create account twice, fast, before the first request resolves. What runs?"
+      [options]="submitQuizOptions"
+    />
+  </section>
+
+  <!-- ============ 8. ARRAYS, DECLARATIVELY ============ -->
+  <section>
+    <p class="bf-eyebrow">Arrays</p>
+    <h2>No <code>FormArray</code>. A list is just a field whose value is a list.</h2>
+
+    <p>
+      The <a routerLink="/form-arrays">FormArray lesson</a> in this track pushes and removes <code>FormControl</code>s
+      imperatively — <code>.push()</code>, <code>.removeAt()</code> — and keeps that array of controls in sync with an
+      array of values by hand. Signal Forms skips the imperative half entirely: the model's <code>skills</code> field is
+      a plain <code>string[]</code>, and <code>applyEach</code> attaches its rule to every current item
+      <em>and</em> every item added later.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live</p>
+      @for (skill of skillsModel().skills; track $index) {
+        <div class="skill-row">
+          <input [attr.aria-label]="'Skill ' + ($index + 1)" [formField]="skillsForm.skills[$index]" />
+          <button type="button" class="ghost" (click)="removeSkill($index)">Remove</button>
+        </div>
+      }
+      <button type="button" (click)="addSkill()">Add a skill</button>
+      <p class="row" style="margin-top: 10px">
+        <span class="pill">skills().valid(): {{ skillsForm().valid() }}</span>
+      </p>
+    </div>
+
+    <app-compare
+      leftTitle="FormArray — imperative"
+      rightTitle="Signal Forms — declarative"
+      leftTone="neutral"
+      rightTone="good"
+    >
+      <div left>
+        Adding an item means constructing a new <code>FormControl</code>, calling <code>.push()</code>, and trusting
+        nothing else in the component still holds a stale reference to the old array of controls.
+      </div>
+      <div right>
+        Adding an item means writing a new plain array to the signal you already own.
+        <code>applyEach</code> already covers whatever lands in it — there's no second structure to keep in step.
+      </div>
+    </app-compare>
+
+    <app-predict
+      prompt="You click Add a skill, pushing a brand-new empty string onto the array. Does the `minLength` rule from `applyEach` apply to that new item immediately, or does something need to re-run first to pick it up?"
+      answer="Immediately. `applyEach` isn't a one-time loop over the array's contents at schema-build time — it's a standing rule Angular applies to whatever the array's field produces at each index, including indices that didn't exist yet when the schema function first ran. There's no re-registration step, because there's no separate control to register."
+      revealLabel="Reveal the answer"
+    />
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Five things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>form()</code> wraps a signal you already own — <strong>there is no second object to keep in sync</strong>.
+        The form's data and your app's data are the same signal.
+      </li>
+      <li>
+        A <code>FieldTree</code> and a <code>Field</code> are both <strong>callable, not readable</strong>. Property
+        access walks the model's shape; calling what you land on produces the <code>FieldState</code> with signals on
+        it.
+      </li>
+      <li>
+        <code>valid()</code> and <code>invalid()</code> are <strong>not opposites</strong> — a field with a validator
+        still pending is neither.
+      </li>
+      <li>
+        Cross-field checks and server errors use the <strong>same mechanism</strong>: <code>validateTree</code> and
+        <code>submit()</code>'s <code>action</code> both return a <code>ValidationError</code> tagged with the exact
+        <code>fieldTree</code> it belongs to.
+      </li>
+      <li>
+        <code>hidden()</code> only sets a signal —
+        <strong>it does not remove anything from the DOM for you.</strong> That part of the job is still the template's.
+      </li>
+    </ul>
+
+    <p><a routerLink="/control-value-accessor">Next: Custom Controls with ControlValueAccessor →</a></p>
+  </section>
 </article>

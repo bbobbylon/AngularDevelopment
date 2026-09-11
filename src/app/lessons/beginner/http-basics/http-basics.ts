@@ -98,6 +98,7 @@ export class HttpBasics {
     { label: 'Basics' },
     { label: 'CRUD', id: 'http-crud' },
     { label: 'Interceptors', id: 'http-interceptors' },
+    { label: 'httpResource()', id: 'http-resource' },
   ];
 
   /**

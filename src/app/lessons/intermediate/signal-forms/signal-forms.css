@@ -1,1 +1,29 @@
-/* signal-forms — lesson styles */
+/* Tables, callouts and demo panels are all styled by the shared brain-friendly
+   layer (src/brain-friendly.css §14–15). What's left is specific to this
+   lesson: the stacked field layout the signup demo shares, the inline error
+   colour, and the horizontal row the skills-array demo needs instead. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  max-width: 340px;
+}
+
+.err {
+  color: var(--bf-danger);
+  font-size: 0.8rem;
+}
+
+.skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  max-width: 420px;
+}
+
+.skill-row input {
+  flex: 1;
+}

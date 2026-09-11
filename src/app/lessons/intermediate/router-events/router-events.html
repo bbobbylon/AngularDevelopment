@@ -1,4 +1,298 @@
-<article class="lesson">
-  <h1>Navigation Events & the Router Lifecycle</h1>
-  <p>This lesson is being written.</p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="6"
+    kicker="Angular Intermediate · Routing"
+    title="Navigation Events & the Router Lifecycle"
+    hand="or, the announcer's booth above a game the guards and resolvers are actually playing"
+    [stops]="stops"
+    [current]="5"
+  >
+    <p class="lead">
+      Every navigation is a small pipeline — recognise the URL, check the guards, run the resolvers, activate the
+      components — and <code>router.events</code> is the play-by-play of that pipeline, emitted live as it happens. This
+      page is about <strong>reading</strong> that stream: the order things really fire in, the four different ways a
+      navigation can end, and the bug you get for assuming there's only one.
+    </p>
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You want a global loading bar. Where does it even attach?</h2>
+
+    <p>
+      Not a spinner inside one component — a bar across the very top of the page, the kind every big app has, that
+      appears the instant a link is clicked and disappears once the new page is ready. It can't live inside the page
+      being navigated <em>to</em>, because that page doesn't exist yet when the bar needs to appear. It has to sit
+      somewhere that outlives any single route and can see navigations as they happen, from outside.
+    </p>
+
+    <p>
+      That "somewhere" is <code>router.events</code> — an <span class="key">Observable</span> on the injected
+      <code>Router</code> that emits one value per meaningful step of every navigation, success or not.
+    </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      A developer wires the bar with the obvious pair: show it on <code>NavigationStart</code>, hide it on
+      <code>NavigationEnd</code>. It works perfectly in every manual test they run.
+      <strong>What kind of navigation would leave that bar stuck on screen forever?</strong> There's a live version of
+      exactly this bug further down the page to check your guess against.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2><code>router.events</code> is the announcer, not the referee.</h2>
+
+    <p>
+      A stadium announcer calls the game as it happens — <em>every</em> fan in the building hears the same call, live.
+      But the announcer does not decide anything. A referee's whistle happens first; the announcer just tells the crowd
+      about it a beat later. Shout at the announcer's booth all you want — the call already stands.
+    </p>
+
+    <p>
+      <code>router.events</code> is the announcer. Guards and resolvers are the referees — they are the only things that
+      can actually change what a navigation does. By the time an event reaches your subscriber, that decision has
+      already been made and cannot be unmade from inside a <code>.subscribe()</code>.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>Events narrate. Guards decide.</strong> If you need to allow, block or redirect a navigation, that's a
+      guard. If you only need to react to one — a loading bar, an analytics ping, a scroll reset — that's
+      <code>router.events</code>. Reaching for the wrong one is the single most common mistake on this page's topic.
+    </app-remember>
+
+    <app-bubbles
+      [turns]="announcerTalk"
+      caption="What actually happens when a guard rejects a navigation, and why a subscriber can't talk it back."
+    />
+  </section>
+
+  <!-- ============ 3. THE ORDERED SPINE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>One navigation, one strict order.</h2>
+
+    <p>
+      Angular's own <code>EventType</code> enum lists these events in <em>declaration</em> order —
+      <code>NavigationStart, NavigationEnd, NavigationCancel, NavigationError, RoutesRecognized…</code> — which is not
+      the order they actually fire in. Declaration order is alphabetical-ish convenience for the framework's source
+      file. <span class="bf-break">The real order is a strict pipeline</span>, and every event class's own doc comment
+      says exactly where it sits in that pipeline.
+    </p>
+
+    <app-flow
+      [steps]="spineSteps"
+      caption="The spine every successful navigation walks, start to one terminal event."
+    />
+
+    <app-predict
+      prompt="Three events into a navigation that ultimately succeeds — `NavigationStart`, `RoutesRecognized`, `GuardsCheckStart` have all fired, and the route's one guard is about to pass. Which comes first: `ResolveEnd`, or the route's `ActivationStart`?"
+      answer="`ActivationStart` — and it isn't close. `ChildActivationStart`, `ActivationStart` and `ActivationEnd` are all documented as firing *inside* the Resolve phase, after `ResolveStart` and strictly before `ResolveEnd`. A component can be “activating” while resolution is technically still in progress — the trace below shows the real order, straight from a `console.log`."
+      revealLabel="Reveal the order"
+    />
+
+    <app-code-lab
+      file="app.component.ts — a real subscribe, and what it actually prints"
+      [code]="traceSample"
+      [notes]="traceNotes"
+      notesLabel="What each line proves"
+    />
+  </section>
+
+  <!-- ============ 4. LIVE DEMO — THE STUCK BAR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">Watch the bug happen</p>
+    <h2>Two bars, the same stream, one bug.</h2>
+
+    <p>
+      Both bars below watch an identical simulated event stream. The <strong>naive</strong> bar turns off only on
+      <code>NavigationEnd</code> — the pattern that passes every manual test. The <strong>correct</strong> bar turns off
+      on <em>any</em> terminal event. Run a navigation that succeeds, then run one whose guard rejects it, and watch
+      them diverge.
+    </p>
+
+    <app-compare
+      leftTitle="Naive — one terminal event"
+      rightTitle="Correct — any terminal event"
+      leftTone="bad"
+      rightTone="good"
+      note="Same subscription, same events — the only difference is which ones turn the bar off."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ naiveSubscribeSample }}</pre>
+        </div>
+        <p>Passes every manual test, because every manual test happens to succeed.</p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ fixedSubscribeSample }}</pre>
+        </div>
+        <p>Turns off on <strong>whichever</strong> of the four terminal events actually fires.</p>
+      </div>
+    </app-compare>
+
+    <div class="demo">
+      <p class="demo__title">Live — trigger a simulated navigation</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="simulateSuccess()" [disabled]="running()">Simulate a passing navigation</button>
+        <button class="ghost" (click)="simulateCancelled()" [disabled]="running()">
+          Simulate a navigation its guard rejects
+        </button>
+      </div>
+
+      <div class="bf-grid-2" style="margin-bottom: 14px">
+        <div>
+          <p class="demo__note" style="margin-top: 0">Naive — <code>NavigationEnd</code> only</p>
+          <div class="bar" [class.bar--on]="naiveBarOn()" [class.bar--stuck]="naiveBarOn() && !running()">
+            <div class="bar__fill"></div>
+          </div>
+        </div>
+        <div>
+          <p class="demo__note" style="margin-top: 0">Correct — any terminal event</p>
+          <div class="bar" [class.bar--on]="fixedBarOn()">
+            <div class="bar__fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <ol class="event-log">
+        @for (entry of log(); track $index) {
+          <li>
+            <span class="event-log__name">{{ entry.name }}</span>
+            @if (entry.detail) {
+              <span class="event-log__detail">{{ entry.detail }}</span>
+            }
+          </li>
+        } @empty {
+          <li class="event-log__empty">No navigation simulated yet — press a button above.</li>
+        }
+      </ol>
+
+      <p class="demo__note">
+        After a rejected navigation, the naive bar is still lit — it never saw a <code>NavigationEnd</code>, so nothing
+        ever told it to stop. It only recovers once you trigger a navigation that <em>does</em> end normally, which in a
+        real app might be seconds or minutes later, or never.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 5. THE FOUR TERMINAL EVENTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Question answered by the demo</p>
+    <h2>Four ways in, exactly one way out — but four different "out"s.</h2>
+
+    <p>
+      Every navigation resolves to <strong>exactly one</strong> of these. A UI wired to only the first one is wired to
+      roughly a quarter of reality.
+    </p>
+
+    <div class="bf-grid-2">
+      <app-tape-card heading="NavigationEnd" kicker="the happy path" tone="olive">
+        Carries <code>urlAfterRedirects</code>. The only outcome that means the new route is actually live.
+      </app-tape-card>
+      <app-tape-card heading="NavigationCancel" kicker="attempted, then aborted" tone="gold">
+        A guard returned <code>false</code>, a resolver produced nothing, a redirect superseded it, or a newer
+        navigation preempted it. Carries a stable <code>code</code> — use that, not the human-readable
+        <code>reason</code> string, for any branching logic.
+      </app-tape-card>
+      <app-tape-card heading="NavigationError" kicker="something threw" tone="accent">
+        An unexpected exception during the pipeline. Carries <code>error</code> and, when available, a
+        <code>target</code> snapshot. <code>withNavigationErrorHandler</code> (below) is the centralised place to react
+        to these.
+      </app-tape-card>
+      <app-tape-card heading="NavigationSkipped" kicker="never even attempted" tone="blue">
+        The router decided not to navigate <em>at all</em> — most often because the target URL is identical to the
+        current one. Distinct from cancel: nothing here was "aborted," because nothing was ever tried.
+      </app-tape-card>
+    </div>
+  </section>
+
+  <!-- ============ 6. WITHNAVIGATIONERRORHANDLER ============ -->
+  <section>
+    <p class="bf-eyebrow">Centralising the error case</p>
+    <h2>One handler can quietly change which event fires.</h2>
+
+    <p>
+      <code>withNavigationErrorHandler</code> is a <code>provideRouter</code> feature: one function, configured once,
+      that runs for every <code>NavigationError</code> in the app instead of a check repeated in every interested
+      subscriber. Its return value matters more than it looks like it should.
+    </p>
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="errorHandlerSample"
+      [notes]="errorHandlerNotes"
+      notesLabel="What the return value actually controls"
+    />
+
+    <div class="warn">
+      <strong>Returning a <code>RedirectCommand</code> suppresses the error.</strong> The navigation still ends, but as
+      a <code>NavigationCancel</code> with <code>code: Redirect</code> instead of a <code>NavigationError</code> — so
+      any other part of the app watching specifically for <code>NavigationError</code>
+      <span class="bf-break">will not see this one</span>.
+    </div>
+  </section>
+
+  <!-- ============ 7. SELF-TEST ============ -->
+  <section>
+    <p class="bf-eyebrow">Self-test</p>
+    <h2>How many times, really?</h2>
+
+    <app-quiz
+      question="A route is protected by three guards: two `canActivate` and one `canActivateChild`. All three run and all three pass. How many times does `GuardsCheckStart` fire for this navigation?"
+      [options]="quizOptions"
+      followUp="The event brackets a phase, not a check — see the ordered spine above for where GuardsCheckStart/End sits relative to everything else."
+    />
+  </section>
+
+  <!-- ============ 8. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 9. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Six things to remember.</h2>
+
+    <ul>
+      <li>
+        <strong><code>router.events</code> narrates; it doesn't decide.</strong> It's the announcer, not the referee —
+        change a navigation's outcome from a guard or a resolver, never from a subscriber.
+      </li>
+      <li>
+        The <code>EventType</code> enum's declaration order is not emission order. The <strong>real order</strong> is
+        <code>NavigationStart</code> → (lazy-load, if uncached) → <code>RoutesRecognized</code> → the guard phase → the
+        resolve phase → one terminal event.
+      </li>
+      <li>
+        <strong
+          ><code>ChildActivationStart</code>/<code>ActivationStart</code>/<code>ActivationEnd</code>/<code
+            >ChildActivationEnd</code
+          >
+          nest inside the resolve phase</strong
+        >, firing after <code>ResolveStart</code> and before <code>ResolveEnd</code> — not after resolution finishes.
+      </li>
+      <li>
+        A navigation ends exactly one of <strong>four</strong> ways — <code>NavigationEnd</code>,
+        <code>NavigationCancel</code>, <code>NavigationError</code>, <code>NavigationSkipped</code> — never more than
+        one, and a UI that only listens for the first gets stuck on any of the other three.
+      </li>
+      <li>
+        Cancel and error carry a <strong>stable <code>code</code></strong> — use it for logic; the <code>reason</code>
+        string is for humans reading a log, not for branching.
+      </li>
+      <li>
+        <code>withNavigationErrorHandler</code> centralises error handling, and returning a
+        <code>RedirectCommand</code> from it <strong>replaces</strong> the outcome with a redirect-flavoured cancel —
+        the <code>NavigationError</code> it was reacting to never fires.
+      </li>
+    </ul>
+
+    <p><a routerLink="/http-basics">Next: HttpClient Basics →</a></p>
+  </section>
 </article>

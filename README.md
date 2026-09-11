@@ -1,6 +1,6 @@
 # Angular Concepts — Certification Study App
 
-An interactive study app for the Angular certification tracks. **100 lessons**, each a
+An interactive study app for the Angular certification tracks. **103 lessons**, each a
 self-contained page with live, editable demos rather than a wall of prose — plus a
 **424-question practice bank**, timed mock exams, spaced repetition, flashcards, coding
 tasks and a progress dashboard.
@@ -9,7 +9,7 @@ Built on **Angular 21**: standalone components, signals, the built-in control fl
 (`@if` / `@for` / `@switch`), the `input()` / `output()` / `model()` APIs, and a
 zoneless change-detection setup.
 
-**Status:** all 100 lessons are written and live. Nothing is a placeholder.
+**Status:** all 103 lessons are written and live. Nothing is a placeholder.
 
 ---
 
@@ -29,16 +29,16 @@ npm test         # unit tests (Vitest via @angular/build:unit-test)
 
 ## What's in it
 
-### The curriculum — 100 lessons across six tracks
+### The curriculum — 103 lessons across six tracks
 
-| Track            | Lessons | Covers                                                                                  |
-| ---------------- | ------- | --------------------------------------------------------------------------------------- |
-| **Foundations**  | 12      | How the web works, terminal & npm, Git, the DOM, async, debugging                       |
-| **TypeScript**   | 13      | Types, interfaces, generics, narrowing, `keyof`/`typeof`, utility types, decorators     |
-| **Beginner**     | 24      | Components, templates, bindings, control flow, signals, DI, routing, forms, HTTP        |
-| **Intermediate** | 26      | Reactive forms, routing in depth, HTTP & interceptors, RxJS, directives, pipes, testing |
-| **Expert**       | 22      | Change detection, OnPush, zoneless, SSR & hydration, performance, security, i18n, a11y  |
-| **Projects**     | 3       | Task manager, data dashboard, auth flow — the pieces assembled into working features    |
+| Track            | Lessons | Covers                                                                                    |
+| ---------------- | ------- | ----------------------------------------------------------------------------------------- |
+| **Foundations**  | 12      | How the web works, terminal & npm, Git, the DOM, async, debugging                         |
+| **TypeScript**   | 13      | Types, interfaces, generics, narrowing, `keyof`/`typeof`, utility types, decorators       |
+| **Beginner**     | 24      | Components, templates, bindings, control flow, signals, DI, routing, forms, HTTP          |
+| **Intermediate** | 29      | Reactive & signal forms, routing in depth, HTTP & httpResource, RxJS, directives, testing |
+| **Expert**       | 22      | Change detection, OnPush, zoneless, SSR & hydration, performance, security, i18n, a11y    |
+| **Projects**     | 3       | Task manager, data dashboard, auth flow — the pieces assembled into working features      |
 
 Every lesson is **one standalone component per concept**, split the conventional
 Angular way into `.ts` + `.html` + `.css`. Lessons whose demos need their own child

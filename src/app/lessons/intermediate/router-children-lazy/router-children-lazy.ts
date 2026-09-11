@@ -92,6 +92,7 @@ export class RouterChildrenLazy {
     { label: 'Route Guards', id: 'route-guards' },
     { label: 'Resolvers', id: 'resolvers' },
     { label: 'Route Params', id: 'route-params' },
+    { label: 'Navigation Events', id: 'router-events' },
   ];
 
   // ── Demo 1: on-demand chunks, cached after first load ──────────────────────

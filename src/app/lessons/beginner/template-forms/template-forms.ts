@@ -114,6 +114,7 @@ export class TemplateForms {
     { label: 'Form Validation', id: 'form-validation' },
     { label: 'Async Validators', id: 'async-validators' },
     { label: 'FormArray', id: 'form-arrays' },
+    { label: 'Signal Forms', id: 'signal-forms' },
     { label: 'Custom Controls (CVA)', id: 'control-value-accessor' },
   ];
 

@@ -27,7 +27,7 @@ no backend and no account.
 ## 1. Executive summary
 
 **Project:** Angular Concepts — Certification Study App
-**Version:** 1.0 (curriculum complete: all 100 lessons live)
+**Version:** 1.1 (curriculum complete: all 103 lessons live)
 
 **Purpose.** Cover every concept on the Angular certification tracks — beginner,
 intermediate and expert — plus the JavaScript, web and TypeScript groundwork that the
@@ -82,8 +82,8 @@ things it does not provide:
 
 ### FR-1 Curriculum and lessons
 
-- **FR-1.1** The app shall present 100 lessons across six tracks: Foundations (12),
-  TypeScript (13), Beginner (24), Intermediate (26), Expert (22), Projects (3).
+- **FR-1.1** The app shall present 103 lessons across six tracks: Foundations (12),
+  TypeScript (13), Beginner (24), Intermediate (29), Expert (22), Projects (3).
 - **FR-1.2** Each lesson shall be reachable at its own route (`/<lesson-id>`) and be
   lazily loaded.
 - **FR-1.3** Each lesson shall contain at least one **interactive demo** the reader can
@@ -247,7 +247,7 @@ which is why Practice batches.
 
 | Criterion             | Measure                                                                        |
 | --------------------- | ------------------------------------------------------------------------------ |
-| **Coverage**          | Every certification topic has a lesson. ✅ 100/100 live                        |
+| **Coverage**          | Every certification topic has a lesson. ✅ 103/103 live                        |
 | **Depth**             | Every lesson has an interactive demo and covers failure modes, not just syntax |
 | **Assessment volume** | 400+ questions across every track. ✅ 424                                      |
 | **Question quality**  | Length-guessing yields ~chance. ✅ verified at 25.9%                           |

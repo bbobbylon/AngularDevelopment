@@ -646,6 +646,7 @@ on setValue / patchValue / a user keystroke via the ControlValueAccessor:
     { label: 'Form Validation', id: 'form-validation' },
     { label: 'Async Validators', id: 'async-validators' },
     { label: 'FormArray', id: 'form-arrays' },
+    { label: 'Signal Forms', id: 'signal-forms' },
   ];
 
   /**

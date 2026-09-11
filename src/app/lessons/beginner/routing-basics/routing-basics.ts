@@ -74,6 +74,7 @@ export class RoutingBasics {
     { label: 'Route Guards', id: 'route-guards' },
     { label: 'Resolvers', id: 'resolvers' },
     { label: 'Route Params', id: 'route-params' },
+    { label: 'Navigation Events', id: 'router-events' },
   ];
 
   /**

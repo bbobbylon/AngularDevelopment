@@ -305,6 +305,7 @@ http.get(url, { observe: 'response', responseType: 'text' });`;
   readonly stops: ChapterStop[] = [
     { label: 'HttpClient CRUD' },
     { label: 'HTTP Interceptors', id: 'http-interceptors' },
+    { label: 'httpResource()', id: 'http-resource' },
   ];
 
   /**

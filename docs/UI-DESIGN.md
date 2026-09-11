@@ -523,7 +523,8 @@ restate the line in English.**
 **Theme: unconditional app-wide, since 2026-09-03** (§9.1). Every page inherits the
 palette and typography with zero opt-in.
 
-**Lessons: 100 of 100 through the full component-set migration as of 2026-09-06**, all
+**Lessons: 103 of 103 through the full component-set migration as of 2026-09-08** (the three
+Angular 21 lessons added on 2026-09-08 were written against the layer from the start; 100 of 100 as of 2026-09-06), all
 through the write-then-adversarially-review cycle and scoring 9/9 on the retention audit.
 Started 2026-08-31 with five pilots — `expert/change-detection` (the reference
 implementation — copy its shape), `beginner/signals`, `intermediate/rxjs-subjects`,

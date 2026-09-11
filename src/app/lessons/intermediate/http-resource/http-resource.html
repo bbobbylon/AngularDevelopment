@@ -1,4 +1,308 @@
-<article class="lesson">
-  <h1>httpResource(): Signal-Based HTTP</h1>
-  <p>This lesson is being written.</p>
+<article class="lesson bf" bfPage>
+  <app-chapter
+    number="4"
+    kicker="Angular Intermediate · HTTP"
+    title="httpResource(): Signal-Based HTTP"
+    hand="resource(), but it already knows what HttpClient knows"
+    [stops]="stops"
+    [current]="3"
+  >
+    <p class="lead">
+      <a routerLink="/resource-api">The <code>resource()</code> lesson</a> built the mental model by hand: a reactive
+      request, a loader, a handful of signals describing what happened. This page assumes that model and asks one
+      question —
+      <strong
+        >what changes when the loader is <code>HttpClient</code> instead of your own <code>fetch()</code> call?</strong
+      >
+      The answer is smaller than it looks, and one specific piece of it is the whole reason this page is allowed to run
+      a real, live request in your browser right now.
+    </p>
+  </app-chapter>
+
+  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <section>
+    <p class="bf-eyebrow">The problem</p>
+    <h2>You already built the loader. What's still missing?</h2>
+
+    <p>
+      Go back to <code>resource-api</code>'s own loader for a second: a <code>fetch()</code> call, an
+      <code>if (!res.ok) throw …</code>, a manual parse. It works. But it works <em>outside</em> everything else your
+      app already knows about HTTP:
+    </p>
+
+    <ul>
+      <li>
+        An interceptor that stamps an auth header on every request never sees this one — <code>fetch()</code> doesn't go
+        through it.
+      </li>
+      <li>
+        A failure arrives as whatever you threw, not a structured <code>HttpErrorResponse</code> with a real status
+        code.
+      </li>
+      <li>
+        Angular's own testing backend, <code>HttpTestingController</code>, has nothing to intercept — there's no
+        <code>HttpClient</code> call to catch.
+      </li>
+    </ul>
+
+    <p>
+      <code>httpResource()</code> is <code>resource()</code> with the loader already written for you — using
+      <code>HttpClient</code> underneath, which is what closes all three gaps at once.
+      <span class="key">Same four signals, same reactive-request rule</span> — the difference is entirely in what that
+      loader plugs into.
+    </p>
+  </section>
+
+  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>You stop walking your own package to the post office.</h2>
+
+    <p>
+      A hand-rolled <code>fetch()</code> loader is you, personally, carrying a package to the post office, filling out
+      your own customs form, and finding out it was rejected by prying the box back open yourself.
+      <code>httpResource()</code> drops the same package in the building's internal mailroom instead. Everything that
+      goes through the mailroom automatically clears the building's checkpoints — and you never had to know a single
+      checkpoint's policy to benefit from it.
+    </p>
+
+    <app-bubbles [turns]="mailroomTalk" caption="What 'wired to HttpClient' concretely buys you." />
+
+    <app-flow
+      [steps]="requestJourney"
+      caption="One request, start to finish. Every stage after the first is HttpClient's territory, not yours."
+    />
+
+    <app-remember variant="rule">
+      <code>httpResource()</code> is <strong>still shaped for reads, not mutations</strong> — it is
+      <code>resource()</code> with a different loader, not a general-purpose replacement for calling
+      <code>HttpClient</code> directly. Keep that in mind; it comes back later on this page.
+    </app-remember>
+  </section>
+
+  <!-- ============ 3. THE MECHANISM — IDLE BY DEFAULT, LIVE ============ -->
+  <section>
+    <p class="bf-eyebrow">The mechanism</p>
+    <h2>Nothing is sent until the request factory says so.</h2>
+
+    <p>
+      A request factory that reads <code>undefined</code> doesn't produce "an empty request" — it produces
+      <strong>no request at all</strong>. <code>status()</code> stays <code>'idle'</code>, nothing touches the network,
+      and — this matters more than it sounds like it should — no cleanup task is left open for anything waiting on this
+      component to go quiet.
+    </p>
+
+    <app-code-lab
+      file="http-resource.ts — the field below, unabridged"
+      [code]="idleFactorySample"
+      [notes]="idleFactoryNotes"
+      notesLabel="Why undefined in means idle out"
+    />
+
+    <app-predict [prompt]="idlePredictPrompt" [answer]="idlePredictAnswer" revealLabel="Reveal the answer" />
+
+    <div class="demo">
+      <p class="demo__title">Live — a real httpResource(), a real jsonplaceholder request</p>
+      <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
+        <button (click)="loadValid(1)">Load post #1</button>
+        <button (click)="loadValid(2)">Load post #2</button>
+        <button class="ghost" (click)="loadMissing()">Load missing (real 404)</button>
+        <button class="ghost" (click)="reset()">Reset (back to idle)</button>
+      </div>
+
+      <p class="row">
+        <span class="pill">status: {{ post.status() }}</span>
+        <span class="pill">isLoading: {{ post.isLoading() }}</span>
+        <span class="pill">content-type: {{ contentType() }}</span>
+      </p>
+
+      @if (post.status() === 'idle') {
+        <p>Idle — no request has ever been sent. Click a post above to change that.</p>
+      } @else if (post.status() === 'loading') {
+        <p>⏳ Loading post #{{ postId() }}…</p>
+      } @else if (post.status() === 'error') {
+        <div class="warn">
+          <strong>HttpErrorResponse — status {{ postError()?.status }}:</strong>
+          {{ postError()?.message }}
+        </div>
+      } @else if (post.hasValue()) {
+        <div class="code" [class.stale]="post.status() === 'reloading'">
+          <pre>
+id:    {{ post.value().id }}
+title: {{ post.value().title }}</pre>
+        </div>
+      }
+
+      <p class="demo__note">
+        <strong>Reset</strong> sets <code>postId</code> back to <code>undefined</code> — the exact value the factory
+        started with. That's not "no change"; it's a real transition back to <code>'idle'</code>, and the previously
+        loaded post disappears rather than lingering.
+      </p>
+    </div>
+
+    <app-predict [prompt]="resetPredictPrompt" [answer]="resetPredictAnswer" revealLabel="Reveal the answer" />
+
+    <app-bubbles
+      [turns]="idleTalk"
+      caption="Why this exact panel is allowed to be live at all — the negotiation with this page's own automated test."
+    />
+  </section>
+
+  <!-- ============ 4. ERROR HANDLING — THE [object Object] TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">The trap</p>
+    <h2>Press "Load missing" above. Now look at what error() actually holds.</h2>
+
+    <p>
+      That 404 isn't simulated — <code>jsonplaceholder.typicode.com</code> genuinely has no post <code>#9999</code>, so
+      this is a real, structured <code>HttpErrorResponse</code> arriving through <code>error()</code>. Interpolate the
+      whole thing straight into a template, though, and you get a very specific piece of nonsense on screen.
+    </p>
+
+    <app-quiz
+      question="{{ '{{ post.error() }}' }} is bound directly into a template, mid-404. What shows up on the page?"
+      [options]="errorQuizOptions"
+      followUp="Compare it against what the live demo above actually renders for the error state — it isn't interpolating the object directly, and that's exactly why."
+    />
+  </section>
+
+  <!-- ============ 5. THE THREE NEW SIGNALS ============ -->
+  <section>
+    <p class="bf-eyebrow">What's actually new</p>
+    <h2>Everything resource() has, plus three HTTP-specific signals.</h2>
+
+    <p>
+      <code>value</code>, <code>status</code>, <code>error</code>, <code>isLoading</code>, <code>hasValue()</code>,
+      <code>reload()</code> — all of it carries over unchanged from <code>resource-api</code>. What
+      <code>HttpResourceRef</code> adds sits entirely on top:
+    </p>
+
+    <div class="bf-grid-3">
+      @for (item of newSignals; track item.heading) {
+        <app-tape-card [heading]="item.heading" [kicker]="item.kicker">{{ item.body }}</app-tape-card>
+      }
+    </div>
+  </section>
+
+  <!-- ============ 6. THE REQUEST-OBJECT FORM ============ -->
+  <section>
+    <p class="bf-eyebrow">Beyond a bare URL</p>
+    <h2>When a string isn't enough, the factory returns an object instead.</h2>
+
+    <p>
+      Everything so far returned a plain URL string. The moment you need query parameters, headers, or a default value
+      while nothing has loaded yet, the factory returns a request <em>object</em> instead — same reactive rule, more to
+      configure.
+    </p>
+
+    <app-code-lab
+      file="post-search.ts — the object form"
+      [code]="requestFormSample"
+      [notes]="requestFormNotes"
+      notesLabel="What each option changes"
+    />
+  </section>
+
+  <!-- ============ 7. GET-SHAPED BY DESIGN ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The anti-pattern</p>
+    <h2>A resource is state kept in sync. A click is a command.</h2>
+
+    <p>
+      Because the request factory re-runs on <em>any</em> signal it reads changing, it's tempting to reach for
+      <code>httpResource()</code> for a mutation too. Resist it — a resource doesn't know or care why a dependency
+      changed, which is exactly wrong for an action that should fire once, on purpose.
+    </p>
+
+    <app-compare
+      leftTitle="A search-as-you-type field"
+      rightTitle="A 'like' button wired the same way"
+      leftTone="good"
+      rightTone="bad"
+      note="Both read a signal in their request factory. Only one of them is a read whose result should track that signal."
+    >
+      <div left>
+        <p>
+          A query signal drives a search resource. Typing changes the signal, the factory reactively re-fires, and the
+          results genuinely should reflect whatever was typed most recently. This is precisely what
+          <code>httpResource()</code> is for — even shaped as a POST with a search body.
+        </p>
+      </div>
+      <div right>
+        <p>
+          A "liked" signal is read inside an <code>httpResource()</code> factory to POST a like. It fires once on the
+          click that flips the signal — and again if <em>anything else</em> that factory reads changes for unrelated
+          reasons, silently re-sending the like. Call <code>http.post()</code> directly from the click handler instead.
+        </p>
+      </div>
+    </app-compare>
+
+    <app-quiz
+      question="Should a 'like' button POST through an httpResource() whose factory reads the liked signal?"
+      [options]="mutationQuizOptions"
+      followUp="The tell is in the name: a resource tracks a *request*, not a *click*. If the action should fire exactly once per user gesture, it isn't a resource."
+    />
+  </section>
+
+  <!-- ============ 8. TESTING ============ -->
+  <section>
+    <p class="bf-eyebrow">Testing</p>
+    <h2>The request goes through HttpClient — so a test can actually catch it.</h2>
+
+    <p>
+      This is the payoff of "wired to HttpClient" made concrete: <code>HttpTestingController</code> can intercept and
+      flush a request an <code>httpResource()</code> fired, the same way it would for any <code>HttpClient</code> call.
+      A hand-rolled <code>fetch()</code> loader gives a test nothing to grab onto.
+    </p>
+
+    <app-code-lab
+      file="post-viewer.spec.ts"
+      [code]="testingSample"
+      [notes]="testingNotes"
+      notesLabel="Triggering, then answering, the request"
+    />
+
+    <p>
+      That <code>flush()</code> call is the one step neither this page's live demo above nor an un-clicked
+      <code>httpResource()</code> in a mounted-but-untouched lesson ever gets. Which is exactly why the live panel on
+      this page had to stay idle until you clicked it — a request this exact page's own automated smoke test never
+      flushes would simply hang that test forever.
+    </p>
+  </section>
+
+  <!-- ============ 9. QUESTIONS ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
+    <app-faq [items]="questions" heading="There are no dumb questions" />
+  </section>
+
+  <!-- ============ 10. RECAP ============ -->
+  <section>
+    <p class="bf-eyebrow">Before you go</p>
+    <h2>Four things to remember.</h2>
+
+    <ul>
+      <li>
+        <code>httpResource()</code> is <code>resource()</code> with an <code>HttpClient</code> loader already written —
+        <strong>same four signals, same reactive-request rule</strong>, but interceptors, structured errors and a
+        testable backend come for free.
+      </li>
+      <li>
+        A request factory returning <code>undefined</code> means <strong>no request, no pending task</strong> — the idle
+        mechanism this page's own live demo depends on to be safely live at all.
+      </li>
+      <li>
+        <code>error()</code> holds a real <code>HttpErrorResponse</code> —
+        <strong>read <code>.status</code> and <code>.error</code></strong
+        >, never interpolate the object itself.
+      </li>
+      <li>
+        <code>headers()</code>, <code>statusCode()</code> and <code>progress()</code> are the only genuinely new
+        signals. Everything else is the <code>resource()</code> contract you already know — and it's still
+        <strong>shaped for reads</strong>, never a substitute for calling <code>HttpClient</code> directly on a click.
+      </li>
+    </ul>
+
+    <p><a routerLink="/rxjs-observables">Next: RxJS: Observables →</a></p>
+  </section>
 </article>

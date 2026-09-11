@@ -183,6 +183,7 @@ export class RouteGuards {
     { label: 'Route Guards' },
     { label: 'Resolvers', id: 'resolvers' },
     { label: 'Route Params', id: 'route-params' },
+    { label: 'Navigation Events', id: 'router-events' },
   ];
 
   /**

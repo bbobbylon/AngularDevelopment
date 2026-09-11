@@ -82,6 +82,7 @@ export class RouteParams {
     { label: 'Route Guards', id: 'route-guards' },
     { label: 'Resolvers', id: 'resolvers' },
     { label: 'Route Params' },
+    { label: 'Navigation Events', id: 'router-events' },
     { label: 'HTTP CRUD', id: 'http-crud' },
   ];
 

@@ -523,6 +523,30 @@ so they are a decision about scope rather than a backlog item to grind through.
 sign the finders were careful, not proof every survivor is real — read the lesson before
 acting on a line.
 
+**Theme 2 progress (2026-09-08).** The three "concept with no lesson" gaps that the batch
+rewrites had not already absorbed are now real lessons, written against the full 9/9 +
+brain-friendly bar from the first line (no stub phase reached master unwritten for more than
+a day — the 2026-09-07 scaffold commit existed only so routes and smoke tests could be wired
+while the lessons were drafted in parallel):
+
+| Lesson            | Route            | Owns                                                                                                                                     |
+| ----------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Signal Forms      | `/signal-forms`  | `form()` over a signal model, schema rules, `[formField]`, field state as signals, `submit()` with server-error mapping                  |
+| Navigation Events | `/router-events` | the ordered event stream, the three terminal outcomes + `NavigationSkipped`, the un-stickable progress bar, `withNavigationErrorHandler` |
+| httpResource()    | `/http-resource` | URL-as-computation, `undefined` = idle, `parse`, `defaultValue`, `HttpErrorResponse` in `error()`, GET-shaped by design                  |
+
+Curriculum is **103 lessons**. The sibling lessons' chapter rails (`stops`) were extended so
+the new pages appear in the Forms, Routing and HTTP tracks' "you are here" strips. The other
+theme-2 names — `linkedSignal`, `EnvironmentProviders`/`provideX`, `httpResource` inside
+`resource-api` — were already absorbed by the §1.2 rewrites, so theme 2 is **closed**. Themes
+1, 3 and 4 remain as described above.
+
+**Trap logged:** a field-initializer `httpResource()` (or anything else that opens a
+`PendingTasks` entry on mount) hangs `lessons.smoke.spec.ts`, because the suite mounts with
+`provideHttpClientTesting()` and awaits `whenStable()` with nothing flushing the request. The
+`http-resource` lesson's live demo starts with a URL factory that returns `undefined` (idle)
+until the reader clicks — which is also the lesson's own teaching device for the idle state.
+
 ---
 
 ## 2. Next

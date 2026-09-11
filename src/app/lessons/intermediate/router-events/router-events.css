@@ -1,1 +1,93 @@
-/* router-events — lesson styles */
+/* router-events — lesson styles.
+
+   Table, callout and demo-shell styling come from the shared brain-friendly
+   layer (src/brain-friendly.css). What's here is specific to the two demos
+   this lesson owns: the simulated event log, and the two progress bars used
+   to make the "stuck loading bar" bug visible. */
+
+.event-log {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.event-log li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 10px;
+  border-radius: var(--bf-r);
+  background: var(--bf-surface-2);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.event-log__name {
+  color: var(--bf-accent);
+  font-weight: 600;
+}
+
+.event-log__detail {
+  color: var(--bf-ink-2);
+}
+
+.event-log__empty {
+  background: transparent;
+  color: var(--bf-ink-2);
+  font-family: inherit;
+  font-style: italic;
+}
+
+/* The two progress bars. `.bar` is the track; `.bar__fill` is the moving
+   indicator, on only while `.bar--on` is set on the track. */
+.bar {
+  position: relative;
+  height: 8px;
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-surface-2);
+  overflow: hidden;
+}
+
+.bar__fill {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--bf-accent);
+  opacity: 0;
+  transform: translateX(-100%);
+}
+
+.bar--on .bar__fill {
+  opacity: 1;
+  animation: bar-sweep 1.1s ease-in-out infinite;
+}
+
+/* The naive bar left lit after a run that never sent NavigationEnd — its
+   fill turns the danger colour so "stuck" reads as a fault, not just motion. */
+.bar--stuck .bar__fill {
+  background: var(--bf-danger);
+  animation-duration: 1.6s;
+}
+
+@keyframes bar-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar--on .bar__fill {
+    animation: none;
+    opacity: 1;
+    transform: translateX(0);
+    width: 100%;
+  }
+}

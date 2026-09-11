@@ -316,6 +316,7 @@ rows.forEach((r) => this.items.push(this.newItem(r.name, r.qty))); // repopulate
     { label: 'Form Validation', id: 'form-validation' },
     { label: 'Async Validators', id: 'async-validators' },
     { label: 'FormArray' },
+    { label: 'Signal Forms', id: 'signal-forms' },
   ];
 
   /**

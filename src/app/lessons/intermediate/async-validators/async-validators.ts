@@ -412,6 +412,7 @@ forkJoin([uniqueUsername()(control), bannedWordCheck()(control)])
     { label: 'Form Validation', id: 'form-validation' },
     { label: 'Async Validators' },
     { label: 'FormArray', id: 'form-arrays' },
+    { label: 'Signal Forms', id: 'signal-forms' },
   ];
 
   /**
