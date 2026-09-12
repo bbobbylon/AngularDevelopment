@@ -303,6 +303,35 @@
     />
   </section>
 
+  <!-- ============ 6B. THE LOOP AN EFFECT CAN WRITE ITSELF INTO ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The failure mode that follows directly from that quiz</p>
+    <h2>An effect that writes the signal it reads never stops.</h2>
+
+    <p>
+      The batching question above assumed the effect only <em>reads</em> <code>count</code>. Nothing stops an effect
+      from writing a signal it also reads — and unlike <code>computed</code>, nothing warns you either:
+    </p>
+
+    <app-predict
+      prompt="This effect runs once when the component is created. What happens next — does it settle, or something else?"
+      [code]="selfWriteEffectSample"
+      answer="It never settles. Reading total() inside the effect subscribes the effect to total — and the very next line writes a new value into total with .set(), which marks every consumer of total dirty, including this same effect that just subscribed to it. Angular reschedules the effect, it runs again, reads the new (higher) total, writes an even higher one, and round it goes. Unlike computed, which refuses outright to let its body write ANY signal — that is what NG0600 protects, and it throws on the very first run — effect() exists specifically so you CAN write signals from it, so there is no framework guardrail here at all. In a real browser this looks like the tab locking up and DevTools' Performance panel showing one function running thousands of times a second, not a clean error message telling you why."
+      revealLabel="Reveal what happens"
+    />
+
+    <div class="note">
+      <strong>The fix is the same one two sections up.</strong> There is no way to write
+      <code>computed(() =&gt; this.total() + 1)</code> in the first place — a computed cannot read the very signal it
+      defines, so the compiler has nothing to bootstrap from. That is the tell: if a value only makes sense in terms of
+      its own last value, an effect reacting to itself is the wrong tool. Either derive it purely from
+      <em>other</em> signals with <code>computed</code>, or drive the change from a genuine external event — a click, a
+      timer tick — instead of the effect reacting to what it just wrote. The same trap shows up with two signals syncing
+      each other (an effect setting <code>b</code> from <code>a</code>, paired with one setting <code>a</code> from
+      <code>b</code>) — same cause, just spread across two effects instead of one.
+    </div>
+  </section>
+
   <!-- ============ 7. UNDER THE HOOD ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>

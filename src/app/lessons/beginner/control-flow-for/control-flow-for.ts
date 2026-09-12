@@ -384,4 +384,26 @@ first. id7, id2, id9 are untouched.
   protected shuffleLetters() {
     this.letters.update((l) => [...l].sort(() => Math.random() - 0.5));
   }
+
+  /**
+   * Rows whose own `name` field gets used — wrongly, on purpose — as one
+   * column's `track` key. Neither a duplicate nor a reorder: the third way
+   * `track` fails, where the tracked value is the exact thing being edited.
+   */
+  protected readonly editRows = signal([
+    { id: 1, name: 'Ada' },
+    { id: 2, name: 'Grace' },
+  ]);
+
+  /**
+   * Updates a row's name, replacing both the array and the item so `@for`
+   * sees a genuinely new reference — and, on the `track row.name` column, a
+   * genuinely new key.
+   *
+   * @param id   The row to update.
+   * @param name The freshly-typed value.
+   */
+  protected renameRow(id: number, name: string) {
+    this.editRows.update((rows) => rows.map((r) => (r.id === id ? { ...r, name } : r)));
+  }
 }

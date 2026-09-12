@@ -84,6 +84,51 @@
     />
   </section>
 
+  <!-- ============ 3B. AFTER NG BUILD: DEPLOYING DIST/ ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The one nobody warns you about</p>
+    <h2>ng build finishes. Now what happens to dist/?</h2>
+
+    <app-napkin lead="before you scroll —" label="Predict what the bookmark shows">
+      {{ deployPrompt }}
+    </app-napkin>
+
+    <p>
+      A <span class="bf-break">404 — from the server, not from Angular.</span> <code>/about</code> only exists as a
+      route inside your JavaScript bundle; there is no file at that path on disk. <code>ng serve</code> hides this from
+      you the whole time you're developing, because its dev server fakes the fallback — every path it doesn't recognise
+      still gets handed <code>index.html</code>. A plain static host doesn't do you that favour, and the
+      <code>{{ '{' }} path: '**' {{ '}' }}</code> wildcard route can't help either: the browser has to already be
+      running your Angular app to see it, and a hard refresh asks the <strong>server</strong> for <code>/about</code>
+      before a single line of your JavaScript has loaded.
+    </p>
+
+    <p>
+      The fix lives on the server, not in Angular: rewrite every unknown path to <code>index.html</code>, so the host
+      always hands back the same shell and the router takes it from there.
+    </p>
+
+    <app-code-lab
+      file="the rewrite rule, three hosts"
+      [code]="deployRewriteSample"
+      [notes]="deployRewriteNotes"
+      notesLabel="Same rule, three config formats"
+    />
+
+    <p>Two more flags in the same neighbourhood, worth knowing before you need them under pressure:</p>
+
+    <div class="code">
+      <pre>{{ deployFlagsSample }}</pre>
+    </div>
+
+    <p>
+      <code>--base-href</code> matters the moment the app isn't served from a domain's root — deploy it to
+      <code>example.com/app/</code> without it, and every absolute asset URL <code>ng build</code> generated points at
+      the wrong place. <code>--proxy-config</code> solves a different, earlier problem: calling your own backend from
+      <code>ng serve</code> without fighting CORS, by making the dev server forward matching requests itself.
+    </p>
+  </section>
+
   <!-- ============ 4. THE FOUR BOOT FILES ============ -->
   <section>
     <p class="bf-eyebrow">The mechanism</p>

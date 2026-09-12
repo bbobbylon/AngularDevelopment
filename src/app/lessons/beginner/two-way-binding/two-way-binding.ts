@@ -114,6 +114,39 @@ export class TwoWayBinding {
    * Text bound with `[(ngModel)]` on blur, to contrast the update timing.
    */
   protected readonly blurText = signal('');
+
+  /**
+   * The log for the sync-vs-microtask readback demo — proof that `[ngModel]`'s
+   * write into the DOM lands one microtask after the signal itself changes.
+   */
+  protected readonly clearLog = signal<string[]>([]);
+
+  /**
+   * Clears {@link text} and reads the input's real DOM value twice: once
+   * synchronously, right after the write, and once more after a microtask has
+   * had a chance to run.
+   *
+   * `NgModel` defers the actual `element.value = ...` write inside a
+   * `Promise.resolve().then(...)` — the same trick `template-forms` documents
+   * for control *registration* — specifically to avoid clashing with the
+   * change-detection pass that is still in progress when `ngOnChanges` fires.
+   * A synchronous test assertion made right after `set('')` sees the OLD
+   * value for exactly this reason.
+   *
+   * @param inputEl The native `<input>` element behind the `[(ngModel)]="text"` demo.
+   */
+  protected clearAndInspect(inputEl: HTMLInputElement): void {
+    this.text.set('');
+    this.clearLog.set([
+      `synchronously, right after set(''): input.value is still "${inputEl.value}"`,
+    ]);
+    queueMicrotask(() => {
+      this.clearLog.update((l) => [
+        ...l,
+        `one microtask later: input.value is now "${inputEl.value}"`,
+      ]);
+    });
+  }
   /**
    * The `[(ngModel)]` select demo's value.
    */

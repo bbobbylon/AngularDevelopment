@@ -244,6 +244,18 @@
         bypassable with <code>bypassSecurityTrust*</code>.
       </li>
       <li>
+        <strong>Not every sanitization context fails the same way.</strong> <code>&lt;img [src]&gt;</code>/<code
+          >&lt;a [href]&gt;</code
+        >
+        (URL context) and <code>[innerHTML]</code> (HTML context) both sanitize <em>silently</em> — a dangerous value is
+        just stripped, no error, nothing on screen explaining why. <code>[src]</code> on an
+        <code>&lt;iframe&gt;</code> or <code>&lt;script&gt;</code> is a third context —
+        <span class="bf-break">RESOURCE_URL</span> — and there Angular <strong>throws</strong> instead of sanitizing,
+        because there's no safe way to guess what a loaded document or script is allowed to do. The only way to supply a
+        RESOURCE_URL value at all is <code>DomSanitizer.bypassSecurityTrustResourceUrl()</code>, and only once you've
+        verified the value is genuinely trusted — the <a routerLink="/security">Security</a> lesson covers this in full.
+      </li>
+      <li>
         <strong>Aside — <code>colspan</code> secretly does have a camelCase property.</strong>
         <code>HTMLTableCellElement</code> exposes a real DOM property called <code>colSpan</code> that reflects the
         <code>colspan</code> attribute, so <code>[colSpan]="span()"</code> would technically also work. It's grouped
@@ -258,6 +270,49 @@
       [options]="quizOptions"
       followUp="This asymmetry is exactly why `[attr.*]` is the standard way to make an ARIA attribute conditionally present — bind it to `null` to remove it entirely, not just blank it out."
     />
+  </section>
+
+  <!-- ============ 7B. THE ERROR YOU'LL ACTUALLY SEE ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The error you'll actually see</p>
+    <h2>NG8002: the most common template error in Angular.</h2>
+
+    <p>
+      Every demo on this page assumes the binding target already exists. <span class="term">NG8002</span> —
+      <code>Can't bind to 'x' since it isn't a known property of 'y'</code> — is what Angular tells you the moment it
+      doesn't, and the message is worth memorizing because it always comes down to one of four causes:
+    </p>
+
+    <table class="cmp">
+      <tr>
+        <th>Cause</th>
+        <th>Fix</th>
+      </tr>
+      <tr>
+        <td>The component/directive that declares the input isn't in this component's <code>imports</code> array</td>
+        <td>Add it to <code>imports: [...]</code></td>
+      </tr>
+      <tr>
+        <td>The input name is misspelled, or was never declared with <code>input()</code>/<code>@Input()</code></td>
+        <td>Fix the spelling, or add the input on the target component</td>
+      </tr>
+      <tr>
+        <td>The DOM property genuinely doesn't exist on that element</td>
+        <td>Use <code>[attr.*]</code> instead — see the section above</td>
+      </tr>
+      <tr>
+        <td>It's a native custom element Angular doesn't recognize</td>
+        <td>Add <code>CUSTOM_ELEMENTS_SCHEMA</code> to the component's <code>schemas</code></td>
+      </tr>
+    </table>
+
+    <div class="note">
+      <strong>NG8002 vs. its sibling <span class="bf-break">NG8001</span>.</strong> NG8001 (<code
+        >'x' is not a known element</code
+      >) fires on the tag itself — a missing component import, a typo'd selector. NG8002 fires on a binding on an
+      otherwise-recognized element. Exams like to pair the two: the same root cause, a missing import, produces one
+      error code or the other depending on whether the problem is the tag or one of its bindings.
+    </div>
   </section>
 
   <!-- ============ 8. PITFALLS ============ -->

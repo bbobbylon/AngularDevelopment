@@ -178,6 +178,30 @@ readonly sortedRows = computed(() =>
 @for (row of sortedRows(); track row.id) { … }`;
 
   /**
+   * Sample: the allocation trap — a fresh object literal in a `@let`, handed
+   * straight to a child input.
+   */
+  protected readonly letAllocationBadSample = `@let config = { dense: true };
+<app-row [config]="config" />
+
+// config is a BRAND NEW object, by reference, every single pass —
+// @let re-runs its expression every time, allocation included.
+// → NG0100 in dev mode; wasted child re-renders in prod, forever.`;
+
+  /**
+   * Sample: the fix — give the value a stable identity outside the `@let`.
+   */
+  protected readonly letAllocationGoodSample = `// component — a plain field, allocated exactly once
+protected readonly config = { dense: true };
+<app-row [config]="config" />
+
+// or, if it genuinely has to be derived from other state:
+protected readonly config = computed(() => ({ dense: this.mode() === 'compact' }));
+<app-row [config]="config()" />
+// computed() only allocates a NEW object when mode() actually changes —
+// same reference on every pass in between, unlike @let.`;
+
+  /**
    * Sample: `@let` scoping — a declaration belongs to the block it is written in
    * and is not visible outside it.
    */

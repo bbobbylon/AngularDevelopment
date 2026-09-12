@@ -280,6 +280,55 @@
       </p>
     </div>
 
+    <p>
+      There's a third way to get <code>track</code> wrong, and it's neither of the two above: not a duplicate, not a
+      reorder — a key that is <span class="term">stable at first and then isn't</span>, because it's the very field the
+      user is editing.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — click into a name field and try to type more than one letter</p>
+      <div class="row" style="gap: 24px; align-items: flex-start">
+        <div style="flex: 1">
+          <p class="demo__title">track row.name — the field you're editing</p>
+          @for (row of editRows(); track row.name) {
+            <input
+              aria-label="name, tracked by name"
+              [value]="row.name"
+              (input)="renameRow(row.id, $any($event.target).value)"
+              style="display: block; margin-bottom: 6px; width: 100%"
+            />
+          }
+        </div>
+        <div style="flex: 1">
+          <p class="demo__title">track row.id — stable</p>
+          @for (row of editRows(); track row.id) {
+            <input
+              aria-label="name, tracked by id"
+              [value]="row.name"
+              (input)="renameRow(row.id, $any($event.target).value)"
+              style="display: block; margin-bottom: 6px; width: 100%"
+            />
+          }
+        </div>
+      </div>
+      <p class="demo__note">
+        Both columns edit the <strong>same</strong> underlying rows. On the left, the track key <em>is</em> the field
+        you're typing into — every keystroke produces a "new" identity, so Angular destroys the input that just had
+        focus and creates a fresh one in its place. Try to type a whole word and watch focus drop after the first
+        letter. On the right, <code>id</code> never changes, so the same DOM node survives every keystroke and typing
+        feels ordinary.
+      </p>
+    </div>
+
+    <app-remember variant="rule">
+      <code>track</code> has to be <strong>unique, stable and cheap</strong> — all three, not just the first one. Unique
+      rules out duplicates (Angular throws). Stable rules out anything that changes while the row is on screen,
+      including a field the row itself lets you edit — <code>$index</code> fails this the moment the list reorders, and
+      an edited field fails it the moment the edit happens. Cheap rules out recomputing something expensive per item
+      just to get a key.
+    </app-remember>
+
     <app-compare
       leftTitle="`track $index` — keyed by position"
       leftTone="bad"

@@ -116,6 +116,47 @@
     </div>
   </section>
 
+  <!-- ============ 4B. IMPORTING THE ROUTER DIRECTIVES ============ -->
+  <section>
+    <p class="bf-eyebrow">The setup step every snippet above skipped</p>
+    <h2><code>router-outlet</code> and <code>routerLink</code> don't exist until you import them.</h2>
+
+    <p>
+      Every snippet above prints <code>&lt;router-outlet /&gt;</code> and <code>&lt;a routerLink="/about"&gt;</code> as
+      if they just work. On a standalone component, they don't — <code>RouterOutlet</code>, <code>RouterLink</code> and
+      <code>RouterLinkActive</code> are directives like any other, and the component using them has to list each one in
+      its own <code>imports</code> array. Miss one and you get two completely different failures, depending on which:
+    </p>
+
+    <app-compare
+      leftTitle="Missing `RouterOutlet` — loud"
+      leftTone="bad"
+      rightTitle="Missing static `routerLink` — silent"
+      rightTone="bad"
+      note="A bound [routerLink]='[...]' in that same missing-import state DOES error, with NG8002 — the string form fails silently instead, because Angular cannot distinguish an unknown attribute from plain HTML you meant literally."
+    >
+      <div left>
+        <p>
+          <code>NG8001: 'router-outlet' is not a known element</code> — a build-time error. Angular has never seen the
+          tag before, because no imported directive claims it.
+        </p>
+      </div>
+      <div right>
+        <p>
+          No error at all. <code>routerLink="/about"</code> with no matching import is just an unrecognised HTML
+          attribute as far as Angular is concerned — the anchor renders, looks completely normal, and clicking it does
+          nothing but a useless self-navigation. Nothing in the console says why.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      <code>RouterModule</code> is the older, all-in-one alternative — importing it pulls in <code>RouterOutlet</code>,
+      <code>RouterLink</code> and <code>RouterLinkActive</code> together, which is why older NgModule-based apps never
+      hit this trap by accident.
+    </div>
+  </section>
+
   <!-- ============ 5. LIVE — NAVIGATE THIS LESSON ============ -->
   <section>
     <p class="bf-eyebrow">Live — try it</p>
@@ -279,6 +320,46 @@
       [code]="pathMatchSample"
       answer="On /home — and so does every other URL in the app. Matching defaults to **prefix**, and the empty path is a prefix of literally every URL, so that first route claims /about before the router ever reaches the entry that would have handled it. The app looks broken in the strangest way: only the home page works. Add `pathMatch: 'full'` and the rule becomes 'match only when the whole URL is empty', which is what you meant. This is the single most-failed routing question on the exam, and the reason is that the buggy version *looks* obviously correct."
     />
+  </section>
+
+  <!-- ============ 8B. IT WORKS LOCALLY, THEN 404s IN PRODUCTION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The trap that only shows up after you deploy</p>
+    <h2>Refresh on <code>/about</code> in production, and the server 404s.</h2>
+
+    <p>
+      Every route on this page works perfectly under <code>ng serve</code> — and that's part of the trap. By default the
+      router uses <code>PathLocationStrategy</code>, which relies on the browser's History API: <code>/about</code> is a
+      <strong>real URL</strong> that whatever answers your requests has to know how to serve.
+      <code>ng serve</code> fakes this for you with a built-in fallback; a plain static host (an S3 bucket, a bare nginx
+      config) does not — it looks for a file called <code>about</code>, finds nothing, and returns a genuine
+      <span class="bf-break">404</span>, even though the exact same link worked a moment ago by clicking through the app
+      instead of refreshing.
+    </p>
+
+    <table class="cmp">
+      <tr>
+        <th>Fix</th>
+        <th>How</th>
+        <th>Trade-off</th>
+      </tr>
+      <tr>
+        <td>Rewrite unknown paths to <code>index.html</code> on the server</td>
+        <td>
+          nginx: one <code>try_files $uri /index.html;</code> line (Netlify/Firebase have their own equivalent config
+          file)
+        </td>
+        <td>None — the URL stays real, so this is usually the right default</td>
+      </tr>
+      <tr>
+        <td><code>provideRouter(routes, withHashLocation())</code></td>
+        <td>
+          Every route grows a <code>#</code>: <code>/about</code> becomes <code>/#/about</code>, and the browser never
+          sends anything after the <code>#</code> to the server, so there is nothing left for it to 404 on
+        </td>
+        <td>Worse SEO and analytics — hash URLs are a special case for a lot of tooling</td>
+      </tr>
+    </table>
   </section>
 
   <!-- ============ 9. EXAM PITFALLS ============ -->

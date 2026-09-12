@@ -306,7 +306,9 @@
       date-only string happens to parse to. For a value that is genuinely date-only — a birthday, not a moment — keep it
       as a string and format with <code>timezone:'UTC'</code> so no zone conversion happens at all. An unparseable value
       throws <code>NG02311: Unable to convert "…" into a date</code> rather than rendering silently wrong, which is at
-      least a mercy.
+      least a mercy — but <code>null</code> or <code>undefined</code> is a different case entirely and does not throw:
+      the pipe treats "no value yet" as expected (an unresolved <code>&#64;if</code>, a field still loading) and simply
+      renders nothing, silently. Don't mistake that empty cell for a working format string.
     </div>
   </section>
 

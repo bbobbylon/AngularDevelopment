@@ -351,6 +351,47 @@
     />
   </section>
 
+  <!-- ============ 8B. ASYNC VALUES AREN'T PLAIN VALUES ============ -->
+  <section>
+    <p class="bf-eyebrow">A different kind of nothing-to-show</p>
+    <h2>An Observable interpolates just as badly as a plain object.</h2>
+
+    <p>
+      <code>user()</code> above was already a resolved value sitting in a signal. Plenty of real data doesn't arrive
+      that way — it comes back from <code>HttpClient</code> as an <span class="term">Observable</span>, and
+      interpolating <em>that</em> directly hits the exact same <code>[object Object]</code> wall, for the exact same
+      reason: Angular still has to stringify whatever you hand it, and an Observable's default <code>toString()</code>
+      is every bit as useless as a plain object's.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — the same source, interpolated two different ways</p>
+      <p>
+        Direct: <code>{{ '{{' }} userName$ {{ '}}' }}</code> → "{{ userName$ }}"
+      </p>
+      <p>
+        Through <code>| async</code>: <code>{{ '{{' }} userName$ | async {{ '}}' }}</code> → "{{ userName$ | async }}"
+      </p>
+      <p class="demo__note">
+        The first row never changes — it was never reading a value in the first place, only stringifying the Observable
+        object itself. Give the second row about a second: it starts as an empty string (the same
+        <code>null</code>-becomes-nothing rule from the quiz above) and fills in once the source actually emits.
+      </p>
+    </div>
+
+    <div class="note">
+      <strong>Two traps that come with <code>| async</code> itself, not with the value it eventually produces.</strong>
+      First: before the first emission it hands back <code>null</code> — exactly like the object case above, nothing
+      renders and nothing explains why, so a template built to show <em>a</em> value needs an <code>&#64;else</code> for
+      the gap. Second: writing <code>{{ '{{' }} source$ | async {{ '}}' }}</code> twice in the same template is
+      <span class="bf-break">two separate subscriptions</span>, not one shared read — if <code>source$</code> is backed
+      by an HTTP call, that's two requests for what looks like one value. The
+      <a routerLink="/let-block">&#64;let</a> lesson covers the fix — subscribe once, reuse the name — and the
+      <a routerLink="/rxjs-interop">RxJS Interop</a> lesson covers <code>toSignal()</code>, which turns the whole
+      Observable into an ordinary signal you call like any other.
+    </div>
+  </section>
+
   <!-- ============ 9. UNDER THE HOOD ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>
@@ -369,6 +410,54 @@
       [code]="underTheHoodSample"
       [notes]="underTheHoodNotes"
       notesLabel="Line by line — creation mode vs. update mode"
+    />
+  </section>
+
+  <!-- ============ 9B. PRINTING THE DELIMITERS THEMSELVES ============ -->
+  <section>
+    <p class="bf-eyebrow">A question nobody answers</p>
+    <h2>
+      How do you print a literal <code>{{ '{{' }}</code> or <code>&#64;</code>?
+    </h2>
+
+    <p>
+      Every code sample on this page that shows you <code>{{ '{{' }} … {{ '}}' }}</code> as literal text — including the
+      one directly above this paragraph — is quietly using the answer already. There's no separate escape character for
+      interpolation: you print the delimiters by <strong>interpolating a string that happens to contain them</strong>.
+      <code>{{ selfInterpolationSource }}</code> is a completely ordinary expression — a string literal — that Angular
+      evaluates, stringifies and writes to the page exactly like any other. It only <em>looks</em> special because the
+      output happens to be two characters that would otherwise open a new interpolation.
+    </p>
+
+    <p>
+      A literal <code>&#64;</code> is simpler still — <code>&amp;#64;</code>, the ordinary HTML numeric entity for the
+      <code>&#64;</code> character, renders as <code>&#64;</code> with nothing Angular-specific involved at all. You
+      need it because a bare <code>&#64;</code> at the start of a line inside a template is parsed as the start of a
+      block — <code>&#64;if</code>, <code>&#64;for</code>, <code>&#64;let</code> — so writing an email address, or an
+      <code>&#64;Component</code> decorator name, as literal prose text needs the entity, or Angular tries to parse it
+      as syntax and the build fails.
+    </p>
+
+    <div class="warn">
+      <strong>One place this bites for real:</strong> an <code>&#64;media</code> query inside a component's inline
+      <code>styles</code>. The <code>&#64;</code> there is genuine CSS, not a mistake — but if that CSS text ever ends
+      up inside the <em>template</em> string instead of its own file, Angular's template parser sees the same leading
+      <code>&#64;</code> and tries to compile it as a control-flow block, not a media query. Keep CSS in
+      <code>styleUrl</code> (or a separate <code>styles</code> array), never pasted into the template, and the problem
+      never comes up.
+    </div>
+
+    <p>
+      Building a component whose template has to coexist with a <em>different</em> templating language that also uses
+      <code>{{ '{{' }} {{ '}}' }}</code> — a server-rendered engine sharing the same HTML file, say — is the one case
+      worth knowing an escape hatch exists at all:
+    </p>
+
+    <app-code-lab
+      file="legacy-page.component.ts"
+      [code]="customDelimiterSample"
+      [notes]="customDelimiterNotes"
+      notesLabel="What changed, and why"
     />
   </section>
 

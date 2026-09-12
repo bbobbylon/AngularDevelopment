@@ -207,6 +207,30 @@ select(stars: number) {
     },
   ];
 
+  /** Sample: the anti-pattern — reaching for `output()` as a cross-component event bus inside a plain service. */
+  protected readonly busAntiPatternSample = `@Injectable({ providedIn: 'root' })
+export class NotificationBus {
+  saved = output<string>();   // compiles, constructs, and goes nowhere
+}
+
+// anywhere else in the app:
+this.bus.saved.emit('Profile saved');   // runs without error — and reaches nobody`;
+
+  /** Sample: the two correct replacements — a stream for multiple subscribers, or a signal for shared state. */
+  protected readonly busFixSample = `// a real STREAM, for code that wants to react to each event as it happens
+@Injectable({ providedIn: 'root' })
+export class NotificationBus {
+  private readonly _saved = new Subject<string>();
+  readonly saved$ = this._saved.asObservable();
+  notify(msg: string) { this._saved.next(msg); }
+}
+
+// shared STATE, for code that just wants to read "is it saved right now"
+@Injectable({ providedIn: 'root' })
+export class SessionState {
+  readonly isSaved = signal(false);
+}`;
+
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {

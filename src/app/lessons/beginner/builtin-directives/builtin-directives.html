@@ -389,6 +389,48 @@
       [code]="hiddenSample"
       answer="Polling the server once a second and holding a socket open, for the whole hour. `[hidden]` is a CSS toggle — it sets `display: none` on an element that is still fully alive. The component was never destroyed, so `ngOnDestroy` never ran, the interval was never cleared and the socket was never closed. Swap it for `@if (showPlayer)` (or `*ngIf`) and the component is genuinely destroyed: subscriptions torn down, timers cleared, memory released. The trade-off is real in the other direction too — the player loses its position and has to rebuild when it comes back, which is exactly when `[hidden]` is the right choice. The rule is to ask whether you want the thing *gone* or merely *invisible*, and then say which one you meant."
     />
+
+    <p>
+      There's a second, quieter way <code>[hidden]</code> fails, and it has nothing to do with lifecycles —
+      <span class="term">CSS specificity</span>. The attribute works by leaning on one very ordinary browser rule,
+      <code>[hidden] {{ '{' }} display: none {{ '}' }}</code
+      >, and any rule of yours that also sets <code>display</code> on that same element is competing with it on equal
+      terms.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — this box is genuinely `hidden`. Watch it stay on screen anyway.</p>
+      <div class="hidden-defeat-demo__box" hidden>
+        <span class="bf-break">Still here.</span> This element has the <code>hidden</code> attribute set right now — and
+        its own <code>display: flex</code> rule, which wins the tie.
+      </div>
+      <p class="demo__note">
+        No JavaScript toggled anything above — that box is <code>hidden</code> in this exact page, and you can still
+        read it. A <code>.card {{ '{' }} display: flex {{ '}' }}</code> rule on the same element has the same
+        specificity as the browser's own <code>[hidden] {{ '{' }} display: none {{ '}' }}</code> rule, and a later,
+        equally-specific rule wins ties in the cascade — which is exactly what a layout class like
+        <code>display: flex</code> or <code>display: grid</code> usually is.
+      </p>
+    </div>
+
+    <div class="code">
+      <pre>{{ hiddenDefeatCssSample }}</pre>
+    </div>
+
+    <p>Three ways out, cheapest first:</p>
+
+    <div class="code">
+      <pre>{{ hiddenDefeatFixSample }}</pre>
+    </div>
+
+    <p>
+      or a class binding — <code>[class.is-hidden]</code> paired with a
+      <code>.is-hidden {{ '{' }} display: none {{ '}' }}</code> rule of your own — which sidesteps the fight entirely
+      because nothing is trusting <code>[hidden]</code> to win anything. One more reason to care even when the CSS
+      behaves: <code>display: none</code> removes the element from the accessibility tree completely, where
+      <code>visibility: hidden</code> or <code>opacity: 0</code> do not — a screen reader can still land on an element
+      that is "invisible" the second way.
+    </p>
   </section>
 
   <!-- ============ 11. OLD → NEW AT A GLANCE ============ -->

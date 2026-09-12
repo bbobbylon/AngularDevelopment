@@ -179,13 +179,35 @@
     <div class="demo">
       <p class="demo__title">Live — parent clamps every write to 0…10</p>
       <div class="row">
-        <app-stepper [value]="clamped()" (valueChange)="setClamped($event)" />
+        <app-stepper #clampStepper [value]="clamped()" (valueChange)="setClamped($event)" />
         <span class="pill">clamped = {{ clamped() }}</span>
       </div>
       <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.85rem">
         Try stepping past 10 or below 0 — the child asks, the parent decides. The child still works unmodified; the
         policy lives where the state lives.
       </p>
+    </div>
+
+    <app-predict
+      prompt="Step the stepper above past 10 — click + until it reads 11 or higher — then compare the number ON the stepper itself against the `clamped` pill next to it. Do they agree?"
+      answer="No — and they stay disagreeing until something forces a fresh write. Clicking + fires valueChange with 11; setClamped(11) clamps it and calls clamped.set(10) — but clamped was ALREADY 10, so that write is a no-op by Object.is equality. Angular's binding-level dirty check for [value]=&quot;clamped()&quot; then sees the exact same 10 it saw last time and skips writing to the child at all. No input write happens because the bound VALUE never changed from the parent's point of view — that's the binding's dirty check, not a model() quirk. The stepper is left silently holding a number (11) the parent never agreed to."
+      revealLabel="Reveal why they disagree"
+    />
+
+    <div class="warn">
+      <strong>Rejecting a value is exactly why anyone splits the banana</strong> — and the demo above is what it costs
+      if you stop there. Three real fixes: (1) have the child render straight from the input instead of shadowing it in
+      local state of its own, so there is nothing left to disagree with; (2) force a fresh write from the parent — a
+      value that's genuinely different makes Angular's dirty check see a real change and push it back down, which is
+      what the button below does; (3) move ownership fully to the parent with a one-way <code>[value]</code> plus a
+      plain <code>(request)</code> output instead of a two-way <code>model()</code>, so the child never holds state of
+      its own to desync from in the first place.
+    </div>
+
+    <div class="row" style="margin-top: 10px">
+      <button class="bf-btn bf-btn--ghost" (click)="clamped.set(0)">
+        Fix live: force a re-sync (writes 0 — a genuinely different value)
+      </button>
     </div>
   </section>
 
@@ -214,7 +236,10 @@
       <div class="field-grid">
         <div>
           <label>text — updates every keystroke</label>
-          <input aria-label="type here" [(ngModel)]="text" placeholder="type here" style="width: 100%" />
+          <input #textInput aria-label="type here" [(ngModel)]="text" placeholder="type here" style="width: 100%" />
+          <button class="bf-btn bf-btn--ghost" style="margin-top: 6px" (click)="clearAndInspect(textInput)">
+            Clear + inspect the real DOM value
+          </button>
         </div>
         <div>
           <label>text — updateOn: 'blur' (leave the field to commit)</label>
@@ -245,7 +270,25 @@
         <p>blurText = "{{ blurText() }}" — only updates on blur</p>
         <p>framework = "{{ framework() }}"</p>
         <p>agree = {{ agree() }}</p>
+        @for (line of clearLog(); track $index) {
+          <p>{{ line }}</p>
+        }
       </div>
+    </div>
+
+    <div class="note">
+      <strong>The view update is deferred by one microtask — a real testing trap.</strong> Writing
+      <code>text.set('')</code> does not push <code>''</code> into the input's actual DOM
+      <code>value</code> synchronously: <code>NgModel</code> wraps that write in
+      <code>Promise.resolve().then(...)</code> internally, to avoid clashing with the change-detection pass still in
+      progress when the new value arrives — the same trick
+      <a routerLink="/template-forms">Template-Driven Forms</a> documents for control <em>registration</em>, applied
+      here to every subsequent value push. The button above proves it: read <code>input.value</code> immediately after
+      <code>set('')</code> and it is still the OLD text; only after a microtask has actually run does the DOM catch up.
+      A test that clicks, then asserts on the DOM in the very next line with no <code>await</code>, <code>tick()</code>,
+      or <code>fakeAsync</code>, reads the stale value and fails for a reason that has nothing to do with the bug it
+      thinks it found. Binding <code>[value]</code> + <code>(input)</code> on a raw element, by contrast, writes the DOM
+      synchronously — one reason some teams avoid <code>ngModel</code> for a simple signal-backed field.
     </div>
     <div class="tip">
       Since these are signals, <code>[(ngModel)]="text"</code> binds directly to the <code>text</code> signal — Angular

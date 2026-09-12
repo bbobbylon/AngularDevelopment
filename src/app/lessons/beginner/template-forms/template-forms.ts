@@ -16,8 +16,8 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
  * classes every control carries through its lifecycle, a writable signal living
  * inside a two-way `[(ngModel)]` binding, and — past the API surface —
  * `ControlValueAccessor` as the DOM-to-model bridge, the microtask that defers
- * control registration, and the two very different ways a submit button can end
- * up doing nothing at all.
+ * control registration, and the several very different ways a submit button
+ * can end up doing nothing at all.
  *
  * ## Presentation
  *
@@ -310,6 +310,18 @@ readonly usernameStrength = computed(() => {
   <input name="email" ngModel required email />
   <button type="submit">Submit</button>
 </form>`;
+
+  /**
+   * Sample: the same required/email attributes as {@link silentSubmitSample},
+   * minus `(ngSubmit)`'s absence — this time the field is left empty, so the
+   * browser's own native validation is what intercepts the click. No
+   * `novalidate` anywhere.
+   */
+  protected readonly nativeValidationSample = `<form #f="ngForm" (ngSubmit)="submit(f.value)">
+  <input name="email" ngModel required email />
+  <button type="submit">Submit</button>
+</form>
+<!-- the email field is left EMPTY. you click Submit. -->`;
 
   /**
    * Sample: under the hood — `ControlValueAccessor` as the DOM-to-model bridge,

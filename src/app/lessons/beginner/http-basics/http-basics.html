@@ -271,6 +271,99 @@ providers: [provideHttpClient(withFetch())]</pre>
     />
   </section>
 
+  <!-- ============ 7B. TWO KINDS OF FAILURE ============ -->
+  <section>
+    <p class="bf-eyebrow">A distinction the demos above skip</p>
+    <h2><code>status: 0</code> is not a status code — it's the absence of one.</h2>
+
+    <p>
+      <strong>Branching on <code>err.status === 401</code></strong> quietly assumes the server got to answer at all. It
+      usually did. But there are <span class="term">two completely different kinds of HTTP failure</span>, and
+      conflating them is why so many apps show the same unhelpful message for both:
+    </p>
+
+    <ul>
+      <li>
+        <span class="key">The server answered, and the answer was bad news.</span> A real 4xx or 5xx, a real body in
+        <code>err.error</code>, a real <code>err.statusText</code>. Something on the other end made a decision.
+      </li>
+      <li>
+        <span class="key">The request never got there at all.</span> DNS failure, no network, or a
+        <span class="term">CORS preflight</span> the browser itself refused to let through. Angular reports this as
+        <code>err.status === 0</code> — not a status the server sent, but the browser telling you no status ever
+        arrived. <code>err.error</code> here is typically an empty <code>ProgressEvent</code>, not JSON.
+      </li>
+    </ul>
+
+    <app-code-lab
+      file="posts.component.ts"
+      [code]="errorKindSample"
+      [notes]="errorKindNotes"
+      notesLabel="Line by line"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — two real failures, side by side</p>
+      <div class="row" style="margin-bottom: 12px">
+        <button (click)="loadUnreachable()">Hit an unreachable host</button>
+        <button (click)="loadNotFound()">Hit a real 404</button>
+      </div>
+
+      @if (lastError(); as err) {
+        <table>
+          <tbody>
+            <tr>
+              <td><code>err.status</code></td>
+              <td>{{ err.status }}</td>
+            </tr>
+            <tr>
+              <td><code>err.statusText</code></td>
+              <td>{{ err.statusText }}</td>
+            </tr>
+            <tr>
+              <td><code>err.error</code> is a real body?</td>
+              <td>{{ lastErrorHadBody() }}</td>
+            </tr>
+            <tr>
+              <td><code>err.message</code></td>
+              <td>{{ err.message }}</td>
+            </tr>
+          </tbody>
+        </table>
+      } @else {
+        <p style="color: var(--text-muted)">Press either button to see the real shape of that failure.</p>
+      }
+    </div>
+
+    <app-predict
+      prompt="Before pressing anything above: which button will produce `err.status === 0`, and which will produce a real body in `err.error`?"
+      answer='"Hit an unreachable host" is the `status: 0` case — `.invalid` is a top-level domain reserved so it can never resolve, so the request never leaves for anywhere real. "Hit a real 404" reaches the actual jsonplaceholder server, which answers honestly that the post doesn&apos;t exist — a real status, a real (if empty) body, a real `statusText`.'
+    />
+
+    <p>
+      That last point matters in practice: <strong>a CORS rejection is a server configuration problem</strong>, not
+      something any amount of Angular code can fix. The server has to add the right
+      <code>Access-Control-Allow-Origin</code> header — a client-side retry, a different HTTP verb, or a cleverer
+      <code>catchError</code> changes nothing. The standard workaround during local development is to stop pointing at
+      the other origin at all: call a relative URL like <code>/api/posts</code> and let the CLI's dev server forward it
+      for you.
+    </p>
+
+    <div class="code">
+      <pre>
+// proxy.conf.json
+{{ '{' }} "/api/*": {{ '{' }} "target": "http://localhost:3000", "secure": false {{ '}' }} {{ '}' }}
+
+// angular.json (serve target) or: ng serve --proxy-config proxy.conf.json
+"options": {{ '{' }} "proxyConfig": "proxy.conf.json" {{ '}' }}</pre>
+    </div>
+
+    <p>
+      With the proxy in place, the browser only ever talks to its own origin — the dev server is the one making the
+      cross-origin call, server-to-server, where CORS doesn't apply at all.
+    </p>
+  </section>
+
   <!-- ============ 8. WHY OBSERVABLES, NOT PROMISES ============ -->
   <section>
     <p class="bf-eyebrow">A question worth asking</p>

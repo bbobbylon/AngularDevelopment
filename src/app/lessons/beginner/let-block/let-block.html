@@ -208,6 +208,48 @@
     </table>
   </section>
 
+  <!-- ============ 5B. THE ALLOCATION TRAP ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The one nobody warns you about</p>
+    <h2>Re-running an expression is fine. Re-<em>allocating</em> one isn't.</h2>
+
+    <p>
+      Cheap arithmetic re-running every pass is harmless — that's the whole memoization nuance above. But
+      <code>&#64;let</code> re-runs the <strong>entire</strong> expression, and an object or array literal is an
+      expression too. Build one inside a <code>&#64;let</code> and hand it to a child's input, and you're not just
+      repeating work — you're handing that child a
+      <span class="bf-break">brand-new object, by reference, on every single change-detection pass</span>, whether
+      anything inside it actually changed or not.
+    </p>
+
+    <app-compare
+      leftTitle="Looks fine — isn't"
+      leftTone="bad"
+      rightTitle="A stable identity"
+      rightTone="good"
+      note="Angular compares an object input by reference, not by deep equality. A @let that allocates hands the child a new reference every pass — in dev mode that's NG0100 the moment two consecutive checks disagree about what was passed; in production it's silent, permanent, needless re-rendering of that child on every single pass, forever."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ letAllocationBadSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ letAllocationGoodSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      <strong>&#64;let is a name, not a cache — and never a place to allocate.</strong> Hoist any object or array a
+      child needs to a <code>readonly</code> class field (stable forever) or a <code>computed()</code> (stable until its
+      real dependencies change) instead. If all a <code>&#64;let</code> needs to carry is a primitive — a string, a
+      number, a boolean — there's nothing to allocate and nothing to fix; the trap is specifically about objects and
+      arrays.
+    </div>
+  </section>
+
   <!-- ============ 6. SCOPE & RULES ============ -->
   <section>
     <p class="bf-eyebrow">The rules</p>

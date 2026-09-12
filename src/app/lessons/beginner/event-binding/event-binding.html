@@ -128,6 +128,82 @@
     />
   </section>
 
+  <!-- ============ 4B. $EVENT.TARGET AND THE STRICT-TEMPLATE WALL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The wall everyone hits once</p>
+    <h2>$event.target is an EventTarget — not the element you meant.</h2>
+
+    <p>
+      With <span class="term">strictTemplates</span> on — this repo's own default, and the CLI's default since v9 — the
+      single most natural line a learner writes for a text input <span class="bf-break">fails to compile.</span>
+      Any node in the event's bubble path could technically be the target, so TypeScript types
+      <code>$event.target</code> as the base <code>EventTarget</code> interface, which has no <code>.value</code>.
+    </p>
+
+    <app-code-lab
+      file="the line everyone writes first"
+      [code]="eventTargetFailSample"
+      [notes]="eventTargetFailNotes"
+      notesLabel="Why this doesn't compile"
+    />
+
+    <p>Three ways out, best first:</p>
+
+    <app-code-lab
+      file="the fixes, ranked"
+      [code]="eventTargetFixSample"
+      [notes]="eventTargetFixNotes"
+      notesLabel="What each fix actually buys you"
+    />
+
+    <app-remember variant="rule">
+      <code>$event.target</code> (and <code>$event.currentTarget</code>) is <strong>never</strong> typed as your element
+      — it's always <code>EventTarget | null</code>. A template reference variable like <code>#box</code> keeps full
+      typing with zero casts; a typed handler parameter is the next best thing; <code>$any(...)</code> is the escape
+      hatch, not the default.
+    </app-remember>
+  </section>
+
+  <!-- ============ 4C. (CLICK) ON A DIV — NO KEYBOARD, NO ROLE ============ -->
+  <section>
+    <p class="bf-eyebrow">The accessibility trap</p>
+    <h2>A clickable &lt;div&gt; is invisible to a keyboard.</h2>
+
+    <p>
+      <code>(click)</code> binds to any element, and a bare <code>&lt;div&gt;</code> will happily accept it. What it
+      won't do is anything a <code>&lt;button&gt;</code> gives you for free: a Tab stop, a role a screen reader
+      announces, or a way to activate it without a pointing device.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — unreachable by keyboard"
+      leftTone="bad"
+      rightTitle="Right — a real button, or the full manual treatment"
+      rightTone="good"
+      note="Prefer the left column of the right side whenever you genuinely can — it's the same one line, for free."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ clickableDivWrongSample }}</pre>
+        </div>
+        <p>
+          No <code>tabindex</code>, so Tab skips straight over it. No <code>role</code>, so a screen reader announces
+          nothing more than plain text. Enter and Space do nothing at all.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ clickableDivRightSample }}</pre>
+        </div>
+        <p>
+          A <code>&lt;button&gt;</code> gets all of this natively. When it truly has to be a <code>&lt;div&gt;</code>,
+          you have to add every piece back by hand — the key-modifier syntax from the section above is what makes the
+          Enter/Space handlers a one-liner each.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
   <!-- ============ 5. KEY MODIFIERS ============ -->
   <section>
     <p class="bf-eyebrow">Key &amp; event modifiers</p>

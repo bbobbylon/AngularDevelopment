@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab, TapeCard } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
@@ -54,6 +54,7 @@ import { CliExplorer } from './cli-explorer/cli-explorer';
     BfPage,
     Chapter,
     CodeLab,
+    Napkin,
     TapeCard,
     Compare,
     Faq,
@@ -124,6 +125,44 @@ ng add @angular/material         # install a library AND run its setup schematic
       text: '`ng add` is `npm install` with a setup step stapled to it: it installs the package, then runs that package’s own schematic — which is how adding Angular Material also wires up its theming for you.',
     },
   ];
+
+  /**
+   * The "it works locally, 404s in prod" napkin question — coverage-sweep
+   * failure mode: nothing in the lesson said what happens to `dist/` after
+   * `ng build` finishes.
+   */
+  protected readonly deployPrompt =
+    'You run `ng build`, copy the whole `dist/my-app/browser` folder onto a static file host, and it works — you can click every link in the app. Then someone bookmarks `/about`, closes the tab, and opens the bookmark fresh. What do they see?';
+
+  /** The server-side rewrite rule every static host needs, three ways. */
+  protected readonly deployRewriteSample = `# nginx
+location / { try_files $uri $uri/ /index.html; }
+
+# Netlify — a _redirects file next to index.html
+/*    /index.html   200
+
+# Firebase — firebase.json
+{ "hosting": { "rewrites": [{ "source": "**", "destination": "/index.html" }] } }`;
+
+  /** Line-by-line walkthrough of {@link deployRewriteSample}. */
+  protected readonly deployRewriteNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'Read this right to left: for every request, try the exact file (`$uri`), then a matching directory (`$uri/`), and if neither exists on disk, serve `/index.html` instead of letting nginx return its own 404.',
+    },
+    {
+      line: 5,
+      text: 'Netlify reads a plain-text `_redirects` file: any path (`/*`) rewrites to `/index.html`, and the `200` matters — a `301`/`302` here would visibly redirect the URL bar instead of quietly serving the same file at the original address.',
+    },
+    {
+      line: 8,
+      text: "Firebase Hosting's config format for the identical rule: any `source` matching `**` (everything) rewrites to `/index.html` before the request ever 404s.",
+    },
+  ];
+
+  /** The two other build-to-deploy flags people never meet until they need them. */
+  protected readonly deployFlagsSample = `ng build --base-href /app/                # app is served from example.com/app/, not the domain root
+ng serve --proxy-config proxy.conf.json   # forward /api/* to a real backend in dev, no CORS needed`;
 
   /**
    * Sample: `main.ts` — `bootstrapApplication`, the first line of the app to

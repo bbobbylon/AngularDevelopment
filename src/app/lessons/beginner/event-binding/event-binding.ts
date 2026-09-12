@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { StarRating } from './star-rating/star-rating';
 
@@ -42,6 +42,7 @@ import { StarRating } from './star-rating/star-rating';
     Chapter,
     CodeLab,
     Napkin,
+    Compare,
     Faq,
     Flow,
     Predict,
@@ -169,6 +170,69 @@ track(e: MouseEvent) {
       text: 'Builds a brand-new object and swaps it in wholesale rather than mutating the old one — the signal convention, and what keeps an `OnPush` child safe if this were ever passed down as an input.',
     },
   ];
+
+  /** Sample: the compile error strictTemplates raises on the most natural line a learner writes. */
+  protected readonly eventTargetFailSample = `<input (input)="text.set($event.target.value)" />
+
+// Property 'value' does not exist on type 'EventTarget'. ts(2339)`;
+
+  /** Line-by-line walkthrough of {@link eventTargetFailSample}. */
+  protected readonly eventTargetFailNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: "`$event.target` is typed `EventTarget | null` — the base interface any node in the event's bubble path could be, not `HTMLInputElement`. `EventTarget` has no `.value`, so this fails to compile before it ever runs.",
+    },
+    {
+      line: 3,
+      text: "The exact error, from `strictTemplates` — this repo's own default, and the Angular CLI's default since v9. It fires at edit time and in `ng build`, never at runtime, because a template that fails to compile never ships at all.",
+    },
+  ];
+
+  /** The three fixes, ranked by how much typing they preserve. */
+  protected readonly eventTargetFixSample = `<!-- 1. Template reference variable — full typing, no cast, already used above -->
+<input #box (input)="text.set(box.value)" />
+
+<!-- 2. A typed handler -->
+<input (input)="onInput($event)" />
+onInput(e: Event) {
+  this.text.set((e.target as HTMLInputElement).value);
+}
+
+<!-- 3. Last resort — the escape hatch -->
+<input (input)="text.set($any($event.target).value)" />`;
+
+  /** Line-by-line walkthrough of {@link eventTargetFixSample}. */
+  protected readonly eventTargetFixNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "`#box` is a genuine reference to the `<input>` element, typed as `HTMLInputElement` — there's no `$event` in this line at all, so there's nothing untyped to work around.",
+    },
+    {
+      line: 5,
+      text: 'A typed method parameter instead of an inline expression. The cast happens once, inside a real function body, where you can also add a runtime check if the target could genuinely be something else.',
+    },
+    {
+      line: 11,
+      text: "`$any(...)` tells the Angular compiler to stop type-checking this expression completely. It compiles, but you've thrown away every safety net the other two fixes keep — reach for it only when neither one fits, and know that `$event.currentTarget` has the exact same `EventTarget` problem.",
+    },
+  ];
+
+  /** Wrong: a div wired to (click) with no keyboard path and no accessible role. */
+  protected readonly clickableDivWrongSample = `<div (click)="open()">Open details</div>`;
+
+  /** Right: a real button, or the full manual treatment when it truly cannot be one. */
+  protected readonly clickableDivRightSample = `<button (click)="open()">Open details</button>
+
+<!-- or, only if it genuinely cannot be a <button> -->
+<div
+  (click)="open()"
+  (keydown.enter)="open()"
+  (keydown.space)="open()"
+  tabindex="0"
+  role="button"
+>
+  Open details
+</div>`;
 
   /**
    * Sample: `(keyup.enter)` plus a template reference variable, and clearing the

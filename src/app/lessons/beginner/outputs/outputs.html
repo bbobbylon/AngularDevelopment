@@ -240,6 +240,44 @@
     </div>
   </section>
 
+  <!-- ============ 6B. OUTPUTS ARE COMPONENT-SCOPED, NOT APP-SCOPED ============ -->
+  <section>
+    <p class="bf-eyebrow">A boundary people try to skip</p>
+    <h2>An output only ever has one listener: whoever's template it's bound in.</h2>
+
+    <p>
+      A doorbell only rings for whoever's standing at that door. It's tempting to reach for the same shape — an emitter
+      something calls <code>.emit()</code> on — as a general-purpose way to broadcast an event to
+      <strong>any</strong> interested code anywhere in the app, by putting it in a service instead of a component:
+    </p>
+
+    <div class="warn">
+      <strong>The anti-pattern.</strong>
+      <div class="code" style="margin-top: 10px">
+        <pre>{{ busAntiPatternSample }}</pre>
+      </div>
+      Nothing here throws. <code>output()</code> only needs <em>an</em> injection context to construct itself, and a
+      service built through Angular's DI has one — so this compiles, and it runs. What it can't do is the one thing an
+      output exists for: no <code>(saved)="…"</code> binding anywhere in the app can ever attach to it, because that
+      wiring only exists for a field the compiler found on an <code>&#64;Component</code>/<code>&#64;Directive</code>
+      class — and a plain <code>&#64;Injectable</code> is invisible to that step entirely. The emitter isn't broken;
+      it's just permanently talking to an empty room.
+    </div>
+
+    <p>Two shapes that actually do what a service-level "broadcast an event" reach was trying to get:</p>
+
+    <div class="code">
+      <pre>{{ busFixSample }}</pre>
+    </div>
+
+    <app-remember variant="rule">
+      Reach for a <code>Subject</code> in a service when other code needs to react to
+      <strong>each occurrence</strong> of something happening. Reach for a <code>signal</code> in a service when other
+      code just needs to read <strong>the current state</strong>. Reach for <code>output()</code> only on an actual
+      component or directive — it has no other home.
+    </app-remember>
+  </section>
+
   <!-- ============ 7. SELF-TEST ============ -->
   <section>
     <p class="bf-eyebrow">Self-test</p>

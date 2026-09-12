@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LifecycleLog } from './lifecycle.shared';
 import { LifecycleChild } from './lifecycle-child/lifecycle-child';
+import { LifecycleLeakyChild } from './lifecycle-leaky-child/lifecycle-leaky-child';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
@@ -58,6 +59,7 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     Quiz,
     Remember,
     LifecycleChild,
+    LifecycleLeakyChild,
   ],
   providers: [LifecycleLog],
   templateUrl: './lifecycle.html',
@@ -301,5 +303,23 @@ readonly latest = toSignal(this.source$);
    */
   protected toggle() {
     this.show.update((s) => !s);
+  }
+
+  /**
+   * Whether the leak demo's child is currently mounted.
+   */
+  protected readonly leakShow = signal(false);
+  /**
+   * Whether the leak demo's child clears its own interval on destroy —
+   * checked before creating it, then left alone until the next create.
+   */
+  protected readonly leakCleanup = signal(false);
+
+  /**
+   * Mounts or unmounts the leaky child, with whatever cleanup setting is
+   * currently checked.
+   */
+  protected leakToggle() {
+    this.leakShow.update((s) => !s);
   }
 }

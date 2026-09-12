@@ -175,6 +175,38 @@
       </p>
     </div>
 
+    <div class="demo">
+      <p class="demo__title">Live — a real leak, not just a warning</p>
+      <div class="row" style="margin-bottom: 14px; flex-wrap: wrap">
+        <button (click)="leakToggle()">{{ leakShow() ? 'Destroy' : 'Create' }} leaky child</button>
+        <label
+          ><input
+            type="checkbox"
+            [checked]="leakCleanup()"
+            [disabled]="leakShow()"
+            (change)="leakCleanup.set($any($event.target).checked)"
+          />
+          clean up on destroy</label
+        >
+      </div>
+      @if (leakShow()) {
+        <app-lifecycle-leaky-child [cleanup]="leakCleanup()" />
+      }
+      <p class="demo__note">
+        Leave "clean up on destroy" unchecked, create the child, wait for a couple of <code>leak-tick</code> lines in
+        the Hook log above, then destroy it. The ticks <span class="bf-break">keep appending to the log</span> — the
+        component has no <code>ngOnDestroy</code> of its own to catch this, and the raw <code>setInterval</code> from
+        its constructor has no idea Angular removed anything. Check the box first, destroy it again, and the ticks stop
+        the instant you click — that's <code>DestroyRef.onDestroy(() =&gt; clearInterval(id))</code> actually firing.
+      </p>
+    </div>
+
+    <div class="note">
+      A subscription behaves the same way as a raw timer here — nothing about Angular destroying a view unsubscribes an
+      RxJS <code>Observable</code> for you. <code>takeUntilDestroyed()</code> is the equivalent fix for that case: it
+      ties the subscription's teardown to the same <code>DestroyRef</code> this demo calls by hand.
+    </div>
+
     <table>
       <caption class="bf-table-caption">
         Reference: every hook, and when it fires

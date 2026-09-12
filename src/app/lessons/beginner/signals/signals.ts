@@ -398,6 +398,18 @@ this.first.set('Grace');`;
     },
   ];
 
+  /**
+   * Sample: an effect that reads and writes the *same* signal — a runaway loop,
+   * for {@link Predict}'s reveal.
+   */
+  protected readonly selfWriteEffectSample = `readonly total = signal(0);
+
+constructor() {
+  effect(() => {
+    this.total.set(this.total() + 1);   // reads total() AND writes total()
+  });
+}`;
+
   /** Sample: the wrong way to derive — an effect writing into a second signal. */
   protected readonly effectDeriveSample = `readonly price = signal(10);
 readonly qty = signal(2);

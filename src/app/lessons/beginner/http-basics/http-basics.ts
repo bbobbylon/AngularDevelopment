@@ -1,5 +1,5 @@
-import { HttpClient } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subject, catchError, of, switchMap } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
@@ -305,6 +305,36 @@ http.delete<void>(url)`;
     },
   ];
 
+  /** Sample: telling a real HTTP error apart from a request that never reached a server. */
+  protected readonly errorKindSample = `this.http.get('/api/posts').subscribe({
+  error: (err: HttpErrorResponse) => {
+    if (err.status === 0) {
+      // Never reached the server — offline, DNS failure, or a CORS
+      // preflight the browser itself refused to let through.
+      console.error('Network/CORS failure — there is no HTTP status to read.');
+    } else {
+      // The server was reached, and it answered with a failure.
+      console.error(\`Server said \${err.status}: \${err.statusText}\`);
+    }
+  },
+});`;
+
+  /** Line-by-line walkthrough of {@link errorKindSample}. */
+  protected readonly errorKindNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`status === 0` is not a status code the server sent — it is the browser telling you no status ever arrived. Treat it as "request never completed," not as "server said nothing."',
+    },
+    {
+      line: 6,
+      text: 'At this point `err.error` is typically an empty `ProgressEvent`, not a JSON body — there was never a response to parse.',
+    },
+    {
+      line: 8,
+      text: 'Any other status means the server was reached and chose to answer with a failure. `err.error` here is the real, parsed response body — the same shape a success would have had.',
+    },
+  ];
+
   /** Sample: bridging an HTTP Observable to a signal, and the race demo's real cancellation shape. */
   protected readonly bridgeSample = `// Read-only, no manual subscribe or unsubscribe:
 protected readonly posts = toSignal(this.http.get<Post[]>(url), { initialValue: [] });
@@ -419,6 +449,22 @@ constructor() {
   private readonly loadUser$ = new Subject<void>();
 
   /**
+   * The raw error from whichever button in the "two kinds of failure" demo was
+   * pressed last, kept in full — not summarised — so the template can show the
+   * actual shape instead of a guess.
+   */
+  protected readonly lastError = signal<HttpErrorResponse | null>(null);
+  /**
+   * Whether {@link lastError}'s `.error` is a real, parsed response body or an
+   * empty `ProgressEvent` — computed here because Angular templates cannot use
+   * `instanceof` directly.
+   */
+  protected readonly lastErrorHadBody = computed(() => {
+    const err = this.lastError();
+    return err !== null && !(err.error instanceof ProgressEvent);
+  });
+
+  /**
    * Wires the race demo: every trigger runs through `switchMap`, which unsubscribes
    * the previous in-flight request the moment a new one starts.
    *
@@ -468,5 +514,28 @@ constructor() {
   protected loadRandomUser() {
     this.requestCount.update((c) => c + 1);
     this.loadUser$.next();
+  }
+
+  /**
+   * A genuine transport failure, live: `.invalid` is a top-level domain RFC 2606
+   * reserves for exactly this — it can never resolve — so this always produces a
+   * real `status: 0`, no server involved.
+   */
+  protected loadUnreachable() {
+    this.lastError.set(null);
+    this.http.get('https://this-host-does-not-exist.invalid/posts').subscribe({
+      error: (err: HttpErrorResponse) => this.lastError.set(err),
+    });
+  }
+
+  /**
+   * A real server answering with a real 4xx — for contrast against
+   * {@link loadUnreachable}'s `status: 0`.
+   */
+  protected loadNotFound() {
+    this.lastError.set(null);
+    this.http.get('https://jsonplaceholder.typicode.com/posts/999999').subscribe({
+      error: (err: HttpErrorResponse) => this.lastError.set(err),
+    });
   }
 }

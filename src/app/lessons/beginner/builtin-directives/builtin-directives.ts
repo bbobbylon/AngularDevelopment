@@ -385,6 +385,18 @@ trackById(index: number, item: Item) {
 <!-- The user hides the player and walks away
      for an hour. What is the app doing? -->`;
 
+  /** The rule that defeats `[hidden]`: any same-specificity `display` rule on the same element. */
+  protected readonly hiddenDefeatCssSample = `.card { display: flex; }
+
+<div class="card" hidden>Still visible!</div>`;
+
+  /** The fixes, ranked by how much they cost you. */
+  protected readonly hiddenDefeatFixSample = `/* 1. Bind display instead of trusting [hidden] */
+[style.display]="show ? null : 'none'"
+
+/* 2. Or make [hidden] win, globally, once */
+[hidden] { display: none !important; }`;
+
   // ── Section: questions from the back row ────────────────────────────────────
 
   /** The doubts this lesson reliably leaves behind. */

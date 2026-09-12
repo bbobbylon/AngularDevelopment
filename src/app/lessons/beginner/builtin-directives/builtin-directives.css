@@ -19,3 +19,17 @@
   border-color: var(--accent);
   background: rgba(221, 0, 49, 0.08);
 }
+
+/* The [hidden]-defeated-by-display demo: this box is genuinely `hidden` in the
+   markup, but its own `display: flex` rule has the same specificity as the
+   browser's built-in `[hidden] { display: none }` rule and wins the cascade
+   tie — so it stays on screen. That's the bug, rendered live, not simulated. */
+.hidden-defeat-demo__box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+}

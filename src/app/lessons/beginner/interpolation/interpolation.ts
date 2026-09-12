@@ -1,5 +1,7 @@
+import { AsyncPipe } from '@angular/common';
 import { Component, afterRenderEffect, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Observable, map, timer } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
@@ -55,6 +57,7 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
   selector: 'app-lesson-interpolation',
   imports: [
     RouterLink,
+    AsyncPipe,
     BfPage,
     Bubbles,
     Chapter,
@@ -197,6 +200,15 @@ export class Interpolation {
   protected toggleUser(): void {
     this.user.update((u) => (u ? null : { name: 'Ada' }));
   }
+
+  // ---- Live proof: interpolating an Observable directly vs. through `| async` ----
+  /**
+   * A fake network Observable for the async-interpolation demo. Built with
+   * `timer` rather than `of` on purpose — `of` emits synchronously, on
+   * subscribe, before the trap this demo exists to show (`| async` handing
+   * back `null` before the first emission) could ever actually be seen.
+   */
+  protected readonly userName$: Observable<string> = timer(1200).pipe(map(() => 'Ada'));
 
   // ── Presentation data ──────────────────────────────────────────────────────
 
@@ -526,6 +538,37 @@ protected readonly computedDouble = computed(() => {
     {
       line: 16,
       text: "The expressions themselves always re-run on a pass that reaches this view. What's cheap is what happens **after**: the real DOM `Text.data` is only written when the freshly-built string differs from what was painted last time — which is why interpolation stays cheap even though 'it runs every pass' is technically true.",
+    },
+  ];
+
+  /**
+   * The literal source text `{{ '{{' }}`, rendered through interpolation
+   * because typing the raw braces directly into the `.html` — even as the
+   * text of a `<code>` element — would itself open a real interpolation and
+   * break the build; this field exists purely to sidestep that trap.
+   */
+  protected readonly selfInterpolationSource = "{{ '{{' }}";
+
+  /**
+   * Sample: the escape hatch for a component whose template has to coexist
+   * with a different templating language that also uses `{{ }}`.
+   */
+  protected readonly customDelimiterSample = `@Component({
+  selector: 'app-legacy-page',
+  interpolation: ['[[', ']]'],
+  template: \`<p>[[ first() ]]</p>\`,
+})
+export class LegacyPage {}`;
+
+  /** Line-by-line walkthrough of {@link customDelimiterSample}. */
+  protected readonly customDelimiterNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: "`interpolation` takes a two-element tuple — open marker, close marker — and replaces `{{ }}` for THIS component's template only. Every other component in the app keeps using the default.",
+    },
+    {
+      line: 4,
+      text: 'The template now reads `[[ … ]]` instead of `{{ … }}` — genuinely different delimiters, not an escaped form of the usual ones. A stray `{{ }}` left over from a copy-paste is now just plain text here, not an interpolation.',
     },
   ];
 
