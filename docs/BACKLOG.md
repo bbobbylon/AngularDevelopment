@@ -815,6 +815,52 @@ and it can run as parallel per-track agents the way the §1.2 batches did — wi
 lesson learned there: verify each batch by re-running the audit, not by trusting the
 agent's report.
 
+### 2.9 User accounts, cloud-synced progress, and account security
+
+Requested 2026-09-12. Right now every piece of user state — visited lessons, bookmarks,
+streak, practice history, review queue, mock-exam history, coding-task submissions — lives
+in `localStorage` only, which means progress is per-browser, per-device, and gone the
+moment site data is cleared. The ask: real user accounts (register/sign-in) so progress
+follows the learner across devices, a standard profile/settings page, and modern
+account-security options — MFA/2FA and passkeys, not just a password.
+
+**Scope, as requested:**
+
+- Register / sign in (account creation + authentication).
+- Server-side persistence of the state that today lives only in `localStorage` — progress,
+  bookmarks, streak, practice/mock-exam/review history, coding-task submissions — keyed to
+  the account.
+- A standard profile/settings page.
+- MFA/2FA.
+- Passkeys (WebAuthn).
+
+**This needs a real backend for the first time in this repo's life.** Everything shipped so
+far is a fully static, zero-dependency Angular app — the README's own "zero third-party UI
+or state library" claim, and both live deployments (GitHub Pages, a static build; Render, a
+Dockerized nginx container — see DEPLOYMENT.md) assume no server at all. When this is
+picked up, the machine-wide `scaffold-spring-backend` recipe/skill is the standing pattern
+for this exact shape of work: Spring Boot + JDBC (not JPA) + stateless JWT, with
+register/login/profile already in its template. Passkeys and MFA are extensions on top of
+that base, not something the template covers out of the box — they need their own design
+pass (WebAuthn library choice, TOTP vs. another 2FA factor, recovery-code flow) before
+implementation starts.
+
+**Not scoped yet, and worth deciding before implementation starts:**
+
+- Where the backend/database actually runs. Both current deployments are static-content-only
+  hosts; a real backend needs its own always-on host plus a real database, a materially
+  bigger and costlier commitment than either.
+- Whether existing `localStorage` progress should be _migrated_ into an account on first
+  sign-in, or whether accounts start fresh — a UX decision, not just a technical one.
+- Social/OAuth sign-in (Google, GitHub) — not requested, but a common companion to
+  "sign in/register," worth asking about explicitly rather than assuming either way.
+
+This is easily the largest scope expansion since the app's initial build. Treat it as its
+own project phase — its own SRS/ARCHITECTURE updates, per this machine's Documentation
+Standards — not a quick item folded into an existing pass, and not something to start before
+§1.3 theme 2, §2.1–§2.7 and §2.8 above are actually done, per the same "finish what's
+already open before starting the next big thing" rule §2.8 itself was filed under.
+
 ---
 
 ## 3. Later
