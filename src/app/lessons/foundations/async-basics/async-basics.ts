@@ -74,11 +74,26 @@ export class AsyncBasics {
   /**
    * Where the fake request has got to, driving the demo's button and spinner.
    */
-  protected readonly status = signal<'idle' | 'loading' | 'done'>('idle');
+  protected readonly status = signal<'idle' | 'loading' | 'done' | 'error'>('idle');
   /**
    * The fake request's result text.
    */
   protected readonly result = signal('');
+  /**
+   * The error message when the simulated request rejects instead of resolving.
+   */
+  protected readonly errorMessage = signal('');
+  /**
+   * Whether the live demo's next request should reject instead of resolve.
+   */
+  protected readonly simulateFailure = signal(false);
+
+  /** Log lines for the out-of-order-responses race demo. */
+  protected readonly raceLog = signal<string[]>([]);
+  /** Whichever race response landed most recently — the thing actually on screen. */
+  protected readonly raceResult = signal('');
+  /** Whether the race demo is mid-run. */
+  protected readonly raceRunning = signal(false);
 
   /**
    * The execution-order log — the A/C/B proof, appended to as each callback runs.
@@ -104,7 +119,7 @@ export class AsyncBasics {
   }
 
   /**
-   * Runs the fake request: sets `loading`, waits, then sets `done`.
+   * Runs the fake request: sets `loading`, waits, then sets `done` or `error`.
    *
    * Deliberately `async`/`await` over a timer rather than a real fetch — the
    * lesson is about *when* code runs, and a real network call adds failure modes
@@ -113,9 +128,65 @@ export class AsyncBasics {
   protected async load() {
     this.status.set('loading');
     this.result.set('');
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    this.result.set('{ name: "Ada", role: "admin" }');
-    this.status.set('done');
+    this.errorMessage.set('');
+    try {
+      const data = await this.fetchUser();
+      this.result.set(data);
+      this.status.set('done');
+    } catch (err) {
+      this.errorMessage.set((err as Error).message);
+      this.status.set('error');
+    }
+  }
+
+  /**
+   * The simulated request itself — a Promise that rejects when
+   * {@link simulateFailure} is checked, so `load()` above has something real
+   * to catch.
+   */
+  private fetchUser(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (this.simulateFailure()) {
+          reject(new Error('500 Internal Server Error'));
+        } else {
+          resolve('{ name: "Ada", role: "admin" }');
+        }
+      }, 1200);
+    });
+  }
+
+  /**
+   * Fires two fake searches with different delays — "cat" (slow) then
+   * "caterpillar" (fast) — and lets whichever response lands *last* win,
+   * regardless of which was sent last. That's the race condition.
+   */
+  protected runRace() {
+    this.raceRunning.set(true);
+    this.raceLog.set([]);
+    this.raceResult.set('');
+    const log = (s: string) => this.raceLog.update((l) => [...l, s]);
+
+    log('Typed "cat" → search sent (this one takes 900ms to answer)');
+    const catRequest = new Promise<string>((resolve) =>
+      setTimeout(() => resolve('results for "cat"'), 900),
+    );
+
+    log('Typed "caterpillar" → search sent (this one takes 200ms)');
+    const caterpillarRequest = new Promise<string>((resolve) =>
+      setTimeout(() => resolve('results for "caterpillar"'), 200),
+    );
+
+    catRequest.then((value) => {
+      log(`⬅ "cat" landed (900ms) — ${value}`);
+      this.raceResult.set(value);
+    });
+    caterpillarRequest.then((value) => {
+      log(`⬅ "caterpillar" landed (200ms) — ${value}`);
+      this.raceResult.set(value);
+    });
+
+    Promise.all([catRequest, caterpillarRequest]).then(() => this.raceRunning.set(false));
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
@@ -311,41 +382,90 @@ console.log('this prints FIRST');`;
   ];
 
   /**
-   * Sample: the demo's actual `load()` source, annotated — the same idle-then-
-   * resume gap as every other sample on the page, but this one is real,
-   * running code the reader just clicked.
+   * Sample: the demo's actual `load()` + `fetchUser()` source, annotated — the
+   * same idle-then-resume gap as every other sample on the page, but this one
+   * is real, running code the reader just clicked, and it's the one sample on
+   * the page that can actually fail.
    */
   protected readonly liveDemoSample = `protected async load() {
   this.status.set('loading');
   this.result.set('');
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  this.result.set('{ name: "Ada", role: "admin" }');
-  this.status.set('done');
+  this.errorMessage.set('');
+  try {
+    const data = await this.fetchUser();
+    this.result.set(data);
+    this.status.set('done');
+  } catch (err) {
+    this.errorMessage.set((err as Error).message);
+    this.status.set('error');
+  }
+}
+
+private fetchUser(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (this.simulateFailure()) {
+        reject(new Error('500 Internal Server Error'));
+      } else {
+        resolve('{ name: "Ada", role: "admin" }');
+      }
+    }, 1200);
+  });
 }`;
 
   /** Line-by-line walkthrough of {@link liveDemoSample}. */
   protected readonly liveDemoNotes: CodeNote[] = [
     {
-      line: 2,
-      text: 'Runs instantly — the spinner appears the moment the button is clicked, before anything slow has even started.',
-    },
-    {
-      line: 3,
-      text: "Clears any previous result, so clicking the button a second time doesn't show stale data while the new request is in flight.",
-    },
-    {
-      line: 4,
-      text: 'Execution pauses **here**, inside this one function, for 1.2 seconds. Nothing else on the page pauses with it — try the theme toggle or scroll while it runs.',
-    },
-    {
       line: 5,
-      text: 'Resumes exactly where it left off once the Promise settles, and picks up on this exact line — 1.2 seconds later, not a moment sooner.',
+      text: 'A `try`/`catch` only catches a rejection reached via `await` — the classic silent-failure trap is wrapping a *call* in try/catch without awaiting it, in which case the function has already returned before the rejection even exists, and this block never runs at all.',
     },
     {
       line: 6,
-      text: 'The status flips to `done` last. This is why the spinner and the result never appear in the wrong order, no matter how the timing varies.',
+      text: '`await` pauses here until `fetchUser()` settles, one way or the other. If it rejects, execution skips straight past lines 7–8 and lands in the `catch` block below — exactly like a thrown exception.',
+    },
+    {
+      line: 9,
+      text: '`err` is whatever `reject()` was called with on line 20 — here, an `Error` object, so `err.message` reads the string it was constructed with.',
+    },
+    {
+      line: 16,
+      text: 'The Promise executor takes **two** callbacks, not one: `resolve` for success, `reject` for failure. Every other Promise on this page only ever calls the first.',
+    },
+    {
+      line: 20,
+      text: 'Calling `reject()` does not throw. It settles the Promise as **rejected** — nothing happens synchronously, and the `catch` block above only runs once execution reaches the `await` on line 6.',
     },
   ];
+
+  /** Sample: the classic `forEach` + async trap — for {@link Compare}'s left panel. */
+  protected readonly forEachBugSample = `const items = ['a', 'b', 'c'];
+
+items.forEach(async (item) => {
+  await save(item);
+});
+
+console.log('done saving');
+// prints IMMEDIATELY — forEach never looks at
+// the promise its callback returns`;
+
+  /** Sample: the `for...of` fix — for {@link Compare}'s right panel. */
+  protected readonly forOfFixSample = `const items = ['a', 'b', 'c'];
+
+for (const item of items) {
+  await save(item); // waits for EACH save in turn
+}
+
+console.log('done saving');
+// only prints once every save has finished`;
+
+  /**
+   * Sample: the non-awaited try/catch trap. A plain field, not a
+   * {@link CodeNote}-annotated `<app-code-lab>`, because it's one line quoted
+   * inline in prose — and a raw `{`/`}` in template *text* reads as the start
+   * of an interpolation, so this has to arrive as a string, not be typed
+   * directly into the `.html`.
+   */
+  protected readonly tryCatchTrapSample = 'try { this.load(); } catch {}';
 
   /**
    * Sample: the sequential approach — for {@link Compare}'s left panel.

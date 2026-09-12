@@ -333,6 +333,34 @@
     </div>
 
     <p>
+      That address-bar trick has a sharp edge, though: the router only ever gets a say <em>after</em> the app has
+      already loaded once. The very same URL behaves completely differently depending on how you arrived at it:
+    </p>
+
+    <app-compare
+      leftTitle="Clicking to `/lessons/42` from inside the app"
+      leftTone="good"
+      rightTitle="Hard refresh — or a shared link — on that exact URL"
+      rightTone="bad"
+      note="The fix is a **server rewrite** — nginx's `try_files $uri /index.html`, Netlify's `_redirects` file, or a dev server's SPA-fallback flag — all saying the same thing: for any path that isn't a real file, serve `index.html` anyway and let the router take it from there. A hash URL (`#/lessons/42`) sidesteps the whole problem, because the **fragment** — the one URL part this page already told you never reaches the server — is all the router needs, at the cost of an uglier address and worse SEO."
+    >
+      <div left>
+        <p>
+          The router intercepts the click entirely inside the browser —
+          <strong>no network request happens at all</strong>. The "page" you land on was already sitting inside the
+          JavaScript bundle from the very first load.
+        </p>
+      </div>
+      <div right>
+        <p>
+          The browser does what it always does on a fresh load: sends a real <code>GET /lessons/42</code> straight to
+          the server. A plain static-file host has no file at that exact path on disk, and answers
+          <span class="bf-break">404</span> — for the identical URL that worked perfectly one click earlier.
+        </p>
+      </div>
+    </app-compare>
+
+    <p>
       This also explains a trade-off you'll hear about later: an SPA's very first load carries the whole JavaScript
       bundle (a slower start), after which everything feels instant. Techniques you'll meet at the expert tier —
       <em>lazy loading</em>, <em>server-side rendering</em>, <em>hydration</em> — are all attacks on that first-load

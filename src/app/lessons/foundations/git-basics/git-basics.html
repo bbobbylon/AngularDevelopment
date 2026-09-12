@@ -198,6 +198,25 @@
     <app-predict [prompt]="commitTrapPrompt" [answer]="commitTrapAnswer" revealLabel="Reveal what actually happened" />
   </section>
 
+  <!-- ============ 4B. DAY ZERO ============ -->
+  <section>
+    <p class="bf-eyebrow">Before any of that</p>
+    <h2>Every demo above assumed a repo that already existed. Yours won't.</h2>
+
+    <p>
+      The simulator, the classic trap, even the commit-message advice below all quietly assumed a Git repository — and,
+      later on this page, a remote — were already sitting there waiting. In reality you create that starting point
+      yourself, and there are exactly two ways in:
+    </p>
+
+    <app-code-lab
+      file="terminal — day zero"
+      [code]="dayZeroSample"
+      [notes]="dayZeroNotes"
+      notesLabel="Two separate starting points, not one script"
+    />
+  </section>
+
   <!-- ============ 5. THE EVERYDAY LOOP ============ -->
   <section>
     <p class="bf-eyebrow">The everyday loop</p>
@@ -390,6 +409,42 @@
       diff, leave comments on specific lines, and automated checks run before anyone merges it. This is where code
       review actually happens, and a long, thoughtful pull-request history is something interviewers genuinely read.
     </p>
+
+    <p>Pushing isn't always a straight upload, either. The single most common daily Git failure looks like this:</p>
+
+    <app-code-lab
+      file="terminal — a rejected push"
+      [code]="rejectedPushSample"
+      [notes]="rejectedPushNotes"
+      notesLabel="Reading the rejection"
+    />
+
+    <app-compare
+      leftTitle="`--force` — makes the error disappear"
+      leftTone="bad"
+      rightTitle="`pull` (or `pull --rebase`) — actually fixes it"
+      rightTone="good"
+      note="`git push --force` replaces the remote's history with yours, full stop — including a commit you never even saw. Reach for `pull` first, always; save `--force` for a branch only you have ever touched."
+    >
+      <div left>
+        <p>
+          Makes the rejection go away by overwriting the remote branch to match yours exactly — deleting your teammate's
+          commit from it, with no warning to anyone.
+        </p>
+      </div>
+      <div right>
+        <p>
+          <code>git pull</code> merges their commit into yours first (creating a merge commit), or
+          <code>git pull --rebase</code> replays yours on top of theirs for a straight-line history — either way, the
+          ordinary <code>git push</code> from the everyday loop then succeeds normally.
+        </p>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      A rejected push is Git protecting you. <span class="bf-break"><code>--force</code> deletes that protection</span>,
+      silently, the instant you type it — which is exactly why the next paragraph exists.
+    </div>
 
     <p>
       <code>git push --force</code> is the same idea as an ordinary push, with one safety check switched off — the one

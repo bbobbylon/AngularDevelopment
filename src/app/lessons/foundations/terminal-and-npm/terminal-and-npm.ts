@@ -407,6 +407,44 @@ ng test`;
     },
   ];
 
+  /** The wall of text npm prints on a peer-dependency conflict. */
+  protected readonly eresolveSample = `npm ERR! code ERESOLVE
+npm ERR! ERESOLVE unable to resolve dependency tree
+npm ERR!
+npm ERR! While resolving: my-app@1.0.0
+npm ERR! Found: @angular/core@21.2.0
+npm ERR!
+npm ERR! Could not resolve dependency:
+npm ERR! peer @angular/core@"^18.0.0" from some-old-library@2.0.0
+npm ERR!
+npm ERR! Fix the upstream dependency conflict, or retry
+npm ERR! this command with --force or --legacy-peer-deps
+npm ERR! to accept an incorrect (and potentially broken) dependency resolution.`;
+
+  /** The ERESOLVE predict's prompt — a scenario, not a definition. */
+  protected readonly eresolvePrompt =
+    'You run `npm install some-old-library` and instead of the usual one-line summary, npm prints a wall of ten-plus red lines ending in `npm ERR! code ERESOLVE`. Before you scroll: is `node_modules/` corrupted — so deleting it and reinstalling will fix this — or is something else going on?';
+
+  /** The reveal for {@link eresolvePrompt}. */
+  protected readonly eresolveAnswer =
+    "Nothing is corrupted, and deleting `node_modules/` changes nothing — the exact same error comes back, because the conflict lives in `package.json`, not in any cached files. `ERESOLVE` means two packages disagree about which version of a **shared dependency** is allowed: your project has `@angular/core@21`, but `some-old-library` declares in its own `package.json` that it only works with `@angular/core@^18`. npm 7+ refuses to silently guess which one wins, so it stops and shows you both sides of the disagreement. There are exactly two honest fixes: find a newer version of `some-old-library` that actually supports Angular 21, or add `--legacy-peer-deps` to the install command, which tells npm to stop enforcing peer-dependency ranges (the way npm 6 always behaved) and install anyway. That flag doesn't fix the incompatibility — it just means you're accepting the risk that `some-old-library` was never tested against your Angular version.";
+
+  /** The wall of text npm prints on a permissions failure during a global install. */
+  protected readonly eaccesSample = `npm ERR! code EACCES
+npm ERR! syscall mkdir
+npm ERR! path /usr/local/lib/node_modules/@angular
+npm ERR! errno -13
+npm ERR! Error: EACCES: permission denied, mkdir '/usr/local/lib/node_modules/@angular'`;
+
+  /** The reach-for-it-first fix — and why it makes the next install worse, not better. */
+  protected readonly sudoFixSample = `sudo npm install -g @angular/cli
+# installs fine — but every file it created is now owned by root`;
+
+  /** The fix that actually solves the underlying permissions problem. */
+  protected readonly properFixSample = `nvm install --lts
+nvm use --lts
+npm install -g @angular/cli   # no sudo — this Node install is entirely yours`;
+
   /** The `npm ci` predict prompt — a scenario, not a definition. */
   protected readonly npmCiPrompt =
     'Your CI server runs `npm ci` on every push, and today it turned red with: "npm ci can only install packages when your package.json and package-lock.json are in sync." Meanwhile `npm install` still works perfectly on your own laptop — no errors at all. Before you scroll: why would two commands that both claim to install the dependencies disagree about whether this project can even be installed?';
@@ -467,6 +505,13 @@ ng test`;
       why: 'Caret ranges only ever move forward from the version written down. `18.0.0` is a floor, not a suggestion — nothing older than it is ever installed by this range.',
     },
   ];
+
+  /** `ng serve` refusing to start — the two most common reasons, side by side. */
+  protected readonly portInUseSample = `? Port 4200 is already in use. Would you like to use a different port? (Y/n)`;
+
+  /** `ng` not being found at all — a different failure, from before Angular ever runs. */
+  protected readonly ngNotFoundSample = `'ng' is not recognized as an internal or external command,
+operable program or batch file.`;
 
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [

@@ -290,6 +290,78 @@
     />
   </section>
 
+  <!-- ============ 5B. WHEN NPM INSTALL GOES WRONG ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The failure story</p>
+    <h2>"Delete node_modules and reinstall" isn't the fix for everything.</h2>
+
+    <p>
+      Every example so far has been the happy path — <code>npm install</code>, then a short line saying how many
+      packages arrived. The first real wall most beginners hit looks nothing like that: a screaming block of red text.
+      Two of them show up constantly, and neither one means what people assume.
+    </p>
+
+    <app-predict
+      [prompt]="eresolvePrompt"
+      [code]="eresolveSample"
+      [answer]="eresolveAnswer"
+      revealLabel="Reveal what ERESOLVE actually means"
+    />
+
+    <p>
+      The other classic wall shows up on a <strong>global</strong> install — <code>npm install -g @angular/cli</code> —
+      and it's a completely different kind of problem: not a version conflict, but the operating system itself refusing
+      to let npm write files where global packages live.
+    </p>
+
+    <app-code-lab
+      file="terminal"
+      [code]="eaccesSample"
+      [notes]="[
+        {
+          line: 1,
+          text: '`EACCES` — access denied. This is the operating system speaking, not npm; npm never even got to install anything.',
+        },
+        {
+          line: 3,
+          text: 'The exact folder npm tried to create a subfolder in. On many Mac/Linux setups, this system-wide folder is owned by an admin account, not your everyday user.',
+        },
+        {
+          line: 5,
+          text: 'Spelled out: your user does not have permission to create files here. The install fails before a single package downloads.',
+        },
+      ]"
+      notesLabel="A different kind of error entirely"
+    />
+
+    <app-compare
+      leftTitle="`sudo npm install -g` — makes the error disappear"
+      leftTone="bad"
+      rightTitle="Fix who owns Node's global folder"
+      rightTone="good"
+      note="Once one global install has run under `sudo`, the folder is a mix of root-owned and user-owned files — every future global install without `sudo` fails the same way, and now the fix is messier than it would have been the first time."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ sudoFixSample }}</pre>
+        </div>
+        <p>
+          Works immediately — <code>sudo</code> is permission to write anywhere. But it doesn't fix the ownership
+          problem; it papers over it, one command at a time, for the rest of that machine's life.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ properFixSample }}</pre>
+        </div>
+        <p>
+          A version manager like <strong>nvm</strong> installs Node entirely inside your own home folder, so every
+          global install — this one included — writes somewhere you already own. No <code>sudo</code>, ever again.
+        </p>
+      </div>
+    </app-compare>
+  </section>
+
   <!-- ============ 6. COMMANDS WORTH KNOWING ============ -->
   <section>
     <p class="bf-eyebrow">Commands worth knowing by heart</p>
@@ -398,6 +470,28 @@
       the browser every time you save a file. It keeps running — that's why the prompt never comes back — until
       <kbd>Ctrl+C</kbd> stops it. <code>localhost:4200</code> means "this machine, door 4200."
     </p>
+
+    <p>Two more things stop <code>ng serve</code> before it even starts, and both look scarier than they are:</p>
+
+    <div class="bf-grid-2">
+      <div class="demo">
+        <p class="demo__title">Port already in use</p>
+        <pre class="readout">{{ portInUseSample }}</pre>
+        <p class="demo__note">
+          Almost always a previous <code>ng serve</code> that never got a <kbd>Ctrl+C</kbd> — often in a terminal tab
+          you forgot about. Answer "yes" to try the next port, or add <code>--port 4300</code> yourself.
+        </p>
+      </div>
+      <div class="demo">
+        <p class="demo__title">'ng' is not recognized</p>
+        <pre class="readout">{{ ngNotFoundSample }}</pre>
+        <p class="demo__note">
+          Means <code>npm install -g @angular/cli</code> either never ran or failed partway — the same global-install
+          machinery as the EACCES example above. Re-run the global install; a fresh terminal window sometimes needs to
+          open before the PATH change is picked up.
+        </p>
+      </div>
+    </div>
   </section>
 
   <!-- ============ 11. QUESTIONS ============ -->

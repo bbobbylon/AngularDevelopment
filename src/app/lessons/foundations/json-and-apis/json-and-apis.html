@@ -294,6 +294,30 @@ JSON.parse(text).age    → {{ p.age }}</pre>
       (<code>Authorization: Bearer eyJhbG…</code>) with every single request — HTTP is stateless, so you prove who you
       are again each time.
     </p>
+
+    <p>
+      One more sharp edge, easy to miss because it looks so harmless: <strong>query strings</strong> built by plain
+      string concatenation don't escape anything, and a special character silently corrupts the URL.
+    </p>
+
+    <app-compare
+      leftTitle="String concatenation — no encoding"
+      leftTone="bad"
+      rightTitle="`URLSearchParams` — encodes for you"
+      rightTone="good"
+      note="Angular's own `HttpParams` (used with `HttpClient`) does this exact encoding automatically — one more reason to reach for it instead of building query strings by hand."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ concatQuerySample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ urlSearchParamsSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
   </section>
 
   <!-- ============ 6. SAFE & IDEMPOTENT ============ -->
@@ -407,6 +431,68 @@ JSON.parse(text).age    → {{ p.age }}</pre>
       output="The second — `await res.json()` on line 7. The first `await` only gets you a status and headers; nothing under `data` exists until the body has been read and parsed."
       revealLabel="Reveal the answer"
     />
+  </section>
+
+  <!-- ============ 9B. WHEN THE BODY ISN'T JSON AT ALL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">A different failure</p>
+    <h2>Checking the status code isn't the whole story.</h2>
+
+    <p>
+      <code>res.ok</code> tells you the status was bad. It does not tell you <em>what</em> came back instead — and in
+      production, "instead" is very often not JSON at all. A load balancer or reverse proxy that can't reach your server
+      usually answers on its own, in <strong>HTML</strong>, because it has never heard of your API's contract:
+    </p>
+
+    <app-code-lab
+      file="response — a 502 from the proxy, not your server"
+      [code]="badGatewaySample"
+      [notes]="badGatewayNotes"
+      notesLabel="Why `.json()` is about to explode"
+    />
+
+    <p>
+      Call <code>await res.json()</code> on that body and <code>JSON.parse</code> does exactly what it always does on
+      text it can't read — it <span class="bf-break">throws</span>, and the message is worth memorizing, because it is
+      one of the most googled JSON errors there is:
+    </p>
+
+    <pre class="readout">{{ jsonParseErrorMessage }}</pre>
+
+    <p>
+      That opening <code>&lt;</code> is the tell every time — it's the first character of
+      <code>&lt;!DOCTYPE html&gt;</code>, not the <code>&#123;</code> a real JSON body would start with. The fix is the
+      same instinct as checking <code>res.ok</code>, carried one step further: on the failure path, read the body as
+      <strong>text</strong>, never as JSON, so you can log what the server actually sent instead of the parser crashing
+      blind:
+    </p>
+
+    <app-compare
+      leftTitle="Blind `.json()` — no status check"
+      leftTone="bad"
+      rightTitle="Check `res.ok`, read the failure as text"
+      rightTone="good"
+      note="`res.text()` never throws — any bytes at all are valid text. That's what makes it the safe thing to call on a response you don't trust yet, whereas `.json()` is a bet that only pays off on a body you already know is JSON."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ blindJsonSample }}</pre>
+        </div>
+        <p>
+          Works fine against a healthy server. Against a proxy error page, line 2 throws — and the message gives no hint
+          that the real problem was a 502, three layers away from your code.
+        </p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ safeJsonSample }}</pre>
+        </div>
+        <p>
+          The error you throw yourself names the actual status and shows the start of whatever body came back — usually
+          enough to tell "server is down" apart from "my JSON is malformed."
+        </p>
+      </div>
+    </app-compare>
   </section>
 
   <!-- ============ 10. EXAM CORNER ============ -->

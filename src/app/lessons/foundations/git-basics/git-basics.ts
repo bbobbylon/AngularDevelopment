@@ -236,6 +236,107 @@ export class GitBasics {
   ];
 
   /**
+   * Sample: the two ways a repository actually starts — joining one that
+   * already exists, or publishing a brand-new one. Every other demo on this
+   * page quietly assumes a repo (and, later, a remote) already exists.
+   */
+  protected readonly dayZeroSample = `git config --global user.name "Ada Lovelace"
+git config --global user.email "ada@example.com"
+git clone https://github.com/org/repo.git
+cd repo
+npm install
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/you/repo.git
+git push -u origin main`;
+
+  /** Line-by-line walkthrough of {@link dayZeroSample}. */
+  protected readonly dayZeroNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'Sets the name attached to **every** commit you make on this machine, from now on. `--global` means every repository, not just this one — run it once per machine, not once per project.',
+    },
+    {
+      line: 2,
+      text: 'Same idea, for email. Do both of these before your very first commit anywhere — a commit made before they are set is not retroactively fixed by setting them afterward.',
+    },
+    {
+      line: 3,
+      text: "**Path A — joining a project that already exists.** Copies the entire history, every file, and the `origin` remote pointer, in one command. This is the only command on this page that hands you a working copy of someone else's repository.",
+    },
+    {
+      line: 4,
+      text: '`clone` creates a new folder named after the repository — move into it before touching anything.',
+    },
+    {
+      line: 5,
+      text: "Not a Git command. What you cloned is the *source* the project is built from, not the dependencies it needs to actually run — that's what this installs.",
+    },
+    {
+      line: 6,
+      text: '**Path B — publishing a brand-new repository, from scratch.** Creates a hidden `.git` folder right here — that folder *is* the entire database. Delete it, and every bit of history is gone with it.',
+    },
+    {
+      line: 7,
+      text: 'Ordinary staging, exactly as the everyday loop further down covers — genuinely no different once a repository exists, however it got started.',
+    },
+    {
+      line: 8,
+      text: 'Your very first commit. So far, nothing has said anything about where this history lives beyond your own machine.',
+    },
+    {
+      line: 9,
+      text: '**Names a remote** — `origin` is only the conventional name, not a keyword — and points it at an empty repository you create on GitHub (or similar) first. Nothing uploads yet; this just tells Git where "there" is.',
+    },
+    {
+      line: 10,
+      text: 'The first upload. `-u` links your local `main` to `origin/main` as its upstream, so every push after this one can just be the bare `git push` from the everyday loop below.',
+    },
+  ];
+
+  /**
+   * Sample: a push rejected because the remote has diverged — the terminal
+   * output verbatim, since this is the ordinary safety check `--force`
+   * (further down this page) exists specifically to bypass.
+   */
+  protected readonly rejectedPushSample = `git push
+To https://github.com/you/repo.git
+ ! [rejected]        main -> main (fetch first)
+error: failed to push some refs to 'https://github.com/you/repo.git'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. This is usually caused by another repository pushing
+hint: to the same ref.`;
+
+  /** Line-by-line walkthrough of {@link rejectedPushSample}. */
+  protected readonly rejectedPushNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'The exact same command from the everyday loop above. This time, the remote has moved on since your last `pull`.',
+    },
+    {
+      line: 2,
+      text: "Git names the remote it's talking to, then reports what actually happened below.",
+    },
+    {
+      line: 3,
+      text: "`[rejected]` — nothing uploaded. `(fetch first)` is Git's own hint at the fix, spelled out in one word.",
+    },
+    {
+      line: 4,
+      text: 'The push genuinely failed. None of your commits reached the remote, and your local history is completely untouched.',
+    },
+    {
+      line: 5,
+      text: "The plain-English reason: someone else pushed to this exact branch after your last pull, so there's no straight line from the remote's tip to yours.",
+    },
+    {
+      line: 6,
+      text: 'Git refuses to guess which history should win — that decision is yours, via `pull` or `pull --rebase`, not something a push should ever decide silently.',
+    },
+  ];
+
+  /**
    * Sample: the everyday loop, as a bare terminal transcript with no inline
    * comments — the numbered notes below carry the entire explanation, the same
    * convention `terminal-and-npm` uses for its own transcripts.

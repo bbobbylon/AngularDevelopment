@@ -266,6 +266,44 @@ console.log('C');</pre>
     <p>Interviewers ask this. Production code reviews flag it when it's missed.</p>
   </section>
 
+  <!-- ============ 7B. A LOOP FULL OF AWAITS ============ -->
+  <section>
+    <p class="bf-eyebrow">A loop full of awaits</p>
+    <h2><code>forEach</code> doesn't wait for anything — not even itself.</h2>
+
+    <p>
+      <code>await</code> inside an arrow function reads like it should pause the loop around it. It doesn't —
+      <code>forEach</code> was written years before <code>async</code> existed, and it has no idea the function it's
+      calling ever returns a Promise:
+    </p>
+
+    <app-compare
+      leftTitle="Looks right — isn't"
+      rightTitle="`for...of` actually waits"
+      leftTone="bad"
+      rightTone="good"
+      note="forEach calls its callback and immediately moves to the next item, ignoring whatever the callback returns — including a Promise. `for...of` + await is the fix when order matters; `await Promise.all(items.map(save))` (seen above) is the fix when it doesn't."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ forEachBugSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ forOfFixSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      <strong>Why the left side doesn't crash, or even warn.</strong> An <code>async</code> arrow function always
+      returns a Promise — <code>forEach</code> receives it back from every call and does exactly what it does with every
+      other return value: nothing. Each <code>save(item)</code> genuinely does start, and genuinely does finish
+      eventually — <span class="bf-break">just not before <code>console.log('done saving')</code> already ran</span>.
+    </div>
+  </section>
+
   <!-- ============ 8. TRY IT — THE LIVE DEMO ============ -->
   <section>
     <p class="bf-eyebrow">Try it yourself</p>
@@ -275,14 +313,33 @@ console.log('C');</pre>
       <p class="demo__title">Live — a simulated 1.2s load</p>
       <div class="row" style="margin-bottom: 10px">
         <button (click)="load()" [disabled]="status() === 'loading'">Load user data</button>
+        <label
+          ><input
+            type="checkbox"
+            [checked]="simulateFailure()"
+            (change)="simulateFailure.set($any($event.target).checked)"
+          />
+          simulate failure</label
+        >
         <span class="pill"
-          >promise state: {{ status() === 'loading' ? 'pending' : status() === 'done' ? 'fulfilled' : '—' }}</span
+          >promise state:
+          {{
+            status() === 'loading'
+              ? 'pending'
+              : status() === 'done'
+                ? 'fulfilled'
+                : status() === 'error'
+                  ? 'rejected'
+                  : '—'
+          }}</span
         >
       </div>
       @if (status() === 'loading') {
         <p>⏳ Working… (the page is still responsive — try the theme toggle or scroll)</p>
       } @else if (status() === 'done') {
         <p style="color: var(--green)">✅ Got it: {{ result() }}</p>
+      } @else if (status() === 'error') {
+        <p style="color: var(--red)">❌ Failed: {{ errorMessage() }}</p>
       } @else {
         <p style="color: var(--text-muted)">Press the button to start.</p>
       }
@@ -295,11 +352,64 @@ console.log('C');</pre>
       notesLabel="Tracing this exact click"
     />
 
+    <div class="warn">
+      <strong>Two ways to lose that <span class="bf-break">rejected</span> promise silently.</strong> (1) Call
+      <code>fetchUser()</code> with no <code>.catch</code> and no surrounding <code>try</code> at all — the console logs
+      <code>Uncaught (in promise) Error: 500 Internal Server Error</code> once, and your app just stops mid-flow with
+      nothing on screen explaining why. (2) <code>{{ tryCatchTrapSample }}</code> — this catches <em>nothing</em>,
+      because <code>load()</code> is only called, not awaited: it returns immediately, the <code>try</code> block ends,
+      and the rejection doesn't even exist yet when it does.
+    </div>
+
     <div class="note">
       Angular mostly uses a cousin of Promises called <strong>Observables</strong> for data over time — a Promise
       settles once, but an Observable can deliver many values (keystrokes, live prices). Every Observable skill still
       builds on this page's mindset: start slow work, don't block, handle the result when it arrives, and always handle
       the failure case too.
+    </div>
+  </section>
+
+  <!-- ============ 8B. OUT-OF-ORDER RESPONSES ============ -->
+  <section>
+    <p class="bf-eyebrow">A subtler bug</p>
+    <h2>The last response to land wins — not the last one you sent.</h2>
+
+    <p>
+      One request failing is at least visible. This bug is quieter: <strong>two</strong> requests both succeed, and the
+      wrong one still ends up on screen — because nothing ties a response back to which request asked for it.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — simulates typing "cat", then immediately "caterpillar"</p>
+      <div class="row" style="margin-bottom: 10px">
+        <button (click)="runRace()" [disabled]="raceRunning()">▶ Simulate the two searches</button>
+      </div>
+      <div class="console">
+        @for (line of raceLog(); track $index) {
+          <div>{{ line }}</div>
+        } @empty {
+          <div class="dim">// output appears here…</div>
+        }
+      </div>
+      @if (raceResult()) {
+        <p class="demo__note">
+          On screen right now: <strong>{{ raceResult() }}</strong>
+        </p>
+      }
+    </div>
+
+    <p>
+      "cat" is typed first but answers slowest; "caterpillar" is typed second but answers fastest. For a moment the
+      screen is briefly, correctly showing the "caterpillar" results — and then
+      <span class="bf-break">"cat"'s slow response lands and overwrites it</span>, leaving stale results on screen for a
+      search the user already replaced. This is a <span class="term">race condition</span>: the order responses arrive
+      in is not guaranteed to match the order requests were sent in.
+    </p>
+
+    <div class="note">
+      <strong>The fix:</strong> tag every outgoing request (an id, or just "the newest wins") and ignore any response
+      that isn't the latest — or cancel the previous request outright. Angular's <code>switchMap</code> and the resource
+      API you'll meet later do exactly this, automatically, which is the actual reason they exist.
     </div>
   </section>
 
