@@ -547,6 +547,30 @@ theme-2 names — `linkedSignal`, `EnvironmentProviders`/`provideX`, `httpResour
 `http-resource` lesson's live demo starts with a URL factory that returns `undefined` (idle)
 until the reader clicks — which is also the lesson's own teaching device for the idle state.
 
+**Theme 1 progress (2026-09-11) — closed.** Worked the full "96 findings, 66 lessons" failure-mode
+list from [COVERAGE-SWEEP.md](COVERAGE-SWEEP.md) via ~14 parallel forks batched by tier, each told
+to re-verify a finding against the live lesson before writing anything rather than trust the
+document blindly. That caution paid off immediately: the very first batch (foundations) reported
+back that all 4 of its assigned lessons were **already fully covered** by an earlier, undocumented
+rewrite pass that COVERAGE-SWEEP.md had never been updated to reflect. Direct verification (grep
+each flagged lesson for the finding's own key terms, not just its coverage-sweep tag) turned up
+**19 lessons total** already done pre-session with zero edits needed: foundations
+(`debugging-basics`, `decisions-loops`, `dom-and-events`, `functions-basics`), beginner
+(`control-flow-if`, `services-di`), typescript (`async`, `mapped-conditional`, `types`,
+`utility-types`), intermediate (`custom-pipes`, `http-interceptors`, `resource-api`,
+`router-children-lazy`, `view-queries`), and expert (`di-advanced`, `libraries-schematics`,
+`i18n`, `security`, `zoneless`). The remaining **46 lessons** got real new failure-mode sections —
+one live demo or wrong-way/right-way pair per finding, added into the lesson's existing flow, no
+restyling — spanning every tier: foundations (5), typescript (3, including a new
+`typescript/modules` CommonJS-interop section that had zero prior coverage), beginner (15),
+intermediate (11), expert (9), and projects (3, all of `auth-flow`/`data-dashboard`/
+`task-manager`). A handful of COVERAGE-SWEEP.md's own findings were skipped as out-of-scope for
+this pass because they were tagged `sub-concept`/`thin-example`, not `failure-mode` — themes 3 and
+4 (or a future dedicated pass) are the right place for those, not this one. Full `npm run verify`
+gate (format, typecheck, tests, build) passed clean on the complete result. **Lesson for next time
+a coverage-style document drives a large batch pass: treat it as a hypothesis to verify per lesson,
+not a checklist to execute — it had been silently stale in over a quarter of its own entries.**
+
 ---
 
 ## 2. Next

@@ -11,6 +11,14 @@ missing or too thin, produced by sweeping all 100 lessons on 2026-08-31. This is
 detail behind [BACKLOG.md](BACKLOG.md) §1.3 — the backlog carries the summary and the
 priorities, this file carries every finding.
 
+**Theme 1 ("missing failure mode") is closed as of 2026-09-11** — see BACKLOG.md §1.3 for
+the batch record. **This file was NOT edited to strike the individual findings it fixed**,
+and it was already found to be stale in ~24 places even before that pass started (an
+earlier, undocumented rewrite had silently absorbed some findings this file still lists as
+open). Treat every `failure mode` finding below as a hypothesis to verify against the live
+lesson, never as a checklist — grep the lesson for the finding's own key terms before
+assuming the gap is still there.
+
 ## Table of Contents
 
 - [Method](#method)
