@@ -6,6 +6,7 @@ This document covers all deployment options for Angular Tutorials.
 
 - [Local Development](#local-development)
 - [GitHub Pages (Free, Automatic)](#github-pages-free-automatic)
+- [Render (Free, Automatic)](#render-free-automatic)
 - [AWS — S3 + CloudFront](#aws--s3--cloudfront)
 - [Docker (Local)](#docker-local)
 - [Docker (Remote Registry)](#docker-remote-registry)
@@ -78,6 +79,81 @@ GitHub Pages provides **free hosting** with automatic deployments on every push.
 - Changes are live within 1-2 minutes
 - No cost, powered by GitHub
 - Perfect for demos, tutorials, and portfolios
+
+---
+
+## Render (Free, Automatic)
+
+**Live at: <https://angulardevelopment.onrender.com>**
+
+Deployed as a Render **Web Service** running the repo's existing [`Dockerfile`](Dockerfile) —
+not Render's static-site product, and not driven by a `render.yaml` Blueprint. It was created
+directly from the Render dashboard (New → Web Service → pick the GitHub repo), and Render
+auto-detected everything from the Dockerfile already in the repo:
+
+- **Source:** `bbobbylon/AngularDevelopment`, branch `master`, repo root, `./Dockerfile` — all
+  defaults, nothing customized.
+- **Build:** the Dockerfile's own two stages — `node:22-alpine` runs `npm ci && npm run build`,
+  then the compiled `dist/angulartutorials/browser` is copied into an `nginx:stable-alpine`
+  image (`nginx.conf` already in the repo) that serves it on port 80.
+- **Env vars / secrets: none.** Zero environment variables, secret files, or environment
+  groups are configured — there is nothing to leak and nothing to rotate, because this is a
+  pure static frontend served by nginx inside the container, with no backend or API key of its
+  own.
+- **Auto-Deploy:** set to "On Commit" — every push to `master` triggers a new build and deploy
+  automatically, the same trigger the GitHub Pages workflow uses, just without that workflow's
+  `verify` gate in front of it. **Run `npm run verify` locally before pushing** — Render will
+  happily build and ship a broken commit that GitHub Pages' CI would have caught first.
+
+### Setup, if recreating this from scratch
+
+1. Sign in at [dashboard.render.com](https://dashboard.render.com) and connect the GitHub
+   account/org that owns this repo, if you haven't already.
+2. **New** → **Web Service** → select the repo. Render finds the root `Dockerfile`
+   automatically and offers the Docker runtime — accept the defaults (region, branch
+   `master`, `./Dockerfile`, no root directory override).
+3. Skip the environment variables step entirely — this app needs none.
+4. Deploy. Render builds the image and gives you a `https://<service-name>.onrender.com` URL
+   (Render appends a suffix if the name is taken) on the **Deploys** tab once it finishes.
+
+### Important Notes
+
+- **This is a free-tier Docker _Web Service_, so it sleeps.** Render spins the container down
+  after a period of inactivity; the next request pays a cold-start penalty (the dashboard
+  quotes "50 seconds or more") while it boots back up. GitHub Pages has no equivalent delay —
+  if that cold start matters, a Render **Static Site** (build command
+  `npm run build`, publish directory `dist/angulartutorials/browser`, plus a rewrite-all
+  route to `index.html` for the SPA — see the routing-basics lesson's "404s in production"
+  pitfall for why that route is required) would be a second, always-warm Render service with
+  no sleep behavior, at the cost of setting it up separately.
+- A custom domain can be attached from the service's **Settings** tab at any time.
+- The `public/_headers`/`public/_redirects` files in this repo are Netlify/Cloudflare-format
+  and are **not** read by this Docker-based Render service (nginx serves whatever `nginx.conf`
+  tells it to) — they'd only matter for the static-site alternative above, where Render's own
+  dashboard-configured rewrite/headers rules would still be needed regardless, since Render
+  does not honor the Netlify file convention either way.
+
+### Running Render and GitHub Pages together
+
+They don't "go hand in hand" in the sense of depending on each other — there's no wiring
+between them, and neither knows the other exists. What they share is simpler: **both watch the
+same `master` branch of the same repo**, so a single `git push` fires both deployments in
+parallel, independently, to two different URLs:
+
+|                 | GitHub Pages                                              | Render                                             |
+| --------------- | --------------------------------------------------------- | -------------------------------------------------- |
+| URL             | `https://bbobbylon.github.io/AngularDevelopment/`         | `https://angulardevelopment.onrender.com`          |
+| Path            | subpath (`/AngularDevelopment/`)                          | domain root                                        |
+| Build           | `.github/workflows/deploy-github-pages.yml`               | Render's own Docker build, from `Dockerfile`       |
+| Gated by CI?    | yes — `verify` (format, typecheck, tests) must pass first | no — builds and ships whatever was pushed          |
+| Cold start      | none                                                      | ~50s after inactivity (free tier)                  |
+| Config lives in | the workflow file, in this repo                           | the Render dashboard (Docker Web Service settings) |
+
+Nothing stops you from running both indefinitely as two independent mirrors of the same app —
+that's exactly the current state. The only thing to keep in mind is the CI-gating difference:
+GitHub Pages can't publish a commit that fails `npm run verify`, but Render can, so it's worth
+running `npm run verify` locally (or just watching the GitHub Actions check) before pushing, so
+Render never becomes the first place a broken build shows up live.
 
 ---
 

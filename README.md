@@ -11,6 +11,10 @@ zoneless change-detection setup.
 
 **Status:** all 103 lessons are written and live. Nothing is a placeholder.
 
+**Live:** [angulardevelopment.onrender.com](https://angulardevelopment.onrender.com) ·
+[bbobbylon.github.io/AngularDevelopment](https://bbobbylon.github.io/AngularDevelopment/)
+(same app, two independent hosts — see [DEPLOYMENT.md](DEPLOYMENT.md))
+
 ---
 
 ## Quick start
@@ -130,14 +134,14 @@ file layout, and the conventions for adding practice questions.
 
 ## Documentation
 
-| Document                                         | What's in it                                                |
-| ------------------------------------------------ | ----------------------------------------------------------- |
-| [docs/SRS.md](docs/SRS.md)                       | What the app is for, who it's for, and what it must do      |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Technical structure, data flow, and design decisions        |
-| [docs/UI-DESIGN.md](docs/UI-DESIGN.md)           | Design system, layout patterns, accessibility               |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)     | How to write a lesson or add practice questions             |
-| [DEPLOYMENT.md](DEPLOYMENT.md)                   | Building and deploying (GitHub Pages, Docker, static hosts) |
-| [docs/CI-CD-PIPELINE.md](docs/CI-CD-PIPELINE.md) | The CI/CD workflows                                         |
+| Document                                         | What's in it                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------- |
+| [docs/SRS.md](docs/SRS.md)                       | What the app is for, who it's for, and what it must do              |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Technical structure, data flow, and design decisions                |
+| [docs/UI-DESIGN.md](docs/UI-DESIGN.md)           | Design system, layout patterns, accessibility                       |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)     | How to write a lesson or add practice questions                     |
+| [DEPLOYMENT.md](DEPLOYMENT.md)                   | Building and deploying (GitHub Pages, Render, Docker, static hosts) |
+| [docs/CI-CD-PIPELINE.md](docs/CI-CD-PIPELINE.md) | The CI/CD workflows                                                 |
 
 ---
 
