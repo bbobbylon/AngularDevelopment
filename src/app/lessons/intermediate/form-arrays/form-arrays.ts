@@ -1,5 +1,5 @@
 import { JsonPipe } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import {
   FormArray,
   FormBuilder,
@@ -112,6 +112,90 @@ export class FormArrays {
    */
   protected remove(i: number) {
     this.items.removeAt(i);
+  }
+
+  // --- Demo 1B: hydrating a FormArray from server data ---
+
+  /**
+   * Stand-in for what an "edit this invoice" API call would return — an
+   * existing invoice with THREE line items, while both demo forms below
+   * still start with just the one seeded row.
+   */
+  private readonly serverInvoice = {
+    title: 'Consulting — March',
+    items: [
+      { name: 'Discovery call', qty: 1 },
+      { name: 'Wireframes', qty: 2 },
+      { name: 'Review session', qty: 1 },
+    ],
+  };
+
+  /** Naive hydrate form — never resized before the server data is applied. */
+  protected readonly naiveHydrateForm = this.fb.group({
+    title: [''],
+    items: this.fb.array([this.newItem()]),
+  });
+
+  protected get naiveHydrateItems(): FormArray {
+    return this.naiveHydrateForm.get('items') as FormArray;
+  }
+
+  /** Fixed hydrate form — resized to match before the server data lands. */
+  protected readonly fixedHydrateForm = this.fb.group({
+    title: [''],
+    items: this.fb.array([this.newItem()]),
+  });
+
+  protected get fixedHydrateItems(): FormArray {
+    return this.fixedHydrateForm.get('items') as FormArray;
+  }
+
+  /** Signal so the demo can show, in words, what patchValue() actually did. */
+  protected readonly naiveHydrateLog = signal<string | null>(null);
+
+  /** Signal so the demo can show, in words, what setValue() actually did. */
+  protected readonly fixedHydrateLog = signal<string | null>(null);
+
+  /**
+   * The bug: patchValue() only ever writes into indices that ALREADY exist.
+   * It never adds rows, so item 2 and item 3 vanish with no error at all.
+   */
+  protected hydrateNaive() {
+    this.naiveHydrateForm.patchValue(this.serverInvoice);
+    const kept = this.naiveHydrateItems.length;
+    const sent = this.serverInvoice.items.length;
+    this.naiveHydrateLog.set(
+      `patchValue() wrote into ${kept} of ${sent} rows — the array was never resized, so rows ${kept + 1}–${sent} were silently dropped.`,
+    );
+  }
+
+  /**
+   * The fix: resize the array to match the incoming data's length FIRST,
+   * then call setValue() — which requires an exact length match and throws
+   * instead of guessing, so a real mismatch would fail loudly here.
+   */
+  protected hydrateFixed() {
+    this.fixedHydrateItems.clear();
+    this.serverInvoice.items.forEach(() => this.fixedHydrateItems.push(this.newItem()));
+    this.fixedHydrateForm.setValue(this.serverInvoice);
+    this.fixedHydrateLog.set(
+      `Resized to ${this.fixedHydrateItems.length} rows first, then setValue() filled every one of them.`,
+    );
+  }
+
+  /**
+   * Resets both hydrate demos back to their single seeded row.
+   */
+  protected resetHydrateDemo() {
+    this.naiveHydrateItems.clear();
+    this.naiveHydrateItems.push(this.newItem());
+    this.naiveHydrateForm.get('title')?.setValue('');
+    this.naiveHydrateLog.set(null);
+
+    this.fixedHydrateItems.clear();
+    this.fixedHydrateItems.push(this.newItem());
+    this.fixedHydrateForm.get('title')?.setValue('');
+    this.fixedHydrateLog.set(null);
   }
 
   // --- Demo 2: FormArray of PLAIN controls (tags) + an array-level validator ---
@@ -285,6 +369,29 @@ this.items.clear();                                             // detach every 
 rows.forEach((r) => this.items.push(this.newItem(r.name, r.qty))); // repopulate it`;
 
   /**
+   * Sample: resizing before hydrating from server data — the fix behind the
+   * demo above.
+   */
+  readonly hydrateSample = `protected hydrateNaive() {
+  // BUG: patchValue() only writes into indices that ALREADY exist. It never
+  // adds rows on its own, so if the array has 1 row and the server sent 3
+  // items, items 2 and 3 vanish — no error, no warning, just missing data.
+  this.form.patchValue(this.serverInvoice);
+}
+
+protected hydrateFixed() {
+  // FIX, step 1: resize the array to match the incoming data FIRST.
+  this.items.clear();
+  this.serverInvoice.items.forEach(() => this.items.push(this.newItem()));
+
+  // FIX, step 2: NOW set the values. setValue() is the stricter sibling of
+  // patchValue() — it requires an EXACT length/shape match and THROWS if one
+  // is missing, instead of silently dropping it. That's a feature here: any
+  // real mismatch fails loudly right where the bug is, not three screens away.
+  this.form.setValue(this.serverInvoice);
+}`;
+
+  /**
    * Compare panel: template wiring for an array of groups.
    */
   readonly groupBindingSample = `<div formArrayName="items">
@@ -426,6 +533,24 @@ rows.forEach((r) => this.items.push(this.newItem(r.name, r.qty))); // repopulate
     {
       line: 8,
       text: 'Repopulates the same array by pushing fresh rows — exactly the pattern add() already uses, one row at a time.',
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `hydrateSample`.
+   */
+  readonly hydrateNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: 'patchValue() never adds or removes controls — it only writes into indices the array already has. Extra server data past the current length is silently ignored.',
+    },
+    {
+      line: 10,
+      text: "clear() empties the array (detaching every control), then push() adds exactly enough fresh rows to match the incoming data's length — before any value is set.",
+    },
+    {
+      line: 17,
+      text: 'setValue() demands an EXACT length/shape match and throws otherwise — the opposite tradeoff from patchValue(), and the reason it only becomes safe to call once the resize above has already happened.',
     },
   ];
 

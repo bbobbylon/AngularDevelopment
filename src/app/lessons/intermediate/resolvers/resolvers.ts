@@ -479,6 +479,38 @@ export class AppTitle extends TitleStrategy {
     },
   ];
 
+  /**
+   * Sample: the app-level net — `withNavigationErrorHandler` — for whatever a
+   * per-resolver `catchError` didn't anticipate.
+   */
+  protected readonly appLevelNetSample = `// bootstrapApplication(..., { providers: [
+provideRouter(
+  routes,
+  withNavigationErrorHandler((event) => {
+    // event.error is whatever escaped every per-resolver catchError —
+    // including a lazy-chunk failure, not just a resolver's own mistake.
+    const router = inject(Router);
+    return new RedirectCommand(router.parseUrl('/error'));
+  }),
+),
+// ] })`;
+
+  /** Line-by-line walkthrough of {@link appLevelNetSample}. */
+  protected readonly appLevelNetNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`withNavigationErrorHandler` is a router feature, added to `provideRouter` once for the whole app — not per-route, not per-resolver. It runs for **any** navigation error that reaches it, from any route.',
+    },
+    {
+      line: 6,
+      text: 'The callback runs inside a synchronous injection context, exactly like a resolver or a guard — `inject()` is legal here for that reason, not because this is a special case.',
+    },
+    {
+      line: 7,
+      text: "Returning a `RedirectCommand` here works exactly like returning one from a resolver's `catchError` — the router treats it as the navigation's new destination, one atomic decision instead of a dangling failed navigation.",
+    },
+  ];
+
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {

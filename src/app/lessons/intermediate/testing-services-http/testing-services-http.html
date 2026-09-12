@@ -168,6 +168,26 @@
       notesLabel="Predicate matching, and the two edge cases"
     />
 
+    <p>
+      Every example above matched a bare path. A request built with <code>HttpParams</code> — pagination, filters,
+      search terms — puts a query string on the URL, and <code>expectOne</code> matches against the
+      <span class="bf-break">whole thing</span>, params included:
+    </p>
+
+    <app-code-lab
+      file="user.api.spec.ts — query params"
+      [code]="queryParamsMatchSample"
+      [notes]="queryParamsMatchNotes"
+      notesLabel="Matching a URL that carries a query string"
+    />
+
+    <div class="warn">
+      An exact-string match against a query string is only as stable as the order Angular happens to serialize the
+      params in — add a second param to the service, or reorder the object literal it's built from, and a string that
+      matched yesterday can stop matching today for a reason that has nothing to do with the bug you're testing for. The
+      predicate form doesn't have that problem, because it never compares strings at all.
+    </div>
+
     <app-compare
       leftTitle="Wrong — passes, asserts nothing"
       leftTone="bad"

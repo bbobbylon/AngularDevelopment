@@ -262,6 +262,85 @@ const user = signal(initial, { equal: (a, b) => a.id === b.id });`;
     },
   ];
 
+  /**
+   * Sample: an effect that reads and writes the same signal — the
+   * self-feedback loop this "advanced" tier is really about.
+   */
+  protected readonly selfFeedbackLoopSample = `value = signal(0);
+changeCount = signal(0);
+
+// looks harmless: "count how many times value has changed"
+effect(() => {
+  this.value();                                   // dependency #1: value
+  this.changeCount.set(this.changeCount() + 1);   // reads changeCount()... then writes it
+});
+
+// value.set(1) fires the effect once — and that is where it stops being fine:
+// the effect just wrote the very signal it also reads, so it is immediately
+// scheduled to run again. Reads changeCount, writes changeCount, forever —
+// one microtask apart, with no stack overflow, just a CPU that never idles.`;
+
+  /** Line-by-line walkthrough of {@link selfFeedbackLoopSample}. */
+  protected readonly selfFeedbackLoopNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: 'Reading `this.value()` registers the dependency the effect is meant to have — this line looks exactly like every other effect on this page so far.',
+    },
+    {
+      line: 6,
+      text: '`this.changeCount()` on the right-hand side is a **tracked read** too — nothing about being inside a `.set(...)` call exempts it. It quietly adds `changeCount` as a second dependency of this same effect, one line before that effect writes to it.',
+    },
+    {
+      line: 10,
+      text: 'Writing a signal an effect depends on marks that effect dirty again — and this effect depends on `changeCount` now, because of line 6. It reruns, reads `changeCount()` again, writes it again, and marks itself dirty again. Nothing external ever stops it.',
+    },
+  ];
+
+  /**
+   * Sample: fixing the loop above with `untracked` — read the current value
+   * without subscribing to it.
+   */
+  protected readonly loopFixUntrackedSample = `effect(() => {
+  this.value();                                  // the only real dependency
+  const current = untracked(this.changeCount);   // read WITHOUT registering a dependency
+  this.changeCount.set(current + 1);
+});`;
+
+  /** Line-by-line walkthrough of {@link loopFixUntrackedSample}. */
+  protected readonly loopFixUntrackedNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`untracked(this.changeCount)` still returns the live value — untracked reads are not stale, they just do not get **recorded**. This effect now depends only on `value`.',
+    },
+    {
+      line: 4,
+      text: 'Writing `changeCount` here no longer re-triggers this effect, because this effect was never subscribed to it in the first place. The loop is broken at the dependency, not the write.',
+    },
+  ];
+
+  /**
+   * Sample: the better fix — there was never a reason for an effect here.
+   * `linkedSignal`'s `prev` argument (introduced above) already carries what
+   * this effect was manually reimplementing.
+   */
+  protected readonly loopFixLinkedSignalSample = `// no effect, no manual read-then-write — changeCount IS the derived state
+changeCount = linkedSignal({
+  source: this.value,
+  computation: (_value, prev) => (prev?.value ?? 0) + 1,
+});`;
+
+  /** Line-by-line walkthrough of {@link loopFixLinkedSignalSample}. */
+  protected readonly loopFixLinkedSignalNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`source: this.value` is the only thing this computation depends on — there is no second signal to accidentally read and write in the same breath.',
+    },
+    {
+      line: 4,
+      text: "`prev?.value` is this `linkedSignal`'s own last result, handed back deliberately — the same mechanism the palette picker above uses to remember a selection. `?? 0` covers the very first run, when there is no previous result yet.",
+    },
+  ];
+
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {

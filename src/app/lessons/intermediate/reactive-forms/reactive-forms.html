@@ -288,6 +288,53 @@
     </app-remember>
   </section>
 
+  <!-- ============ 5B. THE FEEDBACK LOOP ============ -->
+  <section>
+    <p class="bf-eyebrow">A subtler trap</p>
+    <h2>Subscribe to valueChanges and patch another control? That can ping-pong forever.</h2>
+
+    <p>
+      <code>emitEvent</code> is an option almost nobody meets until it bites them: every write method —
+      <code>setValue</code>, <code>patchValue</code>, <code>reset</code>, <code>updateValueAndValidity</code>,
+      <code>disable</code>, <code>enable</code> — accepts <code>{{ '{' }} emitEvent, onlySelf {{ '}' }}</code
+      >, and by default <strong>every write announces itself</strong> on
+      <code>valueChanges</code>/<code>statusChanges</code>. That's harmless for one control. It stops being harmless the
+      moment a subscriber to one control's <code>valueChanges</code> writes to a <em>different</em> control that has a
+      subscriber writing back.
+    </p>
+
+    <app-code-lab
+      file="emit-event.ts"
+      [code]="emitEventSample"
+      [notes]="emitEventNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — two controls wired to sync each other</p>
+      <div class="row">
+        <button type="button" (click)="triggerLoop()">▶ Trigger the buggy version</button>
+        <button type="button" class="ghost" (click)="triggerLoopFixed()">▶ Trigger the fixed version</button>
+        <span class="pill">valueChanges fired: {{ loopCount() }}</span>
+      </div>
+      <p class="demo__note">
+        The buggy button writes <strong>once</strong> and the counter <span class="bf-break">rockets to 40</span> —
+        capped only so this page doesn't lock up proving the point; left uncapped, the same wiring keeps going until the
+        browser's call stack gives up. The fixed button performs the identical write and the counter reads exactly
+        <strong>1</strong>.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>Two traps worth naming on their own.</strong> (1) <code>disable()</code> emits on
+      <code>valueChanges</code> too — by default — with the disabled control's key already dropped from the value, so
+      disabling a field from inside a <code>valueChanges</code> subscriber is the classic <em>accidental</em> version of
+      this same loop. (2) <code>{{ '{' }} onlySelf: true {{ '}' }}</code> stops a write from bubbling to the parent at
+      all — useful to avoid re-validating a whole cabinet for one folder's edit, but it also means
+      <code>form.valid</code> can go stale until something else touches the parent.
+    </div>
+  </section>
+
   <!-- ============ 6. CROSS-FIELD VALIDATORS ============ -->
   <section>
     <p class="bf-eyebrow">Cross-field validation</p>

@@ -64,6 +64,26 @@ function uniqueUsernameDebounced(onCheckStart?: () => void): AsyncValidatorFn {
 }
 
 /**
+ * Same check as {@link uniqueUsername}, but first asks one extra question:
+ * is the control's current value the SAME value the record already had? If
+ * so it resolves with a synchronous `of(null)` — valid — instead of asking
+ * the server whether a username is taken by the one person it's guaranteed
+ * to already belong to: this user.
+ */
+function uniqueUsernameForEdit(originalValue: string, onCheckStart?: () => void): AsyncValidatorFn {
+  return (control: AbstractControl): Observable<ValidationErrors | null> => {
+    if (control.value === originalValue) {
+      return of(null); // valid, synchronously — no request goes out at all
+    }
+    return of(TAKEN.includes((control.value ?? '').toLowerCase())).pipe(
+      tap(() => onCheckStart?.()),
+      delay(700),
+      map((taken) => (taken ? { taken: true } : null)),
+    );
+  };
+}
+
+/**
  * Lesson: Async Validators — validation that has to ask someone else before it can answer.
  *
  * Covers `AsyncValidatorFn`, the `PENDING` status, why async validators only run once the
@@ -159,6 +179,50 @@ export class AsyncValidators {
     this.usernameDebounced.reset('');
     this.naiveChecks.set(0);
     this.debouncedChecks.set(0);
+  }
+
+  /**
+   * Requests the naive edit-mode validator issued — nonzero the instant the
+   * form loads, because it re-checks the user's own current value.
+   */
+  protected readonly editChecks = signal(0);
+  /**
+   * Requests the fixed edit-mode validator issued — stays 0 until the value
+   * genuinely changes from the original.
+   */
+  protected readonly editChecksFixed = signal(0);
+
+  /**
+   * Edit form, naive: the unmodified create-form validator, seeded with the
+   * record's own current username.
+   */
+  protected readonly editUsername = this.fb.control('ada', {
+    validators: [Validators.required],
+    asyncValidators: [uniqueUsername(() => this.editChecks.update((n) => n + 1))],
+    updateOn: 'change',
+  });
+
+  /**
+   * Edit form, fixed: skips the check entirely when the value hasn't moved
+   * from the original.
+   */
+  protected readonly editUsernameFixed = this.fb.control('ada', {
+    validators: [Validators.required],
+    asyncValidators: [
+      uniqueUsernameForEdit('ada', () => this.editChecksFixed.update((n) => n + 1)),
+    ],
+    updateOn: 'change',
+  });
+
+  /**
+   * Resets both edit-mode fields back to the seeded 'ada' value, re-running
+   * both validators from scratch.
+   */
+  protected resetEditDemo() {
+    this.editUsername.reset('ada');
+    this.editUsernameFixed.reset('ada');
+    this.editChecks.set(0);
+    this.editChecksFixed.set(0);
   }
 
   // ── Code samples shown to the reader ────────────────────────────────────────
@@ -270,6 +334,39 @@ function uniqueUsername(): AsyncValidatorFn {
     {
       line: 5,
       text: 'The identical contract as `defineSample`: an object means invalid, `null` means valid.',
+    },
+  ];
+
+  /**
+   * Sample: the edit-mode fix — skip the check entirely when the control's
+   * value matches the record's own original value.
+   */
+  protected readonly editModeSample = `function uniqueUsernameForEdit(originalValue: string): AsyncValidatorFn {
+  return (control: AbstractControl): Observable<ValidationErrors | null> => {
+    if (control.value === originalValue) {
+      return of(null);   // valid, synchronously — no request goes out at all
+    }
+    return checkServer(control.value);   // only a genuine change asks the server
+  };
+}`;
+
+  /** Line-by-line walkthrough of {@link editModeSample}. */
+  protected readonly editModeNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`originalValue` is the username the record already had — captured once, when the edit form loaded, from whatever fetched the record in the first place.',
+    },
+    {
+      line: 3,
+      text: 'Compares the CURRENT control value against the ORIGINAL one — not against the taken list. If the value has not moved, there is nothing new for a server to answer.',
+    },
+    {
+      line: 4,
+      text: '`of(null)` is a cold Observable that emits `null` and completes on the same synchronous tick it\'s subscribed. Per "Under the hood" above, `status` still flips to `PENDING` for a moment — but `setErrors(null)` runs in that same tick, so nobody watching the status pill ever sees it, unlike the ~700ms real check.',
+    },
+    {
+      line: 6,
+      text: 'Only a value that genuinely differs from the original reaches a real check — the same shape as `uniqueUsername` at the top of this page.',
     },
   ];
 

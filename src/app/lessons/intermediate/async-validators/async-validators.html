@@ -251,6 +251,73 @@
     </div>
   </section>
 
+  <!-- ============ 7B. EDIT MODE: CHECKING AGAINST YOURSELF ============ -->
+  <section>
+    <p class="bf-eyebrow">The one every "how would you check a username" interview misses</p>
+    <h2>On an edit form, the validator has to let you keep your own name.</h2>
+
+    <p>
+      Every uniqueness check above assumes a <strong>create</strong> form — the field starts empty, so any taken value
+      really does belong to someone else. An <strong>edit</strong> form starts with the record's own current value
+      already sitting in the box, and <code>uniqueUsername</code> from the top of this page has no way to know that
+      value is the user's own — it just sees <code>'ada'</code> in the taken list and rejects it.
+      <span class="bf-break">The user cannot save their own profile without changing their username first.</span>
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — both fields load pre-filled with the record's own username, "ada"</p>
+      <div class="race">
+        <div class="field">
+          <label>Naive (reuses the create-form validator)</label>
+          <input aria-label="Username, edit mode, naive" [formControl]="editUsername" />
+          <p class="row">
+            <span class="pill">status: {{ editUsername.status }}</span>
+            <span class="pill">checks fired: {{ editChecks() }}</span>
+          </p>
+          @if (editUsername.errors?.['taken']) {
+            <p style="color: var(--bf-danger)">❌ "taken" — but this is the user's own name</p>
+          }
+        </div>
+        <div class="field">
+          <label>Fixed (skips the check when unchanged)</label>
+          <input aria-label="Username, edit mode, fixed" [formControl]="editUsernameFixed" />
+          <p class="row">
+            <span class="pill">status: {{ editUsernameFixed.status }}</span>
+            <span class="pill">checks fired: {{ editChecksFixed() }}</span>
+          </p>
+          @if (editUsernameFixed.status === 'VALID') {
+            <p style="color: var(--bf-olive)">✅ valid — no request even sent</p>
+          }
+        </div>
+      </div>
+      <div class="row" style="margin-top: 12px">
+        <button class="ghost" (click)="resetEditDemo()">Reset both to 'ada'</button>
+      </div>
+      <p class="demo__note">
+        The left field loads already showing <strong>❌ "taken"</strong> — for the user's own name. The right field
+        loads <strong>✅ valid</strong>, with its checks-fired counter still at <code>0</code>: no request went out at
+        all. Try changing either field to <code>root</code> and back to <code>ada</code> — the fixed field returns to
+        valid with no new request; the naive one fires another 700ms check.
+      </p>
+    </div>
+
+    <app-code-lab
+      file="username.validator.ts — edit mode"
+      [code]="editModeSample"
+      [notes]="editModeNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="tip">
+      <strong>Two more short-circuits worth knowing.</strong> Skip the check entirely when
+      <code>control.pristine</code> — loading a saved record into a form should never itself fire a request; only the
+      user's own edits should. And when a validator needs to resolve with "nothing wrong here", return
+      <code>of(null)</code>, never <code>EMPTY</code>: <code>EMPTY</code> completes without ever emitting a value, so —
+      per "Under the hood" above — <code>setErrors()</code> is never called, and the control is left stuck on
+      <code>PENDING</code> forever, exactly like the filtered-out bug just below.
+    </div>
+  </section>
+
   <!-- ============ 8. THE SILENT FAILURE ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Spot the silent failure</p>

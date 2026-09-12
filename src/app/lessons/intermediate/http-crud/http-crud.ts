@@ -172,6 +172,59 @@ export class HttpCrud {
     this.run('GET /posts/999999 (will 404)', this.http.get<Post>(`${API}/999999`));
   }
 
+  // --- HttpErrorResponse anatomy demo (raw fields, not routed through run()) ---
+
+  /**
+   * The last `HttpErrorResponse`'s raw fields, shown as-is so the two failure
+   * shapes below are visibly different, not summarised into one label.
+   */
+  protected readonly errorAnatomy = signal<{
+    status: number;
+    statusText: string;
+    error: unknown;
+    message: string;
+  } | null>(null);
+
+  /**
+   * A request the server actually answered — with a real, non-2xx status.
+   */
+  protected showServerError() {
+    this.http
+      .get<Post>(`${API}/999999`)
+      .pipe(
+        catchError((err: HttpErrorResponse) => {
+          this.errorAnatomy.set({
+            status: err.status,
+            statusText: err.statusText,
+            error: err.error,
+            message: err.message,
+          });
+          return of(null);
+        }),
+      )
+      .subscribe();
+  }
+
+  /**
+   * A request that never reaches a server at all — the host does not resolve.
+   */
+  protected showNetworkError() {
+    this.http
+      .get<Post>('https://this-host-does-not-exist.invalid/posts/1')
+      .pipe(
+        catchError((err: HttpErrorResponse) => {
+          this.errorAnatomy.set({
+            status: err.status,
+            statusText: err.statusText,
+            error: err.error,
+            message: err.message,
+          });
+          return of(null);
+        }),
+      )
+      .subscribe();
+  }
+
   // --- HttpParams immutability demo (no network — pure signal state) ---
   /**
    * The query parameters in the immutability demo.
@@ -250,6 +303,22 @@ http.get<Post[]>(url, {
 protected getOne() {
   this.run('GET /posts/1', this.http.get<Post>(\`\${API}/1\`));
 }`;
+
+  /**
+   * Sample: reading the right field depending on which failure shape arrived.
+   */
+  readonly errorAnatomySample = `catchError((err: HttpErrorResponse) => {
+  if (err.status === 0) {
+    // The request never reached a server — offline, DNS failure, CORS block,
+    // timeout. err.error here is a client-side ProgressEvent or TypeError,
+    // NOT anything a server sent. There is no server message to read.
+    return of({ kind: 'network', detail: 'Could not reach the server' });
+  }
+
+  // The server DID respond — err.status is its real HTTP status code, and
+  // err.error is the response BODY (parsed as JSON when possible).
+  return of({ kind: 'server', status: err.status, body: err.error });
+})`;
 
   /**
    * Sample: the `HttpParams` immutability trap and its fix.
@@ -391,6 +460,24 @@ http.get(url, { observe: 'response', responseType: 'text' });`;
     {
       line: 20,
       text: "A caller method's whole job: build the request, hand it to run() with a label. No per-verb loading/error logic.",
+    },
+  ];
+
+  /**
+   * Line-by-line notes for `errorAnatomySample`.
+   */
+  readonly errorAnatomyNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'status === 0 means the request never got far enough for any server to answer — it is not a status code any server sent.',
+    },
+    {
+      line: 5,
+      text: 'err.error in this branch is a client-side object (a ProgressEvent under XHR, a TypeError under fetch) — reading it as a parsed server payload is the bug this section warns about.',
+    },
+    {
+      line: 11,
+      text: 'Once status is a real HTTP code, err.error is finally the response BODY — parsed as JSON automatically when the Content-Type says so.',
     },
   ];
 

@@ -175,6 +175,58 @@
     </figure>
   </section>
 
+  <!-- ============ 4B. WHAT toObservable DROPS ============ -->
+  <section>
+    <p class="bf-eyebrow">A trap that only shows up under a burst of writes</p>
+    <h2><code>toObservable</code> reports where a signal lands, not every stop it made getting there.</h2>
+
+    <p>
+      An <code>effect()</code> doesn't get a turn every time a signal it reads changes — it gets a turn once,
+      <em>after</em> the current synchronous block finishes. Write to a signal three times in a row, synchronously, and
+      the effect behind <code>toObservable</code> only ever sees the value the signal settled on. This is a real
+      difference from a <code>Subject</code>, whose <code>.next()</code> notifies subscribers immediately and
+      synchronously, once per call.
+    </p>
+
+    <app-code-lab
+      file="drops-intermediate.ts"
+      [code]="dropsIntermediateSample"
+      [notes]="dropsIntermediateNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="demo">
+      <p class="demo__title">Live — three synchronous writes, one subscriber</p>
+      <div class="row">
+        <button type="button" (click)="fireBurst()">Fire three writes: 1, 2, 3</button>
+      </div>
+      <p>
+        Writes made:
+        @for (v of writesLog(); track $index) {
+          <code>{{ v }}</code>
+        } @empty {
+          <em>(none yet)</em>
+        }
+      </p>
+      <p>
+        Emissions the subscriber received:
+        @for (v of emissionsLog(); track $index) {
+          <code>{{ v }}</code>
+        } @empty {
+          <em>(none yet)</em>
+        }
+      </p>
+    </div>
+
+    <div class="warn">
+      Click the button and the "writes made" row fills in with <code>1 2 3</code>, but "emissions received" gains
+      exactly <span class="bf-break">one</span> new entry — <code>3</code>. The values <code>1</code> and
+      <code>2</code> were real writes, but nothing was ever subscribed to see them: they were overwritten before the
+      effect ran even once. If a caller genuinely needs every intermediate value — a running log, an audit trail — a
+      signal is the wrong carrier for it; reach for a plain <code>Subject</code> instead.
+    </div>
+  </section>
+
   <!-- ============ 5. THE SAME IDEA, FOUR MODES ============ -->
   <section>
     <p class="bf-eyebrow">Try it — the round trip</p>

@@ -264,6 +264,54 @@
     </div>
   </section>
 
+  <!-- ============ 8B. THE SELF-FEEDBACK LOOP ============ -->
+  <section>
+    <p class="bf-eyebrow">The failure that proves the rule above</p>
+    <h2>An effect that writes a signal it also reads schedules itself forever.</h2>
+
+    <p>
+      Writing to a signal from inside <code>effect()</code> is unconditionally allowed today — if you spot an example
+      wrapping the call in <code>&#123; allowSignalWrites: true &#125;</code>, that example predates Angular v19, when
+      the option was removed. Permission was never the actual danger here. The danger is an effect that depends on the
+      very signal it writes to.
+    </p>
+
+    <app-code-lab
+      file="change-counter.ts"
+      [code]="selfFeedbackLoopSample"
+      [notes]="selfFeedbackLoopNotes"
+      notesLabel="Where the self-dependency sneaks in"
+    />
+
+    <div class="warn">
+      Nothing here throws, and nothing overflows the stack — each run of the effect finishes cleanly and returns. The
+      symptom is a tab that never idles: the effect fires again, and again, one microtask apart, for as long as the
+      component is alive. It is easy to miss in a quick test and obvious the moment a profiler is open.
+    </div>
+
+    <p>Two fixes, in order of how much they change:</p>
+
+    <app-code-lab
+      file="change-counter.ts — fix 1"
+      [code]="loopFixUntrackedSample"
+      [notes]="loopFixUntrackedNotes"
+      notesLabel="Breaking the dependency, not the write"
+    />
+
+    <app-code-lab
+      file="change-counter.ts — fix 2"
+      [code]="loopFixLinkedSignalSample"
+      [notes]="loopFixLinkedSignalNotes"
+      notesLabel="Removing the effect entirely"
+    />
+
+    <p>
+      The first fix stops the loop with the smallest possible change. The second is the one worth reaching for by
+      default: it is the same "don't use <code>effect</code> to copy signals" rule from the FAQ below, and this loop is
+      exactly the failure that rule exists to prevent.
+    </p>
+  </section>
+
   <!-- ============ 9. UNDER THE HOOD ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>

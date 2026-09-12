@@ -86,6 +86,76 @@
     revealLabel="See why"
   />
 
+  <!-- === 5B. ANATOMY OF AN HttpErrorResponse === -->
+  <h2>Anatomy of an <code>HttpErrorResponse</code> — status 0 isn't a real status</h2>
+  <p>
+    <code>err.status</code> and <code>err.error</code> mean two completely different things depending on
+    <em>where</em> the request failed. A 404 from jsonplaceholder and a request to a host that doesn't resolve both land
+    in the same <code>catchError</code> — but their fields tell very different stories:
+  </p>
+  <div class="demo">
+    <p class="demo__title">Live — trigger each kind and inspect the raw fields</p>
+    <div class="row" style="margin-bottom: 12px">
+      <button class="ghost" (click)="showServerError()">The server responded (404)</button>
+      <button class="ghost" (click)="showNetworkError()">The server was never reached</button>
+    </div>
+    @if (errorAnatomy(); as e) {
+      <div class="code">
+        <p><strong>status:</strong> {{ e.status }}</p>
+        <p><strong>statusText:</strong> {{ e.statusText }}</p>
+        <p><strong>error:</strong> {{ e.error | json }}</p>
+        <p><strong>message:</strong> {{ e.message }}</p>
+      </div>
+    }
+  </div>
+  <app-compare
+    leftTitle="Server responded (real status)"
+    rightTitle="Never reached a server"
+    leftTone="neutral"
+    rightTone="bad"
+    note="Both arrive as HttpErrorResponse through catchError — status is the only reliable way to tell them apart."
+  >
+    <div left>
+      <ul>
+        <li>
+          <code>status</code> is the ACTUAL HTTP status the server sent back — 404, 500, whatever it chose to respond
+          with.
+        </li>
+        <li>
+          <code>error</code> is the response <strong>body</strong>, parsed as JSON automatically when the Content-Type
+          says so — a plain object (or array, or string) you can read fields off of.
+        </li>
+      </ul>
+    </div>
+    <div right>
+      <ul>
+        <li>
+          <code>status</code> is always <code>0</code> — DNS failure, CORS block, offline, timeout: anything that never
+          produced a response to have a status.
+        </li>
+        <li>
+          <code>error</code> is <strong>not</strong> a server body here — it's a client-side
+          <code>ProgressEvent</code> (XHR transport) or the underlying <code>TypeError</code> (fetch transport, which
+          this app uses). Reading <code>error.message</code> expecting server-authored text is the bug.
+        </li>
+      </ul>
+    </div>
+  </app-compare>
+  <div class="warn">
+    <strong
+      >Branching only on <code>err.status === 404</code> (or any specific code) without also handling <code>0</code> is
+      the trap.</strong
+    >
+    Code that only checks for known server status codes silently mishandles "no network at all" as if some server had
+    answered. Treat <code>status === 0</code> as its own case — "the request never completed" — before trusting anything
+    inside <code>error</code>.
+  </div>
+  <app-code-lab
+    file="http-crud.ts — reading the right field for each case"
+    [code]="errorAnatomySample"
+    [notes]="errorAnatomyNotes"
+  />
+
   <!-- === 6. HTTPPARAMS IMMUTABILITY, LIVE === -->
   <h2>HttpParams is immutable — see the bug happen live</h2>
   <div class="demo">

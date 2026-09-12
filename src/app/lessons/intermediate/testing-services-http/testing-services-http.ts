@@ -460,6 +460,50 @@ http.expectNone('/api/admin');`;
     },
   ];
 
+  /** Sample: matching a request that carries `HttpParams` — a query string, not just a path. */
+  protected readonly queryParamsMatchSample = `// service:
+getUsers(page: number) {
+  return this.http.get('/api/users', { params: { page: String(page) } });
+}
+
+// test:
+it('requests page 2', () => {
+  service.getUsers(2).subscribe();
+
+  // matches by exact string — but only while params stay in THIS order:
+  const req = http.expectOne('/api/users?page=2');
+
+  // robust to param order — matches on the DECODED params, not the string:
+  // const req = http.expectOne(
+  //   (r) => r.url === '/api/users' && r.params.get('page') === '2',
+  // );
+
+  req.flush([]);
+});
+
+// lost? dump every request actually queued before guessing at a URL:
+// http.match(() => true).forEach((r) => console.log(r.request.urlWithParams));`;
+
+  /** Line-by-line walkthrough of {@link queryParamsMatchSample}. */
+  protected readonly queryParamsMatchNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`{ params: { page: String(page) } }` becomes an `HttpParams` instance under the hood — Angular serializes it onto the URL as a query string before the request ever reaches the testing backend.',
+    },
+    {
+      line: 11,
+      text: '`expectOne` compares this string against `r.urlWithParams` — path AND query string together — so it has to match character for character, including whatever order Angular happened to serialize the params in.',
+    },
+    {
+      line: 15,
+      text: 'The predicate checks `r.url`, the bare path with no query string, and reads the value back off `r.params` — an `HttpParams` instance with the same `.get()`/`.getAll()` API the service used to build the request. Add a second param to the service call and this predicate needs no edits; the exact-string form would.',
+    },
+    {
+      line: 22,
+      text: '`http.match(() => true)` matches every queued request without narrowing at all — the fastest way to see what actually got sent, real URL included, before guessing at the string `expectOne` wants.',
+    },
+  ];
+
   /** The test that passes while asserting nothing. */
   protected readonly silentSample = `it('fetches a user', () => {
   api.getUser(1).subscribe((u) => {

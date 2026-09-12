@@ -99,6 +99,12 @@ export class RxjsInterop {
     // Demonstrate toObservable + takeUntilDestroyed feeding another signal.
     const tick$ = toObservable(this.tick);
     tick$.pipe(takeUntilDestroyed()).subscribe((v) => this.tickTimesTen.set(v * 10));
+
+    // Demonstrate that toObservable reports only the value a signal settles
+    // on, never every value it passed through — see fireBurst() above.
+    toObservable(this.burstCounter)
+      .pipe(takeUntilDestroyed())
+      .subscribe((v) => this.emissionsLog.update((log) => [...log, v]));
   }
 
   /**
@@ -251,6 +257,72 @@ export class RxjsInterop {
     {
       line: 7,
       text: 'The function returned from the subscribe callback is the teardown. Destroying the effect here is what stops the bridge from doing any more work once nobody is listening.',
+    },
+  ];
+
+  /**
+   * A signal driving the "dropped writes" live demo: three synchronous
+   * `.set()` calls, and a `toObservable`-backed subscriber watching them.
+   */
+  protected readonly burstCounter = signal(0);
+
+  /** What the demo button is *about* to write, shown before it fires. */
+  protected readonly writesLog = signal<number[]>([]);
+
+  /** What the `toObservable(burstCounter)` subscriber actually received. */
+  protected readonly emissionsLog = signal<number[]>([]);
+
+  /**
+   * Fires three synchronous writes to {@link burstCounter}. Because
+   * `toObservable` is an `effect()` underneath, and an effect only gets a
+   * turn once the current synchronous block finishes, the subscriber below
+   * never sees 1 or 2 — only the value the signal has settled on by the time
+   * the effect actually runs.
+   */
+  protected fireBurst(): void {
+    this.writesLog.set([1, 2, 3]);
+    this.emissionsLog.set([]);
+    this.burstCounter.set(1);
+    this.burstCounter.set(2);
+    this.burstCounter.set(3);
+  }
+
+  /**
+   * Sample: why `toObservable` is not a drop-in replacement for a `Subject` —
+   * it reports the value a signal *settles on*, never the values it passed
+   * through on the way there.
+   */
+  protected readonly dropsIntermediateSample = `const count = signal(0);
+const count$ = toObservable(count);
+count$.subscribe((v) => console.log('emitted:', v));
+
+count.set(1);   // no log yet — a write does not emit anything by itself
+count.set(2);   // still no log — this overwrites the pending value
+count.set(3);   // still no log
+
+// ...only once this synchronous block finishes, and the underlying
+// effect() gets its turn to run, does the subscriber hear anything:
+// emitted: 3
+// — never "emitted: 1" or "emitted: 2". Both were overwritten before the
+//   effect ran even once.`;
+
+  /** Line-by-line walkthrough of {@link dropsIntermediateSample}. */
+  protected readonly dropsIntermediateNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: "`subscribe` starts the effect from the `toObservable` implementation above — it runs once immediately (emitting the signal's current value, `0`), then again every time the effect reruns.",
+    },
+    {
+      line: 5,
+      text: 'A `.set()` call updates the signal and marks its consumers dirty. It does **not** synchronously run the effect — that is scheduled for later, not inlined into this call.',
+    },
+    {
+      line: 6,
+      text: 'This second write happens before the effect from line 5 has had a chance to run, so it simply replaces the pending value. Nothing observed `1` at all.',
+    },
+    {
+      line: 10,
+      text: "The effect finally runs once execution yields — and by then `count()` reads `3`. An effect reports the signal's **current** value at the moment it runs, never a history of values it missed along the way.",
     },
   ];
 

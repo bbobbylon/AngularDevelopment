@@ -175,6 +175,92 @@ export class RouteGuards {
     this.matchOutcome.set('—');
   }
 
+  // --- canActivate vs canActivateChild RE-CHECK demo ---
+  /**
+   * Which guard type protects the `/admin` subtree in the re-check demo.
+   */
+  protected readonly guardMode = signal<'canActivate' | 'canActivateChild'>('canActivate');
+  /**
+   * Whether the simulated session has already entered the `/admin` subtree —
+   * `canActivate` only ever runs on the FIRST entry, so this tracks that.
+   */
+  protected readonly insideAdminSection = signal(false);
+  /**
+   * Whether the simulated session has expired since entering — the thing a
+   * re-check is actually supposed to catch.
+   */
+  protected readonly sessionExpired = signal(false);
+  /**
+   * The step-by-step transcript of the re-check demo.
+   */
+  protected readonly recheckLog = signal<string[]>([]);
+
+  /**
+   * Enters `/admin/users` from outside the subtree — every guard runs here,
+   * regardless of mode, because this is a genuine first activation of `/admin`.
+   */
+  protected enterAdminUsers() {
+    this.recheckLog.set([]);
+    const log = (s: string) => this.recheckLog.update((l) => [...l, s]);
+    log('Navigating to /admin/users — first entry into the /admin subtree.');
+    log(
+      this.guardMode() === 'canActivate'
+        ? '→ canActivate runs on /admin → session valid → ENTERED'
+        : '→ canActivate + canActivateChild both run on /admin → session valid → ENTERED',
+    );
+    this.insideAdminSection.set(true);
+  }
+
+  /**
+   * Simulates the session expiring server-side, mid-visit — nothing on screen
+   * changes until the next navigation is attempted.
+   */
+  protected expireSession() {
+    this.sessionExpired.set(true);
+    this.recheckLog.update((l) => [
+      ...l,
+      '⏳ Session just expired server-side. Nothing on screen changes yet — no navigation has happened.',
+    ]);
+  }
+
+  /**
+   * Clicks from `/admin/users` to `/admin/settings` — a navigation BETWEEN
+   * children of the same already-activated parent. This is the exact
+   * navigation where `canActivate` and `canActivateChild` diverge.
+   */
+  protected clickToSettings() {
+    const log = (s: string) => this.recheckLog.update((l) => [...l, s]);
+    if (!this.insideAdminSection()) {
+      log('Enter /admin/users first.');
+      return;
+    }
+    log(
+      'Clicking from /admin/users → /admin/settings — still inside /admin, the parent node is reused.',
+    );
+    if (this.guardMode() === 'canActivate') {
+      log(
+        this.sessionExpired()
+          ? '→ canActivate does NOT re-run for a sibling child — the expired session is never re-checked → silently ENTERED ⚠️'
+          : '→ canActivate does NOT re-run for a sibling child — nothing to catch here anyway → ENTERED',
+      );
+    } else {
+      log(
+        this.sessionExpired()
+          ? '→ canActivateChild re-runs on every child activation → expired session caught → ⛔ redirected to /login'
+          : '→ canActivateChild re-runs on every child activation → session still valid → ENTERED',
+      );
+    }
+  }
+
+  /**
+   * Resets the re-check demo to its starting state.
+   */
+  protected resetRecheckDemo() {
+    this.insideAdminSection.set(false);
+    this.sessionExpired.set(false);
+    this.recheckLog.set([]);
+  }
+
   // ── Presentation data ──────────────────────────────────────────────────────
 
   /** The Routing category, for the "you are here" rail. */
@@ -323,6 +409,56 @@ export const unsavedGuard: CanDeactivateFn<EditPage> = (component) =>
     {
       line: 7,
       text: '`canDeactivate` is declared on the route being LEFT, not the one being entered — it has to be, since the router needs an answer before it has committed to any destination at all.',
+    },
+  ];
+
+  /**
+   * Sample: `CanDeactivate` only ever runs for an in-app, router-driven
+   * navigation — pairing it with `beforeunload` covers the gap.
+   */
+  protected readonly beforeUnloadSample = `// CanDeactivate only fires when the ROUTER is involved. A hard reload,
+// closing the tab, or typing a new URL and hitting Enter all bypass the
+// router completely — canDeactivate never runs for any of them.
+@HostListener('window:beforeunload', ['$event'])
+warnOnReload(event: BeforeUnloadEvent) {
+  if (this.hasUnsavedChanges()) {
+    event.preventDefault(); // triggers the browser's OWN generic dialog —
+                             // you cannot customise its text or buttons
+  }
+}`;
+
+  /** Line-by-line walkthrough of {@link beforeUnloadSample}. */
+  protected readonly beforeUnloadNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: "`beforeunload` is a native browser event, not a router hook — it fires alongside `CanDeactivate`, never as a replacement for it. It's the only thing here that can catch a reload or a closed tab.",
+    },
+    {
+      line: 6,
+      text: 'Same unsaved-changes check the `CanDeactivate` guard already runs — reused here because the router never gets involved in a reload, so its guard never gets a chance to ask.',
+    },
+    {
+      line: 7,
+      text: '`event.preventDefault()` is the entire trigger. The browser then shows its OWN dialog with browser-controlled text — unlike `confirm()` inside a `CanDeactivate` guard, there is no way to customise what it says.',
+    },
+  ];
+
+  /**
+   * Sample: the router config that fixes the Back-button desync a
+   * cancelled popstate navigation otherwise leaves behind.
+   */
+  protected readonly canceledNavConfigSample = `provideRouter(
+  routes,
+  // default is 'replace', which cannot restore the correct history entry
+  // after a CanDeactivate-cancelled Back-button (popstate) navigation
+  withRouterConfig({ canceledNavigationResolution: 'computed' }),
+)`;
+
+  /** Line-by-line walkthrough of {@link canceledNavConfigSample}. */
+  protected readonly canceledNavConfigNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: "`'computed'` tells the router to work out the correct history position itself when a navigation is cancelled, instead of blindly trusting the browser's own history stack — the fix for the specific case a Back-press triggers.",
     },
   ];
 

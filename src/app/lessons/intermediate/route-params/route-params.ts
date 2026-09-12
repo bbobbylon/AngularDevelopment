@@ -334,6 +334,43 @@ const id = this.route.snapshot.paramMap.get('id');`;
   ];
 
   /**
+   * Sample: encoding — the router encodes a param it builds from an array, but
+   * a hand-built string never gets that treatment.
+   */
+  protected readonly encodingSample = `// id = 'AB/12' — a value that itself contains a slash
+
+[routerLink]="['/users', id]"          // encodes each segment → /users/AB%2F12
+router.navigate(['/users', id]);       // same — encodes each segment
+routerLink="/users/{{id}}"             // NOT encoded → /users/AB/12 (wrong path!)
+router.navigateByUrl('/users/' + id);  // NOT encoded — same bug
+
+// reading it back, either way:
+route.snapshot.paramMap.get('id');   // 'AB/12' — already DECODED for you
+
+// query values: '+' means a literal plus, never a space
+router.navigate([], { queryParams: { q: 'a+b' } }); // → ?q=a%2Bb, reads back 'a+b'`;
+
+  /** Line-by-line walkthrough of {@link encodingSample}. */
+  protected readonly encodingNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: 'The array-form `routerLink` and `navigate()` both build the URL segment by segment, and each segment is percent-encoded on the way in — a literal `/` inside the value becomes `%2F`, so it stays part of ONE segment instead of accidentally starting a new one.',
+    },
+    {
+      line: 5,
+      text: 'String interpolation into a `routerLink`, or string concatenation into `navigateByUrl`, never runs through that encoding step — whatever characters the value contains land in the URL verbatim, which here creates an extra path segment nobody intended.',
+    },
+    {
+      line: 9,
+      text: '`paramMap.get()` always hands back the DECODED value — `%2F` comes back as `/` — so application code never encodes or decodes params itself; that work happens entirely at the router boundary.',
+    },
+    {
+      line: 12,
+      text: "In a query string specifically, `+` is a reserved shorthand for a space by convention — Angular's serializer escapes a literal `+` you pass as `%2B` so it survives as an actual plus, not a decoded space.",
+    },
+  ];
+
+  /**
    * Sample: `queryParamsHandling`, and what `merge` against `preserve` does to the
    * existing parameters.
    */
@@ -344,6 +381,40 @@ const id = this.route.snapshot.paramMap.get('id');`;
 
 // remove a param while merging: set it to null
 router.navigate([], { queryParams: { page: null }, queryParamsHandling: 'merge' });`;
+
+  /**
+   * Sample: `replaceUrl` for transient query-param updates, and `skipLocationChange`
+   * for the option that doesn't touch the address bar at all.
+   */
+  protected readonly replaceUrlSample = `// A debounced search box syncing to the URL on every keystroke:
+router.navigate([], {
+  queryParams: { q: term },
+  queryParamsHandling: 'merge',
+  replaceUrl: true,   // rewrites the CURRENT history entry — no new one
+});
+
+// State the user should be able to Back out of keeps the default push:
+router.navigate([], { queryParams: { page }, queryParamsHandling: 'merge' });
+
+// skipLocationChange: the route changes, but the address bar does not move
+// at all — neither a push NOR a replace touches it.
+router.navigate(['/preview'], { skipLocationChange: true });`;
+
+  /** Line-by-line walkthrough of {@link replaceUrlSample}. */
+  protected readonly replaceUrlNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: '`replaceUrl: true` swaps the CURRENT history entry for the new URL instead of pushing a new one — so twenty keystrokes leave one history entry, not twenty, and the Back button still does something useful.',
+    },
+    {
+      line: 9,
+      text: 'Left at its default (push), every call adds a new entry. Reach for that default whenever the state genuinely deserves its own Back stop — a page number, opening a detail panel — not for something that changes on every keystroke.',
+    },
+    {
+      line: 13,
+      text: "`skipLocationChange` is a different knob entirely: the router still navigates and the component still activates, but the URL bar is left completely untouched — useful for a preview that shouldn't be bookmookmarkable at its own address. Neither a push nor a replace happens.",
+    },
+  ];
 
   /**
    * Sample: what the dissector demo above reads by hand — repeated keys via

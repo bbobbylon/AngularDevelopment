@@ -25,3 +25,14 @@
   width: 100px;
   padding: 4px 6px;
 }
+
+.hydrate {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .hydrate {
+    grid-template-columns: 1fr;
+  }
+}

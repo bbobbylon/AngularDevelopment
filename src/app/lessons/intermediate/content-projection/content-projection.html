@@ -144,6 +144,73 @@
     </div>
   </section>
 
+  <!-- ============ 5B. SELECT MATCHES STATIC, TOP-LEVEL ATTRIBUTES ONLY ============ -->
+  <section>
+    <p class="bf-eyebrow">Two ways a slot goes silently empty</p>
+    <h2><code>select</code> only looks one level deep, and only at what's already on the page.</h2>
+
+    <p>
+      <code>select</code> matching happens against the <strong>direct children</strong> of the host tag, resolved once
+      at compile time, against whatever is <em>statically</em> written on that element. Both halves of that sentence
+      hide a trap.
+    </p>
+
+    <app-compare
+      leftTitle="Wrapped one level deep — misses the slot"
+      rightTitle="Direct child — matches"
+      leftTone="bad"
+      rightTone="good"
+      note="Same [panel-title] selector both times. Wrapping the title in a plain layout <div> is enough to lose it — Panel's select never looks inside that div, so the title falls through to the default (body) slot instead."
+    >
+      <div left>
+        <app-panel>
+          <div><h3 panel-title style="margin: 0">Wrapped Title</h3></div>
+          <p style="margin: 0">Body content.</p>
+        </app-panel>
+      </div>
+      <div right>
+        <app-panel>
+          <h3 panel-title style="margin: 0">Direct Title</h3>
+          <p style="margin: 0">Body content.</p>
+        </app-panel>
+      </div>
+    </app-compare>
+
+    <app-compare
+      leftTitle="A live class binding — never matches"
+      rightTitle="A static class attribute — matches"
+      leftTone="bad"
+      rightTone="good"
+      note="select is resolved once, at compile time, against literal attributes in the template — never against a binding's runtime value, however predictable that value is."
+    >
+      <div left>
+        <p class="demo__note" style="margin-top: 0">
+          A "Bound" pill should appear below. It doesn't — BadgeHost has no catch-all slot, so an unmatched node
+          vanishes entirely:
+        </p>
+        <app-badge-host>
+          <span [class.badge]="true" class="pill">Bound — vanishes</span>
+        </app-badge-host>
+      </div>
+      <div right>
+        <app-badge-host>
+          <span class="badge pill">Static — shows up</span>
+        </app-badge-host>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      <strong>Supported selectors:</strong> a tag name, <code>.class</code>, <code>[attr]</code>,
+      <code>[attr=value]</code>, and comma-separated lists of those. <strong>Not supported:</strong> combinators like
+      <code>div &gt; span</code> or <code>.parent .child</code> — <code>select</code> is a flat match against one node,
+      never a path through the tree. And a <span class="bf-break">dynamic binding never counts</span>: Angular resolves
+      every <code>select</code> against the template's literal, static markup, before your component has even run. When
+      the real node genuinely can't carry the marker itself — a component you don't own, or content built from a binding
+      — wrap it in <code>&lt;ng-container ngProjectAs="..."&gt;</code>, covered a little further down: that directive is
+      Angular's own escape hatch for exactly this.
+    </div>
+  </section>
+
   <!-- ============ 6. THE FALLBACK ============ -->
   <section>
     <p class="bf-eyebrow">The fallback</p>
@@ -216,6 +283,109 @@
     </div>
   </section>
 
+  <!-- ============ 7B. THE DEFAULT NOBODY STATES ============ -->
+  <section>
+    <p class="bf-eyebrow">The default nobody states</p>
+    <h2>Wrap the tabs in a layout <code>&lt;div&gt;</code> and the tab bar goes empty.</h2>
+
+    <p>
+      <code>contentChildren()</code> — like its plural decorator ancestor, <code>&#64;ContentChildren</code> — only
+      searches <strong>direct children</strong> of the host element by default. Nest the projected nodes one level
+      deeper and the query returns an empty array, with no error and no warning anywhere.
+    </p>
+
+    <app-compare
+      leftTitle="Tabs wrapped in a layout `<div>`"
+      rightTitle="Tabs as direct children"
+      leftTone="bad"
+      rightTone="good"
+      note="Identical TabGroup, identical tabLabel/tabPanel directives — the only difference is one extra wrapping <div> around the projected content on the left."
+    >
+      <div left>
+        <app-tab-group>
+          <div>
+            <span tabLabel>One</span>
+            <div tabPanel>
+              <p style="margin: 0">You'll never see this — the query never finds this label.</p>
+            </div>
+            <span tabLabel>Two</span>
+            <div tabPanel>
+              <p style="margin: 0">Same here.</p>
+            </div>
+          </div>
+        </app-tab-group>
+      </div>
+      <div right>
+        <app-tab-group>
+          <span tabLabel>One</span>
+          <div tabPanel>
+            <p style="margin: 0">Direct child of &lt;app-tab-group&gt; — found.</p>
+          </div>
+          <span tabLabel>Two</span>
+          <div tabPanel>
+            <p style="margin: 0">Also found.</p>
+          </div>
+        </app-tab-group>
+      </div>
+    </app-compare>
+
+    <div class="warn">
+      <strong>The rule — and the exception that makes it worth memorizing:</strong> signal content queries
+      (<code>contentChild()</code>/<code>contentChildren()</code>) and their plural decorator,
+      <code>&#64;ContentChildren</code>, default to <code>{{ descendantsFalseSample }}</code
+      >. View queries default the <strong>opposite</strong> way — <code>true</code>. And the
+      <em>singular</em> decorator, <code>&#64;ContentChild</code>, is its own historical exception again, defaulting to
+      <code>true</code> like a view query. Three names, three defaults — worth pinning up, because exams ask exactly
+      this. The fix, when a query genuinely needs to search deeper, is one option:
+      <code>{{ descendantsTrueFixSample }}</code
+      >.
+    </div>
+  </section>
+
+  <!-- ============ 7C. THE OTHER FAMOUS ERROR, CONTENT-QUERY EDITION ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">The other famous error</p>
+    <h2>A safe content-query read can still set up an unsafe write.</h2>
+
+    <p>
+      Reading <code>labels()</code> or <code>panels()</code> in <code>ngAfterContentInit</code> is always safe — that's
+      the documented, earliest-safe point they resolve. Reading at the right moment is necessary, though, not
+      sufficient: what you do with the result can still break the pass.
+    </p>
+
+    <app-code-lab
+      file="tab-group.ts — the trap"
+      [code]="contentWriteTrapSample"
+      [notes]="contentWriteTrapNotes"
+      notesLabel="The read is fine. Watch what happens next"
+      prompt="Run this in dev mode. What happens?"
+      output="`NG0100: ExpressionChangedAfterItHasBeenCheckedError`, thrown against each TabLabel's own active-class binding — not because the query failed, but because a WRITE landed on a view that had already been checked this pass. The read on line 1 was completely safe; what the code did with the result on line 4 is what broke it."
+      revealLabel="Reveal what happens"
+    />
+
+    <p>
+      The real <code>TabGroup</code> above sidesteps this entirely — its <code>syncPanels()</code> calls
+      <code>p.el.nativeElement.classList.add(...)</code> directly on the DOM, bypassing Angular's binding system on
+      purpose. That's a legitimate escape hatch, but it's the imperative version of the idea, and it's easy to reach for
+      a bound field instead without noticing the difference until dev mode throws. The declarative fix looks like this:
+    </p>
+
+    <app-code-lab
+      file="tab-label.ts — the fix"
+      [code]="contentWriteFixSample"
+      [notes]="contentWriteFixNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="note">
+      Two fixes, in order of preference.
+      <strong>Give the child a <code>computed()</code> that reads a signal owned by the parent</strong> — shown above —
+      so nothing ever calls <code>.set()</code> from inside a lifecycle hook at all. Or, when the write is genuinely
+      about measuring the DOM rather than syncing state, <strong><code>afterNextRender()</code></strong> defers it until
+      after the pass has fully finished.
+    </div>
+  </section>
+
   <!-- ============ 8. THE ESCAPE HATCH — NGPROJECTAS ============ -->
   <section>
     <p class="bf-eyebrow">The escape hatch</p>
@@ -268,6 +438,39 @@
       [code]="eagerSample"
       answer="Yes. All fifty thousand rows, on page load, for a panel the user never opened. `SalesChart` is written in the *parent's* template, so the parent constructs it, runs its `ngOnInit` and fires its request — long before the accordion gets a chance to decide whether to show anything. The `@if` only controls whether the finished nodes are attached to the DOM; it has no power over whether they exist. Two real fixes. Wrap it in `@defer` in the **parent**, which genuinely delays creation. Or change the accordion's API to take a `TemplateRef` instead of projected content, so the child stamps it out only when it opens. The tell in review is any expensive component sitting inside a collapsed-by-default shell."
     />
+  </section>
+
+  <!-- ============ 9B. ONE PROJECTED NODE, MANY ITERATIONS ============ -->
+  <section>
+    <p class="bf-eyebrow">One more way projection surprises you</p>
+    <h2>Put <code>&lt;ng-content&gt;</code> inside a loop, and only the first iteration gets it.</h2>
+
+    <p>
+      The timeline above already said it once: <code>&lt;ng-content&gt;</code> relocates a node the parent built, it
+      never builds one itself. Put it inside a <code>&#64;for</code> — or an <code>&#64;if</code> that can flip more
+      than once — and that sentence has a sharper consequence than it first sounds.
+    </p>
+
+    <app-predict
+      prompt="A Repeater component loops three times, dropping a bare `<ng-content>` inside the loop. The parent projects one `<span>Static content</span>`. How many rows actually show it?"
+      [code]="repeatedSlotSample"
+      [answer]="repeatedSlotAnswer"
+      revealLabel="Reveal how many rows show it"
+    />
+
+    <app-code-lab
+      file="repeater.html — the fix"
+      [code]="repeatedSlotFixSample"
+      [notes]="repeatedSlotFixNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="note">
+      This is the exact hand-off to the next lesson: whenever content needs to appear <strong>more than once</strong>,
+      or needs a fresh value each time, projection stops being the right tool. Reach for a <code>TemplateRef</code> and
+      <code>NgTemplateOutlet</code> instead — a blueprint the receiving component can stamp out as many times as it
+      needs, with different data each time.
+    </div>
   </section>
 
   <!-- ============ 10. THE TRAP, AGAIN ============ -->

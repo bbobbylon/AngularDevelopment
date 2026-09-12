@@ -91,6 +91,96 @@
     </p>
   </div>
 
+  <!-- === 5B. HYDRATING FROM SERVER DATA === -->
+  <h2>Loading existing data — the setValue() / patchValue() length trap</h2>
+  <p>
+    The invoice demo above starts empty-ish, with one seeded row you build up by clicking "+ Add". But the far more
+    common real-world case is the opposite: the user opens an <strong>existing</strong> invoice to edit, the server
+    sends back <code>title</code> plus a list of line items, and that list can be any length. Neither
+    <code>setValue()</code> nor <code>patchValue()</code> resizes the array to fit — you have to do that yourself,
+    <em>before</em> calling either one.
+  </p>
+  <div class="demo">
+    <p class="demo__title">Live — the server returns 3 items; both forms start with 1 row</p>
+    <div class="hydrate">
+      <div>
+        <p class="pill" style="display: inline-block">Naive — patchValue() only</p>
+        <form [formGroup]="naiveHydrateForm">
+          <div class="field">
+            <label>Title</label>
+            <input aria-label="Naive title" formControlName="title" readonly />
+          </div>
+          <div formArrayName="items">
+            @for (item of naiveHydrateItems.controls; track item; let i = $index) {
+              <div class="line" [formGroupName]="i">
+                <input [attr.aria-label]="'Naive item ' + (i + 1) + ' name'" formControlName="name" readonly />
+                <input
+                  [attr.aria-label]="'Naive item ' + (i + 1) + ' qty'"
+                  type="number"
+                  formControlName="qty"
+                  style="width: 60px"
+                  readonly
+                />
+              </div>
+            }
+          </div>
+          <button type="button" (click)="hydrateNaive()">Load invoice (naive)</button>
+          <p class="note" style="margin-top: 8px">
+            {{ naiveHydrateLog() ?? 'Not loaded yet — the array still has its one seeded row.' }}
+          </p>
+        </form>
+      </div>
+      <div>
+        <p class="pill" style="display: inline-block">Fixed — resize, then setValue()</p>
+        <form [formGroup]="fixedHydrateForm">
+          <div class="field">
+            <label>Title</label>
+            <input aria-label="Fixed title" formControlName="title" readonly />
+          </div>
+          <div formArrayName="items">
+            @for (item of fixedHydrateItems.controls; track item; let i = $index) {
+              <div class="line" [formGroupName]="i">
+                <input [attr.aria-label]="'Fixed item ' + (i + 1) + ' name'" formControlName="name" readonly />
+                <input
+                  [attr.aria-label]="'Fixed item ' + (i + 1) + ' qty'"
+                  type="number"
+                  formControlName="qty"
+                  style="width: 60px"
+                  readonly
+                />
+              </div>
+            }
+          </div>
+          <button type="button" (click)="hydrateFixed()">Load invoice (fixed)</button>
+          <p class="note" style="margin-top: 8px">
+            {{ fixedHydrateLog() ?? 'Not loaded yet — the array still has its one seeded row.' }}
+          </p>
+        </form>
+      </div>
+    </div>
+    <button type="button" class="ghost" style="margin-top: 12px" (click)="resetHydrateDemo()">Reset both demos</button>
+  </div>
+
+  <app-code-lab file="form-arrays.ts — resize before you hydrate" [code]="hydrateSample" [notes]="hydrateNotes" />
+
+  <div class="warn">
+    <strong><code>patchValue()</code> and <code>setValue()</code> disagree on how to fail</strong> — but neither one
+    resizes the array for you:
+    <ul>
+      <li>
+        <code>patchValue()</code> is forgiving: it writes into whatever indices already exist and quietly ignores
+        anything past the array's current length. Nothing throws, nothing logs — the extra rows just never appear.
+      </li>
+      <li>
+        <code>setValue()</code> is strict: it requires the value's shape to match the control tree <em>exactly</em>,
+        length included, and throws if it doesn't. That is a feature for catching bugs early, but only once the array
+        has already been resized to the length you're about to set.
+      </li>
+    </ul>
+    The fix is always the same order of operations: <code>clear()</code> the array, <code>push()</code> one fresh row
+    per item the server sent, <em>then</em> call <code>setValue()</code> or <code>patchValue()</code>.
+  </div>
+
   <!-- === 6. ARRAY OF PLAIN CONTROLS === -->
   <h2>FormArray of plain controls — tags (no groups)</h2>
   <p>

@@ -303,6 +303,45 @@
     />
   </section>
 
+  <!-- ============ 6B. WHAT CANDEACTIVATE CAN'T CATCH ============ -->
+  <section>
+    <p class="bf-eyebrow">The gap in checkpoint 3</p>
+    <h2>Reload the tab, and CanDeactivate never gets asked at all.</h2>
+
+    <p>
+      <code>CanDeactivate</code> only fires when the <strong>router</strong> is the thing driving the navigation away. A
+      hard reload, closing the tab, or typing a fresh URL into the address bar all leave the page a completely different
+      way — the router is never consulted, so the guard <span class="bf-break">never runs</span>, unsaved changes and
+      all.
+    </p>
+
+    <app-code-lab
+      file="unsaved.component.ts"
+      [code]="beforeUnloadSample"
+      [notes]="beforeUnloadNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="note">
+      Pair the two: <code>CanDeactivate</code> for in-app navigation, <code>beforeunload</code> for everything that
+      bypasses the router. Note the browser's dialog is generic and non-negotiable — you get to trigger it, not word it.
+    </div>
+
+    <p>
+      A second, unrelated gap in the same checkpoint: pressing the <strong>Back button</strong> can trigger a
+      <code>popstate</code> navigation that <code>CanDeactivate</code> then cancels — and by default, the router can't
+      always restore the address bar to the exact entry it was on before that Back-press, leaving the URL and the screen
+      briefly disagreeing about where you actually are.
+    </p>
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="canceledNavConfigSample"
+      [notes]="canceledNavConfigNotes"
+      notesLabel="What each line is doing"
+    />
+  </section>
+
   <!-- ============ 7. UNDER THE HOOD ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>
@@ -388,6 +427,53 @@
       question="`/admin` has `canActivate: [authGuard]` and no `canActivateChild`. A logged-out user pastes the URL `/admin/settings` — a child route of `/admin` with no guard of its own — directly into the address bar. What actually happens?"
       [options]="cascadeQuizOptions"
     />
+  </section>
+
+  <!-- ============ 8B. THE RE-CHECK GAP ============ -->
+  <section>
+    <p class="bf-eyebrow">A security bug, not a convenience issue</p>
+    <h2>Does a parent's canActivate re-run when you move between its children?</h2>
+
+    <p>
+      <code>canActivate: [adminGuard]</code> on <code>/admin</code> runs once, the moment the subtree is first entered —
+      clicking from one already-active child to a sibling, like <code>/admin/users</code> →
+      <code>/admin/settings</code>, reuses the same parent route node, and a plain <code>canActivate</code> on that
+      parent is <span class="bf-break">never asked again</span>. <code>canActivateChild</code>, declared on the exact
+      same parent, fires for <strong>every</strong> child activation instead. That's the entire difference: "may you
+      enter this subtree" versus "may you enter each screen inside it" — and a session that expires mid-visit, or a
+      permission that's per-child, is only ever re-checked by the second one.
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — walk the exact sequence that exposes the gap</p>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="guardMode.set('canActivate')" [class.ghost]="guardMode() !== 'canActivate'">
+          Guard: canActivate only
+        </button>
+        <button (click)="guardMode.set('canActivateChild')" [class.ghost]="guardMode() !== 'canActivateChild'">
+          Guard: canActivateChild
+        </button>
+        <button class="ghost" (click)="resetRecheckDemo()">Reset</button>
+      </div>
+      <div class="row" style="margin-bottom: 10px; flex-wrap: wrap">
+        <button (click)="enterAdminUsers()">1. Enter /admin/users</button>
+        <button (click)="expireSession()">2. Expire the session</button>
+        <button (click)="clickToSettings()">3. Click through to /admin/settings</button>
+      </div>
+      <div class="console">
+        @for (line of recheckLog(); track $index) {
+          <div>{{ line }}</div>
+        } @empty {
+          <div class="dim">// press 1, 2, 3 in order…</div>
+        }
+      </div>
+      <p class="demo__note">
+        Run 1 → 2 → 3 with <strong>canActivate only</strong>: the expired session sails straight through on step 3.
+        Reset, switch to <strong>canActivateChild</strong>, and run the identical sequence — step 3 catches it and
+        redirects. Nothing about the URL or the click changed between runs; only which guard slot was doing the checking
+        did.
+      </p>
+    </div>
   </section>
 
   <!-- ============ 9. PITFALLS ============ -->

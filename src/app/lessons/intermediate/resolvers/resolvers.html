@@ -476,6 +476,35 @@
     </ul>
   </section>
 
+  <!-- ============ 10B. THE APP-LEVEL NET ============ -->
+  <section>
+    <p class="bf-eyebrow">Two layers of catch</p>
+    <h2>catchError inside a resolver is not the only net — and shouldn't be the last one.</h2>
+
+    <p>
+      Every <code>catchError</code> in this lesson so far lives <strong>inside</strong> one specific resolver, catching
+      the failures that resolver's author anticipated. That leaves a real gap: a resolver nobody remembered to wrap, a
+      lazy-loaded route's chunk failing to download after a redeploy, or a genuinely unexpected error — all of these
+      still produce a raw, unhandled <code>NavigationError</code> with nothing shown to the user.
+      <code>withNavigationErrorHandler</code> is the app-wide net underneath every per-resolver catch:
+    </p>
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="appLevelNetSample"
+      [notes]="appLevelNetNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="note">
+      <strong>The two layers have different jobs.</strong> A per-resolver <code>catchError</code> is for
+      <span class="term">expected</span> failures you can redirect meaningfully — a 404 lookup sends the user to
+      <code>/not-found</code>, specifically. <code>withNavigationErrorHandler</code> is for
+      <span class="bf-break">everything unexpected</span> — the resolver nobody wrapped, and any lazy-chunk load failure
+      — a single, generic net rather than a specific answer. Neither replaces the other.
+    </div>
+  </section>
+
   <!-- ============ 11. QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>

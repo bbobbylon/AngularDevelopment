@@ -179,6 +179,52 @@ export class ReactiveForms {
   /** What {@link mutateSnapshot} produced — a throwaway object, never the form itself. */
   protected readonly mutatedSnapshot = signal<unknown>(null);
 
+  /** How many times valueChanges fired during the feedback-loop demo — the runaway proof. */
+  protected readonly loopCount = signal(0);
+  /** Two independent controls, wired to each other only inside {@link triggerLoop}/{@link triggerLoopFixed}. */
+  protected readonly loopA = this.fb.control('');
+  protected readonly loopB = this.fb.control('');
+
+  /**
+   * The bug: subscribing to `valueChanges` and patching the OTHER control with
+   * no `emitEvent` guard. Each patch is itself a write, so it re-fires the
+   * sibling's own subscription — a synchronous ping-pong. Capped at 40 here so
+   * the demo proves the point without genuinely overflowing the call stack;
+   * the real bug has no such cap.
+   */
+  protected triggerLoop() {
+    this.loopA.setValue('', { emitEvent: false });
+    this.loopB.setValue('', { emitEvent: false });
+    let n = 0;
+    const subA = this.loopA.valueChanges.subscribe((v) => {
+      n++;
+      this.loopCount.set(n);
+      if (n < 40) this.loopB.patchValue(v);
+    });
+    const subB = this.loopB.valueChanges.subscribe((v) => {
+      n++;
+      this.loopCount.set(n);
+      if (n < 40) this.loopA.patchValue(v);
+    });
+    this.loopA.setValue('go');
+    subA.unsubscribe();
+    subB.unsubscribe();
+  }
+
+  /** The fix: identical wiring, but the patch passes `{ emitEvent: false }`. */
+  protected triggerLoopFixed() {
+    this.loopA.setValue('', { emitEvent: false });
+    this.loopB.setValue('', { emitEvent: false });
+    let n = 0;
+    const subA = this.loopA.valueChanges.subscribe((v) => {
+      n++;
+      this.loopCount.set(n);
+      this.loopB.patchValue(v, { emitEvent: false });
+    });
+    this.loopA.setValue('go');
+    subA.unsubscribe();
+  }
+
   /** Cross-field validator demo: a group-level check, not a per-control one. */
   protected readonly passwordForm = this.fb.nonNullable.group(
     {
@@ -424,6 +470,50 @@ console.log(this.form.get('name')!.value);     // ?`;
   /** The reveal for the mutate-trap {@link Predict} box. */
   protected readonly mutateTrapAnswer =
     "No, and no. Nothing throws or warns — it just silently does not work. `form.value` hands back a plain object that Angular rebuilds from every folder's current value whenever the cabinet's own value changes — exactly the **snapshot** in the filing-cabinet picture above, and never a live view back into the drawers. Writing to `snapshot.name` only edits that disposable object; the real `FormControl` wired to the `name` field never hears about it, so its own `.value`, its `valueChanges` stream, and the input on screen all stay exactly where they were. `this.form.get('name')!.value` still reads the old value. The only way to actually change a control is through the control: `patchValue()`, `setValue()`, or `form.controls.name.setValue(...)`.";
+
+  /**
+   * Sample: the `valueChanges` feedback loop and the `emitEvent` option that
+   * fixes it. Simplified from the live demo above, which caps the runaway
+   * count at 40 purely so the browser tab doesn't lock up proving the point.
+   */
+  protected readonly emitEventSample = `// BUGGY — each patch re-triggers the sibling's own subscription:
+priceA.valueChanges.subscribe((v) => priceB.patchValue(v));
+priceB.valueChanges.subscribe((v) => priceA.patchValue(v));
+priceA.setValue(10);   // A emits -> patches B -> B emits -> patches A -> ...
+
+// FIXED — the write no longer emits, so the ping-pong never starts:
+priceA.valueChanges.subscribe((v) =>
+  priceB.patchValue(v, { emitEvent: false }),
+);
+
+// The option exists on every write method, and on onlySelf too:
+form.patchValue(v, { emitEvent: false });   // don't re-run valueChanges/statusChanges
+form.setValue(v, { onlySelf: true });       // don't bubble to the parent's own validity
+control.disable({ emitEvent: false });      // disable() emits by default — easy to miss`;
+
+  /** Line-by-line walkthrough of {@link emitEventSample}. */
+  protected readonly emitEventNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'Ordinary subscription, no guard: every value `priceA` emits gets written straight into `priceB`.',
+    },
+    {
+      line: 3,
+      text: 'The mirror image on `priceB`. Nothing here looks wrong in isolation — each line reads like a normal sync-two-fields pattern.',
+    },
+    {
+      line: 4,
+      text: "`setValue` is itself a write, so it fires `priceA`'s `valueChanges` — which patches `priceB` — which fires `priceB`'s own `valueChanges` — which patches `priceA` right back. Nothing here breaks the cycle.",
+    },
+    {
+      line: 7,
+      text: '`{ emitEvent: false }` suppresses `valueChanges`/`statusChanges` for **this** write only. `priceB` still receives the new value — it just never announces it, so nothing downstream re-fires.',
+    },
+    {
+      line: 13,
+      text: '`disable()` emits on `valueChanges` by default (with the disabled control\'s key already dropped from the value) — the single most common **accidental** trigger of this exact loop, since it rarely looks like a "write."',
+    },
+  ];
 
   /**
    * Sample: a cross-field validator, and why it attaches to the group.

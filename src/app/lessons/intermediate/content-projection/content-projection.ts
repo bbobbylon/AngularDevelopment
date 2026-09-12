@@ -211,6 +211,24 @@ export class Panel {}
     },
   ];
 
+  // ── select matches static, top-level attributes only ─────────────────────
+
+  // Both traps are demonstrated live, below, with the real Panel and
+  // BadgeHost components already imported above — no code samples needed.
+
+  // ── The default nobody states: descendants ────────────────────────────────
+
+  /**
+   * Inline snippet for prose. A raw `{`/`}` typed directly into template
+   * *text* reads as the start of an interpolation, so this has to arrive as a
+   * plain string bound via `{{ }}` rather than be typed straight into the
+   * `.html`.
+   */
+  protected readonly descendantsFalseSample = '{ descendants: false }';
+
+  /** Inline snippet for prose — see {@link descendantsFalseSample}. */
+  protected readonly descendantsTrueFixSample = 'contentChildren(TabLabel, { descendants: true })';
+
   // ── CodeLab 3: fallback content ───────────────────────────────────────────
 
   /** Sample: fallback markup inside `<ng-content>`, shown only when a slot is empty. */
@@ -277,6 +295,55 @@ export class TabGroup implements AfterContentInit {
     {
       line: 13,
       text: 'The parent writes a flat, unstructured list — no config object, no array binding. `TabGroup` discovers the pairing entirely by **querying** for the directives, which is what makes this API feel declarative.',
+    },
+  ];
+
+  // ── The other famous error, content-query edition ─────────────────────────
+
+  /** Sample: reading a content query safely, then using the result to write to a plain, bound field. */
+  protected readonly contentWriteTrapSample = `readonly labels = contentChildren(TabLabel);
+
+ngAfterContentInit() {
+  this.labels().forEach((label, i) => (label.active = i === 0));
+}
+// Each TabLabel's own template binds: <span [class.tg__tab--active]="active">`;
+
+  /** Line-by-line walkthrough of {@link contentWriteTrapSample}. */
+  protected readonly contentWriteTrapNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`contentChildren(TabLabel)` resolving here is completely fine — `ngAfterContentInit` is the documented, earliest-safe moment to read it. The **read** is not the problem in this snippet.',
+    },
+    {
+      line: 4,
+      text: '`labels()` hands back the real `TabLabel` directive instances — nothing about a content query stops you from reaching in and mutating one. This line is not reading the query any more; it is using the result to **write**.',
+    },
+    {
+      line: 6,
+      text: "Here's the trap: `active` is exactly what each `TabLabel`'s own host binding reads. Those bindings were already checked as part of the *same* pass that got you into this hook — writing to `active` now means the template's already-rendered value and the field's live value disagree, and dev mode's second verification pass catches the disagreement: `NG0100`.",
+    },
+  ];
+
+  /** Sample: the declarative fix — each TabLabel computes its own active state. */
+  protected readonly contentWriteFixSample = `// tab-label.ts
+@Directive({
+  selector: '[tabLabel]',
+  host: { '[class.tg__tab--active]': 'isActive()' },   // Angular owns this write
+})
+export class TabLabel {
+  private readonly group = inject(TabGroup);
+  readonly isActive = computed(() => this.group.activeLabel() === this);
+}`;
+
+  /** Line-by-line walkthrough of {@link contentWriteFixSample}. */
+  protected readonly contentWriteFixNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: 'The host binding itself performs the write now — never a lifecycle hook. Angular re-evaluates `isActive()` as part of **its own** change-detection pass for this directive, exactly where a read-and-render is supposed to happen.',
+    },
+    {
+      line: 7,
+      text: "`computed()` re-derives `isActive` purely from two signals it reads — `TabGroup`'s `activeLabel()` and its own identity. Nothing calls `.set()` on anything from inside a lifecycle hook, so there is no timing left to get wrong.",
     },
   ];
 
@@ -355,6 +422,54 @@ export class TabGroup implements AfterContentInit {
 
 // The accordion starts closed and nobody opens it.
 // Does SalesChart fetch anything?`;
+
+  // ── One projected node, many iterations ───────────────────────────────────
+
+  /** Sample: the predict prompt — a bare `<ng-content>` dropped inside a `@for`. */
+  protected readonly repeatedSlotSample = `// repeater.html
+@for (row of rows; track row) {
+  <div class="row"><ng-content /></div>
+}
+
+// parent:
+<app-repeater [rows]="[1, 2, 3]">
+  <span>Static content</span>
+</app-repeater>`;
+
+  /** The reveal for {@link repeatedSlotSample}. */
+  protected readonly repeatedSlotAnswer =
+    'Only the first row. `<ng-content>` relocates the ONE `<span>` the parent already built — it never ' +
+    'instantiates it per iteration, because it has no template of its own to stamp out, only an existing ' +
+    'node to move. There is exactly one `<span>` in existence, and a real DOM node can only be attached to ' +
+    'one place at a time, so it lands wherever the loop reaches first and the other two rows render an ' +
+    'empty `<div class="row">`. The fix is to stop projecting content and start projecting a ' +
+    '**blueprint** instead: accept a `TemplateRef` input and stamp it out fresh, once per row, with ' +
+    '`NgTemplateOutlet` — the subject of the next lesson.';
+
+  /** Sample: the fix — stamp a `TemplateRef` per row instead of relocating one node. */
+  protected readonly repeatedSlotFixSample = `// repeater.html — stamp a blueprint per row instead
+@for (row of rows; track row) {
+  <ng-container [ngTemplateOutlet]="rowTemplate" [ngTemplateOutletContext]="{ $implicit: row }" />
+}
+
+// parent:
+<app-repeater [rows]="[1, 2, 3]">
+  <ng-template #rowTemplate let-row>
+    <span>Row {{ row }}</span>
+  </ng-template>
+</app-repeater>`;
+
+  /** Line-by-line walkthrough of {@link repeatedSlotFixSample}. */
+  protected readonly repeatedSlotFixNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: "`ngTemplateOutlet` takes a `TemplateRef` and creates a **fresh embedded view** from it every time Angular runs this line — the opposite of `<ng-content>`'s one-node relocation. `ngTemplateOutletContext` hands each stamped-out copy its own `row`.",
+    },
+    {
+      line: 8,
+      text: "`<ng-template>` compiles to nothing by itself — it is a blueprint, never a rendered node. The parent hands over instructions this time, not an already-built `<span>`. `let-row` destructures the context object's `$implicit` key bound on line 3 — the exact mechanism `@for`'s own row variable uses under the hood.",
+    },
+  ];
 
   // ── The trap, again: two bare slots vs named slots ────────────────────────
 

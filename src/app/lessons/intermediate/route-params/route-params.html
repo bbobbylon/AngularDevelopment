@@ -199,6 +199,33 @@
     </div>
   </section>
 
+  <!-- ============ 4B. ENCODING PARAM VALUES ============ -->
+  <section>
+    <p class="bf-eyebrow">A detail that only bites on real data</p>
+    <h2>A param containing a slash, question mark or hash needs encoding — string-built links don't get it.</h2>
+
+    <p>
+      Every path param in this lesson so far has been a clean id like <code>42</code>. Real values are messier — an
+      order reference with a slash in it, a search term with a <code>#</code> — and only <strong>some</strong> of the
+      ways to build a link actually encode that safely.
+    </p>
+
+    <app-code-lab
+      file="encoding.ts"
+      [code]="encodingSample"
+      [notes]="encodingNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="warn">
+      The array form — <code>[routerLink]="['/users', id]"</code> or <code>router.navigate(['/users', id])</code> —
+      encodes each segment for you. String interpolation into a template literal, or plain string concatenation into
+      <code>navigateByUrl</code>, does <span class="bf-break">not</span> — whatever the value contains lands in the URL
+      verbatim, which can silently turn one path segment into two. <code>paramMap.get()</code> always hands the value
+      back already decoded, so you never encode or decode a param by hand.
+    </div>
+  </section>
+
   <!-- ============ 5. WHY THE REUSE TRAP EXISTS ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>
@@ -318,6 +345,35 @@
     </table>
     <div class="code">
       <pre>{{ handlingSample }}</pre>
+    </div>
+  </section>
+
+  <!-- ============ 7B. REPLACEURL AND HISTORY ============ -->
+  <section>
+    <p class="bf-eyebrow">A second, unrelated bug hiding in the same call</p>
+    <h2>Every query-param update also pushes a new Back-button stop — unless you tell it not to.</h2>
+
+    <p>
+      Fixing the merge bug above does not fix a second problem sitting right next to it: by default,
+      <code>router.navigate([], &#123; queryParams &#125;)</code> pushes a brand-new history entry every time it runs.
+      Wire that up to a debounced search box and twenty keystrokes leave twenty entries — the Back button now has to be
+      mashed twenty times before it takes the user anywhere they'd recognise as "back".
+    </p>
+
+    <app-code-lab
+      file="replace-url.ts"
+      [code]="replaceUrlSample"
+      [notes]="replaceUrlNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="warn">
+      The fix is <code>replaceUrl: true</code>, and it is a judgment call, not a default to flip everywhere: reach for
+      it on state that is <span class="bf-break">transient</span> — a search term, a filter toggle, a sort order — so
+      the current history entry is rewritten instead of piling up. Leave the default push in place for state the user
+      should genuinely be able to Back out of, like a page number or opening a detail panel.
+      <code>skipLocationChange</code> is a different knob again: the navigation still happens, but the address bar does
+      not change at all — no push, no replace, nothing to look at in the URL.
     </div>
   </section>
 
