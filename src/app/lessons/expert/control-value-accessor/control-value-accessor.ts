@@ -1,5 +1,5 @@
 import { JsonPipe } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
@@ -56,11 +56,29 @@ export class ControlValueAccessorLesson {
   protected readonly qty = new FormControl(1);
 
   /**
+   * A second, independent quantity control — parked at 4 — for the
+   * `registerOnValidatorChange` demo below.
+   */
+  protected readonly qtyRangeDemo = new FormControl(4);
+  /**
+   * The second stepper's `[max]` input, toggled between 5 and 3 while
+   * {@link qtyRangeDemo}'s value stays put at 4 — so the reader watches the
+   * form's status react to the *range itself* moving, not to a new value
+   * being typed in.
+   */
+  protected readonly qtyRangeMax = signal(5);
+
+  /**
    * Toggles the rating control's disabled state, so `setDisabledState` can be seen
    * firing.
    */
   protected toggleDisabled(): void {
     this.rating.disabled ? this.rating.enable() : this.rating.disable();
+  }
+
+  /** Flips {@link qtyRangeMax} between 5 and 3, without touching the control's value. */
+  protected toggleQtyRangeMax(): void {
+    this.qtyRangeMax.update((m) => (m === 5 ? 3 : 5));
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
@@ -208,6 +226,69 @@ export class QtyStepper implements ControlValueAccessor, Validator {
     {
       line: 10,
       text: '`null` means **valid**. This trips everyone once: returning an object is failure, returning nothing is success — backwards from how error handling usually reads.',
+    },
+  ];
+
+  /**
+   * Sample: the fourth `NG_VALUE_ACCESSOR` method nobody reaches for —
+   * `registerOnValidatorChange` — and why `validate()` alone isn't enough
+   * once the validator's own configuration is an `@Input`.
+   */
+  protected readonly validatorChangeSample = `private onValidatorChange: () => void = () => {};
+
+// the fix: an effect that re-fires validation when min/max move
+private readonly revalidateOnRangeChange = effect(() => {
+  this.min();
+  this.max();
+  this.onValidatorChange();     // "hey form, re-run validate() — nothing else changed"
+});
+
+registerOnValidatorChange(fn: () => void): void {
+  this.onValidatorChange = fn;  // the forms system hands you this in exchange
+}`;
+
+  /** Line-by-line walkthrough of {@link validatorChangeSample}. */
+  protected readonly validatorChangeNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'A fourth callback, alongside `onChange` and `onTouched` — but from `NG_VALIDATORS`, not `NG_VALUE_ACCESSOR`. Most custom controls that implement `Validator` never store this one.',
+    },
+    {
+      line: 4,
+      text: 'Reading `min()`/`max()` inside the effect is what makes it re-run every time either input changes — the same signal-dependency tracking every other effect in this app relies on.',
+    },
+    {
+      line: 6,
+      text: "This is the entire fix. It doesn't touch `control.value` at all — it just tells the forms system 'call `validate()` again,' which is the one thing nothing else in the CVA contract does when the validator's own rules move.",
+    },
+    {
+      line: 9,
+      text: 'The forms system calls this once, at setup, the same way it calls `registerOnChange` and `registerOnTouched` — handing you the function to fire whenever validation needs to be re-run for a reason that has nothing to do with the value itself.',
+    },
+  ];
+
+  /**
+   * The self-test on `registerOnValidatorChange`. The distractors are the
+   * ways a reader reaches for the wrong half of the CVA contract to fix an
+   * input-driven validation bug.
+   */
+  protected readonly validatorChangeQuizOptions: QuizOption[] = [
+    {
+      text: "Call `this.onChange(this.value())` from inside an effect that watches `min`/`max` — that's what re-runs validation.",
+      why: 'That re-runs validation as a side effect, but it also reports the value to the form as if the user just edited it — flipping `dirty` and `touched` for a range change nobody asked the user about. It fixes the symptom by causing the echo-loop bug from the quiz above.',
+    },
+    {
+      text: "Nothing to fix — `validate()` already reads `this.min()`/`this.max()`, so it's always using the current range.",
+      why: '`validate()` reads the current range **whenever it runs** — the bug is that nothing tells the forms system to run it again. Angular only calls `validate()` on a value change (`setValue`, `onChange`, a sibling validator re-running); an `@Input` changing on its own triggers none of those.',
+    },
+    {
+      text: 'Store the callback from `registerOnValidatorChange`, and call it from an effect that reads the inputs the validator depends on.',
+      correct: true,
+      why: "Exactly — this is what `registerOnValidatorChange` exists for. It's a direct request to the forms system to re-validate, entirely separate from the value-change machinery `onChange` drives.",
+    },
+    {
+      text: "Angular already re-runs every control's validator on every change-detection cycle, so this can't actually be a bug.",
+      why: 'Validators run on value changes, not on every CD pass — that would be enormously wasteful for anything with many controls. An `@Input` moving on its own is invisible to that mechanism, which is exactly why this bug ships silently in real code.',
     },
   ];
 

@@ -209,6 +209,28 @@
       list and the browser doesn't guess which one you meant — it throws the whole transition away and the navigation
       just happens instantly, unanimated.
     </app-remember>
+
+    <p>
+      Uniqueness isn't the only structural rule. Two more break real layouts, and neither one throws an error — the
+      transition just looks broken:
+    </p>
+
+    <app-predict [prompt]="clippingPrompt" [answer]="clippingAnswer" revealLabel="Reveal what actually happens" />
+
+    <div class="warn">
+      <strong><code>display: contents</code> never morphs, either — silently.</strong> A
+      <code>view-transition-name</code> is ignored outright unless the element generates a single box of its own; an
+      element with <code>display: contents</code>, an inline element fragmented across lines, or one split by a
+      multi-column layout produces <span class="bf-break">no box and no morph</span> — it just cross-fades as part of
+      whatever group it fell into instead, with nothing in the console to say why. Give it real geometry (a wrapping
+      element with normal <code>display</code>) if it needs to be the thing that morphs.
+    </div>
+
+    <p>
+      The general rule behind both traps: for the duration of a transition, a named element does not live in your page
+      layout any more — it lives in the transition overlay, painted on top of everything, answerable to none of its
+      former ancestors' clipping, transforms or stacking context.
+    </p>
   </section>
 
   <!-- ============ 8. HOOK IN FROM TYPESCRIPT ============ -->
@@ -217,6 +239,23 @@
     <h2>Skip, redirect or tag a transition from TypeScript.</h2>
 
     <app-code-lab file="app.config.ts" [code]="hookSample" [notes]="hookNotes" notesLabel="Skip, tag, clean up" />
+
+    <div class="note">
+      <strong>A slow lazy route feels like a hang here, not a spinner.</strong> The router only calls
+      <code>startViewTransition</code> once the target route's component has actually resolved — including waiting on
+      its lazy chunk and any resolver — because the "new photograph" needs the real destination to exist first. Until
+      then the old page is frozen mid-transition-adjacent limbo with nothing on screen explaining why. Pair view
+      transitions with route preloading (or a resolver that starts the fetch early) so the chunk is already sitting in
+      memory by the time someone actually clicks — the transition itself was never the slow part.
+    </div>
+
+    <div class="warn">
+      <code>finished</code> and <code>ready</code> settle differently when a transition is
+      <strong>skipped</strong> (same-page nav, <code>skipTransition()</code>, or the browser bailing out on its own) —
+      <code>finished</code> still resolves, but <code>ready</code> <span class="bf-break">rejects</span>. Line 7 above
+      is there specifically to swallow that rejection; drop it and a skipped transition logs an unhandled promise
+      rejection every time.
+    </div>
 
     <p>
       <code>onViewTransitionCreated</code> fires with the <code>ViewTransition</code> object plus the router's from/to

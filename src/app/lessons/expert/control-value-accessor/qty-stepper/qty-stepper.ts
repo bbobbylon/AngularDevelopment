@@ -1,4 +1,4 @@
-import { Component, forwardRef, input, signal } from '@angular/core';
+import { Component, effect, forwardRef, input, signal } from '@angular/core';
 import {
   AbstractControl,
   ControlValueAccessor,
@@ -49,6 +49,26 @@ export class QtyStepper implements ControlValueAccessor, Validator {
    * The touched callback, from `registerOnTouched`.
    */
   private onTouched: () => void = () => {};
+  /**
+   * The callback from `registerOnValidatorChange` — call it whenever
+   * something the validator itself depends on changes, so the forms system
+   * knows to re-run `validate()` even though `control.value` didn't move.
+   */
+  private onValidatorChange: () => void = () => {};
+
+  /**
+   * Re-runs validation whenever {@link min} or {@link max} change.
+   *
+   * Without this, changing `[max]` from 5 to 3 while the value sits at 4
+   * leaves the control reporting VALID forever — the forms system has no way
+   * to know the validator's own configuration moved, since nothing calls
+   * `validate()` again until the *value* next changes.
+   */
+  private readonly revalidateOnRangeChange = effect(() => {
+    this.min();
+    this.max();
+    this.onValidatorChange();
+  });
 
   /**
    * Model → view.
@@ -89,6 +109,17 @@ export class QtyStepper implements ControlValueAccessor, Validator {
     if (v < this.min()) return { qtyTooLow: { min: this.min(), actual: v } };
     if (v > this.max()) return { qtyTooHigh: { max: this.max(), actual: v } };
     return null;
+  }
+
+  /**
+   * Receives the callback that tells the forms system "re-run `validate()`
+   * now" — even though nobody called `onChange`. Stored, then fired by
+   * {@link revalidateOnRangeChange} whenever `min`/`max` move.
+   *
+   * @param fn The callback to store.
+   */
+  registerOnValidatorChange(fn: () => void): void {
+    this.onValidatorChange = fn;
   }
 
   /**

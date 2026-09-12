@@ -162,6 +162,14 @@ export class ViewTransitions {
     },
   ];
 
+  /** The predict-then-reveal for the overflow-clipping structural trap. */
+  readonly clippingPrompt =
+    'A `.card` has `overflow: hidden` and rounded corners; a `.badge` inside it carries `view-transition-name: badge-1` and is meant to grow into a bigger badge on the next page. What actually happens to the badge while the transition plays?';
+
+  /** The reveal for {@link clippingPrompt}. */
+  readonly clippingAnswer =
+    "It visibly grows OUTSIDE the card's rounded corners, mid-animation, as if the clipping simply stopped applying — because it did. A named element is lifted out of normal layout into a top-level `::view-transition-group`, which paints above everything else in the document. Nothing about the card's `overflow: hidden` travels with it; the badge spends the transition living in a different part of the render tree entirely. The fix is one of: move `view-transition-name` up to a wrapper that already generates its own box and can own the clipping itself, apply the clip directly to the named element's own styling instead of an ancestor's, or accept that the element visibly leaves its container for the duration — sometimes that lift is exactly the effect you want.";
+
   /** The "no dumb questions" block. */
   protected readonly questions: FaqItem[] = [
     {
@@ -361,6 +369,7 @@ export const appConfig: ApplicationConfig = {
       transition.skipTransition();
     }
     document.documentElement.classList.toggle('vt-back', isBackNav(from, to));
+    transition.ready.catch(() => {}); // a skipped/interrupted transition rejects — see below
     transition.finished.finally(() =>
       document.documentElement.classList.remove('vt-back'));
   },
@@ -382,6 +391,10 @@ export const appConfig: ApplicationConfig = {
     },
     {
       line: 7,
+      text: 'ready and finished are not the same kind of promise: finished resolves even when the transition above was skipped, but ready REJECTS in that case (and in a couple of other abort conditions) — an unguarded .then() chain on ready is a real, if easy to miss, unhandled promise rejection in the console.',
+    },
+    {
+      line: 8,
       text: 'The same finished promise from the first code sample in this lesson — resolving once the animation completes and the overlay is torn down, the correct moment to remove a class you only needed during the transition.',
     },
   ];

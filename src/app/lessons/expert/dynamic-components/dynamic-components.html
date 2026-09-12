@@ -139,6 +139,40 @@ this.ref.setInput('message', 'Updated!');
     followUp="This is the other half of the `vcr.clear()` habit: call it before creating, not just when destroying."
   />
 
+  <h2>Where does the create call actually go?</h2>
+  <p>
+    Every demo on this page calls <code>createComponent()</code> from a click handler — deliberately, because that's
+    always safe. The question learners actually hit in real code is what happens from a lifecycle hook instead:
+  </p>
+  <app-code-lab
+    file="toast-host.component.ts"
+    [code]="createTimingSample"
+    [notes]="createTimingNotes"
+    notesLabel="Same call, four different moments"
+  />
+  <div class="warn">
+    <strong><code>ngAfterViewInit</code> is the one to watch.</strong> Angular is still mid-way through checking this
+    view's children when that hook runs — creating a component there changes the very tree Angular is checking, which is
+    exactly the shape of bug <code>NG0100</code> exists to catch. <code>ngOnInit</code> and any event handler run
+    outside a change-detection pass entirely, so they're both safe; <code>afterNextRender()</code> is the sanctioned fix
+    on the rare occasion the creation genuinely has to happen after the view is built (it needs a real, painted DOM node
+    to measure, say).
+  </div>
+
+  <p>
+    One more failure this page's own demos gloss over: <code>setInput</code> is described above as validating the input
+    name, but never shown actually catching a bad one.
+  </p>
+  <div class="code">
+    <pre>{{ setInputTypoSample }}</pre>
+  </div>
+  <div class="note">
+    That's not a thrown exception stopping your code, either — by default it's a <strong>logged</strong> error, and
+    <code>ref.setInput()</code> otherwise returns normally, having silently done nothing. Miss that line in the console
+    and the panel just never updates, for a reason that looks identical to forgetting <code>setInput</code>
+    entirely.
+  </div>
+
   <!-- === 5. OUTPUTS === -->
   <h2>Demo 3 — wiring OUTPUTS of a dynamic component</h2>
   <p>

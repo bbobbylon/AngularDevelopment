@@ -315,6 +315,22 @@
       [notes]="transferNotes"
       notesLabel="Automatic cache, and the manual escape hatch"
     />
+
+    <div class="warn">
+      <strong
+        >Every win above is also a <span class="bf-break">data-leak vector</span> for a personalized response.</strong
+      >
+      The cache isn't a server-side memory trick — it's embedded straight into the page as a
+      <code>&lt;script id="ng-state"&gt;</code> tag, which means anything cached is visible to
+      <em>anyone who receives that HTML</em>: view-source, a shared proxy, a saved copy, a CDN edge node. Two escape
+      hatches: <code>withNoHttpTransferCache()</code> turns the whole mechanism off for routes where it isn't worth the
+      risk, and the rule to actually live by is
+      <strong>personalized route ⇒ <code>Cache-Control: private</code></strong> (or skip server rendering for it
+      entirely with <code>RenderMode.Client</code>) — the transfer cache should never be the thing standing between a
+      shared cache and someone else's data.
+    </div>
+
+    <app-predict [prompt]="cdnLeakPrompt" [answer]="cdnLeakAnswer" revealLabel="Reveal what actually goes wrong" />
   </section>
 
   <!-- ============ 8. PITFALLS ============ -->

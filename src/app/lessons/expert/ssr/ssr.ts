@@ -493,6 +493,14 @@ const hero = transferState.get(HERO_KEY, null); // client: read during hydration
     },
   ];
 
+  /** The predict-then-reveal for the transfer-cache-as-data-leak spot-the-bug. */
+  protected readonly cdnLeakPrompt =
+    "A `/dashboard/:userId` route is `RenderMode.Server`, its `HttpClient` call sends the signed-in user's auth header, and `includeRequestsWithAuthHeaders` has been flipped to `true` to avoid a double-fetch. The whole app sits behind a shared CDN cache keyed on the URL. What actually goes wrong the first time two different users load the same route?";
+
+  /** The reveal for {@link cdnLeakPrompt}. */
+  protected readonly cdnLeakAnswer =
+    "The second user gets served the CDN's cached copy of the FIRST user's fully rendered page — auth-header response, transfer-cache payload and all. The transfer cache did exactly its job: it embedded the authenticated response into that render's HTML, inside the `ng-state` script tag the page ships. Nothing about the transfer cache knows the response was personal, and nothing about a CDN keyed only on the URL knows two different users hit the same path. The fix is at the HTTP layer, not the transfer cache: a personalized route needs `Cache-Control: private` (so no shared cache stores it at all) — or simplest of all, `RenderMode.Client` for that route, so there is no server-rendered HTML containing anyone's data to cache in the first place.";
+
   /**
    * The self-test: the silent-leak trap, distinct from the crash trap above.
    * Distractors name the specific ways this gets guessed wrong — that a

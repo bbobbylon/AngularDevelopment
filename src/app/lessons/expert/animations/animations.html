@@ -227,6 +227,21 @@
       <code>provideAnimationsAsync()</code> once nothing legacy remains — the engine is bundle weight the modern
       approach doesn't pay.
     </div>
+
+    <div class="warn">
+      <strong>That last row in the table is not a clean swap.</strong> <code>(&#64;trigger.done)</code> only ever fired
+      for the element the trigger was declared on. <code>(animationend)</code>/<code>(transitionend)</code>
+      <span class="bf-break">bubble from every descendant</span> whose own animation or transition ends — a card
+      listening for its own fade-in also hears every child button's hover transition finish too. That's a genuine
+      ergonomic regression, not the clean equivalence the table above suggests:
+    </div>
+
+    <app-code-lab
+      file="card.component.ts"
+      [code]="bubbleGuardSample"
+      [notes]="bubbleGuardNotes"
+      notesLabel="Why the guard line has to be there"
+    />
   </section>
 
   <!-- ============ 7. PERFORMANCE ============ -->

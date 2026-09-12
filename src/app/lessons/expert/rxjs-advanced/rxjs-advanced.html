@@ -228,6 +228,20 @@
         <td>rare — "result of a computation" semantics</td>
       </tr>
     </table>
+
+    <div class="warn">
+      <strong
+        >The table above describes what a new subscriber sees — not what happens once a Subject has already errored or
+        completed.</strong
+      >
+      Once either happens, <code>next()</code> silently does nothing, forever, and any <em>new</em> subscriber receives
+      that same terminal notification immediately instead of ever joining the stream — a
+      <span class="bf-break">Subject cannot be restarted</span>. Never route a request's error into a long-lived Subject
+      (map it to a value first, or <code>catchError</code> it before <code>.next()</code> ever runs), and never
+      <code>complete()</code> a shared Subject from a component's <code>ngOnDestroy</code> — it belongs to the service
+      that created it, not to whichever component happened to unsubscribe last. Exam framing:
+      <em>"the event bus stopped delivering after one failed request — why, and what would you change?"</em>
+    </div>
   </section>
 
   <!-- ============ 6. HOT VS COLD + SHAREREPLAY ============ -->
@@ -268,6 +282,12 @@
       [notes]="errorNotes"
       notesLabel="Order is the whole lesson here"
     />
+
+    <div class="note">
+      <strong>retry isn't unconditional.</strong> {{ retryIdempotencyRule }} The conditional <code>delay</code> above is
+      how you encode that: a 4xx re-throws immediately instead of burning three backoff cycles on a request that will
+      never succeed.
+    </div>
 
     <p>
       The typeahead example above hides a mistake nearly everyone makes once: putting <code>catchError</code> on the

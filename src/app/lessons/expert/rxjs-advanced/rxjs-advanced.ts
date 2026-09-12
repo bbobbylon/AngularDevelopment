@@ -462,7 +462,13 @@ readonly user$ = this.http.get<User>('/api/me').pipe(
    * error the retry was supposed to see.
    */
   readonly errorSample = `source$.pipe(
-  retry({ count: 3, delay: (err, n) => timer(2 ** n * 500) }), // exponential backoff
+  retry({
+    count: 3,
+    delay: (err: HttpErrorResponse, n) =>
+      err.status === 0 || err.status >= 500
+        ? timer(2 ** n * 500)    // network/5xx — worth another attempt
+        : throwError(() => err), // 4xx — fails immediately, no retry
+  }),
   catchError((err) => of(FALLBACK)),        // AFTER retry — swap in a fallback
   finalize(() => this.loading.set(false)),  // success, error or unsubscribe
 );
@@ -472,31 +478,63 @@ query$.pipe(
   switchMap((q) => this.api.search(q).pipe(
     catchError(() => of([])),               // this stream dies; the outer lives on
   )),
-);`;
+);
+
+// mergeMap's concurrency cap, made concrete — a bounded upload queue:
+uploads$.pipe(mergeMap((file) => upload(file), 2));  // at most 2 in flight
+
+// concatMap is just mergeMap with the cap pinned to 1:
+concatMap(fn)  ===  mergeMap(fn, 1)`;
 
   /** Line-by-line notes for {@link errorSample}. */
   protected readonly errorNotes: CodeNote[] = [
     {
       line: 2,
-      text: "retry re-subscribes to source$ from scratch on error, up to 3 times. delay returns an observable per attempt — timer(2 ** n * 500) waits 500ms, then 1000ms, then 2000ms, which is what 'exponential backoff' means in code rather than in theory.",
+      text: 'retry re-subscribes to source$ from scratch on error, up to count: 3 times — but only for the errors delay decides are worth it. Getting this wrong is the standard mistake: retry taught as unconditional retries a mutation on every failure, including ones that will never succeed.',
     },
     {
-      line: 3,
-      text: 'Placement is everything: because catchError comes AFTER retry in the pipe, it only ever sees an error once all 3 retries are exhausted — a last resort, not competing with retry for the same failures.',
+      line: 5,
+      text: "status === 0 (the request never reached the server — offline, DNS, CORS) or a 5xx is transient, so it's worth another attempt after a backoff. A 4xx (bad request, unauthorized, not found) will fail again instantly no matter how many times you retry it — so it doesn't get one.",
     },
     {
-      line: 4,
-      text: "finalize runs no matter how the stream ends — value, error, or the subscriber walking away early — which is why it's the right place for cleanup like a loading flag, and retry/catchError are the wrong place: they only see specific outcomes, not all of them.",
+      line: 6,
+      text: 'timer(2 ** n * 500) is the actual backoff schedule: 500ms, then 1000ms, then 2000ms. Returning an observable here is what delay wants — retry waits for IT to emit before resubscribing.',
+    },
+    {
+      line: 7,
+      text: 'throwError(() => err) re-throws immediately instead of scheduling another attempt — this is what makes the 4xx branch fail fast instead of waiting through three pointless backoffs.',
     },
     {
       line: 9,
-      text: 'The inner pipe — the one search(q) itself goes through — is where catchError is attached here, not the outer query$.pipe(...). That placement is the entire point of this example.',
+      text: 'Placement is everything: because catchError comes AFTER retry in the pipe, it only ever sees an error once retry has given up (either the count ran out, or line 7 re-threw a 4xx immediately) — a last resort, not competing with retry for the same failures.',
     },
     {
       line: 10,
+      text: "finalize runs no matter how the stream ends — value, error, or the subscriber walking away early — which is why it's the right place for cleanup like a loading flag, and retry/catchError are the wrong place: they only see specific outcomes, not all of them.",
+    },
+    {
+      line: 15,
+      text: 'The inner pipe — the one search(q) itself goes through — is where catchError is attached here, not the outer query$.pipe(...). That placement is the entire point of this example.',
+    },
+    {
+      line: 16,
       text: "Because this catchError sits INSIDE switchMap's callback, it only ever terminates the CURRENT inner search. The outer query$ stream never sees an error and never completes, so the next keystroke starts a perfectly normal new search.",
     },
+    {
+      line: 21,
+      text: "The second argument to mergeMap is the concurrency cap the table above only mentions in parentheses — with it set to 2, a third file's upload() call doesn't even start until one of the first two completes, instead of all of them racing at once.",
+    },
+    {
+      line: 24,
+      text: "concatMap isn't a fourth, separate strategy — it's mergeMap with its concurrency cap pinned to exactly 1, which is why it queues strictly one at a time. Same operator, one number different.",
+    },
   ];
+
+  /**
+   * Rule of thumb tying the retry rewrite above back to a decision, not just a snippet.
+   */
+  protected readonly retryIdempotencyRule =
+    'Retry a GET freely — reading twice is harmless. Retry a mutation (POST/PATCH/DELETE) only if the endpoint is genuinely idempotent, or you attach an idempotency key the server can use to recognise a repeat.';
 
   /**
    * Sample: writing a custom operator, which is just a function from observable to

@@ -204,6 +204,15 @@
       notesLabel="Three concerns, one constructor"
     />
 
+    <div class="warn">
+      <strong>The code-lab above is the lesson's own model answer, and it has a real bug without line 5.</strong>
+      <code>SwUpdate.isEnabled</code> is <code>false</code> in <code>ng serve</code>, on non-HTTPS origins, and in any
+      browser with service workers blocked — and in that state, calling <code>checkForUpdate()</code> returns a
+      <span class="bf-break">rejected promise</span>, while <code>versionUpdates</code> simply never emits at all. One
+      API fails loudly, the other fails silently, and copying this constructor with no guard is why "my update code does
+      nothing locally" is the standard first question about this feature.
+    </div>
+
     <app-quiz
       question="`versionUpdates` just emitted `VERSION_READY`. What's actually true right now?"
       [options]="quizOptions"
@@ -269,6 +278,41 @@
       <li>
         <strong>index.html must not be aggressively CDN-cached</strong> — the worker bootstraps from it; an edge cache
         serving week-old HTML defeats the whole update mechanism.
+      </li>
+    </ul>
+  </section>
+
+  <!-- ============ 8B. WHEN YOUR APP IS ALSO SERVER-RENDERED ============ -->
+  <section>
+    <p class="bf-eyebrow">The other half of this slice</p>
+    <h2>What changes when your app is also <a routerLink="/ssr">server-rendered</a>?</h2>
+
+    <p>
+      Everything above assumes a client-only build. Add SSR and two systems now cache the same app for different reasons
+      — a CDN or the server's own render cache for HTML, and <code>ngsw</code> for the client bundle — and they need to
+      agree, not compete.
+    </p>
+
+    <ul>
+      <li>
+        <strong>The manifest indexes by output.</strong> With <code>outputMode: 'server'</code>, <code>ngsw.json</code>
+        still only describes the client-side assets (JS/CSS/fonts/images) — it has no opinion on server-rendered HTML at
+        all, because that HTML is generated per request, not built once with a stable hash.
+      </li>
+      <li>
+        <strong>Never asset-group-cache SSR HTML for a personalized route.</strong> An <code>assetGroup</code> caches by
+        content hash and serves that exact response to <em>everyone</em> who asks — fine for a shared shell, a genuine
+        data leak for a page whose server-rendered HTML embeds one user's own data.
+      </li>
+      <li>
+        <strong><code>navigationRequestStrategy: 'freshness'</code></strong> is the fix: it tells the worker to send
+        navigation requests to the network first — restoring real per-request SSR — and fall back to the cached shell
+        only when offline, rather than serving a frozen HTML snapshot to every visitor.
+      </li>
+      <li>
+        <strong>Hydration still runs client-side, worker or not.</strong> The service worker only changes where the
+        initial HTML and the JS bundle came from (network vs. cache) — it has no part in the hydration step itself,
+        which still reconciles against whatever markup actually arrived.
       </li>
     </ul>
   </section>

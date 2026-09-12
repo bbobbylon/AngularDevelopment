@@ -346,6 +346,49 @@ this.items = [...this.items, item];
     </ul>
   </section>
 
+  <!-- ============ 9B. ONPUSH IN TESTS ============ -->
+  <section>
+    <p class="bf-eyebrow">Testing</p>
+    <h2><code>detectChanges()</code> doesn't rescue a test either.</h2>
+
+    <p>
+      This is the first wall almost everyone hits after adopting <code>OnPush</code>, and it looks exactly like a
+      framework bug: the test sets <code>component.title = 'Updated'</code>, calls <code>fixture.detectChanges()</code>,
+      and the DOM is unchanged — because nothing in that sequence tripped any of the five triggers from the table above.
+      A direct field assignment on the instance isn't an input write, isn't a template event, and isn't a signal —
+      <span class="bf-break">the view was never marked dirty</span>, so there is nothing for
+      <code>detectChanges()</code> to refresh.
+    </p>
+
+    <app-compare
+      leftTitle="Wrong — mutates the instance directly"
+      rightTitle="Right — drives the real trigger"
+      leftTone="bad"
+      rightTone="good"
+      note="fixture.componentRef.setInput() performs the actual framework input write — the same one a template binding would — so it's the one that legitimately marks the view. For state that isn't an @Input, markForCheck() is the manual equivalent."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ testWrongSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ testRightSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      <strong
+        >A test that needs a manual <code>markForCheck()</code> is often telling on the production code too.</strong
+      >
+      If a real user action would have gone through one of the other four triggers (an input, an event, a signal, the
+      <code>async</code> pipe), the test shouldn't need this escape hatch at all — reach for it deliberately, not as a
+      reflex to make a red test go green.
+    </div>
+  </section>
+
   <!-- ============ 10. QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>

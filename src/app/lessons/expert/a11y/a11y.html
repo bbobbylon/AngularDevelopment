@@ -331,6 +331,44 @@
         sections down, is the same mechanism from code instead of markup.
       </p>
     </div>
+
+    <p>
+      Notice that the <code>&lt;span aria-live="polite"&gt;</code> above is rendered <strong>unconditionally</strong>,
+      with only its text changing on each save — that's not an accident, and it's the one detail that makes the whole
+      demo work:
+    </p>
+
+    <app-compare
+      leftTitle="Region created fresh — announces nothing"
+      rightTitle="Region always present — announces every change"
+      leftTone="bad"
+      rightTone="good"
+      note="A screen reader has to already be watching a live region before its content changes. Create the div and fill it with text in the same tick — the same render pass that builds a toast — and there was nothing to watch yet: the mutation the AT listens for never happens, because from its point of view the text didn't change, it just appeared."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ liveRegionWrongSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ liveRegionRightSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <div class="note">
+      <strong>Why the form demo's <code>role="alert"</code> above got away with it.</strong>
+      <code>role="alert"</code> is an implicit <em>assertive</em> live region, and assistive tech vendors special-cased
+      it years ago specifically so that error text can appear <span class="bf-break">already populated</span> — because
+      that's exactly how form validation ships. That special case doesn't generalize: a toast, a save-status pill or any
+      other <code>aria-live="polite"</code>/<code>role="status"</code> region still needs to exist
+      <strong>before</strong> its text changes, and reliability even for <code>role="alert"</code> varies across
+      screen-reader/browser combinations — it's a convention most implementations honour, not a spec guarantee. For
+      anything that has to work everywhere, skip markup entirely and call the CDK's <code>LiveAnnouncer</code> (further
+      down this page) — it owns one persistent region for the whole app, so there's no "was it there yet?" question to
+      get wrong.
+    </div>
   </section>
 
   <!-- ============ 9. THE CDK A11Y TOOLKIT ============ -->

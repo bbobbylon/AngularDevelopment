@@ -345,6 +345,38 @@ export class Animations {
   ];
 
   /**
+   * Sample: the `animationend`/`transitionend` bubbling trap the migration
+   * table glosses over, and the guard that fixes it.
+   */
+  readonly bubbleGuardSample = `<div class="card" (transitionend)="onCardTransitionEnd($event)">
+  <button class="icon-btn" style="transition: transform .15s">…</button>
+</div>
+
+onCardTransitionEnd(event: TransitionEvent) {
+  // fires once for the card's OWN transition, and once more for
+  // every descendant's transition that happens to end around the same time
+  if (event.target !== event.currentTarget) return;   // ← the guard
+  if (event.propertyName !== 'transform') return;       // multi-property elements
+  // …now it's safe to treat this as "the card itself finished"
+}`;
+
+  /** Line-by-line notes for {@link bubbleGuardSample}. */
+  protected readonly bubbleGuardNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`(transitionend)` is bound on the card, but a DOM event handler hears an event fired **anywhere inside it too** — that includes the button nested one level down.',
+    },
+    {
+      line: 6,
+      text: '`event.target` is whichever element the transition actually ran on; `event.currentTarget` is always the element the listener is attached to. When the button transitions, those two differ — this line is the only thing telling the handler "that one wasn\'t mine."',
+    },
+    {
+      line: 7,
+      text: 'A single element can run several transitioned properties at once, each firing its own `transitionend`. Filtering `propertyName` (or `animationName` for `animationend`) stops a handler written for one property from firing early on a different one.',
+    },
+  ];
+
+  /**
    * Sample: honouring `prefers-reduced-motion`. Not optional — for some users
    * motion causes actual nausea, and the media query is how they say so.
    */

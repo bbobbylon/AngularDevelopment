@@ -226,6 +226,55 @@
     />
   </section>
 
+  <!-- ============ 6B. THE VALIDATOR'S OWN CONFIG CAN CHANGE ============ -->
+  <section>
+    <p class="bf-eyebrow">An exam question</p>
+    <h2>A custom control's validation config is an <code>&#64;Input</code>. Why doesn't changing it re-validate?</h2>
+
+    <p>
+      <code>min</code> and <code>max</code> above are <code>input()</code>s, not constants — a consumer can change
+      <code>[max]</code> at runtime. <code>validate()</code> already reads <code>this.max()</code>, so it looks correct.
+      Try it:
+    </p>
+
+    <div class="demo">
+      <p class="demo__title">Live — value parked at 4, only the range moves</p>
+      <app-qty-stepper [formControl]="qtyRangeDemo" [min]="1" [max]="qtyRangeMax()" />
+      <p class="row" style="margin-top: 10px">
+        <button (click)="toggleQtyRangeMax()">
+          Toggle max: {{ qtyRangeMax() }} → {{ qtyRangeMax() === 5 ? 3 : 5 }}
+        </button>
+        <span class="pill">value: {{ qtyRangeDemo.value }}</span>
+        <span class="pill" [style.color]="qtyRangeDemo.valid ? 'var(--green)' : 'var(--amber)'"
+          >status: {{ qtyRangeDemo.status }}</span
+        >
+      </p>
+      <p class="demo__note">
+        Flip <code>max</code> down to 3 while the value sits at 4 — with the fix below in place, status flips to
+        <code>INVALID</code> immediately, with no click on the stepper itself.
+      </p>
+    </div>
+
+    <div class="warn">
+      <strong>Without the fix, that toggle does <span class="bf-break">nothing</span>.</strong> The form only ever calls
+      <code>validate()</code> again in response to a <em>value</em> change — <code>setValue</code>,
+      <code>onChange</code>, a sibling validator re-running. Angular has no built-in way to know your validator's own
+      configuration just moved, because from the form's point of view, nothing did.
+    </div>
+
+    <app-code-lab
+      file="qty-stepper.component.ts"
+      [code]="validatorChangeSample"
+      [notes]="validatorChangeNotes"
+      notesLabel="The fourth method"
+    />
+
+    <app-quiz
+      question="A colleague's custom control's validate() correctly reads this.max(), but changing [max] at runtime never flips the form invalid until the user edits the value. What's the actual fix?"
+      [options]="validatorChangeQuizOptions"
+    />
+  </section>
+
   <!-- ============ 7. UNDER THE HOOD ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>

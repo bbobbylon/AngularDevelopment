@@ -343,6 +343,10 @@ provideServiceWorker('ngsw-worker.js', {
   private updates = inject(SwUpdate);
 
   constructor() {
+    if (!this.updates.isEnabled) return;
+    // ^ false in ng serve, on non-HTTPS origins, or if service workers
+    //   are blocked — versionUpdates then simply never emits
+
     this.updates.versionUpdates
       .pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'))
       .subscribe(() => this.promptUser());
@@ -364,34 +368,38 @@ provideServiceWorker('ngsw-worker.js', {
   protected readonly updateNotes: CodeNote[] = [
     {
       line: 5,
-      text: '`versionUpdates` emits several event types as v2 moves through the pipeline — `VERSION_DETECTED`, `VERSION_READY`, `VERSION_INSTALLATION_FAILED`. This stream is the only way your own code finds out any of that happened.',
-    },
-    {
-      line: 6,
-      text: "A type predicate (`e is VersionReadyEvent`), not a plain boolean. That's what narrows the stream's type for everything downstream — inside `subscribe`, TypeScript already knows `e` is a `VersionReadyEvent`.",
-    },
-    {
-      line: 7,
-      text: '`VERSION_READY` is the one event worth reacting to: v2 is fully downloaded and hash-verified — the new wing has passed inspection. It is not running yet.',
+      text: "This line is missing from most examples you'll find, including earlier versions of this one — and skipping it is the single most common `SwUpdate` mistake. `isEnabled` is `false` in `ng serve`, on non-HTTPS origins, and in browsers with service workers blocked, and every other line in this constructor assumes it isn't.",
     },
     {
       line: 9,
-      text: 'Without this, a tab only rechecks on navigation. A dashboard left open on a wall display for a week would never notice a deploy — this polls every six hours regardless. Much more often than that just burns requests for no benefit.',
+      text: '`versionUpdates` emits several event types as v2 moves through the pipeline — `VERSION_DETECTED`, `VERSION_READY`, `VERSION_INSTALLATION_FAILED`. This stream is the only way your own code finds out any of that happened.',
+    },
+    {
+      line: 10,
+      text: "A type predicate (`e is VersionReadyEvent`), not a plain boolean. That's what narrows the stream's type for everything downstream — inside `subscribe`, TypeScript already knows `e` is a `VersionReadyEvent`.",
     },
     {
       line: 11,
-      text: '`unrecoverable` fires when the cached version no longer matches what the server has — usually a deploy that deleted files this client still needs. Nothing can be fetched to fix it, so an unconditional reload is the one case where reloading without asking is the right call.',
+      text: '`VERSION_READY` is the one event worth reacting to: v2 is fully downloaded and hash-verified — the new wing has passed inspection. It is not running yet.',
+    },
+    {
+      line: 13,
+      text: 'Without this, a tab only rechecks on navigation. A dashboard left open on a wall display for a week would never notice a deploy — this polls every six hours regardless. Much more often than that just burns requests for no benefit.',
     },
     {
       line: 15,
+      text: '`unrecoverable` fires when the cached version no longer matches what the server has — usually a deploy that deleted files this client still needs. Nothing can be fetched to fix it, so an unconditional reload is the one case where reloading without asking is the right call.',
+    },
+    {
+      line: 19,
       text: "Ask, don't force. `activateUpdate()` is available the moment `VERSION_READY` fires, but reloading a page out from under someone mid-form loses whatever they were typing.",
     },
     {
-      line: 16,
+      line: 20,
       text: 'This swaps the service worker over to v2. On its own it changes nothing visible yet — the page currently running is still the v1 JavaScript already loaded into memory.',
     },
     {
-      line: 17,
+      line: 21,
       text: 'This is the step that actually matters to the user: reloading is what makes the now-activated worker start serving v2. Skip it and `activateUpdate()` alone leaves v1 running until the next natural navigation.',
     },
   ];

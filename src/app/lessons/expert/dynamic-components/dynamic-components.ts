@@ -248,6 +248,59 @@ destroy(): void {
 }`;
 
   /**
+   * Sample: where the `createComponent()` call is safe to make, and where it
+   * throws `NG0100` — and the escape hatch for the DOM-dependent case that
+   * forces the question.
+   */
+  readonly createTimingSample = `ngOnInit(): void {
+  this.vcr.createComponent(Toast);       // ✓ fine — runs BEFORE the first CD pass
+}
+
+onSaveClick(): void {
+  this.vcr.createComponent(Toast);       // ✓ fine — a user gesture, not inside a CD pass
+}
+
+ngAfterViewInit(): void {
+  this.vcr.createComponent(Toast);       // ✗ NG0100 in dev mode — see below
+}
+
+constructor() {
+  afterNextRender(() => {
+    this.vcr.createComponent(Toast);     // ✓ the sanctioned escape hatch —
+  });                                     //   runs entirely OUTSIDE change detection
+}`;
+
+  /** Line-by-line notes for {@link createTimingSample}. */
+  protected readonly createTimingNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'Runs once, before Angular has checked this view for the first time — creating a component here is no different from any other setup work in `ngOnInit`.',
+    },
+    {
+      line: 5,
+      text: "An event handler runs completely outside any change-detection pass — Angular is not partway through checking anything when a click fires, so there's nothing to contradict.",
+    },
+    {
+      line: 9,
+      text: "`ngAfterViewInit` runs DURING change detection — Angular is still walking this view's checks when this hook fires. Creating a component here changes the view tree Angular is mid-walk through, which is exactly what `NG0100` (ExpressionChangedAfterItHasBeenCheckedError) exists to catch.",
+    },
+    {
+      line: 13,
+      text: '`afterNextRender()` schedules its callback for AFTER the browser has painted — fully outside Angular\'s change-detection cycle. It exists precisely for "I need the real DOM, or I need to create something, and I need change detection to be finished, not in progress."',
+    },
+  ];
+
+  /**
+   * Sample: `ref.setInput()` given a name that isn't a declared input — what
+   * "validates the input name" actually looks like when it fails.
+   */
+  readonly setInputTypoSample = `const ref = this.vcr.createComponent(InfoPanel);
+ref.setInput('mesage', 'Hi!');   // typo: InfoPanel has no "mesage" input
+// NG0303: Can't set value of the 'mesage' input on the 'InfoPanel' component.
+// Make sure that the 'mesage' property is declared as an input using the
+// input() or model() function or the @Input() decorator.`;
+
+  /**
    * Sample: subscribing to a dynamically created component's outputs — the
    * imperative twin of an event binding.
    */

@@ -276,6 +276,38 @@ refreshView(root)
     },
   ];
 
+  /**
+   * Sample: the wrong-way test — mutating the component instance directly and
+   * expecting `detectChanges()` to notice. For {@link Compare}'s left panel.
+   */
+  protected readonly testWrongSample = `it('shows the new title', () => {
+  fixture.componentInstance.title = 'Updated';
+  fixture.detectChanges();
+
+  expect(el.textContent).toContain('Updated');
+  // ✗ fails — nothing marked the view dirty
+});`;
+
+  /**
+   * Sample: the right-way test — drive an input through `setInput`, and flag
+   * internal state through `markForCheck`. For {@link Compare}'s right panel.
+   */
+  protected readonly testRightSample = `it('shows the new title', () => {
+  fixture.componentRef.setInput('title', 'Updated');
+  // ^ the real framework input write — this is what marks the view
+
+  fixture.detectChanges();
+  expect(el.textContent).toContain('Updated'); // ✓ passes
+});
+
+it('shows internal state set outside a template event', () => {
+  fixture.componentInstance.internalFlag = true;
+  fixture.changeDetectorRef.markForCheck(); // ← flag this view dirty first
+  fixture.detectChanges();
+
+  expect(el.textContent).toContain('…');
+});`;
+
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {

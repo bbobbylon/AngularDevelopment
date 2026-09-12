@@ -2,7 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
 /** WCAG relative luminance of a #rrggbb color. */
@@ -90,6 +90,7 @@ function contrast(a: string, b: string): number {
     CodeLab,
     Napkin,
     TapeCard,
+    Compare,
     Faq,
     Predict,
     Quiz,
@@ -285,6 +286,25 @@ export class A11y {
       text: '`role="alert"` is an **implicit live region** — assertive, meaning it interrupts. The moment this `<p>` exists in the DOM, its text is announced immediately, with no focus change and no `aria-live` attribute needed.',
     },
   ];
+
+  /**
+   * Sample: a live region created fresh, already holding its text, the moment
+   * a toast appears — for {@link Compare}'s left panel.
+   */
+  protected readonly liveRegionWrongSample = `@if (toastOpen()) {
+  <div aria-live="polite" aria-atomic="true">
+    {{ toastMessage() }}
+  </div>
+}`;
+
+  /**
+   * Sample: the same region, always present, with only its text swapped —
+   * for {@link Compare}'s right panel.
+   */
+  protected readonly liveRegionRightSample = `<div aria-live="polite" aria-atomic="true">
+  {{ toastMessage() }}
+</div>
+<!-- toastMessage() starts as '' — this div is ALWAYS in the DOM -->`;
 
   /**
    * Sample: the CDK a11y utilities — `cdkTrapFocus`, `LiveAnnouncer`,
