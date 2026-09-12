@@ -3,6 +3,10 @@ import { downloadTextFile } from './download-file';
 describe('downloadTextFile', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    // vi.stubGlobal('URL', ...) below replaces the real URL constructor with a plain
+    // object; restoreAllMocks() only reverts spies, not stubbed globals, so without this
+    // the broken URL leaks into every test that runs afterward in the same worker.
+    vi.unstubAllGlobals();
   });
 
   it('creates a blob URL, sets it as the anchor download, clicks it, then revokes the URL', () => {

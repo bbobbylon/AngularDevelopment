@@ -39,7 +39,9 @@ export class RevealOnScrollDirective {
    * `afterNextRender` rather than the constructor body or `ngOnInit`: the
    * element must be in the document before `IntersectionObserver` can measure
    * it, and this hook is also skipped entirely on the server, which is where
-   * both `matchMedia` and `IntersectionObserver` would otherwise be undefined.
+   * `IntersectionObserver` would otherwise be undefined. `matchMedia` is
+   * guarded separately below — jsdom (this app's unit-test environment)
+   * never implements it at all, browser or not.
    *
    * The observer stops watching an element as soon as it has been revealed
    * (`unobserve`) — the animation plays once, and scrolling back past it does
@@ -53,7 +55,10 @@ export class RevealOnScrollDirective {
       this.renderer.setStyle(this.el, '--reveal-delay', `${this.delayMs()}ms`);
       this.renderer.addClass(this.el, 'reveal');
 
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (
+        typeof matchMedia === 'function' &&
+        matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
         this.renderer.addClass(this.el, 'reveal--visible');
         return;
       }
