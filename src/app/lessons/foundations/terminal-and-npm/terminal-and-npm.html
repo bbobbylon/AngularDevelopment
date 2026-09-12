@@ -471,9 +471,23 @@
       <kbd>Ctrl+C</kbd> stops it. <code>localhost:4200</code> means "this machine, door 4200."
     </p>
 
-    <p>Two more things stop <code>ng serve</code> before it even starts, and both look scarier than they are:</p>
+    <p>
+      Three more things stop <code>ng</code> commands before they even start, and all three look scarier than they are:
+    </p>
 
-    <div class="bf-grid-2">
+    <div class="bf-grid-3">
+      <div class="demo">
+        <p class="demo__title">Node itself is too old</p>
+        <pre class="readout">{{ nodeVersionMismatchSample }}</pre>
+        <p class="demo__note">
+          <code>node --version</code> matters after all: every Angular major declares a minimum Node version in its own
+          <code>"engines"</code> field, and the CLI checks it before doing anything else. The fix isn't "download the
+          newest Node" either — odd-numbered majors (19, 21, …) are never Long-Term-Support releases and Angular doesn't
+          support them. Install a version manager (<strong>nvm</strong>, <strong>nvm-windows</strong>,
+          <strong>fnm</strong>, <strong>Volta</strong>) so each project can pin the Node version it actually needs — the
+          same "version range" idea as <code>^18.0.0</code> above, just applied to the runtime instead of a package.
+        </p>
+      </div>
       <div class="demo">
         <p class="demo__title">Port already in use</p>
         <pre class="readout">{{ portInUseSample }}</pre>

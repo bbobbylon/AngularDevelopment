@@ -506,6 +506,11 @@ npm install -g @angular/cli   # no sudo — this Node install is entirely yours`
     },
   ];
 
+  /** The Angular CLI refusing to run at all because Node itself is too old. */
+  protected readonly nodeVersionMismatchSample = `The Angular CLI requires a minimum Node.js version of v20.19.0.
+
+Node.js version v18.16.0 detected.`;
+
   /** `ng serve` refusing to start — the two most common reasons, side by side. */
   protected readonly portInUseSample = `? Port 4200 is already in use. Would you like to use a different port? (Y/n)`;
 
