@@ -571,6 +571,14 @@ gate (format, typecheck, tests, build) passed clean on the complete result. **Le
 a coverage-style document drives a large batch pass: treat it as a hypothesis to verify per lesson,
 not a checklist to execute — it had been silently stale in over a quarter of its own entries.**
 
+One genuine gap survived that batch: the foundations fork explicitly skipped
+`foundations/terminal-and-npm`'s "Node version mismatch" finding for scope/budget reasons. Closed
+it on 2026-09-12 — a third demo card next to the lesson's existing port-in-use/'ng' not recognized
+pair, showing the CLI's own minimum-Node-version error and the three-part fix (the package.json
+`"engines"` field, a Node version manager, and why "just install the newest Node" is wrong because
+odd-numbered majors aren't LTS), tied back to the caret-range semver section earlier in the same
+lesson. Verify gate re-run clean. **Theme 1 is now fully closed — all 96 findings, zero gaps.**
+
 ---
 
 ## 2. Next
