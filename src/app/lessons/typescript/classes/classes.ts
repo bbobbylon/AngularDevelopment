@@ -383,6 +383,48 @@ class Circle extends Shape implements Comparable {
     },
   ];
 
+  /** Sample: `strictPropertyInitialization` and the four honest ways to answer it. */
+  readonly definiteAssignmentSample = `class UserForm {
+  form: FormGroup;   // ❌ Property 'form' has no initializer
+                      //    and is not definitely assigned in the constructor.
+}
+
+class UserFormFixed {
+  form = new FormGroup({});        // 1. initialize inline
+
+  formB: FormGroup;
+  constructor() {
+    this.formB = new FormGroup({}); // 2. initialize in the constructor
+  }
+
+  formC!: FormGroup;                // 3. "!" — a promise to the compiler, not a check
+  formD: FormGroup | null = null;   // 4. model the absence honestly
+}`;
+
+  /** Line-by-line walkthrough of {@link definiteAssignmentSample}. */
+  protected readonly definiteAssignmentNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'This is what `strictPropertyInitialization` actually checks: not that the field is missing a type, but that nothing in this class provably runs before a reader could see it `undefined`.',
+    },
+    {
+      line: 7,
+      text: '**Initialize inline** — the simplest honest fix when the real value is known at construction time. No error, because the field genuinely never exists in an unset state.',
+    },
+    {
+      line: 11,
+      text: '**Initialize in the constructor** — equally honest, for a value that needs constructor arguments or setup logic first. TypeScript traces every path out of the constructor to confirm this really always runs.',
+    },
+    {
+      line: 14,
+      text: 'The `!` is a **definite-assignment assertion** — not a check, a promise. It tells the compiler "trust me, something outside this class body sets this before anyone reads it," and TypeScript stops verifying that promise entirely. It is the exact same unchecked lie as an `as` cast, just filed at the field level instead of an expression.',
+    },
+    {
+      line: 15,
+      text: 'Modeling the absence honestly: `FormGroup | null` makes "not set yet" a real, checkable state instead of a silent lie. Every reader now has to narrow past `null` before touching the form — exactly the safety `!` throws away.',
+    },
+  ];
+
   /**
    * The predict: the construction-order bug in concrete, runnable form,
    * different wording from the matching FAQ item on purpose (a lesson

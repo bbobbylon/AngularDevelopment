@@ -406,6 +406,52 @@
     />
   </section>
 
+  <!-- ============ 11B. COMMONJS INTEROP ============ -->
+  <section>
+    <p class="bf-eyebrow">The other module system</p>
+    <h2>Every real app eventually installs a package that isn't ESM at all.</h2>
+
+    <p>
+      Everything so far has been <strong>ESM</strong> — the module system TypeScript and Angular write. The npm
+      ecosystem is still full of <span class="term">CommonJS</span> — Node's original system, built on
+      <code>require()</code> and <code>module.exports</code> instead of <code>import</code>/<code>export</code>. A
+      CommonJS module exports exactly <strong>one</strong> value; it has no concept of "default" at all.
+    </p>
+
+    <app-code-lab file="two module systems, one job" [code]="cjsVsEsmSample" />
+
+    <p>
+      Import a CommonJS package the ESM way and you hit <span class="bf-break">a shape mismatch</span>:
+      <code>import moment from 'moment'</code> asks for a <code>default</code> export that
+      <code>module.exports = momentFn</code> never actually created. <code>esModuleInterop</code> — on by default in
+      every Angular project — is the compiler flag that papers over this by synthesizing the wrapper for you.
+    </p>
+
+    <app-code-lab
+      file="tsconfig.json → esModuleInterop"
+      [code]="interopSample"
+      [notes]="interopNotes"
+      notesLabel="What the flag actually does"
+    />
+
+    <div class="warn">
+      <strong>The Angular-specific remedy.</strong> A CommonJS dependency also defeats
+      <span class="term">tree-shaking</span> — the bundler can't statically prove which of its exports go unused,
+      because <code>module.exports</code> is just an ordinary object built at runtime, not a set of named bindings the
+      compiler can see. The CLI knows this and warns you the moment one lands in your dependency graph:
+    </div>
+
+    <app-code-lab file="the warning, and how to silence it" [code]="allowedCommonJsSample" />
+
+    <p>
+      <code>allowedCommonJsDependencies</code> in <code>angular.json</code> doesn't fix the tree-shaking gap — it just
+      tells the CLI you know about this specific package and don't need the warning repeated. Every real Angular app
+      eventually hits one of two failures from this: <code>X is not a function</code> /
+      <code>default is not a callable</code> at runtime when the interop guess is wrong, or this build-time warning when
+      it isn't.
+    </p>
+  </section>
+
   <!-- ============ 12. PULLING IT TOGETHER ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>

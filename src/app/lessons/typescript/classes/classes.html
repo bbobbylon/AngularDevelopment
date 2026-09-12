@@ -92,6 +92,42 @@
     />
   </section>
 
+  <!-- ============ 4B. THE FIELD THAT'S NEVER INITIALIZED ============ -->
+  <section>
+    <p class="bf-eyebrow">The most-hit class error in this whole stack</p>
+    <h2><code>form: FormGroup;</code> and nothing sets it. TypeScript notices.</h2>
+
+    <p>
+      This is the error nearly every Angular learner meets in their first week with no vocabulary for it:
+      <code>Property 'form' has no initializer and is not definitely assigned in the constructor.</code> It fires on
+      <code>form: FormGroup;</code>, <code>el: ElementRef;</code>, a <code>@ViewChild</code> result — any field this
+      codebase's <code>strictPropertyInitialization</code> flag can prove nothing assigns before the constructor
+      returns.
+    </p>
+
+    <app-code-lab
+      file="user-form.ts"
+      [code]="definiteAssignmentSample"
+      [notes]="definiteAssignmentNotes"
+      notesLabel="Four ways to answer the same error"
+    />
+
+    <p>
+      Ranked by honesty, not popularity: <strong>initialize inline</strong> or <strong>in the constructor</strong> when
+      you actually can — TypeScript is right, and the fix is free. Reach for <code>!:</code> only when something outside
+      the constructor genuinely guarantees the value first (an Angular lifecycle hook, a test's setup function) — it is
+      <span class="bf-break">the exact same unchecked promise as an <code>as</code> cast</span>, just filed at the field
+      level, and it is on you to keep it true. When nothing guarantees it, <code>| null</code> is the honest model:
+      every reader is forced to check, instead of trusting a lie.
+    </p>
+
+    <div class="note">
+      One more escape hatch: <code>declare</code> on a field tells TypeScript "something else — a base class, a
+      decorator — supplies this at runtime; don't check it and don't emit anything for it." It's the right tool when a
+      field is genuinely someone else's job, never a substitute for the four choices above when it's this class's job.
+    </div>
+  </section>
+
   <!-- ============ 5. ACCESS MODIFIERS, SIDE BY SIDE ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">The vocabulary</p>

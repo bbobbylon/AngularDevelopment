@@ -306,6 +306,32 @@ type Role = (typeof roles)[number];   // 'admin' | 'editor' | 'viewer'
     </app-remember>
   </section>
 
+  <!-- ============ 10B. AS CONST IS COMPILE-TIME ONLY ============ -->
+  <section>
+    <p class="bf-eyebrow">One more wrinkle</p>
+    <h2><code>as const</code> never calls <code>Object.freeze</code>.</h2>
+
+    <p>
+      Everything above is a <strong>compiler-only</strong> promise. Nothing about <code>as const</code> touches the
+      array at runtime — no freezing, no locking, nothing a debugger could ever see. The type system enforces the rule;
+      the array itself is exactly as mutable as it always was.
+    </p>
+
+    <app-code-lab
+      file="roles.ts"
+      [code]="arrayFreezeSample"
+      [notes]="arrayFreezeNotes"
+      notesLabel="What's checked, and what actually happens at runtime"
+    />
+
+    <div class="warn">
+      <span class="bf-break">Compile-time and runtime immutability are independent</span> — having one tells you nothing
+      about the other. <code>as const</code> alone protects nothing once a cast or a plain <code>.js</code> caller gets
+      involved; reach for <code>Object.freeze(ROLES)</code> too when the array must actually resist mutation, not just
+      fail a type check.
+    </div>
+  </section>
+
   <!-- ============ 11. IN THE WILD ============ -->
   <section>
     <p class="bf-eyebrow">In the wild</p>

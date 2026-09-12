@@ -453,6 +453,59 @@ next(); // → 2, NOT 1 — same \`count\`, because the module ran once and is c
     },
   ];
 
+  // ── Section: CommonJS interop ───────────────────────────────────────────────
+
+  /** Sample: the same library boundary, written in CommonJS and in ESM. */
+  protected readonly cjsVsEsmSample = `// CommonJS (Node's original module system -- how most older npm packages ship)
+function formatDate(d) { /* … */ }
+module.exports = formatDate;          // exports ONE value -- there is no "default" keyword
+
+// ESM (what TypeScript and Angular write)
+export default function formatDate(d) { /* … */ }
+export function formatDate(d) { /* … */ }   // or, house style: a named export instead`;
+
+  /** Sample: what esModuleInterop actually synthesizes, and the escape hatch that needs no flag at all. */
+  protected readonly interopSample = `// tsconfig.json has "esModuleInterop": true -- Angular's default since \`ng new\`
+
+import moment from 'moment';        // moment ships CommonJS: module.exports = momentFn
+moment().format();                  // works -- TypeScript synthesizes a "default" for you
+
+// without esModuleInterop, that import is a type error. The honest form:
+import * as moment from 'moment';
+moment().format();
+
+// the escape hatch that needs no interop flag at all -- a direct alias to require():
+import moment = require('moment');`;
+
+  /** Line-by-line walkthrough of {@link interopSample}. */
+  protected readonly interopNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`moment` has no real `default` export -- CommonJS has no such concept. `esModuleInterop` makes TypeScript wrap the whole `module.exports` object in a synthetic `{ default: moment }` shape at the import boundary, purely so this line type-checks and runs.',
+    },
+    {
+      line: 7,
+      text: 'The namespace form is what CommonJS interop looked like before `esModuleInterop` existed, and it still works with the flag on. `moment` here is the raw `module.exports` value itself, not a wrapper.',
+    },
+    {
+      line: 10,
+      text: '`import x = require(...)` is TypeScript-only syntax, not real ESM -- it compiles straight to a `require()` call and needs no interop flag at all. Reach for it when `esModuleInterop` is off, or under `verbatimModuleSyntax`, which forbids synthetic defaults entirely.',
+    },
+  ];
+
+  /** Sample: the Angular CLI's own CommonJS warning, and the config line that silences it. */
+  protected readonly allowedCommonJsSample = `// ng build
+Warning: src/app/app.ts depends on 'some-old-lib'. CommonJS or AMD dependencies can
+cause optimization bailouts.
+For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+// angular.json
+"build": {
+  "options": {
+    "allowedCommonJsDependencies": ["some-old-lib"]
+  }
+}`;
+
   // ── Section: pulling it together ────────────────────────────────────────────
 
   /** Tip under the pulling-it-together recap table. */

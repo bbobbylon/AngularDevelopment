@@ -431,6 +431,47 @@ setRole('emperor');
     },
   ];
 
+  /** Sample: `as const`'s freeze is compile-time only — the runtime array never changes. */
+  protected readonly arrayFreezeSample = `const ROLES = ['admin', 'editor', 'viewer'] as const;
+
+ROLES.push('guest');                  // ❌ compile error — 'push' doesn't exist on a readonly tuple
+(ROLES as string[]).push('guest');    // ✅ compiles, and ACTUALLY MUTATES the array —
+                                       //    as const never called Object.freeze for you
+
+const roles: string[] = ROLES;        // ❌ readonly ["admin", "editor", "viewer"]
+                                       //    is not assignable to type 'string[]'
+
+const copy = [...ROLES];                       // ✅ spread into a real, independent, mutable array
+function useRoles(rs: readonly string[]) {}    // ✅ or just accept readonly — no copy needed`;
+
+  /** Line-by-line walkthrough of {@link arrayFreezeSample}. */
+  protected readonly arrayFreezeNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'A tuple of exact string literals, frozen only at the **type** level — `as const` is a compiler instruction, never a runtime call.',
+    },
+    {
+      line: 3,
+      text: "`push` genuinely isn't a method TypeScript will let you call on this type — the array's type is a readonly tuple, and every mutating array method is missing from it on purpose.",
+    },
+    {
+      line: 4,
+      text: '`as string[]` defeats the compiler check with a cast — and the underlying array was never actually frozen. `Object.freeze(ROLES)` is the runtime lock; `as const` never calls it. This line really does push a fourth element.',
+    },
+    {
+      line: 7,
+      text: "A `readonly` type is not assignable to its mutable counterpart: TypeScript can't promise nothing else holding a reference to `roles` will mutate it, so it refuses the assignment outright.",
+    },
+    {
+      line: 10,
+      text: 'Spreading copies the values into a brand-new, ordinary, mutable array — the safe way to get a working copy when you genuinely need to push into one.',
+    },
+    {
+      line: 11,
+      text: "The other fix: don't fight it. If a function only reads the array, typing its parameter `readonly string[]` accepts `ROLES` directly — no copy needed.",
+    },
+  ];
+
   /** Sample: the traditional `enum`, for the Compare panel's left side. */
   protected readonly enumRouteSample = `enum Route {
   Home = '/',
