@@ -191,6 +191,33 @@
     />
   </section>
 
+  <!-- ============ 5B. SCOPING THE INTERCEPTOR ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--gold">A shipped bug in the version above</p>
+    <h2>That interceptor attaches the token to <em>every</em> request.</h2>
+
+    <p>
+      <code>authInterceptorSample</code> above guards on one thing: <code>if (!token) return next(req);</code>. That
+      makes it safe for an anonymous visitor — but the moment this app also calls Stripe, a maps API, an analytics
+      endpoint, or any CDN through the same <code>HttpClient</code>, the same
+      <span class="bf-break">access token rides along in a header that third party can log</span>. Nothing in the lesson
+      so far checks the request's own origin.
+    </p>
+
+    <app-code-lab
+      file="auth.interceptor.ts — scoped"
+      [code]="scopedInterceptorSample"
+      [notes]="scopedInterceptorNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="note">
+      <strong>Two independent fixes, stacked.</strong> The URL check (<code>isOwnApi</code>) handles the common case —
+      never attach the token outside the app's own API — and <code>SKIP_AUTH</code> handles the exceptions within it,
+      like the refresh call itself, which must never carry the token it is trying to replace.
+    </div>
+  </section>
+
   <!-- ============ 6. PIECE 3 — THE GUARD (PREDICT THE TRAP FIRST) ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Piece 3 of 3 · routes</p>
@@ -402,9 +429,37 @@
 
     <app-predict
       prompt="Two requests fire at almost the same moment and both come back 401. With switchMap in the pipe above, how many times does /api/auth/refresh actually get called?"
-      answer="Once, not twice — and this is the one thing worth knowing about `switchMap` here rather than `mergeMap`. `switchMap` cancels any previous in-flight inner Observable when a new value arrives on the same operator; if the second `catchError` fires while the first refresh call is still pending, `switchMap` drops that first call's subscription and starts a new one. In production you would usually go further and share a single refresh call with `shareReplay(1)`, so concurrent 401s all wait on the *same* network request instead of triggering a new one each time."
+      answer="Twice — not once, and the sentence 'switchMap cancels the previous refresh' does not apply here. Each HTTP request runs its **own** interceptor pipeline: next(req).pipe(catchError(...)) is built fresh, per request, so the two 401s create two entirely separate switchMap operators on two separate subscriptions — not one shared operator racing two inner calls. switchMap only cancels a *previous inner Observable on the same operator instance*; it has no way to see a sibling request's pipeline at all. So both 401s call /api/auth/refresh independently, and with rotating refresh tokens the second call's token is already stale by the time it lands — it gets rejected, and the user is logged out mid-session even though nothing was actually wrong with their session a moment ago."
       revealLabel="Reveal the answer"
     />
+  </section>
+
+  <!-- ============ 11B. THE SINGLE-FLIGHT FIX ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">Fixing the stampede</p>
+    <h2>One refresh call, shared by every request waiting on it.</h2>
+
+    <p>
+      The fix is not a different RxJS operator — it's a resource <span class="key">shared across requests</span> instead
+      of built fresh inside each one. Move the refresh call itself onto <code>AuthService</code>, cached in a field, so
+      a second concurrent 401 gets handed the same in-flight Observable instead of starting its own:
+    </p>
+
+    <app-code-lab
+      file="auth.service.ts — single-flight refresh"
+      [code]="refreshStampedeFixSample"
+      [notes]="refreshStampedeFixNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <div class="warn">
+      <strong>Two traps sitting right next to this fix.</strong> (1) The retry must happen <em>at most once</em> — if
+      the replayed request also comes back <code>401</code>, that must propagate as a real failure, not loop back into
+      <code>refreshToken()</code> again. (2) The refresh endpoint must never trigger this interceptor's own 401 handling
+      — back in <code>refreshInterceptorSample</code> above, <code>req.url.includes('/api/auth/refresh')</code> is the
+      only line standing between a failed refresh and an infinite retry loop, and it deserves to be read as exactly that
+      rather than skimmed past.
+    </div>
   </section>
 
   <!-- ============ 12. BROADCASTCHANNEL ============ -->
@@ -531,9 +586,6 @@
 
     <h2>Further extensions</h2>
     <ul>
-      <li>
-        Share the refresh Observable with <code>shareReplay(1)</code> so concurrent 401s send only one refresh request
-      </li>
       <li>
         Replace <code>confirm()</code> in the <code>canDeactivate</code> guard with a custom Angular dialog component
       </li>

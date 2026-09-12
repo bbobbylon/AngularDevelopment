@@ -239,6 +239,109 @@ this.save();
     />
   </section>
 
+  <!-- ============ 8B. PERSISTENCE, ON A REAL BACKEND ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>Swap <code>localStorage</code> for an HTTP call, and <code>save()</code> stops being free.</h2>
+    <p>
+      A local write cannot fail in any way this board cares about. An HTTP write can — the network drops, the server
+      500s, another user's edit conflicts with this one. Port <code>add()</code> to a backend by swapping one line and
+      nothing else, and the board develops a new failure mode nobody wrote a test for:
+    </p>
+    <div class="code">
+      <pre>{{ httpMutationTrapSample }}</pre>
+    </div>
+    <p>
+      The fix is <span class="term">optimistic updating</span>: show the change immediately, as before, but track which
+      tasks are still <em>unconfirmed</em> so a failed request can undo exactly the one thing it caused — and nothing
+      else on the board.
+    </p>
+    <app-code-lab
+      file="task-store.ts — optimistic add, with rollback"
+      [code]="optimisticSample"
+      [notes]="optimisticNotes"
+      notesLabel="Show it, track it, undo it if it fails"
+    />
+    <p>
+      That pattern is deliberately per-mutation and synchronous-looking — it needs to know exactly which task to roll
+      back. A different kind of write, a bulk background sync of the <em>whole</em> board, wants the opposite: batch a
+      burst of edits into one request instead of firing one per keystroke. That's the one place <code>effect()</code>
+      actually is the right tool for persistence:
+    </p>
+    <div class="code">
+      <pre>{{ debouncedSyncSample }}</pre>
+    </div>
+    <div class="note">
+      Two different sinks, two different strategies — neither one is "the" right way to persist. A synchronous,
+      per-mutation write suits a local sink that cannot fail. A debounced <code>effect()</code> suits a bulk network
+      sink where batching matters more than immediacy. Optimistic update with rollback suits a per-action network
+      write where the user needs to know whether <em>that specific</em> action succeeded.
+    </div>
+  </section>
+
+  <!-- ============ 8C. WILL THIS SURVIVE SSR? ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>Everything above assumes a browser exists. What if it doesn't yet?</h2>
+    <app-napkin lead="predict it —" label="Before you scroll past this">
+      <code>_tasks</code> is initialised from <code>this.load()</code>, and <code>load()</code> reads
+      <code>localStorage</code> — both in a <strong>field initializer</strong>, which runs the moment
+      <code>TaskStore</code> is constructed. If this same component were ever rendered on a server (server-side
+      rendering, or hydration), what happens the instant that field initializer runs — and would you find out from a
+      test, or from a production error?
+    </app-napkin>
+    <p>
+      There is no test in this project that would catch it, because there is no server render in this project.
+      That's exactly the trap: the code above works today, in this browser-only app, and would keep silently working
+      right up until the day someone adds SSR to the build:
+    </p>
+    <div class="code">
+      <pre>{{ ssrTrapSample }}</pre>
+    </div>
+    <div class="warn">
+      <strong><code>localStorage</code> does not exist in Node.</strong> A field initializer that touches it runs
+      wherever the class is constructed — including on the server — so the failure isn't a bug you'll hit while
+      clicking around the browser. It's one that only appears the day this component's rendering strategy changes
+      underneath it.
+    </div>
+    <app-code-lab
+      file="task-store.ts — SSR-safe persistence"
+      [code]="ssrFixSample"
+      [notes]="ssrFixNotes"
+      notesLabel="Start empty everywhere, populate once the browser is confirmed"
+    />
+  </section>
+
+  <!-- ============ 8D. TWO TABS, ONE STORAGE KEY ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>Open the live board in two tabs. Add a task in each. One of them vanishes.</h2>
+    <p>
+      Every mutator above reads <code>this._tasks()</code> — this <em>tab's</em> in-memory copy — and writes the whole
+      array back to the same storage key. Nothing ever re-reads storage after the first load, so two tabs editing the
+      same board are really two independent copies that each believe they're the only writer:
+    </p>
+    <div class="code">
+      <pre>{{ twoTabsRaceSample }}</pre>
+    </div>
+    <p>
+      The fix is to notice when <em>another</em> tab wrote, not just when this one did:
+    </p>
+    <app-code-lab
+      file="task-store.ts — cross-tab sync"
+      [code]="twoTabsFixSample"
+      [notes]="twoTabsFixNotes"
+      notesLabel="storage vs BroadcastChannel"
+    />
+    <div class="note">
+      There's a second bug hiding in the same scenario: <code>nextId</code> is computed once per tab, from whatever
+      that tab loaded at construction time. Two tabs open at once can hand out the <span class="bf-break">same id</span>
+      to two different tasks — a counter reseeded from a snapshot is not a source of unique ids across more than one
+      writer. <code>crypto.randomUUID()</code> for <code>id</code> removes the collision entirely, because it never
+      needs to agree with anything another tab computed.
+    </div>
+  </section>
+
   <!-- ============ 9. PIECE 5 — THE HOST COMPONENT ============ -->
   <section>
     <p class="bf-eyebrow">Piece 5 of 6 · the host component</p>

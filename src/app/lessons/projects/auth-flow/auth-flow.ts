@@ -475,6 +475,52 @@ export const appConfig: ApplicationConfig = {
   ];
 
   /**
+   * Sample: the interceptor as it should have shipped — scoped to the app's own
+   * API, with an explicit opt-out for calls that must never carry the token.
+   */
+  protected readonly scopedInterceptorSample = `export const SKIP_AUTH = new HttpContextToken(() => false);
+
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const auth = inject(AuthService);
+  const token = auth.getToken();
+
+  const isOwnApi = req.url.startsWith('/api/');
+  if (!token || !isOwnApi || req.context.get(SKIP_AUTH)) {
+    return next(req); // no token, a third-party origin, or opted out
+  }
+
+  return next(req.clone({
+    headers: req.headers.set('Authorization', 'Bearer ' + token),
+  }));
+};
+
+// login() and the refresh call both opt out explicitly:
+http.post('/api/auth/refresh', {}, {
+  withCredentials: true,
+  context: new HttpContext().set(SKIP_AUTH, true),
+});`;
+
+  /** Line-by-line walkthrough of {@link scopedInterceptorSample}. */
+  protected readonly scopedInterceptorNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`HttpContextToken` is a typed, per-request key. Any call can carry `context: new HttpContext().set(SKIP_AUTH, true)` to flag itself, and the interceptor reads it back with `req.context.get(SKIP_AUTH)` — a way to opt a specific request out without a URL pattern.',
+    },
+    {
+      line: 7,
+      text: '`isOwnApi` is the one line the earlier version shipped without. Without it, **every** request through this `HttpClient` gets the header attached — including a Stripe call, a maps API, an analytics beacon, or any third-party origin the app happens to talk to.',
+    },
+    {
+      line: 8,
+      text: "Three independent reasons to skip: no token yet, not the app's own API (a third-party origin), or explicitly opted out — the refresh call itself needs this last one.",
+    },
+    {
+      line: 19,
+      text: '`withCredentials: true` is what makes the browser attach the `HttpOnly` refresh cookie automatically. Cross-origin, that also triggers a CORS preflight, and the server must echo a **specific** `Access-Control-Allow-Origin` — never `*` — plus `Access-Control-Allow-Credentials: true`, or the browser discards the response before this code ever runs.',
+    },
+  ];
+
+  /**
    * Sample: the role guard, chained after `authGuard` so a route can require
    * both "signed in" and "an admin".
    */
@@ -696,6 +742,63 @@ export class LoginComponent {
     {
       line: 19,
       text: 'The refresh itself failed too, which means the session is genuinely over — a force `logout()` here is the correct move, not another retry.',
+    },
+  ];
+
+  /**
+   * Sample: the single-flight fix for the refresh stampede — every concurrent
+   * caller shares the same in-flight refresh Observable instead of each
+   * triggering its own.
+   */
+  protected readonly refreshStampedeFixSample = `@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private refreshInFlight$: Observable<string> | null = null;
+
+  refreshToken(): Observable<string> {
+    if (this.refreshInFlight$) return this.refreshInFlight$; // someone's already asking
+
+    this.refreshInFlight$ = this.http
+      .post<{ accessToken: string }>('/api/auth/refresh', {}, {
+        withCredentials: true,
+        context: new HttpContext().set(SKIP_AUTH, true),
+      })
+      .pipe(
+        map((res) => res.accessToken),
+        tap((token) => this.setToken(token)),
+        shareReplay({ bufferSize: 1, refCount: true }),
+        finalize(() => (this.refreshInFlight$ = null)),
+      );
+    return this.refreshInFlight$;
+  }
+}
+
+// tokenRefreshInterceptor's catchError block now calls this instead:
+switchMap(() => auth.refreshToken()),
+switchMap((accessToken) => next(req.clone({
+  headers: req.headers.set('Authorization', 'Bearer ' + accessToken),
+}))),`;
+
+  /** Line-by-line walkthrough of {@link refreshStampedeFixSample}. */
+  protected readonly refreshStampedeFixNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: "`refreshInFlight$` is the whole fix — one field every caller shares, instead of each request's own interceptor pipeline building an independent Observable that knows nothing about any other request.",
+    },
+    {
+      line: 6,
+      text: "A second concurrent 401 arrives here while the first refresh is still pending, and is handed the **same** Observable rather than starting a new HTTP call — that's the single flight.",
+    },
+    {
+      line: 11,
+      text: 'Reuses the `SKIP_AUTH` escape hatch from the scoped interceptor above — the refresh call must never trigger its own `Authorization` header.',
+    },
+    {
+      line: 16,
+      text: '`shareReplay({ bufferSize: 1, refCount: true })` is what makes every subscriber — the first caller and every later one that arrived while it was pending — receive the **same** eventual value, instead of each getting its own subscription to the underlying HTTP call.',
+    },
+    {
+      line: 17,
+      text: '`finalize` clears the field once the shared Observable settles, success or error, so the **next** 401 after this one starts a genuinely new refresh instead of replaying a stale, already-completed one forever.',
     },
   ];
 

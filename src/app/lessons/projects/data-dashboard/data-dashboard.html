@@ -434,6 +434,66 @@
     </div>
   </section>
 
+  <!-- ============ DEBOUNCING THE SLIDER ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>Drag the Months slider above — it re-derives the whole table on every pixel.</h2>
+    <p>
+      <code>(input)</code> fires on every pixel the thumb moves, and <code>setMonthFrom</code> writes straight into the
+      signal that <code>filtered</code> reads. On twelve mock rows that's free, so nothing above looks wrong. Swap the
+      mock for a real dataset — or make <code>monthFrom</code> drive an <span class="term">HTTP request</span> instead
+      of an in-memory filter — and the same drag fires a
+      <span class="bf-break">re-render, or a network call, once per pixel</span>.
+    </p>
+    <div class="code">
+      <pre>{{ noDebounceSample }}</pre>
+    </div>
+    <p>
+      The fix isn't to slow the slider down — a laggy thumb feels broken. It's to split one signal into two: a
+      <strong>raw</strong> one the slider itself binds to, and a <span class="term">debounced</span> one that everything
+      expensive reads instead.
+    </p>
+    <app-code-lab
+      file="sales-store.ts — the debounced signal"
+      [code]="debounceFixSample"
+      [notes]="debounceFixNotes"
+      notesLabel="Why two signals, not one"
+    />
+    <div class="note">
+      The same split works at the <code>resource()</code> level — feed <code>rxResource()</code>'s
+      <code>params</code> the already-debounced signal, not the raw one. Whichever layer you debounce at, the signal
+      bound to the <em>control itself</em> must stay instant, or the UI will feel unresponsive even though nothing is
+      actually broken.
+    </div>
+  </section>
+
+  <!-- ============ SECURING THE CSV EXPORT ============ -->
+  <section>
+    <p class="bf-eyebrow">Going further</p>
+    <h2>The "Export CSV" button above ships three bugs most exports never get tested for.</h2>
+    <p>
+      A <code>join(',')</code> on raw field values looks done because it works on every row currently in the mock data.
+      It quietly breaks the moment a value contains a <strong>comma</strong> or a <strong>quote</strong>, and it's
+      actively dangerous the moment one starts with <code>=</code>, <code>+</code>, <code>-</code> or
+      <code>&#64;</code> — Excel and Sheets both read a leading one of those as the start of a formula, which is a
+      documented <span class="bf-break">CSV formula injection</span> attack surface, not a theoretical one.
+    </p>
+    <div class="code">
+      <pre>{{ csvExportBugSample }}</pre>
+    </div>
+    <app-code-lab
+      file="sales-store.ts — the fixed export"
+      [code]="csvExportFixSample"
+      [notes]="csvExportFixNotes"
+      notesLabel="What each fix actually does"
+    />
+    <div class="warn">
+      <strong>All three bugs pass a manual smoke test.</strong> Every row in this demo's mock data is clean, so opening
+      the exported file looks fine right up until a real product name has a comma in it, a region code starts with a
+      dash, or the file is opened somewhere that doesn't guess UTF-8 the way Excel does.
+    </div>
+  </section>
+
   <!-- ============ QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>

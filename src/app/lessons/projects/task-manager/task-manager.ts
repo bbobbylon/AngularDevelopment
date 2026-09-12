@@ -559,7 +559,197 @@ private load(): Task[] {
     },
   ];
 
-  // ── Piece 5: the host component ─────────────────────────────────────────────
+  // ── Piece 4B: persistence against a real backend ────────────────────────────
+
+  /** The naive port to HTTP — same shape as `add()`, one line swapped. */
+  protected readonly httpMutationTrapSample = `add(title: string, priority: Priority, deadline?: number) {
+  if (!title.trim()) return;
+  const task: Task = { id: this.nextId++, title: title.trim(), priority, status: 'todo', createdAt: Date.now(), deadline };
+  this._tasks.update((l) => [...l, task]);
+  this.http.post('/api/tasks', task).subscribe();   // fire-and-forget
+}
+
+// The board updates instantly — that part still works.
+// Then the request 500s. What does the user see? What does the SERVER
+// think exists? Do those two answers ever get reconciled?`;
+
+  /** The fix: track the request per task, roll back on failure. */
+  protected readonly optimisticSample = `private readonly _pendingIds = signal<ReadonlySet<number>>(new Set());
+readonly pendingIds = this._pendingIds.asReadonly();   // template greys these out
+
+add(title: string, priority: Priority, deadline?: number) {
+  if (!title.trim()) return;
+  const task: Task = {
+    id: this.nextId++,
+    title: title.trim(),
+    priority,
+    status: 'todo',
+    createdAt: Date.now(),
+    deadline,
+  };
+
+  this._tasks.update((l) => [...l, task]);                 // optimistic: show it now
+  this._pendingIds.update((s) => new Set(s).add(task.id));
+
+  this.http.post('/api/tasks', task).subscribe({
+    next: () => this.clearPending(task.id),
+    error: () => {
+      this._tasks.update((l) => l.filter((t) => t.id !== task.id));   // roll back
+      this.clearPending(task.id);
+    },
+  });
+}
+
+private clearPending(id: number) {
+  this._pendingIds.update((s) => {
+    const next = new Set(s);
+    next.delete(id);
+    return next;
+  });
+}`;
+
+  /** Line-by-line walkthrough of {@link optimisticSample}. */
+  protected readonly optimisticNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'One id belongs in here for every task whose server write has not resolved yet — the template reads `pendingIds` to grey out a card or disable its buttons while its own request is still in flight.',
+    },
+    {
+      line: 15,
+      text: 'The array updates before the request even starts. The user sees the task the instant they click "Add" — the whole point of "optimistic": assume success, and only undo it if that assumption turns out wrong.',
+    },
+    {
+      line: 19,
+      text: 'The request is fired, but the mutation already happened. Nothing downstream is waiting on this `subscribe()` to render anything — it exists only to confirm or undo what already rendered.',
+    },
+    {
+      line: 21,
+      text: 'The rollback: filter the optimistic task back out. This is the one thing the naive version above has no way to do, because it never distinguished "shown" from "confirmed" in the first place.',
+    },
+  ];
+
+  /** Where `effect()` DOES belong: a debounced background sync, not a per-mutation write. */
+  protected readonly debouncedSyncSample = `constructor() {
+  // Runs once per BURST of changes, not once per change -- the opposite
+  // of what add()/move()/remove() need above, which is exactly why
+  // persistence there is a synchronous call inside each mutator instead.
+  effect((onCleanup) => {
+    const snapshot = this.tasks();
+    const timer = setTimeout(() => {
+      this.http.put('/api/tasks/board', snapshot).subscribe();
+    }, 1000);
+    onCleanup(() => clearTimeout(timer));   // a newer change cancels the stale write
+  });
+}`;
+
+  // ── Piece 4C: will this survive SSR? ────────────────────────────────────────
+
+  /** The trap: `load()` runs from a field initializer, unconditionally. */
+  protected readonly ssrTrapSample = `@Injectable()
+class TaskStore {
+  // Runs the moment TaskStore is constructed — on the SERVER too, if this
+  // component is ever rendered with SSR, well before there is a browser.
+  private readonly _tasks = signal<Task[]>(this.load());
+
+  private load(): Task[] {
+    // localStorage does not exist in Node. On the server this throws
+    // "ReferenceError: localStorage is not defined" before the page has
+    // rendered a single element.
+    return JSON.parse(localStorage.getItem('ng-tasks') ?? '[]');
+  }
+}`;
+
+  /** The fix: start empty everywhere, populate once the browser is confirmed. */
+  protected readonly ssrFixSample = `@Injectable()
+class TaskStore {
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly _tasks = signal<Task[]>([]);   // valid on server AND client
+
+  constructor() {
+    afterNextRender(() => {
+      // Guaranteed to run exactly once, only in the browser, after the
+      // first render — the one moment localStorage is safe to touch.
+      this._tasks.set(this.load());
+    });
+  }
+
+  private load(): Task[] {
+    if (!isPlatformBrowser(this.platformId)) return [];   // belt and suspenders
+    try {
+      return JSON.parse(localStorage.getItem('ng-tasks') ?? '[]');
+    } catch {
+      return [];
+    }
+  }
+}`;
+
+  /** Line-by-line walkthrough of {@link ssrFixSample}. */
+  protected readonly ssrFixNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: '`PLATFORM_ID` is what `isPlatformBrowser` below checks against — Angular sets it to a different value when rendering on the server.',
+    },
+    {
+      line: 4,
+      text: 'An empty array is a value construction can hand out on either platform without ever touching a browser-only API — that is what makes this line safe to run during SSR.',
+    },
+    {
+      line: 7,
+      text: '`afterNextRender` registers a callback Angular runs exactly once, only in the browser, after the first render completes. It fixes the *timing*: reading storage AFTER the server-rendered HTML is already hydrated avoids the mismatch a mid-render read would cause.',
+    },
+    {
+      line: 15,
+      text: 'The guard inside `load()` is a second layer, independent of where `load()` is called from — so a future refactor that calls it somewhere other than `afterNextRender` still cannot crash a server render.',
+    },
+  ];
+
+  // ── Piece 4D: two tabs, one storage key ─────────────────────────────────────
+
+  /** The race: two tabs, each holding its own stale in-memory snapshot. */
+  protected readonly twoTabsRaceSample = `// Tab A and Tab B both load the board with 3 tasks already saved.
+//
+// Tab A adds "Ship report" -> its _tasks now has 4 tasks -> saves all 4.
+// Tab B never reloaded, so it still thinks there are 3 -> adds "Call bank"
+// -> its _tasks is the ORIGINAL 3 plus its own new one -> saves 4 tasks.
+//
+// Tab B's save() completely overwrites Tab A's write. "Ship report" is
+// gone from storage, and NEITHER tab's screen shows anything wrong --
+// each only ever rendered its own in-memory copy.`;
+
+  /** The fix: listen for the other tab's writes, or broadcast them directly. */
+  protected readonly twoTabsFixSample = `constructor() {
+  // 'storage' fires ONLY in tabs that did NOT make the write -- never in
+  // the tab that called setItem() itself.
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'ng-tasks' && e.newValue) {
+      this._tasks.set(JSON.parse(e.newValue));
+    }
+  });
+}
+
+// BroadcastChannel is the alternative: it fires in every tab, INCLUDING
+// the sender, and does not depend on localStorage at all.
+private readonly channel = new BroadcastChannel('ng-tasks');
+private save() {
+  localStorage.setItem('ng-tasks', JSON.stringify(this._tasks()));
+  this.channel.postMessage(this._tasks());   // every other tab hears this now
+}`;
+
+  /** Line-by-line walkthrough of {@link twoTabsFixSample}. */
+  protected readonly twoTabsFixNotes: CodeNote[] = [
+    {
+      line: 4,
+      text: "The browser's own cross-tab signal — no server, no library. It only ever fires in a tab that did NOT perform the write, which is exactly the tab whose in-memory copy is now stale.",
+    },
+    {
+      line: 6,
+      text: '`e.newValue` is the string that was just written to storage — parsed and set directly, so this tab now shows the same board the writing tab does, instead of quietly diverging from it.',
+    },
+    {
+      line: 13,
+      text: '`BroadcastChannel` trades the "only other tabs" quirk of `storage` for a channel every tab (the writer included) can listen on — useful when the writing tab also needs to react to its own write through the same code path.',
+    },
+  ];
 
   /** Sample: a simplified host component — providers, template control flow, the add form. */
   protected readonly hostSample = `@Component({
@@ -764,7 +954,7 @@ export class TaskCard {
     },
     {
       q: 'Why save on every mutation instead of using an `effect()`?',
-      a: 'An `effect` would work and is arguably tidier. The trade-off is timing: effects are **scheduled**, so the write lands a microtask later, and a refresh in that gap loses the change. Calling `save()` inside the mutator makes the write synchronous with the change. At this size, boring and immediate beats elegant and deferred.',
+      a: 'An `effect` would work and is arguably tidier. The trade-off is timing: effects are **scheduled**, so the write lands a microtask later, and a refresh in that gap loses the change. Calling `save()` inside the mutator makes the write synchronous with the change. At this size, boring and immediate beats elegant and deferred. That argument is specific to a synchronous, local sink, though — swap `localStorage` for an HTTP call and the trade-off flips. A debounced `effect()` becomes the *right* tool for a bulk background sync (see "Persistence, on a real backend" below), because batching a burst of edits into one request matters more than the last few hundred milliseconds ever could. The rule is not "never use `effect()` for persistence" — it is "match the write strategy to the sink": synchronous for a free local write, debounced `effect()` for a bulk network write, and optimistic-update-with-rollback when the user needs to see one specific mutation succeed or fail.',
     },
     {
       q: 'The demo board is one component. The walkthrough splits it into four. Which is right?',

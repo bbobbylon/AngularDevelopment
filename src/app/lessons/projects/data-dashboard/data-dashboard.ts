@@ -301,6 +301,19 @@ class SalesStore {
   }
 
   /**
+   * Escapes one CSV cell: quotes it, doubles any internal quote, and defuses
+   * formula injection by prefixing a leading `=`/`+`/`-`/`@` with a tab.
+   *
+   * @param value The raw cell value.
+   * @returns The quoted, escaped cell text.
+   */
+  private escapeCell(value: string | number): string {
+    const s = String(value);
+    const guarded = /^[=+\-@]/.test(s) ? `\t${s}` : s;
+    return `"${guarded.replace(/"/g, '""')}"`;
+  }
+
+  /**
    * Exports the filtered rows as a CSV download.
    *
    * Built from a `Blob` and an object URL with no library involved — worth seeing
@@ -310,18 +323,20 @@ class SalesStore {
    */
   exportCSV(): void {
     const rows = this.filtered();
-    const header = 'id,product,category,amount,region,month';
-    const lines = rows.map(
-      (r) => `${r.id},"${r.product}",${r.category},${r.amount},${r.region},${r.month}`,
+    const header = ['id', 'product', 'category', 'amount', 'region', 'month'].join(',');
+    const lines = rows.map((r) =>
+      [r.id, r.product, r.category, r.amount, r.region, r.month]
+        .map((v) => this.escapeCell(v))
+        .join(','),
     );
-    const csv = [header, ...lines].join('\n');
+    const csv = '﻿' + [header, ...lines].join('\n'); // BOM so Excel reads accented characters correctly
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'sales.csv';
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url));
   }
 }
 
@@ -761,6 +776,108 @@ readonly filtered = computed(() => {
 } @else {
   <!-- Reached only once loading finished AND nothing failed. -->
 }`;
+
+  // ── Debouncing the range slider ─────────────────────────────────────────────
+
+  /** The month sliders as shown so far — every pixel of drag re-derives the whole chain. */
+  protected readonly noDebounceSample = `<input type="range" [value]="store.monthFrom()"
+  (input)="store.setMonthFrom($any($event.target).valueAsNumber)" />
+
+// This mock array is 12 rows, so it's instant. On a real dataset
+// (or once monthFrom drives an HTTP call) every pixel the thumb
+// moves re-runs filtered() → sorted() → totalPages() →
+// paginatedRows() → summary() — all in the same tick.`;
+
+  /** The fix: a raw signal for the thumb, a debounced one for the actual filter. */
+  protected readonly debounceFixSample = `private readonly _monthFromRaw = signal(1);        // drives the slider's own position
+
+readonly monthFrom = toSignal(
+  toObservable(this._monthFromRaw).pipe(debounceTime(200)),
+  { initialValue: 1 },
+);                                                   // drives filtered()
+
+setMonthFrom(m: number) {
+  this._monthFromRaw.set(m);   // instant — the thumb never lags behind the mouse
+  // filtered() only re-runs 200ms after dragging actually stops
+}`;
+
+  /** Line-by-line walkthrough of {@link debounceFixSample}. */
+  protected readonly debounceFixNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'The raw signal exists purely so the slider has something instant to bind its own thumb position to — nothing downstream of the store reads this one directly.',
+    },
+    {
+      line: 4,
+      text: '`toObservable` turns the raw signal into a stream, `debounceTime(200)` waits for 200ms of silence, and `toSignal` (below) turns the result back into a signal — the one every `computed` selector actually reads.',
+    },
+    {
+      line: 9,
+      text: 'The write is still synchronous and instant — only the DERIVED, debounced signal lags behind it. That split is the whole trick: two signals, two different jobs.',
+    },
+  ];
+
+  // ── Securing the CSV export ─────────────────────────────────────────────────
+
+  /** The export as it shipped originally — three separate bugs in five lines. */
+  protected readonly csvExportBugSample = `exportCSV(): void {
+  const rows = this.filtered();
+  const header = ['id', 'product', 'category', 'amount', 'region', 'month'].join(',');
+  const lines = rows.map((r) => [r.id, r.product, r.category, r.amount, r.region, r.month].join(','));
+  const csv = [header, ...lines].join('\\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sales.csv';
+  a.click();
+  URL.revokeObjectURL(url);   // revokes before the download can start
+}`;
+
+  /** The fix: escape every cell, prefix a BOM, and defer the revoke a tick. */
+  protected readonly csvExportFixSample = `private escapeCell(value: string | number): string {
+  const s = String(value);
+  const guarded = /^[=+\\-@]/.test(s) ? \`\\t\${s}\` : s;      // defuse formula injection
+  return \`"\${guarded.replace(/"/g, '""')}"\`;              // quote, and double inner quotes
+}
+
+exportCSV(): void {
+  const rows = this.filtered();
+  const header = ['id', 'product', 'category', 'amount', 'region', 'month'].join(',');
+  const lines = rows.map((r) =>
+    [r.id, r.product, r.category, r.amount, r.region, r.month]
+      .map((v) => this.escapeCell(v))
+      .join(','),
+  );
+  const csv = '\\uFEFF' + [header, ...lines].join('\\n');   // BOM: Excel needs it for accents
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sales.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url));               // let the download start first
+}`;
+
+  /** Line-by-line walkthrough of {@link csvExportFixSample}. */
+  protected readonly csvExportFixNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: 'A cell starting with `=`, `+`, `-` or `@` is a formula to Excel and Google Sheets — a product name like `-1+1` or a region code like `=HYPERLINK(...)` would otherwise execute. A leading tab defuses it without changing what the cell displays.',
+    },
+    {
+      line: 4,
+      text: 'Wrapping every cell in quotes and doubling any quote already inside it is what lets a product name containing a comma, or a literal `"`, round-trip correctly — without it, one stray comma silently shifts every column after it.',
+    },
+    {
+      line: 15,
+      text: "`\\uFEFF` is the UTF-8 byte-order mark. Without it, Excel guesses the file's encoding and regularly gets accented characters wrong; most other tools ignore it entirely.",
+    },
+    {
+      line: 22,
+      text: '`a.click()` starts the download asynchronously. Revoking the object URL in the very same synchronous tick — as the buggy version did — can invalidate it before the browser has actually read the blob. `setTimeout` pushes the revoke to the next tick, after the read has started.',
+    },
+  ];
 
   // ── Performance ─────────────────────────────────────────────────────────────
 
