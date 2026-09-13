@@ -9,36 +9,51 @@
 
   <!--
     Hero stats as tape-pinned cards rather than a plain figure row — the
-    single biggest "Head First hero" opportunity on the page. Every binding
-    below is untouched from the old flex row; only the wrapper changed.
+    single biggest "Head First hero" opportunity on the page. Each card is
+    wrapped in an anchor rather than made clickable on TapeCard itself, since
+    that component is shared by 100+ non-interactive usages elsewhere.
+    Exercises/Interview Q&A/Lessons Visited go to their dedicated pages; the
+    other three describe this page's own curriculum, so they jump to it.
   -->
   <div class="stats">
-    <app-tape-card heading="Concepts" tone="accent" appReveal [appRevealDelay]="240">
-      <span class="stat-num">{{ animTotal() }}</span>
-      <span class="stat-label">across 5 tracks</span>
-    </app-tape-card>
-    <app-tape-card heading="Live Lessons" tone="gold" appReveal [appRevealDelay]="290">
-      <span class="stat-num">{{ animBuilt() }}</span>
-      <span class="stat-label">ready right now</span>
-    </app-tape-card>
-    <app-tape-card heading="Exercises" tone="blue" appReveal [appRevealDelay]="340">
-      <span class="stat-num">{{ animExercises() }}+</span>
-      <span class="stat-label">spot-the-bug &amp; more</span>
-    </app-tape-card>
-    <app-tape-card heading="Interview Q&amp;A" tone="accent" appReveal [appRevealDelay]="390">
-      <span class="stat-num">{{ animInterviews() }}</span>
-      <span class="stat-label">Junior → Senior</span>
-    </app-tape-card>
-    <app-tape-card heading="Difficulty Tracks" tone="gold" appReveal [appRevealDelay]="440">
-      <span class="stat-num">5</span>
-      <span class="stat-label">zero to expert</span>
-    </app-tape-card>
-    <app-tape-card heading="Lessons Visited" tone="olive" appReveal [appRevealDelay]="490">
-      <span class="stat-num"
-        >{{ progress.visitedCount() }}<span class="stat-num__denom">/{{ built() }}</span></span
-      >
-      <span class="stat-label">your progress</span>
-    </app-tape-card>
+    <a class="stat-link" href="#curriculum" appReveal [appRevealDelay]="240">
+      <app-tape-card heading="Concepts" tone="accent">
+        <span class="stat-num">{{ animTotal() }}</span>
+        <span class="stat-label">across 5 tracks</span>
+      </app-tape-card>
+    </a>
+    <a class="stat-link" href="#curriculum" appReveal [appRevealDelay]="290">
+      <app-tape-card heading="Live Lessons" tone="gold">
+        <span class="stat-num">{{ animBuilt() }}</span>
+        <span class="stat-label">ready right now</span>
+      </app-tape-card>
+    </a>
+    <a class="stat-link" routerLink="/practice" appReveal [appRevealDelay]="340">
+      <app-tape-card heading="Exercises" tone="blue">
+        <span class="stat-num">{{ animExercises() }}+</span>
+        <span class="stat-label">spot-the-bug &amp; more</span>
+      </app-tape-card>
+    </a>
+    <a class="stat-link" routerLink="/interview" appReveal [appRevealDelay]="390">
+      <app-tape-card heading="Interview Q&amp;A" tone="accent">
+        <span class="stat-num">{{ animInterviews() }}</span>
+        <span class="stat-label">Junior → Senior</span>
+      </app-tape-card>
+    </a>
+    <a class="stat-link" href="#curriculum" appReveal [appRevealDelay]="440">
+      <app-tape-card heading="Difficulty Tracks" tone="gold">
+        <span class="stat-num">5</span>
+        <span class="stat-label">zero to expert</span>
+      </app-tape-card>
+    </a>
+    <a class="stat-link" routerLink="/progress" appReveal [appRevealDelay]="490">
+      <app-tape-card heading="Lessons Visited" tone="olive">
+        <span class="stat-num"
+          >{{ progress.visitedCount() }}<span class="stat-num__denom">/{{ built() }}</span></span
+        >
+        <span class="stat-label">your progress</span>
+      </app-tape-card>
+    </a>
   </div>
 </header>
 
@@ -226,7 +241,7 @@
   </div>
 </section>
 
-<div class="filters">
+<div class="filters" id="curriculum">
   <div class="search-wrap">
     <input
       #searchInput

@@ -91,6 +91,21 @@
 .stats app-tape-card {
   text-align: left;
 }
+/* Each card is wrapped in an anchor (see home.html) rather than made
+   clickable on TapeCard itself. display:block + height:100% on both the
+   anchor and the card it wraps keeps them filling the grid cell exactly
+   as app-tape-card did on its own, so the grid's row-stretch sizing is
+   unaffected by the new wrapper. */
+.stats a.stat-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+.stats a.stat-link app-tape-card {
+  display: block;
+  height: 100%;
+}
 .stat-num {
   display: block;
   font-family: var(--font-display);
