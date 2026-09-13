@@ -958,6 +958,38 @@ so the variety is between chapters, not inside each page.
 5. **Then rotate the existing 103**, tier by tier, worst offenders (the 63 Chapter → Napkin →
    Remember openers) first.
 
+**Reference check against a sibling project (2026-09-13).** The author pointed at four page
+shapes from another project's standalone visualizer pages and asked whether this app already
+has the same variety. It does not yet — none of the four exist here as a _whole-page, single-
+dominant-device, no-cards_ shape, which is exactly the gap §2.10 was filed to close. Mapping
+them onto the plan above:
+
+- **Shape A — "There Are No Dumb Questions"** (a giant opening sentence, then a Q&A sidebar
+  that carries the entire lesson; no cards, no dialogue). We already have `Faq`, but only ever
+  as a closer (103 of 103 lessons) — never promoted to the page's spine. Not one of the seven
+  named archetypes; needs its own, e.g. **Q&A-led**.
+- **Shape B — "The Receipt"** (an itemised bill, then a brutal two-column contrast, then a
+  pipeline chain, then arrows scribbled at code; ends loud). We already have `Compare` for the
+  two-column part, but the itemised/pipeline/receipt framing around it doesn't exist. Not one
+  of the seven named archetypes; needs its own, e.g. **Ledger**.
+- **Shape C — "The Whiteboard"** (one big figure with hand-drawn arrows; prose serves the
+  picture, not the other way round). We already have `Napkin`, but only ever as a supporting
+  aside, never blown up to be the whole page. Closest to the planned **Field Guide** archetype
+  but not identical — Field Guide was scoped around reference-lookup pages, not one dominant
+  diagram; worth folding in or naming a **Diagram-led** archetype instead.
+- **Shape D — "The Argument"** (8–10 bubbles between personified components, split by a
+  moderator beat; no cards at all). This one we already planned for: `Bubbles` exists (used in
+  91 of 103 lessons, though always alongside other devices, never alone) and **Brain Power**
+  is already on the "formats we do not have" list above. Together they're the **Debate**
+  archetype already named in step 2 — just not built as a standalone, cards-free page yet.
+
+Net: 3 of 4 shapes need a new named archetype/device added to the lists above (Q&A-led,
+Ledger, Diagram-led or a Field-Guide redefinition); the 4th (Debate) was already on the plan
+and just needs building. **Still deferred behind §2.5** per the author's 2026-09-13 decision —
+and as of this note, §2.5 itself is not yet finished: the editor (`src/app/shared/editor/`) is
+built and tested but still wired into zero pages. Confirm with the author whether to finish
+wiring the editor into practice/project/challenge pages first, or to start §2.10 now regardless.
+
 ---
 
 ## 3. Later
