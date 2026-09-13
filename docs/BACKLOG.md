@@ -763,6 +763,18 @@ page, the way StackBlitz embeds a full IDE. Options to evaluate, cheapest first:
 Note this collides with a documented selling point: the app currently advertises "zero
 third-party UI or state libraries" and a hand-rolled highlighter. Decide deliberately.
 
+**Decided and in progress (2026-09-13): CodeMirror 6.** `src/app/shared/editor/` has
+`CodeEditor` (a `<textarea>` that upgrades to CodeMirror via a lazy `import()`, so a reader
+who never opens an editor pays nothing for it and one who does gets `.hl-*` colouring
+shared with the static highlighter — see `cm-setup.ts`), `CodeRunner` + `runner/harness.ts`
+(TypeScript/JavaScript run in a sandboxed Web Worker, console captured and replayed), and
+`HtmlPreview` (a sandboxed `srcdoc` iframe for markup). All four have full coverage —
+`editor.spec.ts` and `cm-setup.spec.ts` (the latter against a real `EditorView`, since
+Angular's unit-test runner rejects `vi.mock` on relative imports; `CodeEditor` is instead
+tested through a `CM_MODULE` injection token, the same DI seam `CodeRunner` already gave
+`Worker` as `WORKER_FACTORY`). **Not yet wired into any page** — that's the next step, and
+the practice/project/challenge pages this was requested for are where it belongs first.
+
 ### 2.6 "Code with me" guided sections
 
 Requested 2026-08-29. For each concept that needs coding practice, a mode where the student
@@ -899,6 +911,52 @@ own project phase — its own SRS/ARCHITECTURE updates, per this machine's Docum
 Standards — not a quick item folded into an existing pass, and not something to start before
 §1.3 theme 2, §2.1–§2.7 and §2.8 above are actually done, per the same "finish what's
 already open before starting the next big thing" rule §2.8 itself was filed under.
+
+### 2.10 Page shapes — vary the Head First format per lesson
+
+**Requested 2026-09-13.** The author's words: _"right now it's all the same boring setup. Title,
+then what looks to be a text message conversation, and so on. I was thinking a VARIETY of the
+styles that are used in Head First Design Patterns, not just each page uses a piece of the
+variety and shoves it all on the same page."_ Deferred behind §2.5/§2.6 at the author's
+request the same day; the editor comes first.
+
+**The audit that confirms it** (device order of all 103 brain-friendly lessons, 2026-09-13):
+
+| Pattern                                            | Lessons    |
+| -------------------------------------------------- | ---------- |
+| Open with Chapter → Napkin                         | 88 of 103  |
+| Open with Chapter → Napkin → Remember              | 63 of 103  |
+| Close with a FAQ                                   | 103 of 103 |
+| Contain CodeLab, Predict, Quiz, FAQ _and_ Remember | 103 of 103 |
+| Contain the Bubbles conversation                   | 91 of 103  |
+
+Every lesson is the same frame with the same full deck shuffled in the middle. Head First
+does the opposite: each chapter picks a different _dominant_ format and a different subset,
+so the variety is between chapters, not inside each page.
+
+**The plan, in the order it should be built:**
+
+1. **New formats we do not have** (a third shared set, own barrel, each with tests):
+   Fireside Chat (two concepts argue, a moderator closes — a different shape from Bubbles),
+   Exposed (an interview with the API), Master and Student (a koan), Sharpen Your Pencil
+   (write-in blanks, reveal later), Code Magnets (drag scrambled fragments into order — the
+   editor from §2.5 can host this), Who Does What (matching), Be the Compiler (trace the code
+   by hand), Watch It (hazard-striped warning), Toolbox (cumulative per track), Brain Power (a
+   question deliberately left open), Meanwhile (a running storyline with a recurring cast),
+   and a Crossword at chapter end. "Code with me" from §2.6 is a Workshop-format device too.
+2. **Lesson archetypes instead of one recipe** — Story, Investigation, Debate, Workshop,
+   Interview, Field Guide, Puzzle. Each names its opening device, its dominant device, a cap of
+   about five devices, and what it must _not_ use. A `shape` field on the `Lesson` model
+   records the choice; adjacent lessons in a track never share one.
+3. **CONTRIBUTING §2C** replacing "hit the nine points with these six components" with "hit
+   them through your archetype's devices", and `scripts/audit-variety.mjs` flagging any lesson
+   whose opening pair or device set matches its neighbours — the successor to the retention
+   audit, which this work must not regress (the nine-point bar stays; the devices vary).
+4. **Pilot on the new lessons** from §1.3 themes 3 and 4 (HTML, CSS, origins & CORS, strings,
+   deploying a SPA, SEO & metadata), one archetype each, so the formats are proven on pages
+   with no rewrite cost.
+5. **Then rotate the existing 103**, tier by tier, worst offenders (the 63 Chapter → Napkin →
+   Remember openers) first.
 
 ---
 
