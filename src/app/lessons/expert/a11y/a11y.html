@@ -81,6 +81,7 @@
     <app-predict
       [prompt]="divButtonPredictPrompt"
       [code]="divButtonPredictCode"
+      hlLang="html"
       [answer]="divButtonPredictAnswer"
       revealLabel="Reveal the answer"
     />
@@ -259,6 +260,7 @@
     <app-predict
       [prompt]="imgAltPredictPrompt"
       [code]="imgAltPredictCode"
+      hlLang="html"
       [answer]="imgAltPredictAnswer"
       revealLabel="Reveal the answer"
     />
@@ -347,12 +349,12 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ liveRegionWrongSample }}</pre>
+          <pre data-lang="html">{{ liveRegionWrongSample }}</pre>
         </div>
       </div>
       <div right>
         <div class="code">
-          <pre>{{ liveRegionRightSample }}</pre>
+          <pre data-lang="html">{{ liveRegionRightSample }}</pre>
         </div>
       </div>
     </app-compare>

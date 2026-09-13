@@ -199,7 +199,7 @@ add(3, 2);   // a = 3, b = 2 — same function, different pairing, different ans
           <span class="stage-chip" [class.on]="stage() === i" [class.done]="stage() > i">{{ f.stage }}</span>
         }
       </div>
-      <pre class="readout" style="margin-top: 10px">{{ callTrace[stage()].code }}</pre>
+      <pre class="readout" style="margin-top: 10px" [hlCode]="callTrace[stage()].code"></pre>
       <p class="demo__note">{{ callTrace[stage()].detail }}</p>
     </div>
 

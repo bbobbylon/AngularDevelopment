@@ -1,4 +1,4 @@
-import { highlight } from '../../highlighter';
+import { highlight, type HighlightLang } from '../../highlighter';
 
 /**
  * Syntax-highlights a snippet and returns it as one HTML string per source line.
@@ -22,10 +22,11 @@ import { highlight } from '../../highlighter';
  * it wrote itself, and they are never nested.
  *
  * @param code raw source text (not HTML)
+ * @param lang which tokeniser to use; defaults to TypeScript
  * @returns one well-formed HTML fragment per line, in order
  */
-export function highlightLines(code: string): string[] {
-  const html = highlight(code);
+export function highlightLines(code: string, lang: HighlightLang = 'ts'): string[] {
+  const html = highlight(code, lang);
   const lines: string[] = [];
   const OPEN = '<span class="';
   const CLOSE = '</span>';

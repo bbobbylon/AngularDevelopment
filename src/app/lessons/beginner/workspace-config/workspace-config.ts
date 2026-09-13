@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
  * One "where would you change this?" exercise: a goal, the file that owns it,
@@ -136,6 +137,7 @@ const CONFIG_TASKS: ConfigTask[] = [
 @Component({
   selector: 'app-lesson-workspace-config',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

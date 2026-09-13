@@ -13,7 +13,8 @@
  */
 
 /** Languages the shared highlighter can tokenise (see `shared/highlighter.ts`). */
-export type CheatLang = 'ts' | 'bash' | 'sql' | 'python' | 'java' | 'yaml' | 'json' | 'text';
+export type CheatLang =
+  'ts' | 'bash' | 'sql' | 'python' | 'java' | 'yaml' | 'json' | 'css' | 'html' | 'text';
 
 /** One command (or short snippet) plus the annotation explaining what it does. */
 export interface CommandRow {

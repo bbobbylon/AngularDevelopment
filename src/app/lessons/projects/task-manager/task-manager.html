@@ -378,7 +378,7 @@ this.save();
     <app-predict
       prompt="The board tracks by `task.id`. Swap it for `track $index` and delete the first task in a column — the
         one at the top. What does Angular conclude changed, and what would you actually notice on screen?"
-      [code]="trackSample"
+      [code]="trackSample" hlLang="html"
       answer="It concludes every remaining task in that column changed, because each one now sits at a different
         index than it did last render. Angular tears down and rebuilds the DOM node for every task after the deleted
         one — even though the tasks themselves are untouched. The **text** still renders correctly, so nothing looks
@@ -442,7 +442,7 @@ this.save();
               }
             </div>
             @for (task of store.byStatus()[col.id]; track task.id) {
-              <div class="task-card-item" [class.urgent]="isUrgent(task)">
+              <div class="task-card-item" [class.urgent]="isUrgent(task)" animate.enter="row-in" animate.leave="row-out">
                 <p class="task-title">{{ task.title }}</p>
                 <div class="task-meta">
                   <span class="priority priority-{{ task.priority }}">{{ task.priority }}</span>

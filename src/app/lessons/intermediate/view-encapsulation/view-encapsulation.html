@@ -227,6 +227,7 @@
     <app-predict
       prompt="A parent writes this rule to recolour a dot inside a child component. What happens — an error, or a purple dot?"
       [code]="piercingSample"
+      hlLang="css"
       answer="Neither. Nothing happens at all, silently. The parent's rule is rewritten to require the *parent's* scoping attribute, and the child's `.dot` carries the *child's*. The selector is valid CSS that can never match anything, so there is no error to find — just a colour that stubbornly refuses to change. This silence is what makes it such an expensive hour to debug."
     />
 

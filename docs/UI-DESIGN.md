@@ -1,7 +1,7 @@
 # UI/UX Design Documentation
 
-**Version:** 2.0
-**Last Updated:** 2026-08-31
+**Version:** 2.1
+**Last Updated:** 2026-09-12
 **Status:** Final
 
 ## Overview
@@ -117,32 +117,43 @@ class would not change what a skimmer takes away, it should not be there.
 > component styles — a global rule of the same name out-specifies them (`.lesson .good` beats
 > `.good`) and would stamp ✓/✗ into all of them. Grep before you name.
 
-**Syntax highlighting** (`shared/highlighter.ts` emits these classes). Fourteen token
+**Syntax highlighting** (`shared/highlighter.ts` emits these classes). Eighteen token
 roles, not five: a snippet where only keywords and strings differ still reads as a grey
 wall, which is the failure this palette exists to fix. Weight and italics carry meaning
 the way a real IDE uses them, and the palette is fixed rather than themed — the code
 panel is a terminal in both modes. The tokenizer is a single parametrized scanner
-(`LangConfig`) driven by the `data-lang` attribute a `<pre>` carries — `ts` (default),
-`java`, `python`, `sql`, `bash`, `yaml`, `json`, `text` — so every language reuses this
-one palette rather than getting its own.
+(`LangConfig`) driven by the language a block declares — `data-lang` on a plain `<pre>`,
+`hlLang` on `CodeLab`, `Predict` and `[hlCode]` — `ts` (default), `java`,
+`python`, `sql`, `bash`, `yaml`, `json`, `css`, `text` — so every language reuses this one
+palette rather than getting its own. `html` is the one exception: markup needs a
+two-state scanner (inside a tag / outside it), so it has its own, which hands binding
+values and `{{ }}` back to the TypeScript one. Samples that show a class _and_ its
+template stay `ts`; a line that starts with a tag is handed to the markup scanner and
+back (a "template island"), so nothing has to be tagged `mixed`.
 
-| Class         | Colour    | Role                                                             |
-| ------------- | --------- | ---------------------------------------------------------------- |
-| `.hl-kw`      | `#c792ea` | Keyword — _italic_, as Darcula does                              |
-| `.hl-str`     | `#c3e88d` | String                                                           |
-| `.hl-cmt`     | `#6b7a8f` | Comment — italic                                                 |
-| `.hl-num`     | `#f78c6c` | Number                                                           |
-| `.hl-dec`     | `#ffcb6b` | Decorator — semibold                                             |
-| `.hl-fn`      | `#82aaff` | Free function call — **bold**, it's the _doing_                  |
-| `.hl-method`  | `#82aaff` | Method call on a receiver — same hue, unbolded                   |
-| `.hl-prop`    | `#b2ccd6` | Property read — quieter still                                    |
-| `.hl-type`    | `#ffcb6b` | Class, interface, enum, type name                                |
-| `.hl-builtin` | `#89ddff` | Resolved globals: `console`, `signal`, `inject`                  |
-| `.hl-op`      | `#89ddff` | Operators                                                        |
-| `.hl-punct`   | `#8792a8` | Braces, semicolons, commas — dimmed so names pop                 |
-| `.hl-flag`    | `#f07178` | Shell flags (`--watch`) and SQL/bash options                     |
-| `.hl-var`     | `#7fdbca` | Shell `$VARS` and bash substitutions                             |
-| `.hl-key`     | `#82aaff` | YAML/JSON object keys — **bold**, so structure reads at a glance |
+| Class         | Colour    | Role                                                              |
+| ------------- | --------- | ----------------------------------------------------------------- |
+| `.hl-kw`      | `#c792ea` | Keyword — _italic_, as Darcula does                               |
+| `.hl-str`     | `#c3e88d` | String                                                            |
+| `.hl-cmt`     | `#6b7a8f` | Comment — italic                                                  |
+| `.hl-num`     | `#f78c6c` | Number                                                            |
+| `.hl-dec`     | `#ffcb6b` | Decorator — semibold                                              |
+| `.hl-fn`      | `#82aaff` | Free function call — **bold**, it's the _doing_                   |
+| `.hl-method`  | `#82aaff` | Method call on a receiver — same hue, unbolded                    |
+| `.hl-prop`    | `#b2ccd6` | Property read — quieter still                                     |
+| `.hl-type`    | `#ffcb6b` | Class, interface, enum, type name                                 |
+| `.hl-builtin` | `#89ddff` | Resolved globals: `console`, `signal`, `inject`                   |
+| `.hl-op`      | `#89ddff` | Operators                                                         |
+| `.hl-punct`   | `#8792a8` | Braces, semicolons, commas — dimmed so names pop                  |
+| `.hl-flag`    | `#f07178` | Shell flags (`--watch`) and SQL/bash options                      |
+| `.hl-var`     | `#7fdbca` | Shell `$VARS` and bash substitutions                              |
+| `.hl-key`     | `#82aaff` | YAML/JSON object keys — **bold**, so structure reads at a glance  |
+| `.hl-tag`     | `#f07178` | Element name in markup (`div`, `app-lesson-nav`) — html only      |
+| `.hl-attr`    | `#ffcb6b` | Plain HTML attribute name (`class`, `href`) — html only           |
+| `.hl-bind`    | `#c792ea` | Angular binding — `[prop]`, `(event)`, `*ngIf`, `#ref` — semibold |
+
+Inside a brain-friendly lesson (`.lesson.bf`) every role has a Darcula override in
+`brain-friendly.css`; the `html` roles are `#e8bf6a` / `#bababa` / `#cf8e6d` there.
 
 ### Typography
 
@@ -180,7 +191,8 @@ Shared UI lives in `src/app/shared/`:
 | `FilterLessonsPipe`       | `filterLessons`       | Text filter over curriculum cards                                                                              |
 | `FilterTabsComponent`     | `<app-filter-tabs>`   | The pill row used by Practice, Flashcards, Glossary                                                            |
 | `ToastsComponent`         | `<app-toasts>`        | Transient notifications, rendered by the root shell                                                            |
-| `highlighter.ts`          | —                     | Tokenises code samples into `.hl-*` spans, per `data-lang` (ts/java/python/sql/bash/yaml/json/text)            |
+| `highlighter.ts`          | —                     | Tokenises code samples into `.hl-*` spans, per language (ts/html/css/java/python/sql/bash/yaml/json/text)      |
+| `HighlightCode`           | `pre[hlCode]`         | Owns a `<pre>`'s `innerHTML` and re-highlights when the bound code or `hlLang` changes — for code inside demos |
 | `download-file.ts`        | —                     | Blob + object-URL download (results export)                                                                    |
 | `ComingSoon`              | route target          | Fallback for a lesson without a component                                                                      |
 | `CheatSheetDetail`        | route target          | One component rendering any `CheatSheet` by route data, same one-component-many-routes pattern as `ComingSoon` |
@@ -383,15 +395,21 @@ does not carry and never matches.
 
 Small, fast, and always opt-out-able.
 
-| Effect           | Detail                                                                                                                     |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Route transition | View Transitions API via `withViewTransitions()`; a 6px rise + fade, degrading to an instant swap where unsupported        |
-| Scroll reveal    | `.reveal` → `.reveal--visible`, 0.55s, `cubic-bezier(0.16, 1, 0.3, 1)`, with a per-element `--reveal-delay` for staggering |
-| Buttons          | 0.15s brightness, 0.05s press translate                                                                                    |
-| Tooltip          | 0.12s fade-in                                                                                                              |
-| Lesson entry     | `fade-in` on `.lesson`                                                                                                     |
+| Effect           | Detail                                                                                                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Route transition | View Transitions API via `withViewTransitions()`; a 6px rise + fade, degrading to an instant swap where unsupported                                                                                                       |
+| Chrome stays put | `view-transition-name: topbar` / `footer` pin the header and footer out of the root cross-fade, so only the body moves                                                                                                    |
+| Scroll reveal    | `.reveal` → `.reveal--visible`, 0.55s, `cubic-bezier(0.16, 1, 0.3, 1)`, with a per-element `--reveal-delay` for staggering                                                                                                |
+| Buttons          | 0.15s brightness, 0.05s press translate; press bloom in a clipped pseudo-element                                                                                                                                          |
+| Tooltip          | 0.12s fade-in                                                                                                                                                                                                             |
+| Lesson entry     | `fade-in` on `.lesson`                                                                                                                                                                                                    |
+| Enter / leave    | `animate.enter` / `animate.leave` with `styles.css` keyframes: `toast-in`/`toast-out` (toasts), `reveal-in` (Predict answer, CodeLab output), `row-in`/`row-out` (task-manager board), `row-out` (Bookmarks card removal) |
+| Accordion        | `<details class="faq__item">` height via `::details-content` + `interpolate-size: allow-keywords`; instant where unsupported                                                                                              |
 
-All of it is suppressed under `prefers-reduced-motion: reduce`.
+All of it is `transform`/`opacity` (or a clipped height on the accordion), never a
+layout-shifting property, and all of it is suppressed under
+`prefers-reduced-motion: reduce` — the keyframe classes collapse to 0.01ms there so
+`animate.leave` still removes the element.
 
 ---
 

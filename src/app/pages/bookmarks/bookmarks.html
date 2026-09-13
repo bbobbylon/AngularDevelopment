@@ -20,7 +20,7 @@
 } @else {
   <div class="bm-list">
     @for (b of bookmarks.list(); track b.id) {
-      <div class="bm-card" appReveal [appRevealDelay]="($index % 6) * 40">
+      <div class="bm-card" appReveal [appRevealDelay]="($index % 6) * 40" animate.leave="row-out">
         <div class="bm-head">
           @if (isLesson(b.id)) {
             <a [routerLink]="'/' + b.id" class="bm-title">{{ b.label }}</a>

@@ -1,7 +1,7 @@
 # Backlog
 
-**Version:** 1.4
-**Last Updated:** 2026-09-07
+**Version:** 1.5
+**Last Updated:** 2026-09-12
 **Status:** Living document
 
 ## Overview
@@ -613,7 +613,22 @@ Constraints that are not optional:
   button, which joined the flow and shoved neighbouring buttons aside. Absolutely
   positioned or `transform`/`opacity` only — never width/height/padding.
 
-Still to do here: panel/accordion open-close, list add/remove, richer route transitions.
+**Shipped 2026-09-12 — panel open/close, list add/remove, toast entry/exit.** All CSS,
+all `transform`/`opacity`, all collapsed to 0.01ms under `prefers-reduced-motion`:
+
+- **`animate.enter` / `animate.leave`** (Angular 21's native replacement for the
+  deprecated package — the `animations` lesson teaches it, so the app now practises it)
+  on toasts (`toast-in`/`toast-out`), the Predict reveal and CodeLab output
+  (`reveal-in`), and row removal on Bookmarks and the task-manager board (`row-out`,
+  with `row-in` on the board's cards so a column move animates). Keyframes live in
+  `styles.css` next to `fade-in`.
+- **Accordion open/close.** `<details class="faq__item">` animates its height via
+  `::details-content` + `interpolate-size: allow-keywords` on `:root`. Browsers without
+  `::details-content` keep the instant open.
+- **Route transitions keep the chrome still.** `view-transition-name: topbar` / `footer`
+  pin the header and footer out of the root cross-fade, so only the page body moves.
+
+Still to do here: shared-element route transitions (§3.1).
 
 ### 2.2 Presentation pass — "brain-friendly", every subject
 
@@ -701,13 +716,37 @@ component's code is highlighted at all** — it renders `.predict__code pre`, wh
 app-wide sweep in `app.ts` never selected, so every Predict sample in the curriculum had
 been rendering as flat white text.
 
-Remaining:
+**Shipped 2026-09-12 — all three remaining items closed.**
 
-- The sweep still skips anything inside `.demo`, and only runs once per navigation, so
-  code revealed later (accordions, `@defer`) is never tokenised. A directive or
-  `MutationObserver` would fix both.
-- No HTML/template mode — Angular template samples are tokenised with TypeScript rules.
-- Consider whether `highlight()` should take an explicit `lang`.
+- **`html` and `css` modes.** `highlight(code, 'html')` is a second, two-state scanner
+  (`highlightMarkup`) rather than another `LangConfig`: it colours tag names
+  (`.hl-tag`), plain attributes (`.hl-attr`) and Angular binding syntax (`.hl-bind` —
+  `[prop]`, `(event)`, `*ngIf`, `#ref`, louder on purpose), hands binding values and
+  `{{ }}` to the TypeScript scanner, and knows `@if/@for/@let` blocks and `<!-- -->`.
+  `css` is a `LangConfig` with `--vars` as `.hl-var`. Three new token classes in
+  `styles.css`, with Darcula overrides (plus the previously missing `.hl-flag/.hl-var/
+.hl-key` ones) in `brain-friendly.css`. `CheatLang` widened to match.
+- **Template islands.** ~78 samples show a class _and_ its template in one string.
+  Neither scanner alone is right, so in `ts`/`css` mode a line that _starts_ with a tag,
+  `<!--`, `{{` or a template block is handed to the markup scanner up to the line the
+  construct closes on, and the TypeScript scanner resumes after. Mid-line `<` stays an
+  operator, generics stay types, `@Component` stays a decorator. Those samples keep
+  `ts` — no third mode, no per-block tagging.
+- **Explicit language everywhere.** `CodeLab` gained `hlLang` (default `'auto'`, inferred
+  from the `file` label — `.html`, `.css`, `.json`, `terminal —`, `console —` — via the
+  exported `langFromFilename`); `Predict` gained `hlLang`. (Not `lang` — that is the global attribute for the content's natural language, and axe's `valid-lang` rule failed 23 lessons the first time round.) 105 blocks across 52 templates
+  were tagged in one sweep: `data-lang` on plain `<pre>{{ … }}</pre>`, `hlLang` on
+  ~20 Predicts and 14 CodeLabs, and the API playground's request/response panels now
+  tokenise as JSON (keys bold, not identifiers).
+- **`HighlightCode` directive** (`pre[hlCode]`, `hlLang`) for code inside `.demo` and
+  anything revealed late. It owns the element's `innerHTML` so it cannot clobber a live
+  binding the way the sweep did (two demos had been frozen by that — see its file
+  header), re-highlights whenever the source or language changes, and stamps `data-hl`
+  so the navigation sweep in `app.ts` leaves it alone. Thirteen demo blocks converted.
+
+What is left is small: the navigation sweep is still the mechanism for static `<pre>`s
+(fine — they never change), and `bash`/`java`/`python` samples do not get islands
+(nothing in the curriculum needs them).
 
 ### 2.5 Embedded live-coding editor (StackBlitz-style)
 

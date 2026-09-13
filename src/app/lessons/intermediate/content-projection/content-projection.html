@@ -222,6 +222,7 @@
 
     <app-code-lab
       file="panel.ts"
+      hlLang="html"
       [code]="fallbackSample"
       [notes]="fallbackNotes"
       notesLabel="What each line is doing"
@@ -398,6 +399,7 @@
 
     <app-code-lab
       file="badge-host.ts"
+      hlLang="html"
       [code]="projectAsSample"
       [notes]="projectAsNotes"
       notesLabel="What each line is doing"
@@ -436,6 +438,7 @@
     <app-predict
       prompt="The frame is closed and nobody ever opens it. Think about who printed the photo before you answer."
       [code]="eagerSample"
+      hlLang="html"
       answer="Yes. All fifty thousand rows, on page load, for a panel the user never opened. `SalesChart` is written in the *parent's* template, so the parent constructs it, runs its `ngOnInit` and fires its request — long before the accordion gets a chance to decide whether to show anything. The `@if` only controls whether the finished nodes are attached to the DOM; it has no power over whether they exist. Two real fixes. Wrap it in `@defer` in the **parent**, which genuinely delays creation. Or change the accordion's API to take a `TemplateRef` instead of projected content, so the child stamps it out only when it opens. The tell in review is any expensive component sitting inside a collapsed-by-default shell."
     />
   </section>
@@ -491,12 +494,12 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ twoBareSlotsSample }}</pre>
+          <pre data-lang="html">{{ twoBareSlotsSample }}</pre>
         </div>
       </div>
       <div right>
         <div class="code">
-          <pre>{{ namedSlotsSample }}</pre>
+          <pre data-lang="html">{{ namedSlotsSample }}</pre>
         </div>
       </div>
     </app-compare>

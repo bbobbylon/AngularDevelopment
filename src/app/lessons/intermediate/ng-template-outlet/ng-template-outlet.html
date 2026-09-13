@@ -135,6 +135,7 @@
     <app-predict
       prompt="Loading the wrong ink is the single most common mistake here, and it makes no noise at all. What does this render?"
       [code]="contextSample"
+      hlLang="html"
       answer='An empty `<span>`. Nothing errors, nothing warns, and the outlet reports for duty perfectly happily — it just hands the view a context with a `$implicit` key while the template is asking for a `person` key. The bare `let-x` shorthand reads `$implicit` and *only* `$implicit`; `let-person="person"` reads `context.person`, which does not exist. Two ways to fix it, and you should pick one and stick to it: change the template to `let-person` (reading `$implicit`), or change the context to `{ person: user }`. Use `$implicit` for the one main thing the template is about, and named keys for everything else.'
     />
 

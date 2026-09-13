@@ -196,7 +196,7 @@
         <span class="pill">RenderMode.{{ p.mode }}</span>
         <p style="margin: 10px 0"><app-rich-text [text]="p.why" /></p>
         <div class="code" style="font-size: 0.86rem">
-          <pre>{{ p.snippet }}</pre>
+          <pre [hlCode]="p.snippet"></pre>
         </div>
       } @else {
         <p class="demo__note">Select a page above to see which mode fits and why.</p>

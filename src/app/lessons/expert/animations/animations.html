@@ -29,6 +29,7 @@
     <app-predict
       prompt="`.toast` has `transition: opacity .3s, transform .3s`. You remove it from the page with `@if (show())` when the user dismisses it, and `show` flips to `false`. What plays?"
       [code]="predictCode"
+      hlLang="css"
       answer="Nothing plays. The instant `show()` becomes `false`, Angular tears the `<div>` out of the DOM in that same change-detection pass — there is no element left for a transition to animate. CSS can only animate a property change on an element that still exists in the tree; it has no built-in concept of `wait before you remove me`. That's the one genuinely hard problem in this whole lesson, and it's the entire reason `animate.leave` exists."
     />
   </section>

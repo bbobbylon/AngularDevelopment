@@ -227,7 +227,7 @@
     <div class="demo">
       <p class="demo__title">Live — the exact same string, fed into both properties</p>
       <div class="code" style="margin-bottom: 12px">
-        <pre>{{ xssPayload }}</pre>
+        <pre [hlCode]="xssPayload" hlLang="html"></pre>
       </div>
       <div class="row" style="margin-bottom: 12px; flex-wrap: wrap">
         <button (click)="runXssText()">Set via <code>.textContent</code></button>

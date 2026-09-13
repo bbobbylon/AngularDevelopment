@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 // ── Live-demo primitives ────────────────────────────────────────────────────
 
@@ -117,6 +118,7 @@ const CLONED_LOGGER = new InjectionToken<LoggerBase>('CLONED_LOGGER');
 @Component({
   selector: 'app-lesson-di-providers',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

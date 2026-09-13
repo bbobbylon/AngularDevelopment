@@ -260,7 +260,7 @@ type Role = (typeof roles)[number];   // 'admin' | 'editor' | 'viewer'
         <code>THEME['{{ key() }}'] = {{ value() }}</code>
       </p>
       <div class="code">
-        <pre>{{ themeSourceSample }}</pre>
+        <pre [hlCode]="themeSourceSample"></pre>
       </div>
       <p class="demo__note">
         That's this component's actual source. Add <code>warning: '#f5a623'</code> to <code>THEME</code> and — with zero

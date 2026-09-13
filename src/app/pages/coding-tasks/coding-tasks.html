@@ -61,7 +61,7 @@
 
       <div class="panel" appReveal [appRevealDelay]="120">
         <h3>Starter code — copy into a scratch project</h3>
-        <pre class="code-block">{{ task.starterCode }}</pre>
+        <pre class="code-block" [hlCode]="task.starterCode"></pre>
         <button class="copy-btn" [class.copy-btn--done]="copied()" (click)="copyStarter(task)">
           {{ copied() ? '✓ Copied' : '📋 Copy starter code' }}
         </button>
@@ -100,7 +100,7 @@
           </app-napkin>
           <button class="ghost-btn" (click)="reveal(task)">Reveal solution</button>
         } @else {
-          <pre class="code-block">{{ task.solutionCode }}</pre>
+          <pre class="code-block" [hlCode]="task.solutionCode"></pre>
           <p class="explanation">{{ task.explanation }}</p>
           @if (task.topicPath) {
             <a [routerLink]="'/' + task.topicPath" target="_blank" class="topic-link">

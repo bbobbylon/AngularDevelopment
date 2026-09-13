@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from './index';
+import { langFromFilename } from './code-lab/code-lab';
 import { highlightLines } from './code-lab/highlight-lines';
 
 /**
@@ -82,6 +83,47 @@ describe('highlightLines', () => {
 
   it('escapes source that looks like markup rather than emitting it', () => {
     expect(highlightLines('const el = "<script>";')[0]).not.toContain('<script>');
+  });
+
+  it('tokenises with the language it is given', () => {
+    expect(highlightLines('<p>{{ x }}</p>', 'html')[0]).toContain('<span class="hl-tag">p</span>');
+  });
+});
+
+// ── langFromFilename ────────────────────────────────────────────────────────────────
+
+describe('langFromFilename', () => {
+  it('reads the extension off a bare filename', () => {
+    expect(langFromFilename('app.html')).toBe('html');
+    expect(langFromFilename('styles.css')).toBe('css');
+    expect(langFromFilename('angular.json')).toBe('json');
+    expect(langFromFilename('user.component.ts')).toBe('ts');
+  });
+
+  // The shape most labels actually have: a filename followed by a description.
+  // Taking "everything after the last dot" reads `html — marking text` here.
+  it('finds the extension when the label carries a description after it', () => {
+    expect(langFromFilename('welcome.component.html — marking text for extraction')).toBe('html');
+    expect(langFromFilename('user.component.ts — with resource()')).toBe('ts');
+    expect(langFromFilename('tsconfig.json → esModuleInterop')).toBe('json');
+    expect(langFromFilename('motion.css: the reduced-motion block')).toBe('css');
+  });
+
+  it('does not mistake a dotted phrase for an extension', () => {
+    // `.component` is followed by another dot, so it is not the extension.
+    expect(langFromFilename('widget.spec.ts — testing it without disk')).toBe('ts');
+  });
+
+  it('treats a terminal label as shell and a console label as output', () => {
+    expect(langFromFilename('terminal — day zero')).toBe('bash');
+    expect(langFromFilename('Terminal session')).toBe('bash');
+    expect(langFromFilename('console — uncaught error')).toBe('text');
+  });
+
+  it('falls back to TypeScript for prose labels and unknown extensions', () => {
+    expect(langFromFilename('wiring the nonce')).toBe('ts');
+    expect(langFromFilename('zone.js — the shape of the patch')).toBe('ts');
+    expect(langFromFilename('')).toBe('ts');
   });
 });
 

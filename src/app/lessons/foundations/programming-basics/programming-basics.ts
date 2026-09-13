@@ -1,5 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
@@ -105,6 +106,7 @@ const TRACE: TraceLine[] = [
 @Component({
   selector: 'app-lesson-programming-basics',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

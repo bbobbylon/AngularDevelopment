@@ -304,6 +304,7 @@
     <app-predict
       [prompt]="eresolvePrompt"
       [code]="eresolveSample"
+      hlLang="text"
       [answer]="eresolveAnswer"
       revealLabel="Reveal what ERESOLVE actually means"
     />
@@ -352,7 +353,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ properFixSample }}</pre>
+          <pre data-lang="bash">{{ properFixSample }}</pre>
         </div>
         <p>
           A version manager like <strong>nvm</strong> installs Node entirely inside your own home folder, so every

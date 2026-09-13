@@ -475,15 +475,15 @@ async function processInChunks(items: Item[]): Promise<void> {
   ];
 
   /** Sample: finding what's actually inside a bundle, and the usual culprits. */
-  protected readonly bundleAnalysisSample = `// build with stats, then look at what's actually in the chunk:
+  protected readonly bundleAnalysisSample = `# build with stats, then look at what's actually in the chunk:
 ng build --stats-json
 npx source-map-explorer 'dist/*/browser/main*.js'
 
-// common culprits once you can see inside a chunk:
-// - moment.js — swap for date-fns (tree-shakeable) or the Temporal API
-// - lodash — use lodash-es or plain Array methods, never \`import _ from 'lodash'\`
-// - a large third-party library sitting in the INITIAL chunk — lazy-load or @defer it
-// - @angular/animations still imported, unused — this app teaches CSS + View Transitions instead`;
+# common culprits once you can see inside a chunk:
+# - moment.js — swap for date-fns (tree-shakeable) or the Temporal API
+# - lodash — use lodash-es or plain Array methods, never \`import _ from 'lodash'\`
+# - a large third-party library sitting in the INITIAL chunk — lazy-load or @defer it
+# - @angular/animations still imported, unused — this app teaches CSS + View Transitions instead`;
 
   /** Sample: the two browser-level instruments the DevTools profiler doesn't replace. */
   protected readonly lighthouseWorkflowSample = `// DevTools → Lighthouse tab, run in an incognito window (no extensions skewing the score):

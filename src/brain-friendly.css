@@ -664,6 +664,29 @@ html body {
 .lesson.bf .hl-punct {
   color: #8b8f96;
 }
+.lesson.bf .hl-tag {
+  color: #e8bf6a;
+}
+.lesson.bf .hl-attr {
+  color: #bababa;
+}
+.lesson.bf .hl-bind {
+  color: #cf8e6d;
+  font-weight: 600;
+}
+/* These three had no Darcula override, so a bash/yaml/json sample inside a
+   brain-friendly lesson was picking up the base theme's Palenight hues and
+   sitting a shade off every token around it. */
+.lesson.bf .hl-flag {
+  color: #c77dbb;
+}
+.lesson.bf .hl-var {
+  color: #4fc0c0;
+}
+.lesson.bf .hl-key {
+  color: #56a8f5;
+  font-weight: 600;
+}
 
 /* ------------------------------------------------------------
    10. BUTTONS

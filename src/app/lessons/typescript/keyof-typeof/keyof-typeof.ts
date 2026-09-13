@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 const THEME = {
   primary: '#dd0031',
@@ -63,6 +64,7 @@ const ROLES = ['admin', 'editor', 'viewer'] as const;
 @Component({
   selector: 'app-lesson-ts-keyof-typeof',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

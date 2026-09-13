@@ -146,7 +146,7 @@
         <button [class.ghost]="rightIsNum()" (click)="rightIsNum.set(false)">string</button>
       </div>
       <div class="code">
-        <pre>{{ plusExpr() }}</pre>
+        <pre [hlCode]="plusExpr()"></pre>
       </div>
       <p class="demo__note">
         Set both sides to "number" and you get real addition. Flip either one to "string" and <code>+</code>

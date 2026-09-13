@@ -72,6 +72,7 @@
 
     <app-code-lab
       file="terminal + app.config.ts"
+      hlLang="ts"
       [code]="setupSample"
       [notes]="setupNotes"
       notesLabel="One command, one provider"
@@ -135,7 +136,7 @@
         <span class="strat-pill">{{ r.group }} · {{ r.strategy }}</span>
         <p style="font-size: 0.9rem; margin: 6px 0 10px">{{ r.why }}</p>
         <div class="code" style="font-size: 0.82rem">
-          <pre>{{ r.snippet }}</pre>
+          <pre [hlCode]="r.snippet" hlLang="json"></pre>
         </div>
       } @else {
         <p style="color: var(--text-muted); font-size: 0.88rem">

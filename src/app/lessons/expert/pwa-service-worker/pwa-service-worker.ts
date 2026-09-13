@@ -4,6 +4,7 @@ import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
  * One cached resource: which `ngsw-config.json` group it belongs in, and why.
@@ -96,7 +97,18 @@ interface SimState {
  */
 @Component({
   selector: 'app-lesson-pwa-service-worker',
-  imports: [RouterLink, BfPage, Chapter, CodeLab, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    HighlightCode,
+    RouterLink,
+    BfPage,
+    Chapter,
+    CodeLab,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './pwa-service-worker.css',
   templateUrl: './pwa-service-worker.html',
 })

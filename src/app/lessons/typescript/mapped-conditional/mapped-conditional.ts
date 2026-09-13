@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 // ── The live bench: step through a real type evaluation ───────────────────────
 
@@ -154,6 +155,7 @@ IsNever<never> = ?`,
 @Component({
   selector: 'app-lesson-ts-mapped-conditional',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

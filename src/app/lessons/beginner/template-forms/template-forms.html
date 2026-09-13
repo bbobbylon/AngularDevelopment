@@ -345,6 +345,7 @@
     <app-predict
       prompt="This form has #f='ngForm' and a submit button, but no (ngSubmit) binding anywhere. The email field is already valid. What happens when you click Submit?"
       [code]="silentSubmitSample"
+      hlLang="html"
       answer="Nothing you can see — and no error either. NgForm still intercepts the native submit event and calls preventDefault() for you, so the page never reloads. It still emits ngSubmit — but an EventEmitter with nobody subscribed simply does nothing, and there is no console warning for an unused output. The fix is one attribute: (ngSubmit)='submit(f.value)'."
     />
 
@@ -369,6 +370,7 @@
     <app-predict
       prompt="Same form as before, but (ngSubmit) IS bound this time. The email field is left empty. What happens when you click Submit?"
       [code]="nativeValidationSample"
+      hlLang="html"
       answer="Nothing — again, but for a completely different reason this time. The browser's own native validation sees a `required` field with no value and blocks the submit event itself, before it ever reaches Angular. `ngSubmit` never fires, `submit()` never runs, and there is nothing in the console: no thrown error, no Angular warning, because from Angular's point of view no submission was ever attempted. It looks exactly like the missing-`(ngSubmit)` bug above, but the fix is the opposite one — the binding is already there."
       revealLabel="Reveal what happens"
     />

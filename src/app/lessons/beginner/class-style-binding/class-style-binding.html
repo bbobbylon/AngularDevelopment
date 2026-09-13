@@ -212,6 +212,7 @@
     <app-predict
       prompt="Here is the question from the top of the page, in full. Commit to an answer before you open it."
       [code]="mergeSample"
+      hlLang="html"
       answer='`class="card shadow active"` — all three. The `[class]` binding adds `active`; it has no opinion about `card` or `shadow`, so they stay exactly where they were. People expect `class="active"` because assignment is the intuition a template brings from JavaScript, where `el.className = &apos;active&apos;` really does wipe the rest. Angular&apos;s binding is not an assignment — it is one layer being told which of *its own* keys are on. Flip `isActive()` to false and you are back to `card shadow`, never to nothing.'
     />
 

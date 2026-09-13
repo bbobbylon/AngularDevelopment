@@ -104,7 +104,7 @@
         <span class="answer-file">📄 {{ task.file }}</span>
         <p class="answer-text">{{ task.answer }}</p>
         <div class="code">
-          <pre>{{ task.snippet }}</pre>
+          <pre [hlCode]="task.snippet" hlLang="json"></pre>
         </div>
       }
     </div>
@@ -167,6 +167,7 @@
     <app-predict
       [prompt]="liveEditPrompt"
       [code]="liveEditSample"
+      hlLang="json"
       [answer]="liveEditAnswer"
       revealLabel="Reveal the answer"
     />
@@ -197,7 +198,7 @@
       <div left>
         <p>A list of <strong>commands</strong>. Each key becomes something you can run with <code>npm run</code>.</p>
         <div class="code">
-          <pre>{{ scriptsPkgSample }}</pre>
+          <pre data-lang="json">{{ scriptsPkgSample }}</pre>
         </div>
       </div>
       <div right>
@@ -206,7 +207,7 @@
           nothing here is ever "run" by name.
         </p>
         <div class="code">
-          <pre>{{ scriptsAngSample }}</pre>
+          <pre data-lang="json">{{ scriptsAngSample }}</pre>
         </div>
       </div>
     </app-compare>

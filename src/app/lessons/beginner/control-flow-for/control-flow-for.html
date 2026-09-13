@@ -243,6 +243,7 @@
     <app-predict
       prompt="No performance hand-waving — this one is a correctness bug you can watch happen. What does the user see after the prepend?"
       [code]="prependSample"
+      hlLang="html"
       answer="The word `hello` is now sitting in Zoe's input, and Ada's is empty. Nothing moved the text: with `track $index`, row 0 is *defined* as &quot;whatever is at position 0&quot;, and the DOM node for row 0 never went anywhere. Zoe took over Ada's node, keys, focus, scroll position, half-typed text and all. Angular only rebound the `placeholder`. This is why `$index` tracking is not merely a slow choice — on any list holding state it is a wrong one, and it fails in a way that looks like a data bug rather than a template bug."
       revealLabel="Reveal what actually happens"
     />
@@ -338,12 +339,12 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ keyDiffIndexBefore }}</pre>
+          <pre data-lang="text">{{ keyDiffIndexBefore }}</pre>
         </div>
       </div>
       <div right>
         <div class="code">
-          <pre>{{ keyDiffIdAfter }}</pre>
+          <pre data-lang="text">{{ keyDiffIdAfter }}</pre>
         </div>
       </div>
     </app-compare>

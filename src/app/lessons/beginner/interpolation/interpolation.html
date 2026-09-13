@@ -153,12 +153,12 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ compareAllowedSample }}</pre>
+          <pre data-lang="html">{{ compareAllowedSample }}</pre>
         </div>
       </div>
       <div right>
         <div class="code">
-          <pre>{{ compareBlockedSample }}</pre>
+          <pre data-lang="html">{{ compareBlockedSample }}</pre>
         </div>
       </div>
     </app-compare>
@@ -243,7 +243,12 @@
       side by side, both deriving the same number, each with its own run counter.
     </p>
 
-    <app-predict [prompt]="methodPredictPrompt" [code]="methodPredictCode" [answer]="methodPredictAnswer" />
+    <app-predict
+      [prompt]="methodPredictPrompt"
+      [code]="methodPredictCode"
+      hlLang="html"
+      [answer]="methodPredictAnswer"
+    />
 
     <div class="demo">
       <p class="demo__title">Live — instrumented run counters</p>

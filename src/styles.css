@@ -28,6 +28,9 @@
    colour, ask which of these six it IS before inventing one.
    ============================================================ */
 :root {
+  /* Lets the keyword "auto" participate in transitions - see the <details>
+     block near the end of this file, which is the only thing that needs it. */
+  interpolate-size: allow-keywords;
   /* ── Modern neutral (zinc) + indigo/violet palette ── */
 
   /* ---- Contrast tiers ----
@@ -470,9 +473,24 @@ samp {
 .hl-var {
   color: #7fdbca;
 }
-/* The key half of `key: value` — yaml/json only. */
+/* The key half of `key: value` — yaml/json/css only. */
 .hl-key {
   color: #82aaff;
+  font-weight: 600;
+}
+/* An element name in markup (`div`, `app-lesson-nav`) — html only. */
+.hl-tag {
+  color: #f07178;
+}
+/* A plain HTML attribute name (`class`, `href`) — html only. */
+.hl-attr {
+  color: #ffcb6b;
+}
+/* Angular binding syntax — `[prop]`, `(event)`, `*ngIf`, `#ref`. Deliberately
+   louder than a plain attribute: the whole point of a template sample is
+   usually the binding, not the static markup around it. */
+.hl-bind {
+  color: #c792ea;
   font-weight: 600;
 }
 
@@ -676,6 +694,31 @@ textarea:focus {
   animation: vt-fade-out 0.18s ease both;
 }
 
+/* The topbar and footer are the same elements before and after a navigation,
+   but the root snapshot does not know that: it captures the entire page as one
+   image, so the default cross-fade dissolves the chrome along with the content
+   and the nav appears to blink on every route change.
+
+   Giving each persistent region its own view-transition-name takes it out of
+   the root snapshot and into a group of its own. Its geometry is identical
+   across the two states, so the group's default morph is a visual no-op - the
+   chrome simply stays put - and the root fade is left animating only what
+   actually changed, which is the routed content. */
+.topbar {
+  view-transition-name: topbar;
+}
+
+.footer {
+  view-transition-name: footer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root),
+  ::view-transition-old(root) {
+    animation: none;
+  }
+}
+
 /* ---- Scroll reveal (appReveal directive) ---- */
 .reveal {
   opacity: 0;
@@ -691,6 +734,147 @@ textarea:focus {
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     transition: none;
+  }
+}
+
+/* ---- Motion utilities (animate.enter / animate.leave) --------------------
+   Angular 21's `animate.enter` and `animate.leave` bindings add one of these
+   classes to an element as it joins or leaves the DOM, and for `leave` the
+   framework holds the node in the tree until the animation genuinely finishes.
+   That is the only part of add/remove choreography CSS cannot do on its own,
+   and it is why these exist rather than a `transition` on the element itself.
+
+   Deliberately NOT `@angular/animations`: that package is deprecated in favour
+   of exactly this, and the `animations` lesson teaches so. Shipping the thing
+   the curriculum tells the reader to use keeps the app honest — the toast that
+   slides away as you dismiss it is the same API the lesson demonstrates two
+   screens earlier.
+
+   Every animation here moves `opacity` and `transform` only, so nothing
+   reflows and no neighbour is shoved aside while it plays.
+   ------------------------------------------------------------------------ */
+
+/* A panel revealed in place: the Predict answer, the CodeLab output strip.
+   Rises a little, as if it were always there and just came into view. */
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A row joining or leaving a list. The leave mirrors the enter rather than
+   fading straight out, so removing feels like the undo of adding. */
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes row-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.97);
+  }
+}
+
+/* Toasts come up from the corner they live in and leave back towards it. */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}
+
+.reveal-in {
+  animation: reveal-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.row-in {
+  animation: row-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.row-out {
+  animation: row-out 0.2s ease both;
+}
+
+.toast-in {
+  animation: toast-in 0.2s ease both;
+}
+
+.toast-out {
+  animation: toast-out 0.18s ease both;
+}
+
+/* Reduced motion: collapse to an imperceptible duration rather than removing
+   the animation outright. `animate.leave` waits for the animation to finish
+   before detaching the node, so a genuinely absent animation is a worse
+   degradation than a 0.01ms one — the row would still be held for a frame on
+   some paths, and the intent ("no motion") is expressed either way. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal-in,
+  .row-in,
+  .row-out,
+  .toast-in,
+  .toast-out {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* ---- Disclosure panels (<details>) --------------------------------------
+   A <details> traditionally snaps open, which is the one place in this app
+   where a real height transition is worth the cost: the FAQ is read by
+   opening several answers in a row, and the snap makes the page feel like it
+   is jumping under the reader.
+
+   `interpolate-size: allow-keywords` (on :root, above) is what makes
+   `block-size: auto` interpolable at all; `transition-behavior: allow-discrete`
+   is what lets `content-visibility` flip at the right end of the transition
+   rather than immediately. Browsers without `::details-content` ignore the
+   whole block and keep today's instant open, which is a fine floor.
+   ------------------------------------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+  details.faq__item::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      block-size 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 0.2s ease,
+      content-visibility 0.26s allow-discrete;
+  }
+
+  details.faq__item[open]::details-content {
+    block-size: auto;
+    opacity: 1;
   }
 }
 

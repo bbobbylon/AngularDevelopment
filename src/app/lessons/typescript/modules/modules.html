@@ -429,6 +429,7 @@
 
     <app-code-lab
       file="tsconfig.json → esModuleInterop"
+      hlLang="ts"
       [code]="interopSample"
       [notes]="interopNotes"
       notesLabel="What the flag actually does"
@@ -441,7 +442,7 @@
       compiler can see. The CLI knows this and warns you the moment one lands in your dependency graph:
     </div>
 
-    <app-code-lab file="the warning, and how to silence it" [code]="allowedCommonJsSample" />
+    <app-code-lab file="the warning, and how to silence it" hlLang="json" [code]="allowedCommonJsSample" />
 
     <p>
       <code>allowedCommonJsDependencies</code> in <code>angular.json</code> doesn't fix the tree-shaking gap — it just

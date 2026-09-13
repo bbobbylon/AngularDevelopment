@@ -10,6 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
@@ -53,6 +54,7 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 @Component({
   selector: 'app-lesson-security',
   imports: [
+    HighlightCode,
     RouterLink,
     FormsModule,
     BfPage,

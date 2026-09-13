@@ -484,6 +484,7 @@
     <app-predict
       [prompt]="templateTypoPrompt"
       [code]="templateTypoSample"
+      hlLang="html"
       answer="Yes — at **build time**, not runtime. Angular's `strictTemplates` compiler option type-checks every binding against your component class, the same way `tsc` checks a function call. `nmae` isn't a key on `{ name: string }`, so the build fails with essentially the same message you'd get from any other typo'd property access in TypeScript. The moment Angular started checking templates against real types, a template stopped being 'just HTML.'"
       revealLabel="Reveal when it's caught"
     />

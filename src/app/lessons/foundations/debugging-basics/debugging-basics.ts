@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
  * One deliberately broken snippet and the error it produces.
@@ -108,6 +109,7 @@ const BUG_CASES: BugCase[] = [
 @Component({
   selector: 'app-lesson-debugging-basics',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

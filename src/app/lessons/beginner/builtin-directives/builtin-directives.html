@@ -91,6 +91,7 @@
 
     <app-code-lab
       file="what the compiler emits — one `*ngIf`"
+      hlLang="html"
       [code]="desugarSample"
       [notes]="desugarNotes"
       notesLabel="What each line is doing"
@@ -276,13 +277,13 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ compareNativeSample }}</pre>
+          <pre data-lang="html">{{ compareNativeSample }}</pre>
         </div>
         <p>Lighter to read, and the compiler can specialise the update for exactly one property.</p>
       </div>
       <div right>
         <div class="code">
-          <pre>{{ compareNgClassSample }}</pre>
+          <pre data-lang="html">{{ compareNgClassSample }}</pre>
         </div>
         <p>One binding toggling several classes or styles together, computed as an object.</p>
       </div>
@@ -314,7 +315,7 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ wrapperDivSample }}</pre>
+          <pre data-lang="html">{{ wrapperDivSample }}</pre>
         </div>
         <p>
           In a flex or grid container, that uninvited <code>&lt;div&gt;</code> is a new flex/grid item — a phantom cell
@@ -323,7 +324,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ ngContainerSample }}</pre>
+          <pre data-lang="html">{{ ngContainerSample }}</pre>
         </div>
         <p>Same content, zero extra nodes. Nothing to style, nothing to break your layout.</p>
       </div>
@@ -334,7 +335,7 @@
       demand, which is exactly what <code>*ngIf="…; else x"</code> compiles down to using:
     </p>
     <div class="code">
-      <pre>{{ ngTemplateOutletSample }}</pre>
+      <pre data-lang="html">{{ ngTemplateOutletSample }}</pre>
     </div>
   </section>
 
@@ -387,6 +388,7 @@
     <app-predict
       prompt="The stencil model has a consequence people miss until it costs them. Think about what is still running here."
       [code]="hiddenSample"
+      hlLang="html"
       answer="Polling the server once a second and holding a socket open, for the whole hour. `[hidden]` is a CSS toggle — it sets `display: none` on an element that is still fully alive. The component was never destroyed, so `ngOnDestroy` never ran, the interval was never cleared and the socket was never closed. Swap it for `@if (showPlayer)` (or `*ngIf`) and the component is genuinely destroyed: subscriptions torn down, timers cleared, memory released. The trade-off is real in the other direction too — the player loses its position and has to rebuild when it comes back, which is exactly when `[hidden]` is the right choice. The rule is to ask whether you want the thing *gone* or merely *invisible*, and then say which one you meant."
     />
 
@@ -414,13 +416,13 @@
     </div>
 
     <div class="code">
-      <pre>{{ hiddenDefeatCssSample }}</pre>
+      <pre data-lang="css">{{ hiddenDefeatCssSample }}</pre>
     </div>
 
     <p>Three ways out, cheapest first:</p>
 
     <div class="code">
-      <pre>{{ hiddenDefeatFixSample }}</pre>
+      <pre data-lang="css">{{ hiddenDefeatFixSample }}</pre>
     </div>
 
     <p>

@@ -142,6 +142,7 @@
 
     <app-code-lab
       file="the line everyone writes first"
+      hlLang="html"
       [code]="eventTargetFailSample"
       [notes]="eventTargetFailNotes"
       notesLabel="Why this doesn't compile"
@@ -184,7 +185,7 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ clickableDivWrongSample }}</pre>
+          <pre data-lang="html">{{ clickableDivWrongSample }}</pre>
         </div>
         <p>
           No <code>tabindex</code>, so Tab skips straight over it. No <code>role</code>, so a screen reader announces
@@ -193,7 +194,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ clickableDivRightSample }}</pre>
+          <pre data-lang="html">{{ clickableDivRightSample }}</pre>
         </div>
         <p>
           A <code>&lt;button&gt;</code> gets all of this natively. When it truly has to be a <code>&lt;div&gt;</code>,
@@ -234,6 +235,7 @@
 
     <app-code-lab
       file="event-binding.component.ts"
+      hlLang="html"
       [code]="keyupEnterSample"
       [notes]="keyupEnterNotes"
       notesLabel="What each line is doing"

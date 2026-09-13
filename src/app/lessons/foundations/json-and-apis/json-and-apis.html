@@ -177,7 +177,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ jsonCorrectSample }}</pre>
+          <pre data-lang="json">{{ jsonCorrectSample }}</pre>
         </div>
         <p>Double-quoted keys and strings, no trailing comma, and only values JSON actually understands.</p>
       </div>
@@ -446,6 +446,7 @@ JSON.parse(text).age    → {{ p.age }}</pre>
 
     <app-code-lab
       file="response — a 502 from the proxy, not your server"
+      hlLang="text"
       [code]="badGatewaySample"
       [notes]="badGatewayNotes"
       notesLabel="Why `.json()` is about to explode"

@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
  * One layer's record of a bubbling (or capturing) click: which layer, and where
@@ -56,6 +57,7 @@ interface BubbleHit {
 @Component({
   selector: 'app-lesson-dom-and-events',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

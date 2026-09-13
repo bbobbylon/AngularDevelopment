@@ -1,5 +1,6 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
@@ -87,6 +88,7 @@ const CALL_TRACE: CallFrame[] = [
 @Component({
   selector: 'app-lesson-functions-basics',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

@@ -134,7 +134,12 @@ export class App {
           // the main user of this); anything without it keeps defaulting to
           // `ts`, so no existing lesson markup needs to change.
           doc.querySelectorAll('.code pre, pre.code-block').forEach((pre) => {
-            if (pre.closest('.demo')) return;
+            // A demo's code is usually bound to a signal, so assigning
+            // innerHTML here would detach the text node Angular writes to and
+            // freeze the block. Those use the HighlightCode directive instead,
+            // which owns the element and re-highlights on every change; it
+            // stamps data-hl in its constructor so the two never collide.
+            if (pre.closest('.demo') || (pre as HTMLElement).dataset['hl'] !== undefined) return;
             const text = pre.textContent ?? '';
             if (!text.trim()) return;
             const lang = (pre.getAttribute('data-lang') as HighlightLang | null) ?? 'ts';

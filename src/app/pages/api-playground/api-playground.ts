@@ -449,10 +449,12 @@ export class ApiPlayground {
    * plain strings for anything else that reads them (e.g. `JSON.parse`).
    */
   readonly generatedCodeHtml = computed(() => highlight(this.generatedCode()));
-  readonly requestObjectHtml = computed(() => highlight(this.requestObjectJson()));
+  // The request object and the response body are JSON, so their keys should read
+  // as keys rather than as TypeScript identifiers.
+  readonly requestObjectHtml = computed(() => highlight(this.requestObjectJson(), 'json'));
   readonly wireMessageHtml = computed(() => highlight(this.wireMessage()));
   readonly errorMessageHtml = computed(() => highlight(this.errorMessage()));
-  readonly rawBodyHtml = computed(() => highlight(this.rawBody()));
+  readonly rawBodyHtml = computed(() => highlight(this.rawBody(), 'json'));
 
   // --- lifecycle helpers ---
 

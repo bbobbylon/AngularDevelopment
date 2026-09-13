@@ -329,7 +329,7 @@
       </div>
       @if (active(); as c) {
         <div class="code">
-          <pre>{{ c.expr }}</pre>
+          <pre [hlCode]="c.expr"></pre>
         </div>
         <ol class="steps">
           @for (s of c.steps; track $index; let i = $index) {

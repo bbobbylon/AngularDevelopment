@@ -21,7 +21,7 @@
       {{ revealLabel() }}
     </button>
   } @else {
-    <div class="predict__answer" [id]="panelId">
+    <div class="predict__answer" [id]="panelId" animate.enter="reveal-in">
       <p class="predict__answer-label">Answer</p>
       <p class="predict__answer-body"><app-rich-text [text]="answer()" /></p>
     </div>

@@ -654,6 +654,7 @@ providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
     <app-predict
       prompt="`ok` is `true`. What does this render?"
       [code]="ternarySample"
+      hlLang="html"
       answer="`yes` — lowercase, completely unchanged. `|` binds to the branch it's written in, not to the whole conditional: this parses as `ok ? 'yes' : ('no' | uppercase)`. The `yes` branch never sees the pipe at all — only reachable if `ok` were `false`. Parenthesise the whole expression to fix it: `(ok ? 'yes' : 'no') | uppercase`."
       revealLabel="Reveal what actually renders"
     />

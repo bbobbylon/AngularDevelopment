@@ -131,7 +131,7 @@
         What the sanitizer lets through — the <em>exact</em> HTML Angular writes to the DOM:
       </p>
       <div class="code">
-        <pre>{{ sanitized() }}</pre>
+        <pre [hlCode]="sanitized()" hlLang="html"></pre>
       </div>
 
       <p style="margin: 12px 0 4px">Rendered result, via <code>[innerHTML]</code>:</p>
@@ -293,12 +293,12 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ cspBeforeSample }}</pre>
+          <pre data-lang="yaml">{{ cspBeforeSample }}</pre>
         </div>
       </div>
       <div right>
         <div class="code">
-          <pre>{{ cspAfterSample }}</pre>
+          <pre data-lang="yaml">{{ cspAfterSample }}</pre>
         </div>
       </div>
     </app-compare>

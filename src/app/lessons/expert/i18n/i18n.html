@@ -172,7 +172,7 @@
     </p>
 
     <div class="code">
-      <pre>{{ installSample }}</pre>
+      <pre data-lang="bash">{{ installSample }}</pre>
     </div>
 
     <app-predict
@@ -203,7 +203,7 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ attrTrapWrongSample }}</pre>
+          <pre data-lang="html">{{ attrTrapWrongSample }}</pre>
         </div>
         <p class="demo__note">
           There is no static string here for <code>i18n-title</code> to grab — it never even runs.
@@ -373,6 +373,7 @@
 
     <app-code-lab
       file="the extract → translate → build pipeline"
+      hlLang="bash"
       [code]="pipelineSample"
       [notes]="pipelineNotes"
       notesLabel="What each line is doing"
@@ -463,7 +464,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ concatRightSample }}</pre>
+          <pre data-lang="html">{{ concatRightSample }}</pre>
         </div>
       </div>
     </app-compare>

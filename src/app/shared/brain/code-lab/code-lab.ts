@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RichText } from '../../teaching/rich-text/rich-text';
+import { type HighlightLang } from '../../highlighter';
 import { highlightLines } from './highlight-lines';
 
 /** An annotation attached to one line of a snippet. */
@@ -72,6 +73,59 @@ interface RenderedLine {
  * disclosure with `aria-expanded` / `aria-controls`. Nothing here depends on
  * hover: hover is a shortcut for what focus already does.
  */
+/**
+ * Maps the filename shown in the title bar onto a tokeniser.
+ *
+ * The title bar was already carrying the answer — a block labelled
+ * `app.html` is a template and a block labelled `styles.css` is a stylesheet —
+ * so inferring from it means 553 existing call sites got the right language
+ * without one of them being edited. Only the blocks whose label is prose rather
+ * than a filename (`file="wiring the nonce"`) fall through, and those keep the
+ * historical TypeScript default, so nothing regresses.
+ *
+ * A label is often a filename *and* a description — `user.component.ts — with
+ * resource()`, `welcome.component.html — marking text for extraction` — so the
+ * extension is the first dot-word that ends a filename (followed by a space, a
+ * dash, punctuation or the end), not whatever follows the last dot. Over a
+ * hundred labels have that shape; "everything after the last dot" got every one
+ * of them wrong.
+ *
+ * `hlLang` on the component overrides this when a block needs to disagree.
+ * Exported so the inference can be tested without mounting the component.
+ */
+export function langFromFilename(file: string): HighlightLang {
+  const name = file.trim().toLowerCase();
+  // A terminal is a shell; a console dump is program output, not source.
+  if (/^(terminal|shell|bash|cmd)\b/.test(name)) return 'bash';
+  if (/^console\b/.test(name)) return 'text';
+
+  const ext = /\.([a-z]+)(?=$|[\s—:,)\]])/.exec(name)?.[1] ?? '';
+  switch (ext) {
+    case 'html':
+      return 'html';
+    case 'css':
+    case 'scss':
+      return 'css';
+    case 'json':
+      return 'json';
+    case 'yml':
+    case 'yaml':
+      return 'yaml';
+    case 'sql':
+      return 'sql';
+    case 'py':
+      return 'python';
+    case 'java':
+      return 'java';
+    case 'sh':
+    case 'bash':
+      return 'bash';
+    default:
+      // .ts, .js, .mjs and every unlabelled block: the original default.
+      return 'ts';
+  }
+}
+
 @Component({
   selector: 'app-code-lab',
   imports: [RichText],
@@ -85,6 +139,18 @@ export class CodeLab {
 
   /** Raw source. Keep trailing `//` comments in it — they are half the teaching. */
   readonly code = input.required<string>();
+
+  /**
+   * Which tokeniser to run. `'auto'` (the default) reads it off {@link file},
+   * which is right for every block whose title bar is a real filename. Set it
+   * explicitly when the label is prose, or when a `.ts` file's snippet is
+   * actually a template string of markup.
+   * Named `hlLang`, not `lang`: `lang` is the global HTML attribute for the
+   * *natural* language of the content, so `lang="html"` on the host would be an
+   * invalid BCP 47 tag (axe `valid-lang` fails) and a screen reader might try
+   * to honour it.
+   */
+  readonly hlLang = input<HighlightLang | 'auto'>('auto');
 
   /** Line annotations. Order is irrelevant; they are numbered by line. */
   readonly notes = input<CodeNote[]>([]);
@@ -110,6 +176,12 @@ export class CodeLab {
   /** Unique enough for aria-controls within a page of several of these. */
   protected readonly panelId = `code-lab-out-${Math.random().toString(36).slice(2, 9)}`;
 
+  /** {@link hlLang}, with `'auto'` resolved against the filename. */
+  protected readonly resolvedLang = computed<HighlightLang>(() => {
+    const explicit = this.hlLang();
+    return explicit === 'auto' ? langFromFilename(this.file()) : explicit;
+  });
+
   /** Notes sorted by line and numbered, so markers read top to bottom. */
   protected readonly ordered = computed(() =>
     [...this.notes()]
@@ -120,7 +192,7 @@ export class CodeLab {
   /** Every source line, with its number and any marker it carries. */
   protected readonly lines = computed<RenderedLine[]>(() => {
     const markers = new Map(this.ordered().map((note) => [note.line, note.number]));
-    return highlightLines(this.code()).map((html, index) => ({
+    return highlightLines(this.code(), this.resolvedLang()).map((html, index) => ({
       html,
       number: index + 1,
       marker: markers.get(index + 1) ?? 0,

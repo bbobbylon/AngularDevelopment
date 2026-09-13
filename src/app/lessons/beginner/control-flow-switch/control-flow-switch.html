@@ -31,7 +31,7 @@
     </p>
 
     <div class="code">
-      <pre>{{ chainedIfSample }}</pre>
+      <pre data-lang="html">{{ chainedIfSample }}</pre>
     </div>
 
     <p>
@@ -198,6 +198,7 @@
     <app-predict
       prompt="Two `@case ('loading')` blocks sit in the same switch, with different bodies, and `status()` is `'loading'`. Which one renders — and does Angular warn you either way?"
       [code]="duplicateCaseSample"
+      hlLang="html"
       answer="The first one — always. `@switch` walks its cases top to bottom and stops at the first exact match, so the second `@case ('loading')` never runs, and Angular raises no warning about it. It compiles cleanly and just sits there. The same top-to-bottom rule that lets you group cases above is exactly what makes an accidental duplicate silently unreachable."
       revealLabel="Reveal the answer"
     />
@@ -230,7 +231,7 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ shapeDirectCallSample }}</pre>
+          <pre data-lang="html">{{ shapeDirectCallSample }}</pre>
         </div>
         <p>
           This fails to compile. <code>shape()</code> is a <strong>function call</strong>, and TypeScript never narrows
@@ -241,7 +242,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ shapeLetSample }}</pre>
+          <pre data-lang="html">{{ shapeLetSample }}</pre>
         </div>
         <p>
           <code>s</code> is a <strong>stable reference</strong> — a plain identifier, not a call — so it narrows exactly
@@ -473,7 +474,7 @@
     >
       <div left>
         <div class="code">
-          <pre>{{ legacySwitchSample }}</pre>
+          <pre data-lang="html">{{ legacySwitchSample }}</pre>
         </div>
         <p>
           Three cooperating directives — <code>NgSwitch</code>, <code>NgSwitchCase</code>,
@@ -488,7 +489,7 @@
       </div>
       <div right>
         <div class="code">
-          <pre>{{ blockSwitchSample }}</pre>
+          <pre data-lang="html">{{ blockSwitchSample }}</pre>
         </div>
         <p>
           One built-in block, nothing to import, and no attribute-vs-binding ambiguity to trip over — every

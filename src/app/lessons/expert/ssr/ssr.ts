@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
  * Which rendering strategy the timeline is showing.
@@ -180,6 +181,7 @@ const PAGE_KINDS: PageKind[] = [
 @Component({
   selector: 'app-lesson-ssr',
   imports: [
+    HighlightCode,
     RouterLink,
     BfPage,
     Bubbles,

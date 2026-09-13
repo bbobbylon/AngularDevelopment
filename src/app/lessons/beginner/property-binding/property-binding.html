@@ -27,6 +27,7 @@
     <app-predict
       prompt="You type a brand-new value into the field, then open DevTools' Elements panel and look at the input's `value` attribute in the markup. What do you see?"
       [code]="predictCode"
+      hlLang="html"
       answer="The ORIGINAL value — frozen at whatever the input held when the page first rendered, unchanged even though you just typed something completely different into it, live, on screen, right now. That's not a bug. `[value]` writes to the input's live `.value` property — the actual contents of the box — while the `value` attribute in the markup is just the shipping label from when the page first rendered, and typing doesn't repaint that label. To see what's really in the box, use DevTools' Properties tab, or read `inputEl.value` in the console."
     />
   </section>

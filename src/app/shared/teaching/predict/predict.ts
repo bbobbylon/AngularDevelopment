@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import { highlight } from '../../highlighter';
+import { highlight, type HighlightLang } from '../../highlighter';
 import { RichText } from '../rich-text/rich-text';
 
 /**
@@ -49,6 +49,16 @@ export class Predict {
   readonly code = input<string>('');
 
   /**
+   * Which tokeniser to run over {@link code}. Defaults to TypeScript, which is
+   * what most Predict samples are; set it to `'html'` for a template sample so
+   * that tags and bindings are coloured as markup rather than being pushed
+   * through the TypeScript rules.
+   * Named `hlLang` rather than `lang` because `lang` is the global attribute
+   * for the content's natural language — see the same note on `CodeLab`.
+   */
+  readonly hlLang = input<HighlightLang>('ts');
+
+  /**
    * The sample, tokenised into `<span class="hl-*">` markup.
    *
    * Highlighting happens here rather than in the app-wide sweep in `app.ts`,
@@ -60,7 +70,7 @@ export class Predict {
    * Safe to bind with `[innerHTML]`: {@link highlight} escapes every character
    * it emits, so the sample is displayed as source rather than parsed as markup.
    */
-  protected readonly highlightedCode = computed(() => highlight(this.code()));
+  protected readonly highlightedCode = computed(() => highlight(this.code(), this.hlLang()));
 
   /** The reveal. May contain `backtick` code spans. */
   readonly answer = input.required<string>();

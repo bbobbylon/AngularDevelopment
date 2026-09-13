@@ -4,6 +4,8 @@
       <div
         class="toast"
         [class]="'toast toast--' + t.type"
+        animate.enter="toast-in"
+        animate.leave="toast-out"
         role="status"
         (click)="toast.dismiss(t.id)"
         title="Click to dismiss"

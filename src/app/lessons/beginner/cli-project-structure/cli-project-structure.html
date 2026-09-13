@@ -79,6 +79,7 @@
     <app-predict
       [prompt]="buildSettingPrompt"
       [code]="buildSettingCode"
+      hlLang="json"
       [answer]="buildSettingAnswer"
       revealLabel="Reveal the answer"
     />
@@ -118,7 +119,7 @@
     <p>Two more flags in the same neighbourhood, worth knowing before you need them under pressure:</p>
 
     <div class="code">
-      <pre>{{ deployFlagsSample }}</pre>
+      <pre data-lang="bash">{{ deployFlagsSample }}</pre>
     </div>
 
     <p>
@@ -174,7 +175,7 @@
 
     <p>That <code>templateUrl</code> points here — the entire template of a fresh project, one tag long:</p>
     <div class="code">
-      <pre>{{ appHtmlSample }}</pre>
+      <pre data-lang="html">{{ appHtmlSample }}</pre>
     </div>
 
     <app-remember variant="mnemonic">

@@ -281,7 +281,7 @@
       @if (bug(); as b) {
         <p class="demo__note">The code:</p>
         <div class="code">
-          <pre>{{ b.code }}</pre>
+          <pre [hlCode]="b.code"></pre>
         </div>
         <p class="demo__note">What appears in the console:</p>
         <div class="code">
@@ -290,7 +290,7 @@
         <p><strong>How to read it:</strong> {{ b.reading }}</p>
         <p class="demo__note">The fix:</p>
         <div class="code">
-          <pre>{{ b.fix }}</pre>
+          <pre [hlCode]="b.fix"></pre>
         </div>
       } @else {
         <p class="demo__note">Pick a bug. Each shows the code, the console output, and how a practiced eye reads it.</p>

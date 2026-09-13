@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { CODING_TASKS, type CodingTask } from './coding-tasks-data';
 import { STORAGE_KEYS, readJson, writeJson } from '../../core/storage';
 import { RevealOnScrollDirective } from '../../shared/reveal-on-scroll.directive';
+import { HighlightCode } from '../../shared/highlight-code.directive';
 import { Napkin, TapeCard } from '../../shared/brain';
 
 /** Everything remembered about one brief. Persisted; see {@link loadStates}. */
@@ -74,7 +75,7 @@ function saveStates(states: TaskStates): void {
  */
 @Component({
   selector: 'app-coding-tasks',
-  imports: [RouterLink, RevealOnScrollDirective, TapeCard, Napkin],
+  imports: [HighlightCode, RouterLink, RevealOnScrollDirective, TapeCard, Napkin],
   styleUrl: './coding-tasks.css',
   templateUrl: './coding-tasks.html',
 })

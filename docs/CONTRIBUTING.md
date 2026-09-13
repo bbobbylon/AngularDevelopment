@@ -1,7 +1,7 @@
 # Contributing — Writing Lessons and Questions
 
-**Version:** 1.0
-**Last Updated:** 2026-08-29
+**Version:** 1.1
+**Last Updated:** 2026-09-12
 **Status:** Final
 
 ## Overview
@@ -212,6 +212,15 @@ Reach for the one whose job matches. Using `<app-layers>` for a pipeline or
 `<app-bubbles>` for a monologue is worse than using neither, because the shape then tells
 the reader something untrue about the idea.
 
+**Tell the highlighter the language.** `<app-code-lab>` infers it from the `file` label —
+`app.html` → html, `styles.css` → css, `angular.json` → json, `terminal — …` → bash,
+`console — …` → plain text, anything else → ts — so name the file honestly and it is
+usually right. Pass `hlLang="html"` (or `css`, `json`, `bash`, `text`, …) when the label
+is prose or the inference is wrong. `<app-predict>` takes the same `hlLang` input and
+defaults to ts. A sample that shows a class _and_ its template in one string stays
+`ts`: the scanner hands any line that _starts_ with a tag or `{{` to the markup scanner
+and takes over again on the next line.
+
 ### 2B.3 Section rhythm
 
 Every section opens with an eyebrow and a short declarative headline:
@@ -247,6 +256,15 @@ protected readonly notes: CodeNote[] = [
   jobs, and the highlighter colours the comment.
 - `line` is **1-based** and counted against the raw string, so re-check the numbers after
   any edit to the sample.
+- **A plain `<pre>{{ sample }}</pre>` outside a demo** is highlighted once per navigation by
+  the sweep in `app.ts`. Give it `data-lang="html"` (or `css`/`json`/`bash`/`text`) when
+  it is not TypeScript; the default is ts.
+- **Code inside a `.demo`, or anything that changes or appears late** (a computed, an
+  accordion, a `@defer`) uses the directive instead:
+  `<pre [hlCode]="sanitized()" hlLang="html"></pre>`. The sweep skips `.demo` on purpose —
+  assigning `innerHTML` over a live interpolation detaches the text node and freezes the
+  block — and skips anything the directive has stamped with `data-hl`. Import
+  `HighlightCode` from `shared/highlight-code.directive`.
 
 ### 2B.5 Colouring prose
 
