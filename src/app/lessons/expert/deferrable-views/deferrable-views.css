@@ -1,3 +1,11 @@
+/* The closing verdict of the receipt block "ends loud": give it air after the
+   quiz so it reads as the last word, not as the quiz's follow-up. The layer's
+   `.lesson.bf .bf-big` rule (brain-friendly.css §16) is beaten on specificity
+   only by repeating its prefix. */
+.lesson.bf .bf-big.verdict {
+  margin-top: 2.5rem;
+}
+
 .t {
   width: 100%;
   border-collapse: collapse;

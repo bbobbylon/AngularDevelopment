@@ -5,7 +5,9 @@
    signals and Observables. Every colour is a --bf-* token, the <svg> is
    aria-hidden, and the figcaption repeats the same information as a sentence
    for anyone who cannot see it — same technique as the boundary diagram in
-   view-encapsulation.css. */
+   view-encapsulation.css. The other figure on the page, the 200 ms "gap"
+   timeline inside the argument's <app-whiteboard>, needs nothing here: it is
+   drawn with the global `.wb-*` classes from brain-friendly.css §16. */
 .bridge-fig {
   margin: 0;
 }

@@ -3,7 +3,7 @@
     number="4"
     kicker="Angular Intermediate · RxJS"
     title="Signals ↔ RxJS Interop"
-    hand="or, how to borrow RxJS's operators without giving up your signal"
+    hand="or, a transcript from the first 200 milliseconds of a component's life"
     [stops]="stops"
     [current]="3"
   >
@@ -17,73 +17,125 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ 1. THE ARGUMENT (shape: argument — CONTRIBUTING §2C) ============ -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>A signal can't wait. An Observable can't be read.</h2>
+    <p class="bf-big">“I always have a value. You just never told me what it was.”</p>
 
-    <p>
-      You have a <code>query</code> signal. It changes on every keystroke, because that is what signals are for —
-      synchronous state, always current. Now you want the <em>debounced</em> version: the same text, but only once
-      typing has paused for half a second. Look for a <code>debounce()</code> on the signals API and you will not find
-      one. Signals have no operators at all.
+    <p class="bf-say">
+      One first render, one <code>TypeError</code>, three parties in the room — and not one of them made a mistake.
     </p>
 
     <p>
-      Flip it around and there is a second problem waiting. An Observable has <code>debounceTime</code>, and
-      <code>retry</code>, and a dozen more — but it has no
-      <span class="bf-break">current value you can just read</span>. Ask an Observable "what do you have right now?"
-      outside of a subscription and the honest answer is: nothing, it is a set of instructions for what to do when
-      something happens, not a value sitting somewhere waiting.
+      The parties: an <strong>HTTP Observable</strong>, <code>this.http.get&lt;User[]&gt;('/api/users')</code>, which
+      answers when the server does, about 200 milliseconds in. <strong><code>toSignal</code></strong
+      >, which turned that stream into a signal in a field initializer. And <strong>your template</strong>, which read
+      <code>users().length</code> the moment it rendered. Here is the transcript.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Nothing in the signals API can debounce, retry or cancel. Nothing in the Observable API can be read synchronously
-      in a template the way <code>count()</code> can. Before you scroll: is that a <strong>missing feature</strong> that
-      both types should eventually grow — or is it evidence that a value should <em>change form</em> depending on which
-      job it is doing at that moment?
+    <app-bubbles [turns]="roundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="Three parties, zero mistakes — so who caused the `TypeError`?"
+      hint="Re-read who **promised** a value, to whom — and from when."
+    />
+
+    <app-bubbles [turns]="roundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      An Observable may not have a value yet. A signal must always have one. Carry a value from the first world into the
+      second and you owe the signal something to hold while you wait: <code>initialValue</code> pays that debt up front;
+      <code>requireSync</code> is a signed statement that there is no wait at all, which Angular checks at creation and
+      throws on if you've lied. Convert at the boundary — and pay at the boundary.
+    </p>
+
+    <app-whiteboard
+      caption="The gap: 200 milliseconds where the stream has said nothing and the signal still has to answer."
+      alt="A timeline from 0 to 200 milliseconds with two lanes. In the stream lane, a dashed line labelled silence runs from 0 to 200 ms, where a box reads next(User[]). In the signal lane, a box labelled undefined spans the same 0 to 200 ms, followed by a box labelled User[] that the stream's value is written into with set(). At 0 ms, the first render, an arrow from the time axis points up into the undefined box: the template reads .length of that. A handwritten note above the undefined box marks where initialValue: [] would go instead."
+    >
+      <svg class="wb-svg" viewBox="0 0 720 300" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="rxjs-interop-head"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0,0 L10,5 L0,10 Z" />
+          </marker>
+        </defs>
+
+        <!-- lane labels -->
+        <text class="wb-text wb-text--sm" x="126" y="84" text-anchor="end">the stream says</text>
+        <text class="wb-text wb-text--sm" x="126" y="165" text-anchor="end">the signal holds</text>
+
+        <!-- stream lane: silence, then one emission -->
+        <path class="wb-arrow wb-arrow--ink wb-arrow--dashed" d="M140,80 L514,80" />
+        <text class="wb-hand" x="327" y="70" text-anchor="middle">…silence. the server is thinking</text>
+        <rect class="wb-node wb-node--lit" x="520" y="56" width="150" height="48" rx="8" />
+        <text class="wb-mono" x="595" y="85" text-anchor="middle">next(User[])</text>
+
+        <!-- what gets written into the signal -->
+        <path class="wb-arrow" d="M595,106 L595,132" marker-end="url(#rxjs-interop-head)" />
+        <text class="wb-hand" x="604" y="124">.set()</text>
+
+        <!-- signal lane: the gap, then the value -->
+        <text class="wb-hand" x="140" y="124">initialValue: [] goes here first</text>
+        <rect class="wb-node" x="140" y="136" width="374" height="48" rx="8" />
+        <text class="wb-mono" x="327" y="166" text-anchor="middle">undefined</text>
+        <rect class="wb-node wb-node--lit" x="520" y="136" width="150" height="48" rx="8" />
+        <text class="wb-mono" x="595" y="166" text-anchor="middle">User[]</text>
+
+        <!-- the first render, reading up into the gap -->
+        <path class="wb-arrow" d="M150,244 L150,190" marker-end="url(#rxjs-interop-head)" />
+        <text class="wb-hand" x="164" y="218">reads .length of… that</text>
+
+        <!-- the time axis -->
+        <line class="wb-rule" x1="60" y1="250" x2="690" y2="250" />
+        <line class="wb-rule" x1="140" y1="244" x2="140" y2="256" />
+        <line class="wb-rule" x1="520" y1="244" x2="520" y2="256" />
+        <text class="wb-text wb-text--sm" x="140" y="274" text-anchor="middle">0 ms · first render</text>
+        <text class="wb-text wb-text--sm" x="520" y="274" text-anchor="middle">200 ms · the server answers</text>
+        <text class="wb-text wb-text--sm" x="690" y="274" text-anchor="end">time →</text>
+      </svg>
+
+      <app-scribble
+        quote="undefined"
+        text="not **empty** — the signal is holding exactly what it was seeded with, which was nothing in particular. Read it at 0 ms and that is what you get."
+      />
+      <app-scribble
+        quote="initialValue: []"
+        point="up"
+        tone="olive"
+        text="rewrites the first box to `[]`. The template renders an empty list for 200 ms, the array lands, `.set()` overwrites it — and nothing ever throws."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="`readonly users = toSignal(this.http.get<User[]>('/api/users'));` — no options object — and the template reads `users().length` on first render. What is the signal's type, and what does that first render produce?"
+      [options]="gapOptions"
+      followUp="`{ initialValue: [] }` narrows the type to `Signal<User[]>` and puts an empty list on the board for the 200 ms. `{ requireSync: true }` narrows it the same way by promising the source emits synchronously — and throws at creation if it doesn't."
+    />
+
+    <app-napkin lead="the mental model —" label="Keep this picture">
+      A <strong>signal is a whiteboard</strong>: there is always exactly one thing written on it, and anyone can walk up
+      and read it. An <strong>Observable is a ticker tape</strong>: values print past, and until the first one prints
+      there is nothing to see. <code>toSignal</code> is someone standing at the tape, copying each value onto the board
+      the moment it prints. <code>initialValue</code> is what you write on the board <em>before</em> the tape starts.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>A whiteboard, and a ticker tape.</h2>
-
-    <p>
-      A <strong>signal is a whiteboard</strong>. There is always exactly one thing written on it, and you can walk over
-      and read it whenever you like. Walk away for an hour, come back, and the current value is still there waiting —
-      nobody has to tell you anything for the board to still say what it says.
-    </p>
-
-    <p>
-      An <strong>Observable is a ticker tape</strong>. Values print past. If you were not watching when one went by, you
-      missed it — and until the first one has printed, <span class="key">there is nothing to see at all</span>. That
-      machine also happens to have knobs on it: slow the tape down, discard duplicates, splice in another tape. The
-      whiteboard has none of those, because a whiteboard has nothing to turn a knob on.
-    </p>
-
-    <app-remember variant="mnemonic">
-      A signal <strong>always has a value</strong>. An Observable <strong>might not have one yet</strong>. Everything
-      about <code>initialValue</code>, <code>requireSync</code> and that <code>| undefined</code> in your types falls
-      out of that one difference.
-    </app-remember>
-
-    <app-bubbles
-      [turns]="bridgeTalk"
-      caption="Neither side changes what it is. `toObservable` visits the tape; `toSignal` comes back to the board."
-    />
-  </section>
-
-  <!-- ============ 3. THE MECHANISM: toSignal ============ -->
+  <!-- ============ 2. THE MECHANISM: toSignal ============ -->
   <section>
     <p class="bf-eyebrow">The mechanism</p>
     <h2><code>toSignal</code> is a subscription wearing a signal's clothes.</h2>
 
     <p>
       There is no special runtime trick here — <code>toSignal</code> subscribes to the Observable once, and every time
-      it emits, it writes the value into an ordinary signal. Here is that idea with the real error-handling and
-      scheduling stripped out, which is exactly the technique
+      it emits, it writes the value into an ordinary signal. That is exactly what it told the template in round one.
+      Here is the idea with the real error-handling and scheduling stripped out, which is the same technique
       <a routerLink="/rxjs-subjects">the Subjects lesson</a> used for its own <code>MiniSubject</code>.
     </p>
 
@@ -97,7 +149,7 @@
     <div class="bf-grid-2">
       <app-tape-card heading="initialValue" kicker="what state() reads first" tone="accent">
         The value the signal holds until the very first emission arrives. Skip it and the type is
-        <code>T | undefined</code> — exactly the crash the Predict below walks through.
+        <code>T | undefined</code> — the gap round one was arguing about.
       </app-tape-card>
       <app-tape-card heading="requireSync" kicker="the escape hatch" tone="olive">
         For sources that emit the instant you subscribe — a <code>BehaviorSubject</code>, a
@@ -106,7 +158,8 @@
       </app-tape-card>
       <app-tape-card heading="errors rethrow on read" kicker="not on arrival" tone="blue">
         An errored source does not crash the moment it fails. The error waits, and surfaces the next time something
-        <em>reads</em> the signal — usually your template, mid-render. Put <code>catchError</code> in the pipe first.
+        <em>reads</em> the signal — usually your template, mid-render. The Predict below catches you on it; put
+        <code>catchError</code> in the pipe first.
       </app-tape-card>
       <app-tape-card heading="injection context" kicker="field init, or the constructor">
         <code>toSignal</code> calls <code>inject()</code> underneath, and <code>inject()</code> only works there. Call
@@ -114,20 +167,34 @@
       </app-tape-card>
     </div>
 
+    <app-remember variant="mnemonic">
+      <strong>Whiteboard, tape.</strong> A signal always has a value; an Observable might not have one yet.
+      <code>initialValue</code>, <code>requireSync</code> and that <code>| undefined</code> in your types are the same
+      fact wearing three different outfits.
+    </app-remember>
+
     <app-predict
-      prompt="A service exposes an HTTP call through `toSignal` with no `initialValue`, and the template reads `.length` off it. What renders during the 200ms before the response lands?"
-      [code]="initialValueSample"
-      answer="Nothing renders — you get `TypeError: Cannot read properties of undefined (reading 'length')`. With no `initialValue`, the signal's type is `User[] | undefined` and its value is genuinely `undefined` until the first emission: the whiteboard is blank because nothing has come off the tape yet. TypeScript will actually warn you here if `strictTemplates` is on — fix it with an explicit empty-array `initialValue`, so an empty list renders instead of a crash."
+      prompt="Same signal, but this time the server answers with a 500. `initialValue` is set, so the first render was fine. Where does the failure surface — in the console the moment the response fails, or somewhere else?"
+      [code]="errorOnReadSample"
+      answer="Somewhere else, and later. `toSignal` doesn't throw when the error arrives; it stores it, and re-throws it the next time something **reads** the signal. That reader is your template, on the next change-detection pass — so the stack trace points at the `@for` in your template, not at `HttpClient`, and it lands mid-render. The fix belongs upstream: put `catchError` in the pipe **before** `toSignal` and map the failure to something the template can render — `of([])`, or an error object it shows as a message."
     />
   </section>
 
-  <!-- ============ 4. THE MECHANISM: toObservable ============ -->
+  <!-- ============ 3. THE MECHANISM: toObservable ============ -->
   <section>
     <p class="bf-eyebrow">The other direction</p>
     <h2><code>toObservable</code> is an effect wearing an Observable's clothes.</h2>
 
     <p>
-      This direction runs on the mechanism from the <a routerLink="/signals-advanced">advanced signals lesson</a>: an
+      The bridge has a second lane, and the traffic on it starts from a different complaint. You have a
+      <code>query</code> signal that changes on every keystroke, and you want the <em>debounced</em> version — the same
+      text, but only once typing has paused for half a second. Look for a <code>debounce()</code> on the signals API and
+      you will not find one: signals have <span class="bf-break">no operators at all</span>. The way out is not to grow
+      one. It is to cross over, use RxJS's, and come back.
+    </p>
+
+    <p>
+      The crossing runs on the mechanism from the <a routerLink="/signals-advanced">advanced signals lesson</a>: an
       <code>effect()</code> reruns whenever a signal it reads changes. <code>toObservable</code> puts one of those
       inside a hand-built Observable, so every time the signal changes, the effect pushes the new value out.
     </p>
@@ -169,13 +236,13 @@
       <figcaption>
         Two one-way crossings, not a merger. <code>toObservable()</code> carries a signal's current value out to where
         RxJS's operators live; <code>toSignal()</code> carries a value back, and has to be told what to say before the
-        first one arrives — that is the <code>initialValue</code> from the previous section, arriving from the other
-        side of the bridge.
+        first one arrives — that is the <code>initialValue</code> from the argument, arriving from the other side of the
+        bridge.
       </figcaption>
     </figure>
   </section>
 
-  <!-- ============ 4B. WHAT toObservable DROPS ============ -->
+  <!-- ============ 3B. WHAT toObservable DROPS ============ -->
   <section>
     <p class="bf-eyebrow">A trap that only shows up under a burst of writes</p>
     <h2><code>toObservable</code> reports where a signal lands, not every stop it made getting there.</h2>
@@ -227,7 +294,7 @@
     </div>
   </section>
 
-  <!-- ============ 5. THE SAME IDEA, FOUR MODES ============ -->
+  <!-- ============ 4. THE SAME IDEA, FOUR MODES ============ -->
   <section>
     <p class="bf-eyebrow">Try it — the round trip</p>
     <h2>Out to RxJS, and straight back.</h2>
@@ -283,7 +350,7 @@
     />
   </section>
 
-  <!-- ============ 6. AUTOMATIC TEARDOWN ============ -->
+  <!-- ============ 5. AUTOMATIC TEARDOWN ============ -->
   <section>
     <p class="bf-eyebrow">Automatic teardown</p>
     <h2><code>takeUntilDestroyed</code> ends when the component does.</h2>
@@ -319,7 +386,7 @@
     </div>
   </section>
 
-  <!-- ============ 7. THE TRAP ============ -->
+  <!-- ============ 6. THE TRAP ============ -->
   <section>
     <p class="bf-eyebrow">The trap</p>
     <h2>Call it from the wrong place, and it throws.</h2>
@@ -337,7 +404,7 @@
     />
   </section>
 
-  <!-- ============ 8. PULLING IT TOGETHER ============ -->
+  <!-- ============ 7. PULLING IT TOGETHER ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
     <h2>Two tools, one boundary.</h2>
@@ -443,13 +510,13 @@
     </app-remember>
   </section>
 
-  <!-- ============ 9. QUESTIONS ============ -->
+  <!-- ============ 8. QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
     <app-faq [items]="questions" heading="There are no dumb questions" />
   </section>
 
-  <!-- ============ 10. RECAP ============ -->
+  <!-- ============ 9. RECAP ============ -->
   <section>
     <p class="bf-eyebrow">Before you go</p>
     <h2>Five things to remember.</h2>
@@ -457,7 +524,8 @@
     <ul>
       <li>
         <code>toSignal(obs$)</code> consumes an Observable as a signal: it subscribes once, seeds itself with
-        <code>initialValue</code>, and <strong>unsubscribes automatically</strong> when the component is destroyed.
+        <code>initialValue</code> — what it holds during the gap before the first emission — and
+        <strong>unsubscribes automatically</strong> when the component is destroyed.
       </li>
       <li>
         <code>toObservable(sig)</code> exposes a signal as a stream by wrapping an <code>effect()</code> — so RxJS's

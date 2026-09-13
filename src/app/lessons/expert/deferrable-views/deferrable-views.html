@@ -3,7 +3,7 @@
     number="4"
     kicker="Angular Expert · Runtime & Performance"
     title="Deferrable Views"
-    hand="or, how a &#64;defer block decides your chart doesn't need to exist yet"
+    hand="or, first the bill — then we'll argue about who should have paid it"
     [stops]="stops"
     [current]="3"
   >
@@ -15,22 +15,82 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Every visitor downloads your whole app. Even the parts they'll never see.</h2>
-
-    <p>
-      A heavy charting library, a comments widget, an admin panel only 2% of visitors ever open —
-      <span class="key">by default, every one of them ships to every visitor</span>, in the same bundle as the code that
-      actually renders on first paint. The browser downloads, parses and compiles all of it before your app is
-      interactive, whether or not this particular visitor ever scrolls far enough to need it.
+  <!-- ============ 1. THE RECEIPT — the opening block (shape: receipt, CONTRIBUTING §2C) ============ -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Say first paint costs 561 kB. 318 of them are a chart that two visitors in a hundred ever scroll down to.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before you scroll">
-      Without touching a bundler config, how would you tell Angular "only fetch this component's code if someone
-      actually scrolls to it"? Keep a guess in your head — the four live demos below will confirm or correct it.
-    </app-napkin>
+    <app-receipt
+      heading="Initial load · a typical dashboard"
+      [rows]="bill"
+      [total]="billTotal"
+      footer="charged to every visitor · chart seen by 2 in 100"
+    />
+
+    <app-scribble
+      point="up"
+      quote="main.js · chart widget, eager"
+      text="One line is 57% of the bill, and the visitor who never scrolls pays it anyway. That gap — what **shipped** versus what was **seen** — is the whole lesson."
+    />
+
+    <app-compare
+      leftTitle="Eager — how the chart got on the bill"
+      leftTone="bad"
+      rightTitle="Deferred — billed on scroll"
+      rightTone="good"
+      note="Same component, same template, same data. One side ships 318 kB to everyone; the other ships a skeleton and a promise."
+    >
+      <div left>
+        <div class="code">
+          <pre data-lang="html">{{ eagerSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre data-lang="html">{{ deferredSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">A deferred block doesn't shrink your code. It moves one import to the far side of a trigger.</p>
+
+    <app-chain [steps]="pipeline" label="What a deferred block does, in order" />
+
+    <app-code-lab
+      file="dashboard.html"
+      [code]="blocksSample"
+      [notes]="blocksNotes"
+      notesLabel="Reading the four blocks"
+    />
+
+    <app-scribble
+      quote="on viewport"
+      text="The trigger — the first chip in the chain. Nothing past this brace fetches or renders until the skeleton scrolls into view. It says **when** to start, and nothing else."
+    />
+    <app-scribble
+      quote="<app-chart />"
+      text="The 318 kB line. It's the only thing here that leaves `main.js`, because the compiler rewrites **this** component's import as a dynamic `import()` — and no other line's."
+    />
+    <app-scribble
+      quote="@placeholder (minimum 500ms)"
+      tone="clay"
+      text="Ships eagerly — it's on everyone's bill, so keep it a skeleton, not a second chart. `minimum` stops it flashing for one frame when the trigger fires fast."
+    />
+
+    <app-brain-power
+      question="You wrap the chart in `@defer`, run the production build, and `main.js` is still 530 kB — exactly what it was. Where did the 318 kB go?"
+      hint="The receipt has one line for the chart. Your template might not."
+    />
+
+    <app-quiz
+      question="The chart now sits inside `@defer (on viewport)` with a skeleton `@placeholder`. A visitor lands, reads the KPIs, and leaves without scrolling. What did they download for the chart?"
+      [options]="receiptQuizOptions"
+      followUp="The same per-dependency split is what the compiler section further down shows in its own output — and why one eager reference can undo it."
+    />
+
+    <p class="bf-big verdict">Eager bills everyone. Deferred bills the one who scrolled.</p>
   </section>
 
   <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
@@ -40,8 +100,8 @@
 
     <p>
       <strong>The buffet (the default):</strong> every dish is cooked in advance and sitting out under a heat lamp,
-      whether or not anyone eats it. That's eager loading — every component bundled and shipped to everyone, whether or
-      not anyone ever scrolls to it.
+      whether or not anyone eats it. That's the eager side of the compare above — every component bundled and shipped to
+      everyone, whether or not anyone ever scrolls to it.
     </p>
 
     <p>
@@ -51,32 +111,16 @@
       is the real content. "Kitchen's out of that tonight" is <code>&#64;error</code>.
     </p>
 
-    <p>
-      Now the trap, and the reason it maps so cleanly: if that <em>same dish</em> is <em>also</em> sitting on the buffet
-      line somewhere else in the restaurant — someone, somewhere, ordered it eagerly — the kitchen has to keep it
-      prepped regardless. Ordering it à la carte at your table doesn't save the kitchen a single minute of prep, because
-      the ingredients were already bought and cooked for the buffet. That's exactly what happens when the same component
-      is <em>also</em> referenced eagerly anywhere else in your app.
-    </p>
-
     <app-remember variant="mnemonic">
       <strong>Order first, cook second.</strong> A <code>&#64;defer</code> block never starts fetching until its trigger
       fires — no ticket, no dish.
     </app-remember>
-
-    <app-remember variant="rule">
-      One <span class="bf-break">eager reference</span> to the same component anywhere in the app forces it back into
-      the main bundle. The <code>&#64;defer</code> block still runs — placeholder, trigger, loading state — but the
-      split it promised evaporates. Verify in the production build output, not by reading the template.
-    </app-remember>
   </section>
 
-  <!-- ============ 3. THE MECHANISM ============ -->
+  <!-- ============ 3. THE FOUR BLOCKS ============ -->
   <section>
-    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-eyebrow">The four blocks</p>
     <h2>Four companion blocks, one lazy chunk.</h2>
-
-    <app-code-lab file="lesson.html" [code]="blocksSample" [notes]="blocksNotes" notesLabel="Reading the four blocks" />
 
     <div class="bf-grid-2">
       <app-tape-card heading="&#64;placeholder" kicker="before the trigger" tone="gold">
@@ -95,7 +139,10 @@
       </app-tape-card>
     </div>
 
-    <app-flow caption="The mnemonic above, as a sequence" [steps]="mechanismFlow" />
+    <app-flow
+      caption="The chain from the receipt, seen from the user's side — what's on screen at each beat, and the alternate ending"
+      [steps]="mechanismFlow"
+    />
   </section>
 
   <!-- ============ 4. ALL TRIGGERS ============ -->
@@ -161,6 +208,11 @@
   <section>
     <p class="bf-eyebrow">Try it</p>
     <h2>Four triggers, live.</h2>
+
+    <app-napkin lead="do this —" label="Watch a line come off the bill">
+      Open DevTools, Network tab, filter to JS. Then click Demo 1's placeholder. The file that appears is the chunk —
+      the line that was on every visitor's bill a moment ago and is now only on yours, because you asked for it.
+    </app-napkin>
 
     <div class="demo">
       <p class="demo__title">Demo 1 — on interaction: click the placeholder to fetch the chunk</p>
@@ -257,6 +309,11 @@
       </li>
     </ul>
 
+    <p>
+      Which brings us back to the Brain Power: a build where <code>main.js</code> stayed at 530 kB after you wrapped the
+      chart in <code>&#64;defer</code>. Commit to an answer before you open this one.
+    </p>
+
     <app-predict
       prompt="You wrap `<app-chart />` in `@defer (on viewport)`. Fifty lines further down the same template, completely unrelated to that block, you also render `<app-chart />` eagerly. After a production build, how many extra kilobytes does that `@defer` block save?"
       code="@defer (on viewport) {
@@ -265,8 +322,21 @@
 
 <!-- 50 lines later, same template: -->
 <app-chart />   <!-- eager, unconditional -->"
-      answer="Zero. The compiler can only split a dependency into its own chunk if **every** reference to it in the template is inside a `@defer` block. One eager `<app-chart />` anywhere — even far below, even unconditional — forces the component into the main bundle for everyone. The `@defer` block still runs: the placeholder shows, the trigger fires, the loading state plays. It just has nothing left to fetch, because the code was already there. The only way to know for sure is to check the production build output for the chunk you expect."
+      answer="Zero. The compiler can only split a dependency into its own chunk if **every** reference to it in the template is inside a `@defer` block. One eager `<app-chart />` anywhere — even far below, even unconditional — forces the component into the main bundle for everyone. The `@defer` block still runs: the placeholder shows, the trigger fires, the loading state plays. It just has nothing left to fetch, because the code was already there. That is where the 318 kB went: nowhere. The only way to know for sure is to check the production build output for the chunk you expect."
     />
+
+    <p>
+      In restaurant terms: if that <em>same dish</em> is <em>also</em> sitting on the buffet line somewhere else in the
+      building — someone, somewhere, ordered it eagerly — the kitchen has to keep it prepped regardless. Ordering it à
+      la carte at your table doesn't save a single minute of prep, because the ingredients were already bought and
+      cooked for the buffet. That's the receipt that didn't change.
+    </p>
+
+    <app-remember variant="rule">
+      One <span class="bf-break">eager reference</span> to the same component anywhere in the app forces it back into
+      the main bundle. The <code>&#64;defer</code> block still runs — placeholder, trigger, loading state — but the
+      split it promised evaporates. Verify in the production build output, not by reading the template.
+    </app-remember>
   </section>
 
   <!-- ============ 7. DEFER VS THE OTHER LAZY TECHNIQUES ============ -->

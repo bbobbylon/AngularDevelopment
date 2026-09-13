@@ -1,7 +1,7 @@
 # Contributing — Writing Lessons and Questions
 
-**Version:** 1.1
-**Last Updated:** 2026-09-12
+**Version:** 1.2
+**Last Updated:** 2026-09-13
 **Status:** Final
 
 ## Overview
@@ -16,6 +16,7 @@ the guards that hold the content together. The bar for a lesson here is higher t
 - [2. The depth standard](#2-the-depth-standard)
 - [2A. The retention standard](#2a-the-retention-standard)
 - [2B. The presentation standard](#2b-the-presentation-standard)
+- [2C. Page shapes](#2c-page-shapes)
 - [3. Lesson file anatomy](#3-lesson-file-anatomy)
 - [4. Adding practice questions](#4-adding-practice-questions)
 - [5. Option-length balancing](#5-option-length-balancing)
@@ -289,6 +290,122 @@ lost the plot.
 - **All motion inside `prefers-reduced-motion: no-preference`.**
 - **Do not restyle a shared component from a lesson stylesheet.** If the layer is wrong
   for every lesson, fix the layer.
+
+---
+
+## 2C. Page shapes
+
+Depth, retention and presentation each fixed one thing. Together they also produced one
+page: the 2026-09-13 audit found 88 of 103 lessons opening Chapter → Napkin, 63 of them
+Chapter → Napkin → Remember, and every lesson carrying the same full deck. The variety was
+_inside_ each page, where Head First puts it _between_ chapters. `BACKLOG.md` §2.10 has the
+record; this section is the rule that came out of it.
+
+### 2C.1 What a shape is
+
+A shape is the lesson's **opening block** — everything between `</app-chapter>` and the
+first regular section — and nothing more. It decides which device leads and what is
+deliberately left out. Everything after the block keeps its usual CodeLab, Predict, Quiz and
+Faq material, and the nine-point bar in §2A still applies to the whole lesson.
+
+The model is the author's Dev Hub project (`B:\Documents\Coding\OOPFundamentals\frontend\`,
+the `*-visualizer.html` pages), where a shape is a ~50–60-line block with a fixed frame —
+handwritten deck → lead device → Brain Power or one quiz check → Post-it note — and the rest
+of the page is conventional. That is what makes it cheap enough to roll across 103 lessons.
+
+Import the devices from the third barrel:
+
+```ts
+import {
+  BrainPower,
+  Chain,
+  NoDumbQuestions,
+  Receipt,
+  Scribble,
+  Whiteboard,
+} from '../../../shared/shapes';
+```
+
+| Component                 | Use it for                                                                             |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| `<app-brain-power>`       | A question deliberately left open. No reveal — that _is_ the device                    |
+| `<app-scribble>`          | A handwritten call-out that "points" at a figure label or a line of code by quoting it |
+| `<app-no-dumb-questions>` | `Faq` promoted to the spine: an open `<dl>` that carries the whole explanation         |
+| `<app-receipt>`           | An itemised bill — the numbers, then the total that does not add up                    |
+| `<app-chain>`             | A pipeline as one line of chips; lighter than `<app-flow>`                             |
+| `<app-whiteboard>`        | The frame for one big figure (SVG drawn by the lesson with the global `.wb-*` classes) |
+
+Four typographic classes go with them: `.bf-big` (the giant sentence), `.bf-say` (a statement
+headline), `.bf-principle` (the one-paragraph rule) and `.bf-answer` (the handwritten paragraph
+that answers a Brain Power). The handwritten "or, why…" line under the chapter title — the
+sibling project's "deck" — is the Chapter's own `hand` input: a shaped lesson writes the shape's
+stage line there and never adds a second handwritten subtitle. `.bf-eyebrow` is already the
+"kick" label.
+
+### 2C.2 The four shapes
+
+Each entry is the block's sequence, then what the block must never contain. Dotted names are
+classes on ordinary elements; `app-` names are components.
+
+**`no-dumb-questions` — There Are No Dumb Questions.** `.bf-big` (one sentence
+that is the whole lesson) → `.bf-say` → `app-no-dumb-questions` with 6–8 items that carry the
+entire explanation, escalating from the misconception to "where this bites at work" to the fix
+→ `app-brain-power` → one figure (`app-layers` or `app-whiteboard`) → one `app-quiz` →
+`app-napkin` with the analogy. Thread "you" and "your" through every answer: the dialogue is
+gone, and without it the second-person voice goes too. Never: `app-bubbles`, `app-tape-card`,
+`app-receipt`, `app-remember`.
+
+**`receipt` — The Receipt.** `.bf-say` stating the concrete anomaly, with numbers
+→ `app-receipt` → `app-scribble` (`point="up"`) naming the gap → `app-compare` (bad vs good) →
+`.bf-eyebrow` "The mechanism" + `.bf-say` → `app-chain` → `app-code-lab` → two or three
+`app-scribble`s at the code, each quoting a line or identifier → `app-brain-power` → one
+`app-quiz` → a closing `.bf-big` that ends loud ("Unblended is the bill. Amortized is the
+truth."). Never: `app-bubbles`, `app-no-dumb-questions`, or `app-napkin` in first position.
+
+**`whiteboard` — The Whiteboard.** `.bf-eyebrow` "The whole bug, in one picture"
+→ `.bf-say` that tells the reader what to look for in the figure → `app-brain-power` posed
+_before_ the figure → `app-whiteboard` with three `app-scribble` call-outs projected under it,
+each quoting a label from the figure → a `.bf-answer` paragraph that answers the Brain Power
+outright → `app-flow` for the numbered steps → one `app-quiz` → `app-napkin`. Never:
+`app-bubbles`, `app-tape-card`, `app-receipt`.
+
+**`argument` — The Argument.** `.bf-big` quoting a character ("I promised 5000
+milliseconds — not forever.") → `.bf-say` setting the scene and naming the three parties →
+`app-bubbles` (6 turns, three personified components) → `app-brain-power` ("Three parties,
+zero mistakes — so who caused it?") → `app-bubbles` (4 turns; everyone says "not me"; the last
+speaker is **You**, delivering the verdict) → `.bf-principle` → one figure → one `app-quiz` →
+`app-napkin`. Never: `app-tape-card`, `app-no-dumb-questions`, `app-receipt`, `app-code-lab`,
+`app-remember`. This is the one exception to §2B.2's "Bubbles 0–1 per lesson": two instances
+of 4–6 turns each, split by the Brain Power.
+
+### 2C.3 Declaring and checking it
+
+Record the choice on the lesson's entry in `src/app/core/curriculum.ts`:
+
+```ts
+{
+  id: 'http-interceptors',
+  // …
+  category: 'HTTP',
+  shape: 'whiteboard',
+  loadComponent: () => import('../lessons/intermediate/http-interceptors/http-interceptors').then((m) => m.HttpInterceptors),
+},
+```
+
+`shape` is optional on purpose: `undefined` means the legacy opener, not yet rotated, and that
+absence is the signal the audit works from. Two rules. **Adjacent lessons in a track never
+share a shape.** And the `Shape` union in `lesson.model.ts` only lists shapes whose device set
+has been built — do not add a name ahead of its components.
+
+```bash
+node scripts/audit-variety.mjs                        # findings worst-first, then the baseline
+node scripts/audit-variety.mjs --detail interceptors  # one lesson's device sequence and block
+```
+
+It fails on a declared shape missing its lead device, a block containing a device the shape
+forbids, or two neighbours sharing a shape. It only _reports_ undeclared lessons that open the
+same way as the one before, because that is the baseline being worked down. Run
+`audit-retention.mjs` as well — the shapes vary the devices; they do not lower the bar.
 
 ---
 

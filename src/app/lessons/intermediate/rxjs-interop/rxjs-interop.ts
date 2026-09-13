@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { debounceTime, interval, map } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -18,23 +19,30 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  *
  * ## Presentation
  *
- * Migrated to the brain-friendly layer (`shared/brain/`, see
- * `expert/change-detection` for the reference implementation this copies the
- * shape from). The teaching order:
+ * Brain-friendly layer (`shared/brain/`, see `expert/change-detection` for the
+ * reference), opening on the **argument** shape (`shape: 'argument'` in
+ * `curriculum.ts`; the sequence is `docs/CONTRIBUTING.md` §2C). The teaching
+ * order:
  *
- * 1. **Pose the problem first.** A signal cannot wait for a pause in typing; an
- *    Observable cannot be read synchronously in a template. Both limits are felt
- *    — via a napkin prediction — before either bridge is named.
- * 2. **Analogy, then vocabulary.** A whiteboard and a ticker tape. A reader with
- *    somewhere to *put* "always has a value" versus "might not have one yet"
- *    retains `initialValue` and `requireSync` when those words arrive.
- * 3. **Mechanism next, for both directions.** Simplified (not real-internals)
+ * 1. **The argument.** Deck → a giant quote from one of the parties → the scene
+ *    → six turns between the HTTP Observable, `toSignal` and the template over a
+ *    `TypeError` on first render, every line true → a Brain Power ("three
+ *    parties, zero mistakes — so who caused it?") → four turns of "not me", the
+ *    last of them *you*, delivering the verdict → the principle in one ruled
+ *    paragraph → a whiteboard timeline of the 200 ms gap → one quiz → the
+ *    whiteboard-and-ticker-tape analogy as a napkin. No code, no cards, no
+ *    Remember before the quiz: the mechanism is carried by the dialogue, and
+ *    the reader has to adjudicate it before they are shown any source.
+ * 2. **Mechanism next, for both directions.** Simplified (not real-internals)
  *    implementations of `toSignal` and `toObservable`, annotated line by line,
- *    plus a hand-drawn bridge diagram showing the two one-way crossings.
- * 4. **Then the same idea in four modes**: prose, the `roundTrip` flow diagram,
+ *    the `requireSync` / errors-on-read / injection-context vocabulary as
+ *    tape cards, and a hand-drawn bridge diagram showing the two one-way
+ *    crossings. The second direction opens on its own complaint — a signal has
+ *    no `debounce()` — so the outbound bridge is motivated, not announced.
+ * 3. **Then the same idea in four modes**: prose, the `roundTrip` flow diagram,
  *    an annotated real snippet, and a live debounced-search demo — because the
  *    retention bar is redundancy across modes, not repetition in one.
- * 5. **Every snippet is annotated** via `app-code-lab`, or walked through in a
+ * 4. **Every snippet is annotated** via `app-code-lab`, or walked through in a
  *    `app-predict` / `app-compare` where a full annotation would be overkill.
  *
  * @see intermediate/rxjs-operators — the operators worth crossing the bridge for.
@@ -51,6 +59,9 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -127,38 +138,87 @@ export class RxjsInterop {
   ];
 
   /**
-   * The whiteboard and the ticker tape, arguing about who covers what.
+   * Round one of the argument: the three parties to a `TypeError` on first
+   * render, each speaking from what it actually does and nothing more.
    *
-   * Staged as a conversation because the relationship — a signal always has an
-   * answer, an observable sometimes has nothing to say yet, and the fix is to
-   * *visit* the other side rather than becoming it — is the one idea the whole
-   * lesson hangs off, and prose stating it once does not make it stick the way
-   * watching the two sides negotiate does.
+   * The Observable only knows subscribe / emit / complete, and emits when the
+   * server answers. `toSignal` knows it subscribed the instant it was called
+   * and writes each value into a signal. The template knows it reads a signal
+   * synchronously, mid-render, and gets whatever is in it. Every line is true,
+   * which is the point: the reader has to find the fault *between* the parties
+   * — the unpaid gap at the boundary — because it is not inside any of them.
    */
-  protected readonly bridgeTalk: BubbleTurn[] = [
+  protected readonly roundOne: BubbleTurn[] = [
     {
-      who: 'Signal',
-      says: 'I always have a value. Read me any time — no subscribing, no waiting.',
+      who: 'Template',
+      says: 'First render. I read `users().length` — the way you read any signal: call it, get a value, no subscribing. I got `undefined`, and `.length` of `undefined` is a `TypeError`. Somebody explain.',
     },
     {
       who: 'Observable',
-      says: "I don't. I only have something to say when something happens — and until it does, there is nothing to read.",
+      says: "I'm `GET /api/users`. I emit exactly once, when the server answers — about 200 milliseconds after someone subscribes. I have never promised anything sooner, to anyone.",
     },
     {
-      who: 'Signal',
-      says: 'Fine. Then where do I get `debounceTime`, `retry`, `switchMap`? I have none of that.',
+      who: 'toSignal',
+      says: 'Someone did subscribe: me, the instant I was called, in the field initializer. Every value that arrives, I write into a signal with `.set()`. Nothing has arrived yet.',
+    },
+    {
+      who: 'Template',
+      says: 'So the signal was empty?',
+    },
+    {
+      who: 'toSignal',
+      says: "A signal is never empty — that's the whole point of me. It held what I was seeded with, and I was seeded with nothing in particular. `undefined` is a value.",
     },
     {
       who: 'Observable',
-      says: "You don't grow it — you visit me. `toObservable()` crosses you over, you use my operators for as long as you need them, then you come back.",
+      says: 'Two hundred milliseconds later I delivered a perfectly good array. It landed on a page that had already thrown.',
     },
-    {
-      who: 'Signal',
-      says: 'Come back as what, exactly?',
-    },
+  ];
+
+  /**
+   * Round two, after the Brain Power: everyone says "not me", and each of them
+   * is right. The last speaker is the reader, and their line is the actual
+   * explanation — the value crossed from a world where "nothing yet" is normal
+   * into one where "always something" is the contract, and nobody said what to
+   * hold in the meantime. `initialValue` is that sentence as an argument.
+   */
+  protected readonly roundTwo: BubbleTurn[] = [
     {
       who: 'Observable',
-      says: 'As a signal again — `toSignal()`. Just tell me what to say before your first value lands, because I might stay quiet a while.',
+      says: "Not me. I emit when the server answers. I have never once claimed to know what the screen should show in the meantime — that isn't a question a stream can answer.",
+    },
+    {
+      who: 'toSignal',
+      says: 'Not me. I always have a value — you just never told me what it was. So the value was `undefined`, and I stand by it.',
+    },
+    {
+      who: 'Template',
+      says: 'Not me. I read a signal the only way a signal can be read: synchronously, mid-render. Whatever is in it is what I get, and nobody had put a list in it.',
+    },
+    {
+      who: 'You',
+      says: "Then it's me. I carried a value across the bridge from a world where **nothing yet** is normal into one where **always something** is the contract — and I never said what to put on the board while we waited. `toSignal(users$, { initialValue: [] })`: one argument, and the first render reads an empty list instead of `undefined`. None of you had a bug. The gap was at the boundary, and the boundary is mine.",
+    },
+  ];
+
+  /** Choices for the "what does the first render produce" check that closes the argument. */
+  protected readonly gapOptions: QuizOption[] = [
+    {
+      text: '`Signal<User[]>`, and an empty list — `toSignal` holds the first render until a value has arrived',
+      why: 'Nothing holds anything. `toSignal` returns at once, the first render happens at once, and a signal is read with whatever it contains at that instant. There is no "wait for a value" in the signals world — which is exactly why the gap exists.',
+    },
+    {
+      text: '`Signal<User[] | undefined>`, and a `TypeError` from `.length` — unless `strictTemplates` flags it first',
+      correct: true,
+      why: 'With no `initialValue` and no `requireSync`, the type honestly includes `undefined`, and the value genuinely is `undefined` until the first emission lands at 200 ms. `.length` of `undefined` throws — or, with `strictTemplates` on, the template fails to compile, which is the cheaper way to find out.',
+    },
+    {
+      text: '`Signal<User[]>`, and nothing at all for 200 ms — then the list appears once the response lands',
+      why: 'Right about the ending, wrong about everything before it. The type includes `undefined`, and the first render is neither skipped nor delayed: it runs immediately, reads the signal, and gets `undefined`. Angular has no notion of "hold the render until this signal has a value".',
+    },
+    {
+      text: 'Nothing renders — it throws at creation, because `toSignal` requires `initialValue` or `requireSync`',
+      why: 'Neither is required; leave both out and you simply get the `| undefined` type. The one thing that does throw at creation is `requireSync: true` on a source that turns out **not** to emit synchronously — the opposite situation.',
     },
   ];
 
@@ -380,17 +440,19 @@ protected readonly debounced = toSignal(
     },
   ];
 
-  /** The undefined-before-first-emission trap. */
-  protected readonly initialValueSample = `@Injectable({ providedIn: 'root' })
-export class UserService {
-  private http = inject(HttpClient);
-  readonly users = toSignal(this.http.get<User[]>('/api/users'));
-}
+  /**
+   * Sample behind the errors-on-read Predict: the gap from the argument is
+   * covered, and the failure still surfaces somewhere surprising.
+   */
+  protected readonly errorOnReadSample = `readonly users = toSignal(
+  this.http.get<User[]>('/api/users'),   // this time the server answers 500
+  { initialValue: [] },                  // the gap is covered — the first render shows an empty list
+);
 
-// In a component template, on first render:
-//   {{ users().length }}
+// template, on the next change-detection pass after the failure:
+//   @for (user of users(); track user.id) { … }
 
-// The request takes 200ms. What renders?`;
+// Where does the 500 show up?`;
 
   /**
    * Sample: the real ticker demo, field and constructor together — annotated so
@@ -496,8 +558,8 @@ constructor() {
   /** The doubts this lesson reliably leaves behind. */
   protected readonly questions: FaqItem[] = [
     {
-      q: 'Why does `toSignal` need an `initialValue` at all? Observables manage without one.',
-      a: 'Because the two shapes differ on exactly this point. A signal is defined by always having a value — that is what lets a template read it synchronously during rendering. An Observable may not have emitted yet. `initialValue` is what you put on the whiteboard while you wait for the first value off the tape. Without one, the type is `T | undefined` and you have to handle it.',
+      q: 'Can I call `toSignal` twice on the same Observable?',
+      a: 'You can, and you will get two subscriptions — because `toSignal` subscribes right there, once per call, exactly like the simplified implementation above. For an `HttpClient` call that means two requests to your server. Either share the source first (`shareReplay(1)` in the pipe) or, better, create the signal once and derive the second thing from it with a `computed` — which is what you would do with any other signal.',
     },
     {
       q: 'What is `requireSync` for?',

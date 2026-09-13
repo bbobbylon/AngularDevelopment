@@ -1,0 +1,20 @@
+<figure class="whiteboard" [attr.aria-describedby]="descId">
+  <div
+    class="whiteboard__board"
+    [attr.tabindex]="scrollable() ? 0 : null"
+    [attr.role]="scrollable() ? 'group' : null"
+    [attr.aria-label]="scrollable() ? caption() : null"
+  >
+    <ng-content />
+  </div>
+
+  <!-- Visually hidden, still in the accessible tree: the description the
+       figure points at with aria-describedby. -->
+  <p class="whiteboard__desc" [id]="descId">{{ alt() }}</p>
+
+  <div class="whiteboard__notes">
+    <ng-content select="app-scribble" />
+  </div>
+
+  <figcaption class="whiteboard__caption">{{ caption() }}</figcaption>
+</figure>

@@ -1,0 +1,90 @@
+:host {
+  display: block;
+}
+
+/* A full-width panel with one accent rule down its left edge, not a sidebar:
+   this is the lesson's spine, so it gets the reading column, not the margin. */
+.ndq {
+  margin: 2.6rem 0;
+  padding: 0.3rem 0 0.3rem 1.5rem;
+  max-width: 88ch;
+  border-left: 3px solid var(--bf-accent);
+}
+
+/* The heading is the author's handwriting — the one place a heading is set in
+   the margin voice, because the whole device is the author leaning in and
+   saying "ask me anything". Selectors are nested so they outrank the layer's
+   `.lesson.bf h2 / h3` rules. */
+.ndq .ndq__title {
+  margin: 0 0 1.3rem;
+  max-width: none;
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: clamp(1.7rem, 3.2vw, 2.15rem);
+  line-height: 1.1;
+  letter-spacing: 0;
+  color: var(--bf-accent);
+}
+
+.ndq__list {
+  margin: 0;
+  padding: 0;
+}
+
+.ndq .ndq__q {
+  position: relative;
+  margin: 1.5rem 0 0.4rem;
+  padding-left: 2.1rem;
+  max-width: 60ch;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.12rem;
+  line-height: 1.35;
+  color: var(--bf-ink);
+}
+
+.ndq .ndq__q:first-child {
+  margin-top: 0;
+}
+
+.ndq .ndq__a {
+  position: relative;
+  margin: 0;
+  padding-left: 2.1rem;
+  max-width: var(--bf-measure);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--bf-ink);
+}
+
+/* Q and A as small handwritten coins in the gutter — accent for the question
+   (the reader's voice), olive for the answer (the right way). Drawn, and
+   hidden from assistive tech, which already has the dt/dd pairing. */
+.ndq__mark {
+  position: absolute;
+  top: 0.05em;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 50%;
+  background: var(--bf-accent);
+  font-family: var(--font-hand);
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--bf-bg);
+}
+
+.ndq__mark--a {
+  top: 0.2em;
+  background: var(--bf-olive);
+}
+
+@media (max-width: 520px) {
+  .ndq {
+    padding-left: 1rem;
+  }
+}

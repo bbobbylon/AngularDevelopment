@@ -35,13 +35,22 @@ const CHECKS = [
       // around a core. Added when the brain-friendly layer landed; it is a real
       // visual by the same standard app-flow is.
       /<app-layers[\s/>]/i.test(html) ||
+      // app-whiteboard (shared/shapes) is the frame for one big figure the lesson
+      // draws itself — usually an inline SVG, which the next line also catches, but
+      // a DOM-built figure inside it counts just the same.
+      /<app-whiteboard[\s/>]/i.test(html) ||
       /<svg[\s>]/i.test(html) ||
       /class="[^"]*\b(diagram|flow|timeline|pipeline|tree|graph|axis|lane)\b/i.test(html),
   },
   {
     key: 'table',
     label: 'Table',
-    test: (html) => /<table[\s>]/i.test(html) || /<app-compare[\s/>]/i.test(html),
+    test: (html) =>
+      /<table[\s>]/i.test(html) ||
+      /<app-compare[\s/>]/i.test(html) ||
+      // app-receipt (shared/shapes) renders an itemised bill as a real <table>;
+      // the comparison is in the amounts.
+      /<app-receipt[\s/>]/i.test(html),
   },
   {
     key: 'analogy',
@@ -56,6 +65,9 @@ const CHECKS = [
     label: 'Memory hook',
     test: (html) =>
       /<app-remember[\s/>]/i.test(html) ||
+      // The argument shape (CONTRIBUTING §2C) closes on one ruled paragraph,
+      // `.bf-principle` — the named rule, written down.
+      /class="[^"]*\bbf-principle\b/i.test(html) ||
       /\b(remember this|rule of thumb|mnemonic|if you remember one thing|the rule:|golden rule)\b/i.test(
         html,
       ),
@@ -65,6 +77,9 @@ const CHECKS = [
     label: 'Ask before telling',
     test: (html) =>
       /<app-predict[\s/>]/i.test(html) ||
+      // app-brain-power (shared/shapes) is the question left deliberately open,
+      // asked before the figure or the second conversation answers it.
+      /<app-brain-power[\s/>]/i.test(html) ||
       /\b(what do you think|before you read on|what happens if)\b/i.test(html),
   },
   {
@@ -72,6 +87,9 @@ const CHECKS = [
     label: 'Q&A',
     test: (html) =>
       /<app-faq[\s/>]/i.test(html) ||
+      // app-no-dumb-questions (shared/shapes) is Faq promoted to the lesson's
+      // spine, every answer already open.
+      /<app-no-dumb-questions[\s/>]/i.test(html) ||
       /no dumb questions|<details[\s>]|class="[^"]*\bfaq\b/i.test(html),
   },
   {

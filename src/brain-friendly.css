@@ -1326,3 +1326,213 @@ html body {
   background: var(--bf-surface-2);
   filter: none;
 }
+
+/* ============================================================
+   16. PAGE SHAPES — the beats a lesson can open on, and the
+   whiteboard figure
+   Added 2026-09-13 for BACKLOG §2.10. A lesson's opening block is
+   one of four shapes (docs/CONTRIBUTING.md §2C), built from the
+   components in src/app/shared/shapes/ plus the typographic beats
+   below — classes, like the eyebrow (§5) and the margin voice (§6),
+   because a giant sentence needs no component. The handwritten "or,
+   why…" line under the chapter title (the sibling project's "deck")
+   is the Chapter's own `hand` input here: a shaped lesson writes the
+   shape's stage line there and never adds a second one. The
+   `.wb-*` classes are the lifted `.dia-*` stylesheet that ten
+   lessons copy-pasted to draw a figure; they are global because a
+   figure projected into <app-whiteboard> is styled by the lesson
+   that drew it, not by the frame (emulated encapsulation follows
+   content to its origin template).
+
+   Specificity: every class here that lands on a <p> or a heading
+   is prefixed `.lesson.bf` so it outranks the §4 element rules
+   (0,2,1) that would otherwise win on measure and margin.
+   ------------------------------------------------------------ */
+
+/* The answer — the handwritten paragraph that closes a Brain Power in
+   the whiteboard shape: the author's voice at a size a reader can follow
+   for three sentences, on a measure that keeps handwriting from running
+   long. A class of its own because `.bf-hand` on a <p> loses colour to
+   the §4 paragraph rule. */
+.lesson.bf .bf-answer {
+  margin: 0.4rem 0 1.9rem;
+  max-width: 44ch;
+  font-family: var(--font-hand);
+  font-weight: 500;
+  font-size: 1.32rem;
+  line-height: 1.4;
+  color: var(--bf-accent);
+}
+
+/* The giant sentence — the whole lesson in one line, set large enough
+   that it is read before the reader decides to read it. Gradient-clipped
+   from the accent to gold where the browser can; solid ink where it
+   cannot, so the sentence never disappears. */
+.lesson.bf .bf-big {
+  margin: 0 0 1.2rem;
+  max-width: 18ch;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 4.6vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--bf-ink);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .lesson.bf .bf-big {
+    background: linear-gradient(100deg, var(--bf-accent), var(--bf-gold));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* The statement headline — a claim in the display face, sized between
+   the giant sentence and an h2: the line that names the anomaly
+   ("Tuesday cost $18,240; every other day, $650") or tells the reader
+   exactly where to look in the figure. */
+.lesson.bf .bf-say {
+  margin: 0 0 1.4rem;
+  max-width: 24ch;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.35rem, 2.6vw, 1.85rem);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--bf-ink);
+}
+
+/* The principle — the one paragraph that closes an argument, ruled in
+   gold (the "commit" colour, §1) because it is the reader's verdict
+   written down. Italic display, not a card: the argument shape has no
+   cards, and the rule must read as the last thing said, not a box. */
+.lesson.bf .bf-principle {
+  margin: 1.6rem 0 2rem;
+  padding-left: 1rem;
+  max-width: var(--bf-measure);
+  border-left: 3px solid var(--bf-gold);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.15rem;
+  line-height: 1.5;
+  color: var(--bf-ink);
+}
+
+/* ---- The whiteboard figure: `.wb-*` ----
+   For an inline <svg class="wb-svg" viewBox="…" aria-hidden="true">
+   projected into <app-whiteboard>. Same vocabulary as the per-lesson
+   `.dia-*` set (box, lit box, solid box, rule, head, mono, hand), so a
+   lesson's existing figure ports by renaming classes. Tokens only: the
+   figure inherits light and dark like everything else. ---- */
+.wb-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font-body);
+}
+
+/* A box on the board. Lit is the one the arrow is pointing at right
+   now; solid is the thing that does not change (a backend, a sealed
+   value) — clay, per the §1 convention for the solid object. */
+.wb-node {
+  fill: var(--bf-surface-2);
+  stroke: var(--bf-ink);
+  stroke-width: 1.5;
+}
+
+.wb-node--lit {
+  fill: var(--bf-accent-wash);
+  stroke: var(--bf-accent);
+}
+
+.wb-node--solid {
+  fill: var(--bf-clay);
+  stroke: none;
+}
+
+.wb-text {
+  fill: var(--bf-ink);
+  font-size: 15px;
+}
+
+.wb-text--sm {
+  fill: var(--bf-ink-2);
+  font-size: 13px;
+}
+
+.wb-mono {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  fill: var(--bf-ink);
+}
+
+/* The author's handwriting inside the picture — same face and hue as
+   `.bf-hand` in the running text, so the margin voice sounds the same
+   on the board as beside it. */
+.wb-hand {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  fill: var(--bf-accent);
+}
+
+.wb-hand--ink {
+  fill: var(--bf-ink-2);
+}
+
+/* Text on the solid (clay) box. Not the surface colour — surface on clay
+   is about 2.8:1 in light and worse in dark — but `--bf-clay-ink`, the
+   token §1 keeps for exactly this pairing. Declared after `.wb-mono` and
+   `.wb-hand` so it wins when combined with either. */
+.wb-text--on-solid {
+  fill: var(--bf-clay-ink);
+}
+
+/* Arrows and rules. An arrow is the accent (it is the thing to look
+   at); `--ink` for the return path or a neutral edge; `--dashed` for
+   "later" or "maybe". Heads are <marker> paths the lesson defines with
+   a page-unique id (prefix it with the lesson id). */
+.wb-arrow {
+  fill: none;
+  stroke: var(--bf-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wb-arrow--ink {
+  stroke: var(--bf-ink);
+}
+
+.wb-arrow--dashed {
+  stroke-dasharray: 6 5;
+}
+
+.wb-head {
+  fill: var(--bf-accent);
+}
+
+.wb-head--ink {
+  fill: var(--bf-ink);
+}
+
+.wb-rule {
+  fill: none;
+  stroke: var(--bf-rule);
+  stroke-width: 1;
+}
+
+/* Draw-on: inside a whiteboard frame, solid arrows draw themselves once
+   with the §12 `bf-draw` keyframes. A path longer than 400 units sets
+   `--bf-dash` to its own length (style="--bf-dash: 620") or the dash
+   pattern repeats mid-stroke. Dashed arrows are left alone — a dash
+   offset animating over a dashed stroke crawls instead of drawing. */
+@media (prefers-reduced-motion: no-preference) {
+  .whiteboard__board .wb-arrow:not(.wb-arrow--dashed) {
+    stroke-dasharray: var(--bf-dash, 400);
+    stroke-dashoffset: var(--bf-dash, 400);
+    animation: bf-draw 1.1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  }
+}

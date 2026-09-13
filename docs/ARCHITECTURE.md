@@ -1,7 +1,7 @@
 # Architecture Documentation
 
-**Version:** 1.0
-**Last Updated:** 2026-08-29
+**Version:** 1.1
+**Last Updated:** 2026-09-13
 **Status:** Final
 
 ## Overview
@@ -124,14 +124,20 @@ src/
     │   ├── highlighter.ts       syntax highlighting for code samples
     │   ├── download-file.ts     Blob + object-URL download helper
     │   ├── coming-soon/         fallback page for a lesson without a component
-    │   └── teaching/            the retention toolkit every lesson draws on
-    │       ├── remember/        the one sentence that must survive
-    │       ├── predict/         ask before telling — commit, then reveal
-    │       ├── quiz/            active recall with explained wrong answers
-    │       ├── faq/             the doubts a learner hesitates to ask
-    │       ├── flow/            step diagram: sequences, pipelines, lifecycles
-    │       ├── compare/         before/after, old API vs new API
-    │       └── inline-code.ts   backtick spans without [innerHTML]
+    │   ├── teaching/            the retention toolkit every lesson draws on
+    │   │   ├── remember/        the one sentence that must survive
+    │   │   ├── predict/         ask before telling — commit, then reveal
+    │   │   ├── quiz/            active recall with explained wrong answers
+    │   │   ├── faq/             the doubts a learner hesitates to ask
+    │   │   ├── flow/            step diagram: sequences, pipelines, lifecycles
+    │   │   ├── compare/         before/after, old API vs new API
+    │   │   └── inline-code.ts   backtick spans without [innerHTML]
+    │   ├── brain/               the presentation set (Head First layer, 2026-08-31):
+    │   │                        chapter/ code-lab/ layers/ bubbles/ tape-card/ napkin/ bf-page/
+    │   ├── shapes/              the page-shape set (2026-09-13): brain-power/ scribble/
+    │   │                        no-dumb-questions/ receipt/ chain/ whiteboard/ — one lesson
+    │   │                        opening block per shape, see CONTRIBUTING §2C
+    │   └── editor/              CodeMirror live editor + worker runner + HTML preview (§2.5)
     │
     ├── pages/                   the study tools, one directory each
     │   ├── home/  practice/  mock-exam/  review/  progress/  flashcards/

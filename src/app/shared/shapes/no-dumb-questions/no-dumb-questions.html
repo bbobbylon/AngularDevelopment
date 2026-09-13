@@ -1,0 +1,20 @@
+<section class="ndq" [attr.aria-labelledby]="headingId">
+  @if (level() === 3) {
+    <h3 class="ndq__title" [id]="headingId">{{ heading() }}</h3>
+  } @else {
+    <h2 class="ndq__title" [id]="headingId">{{ heading() }}</h2>
+  }
+
+  <dl class="ndq__list">
+    @for (item of items(); track $index) {
+      <dt class="ndq__q">
+        <span class="ndq__mark" aria-hidden="true">Q</span>
+        <app-rich-text [text]="item.q" />
+      </dt>
+      <dd class="ndq__a">
+        <span class="ndq__mark ndq__mark--a" aria-hidden="true">A</span>
+        <app-rich-text [text]="item.a" />
+      </dd>
+    }
+  </dl>
+</section>

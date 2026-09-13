@@ -1,0 +1,5 @@
+<p class="scribble" [class]="'scribble--' + tone() + ' scribble--' + point()">
+  <span class="scribble__glyph" aria-hidden="true">{{ glyph() }}</span>
+  <b class="scribble__quote">{{ quote() }}</b>
+  <span class="scribble__text"><app-rich-text [text]="text()" /></span>
+</p>

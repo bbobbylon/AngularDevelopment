@@ -1,0 +1,32 @@
+<figure class="receipt">
+  <table class="receipt__table">
+    <caption class="receipt__title">
+      {{
+        heading()
+      }}
+    </caption>
+    <tbody>
+      @for (row of rows(); track $index) {
+        <tr
+          class="receipt__row"
+          [class.receipt__row--warn]="row.tone === 'warn'"
+          [class.receipt__row--muted]="row.tone === 'muted'"
+        >
+          <th scope="row" class="receipt__label">{{ row.label }}</th>
+          <td class="receipt__amount">{{ row.amount }}</td>
+        </tr>
+      }
+    </tbody>
+    @if (total(); as sum) {
+      <tfoot>
+        <tr class="receipt__total">
+          <th scope="row" class="receipt__label">{{ sum.label }}</th>
+          <td class="receipt__amount">{{ sum.amount }}</td>
+        </tr>
+      </tfoot>
+    }
+  </table>
+  @if (footer()) {
+    <figcaption class="receipt__footer">{{ footer() }}</figcaption>
+  }
+</figure>

@@ -5,6 +5,13 @@ export type Level =
   'foundations' | 'typescript' | 'beginner' | 'intermediate' | 'expert' | 'projects';
 
 /**
+ * The shape of a lesson's opening block — which device leads after `<app-chapter>`
+ * and what is deliberately left out. Only shapes with a built device set in
+ * `shared/shapes/` are listed; see `docs/CONTRIBUTING.md` §2C for each one's sequence.
+ */
+export type Shape = 'no-dumb-questions' | 'receipt' | 'whiteboard' | 'argument';
+
+/**
  * A single tutorial concept.
  *
  * The whole app (routes + navigation + the home dashboard) is generated from
@@ -24,6 +31,11 @@ export interface Lesson {
   level: Level;
   /** Grouping bucket within a level, e.g. "Templates", "Forms", "RxJS". */
   category: string;
+  /**
+   * How the lesson opens. `undefined` means the legacy Chapter → Napkin → Remember recipe,
+   * not yet rotated — `scripts/audit-variety.mjs` works from exactly that signal.
+   */
+  shape?: Shape;
   /** Lazy loader for the lesson component. Omit while unwritten. */
   loadComponent?: () => Promise<Type<unknown>>;
 }

@@ -399,20 +399,28 @@ ranks them worst-first — then read the weakest and report. Do not assume a lon
 passes; length is bar 1, not bar 2. The scores are proxies: use them to choose what to
 read, not as the verdict.
 
-**Do not hand-roll the markup.** There are now two component sets, and a migrated lesson
-uses both:
+**Do not hand-roll the markup.** There are now three component sets, and a migrated lesson
+uses all of them:
 
 - `src/app/shared/teaching/` — `Remember`, `Predict`, `Quiz`, `Faq`, `Flow`, `Compare`.
   The _retention_ devices. Barrel: `../../../shared/teaching`.
 - `src/app/shared/brain/` — `Chapter`, `CodeLab`, `Layers`, `Bubbles`, `TapeCard`,
   `Napkin`, `BfPage`. The _presentation_ devices, added 2026-08-31. Barrel:
   `../../../shared/brain`.
+- `src/app/shared/shapes/` — `BrainPower`, `Scribble`, `NoDumbQuestions`, `Receipt`,
+  `Chain`, `Whiteboard`. The _page-shape_ devices, added 2026-09-13: a lesson's opening
+  block is one of four shapes (`no-dumb-questions`, `receipt`, `whiteboard`, `argument`),
+  declared as `shape:` on its `curriculum.ts` entry and checked by
+  `node scripts/audit-variety.mjs`. Barrel: `../../../shared/shapes`.
 
-Both are accessible by construction and covered by tests, so a hand-rolled equivalent is
-strictly worse. `docs/CONTRIBUTING.md` §2A has the retention budgets and copy conventions
+All three are accessible by construction and covered by tests, so a hand-rolled equivalent
+is strictly worse. `docs/CONTRIBUTING.md` §2A has the retention budgets and copy conventions
 — notably that option `why` text on _wrong_ answers is the most valuable writing in a
-lesson, and that long copy lives in the `.ts` — and §2B has the presentation budgets, the
-section rhythm, and the line-annotation rules.
+lesson, and that long copy lives in the `.ts` — §2B has the presentation budgets, the
+section rhythm, and the line-annotation rules, and §2C has the four shapes' block
+sequences and what each block must not contain. Adjacent lessons in a track must not
+share a shape; a lesson with no `shape:` is the legacy opener still to be rotated
+(BACKLOG §2.10 step 5).
 
 **Rollout state (2026-09-07): the rollout is complete.** The brain-friendly palette and
 typography are the app's ONE unconditional default theme — every page, chrome included,

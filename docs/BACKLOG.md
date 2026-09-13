@@ -985,10 +985,39 @@ them onto the plan above:
 
 Net: 3 of 4 shapes need a new named archetype/device added to the lists above (Q&A-led,
 Ledger, Diagram-led or a Field-Guide redefinition); the 4th (Debate) was already on the plan
-and just needs building. **Still deferred behind §2.5** per the author's 2026-09-13 decision —
-and as of this note, §2.5 itself is not yet finished: the editor (`src/app/shared/editor/`) is
-built and tested but still wired into zero pages. Confirm with the author whether to finish
-wiring the editor into practice/project/challenge pages first, or to start §2.10 now regardless.
+and just needs building.
+
+**Decided and started the same day, 2026-09-13.** The "editor first" deferral is superseded
+at the author's request; §2.5's editor stays built-and-tested but unwired for now. Reading the
+sibling pages themselves corrected the plan above in two places. **(a) A shape is the lesson's
+opening block, not the whole page.** In Dev Hub it is a ~50–60-line block with a fixed frame —
+handwritten deck → lead device → Brain Power or one quiz check → Post-it note — and the rest
+of the page stays conventional. That is what makes it cheap enough to roll across 103 lessons:
+the block replaces the Chapter → Napkin → Remember opener and everything after it keeps its
+existing material. **(b) The §1.3 theme 3/4 lessons** that step 4 planned to pilot on do not
+exist yet, so the pilots are existing lessons. What is being built: a third shared set,
+`src/app/shared/shapes/` (own barrel, one spec), with six devices — `BrainPower`, `Scribble`
+(the handwritten call-out that "points" by quoting a label), `NoDumbQuestions` (`Faq` promoted
+to the spine, all open), `Receipt`, `Chain` and `Whiteboard` (the frame for one big figure,
+lifting the `.dia-*` SVG stylesheet duplicated across ten lesson CSS files into global `.wb-*`
+classes) — plus the `.bf-big` / `.bf-say` / `.bf-principle` / `.bf-answer` typographic classes;
+`shape?: Shape` on the `Lesson` model (optional — `undefined` is the "not yet rotated" signal);
+`scripts/audit-variety.mjs`; and CONTRIBUTING §2C, which is now the rule. **Pilots landed
+2026-09-13, one per shape:** `view-encapsulation` (no-dumb-questions), `deferrable-views`
+(receipt), `http-interceptors` (whiteboard), `rxjs-interop` (argument) — all four still 9/9 on
+the retention audit, the variety audit green. Three things the pilots settled for everyone after
+them: the "deck" is the Chapter's `hand` line, never a second handwritten subtitle (`.bf-deck`
+was built and then removed); the paragraph that answers a Brain Power is the layer's
+`.bf-answer`, not a per-lesson rule; text on a solid figure box is `.wb-text--on-solid`
+(clay-ink — surface-on-clay fails contrast). The variety audit also now blanks attribute values
+before scanning, so a scribble quoting `<app-chart />` is not counted as a device. One content
+correction fell out of pilot A: the old view-encapsulation lesson said ShadowDom stops "fonts
+and design tokens" — it does not; inherited values and custom properties cross a shadow root,
+only outside _rules_ stop matching. The whole-page archetypes of step
+2 and the other devices named in step 1 (Fireside Chat, Exposed, Master and Student, Sharpen
+Your Pencil, Code Magnets, Who Does What, Be the Compiler, Watch It, Toolbox, Meanwhile,
+Crossword) are deferred to a later pass; the `Shape` union only ever lists shapes whose device
+set exists. Step 5 — rotating the other 99 — is the next piece of work once the pilots land.
 
 ---
 

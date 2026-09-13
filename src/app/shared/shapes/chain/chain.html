@@ -1,0 +1,10 @@
+<ol class="chain" [attr.aria-label]="label()">
+  @for (step of steps(); track $index; let last = $last) {
+    <li class="chain__step">
+      <code class="chain__chip">{{ step }}</code>
+      @if (!last) {
+        <span class="chain__arrow" aria-hidden="true">→</span>
+      }
+    </li>
+  }
+</ol>

@@ -522,6 +522,12 @@ are typed data (`{ line, text }`), the marker and the note light each other up, 
 directions are reachable from the keyboard. **A note must say what the symbols are, not
 restate the line in English.**
 
+A third set, `src/app/shared/shapes/` (2026-09-13), owns the lesson's _opening block_ —
+Brain Power, Scribble, No Dumb Questions, Receipt, Chain and Whiteboard — so lessons can
+open in genuinely different shapes instead of all beginning Chapter → Napkin; the four
+shapes, their sequences and budgets are in
+[CONTRIBUTING.md §2C](CONTRIBUTING.md#2c-page-shapes).
+
 ### 9.5 Rules for extending it
 
 - **Restyle, never restructure** the existing teaching components. Their markup and

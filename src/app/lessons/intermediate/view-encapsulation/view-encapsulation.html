@@ -3,7 +3,7 @@
     number="4"
     kicker="Intermediate · Components &amp; Templates"
     title="View Encapsulation &amp; Component Styles"
-    hand="or, how Angular keeps every component's CSS from stepping on everyone else's"
+    hand="or, the one-way window between your stylesheet and everybody else's"
     [stops]="stops"
     [current]="3"
   >
@@ -15,93 +15,130 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): the giant sentence → a
+       statement → the Q&A that carries the whole explanation → an open
+       question → the figure that answers it → the one quiz → the analogy on
+       a napkin. No cards, no dialogue, and no Remember until the mechanism
+       section — the shape is the Q&A doing the teaching. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Why doesn't this rule leak everywhere?</h2>
+    <p class="bf-big">Selectors stop at the boundary. Inherited values walk straight through.</p>
 
-    <p>
-      Here's a small thing that should bother you more than it does. Write
-      <code>p {{ '{' }} color: red {{ '}' }}</code> inside one component's stylesheet, and only
-      <em>that</em> component's paragraphs turn red — every other <code>&lt;p&gt;</code> on the page, including ones
-      written by other teams in other files, stays exactly as it was. CSS itself has no idea what a component is.
-      Nothing in the language stops a selector from matching everywhere it possibly can. So
-      <span class="key">something</span> outside CSS has to be actively stopping it — and, as you're about to see, it
-      stops in only one direction.
-    </p>
+    <p class="bf-say">CSS has no idea what a component is. Something else is drawing that line.</p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      A parent sets <code>font-family: serif</code> on <code>&lt;body&gt;</code>. Somewhere else, a different parent
-      writes <code>app-ve-badge .dot {{ '{' }} background: purple {{ '}' }}</code> in its OWN stylesheet, aiming
-      straight at a child component's internals. Both are ordinary rules, written from outside the component they
-      affect. Which one actually reaches the child, and which one silently does nothing at all? There's a diagram and a
-      live demo below to check yourself against.
-    </app-napkin>
-  </section>
+    <app-no-dumb-questions [items]="ndq" />
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Encapsulation is a one-way window.</h2>
+    <app-brain-power
+      question="The rule is `app-ve-badge .dot`. The `app-ve-badge` tag sits in the parent's template, so it wears the parent's stamp — and that half of the selector matches happily. So where, exactly, does the match die?"
+      hint="The compiler stamps more of that selector than you'd guess."
+    />
 
-    <p>
+    <app-whiteboard
+      caption="Same wall, two travellers: the selector needs a matching stamp and never finds one; the value never looked for a stamp at all."
+      alt="Two boxes either side of a dashed vertical wall labelled 'the boundary — drawn by the compiler at build time, not by the browser'. The left box, PARENT, shows parent.css as the compiler rewrote it: app-ve-badge[_ngcontent-p] .dot[_ngcontent-p] { background: purple } — with the note that every part of the selector got the parent's stamp. A short red arrow leaves the rule and stops at the wall with a cross labelled 'stops here'. The right box, CHILD, shows the child's template as stamped: a span with class dot and the attribute _ngcontent-c, drawn as a clay dot — the only .dot in existence. Above both boxes a pill reads '--badge-accent: purple', set on any ancestor; a green arrow curves from it down across the wall and lands on the dot, labelled 'inherits, no stamp needed'."
+    >
+      <svg class="wb-svg" viewBox="0 0 720 360" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="view-encapsulation-head-good"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head ve-good" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <!-- the value, set on any ancestor -->
+        <rect class="wb-node" x="230" y="18" width="260" height="36" rx="18" />
+        <text class="wb-mono ve-sm" x="360" y="41" text-anchor="middle">--badge-accent: purple</text>
+        <text class="wb-hand wb-hand--ink ve-hand-sm" x="216" y="44" text-anchor="end">set on any ancestor</text>
+        <text class="wb-hand ve-good ve-hand-sm" x="704" y="44" text-anchor="end">✓ inherits, no stamp needed</text>
+
+        <!-- the boundary -->
+        <path class="wb-arrow wb-arrow--ink wb-arrow--dashed" d="M360 72 V330" />
+        <text class="wb-hand wb-hand--ink ve-hand-sm" x="360" y="352" text-anchor="middle">
+          the boundary — drawn by the compiler at build time, not by the browser
+        </text>
+
+        <!-- parent: the rule, as compiled -->
+        <rect class="wb-node" x="20" y="90" width="270" height="200" rx="10" />
+        <text class="wb-mono" x="40" y="118">PARENT</text>
+        <text class="wb-text wb-text--sm" x="40" y="138">parent.css, as compiled</text>
+        <text class="wb-mono ve-sm" x="40" y="164">app-ve-badge[_ngcontent-p]</text>
+        <text class="wb-mono ve-sm" x="56" y="184">.dot[_ngcontent-p] {{ '{' }}</text>
+        <text class="wb-mono ve-sm" x="72" y="204">background: purple;</text>
+        <text class="wb-mono ve-sm" x="56" y="224">{{ '}' }}</text>
+        <text class="wb-hand ve-hand-sm" x="40" y="258">every part of the selector</text>
+        <text class="wb-hand ve-hand-sm" x="40" y="280">got the PARENT's stamp</text>
+
+        <!-- the rule sets out for the child, and stops -->
+        <path class="wb-arrow ve-bad" d="M290 192 H346" />
+        <path class="ve-mark" d="M351 183 L369 201 M369 183 L351 201" />
+        <text class="wb-hand ve-bad ve-hand-sm" x="360" y="228" text-anchor="middle">✗ stops here</text>
+
+        <!-- child: the template, as stamped -->
+        <rect class="wb-node wb-node--lit" x="430" y="90" width="270" height="200" rx="10" />
+        <text class="wb-mono" x="450" y="118">CHILD</text>
+        <text class="wb-text wb-text--sm" x="450" y="138">its template, as stamped</text>
+        <text class="wb-mono ve-sm" x="450" y="164">&lt;span class="dot"</text>
+        <text class="wb-mono ve-sm" x="466" y="184">_ngcontent-c&gt;</text>
+        <circle class="ve-dot" cx="565" cy="230" r="16" />
+        <text class="wb-mono ve-sm" x="592" y="235">.dot</text>
+        <text class="wb-hand ve-hand-sm" x="565" y="274" text-anchor="middle">the only .dot in existence</text>
+
+        <!-- the value walks through -->
+        <path
+          class="wb-arrow ve-good"
+          d="M478 56 C 600 50, 660 130, 577 218"
+          marker-end="url(#view-encapsulation-head-good)"
+        />
+      </svg>
+
+      <app-scribble
+        quote=".dot[_ngcontent-p]"
+        point="up"
+        tone="clay"
+        text="the compiler stamped the **parent's** attribute on every compound of the parent's selector — including the `.dot` it was hoping to find. That's the part that dies."
+      />
+      <app-scribble
+        quote="_ngcontent-c"
+        point="up"
+        text="the only `.dot` on the page wears the **child's** stamp. Two attributes, no element carrying both — valid CSS that can never match, and no error to tell you so."
+      />
+      <app-scribble
+        quote="--badge-accent"
+        point="up"
+        tone="olive"
+        text="not a selector — a **value**. It inherits down the DOM exactly the way `color` does, and inheritance never checks anyone's stamp."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="With the default Emulated encapsulation, what crosses the boundary from a parent into a child?"
+      [options]="boundaryOptions"
+      followUp="This is the fact the whole lesson hangs on — if only one thing survives from this page, make it this one."
+    />
+
+    <app-napkin lead="the mental model —" label="A one-way window">
       Picture encapsulation as a <strong>one-way window</strong>. Light gets in — the page's font, colours and custom
       properties reach every component without asking. But nobody outside can point at anything on the inside: a
       selector written in the parent simply never finds the child's elements. Most of the confusion in this topic comes
       from assuming a window that blocks pointing must also block light.
-    </p>
-
-    <figure class="boundary-fig">
-      <svg class="boundary" viewBox="0 0 300 236" aria-hidden="true" focusable="false">
-        <rect class="boundary__pill" x="65" y="6" width="170" height="30" rx="15" />
-        <text class="boundary__sub" x="150" y="25" text-anchor="middle">ancestor sets --badge-accent</text>
-
-        <line class="boundary__wall" x1="150" y1="40" x2="150" y2="222" />
-        <text class="boundary__tag" x="150" y="216" text-anchor="middle">the boundary</text>
-
-        <rect class="boundary__box" x="10" y="50" width="130" height="150" rx="14" />
-        <text class="boundary__name" x="75" y="72" text-anchor="middle">PARENT</text>
-        <text class="boundary__code" x="75" y="106" text-anchor="middle">app-ve-badge .dot {{ '{' }}</text>
-        <text class="boundary__code" x="75" y="120" text-anchor="middle">background: purple;</text>
-        <text class="boundary__code" x="75" y="134" text-anchor="middle">{{ '}' }}</text>
-
-        <rect class="boundary__box" x="160" y="50" width="130" height="150" rx="14" />
-        <text class="boundary__name" x="225" y="72" text-anchor="middle">CHILD</text>
-        <text class="boundary__sub" x="225" y="88" text-anchor="middle">&lt;app-ve-badge&gt;</text>
-        <circle class="boundary__dot" cx="225" cy="140" r="12" />
-        <text class="boundary__sub" x="225" y="170" text-anchor="middle">.dot</text>
-
-        <path class="boundary__edge-bad" d="M112 120 L146 120" />
-        <path class="boundary__mark-bad" d="M142 114 L150 126 M150 114 L142 126" />
-        <text class="boundary__label-bad" x="90" y="150" text-anchor="middle">✗ blocked</text>
-
-        <path class="boundary__edge-good" d="M146 38 C 150 70, 195 95, 222 128" />
-        <path class="boundary__arrowhead-good" d="M215 122 L228 126 L220 134 Z" />
-        <text class="boundary__label-good" x="205" y="52" text-anchor="middle">✓ inherits</text>
-      </svg>
-      <figcaption>
-        A parent rule targeting <code>app-ve-badge .dot</code> compiles with the PARENT's scoping attribute; the child's
-        actual <code>.dot</code> carries the CHILD's, so the selector reaches the fence and stops — no error, just a
-        colour that never changes. A custom property set by any ancestor crosses the exact same fence untouched, because
-        encapsulation rewrites selectors and never touches inheritance.
-      </figcaption>
-    </figure>
-
-    <app-remember variant="rule">
-      Encapsulation blocks selector <strong>matching</strong>, never value <strong>inheritance</strong>.
-    </app-remember>
+    </app-napkin>
   </section>
 
-  <!-- ============ 3. THE MECHANISM — THREE MODES, FIVE WAYS ============ -->
+  <!-- ============ 2. THE MECHANISM — THREE MODES, FOUR WAYS ============ -->
   <section>
     <p class="bf-eyebrow">The mechanism</p>
     <h2>What the compiler actually emits, mode by mode.</h2>
 
     <p>
-      With the default <strong>ViewEncapsulation.Emulated</strong>, a rule like
-      <code>p {{ '{' }} color: red {{ '}' }}</code> in one component colours only that component's paragraphs. Pick a
-      mode below to see what the compiler actually emits — then check the same three modes again as a summary card each,
-      and once more as a table.
+      The questions told you what the compiler does to your selector. Now watch it do it. Pick a mode to see what
+      actually reaches the page — then the same three modes once more as a card each, and once more as a table.
     </p>
 
     <div class="demo">
@@ -130,7 +167,8 @@
         generic selectors.
       </app-tape-card>
       <app-tape-card heading="ShadowDom" kicker="strongest" tone="olive">
-        Real browser isolation. Nothing crosses the boundary — not even your global resets and fonts.
+        Real browser isolation. Outside rules never match inside — not even your global resets. Inherited values still
+        arrive.
       </app-tape-card>
     </div>
 
@@ -169,17 +207,22 @@
         </tr>
       </tbody>
     </table>
+
+    <app-remember variant="rule">
+      Encapsulation blocks selector <strong>matching</strong>, never value <strong>inheritance</strong>. Emulated
+      enforces that with a rewritten selector, ShadowDom with a real browser boundary — and neither touches what a child
+      inherits.
+    </app-remember>
   </section>
 
-  <!-- ============ 4. :HOST ============ -->
+  <!-- ============ 3. :HOST ============ -->
   <section>
     <p class="bf-eyebrow">The selector you're missing</p>
     <h2>The tag itself belongs to the parent. Reach it with <code>:host</code>.</h2>
 
     <p>
-      A component's scoped rules match elements <em>inside</em> its template. The tag itself
-      (<code>&lt;app-ve-badge&gt;</code>) belongs to the parent's markup, so the child's own stylesheet needs a special
-      selector to reach it at all: <code>:host</code>. The badge below is a real child component:
+      You met <code>:host</code> in the questions. Here's the badge's actual stylesheet, line by line — then the live
+      version, where the parent flips a class on the tag and the child's own <code>:host(.compact)</code> rule reacts:
     </p>
 
     <app-code-lab
@@ -206,35 +249,30 @@
         extends the idea to ancestor conditions — theme switches.)
       </p>
     </div>
-
-    <div class="tip">
-      Custom elements default to <code>display: inline</code> — the single most common <code>:host</code> rule is
-      <code>:host {{ '{' }} display: block {{ '}' }}</code
-      >. If a component's width/margin "does nothing", check this first.
-    </div>
   </section>
 
-  <!-- ============ 5. RESTYLING A CHILD ============ -->
+  <!-- ============ 4. RESTYLING A CHILD ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">The trap and the fix</p>
     <h2>Parents can't reach in. Give them a knob instead.</h2>
 
     <p>
-      A parent rule like <code>app-ve-badge .dot {{ '{' }} … {{ '}' }}</code> looks like it should recolour the dot
-      inside the child. Before the next paragraph explains why it doesn't, predict it yourself:
+      The questions told you the piercing rule matches nothing, silently. Here's what most people try next. Commit to an
+      answer before you reveal it:
     </p>
 
     <app-predict
-      prompt="A parent writes this rule to recolour a dot inside a child component. What happens — an error, or a purple dot?"
+      prompt="The parent adds `!important` to its rule aimed at the child's dot. Now what — a purple dot, an error, or still nothing?"
       [code]="piercingSample"
       hlLang="css"
-      answer="Neither. Nothing happens at all, silently. The parent's rule is rewritten to require the *parent's* scoping attribute, and the child's `.dot` carries the *child's*. The selector is valid CSS that can never match anything, so there is no error to find — just a colour that stubbornly refuses to change. This silence is what makes it such an expensive hour to debug."
+      answer="Still nothing. `!important` settles priority between rules that **match** the same element — it changes who wins, never whether a selector matches at all. The compiled selector still wants a `.dot` wearing the parent's stamp, and there still isn't one, so you've made an unmatched rule louder, not wider. The only route in is a value the child chose to inherit."
     />
 
     <p>
-      The old escape hatch, <code>::ng-deep</code>, pierces everything and is deprecated. The maintainable pattern is a
-      <span class="term">styling API</span>: the child consumes a CSS custom property, the parent sets it — inheritance
-      carries it across the boundary.
+      So the parent can't reach in, however loudly it asks — and <code>::ng-deep</code>, the deprecated hatch that
+      could, is off the table. What's left is the <span class="term">styling API</span> from the questions: the child
+      consumes a custom property, the parent sets it, and inheritance carries it across the boundary. Here it is as
+      code, then live:
     </p>
 
     <app-code-lab
@@ -274,7 +312,7 @@
     </app-remember>
   </section>
 
-  <!-- ============ 6. GLOBAL VS COMPONENT STYLES ============ -->
+  <!-- ============ 5. GLOBAL VS COMPONENT STYLES ============ -->
   <section>
     <p class="bf-eyebrow">The idiom</p>
     <h2>Global tokens, component-scoped consumption.</h2>
@@ -293,26 +331,23 @@
     </ul>
 
     <app-quiz
-      question="With the default Emulated encapsulation, what crosses the boundary from a parent into a child?"
-      [options]="boundaryOptions"
-      followUp="This is the fact the whole lesson hangs on — if only one thing survives from this page, make it this one."
+      question="You switch the badge to `ViewEncapsulation.ShadowDom`. Which of these still reaches the dot from outside?"
+      [options]="shadowOptions"
+      followUp="Same asymmetry, different enforcer. Emulated blocks matching with a rewritten selector, ShadowDom with a browser boundary — and neither stops inheritance. That's why the custom-property API is the one pattern that works in every mode."
     />
   </section>
 
-  <!-- ============ 7. QUESTIONS ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
-    <app-faq [items]="questions" />
-  </section>
-
-  <!-- ============ 8. RECAP ============ -->
+  <!-- ============ 6. RECAP ============ -->
   <section>
     <p class="bf-eyebrow">Before you go</p>
     <h2>Five things to remember.</h2>
 
     <ul>
       <li>Emulated (default) = attribute stamping: styles cannot leak out; page styles still cascade in.</li>
-      <li>None = verbatim global CSS; ShadowDom = real isolation where globals stop working inside.</li>
+      <li>
+        None = verbatim global CSS. ShadowDom = a real browser boundary: outside rules stop matching inside, while
+        inherited values and custom properties still arrive.
+      </li>
       <li>
         <code>:host</code> styles the tag; <code>:host(.x)</code> / <code>:host-context(.x)</code> make it conditional.
       </li>

@@ -3,7 +3,7 @@
     number="3"
     kicker="Angular Intermediate · HTTP"
     title="HTTP Interceptors"
-    hand="or, what happens when your request gets nested inside a Russian doll"
+    hand="or, the whole lesson in one drawing — read the arrows before you read a word of it"
     [stops]="stops"
     [current]="2"
   >
@@ -20,67 +20,164 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ 1. THE WHITEBOARD — the shape block ============
+       Shape C (docs/CONTRIBUTING.md §2C): one big figure carries the lesson's first two
+       screens and the prose serves the picture. The block runs from here through the
+       first quiz and its napkin; scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Forty components, one header. Who writes it forty times?</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">Find the arrow that never climbs back past <code>error</code>.</p>
 
     <p>
-      Every one of your app's <code>HttpClient</code> calls needs the same things done to it: an
-      <code>Authorization</code> header attached, a failed request logged, a 401 sent to the login page. Do that inside
-      each component and you've written the same four lines forty times — and the day the header name changes, you get
-      to find all forty again. An interceptor is Angular's answer:
-      <span class="key">write it once, and every request and response passes through it automatically</span>, whether
-      the component that made the call knows the interceptor exists or not.
+      Below is one <code>http.get()</code> going through <code>withInterceptors([auth, logging, error])</code> and
+      coming back. Everything this lesson proves —
+      <span class="key">
+        what you're handed, what you must hand back, why the order flips on the way home, what <code>retry()</code>
+        can't do
+      </span>
+      — is already drawn in it. Read the picture first; the words after it only point.
     </p>
 
-    <app-napkin lead="hang on —" label="Guess before you scroll">
-      Here's a preview of a real bug later in this lesson. <code>inject(AuthService)</code> at the very top of an
-      interceptor's function body works fine. Call <code>inject(Router)</code> again later, inside a
-      <code>.pipe(catchError(...))</code> callback — same interceptor, same kind of call — and it throws
-      <code>NG0203</code>. Same service-fetching function, so what changed between the two calls? Hold that thought; the
-      retry section resolves it with the actual line where it breaks.
+    <app-brain-power
+      question="The array says `[auth, logging, error]`, and nothing in it says “reverse”. So when the response comes back, what decides which interceptor sees it first — and is there any setting that could change it?"
+      hint="Look at what each box in the picture is actually holding: not the array — just the one `next` it was handed."
+    />
+
+    <app-whiteboard
+      caption="One request, three interceptors: down the left in array order, back up the right in reverse — and a retry loop that never leaves the bottom hop."
+      alt="Five boxes stacked in a column: your component at the top, then the interceptors auth, logging and error, then HttpBackend at the bottom. Solid arrows run down the left side from box to box, each labelled next(req) — the request going out in array order. Solid arrows run back up the right side through the same boxes in the opposite order — the response coming home, error first and auth last. A dashed loop labelled retry() leaves error, drops to HttpBackend and comes straight back to error without ever touching logging or auth."
+    >
+      <svg class="wb-svg" viewBox="0 0 720 462" aria-hidden="true">
+        <defs>
+          <marker
+            id="http-interceptors-head"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="wb-head" />
+          </marker>
+          <marker
+            id="http-interceptors-head-ink"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" class="wb-head wb-head--ink" />
+          </marker>
+        </defs>
+
+        <!-- The column: your code on top, the network at the bottom, the array in between -->
+        <text x="300" y="20" text-anchor="middle" class="wb-text wb-text--sm">your component</text>
+        <rect x="200" y="28" width="200" height="52" rx="10" class="wb-node" />
+        <text x="300" y="60" text-anchor="middle" class="wb-mono">http.get(url)</text>
+
+        <rect x="200" y="118" width="200" height="52" rx="10" class="wb-node" />
+        <text x="300" y="141" text-anchor="middle" class="wb-mono">auth</text>
+        <text x="300" y="160" text-anchor="middle" class="wb-text wb-text--sm">clone → Authorization</text>
+
+        <rect x="200" y="208" width="200" height="52" rx="10" class="wb-node" />
+        <text x="300" y="231" text-anchor="middle" class="wb-mono">logging</text>
+        <text x="300" y="250" text-anchor="middle" class="wb-text wb-text--sm">start a timer</text>
+
+        <!-- Lit: the box the reader was told to look at -->
+        <rect x="200" y="298" width="200" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="300" y="321" text-anchor="middle" class="wb-mono">error</text>
+        <text x="300" y="340" text-anchor="middle" class="wb-text wb-text--sm">retry · catchError</text>
+
+        <!-- Solid: the one thing in the picture that never changes. Text is the clay-ink
+             token because neither ink nor surface reads on clay in both colour schemes. -->
+        <rect x="200" y="388" width="200" height="52" rx="10" class="wb-node wb-node--solid" />
+        <text x="300" y="411" text-anchor="middle" class="wb-mono wb-text--on-solid">HttpBackend</text>
+        <text x="300" y="430" text-anchor="middle" class="wb-text wb-text--sm wb-text--on-solid">the real XHR</text>
+
+        <!-- Out: down the left, in array order -->
+        <text x="20" y="62" class="wb-hand">out — array order ↓</text>
+        <path d="M 240 80 V 117" class="wb-arrow" marker-end="url(#http-interceptors-head)" />
+        <text x="228" y="104" text-anchor="end" class="wb-mono">subscribe()</text>
+        <path d="M 240 170 V 207" class="wb-arrow" marker-end="url(#http-interceptors-head)" />
+        <text x="228" y="194" text-anchor="end" class="wb-mono">next(req)</text>
+        <path d="M 240 260 V 297" class="wb-arrow" marker-end="url(#http-interceptors-head)" />
+        <text x="228" y="284" text-anchor="end" class="wb-mono">next(req)</text>
+        <path d="M 240 350 V 387" class="wb-arrow" marker-end="url(#http-interceptors-head)" />
+        <text x="228" y="374" text-anchor="end" class="wb-mono">next(req)</text>
+
+        <!-- Back: up the right, in reverse -->
+        <text x="380" y="62" class="wb-hand">back — reverse order ↑</text>
+        <path d="M 360 388 V 351" class="wb-arrow wb-arrow--ink" marker-end="url(#http-interceptors-head-ink)" />
+        <text x="372" y="374" class="wb-mono">HttpResponse</text>
+        <path d="M 360 298 V 261" class="wb-arrow wb-arrow--ink" marker-end="url(#http-interceptors-head-ink)" />
+        <text x="372" y="284" class="wb-mono">.pipe(retry, catchError)</text>
+        <path d="M 360 208 V 171" class="wb-arrow wb-arrow--ink" marker-end="url(#http-interceptors-head-ink)" />
+        <text x="372" y="194" class="wb-mono">.pipe(tap)</text>
+        <path d="M 360 118 V 81" class="wb-arrow wb-arrow--ink" marker-end="url(#http-interceptors-head-ink)" />
+        <text x="372" y="104" class="wb-mono">Observable&lt;HttpEvent&gt;</text>
+        <text x="416" y="316" class="wb-hand">sees the response first</text>
+
+        <!-- The arrow to find: retry() resubscribes the bottom hop and nothing above it -->
+        <path
+          d="M 400 340 C 540 340, 540 428, 404 428"
+          class="wb-arrow wb-arrow--dashed"
+          marker-end="url(#http-interceptors-head)"
+        />
+        <text x="520" y="390" class="wb-mono">retry()</text>
+        <text x="520" y="414" class="wb-hand">this hop only</text>
+      </svg>
+
+      <app-scribble
+        quote="next(req)"
+        point="up"
+        text="hands the request to the box below — or, from the last box, to the backend. Whatever it returns is the arrow coming back up: **return it**, or your component never hears the response."
+      />
+      <app-scribble
+        quote="error"
+        point="up"
+        tone="olive"
+        text="is closest to the backend, so it's **last** to see the request and **first** to see the response. Nobody configured that — it falls out of the nesting."
+      />
+      <app-scribble
+        quote="retry()"
+        point="up"
+        tone="clay"
+        text="resubscribes to the one arrow below it and nothing else. Attempt two carries the **same** `req` — same headers, same token — because `auth` never runs again."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      Nothing decides it, because nothing has to. Each box was handed exactly one thing: a <code>next</code> that
+      <em>is</em> a call into the box below it. Calls nest, and nested calls return inside-out — the innermost
+      <code>next</code> returns first, so <code>error</code> sees the response first and <code>auth</code> last. That's
+      a call stack unwinding, and there's no setting that unwinds a stack the other way round.
+    </p>
+
+    <app-flow
+      direction="vertical"
+      caption="One `http.get()`, out and back — the seven moments, in order."
+      [steps]="roundTrip"
+    />
+
+    <app-quiz
+      question="Interceptors are registered as `withInterceptors([auth, logging, error])`. A response comes back from the backend. Which one sees it first?"
+      [options]="orderQuizOptions"
+      followUp="The live chain two sections down logs exactly this — press “Send → succeeds” there and read the log bottom-up from the ← RESPONSE line: `logging` reports done before `auth` passes it through."
+    />
+
+    <app-napkin lead="the mental model —" label="Nesting dolls">
+      Picture your request as the smallest doll in a matryoshka set. To send it, you hand it to the outermost doll —
+      <code>auth</code> — which does its bit and passes it to the doll nested inside, and so on down to the backend. To
+      get the response back out, you close the dolls in the only order you can: innermost first. That's the whole
+      reversal — not a setting, a shape. And a doll can hand back something of its own without ever opening the one
+      inside it: that's the escape hatch, three sections down.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. THE MENTAL MODEL ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Angular wraps every request in a nesting doll.</h2>
-
-    <p>
-      Picture your request as the smallest doll in a matryoshka set. To register it, you hand it to the outermost doll —
-      say, <code>auth</code> — which does its bit (clones in a header) and passes what it's holding to the doll nested
-      inside it, <code>logging</code>, which does its bit and passes it to the doll inside <em>that</em>, and so on
-      until the innermost doll hands the request to the backend. That's the trip <strong>out</strong>.
-    </p>
-
-    <p>
-      The response makes the exact same trip in reverse. To get it back to your code, you have to close every doll you
-      opened, and you can only close them in the order you opened them <em>backwards</em> — the doll closest to the
-      backend closes first, the outermost one closes last. That reversal isn't a design choice bolted on top; it falls
-      straight out of the shape. And — foreshadowing the short-circuiting section — some dolls don't just wrap and pass
-      along. A doll can quietly swap what's inside for something else entirely and hand <em>that</em> back out, without
-      ever opening the doll nested inside it. Nothing downstream ever finds out.
-    </p>
-
-    <app-remember variant="mnemonic">
-      <strong>Out in order, back in reverse</strong> — whichever doll you open last is the first one you close.
-    </app-remember>
-
-    <app-layers
-      [core]="{ label: 'HttpBackend', sub: 'the actual network call' }"
-      [rings]="[
-        { label: 'auth', sub: 'attaches the token' },
-        { label: 'logging', sub: 'starts a timer' },
-        { label: 'error', sub: 'retries + redirects' },
-      ]"
-      arrow="next(req) called here"
-      caption="Registration order is **outermost first**: `withInterceptors([auth, logging, error])` puts `auth` on the very outside. The request travels inward through `auth → logging → error` to reach the backend, and the response travels back outward through the exact same three, in the exact reverse order."
-    />
-  </section>
-
-  <!-- ============ 3. THE MECHANISM ============ -->
+  <!-- ============ 2. THE MECHANISM ============ -->
   <section>
     <p class="bf-eyebrow">The mechanism</p>
     <h2>One interceptor is one function with two jobs.</h2>
@@ -97,6 +194,14 @@
       [notes]="basicNotes"
       notesLabel="What each line is doing"
     />
+
+    <app-napkin lead="hang on —" label="Guess before you scroll">
+      Here's a preview of a real bug later in this lesson. <code>inject(AuthService)</code> at the very top of an
+      interceptor's function body — line 2 above — works fine. Call <code>inject(Router)</code> the same way later,
+      inside a <code>.pipe(catchError(...))</code> callback — same interceptor, same kind of call — and it throws
+      <code>NG0203</code>. Same service-fetching function, so what changed between the two calls? Hold that thought; the
+      retry section resolves it with the actual line where it breaks.
+    </app-napkin>
 
     <div class="warn">
       <strong>Two rules, non-negotiable.</strong> <code>req</code> is immutable — <code>.clone()</code> to change
@@ -131,7 +236,7 @@
     </p>
   </section>
 
-  <!-- ============ 4. THE CHAIN, LIVE ============ -->
+  <!-- ============ 3. THE CHAIN, LIVE ============ -->
   <section>
     <p class="bf-eyebrow">The chain, live</p>
     <h2>Out in array order. Back in reverse.</h2>
@@ -167,14 +272,12 @@
       </p>
     </div>
 
-    <app-quiz
-      question="Interceptors are registered as `withInterceptors([auth, logging, error])`. A response comes back from the backend. Which one sees it first?"
-      [options]="orderQuizOptions"
-      followUp="Press “Send → succeeds” above and read the log bottom-up from the ← RESPONSE line — `logging` reports done before `auth` passes it through."
-    />
+    <app-remember variant="mnemonic">
+      <strong>Out in order, back in reverse</strong> — whichever doll you open last is the first one you close.
+    </app-remember>
   </section>
 
-  <!-- ============ 5. SHORT-CIRCUITING ============ -->
+  <!-- ============ 4. SHORT-CIRCUITING ============ -->
   <section>
     <p class="bf-eyebrow">The escape hatch</p>
     <h2>Some interceptors never call <code>next()</code> at all.</h2>
@@ -217,7 +320,7 @@
     </div>
   </section>
 
-  <!-- ============ 6. RETRY, REFRESH, AND THE STAMPEDE ============ -->
+  <!-- ============ 5. RETRY, REFRESH, AND THE STAMPEDE ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Order has teeth</p>
     <h2><code>retry()</code> resends the request. It does not refresh your token.</h2>
@@ -296,7 +399,7 @@
     </app-remember>
   </section>
 
-  <!-- ============ 7. PER-REQUEST OPT-OUTS ============ -->
+  <!-- ============ 6. PER-REQUEST OPT-OUTS ============ -->
   <section>
     <p class="bf-eyebrow">Per-request opt-outs</p>
     <h2>Not every request should get the same treatment.</h2>
@@ -363,7 +466,7 @@
     </app-compare>
   </section>
 
-  <!-- ============ 8. FUNCTIONAL VS LEGACY ============ -->
+  <!-- ============ 7. FUNCTIONAL VS LEGACY ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Two ways to register</p>
     <h2>Functional interceptors, and the class-based kind they replaced.</h2>
@@ -412,7 +515,7 @@
     </table>
   </section>
 
-  <!-- ============ 9. UNDER THE HOOD ============ -->
+  <!-- ============ 8. UNDER THE HOOD ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>
     <h2>What <code>withInterceptors([...])</code> actually builds.</h2>
@@ -466,7 +569,7 @@
     </ul>
   </section>
 
-  <!-- ============ 10. PITFALLS ============ -->
+  <!-- ============ 9. PITFALLS ============ -->
   <section>
     <p class="bf-eyebrow">Pitfalls that show up in exams &amp; code review</p>
     <h2>The five ways this goes wrong in practice.</h2>
@@ -493,13 +596,13 @@
     </ul>
   </section>
 
-  <!-- ============ 11. QUESTIONS ============ -->
+  <!-- ============ 10. QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
     <app-faq [items]="questions" heading="There are no dumb questions" />
   </section>
 
-  <!-- ============ 12. RECAP ============ -->
+  <!-- ============ 11. RECAP ============ -->
   <section>
     <p class="bf-eyebrow">Before you go</p>
     <h2>Six things to remember.</h2>

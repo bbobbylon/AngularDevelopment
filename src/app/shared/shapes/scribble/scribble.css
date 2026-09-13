@@ -1,0 +1,69 @@
+:host {
+  display: block;
+}
+
+/* Handwriting in the margin voice (brain-friendly.css §6), tilted a degree so
+   three stacked notes read as three separate scrawls rather than a list. The
+   tilt is static — no motion, nothing to reduce.
+
+   `:host .scribble` rather than `.scribble`: the layer's `.lesson.bf p` rule
+   (§4) sets colour, measure and margin on every paragraph at (0,2,1), which
+   outranks a lone scoped class. The host prefix lifts this to (0,3,0). */
+:host .scribble {
+  position: relative;
+  max-width: 48ch;
+  margin: 0.55rem 0 0.55rem 0.5rem;
+  padding-left: 1.9rem;
+  transform: rotate(-1deg);
+  transform-origin: left center;
+  font-family: var(--font-hand);
+  font-weight: 500;
+  font-size: 1.22rem;
+  line-height: 1.3;
+  color: var(--bf-accent);
+}
+
+/* The curled arrow lives outside the text column, hanging off the left edge
+   the way a drawn arrow would. Set in the body face because Caveat has no
+   glyph for it and the fallback should be deliberate, not accidental. */
+.scribble__glyph {
+  position: absolute;
+  top: -0.12em;
+  left: 0;
+  font-family: var(--font-body);
+  font-size: 1.35em;
+  line-height: 1;
+}
+
+.scribble--up .scribble__glyph {
+  top: -0.02em;
+}
+
+/* The quoted label is the pointer: it repeats a term from the figure or the
+   code exactly, so it is set in the code face on a small chip to say "this is
+   a thing on the page, not a word in my sentence". Host-prefixed for the same
+   reason as above — `.lesson.bf b` (§7) would otherwise win on colour. */
+:host .scribble__quote {
+  display: inline-block;
+  margin-right: 0.35em;
+  padding: 0 0.35em;
+  border-radius: 4px;
+  background: var(--bf-surface-2);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.72em;
+  line-height: 1.5;
+  color: var(--bf-ink);
+}
+
+:host .scribble--gold {
+  color: color-mix(in srgb, var(--bf-gold) 78%, var(--bf-ink));
+}
+
+:host .scribble--olive {
+  color: var(--bf-olive);
+}
+
+:host .scribble--clay {
+  color: color-mix(in srgb, var(--bf-clay) 78%, var(--bf-ink));
+}

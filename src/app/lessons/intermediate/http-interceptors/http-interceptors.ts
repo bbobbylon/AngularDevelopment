@@ -1,29 +1,41 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /**
  * Lesson: functional HTTP interceptors.
  *
- * Beyond "add an auth header": the onion model made concrete (a live demo that logs the
+ * Beyond "add an auth header": the nesting model made concrete (a live demo that logs the
  * request going out through the chain and the response coming back in reverse), the
  * short-circuit escape hatch, retry vs. a real refresh-and-replay flow (and the
  * concurrent-refresh stampede that a naive version causes), per-request `HttpContext`
  * opt-outs, functional vs. legacy registration, and a from-source correction of a claim
  * that keeps circulating about `retry()` and token freshness.
  *
+ * ## Page shape: the Whiteboard (BACKLOG §2.10, `docs/CONTRIBUTING.md` §2C)
+ *
+ * The opening block is one big figure and the prose serves it: eyebrow → a
+ * `.bf-say` telling the reader which arrow to find → `app-brain-power` posed *before* the
+ * picture → `app-whiteboard` (an inline SVG on the global `.wb-*` classes: the request
+ * going down the left in array order, the response climbing the right in reverse, and a
+ * dashed `retry()` loop that never leaves the bottom hop) with three `app-scribble`
+ * call-outs quoting its labels → a handwritten paragraph that answers the Brain Power
+ * outright → `app-flow` for the seven moments in order → the order quiz → the
+ * nesting-doll napkin. Everything after the block is the lesson's existing material; the
+ * `app-layers` onion the previous version opened with is gone, because the arrows are the
+ * lesson and rings cannot draw a direction.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
- * `docs/UI-DESIGN.md` §9); shape copied from
+ * `docs/UI-DESIGN.md` §9); section rhythm copied from
  * `expert/change-detection/change-detection.ts`, the reference implementation.
  *
- * `app-layers` — built for exactly this ("HTTP interceptors: the backend call is the
- * core, each interceptor is a ring") — carries the onion picture, so no bespoke SVG was
- * needed here. Two claims in the previous version of this lesson turned out to be wrong
+ * Two claims in the previous version of this lesson turned out to be wrong
  * on inspection and are corrected rather than carried forward:
  *
  * 1. The mixed-registration API is `withInterceptorsFromDi()`, not
@@ -46,11 +58,14 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     Bubbles,
     Chapter,
     CodeLab,
-    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
@@ -67,6 +82,32 @@ export class HttpInterceptors {
     { label: 'CRUD', id: 'http-crud' },
     { label: 'Interceptors' },
     { label: 'httpResource()', id: 'http-resource' },
+  ];
+
+  /**
+   * The whiteboard figure as numbered steps — the same round trip the picture draws,
+   * in the mode a reader who skimmed the picture needs: one moment per box, in order,
+   * with the reversal as its own step so it cannot be missed.
+   */
+  protected readonly roundTrip: FlowStep[] = [
+    { label: '`subscribe()`', detail: 'Nothing moves until you do — the whole chain is cold.' },
+    { label: '`auth`', detail: 'Clones the request with the header on, calls `next(req)`.' },
+    { label: '`logging`', detail: 'Starts a timer, calls `next(req)`.' },
+    {
+      label: '`error`',
+      detail: 'Calls `next(req)`, then pipes `retry` and `catchError` onto whatever comes back.',
+      tone: 'accent',
+    },
+    {
+      label: '`HttpBackend`',
+      detail: 'The real XHR (or `fetch`). The only box that talks to the network.',
+    },
+    {
+      label: 'Back up: `error` → `logging` → `auth`',
+      detail: 'The response climbs the same three boxes, innermost first.',
+      tone: 'good',
+    },
+    { label: 'Your callback', detail: 'The response — or the error that `catchError` re-threw.' },
   ];
 
   // ── The onion-chain demo (unchanged behaviour from the previous version) ───────
@@ -306,7 +347,7 @@ export class HttpInterceptors {
 
   /**
    * Sample: the plain `retry` + `catchError` version, and where the injection-context
-   * rule the top-of-lesson napkin asked about actually bites.
+   * rule the mechanism section's napkin asked about actually bites.
    */
   protected readonly errorSample = `export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);          // must inject HERE — see the note below
@@ -324,7 +365,7 @@ export class HttpInterceptors {
   protected readonly errorNotes: CodeNote[] = [
     {
       line: 2,
-      text: "This resolves the napkin question from the top of the lesson: the answer is **injection context**. `inject()` only works while Angular is actively constructing or invoking something for you — the interceptor's own function body is one such moment. The `catchError` callback on line 6 is not: it runs later, asynchronously, after Angular has moved on, which is why `inject(Router)` written *inside* it throws `NG0203: inject() must be called from an injection context`.",
+      text: "This resolves the napkin question from the mechanism section: the answer is **injection context**. `inject()` only works while Angular is actively constructing or invoking something for you — the interceptor's own function body is one such moment. The `catchError` callback on line 6 is not: it runs later, asynchronously, after Angular has moved on, which is why `inject(Router)` written *inside* it throws `NG0203: inject() must be called from an injection context`.",
     },
     {
       line: 5,

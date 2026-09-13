@@ -1,0 +1,7 @@
+<aside class="brain-power" [attr.aria-labelledby]="kickerId">
+  <p class="brain-power__kicker" [id]="kickerId">{{ kicker() }}</p>
+  <p class="brain-power__question"><app-rich-text [text]="question()" /></p>
+  @if (hint()) {
+    <p class="brain-power__hint"><app-rich-text [text]="hint()" /></p>
+  }
+</aside>

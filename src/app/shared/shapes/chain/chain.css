@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+/* `:host .chain` rather than `.chain`: the layer's `.lesson.bf ol` rule (§7)
+   sets the list padding at (0,2,1), which beats a lone scoped class. */
+:host .chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.4rem;
+  margin: 1.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chain .chain__step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+/* Chips in the code panel's own colours (brain-friendly.css §9), so a step
+   reads as "a thing from the code" rather than a word from the prose. Nested
+   under `.chain` to outrank the layer's inline-`code` chip (§7), whose border
+   and wash are reset here. */
+.chain .chain__chip {
+  padding: 0.32em 0.75em;
+  border: 0;
+  border-radius: var(--bf-r-pill);
+  background: var(--bf-code-bg);
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--bf-code-ink);
+  white-space: nowrap;
+}
+
+.chain__arrow {
+  font-family: var(--font-body);
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--bf-ink-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Chips arrive left to right, which traces the pipeline's direction once.
+     Capped at five so the tail never reads as a stall. */
+  .chain__step {
+    animation: chain-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .chain__step:nth-child(2) {
+    animation-delay: 0.07s;
+  }
+  .chain__step:nth-child(3) {
+    animation-delay: 0.14s;
+  }
+  .chain__step:nth-child(4) {
+    animation-delay: 0.21s;
+  }
+  .chain__step:nth-child(n + 5) {
+    animation-delay: 0.28s;
+  }
+
+  @keyframes chain-in {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+  }
+}

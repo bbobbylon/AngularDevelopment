@@ -597,6 +597,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Functional interceptors for auth, logging, errors and retries.',
     level: 'intermediate',
     category: 'HTTP',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/http-interceptors/http-interceptors').then(
         (m) => m.HttpInterceptors,
@@ -649,6 +650,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'toSignal, toObservable and takeUntilDestroyed.',
     level: 'intermediate',
     category: 'RxJS',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/intermediate/rxjs-interop/rxjs-interop').then((m) => m.RxjsInterop),
   },
@@ -720,6 +722,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Emulated/None/ShadowDom, :host and :host-context, and custom-property theming.',
     level: 'intermediate',
     category: 'Components & Templates',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/view-encapsulation/view-encapsulation').then(
         (m) => m.ViewEncapsulationLesson,
@@ -811,6 +814,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '@defer / @placeholder / @loading / @error and triggers like on viewport.',
     level: 'expert',
     category: 'Runtime & Performance',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/expert/deferrable-views/deferrable-views').then((m) => m.DeferrableViews),
   },

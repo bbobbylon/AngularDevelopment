@@ -1,0 +1,121 @@
+:host {
+  display: block;
+}
+
+/* Every selector below is nested under `.receipt` on purpose: the layer styles
+   any `table`, `th` and `td` inside a `.lesson.bf` as a card table (brain-
+   friendly.css §15 — tinted uppercase headers, hover rows), and a bill must
+   not look like one. Nesting outranks those rules without `!important`. */
+.receipt {
+  margin: 2rem 0;
+  max-width: 340px;
+}
+
+.receipt .receipt__table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  border: 1px dashed var(--bf-rule);
+  border-radius: 0;
+  overflow: visible;
+  background: var(--bf-surface);
+  box-shadow: var(--bf-shadow);
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--bf-ink);
+}
+
+.receipt .receipt__title {
+  caption-side: top;
+  padding: 0.95rem 1rem 0.55rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
+}
+
+.receipt .receipt__table th,
+.receipt .receipt__table td {
+  padding: 0.3rem 1rem;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: baseline;
+  color: inherit;
+}
+
+.receipt .receipt__table th {
+  text-align: left;
+}
+
+.receipt .receipt__table td {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.receipt .receipt__table tbody tr:first-child th,
+.receipt .receipt__table tbody tr:first-child td {
+  padding-top: 0.65rem;
+}
+
+.receipt .receipt__table tbody tr:last-child th,
+.receipt .receipt__table tbody tr:last-child td {
+  padding-bottom: 0.65rem;
+}
+
+.receipt .receipt__table tbody tr:hover td {
+  background: transparent;
+}
+
+/* The line that is the problem: heavier and in the danger hue, so it is
+   findable in greyscale by weight alone. */
+.receipt .receipt__row--warn {
+  font-weight: 700;
+  color: var(--bf-danger);
+}
+
+.receipt .receipt__row--muted {
+  color: var(--bf-ink-2);
+}
+
+/* The total is separated by a solid rule where the paper was dashed — the
+   one line the eye is meant to stop on. */
+.receipt .receipt__total th,
+.receipt .receipt__total td {
+  padding: 0.6rem 1rem 0.9rem;
+  border-top: 1px solid var(--bf-ink);
+  font-weight: 800;
+  color: var(--bf-danger);
+}
+
+.receipt .receipt__footer {
+  margin: 0.65rem 0 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bf-ink-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Printed, not placed: the paper slides up out of the page a little. */
+  .receipt {
+    animation: receipt-print 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes receipt-print {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+}
