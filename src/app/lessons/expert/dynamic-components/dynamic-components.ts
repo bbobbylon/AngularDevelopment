@@ -17,8 +17,8 @@ import {
   type ChapterStop,
   CodeLab,
   type CodeNote,
-  Napkin,
 } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, type ReceiptRow, Scribble } from '../../../shared/shapes';
 import {
   Compare,
   Faq,
@@ -43,6 +43,20 @@ import { ConfirmPanel } from './confirm-panel/confirm-panel';
  * splitting, custom injectors for dialog patterns, projectable nodes, and the
  * ComponentRef API. This is the machinery behind modals, toasts and CMS
  * block renderers.
+ *
+ * ## Shape: `receipt`
+ *
+ * Opens on the concrete cost `createComponent()` leaves behind when nobody
+ * calls `destroy()`: {@link toastBill} itemises five toasts created and one
+ * destroyed, with a scribble naming the `4 of 5` gap. `app-compare` contrasts
+ * the leaking call against the fixed one; `app-chain` names the teardown
+ * mechanism before {@link leakFixSample} spells it out line by line in
+ * `app-code-lab`; `app-brain-power` leaves open what `NgComponentOutlet`'s
+ * automatic teardown is actually doing that a bare `createComponent()` call
+ * isn't; and the existing {@link quizOptions} — previously stranded next to
+ * Demo 2's own compare panel — now sits inside the block where the picture
+ * that explains it lives, with a callback line left at its old location.
+ * Closes on a loud `.bf-big`. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-dynamic-components',
@@ -55,7 +69,10 @@ import { ConfirmPanel } from './confirm-panel/confirm-panel';
     Bubbles,
     Chapter,
     CodeLab,
-    Napkin,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -125,6 +142,81 @@ export class DynamicComponents implements OnDestroy {
    * How many imperative updates have run, so each shows a different message.
    */
   private updateCount = 0;
+
+  // ── Shape block: the receipt ─────────────────────────────────────────────
+
+  /** The itemised bill: four toasts created and never destroyed. */
+  protected readonly toastBill: readonly ReceiptRow[] = [
+    { label: 'Toast #1 — createComponent(Toast)', amount: 'still alive', tone: 'warn' },
+    { label: 'Toast #2 — createComponent(Toast)', amount: 'still alive', tone: 'warn' },
+    { label: 'Toast #3 — createComponent(Toast)', amount: 'still alive', tone: 'warn' },
+    { label: 'Toast #4 — user clicked ✕ (destroy() called)', amount: 'destroyed', tone: 'muted' },
+    { label: 'Toast #5 — createComponent(Toast)', amount: 'still alive', tone: 'warn' },
+  ];
+
+  /** The total line of {@link toastBill}. */
+  protected readonly toastBillTotal: ReceiptRow = {
+    label: 'components leaked, still in memory',
+    amount: '4 of 5',
+  };
+
+  /** Left side of the receipt block's compare: no cleanup, toasts stack forever. */
+  protected readonly toastLeakSample = `showToast(msg: string) {
+  this.vcr.createComponent(Toast).setInput('message', msg);
+  // no clear(), no stored ref — nothing left to destroy, ever
+}`;
+
+  /** Right side of the receipt block's compare: destroy the old one first. */
+  protected readonly toastFixedSample = `private ref: ComponentRef<Toast> | null = null;
+
+showToast(msg: string) {
+  this.ref?.destroy();               // tear down whatever was here first
+  this.ref = this.vcr.createComponent(Toast);
+  this.ref.setInput('message', msg);
+}`;
+
+  /** The teardown pipeline, named before {@link leakFixSample} spells it out. */
+  protected readonly leakChain: readonly string[] = [
+    'createComponent() builds a host + a view',
+    'view attaches to the CD tree',
+    'component renders, subscriptions open',
+    'destroy() tears both down',
+    'skip destroy() → nothing ever does',
+  ];
+
+  /**
+   * The receipt block's fix, annotated — a step further than {@link
+   * toastFixedSample}: it also registers `onDestroy` so a stale reference
+   * can never be mistaken for a live one.
+   */
+  protected readonly leakFixSample = `private ref: ComponentRef<Toast> | null = null;
+
+showToast(msg: string) {
+  this.ref?.destroy();
+  this.ref = this.vcr.createComponent(Toast);
+  this.ref.setInput('message', msg);
+  this.ref.onDestroy(() => (this.ref = null));
+}`;
+
+  /** Line-by-line walkthrough of {@link leakFixSample}. */
+  protected readonly leakFixNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: "One field, one slot. This is the ONLY handle you'll ever have on the toast you're about to create — lose it, and you lose the ability to ever destroy this exact instance.",
+    },
+    {
+      line: 4,
+      text: '`this.ref?.destroy()` — not `vcr.clear()` this time, because `destroy()` on a specific ref is precise: it tears down exactly this one component, not everything else the container happens to be holding. Optional chaining means the very first call, with nothing mounted yet, is a safe no-op.',
+    },
+    {
+      line: 5,
+      text: 'The create call itself — identical to the leaking version. The difference was never here.',
+    },
+    {
+      line: 7,
+      text: '`onDestroy()` registers a callback that runs the moment this exact instance is torn down, by ANY path — this call, a later explicit destroy, or the container being cleared from outside. Nulling the field here means a stale reference can never be mistaken for a live one.',
+    },
+  ];
 
   /**
    * Creates a panel imperatively.

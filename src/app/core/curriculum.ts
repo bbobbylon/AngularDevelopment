@@ -63,6 +63,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'if/else branching, loops, and the map & filter array helpers.',
     level: 'foundations',
     category: 'Programming from Zero',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/foundations/decisions-loops/decisions-loops').then(
         (m) => m.DecisionsLoops,
@@ -253,6 +254,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '?., ??, ??= and non-null assertion — safe access patterns.',
     level: 'typescript',
     category: 'Language Features',
+    shape: 'whiteboard',
     loadComponent: () => import('../lessons/typescript/nullish/nullish').then((m) => m.Nullish),
   },
 
@@ -363,6 +365,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'List rendering, track, $index/$first/$last/$even and @empty.',
     level: 'beginner',
     category: 'Control Flow',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/beginner/control-flow-for/control-flow-for').then((m) => m.ControlFlowFor),
   },
@@ -427,6 +430,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Emitting events with output() / @Output and EventEmitter to parents.',
     level: 'beginner',
     category: 'Component Communication',
+    shape: 'no-dumb-questions',
     loadComponent: () => import('../lessons/beginner/outputs/outputs').then((m) => m.Outputs),
   },
   {
@@ -666,6 +670,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Writing pure and impure pipes with @Pipe and transform().',
     level: 'intermediate',
     category: 'Pipes & Directives',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/intermediate/custom-pipes/custom-pipes').then((m) => m.CustomPipes),
   },
@@ -740,6 +745,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'useClass, useValue, useFactory, useExisting and InjectionToken.',
     level: 'intermediate',
     category: 'Dependency Injection',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/di-providers/di-providers').then((m) => m.DiProviders),
   },
@@ -813,6 +819,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'provideZonelessChangeDetection and signal-driven updates.',
     level: 'expert',
     category: 'Runtime & Performance',
+    shape: 'no-dumb-questions',
     loadComponent: () => import('../lessons/expert/zoneless/zoneless').then((m) => m.Zoneless),
   },
   {
@@ -885,6 +892,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ngComponentOutlet, ViewContainerRef.createComponent and host APIs.',
     level: 'expert',
     category: 'Architecture',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/expert/dynamic-components/dynamic-components').then(
         (m) => m.DynamicComponents,

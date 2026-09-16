@@ -1051,6 +1051,32 @@ pre-rotation — the shapes varied the devices, they did not touch the bar). Dec
 count: 4 (pilots) → 12, landing at an even 3 apiece. Remaining undeclared: 103 − 12 = **91**,
 next up for batch 2.
 
+**Batch 2 of step 5, landed 2026-09-16.** Second rotation batch off the same worst-offender
+list, eight lessons across five tracks (`foundations`, `typescript`, `beginner` ×2,
+`intermediate` ×2, `expert` ×2), keeping all four shapes exactly even:
+
+| Lesson                | Track        | Shape               | The kind of gotcha                                                              |
+| ---------------------- | ------------ | -------------------- | -------------------------------------------------------------------------------- |
+| `decisions-loops`     | foundations  | `argument`           | tension (`i++` and `splice` both keep their promise; the array renumbering mid-walk is what skips an element) |
+| `ts-nullish`          | typescript   | `whiteboard`         | structure (one missing link short-circuits the WHOLE rest of an optional chain, not just the next property) |
+| `control-flow-for`    | beginner     | `argument`           | tension (`track $index` and Angular's node reuse both do exactly what they promise; a reordered row's half-typed input attaches to a stranger's data anyway) |
+| `outputs`             | beginner     | `no-dumb-questions`  | misconception (`.emit()` feels like it calls the parent's handler directly; the child never touches the parent at all) |
+| `di-providers`        | intermediate | `whiteboard`         | structure (a component's own `providers` array doesn't merge with root's — it silently forks a "singleton" into two live instances) |
+| `custom-pipes`        | intermediate | `receipt`            | cost (forty change-detection checks on one unchanged price; a getter redoes the formatting work all forty times) |
+| `zoneless`            | expert       | `no-dumb-questions`  | misconception (a plain-field write outside a signal "doesn't happen"; it happens in memory and nobody is ever told) |
+| `dynamic-components`  | expert       | `receipt`            | cost (five toasts created via `createComponent()`; four never `destroy()`ed and quietly outlive the session) |
+
+Same relocation discipline as batch 1: each rotation replaced only the opening block, and any
+pre-existing device that was already tightly coupled to a demo further down the page got moved
+into the block instead of duplicated, with a callback line left at its old spot —
+`duplicateProviderQuiz` (+ a new `duplicateProviderSteps` flow) in `di-providers`,
+`setTimeoutQuizOptions` in `zoneless`, and `quizOptions` in `dynamic-components`. `outputs`'
+closing FAQ was also rewritten with four genuinely different doubts, since its old ones now
+overlapped the new no-dumb-questions block almost verbatim. `scripts/audit-variety.mjs` is
+green (20 declared shapes, 5/5/5/5, no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. Declared-shape count: 12 → 20.
+Remaining undeclared: 103 − 20 = **83**, next up for batch 3.
+
 ---
 
 ## 3. Later

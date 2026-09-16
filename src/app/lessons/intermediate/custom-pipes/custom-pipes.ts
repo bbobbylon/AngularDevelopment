@@ -14,6 +14,8 @@ import { RouterLink } from '@angular/router';
 import { Observable, Subscription, interval, map } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -279,6 +281,20 @@ interface Post {
  * the same idea — a pure pipe's single-slot cache — restated as a dialogue, a
  * live mutate-vs-replace demo, and a quiz built around the misconception that
  * "memoized" means a shared, keyed cache.
+ *
+ * ## Shape: `receipt`
+ *
+ * Opens on the concrete anomaly the old Predict-napkin only asked about:
+ * forty change-detection checks on one unchanged price, itemised in
+ * {@link formatBill} as `app-receipt`, with the gap named by a scribble
+ * quoting the total's `1 of 40`. `app-compare` contrasts a getter's real
+ * work every time against a pure pipe's real work once; `app-chain` names
+ * the cache-check pipeline before {@link pureMemoSample} spells it out in
+ * `app-code-lab`; `app-brain-power` leaves the per-binding-site scope of that
+ * cache open; and {@link receiptCacheMissQuiz} tests what actually breaks
+ * it — deliberately a different angle from {@link memoQuiz} later on the
+ * page, which the block's own quiz explicitly points forward to rather than
+ * repeating. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-custom-pipes',
@@ -291,6 +307,10 @@ interface Post {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -311,6 +331,105 @@ interface Post {
   styleUrl: './custom-pipes.css',
 })
 export class CustomPipes {
+  // ── Shape block: the receipt ─────────────────────────────────────────────
+
+  /** The itemised bill: a getter re-doing identical work on 39 of 40 checks. */
+  protected readonly formatBill: readonly ReceiptRow[] = [
+    { label: 'check #1 — getFormattedPrice()', amount: 'formats the price', tone: 'muted' },
+    { label: 'check #2 — getFormattedPrice()', amount: 'formats it again', tone: 'warn' },
+    { label: 'check #3 — getFormattedPrice()', amount: 'formats it again', tone: 'warn' },
+    { label: '…37 more checks, same second', amount: 'formats it again — ×37', tone: 'warn' },
+  ];
+
+  /** The total line of {@link formatBill}. */
+  protected readonly formatBillTotal: ReceiptRow = {
+    label: 'transform() calls a pure pipe would have made',
+    amount: '1 of 40',
+  };
+
+  /** Left side of the receipt block's compare: the getter, paying every time. */
+  protected readonly getterCostSample = `get formattedPrice() {
+  console.count('formatted');
+  return formatCurrency(this.price, 'en-US', 'USD');
+}`;
+
+  /** Right side of the receipt block's compare: the pure pipe, paying once. */
+  protected readonly pipeCostSample = `@Pipe({ name: 'appCurrency' })   // pure: true is the default
+class AppCurrencyPipe {
+  transform(value: number) {
+    console.count('formatted');
+    return formatCurrency(value, 'en-US', 'USD');
+  }
+}`;
+
+  /** The cache-check pipeline, named before {@link pureMemoSample} spells it out. */
+  protected readonly pipeCacheChain: readonly string[] = [
+    'binding checked',
+    'compare new arg === stored arg',
+    'match → hand back cached output',
+    'no match → call transform()',
+    'store the new pair',
+  ];
+
+  /**
+   * A didactic rebuild of the check Angular runs around every pure-pipe
+   * binding — not the framework's real internals, but the same shape: one
+   * slot of memory, one reference comparison, real work only on a miss.
+   */
+  protected readonly pureMemoSample = `// Roughly what happens around every PURE pipe binding
+let lastArg: unknown;
+let lastResult: unknown;
+
+function checkBinding(pipeInstance: PipeTransform, arg: unknown) {
+  if (arg === lastArg) {
+    return lastResult;                     // cache hit — transform() never runs
+  }
+  lastArg = arg;
+  lastResult = pipeInstance.transform(arg); // cache miss — the real work
+  return lastResult;
+}`;
+
+  /** Line-by-line walkthrough of {@link pureMemoSample}. */
+  protected readonly pureMemoNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "`lastArg` and `lastResult` are the entire cache — not a map, not a list of keys, just two variables. That's the single slot the Polaroid mnemonic further down this page is describing.",
+    },
+    {
+      line: 5,
+      text: '`arg === lastArg` is the whole check, and it runs before `transform()` is even considered. `===` is reference equality, not a deep comparison — the strictest test JavaScript has.',
+    },
+    {
+      line: 6,
+      text: 'A match returns the stored answer immediately. Nothing about the current value is re-examined — Angular trusts the reference check completely and never double-checks the content behind it.',
+    },
+    {
+      line: 9,
+      text: 'A mismatch is the only path that reaches `pipeInstance.transform(arg)` — the one line in this whole snippet that does the formatting work your pipe actually exists to do.',
+    },
+  ];
+
+  /** The block's own quiz: what actually forces a cache MISS, not just what the cache holds (that's {@link memoQuiz}'s job, later on the page). */
+  protected readonly receiptCacheMissQuiz: QuizOption[] = [
+    {
+      text: 'Switching the pipe to run inside an OnPush component.',
+      why: 'OnPush changes whether a CHECK reaches this view at all, not what the pipe does once one does. If anything, it means fewer checks — not more transform() calls.',
+    },
+    {
+      text: "Passing a fresh object or array literal as one of the pipe's arguments, written inline in the template.",
+      correct: true,
+      why: '`{{ price | appCurrency: { minimumFractionDigits: 2 } }}` builds a brand-new object on every single check — a new reference every time, which never matches the one sitting in the cache. The check loses on purpose, every time, because it was handed a new face to compare on every single check.',
+    },
+    {
+      text: "Renaming the pipe's transform() parameter.",
+      why: 'Parameter names are local labels inside the method body. Renaming one changes nothing about what gets compared, or when.',
+    },
+    {
+      text: 'Adding a second, unrelated binding elsewhere in the same template.',
+      why: "Bindings don't share caches with each other — each one gets its own single slot. A completely different binding re-checking has no effect on this one's stored pair.",
+    },
+  ];
+
   /**
    * Text for the truncate demo.
    */

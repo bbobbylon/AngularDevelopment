@@ -2,6 +2,8 @@ import { Component, afterRenderEffect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -49,6 +51,21 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * `whenStable()`/SSR once there is no zone to watch), and the
  * `eventCoalescing`/`runCoalescing` stepping stone between naive Zone.js and
  * zoneless.
+ *
+ * ## Shape: `no-dumb-questions`
+ *
+ * Opens on the misconception this topic reliably produces — that a plain
+ * field write somehow doesn't happen, rather than happens-and-goes-unreported
+ * — and lets {@link ndq} carry the whole explanation, escalating through the
+ * `tick()`-everywhere temptation and the `PendingTasks` half of the same gap
+ * to the one-sentence fix. `app-brain-power` poses the Zone.js-patched-
+ * everything contrast before the reader sees the picture; `app-whiteboard`
+ * draws the plain-field path dead-ending at a faded, unnotified scheduler
+ * next to the signal path lighting every box it touches; the existing
+ * {@link setTimeoutQuizOptions} — previously stranded next to the live demo
+ * alone — now sits inside the block where the picture that explains it
+ * lives; and the block closes on the concierge/call-buttons analogy that
+ * used to open "The mental model" as prose. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-zoneless',
@@ -60,6 +77,9 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
+    Whiteboard,
     Faq,
     Flow,
     Predict,
@@ -85,6 +105,48 @@ export class Zoneless {
    * verify window, so counting here is honest.
    */
   protected readonly passes = signal(0);
+
+  /**
+   * The shape block's spine: six to eight questions escalating from the
+   * "did the write even happen?" misconception, through the tempting-but-
+   * wrong `tick()`-everywhere fix and the `PendingTasks` half of the same
+   * gap, to the one-sentence rule. Carries the entire explanation on its
+   * own — see `NoDumbQuestions`'s own doc comment for why that is the point.
+   */
+  protected readonly ndq: NdqItem[] = [
+    {
+      q: 'If I write `this.value = 5` outside a signal in a zoneless app, does the value actually change, or does the assignment just... not happen?',
+      a: "It genuinely changes — exactly the way it always did. `this.value` really does become `5` in memory, at the moment you write it. What's missing isn't the write; it's the phone call telling Angular a write happened at all. Nobody's checking, so nobody notices — until something else causes a pass, and that pass happens to re-read the now-current value.",
+    },
+    {
+      q: 'So the screen is just... wrong, forever?',
+      a: "Only until the next pass — which usually arrives sooner than you'd guess, because almost anything else in your app (a click somewhere unrelated, a signal write in a different component) triggers one, and that pass re-reads every binding, including the stale one. That's the trap: the bug looks intermittent, not broken, because it fixes itself the moment anything else happens to schedule a check.",
+    },
+    {
+      q: "I've genuinely hit this at work — a WebSocket handler updated a plain field and the UI just sat there until I clicked something unrelated. Why did clicking somewhere else fix it?",
+      a: "Because a template click is one of the six things that schedules a pass, and a pass re-checks every binding in the tree, not just the one near the click. Your WebSocket write was real the whole time — it just never got its own invitation to a check, and it rode in on someone else's.",
+    },
+    {
+      q: "Doesn't that mean I should just sprinkle `ApplicationRef.tick()` everywhere to be safe?",
+      a: "That's exactly the instinct this lesson wants to talk you out of. `tick()` papers over the symptom on the one call site you remembered to add it to, and does nothing for the next one you forget. The real fix makes the write itself notify — a signal, `markForCheck()`, or the `async` pipe — so the component is correct **by construction**, not by you remembering to crank a manual lever.",
+    },
+    {
+      q: "What actually decided the old Zone.js era's checks — was it watching MY code specifically?",
+      a: "No, and this is the part that surprises people going the other direction. Zone.js never read your component state at all. It monkey-patched the browser's own globals (`setTimeout`, `Promise`, `addEventListener`) once, at startup, so it would find out the instant **any** of them completed, anywhere — your code, a third-party analytics ping, a chat widget's heartbeat. It couldn't tell which one mattered, so it treated all of them as if they might, every time.",
+    },
+    {
+      q: 'If Zone.js is gone, how does Angular even know when the app has gone quiet for tests or SSR?',
+      a: "A separate service, `PendingTasks`, and nothing about it is automatic except one built-in registration: `HttpClient` calls `add()`/`run()` for you on every request. Anything else async — a raw socket, a third-party SDK's callback — never registers itself, so `whenStable()` and SSR simply don't know to wait for it. Same root cause as the first question: a real thing happened, and nobody told the part of Angular that was listening for 'is everything settled yet.'",
+    },
+    {
+      q: 'Does going zoneless mean I have to rewrite every field as a signal?',
+      a: "No — template event listeners still 'just work': Angular wraps every `(click)`/`(input)`/`(mousemove)` and marks the view dirty before your handler body even runs, signal or not. The rule only bites the **async continuation** of that handler — a `setTimeout` or a promise it kicks off, whose eventual completion sits outside any template binding.",
+    },
+    {
+      q: "Okay — what's the one sentence that covers basically every bug on this page?",
+      a: "The write always happens; the notification doesn't, unless it's one of six explicit triggers. Every trap above — the stale pill, the empty SSR page, the test that passes too early — is the exact same gap, just discovered in a different place.",
+    },
+  ];
 
   // ── Live proof #1 — plain field vs signal, both written from setTimeout ────
 

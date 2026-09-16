@@ -1,7 +1,8 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -179,12 +180,30 @@ function removeEvensSafe(list: readonly number[]): number[] {
  * implementation whose section rhythm this copies — eyebrow, declarative
  * headline, ask-before-telling, then mechanism in several modes.
  *
- * ## Teaching order, and why
+ * ## Shape: "The Argument" (`shape: 'argument'`, CONTRIBUTING §2C)
  *
- * 1. **Pose the problem before naming the fix.** The opening napkin makes the
- *    reader commit to a truthiness guess — including the deliberately unfair
- *    `'0'` (a string, and therefore truthy) — before "falsy six" is ever said
- *    out loud.
+ * BACKLOG §2.10. The splice-while-looping bug is two correct parties producing
+ * a bug neither of them caused: `i++` correctly advances by one, `splice`
+ * correctly shifts everything after the deleted slot down by one, and the item
+ * that slides into the freed slot is never revisited by anyone — a tension,
+ * not a misconception, so the Argument shape fits it better than a Q&A would.
+ * The opening block is: a quoted line from the counter → the scene, three
+ * parties named → {@link spliceRoundOne} (six turns, the negotiation) → a
+ * Brain Power on who's actually at fault → {@link spliceRoundTwo} (four
+ * turns; everyone says "not me", and the last voice is yours) → the named
+ * principle ("tracks position, not identity") → a containment figure
+ * (`app-layers`) → the crux quiz ({@link spliceArgumentQuiz}) → the
+ * musical-chairs analogy on a napkin. No `app-code-lab`, `app-remember`,
+ * `app-tape-card`, `app-no-dumb-questions` or `app-receipt` inside the block.
+ *
+ * ## Teaching order after the block, and why
+ *
+ * 1. **The blameless bug first, ordinary branching second.** The block hooks
+ *    on the splice trap; "The mental model" section right after it backs up
+ *    to a much simpler switch — one condition, one fork, no room for two
+ *    correct parties to collide — including the opening napkin's truthiness
+ *    guess, with the deliberately unfair `'0'` (a string, and therefore
+ *    truthy) before "falsy six" is ever said out loud.
  * 2. **One analogy carries the whole first half.** `if`/`else` is a railway
  *    switch: one train, one fork, exactly one track. Truthiness, the
  *    ternary, `&&`/`||` and `switch` are all just more ways of asking that
@@ -215,8 +234,10 @@ function removeEvensSafe(list: readonly number[]): number[] {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -374,6 +395,88 @@ export class DecisionsLoops {
     { label: 'Arrays & Objects', id: 'arrays-objects-basics' },
     { label: 'Decisions & Loops' },
     { label: 'Async Basics', id: 'async-basics' },
+  ];
+
+  // ── The shape block: the argument ───────────────────────────────────────────
+
+  /**
+   * Round one of the splice-while-looping negotiation — three parties, each
+   * stating something true, none of them yet in open conflict. Traces the
+   * real first two laps of {@link removeEvensBuggy} on `[2, 4, 6, 7, 9]`.
+   */
+  protected readonly spliceRoundOne: BubbleTurn[] = [
+    {
+      who: 'i',
+      says: "I'm at index 0. copy[0] is 2, even — splice(0, 1) runs. Next stop: index 1.",
+    },
+    {
+      who: 'splice',
+      says: 'Deleted index 0. Everything after slides down one slot: what was at index 1 — a 4 — is now sitting at index 0.',
+    },
+    {
+      who: 'the array',
+      says: "My new index 0 is 4. Nobody's coming back to look at index 0 again.",
+    },
+    {
+      who: 'i',
+      says: "Correct — I already moved to index 1. Index 0 isn't on my list any more, whoever's sitting there now.",
+    },
+    {
+      who: 'splice',
+      says: "And I don't track where anyone goes after I shift them. I closed the gap; that's the whole contract.",
+    },
+    {
+      who: 'the array',
+      says: 'So the 4 that just landed in slot 0 — a real, even number — is never tested by anyone, ever. It survives to the end.',
+    },
+  ];
+
+  /**
+   * Round two — every party but the reader points somewhere else, and the
+   * last line is the verdict the Brain Power was waiting on.
+   */
+  protected readonly spliceRoundTwo: BubbleTurn[] = [
+    {
+      who: 'i',
+      says: 'Not me. I do exactly what a for-loop header says: start here, test this, step by one.',
+    },
+    {
+      who: 'splice',
+      says: 'Not me. I remove one item and close the gap — correct, documented behavior, every time.',
+    },
+    {
+      who: 'the array',
+      says: "Not me. I hold whatever's put in me. I didn't choose to have my items renumbered mid-walk.",
+    },
+    {
+      who: 'You',
+      says: "It's mine. I asked a counter that only understands positions to walk an array whose positions I was actively changing underneath it.",
+    },
+  ];
+
+  /**
+   * The block's crux quiz: which number survives {@link removeEvensBuggy} and
+   * why. The distractors are the three wrong stories a learner tells about
+   * *which* number gets away and why — none of them the real mechanism.
+   */
+  protected readonly spliceArgumentQuiz: QuizOption[] = [
+    {
+      text: "6 — because it's the middle element, and splice always misses the middle.",
+      why: "There's no such rule. Which element survives depends entirely on which slot happens to lose its visitor after a shift — position, not location-in-the-list.",
+    },
+    {
+      text: '4 — because it slides into the slot the loop already passed, and the counter never returns to that slot.',
+      correct: true,
+      why: 'Exactly. `2` at index 0 is removed successfully; `4`, which was at index 1, slides down into index 0 — a slot `i` has already left behind. The counter moves on to index 1 and never looks back.',
+    },
+    {
+      text: "2 — because it's removed first, so nothing after it can touch it.",
+      why: "2 is removed correctly and is genuinely gone. The bug isn't about the item that gets removed — it's about whichever item slides into the freed slot right after it.",
+    },
+    {
+      text: '9 — because it is the last element, and the loop always stops one short.',
+      why: "The loop's `i < copy.length` test re-reads the shrinking length on every lap, so it does reach the true end — it just also skips over an item earlier in the walk, on the way there.",
+    },
   ];
 
   /**

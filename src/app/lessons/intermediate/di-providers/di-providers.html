@@ -17,6 +17,115 @@
     </p>
   </app-chapter>
 
+  <!-- ============ SHAPE: THE WHITEBOARD ============ -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">Find the second <code>providers:</code> array — and watch a "singleton" quietly fork into two.</p>
+
+    <app-brain-power
+      question="A service is `&#64;Injectable(&#123; providedIn: 'root' &#125;)`. A teammate also lists it in one component's own `providers: [...]`, 'just to be safe.' Two places now claim to provide the same token — so how many instances of that service actually exist once the page has loaded, and who gets which one?"
+      hint="Ask whether listing a provider again REPLACES the old recipe somewhere, or simply files a second card in a different cabinet."
+    />
+
+    <app-whiteboard
+      caption="Two `providers:` entries for the same token don't merge into one instance — they quietly build two."
+      alt="A large box labelled root injector contains a highlighted box labelled Notifier instance A, and below it a plain box labelled Header. An arrow runs from Header straight up into instance A. To the right, nested inside the root injector, a dashed-outline box labelled Dashboard, providers colon Notifier contains its own highlighted box labelled Notifier instance B, and below it a plain box labelled Sidebar, inside Dashboard, with an arrow running up into instance B. A dashed line with no arrowhead runs between instance A and instance B, labelled in handwriting: these never sync."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 320" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="di-providers-arrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <!-- root injector: the outer boundary -->
+        <rect x="20" y="55" width="720" height="240" rx="16" class="wb-rule" />
+        <text x="34" y="38" class="wb-hand">root injector</text>
+
+        <!-- instance A: root's own, shared by everything outside Dashboard -->
+        <rect x="55" y="90" width="150" height="55" rx="10" class="wb-node--lit" />
+        <text x="130" y="112" text-anchor="middle" class="wb-mono">Notifier</text>
+        <text x="130" y="132" text-anchor="middle" class="wb-mono wb-text--sm">instance A</text>
+
+        <!-- Header: an ordinary sibling, reaches instance A -->
+        <rect x="55" y="180" width="150" height="50" rx="10" class="wb-node" />
+        <text x="130" y="210" text-anchor="middle" class="wb-mono wb-text--sm">Header</text>
+        <path class="wb-arrow" d="M130 180 V145" marker-end="url(#di-providers-arrow)" />
+
+        <!-- Dashboard's own subtree, dashed to mark "a new registration starts here" -->
+        <rect x="430" y="72" width="270" height="200" rx="14" class="wb-rule" style="stroke-dasharray: 6 5" />
+        <text x="446" y="98" class="wb-text wb-text--sm">Dashboard — providers: [Notifier]</text>
+
+        <!-- instance B: a second, independent object, forked for this subtree only -->
+        <rect x="460" y="112" width="150" height="55" rx="10" class="wb-node--lit" />
+        <text x="535" y="134" text-anchor="middle" class="wb-mono">Notifier</text>
+        <text x="535" y="154" text-anchor="middle" class="wb-mono wb-text--sm">instance B</text>
+
+        <!-- Sidebar: a descendant of Dashboard, reaches instance B instead -->
+        <rect x="460" y="212" width="150" height="45" rx="10" class="wb-node" />
+        <text x="535" y="238" text-anchor="middle" class="wb-mono wb-text--sm">Sidebar</text>
+        <path class="wb-arrow" d="M535 212 V167" marker-end="url(#di-providers-arrow)" />
+
+        <!-- the two instances never sync -->
+        <path class="wb-arrow wb-arrow--ink wb-arrow--dashed" d="M205 117 H460" />
+        <text x="332" y="105" text-anchor="middle" class="wb-hand">these never sync</text>
+      </svg>
+
+      <app-scribble
+        quote="instance A"
+        text="the ORIGINAL, shared object — built once, the first time anything **outside** `Dashboard` injects `Notifier`. `Header` and every other component in the app gets this exact same instance."
+      />
+      <app-scribble
+        quote="Dashboard — providers: [Notifier]"
+        tone="clay"
+        text="the line that forks the tree. Angular reads this array while building `Dashboard`'s own element injector, and it answers a `Notifier` request from **inside** that subtree before root ever gets asked."
+      />
+      <app-scribble
+        quote="instance B"
+        point="up"
+        tone="clay"
+        text="a second, completely independent object. Nothing links it to instance A — no shared state, no sync, not even awareness that the other one exists."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <strong>Two.</strong> The component's own <code>providers: [Notifier]</code> doesn't override the root
+      registration — it builds a brand-new element injector for that one subtree, with its own separate instance. Every
+      descendant of <code>Dashboard</code> gets <strong>instance B</strong>, forever; literally everything else in the
+      app still gets <strong>instance A</strong>, forever. Nothing looks wrong: no error, no warning, no console message
+      — both instances quietly exist side by side, out of sync from the moment the second one is born.
+    </p>
+
+    <app-flow
+      [steps]="duplicateProviderSteps"
+      caption="The same fork, seen as a sequence: two separate 'first ask' moments, each building its own instance, neither aware the other exists."
+    />
+
+    <app-quiz
+      question="A service is `&#64;Injectable(&#123; providedIn: 'root' &#125;)`. A teammate also adds it to one component's own `providers: [...]`, 'to make sure it's available.' What actually happens?"
+      [options]="duplicateProviderQuiz"
+      followUp="This is the single most common source of 'why isn't my state shared?' bugs in real Angular code — and nothing about it throws, warns, or looks wrong at a glance."
+    />
+
+    <app-napkin lead="the mental model —" label="A request slip and a filing cabinet">
+      Picture <code>inject(Token)</code> as a request slip handed to a clerk:
+      <em>"give me a <code>Notifier</code>."</em> The clerk doesn't build anything from imagination — there's a filing
+      cabinet of instruction cards, one per token, consulted before anything else happens:
+      <em>"when this slip comes in, do X."</em> A provider is that card. And the picture above is what happens when
+      <strong>two different cabinets</strong> — root's, and `Dashboard`'s own — each file a card for the same token: two
+      clerks, two cards, two completely different somethings handed back, and neither clerk knows the other cabinet
+      exists.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -53,17 +162,14 @@
     </p>
   </section>
 
-  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <!-- ============ 2. THE DIALOGUE VERSION ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>A provider is the instruction taped to the request.</h2>
+    <p class="bf-eyebrow bf-eyebrow--olive">Same idea, one more way</p>
+    <h2>The instruction card, acted out.</h2>
 
     <p>
-      Picture <code>inject(Token)</code> as a request slip handed to a clerk:
-      <em>"give me a <code>Notifier</code>."</em> The clerk has no idea what a <code>Notifier</code> looks like —
-      nothing does, it's abstract. What the clerk <em>does</em> have is a filing cabinet of instruction cards, one per
-      token, and consults it before doing anything else: <em>"when this slip comes in, do X."</em> A provider is that
-      card.
+      You just read the filing-cabinet version. Here's the exact same slip-and-card exchange, spoken instead of pictured
+      — with the four recipes named as four different instructions that card could carry.
     </p>
 
     <p>
@@ -541,14 +647,17 @@
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row, in multiple choice</p>
     <h2>The trap that looks like "just to be safe."</h2>
 
-    <app-quiz
-      question="A service is `&#64;Injectable(&#123; providedIn: 'root' &#125;)`. A teammate also adds it to one component's own `providers: [...]`, 'to make sure it's available.' What actually happens?"
-      [options]="duplicateProviderQuiz"
-      followUp="This is the single most common source of 'why isn't my state shared?' bugs in real Angular code — and nothing about it throws, warns, or looks wrong at a glance."
-    />
+    <p>
+      You already met this exact trap on the whiteboard at the top of the page — two <code>providers:</code> entries,
+      two silent instances, zero errors. It's worth having cold before an exam anyway, along with two more:
+    </p>
 
-    <p>Two more worth having cold before an exam:</p>
     <ul>
+      <li>
+        <strong>A second <code>providers: [...]</code> entry never merges with root's.</strong> It builds a second,
+        independent instance for that one subtree — the single most common source of "why isn't my state shared?" bugs
+        in real Angular code, and nothing about it throws, warns, or looks wrong at a glance.
+      </li>
       <li>
         <strong>Injecting outside an injection context.</strong> <code>inject()</code> works in constructors, field
         initializers, factories and guards — not in an arbitrary callback like a <code>setTimeout</code> or a raw event

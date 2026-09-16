@@ -16,52 +16,103 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ SHAPE: NO DUMB QUESTIONS ============ -->
+  <p class="bf-big">The value changes. Nobody calls to say so. That's the entire lesson.</p>
+
+  <p class="bf-say">Zoneless didn't break assignment — it stopped guaranteeing that anyone finds out about it.</p>
+
+  <app-no-dumb-questions [items]="ndq" />
+
+  <app-brain-power
+    question="Zone.js patched every async global it could find so it would never miss a completion, anywhere. Zoneless deliberately watches none of them. So when a raw `setTimeout` write goes unnoticed, whose decision was that — a bug, or a design?"
+    hint="Ask what the alternative would cost, app-wide, to catch that one unregistered case."
+  />
+
+  <app-whiteboard
+    caption="Same write, same moment, in memory either way. Only one of these two paths ever calls anyone about it."
+    alt="Two parallel horizontal rows. Top row: a box labelled plain field dot value equals five, an arrow into a highlighted box labelled memory updated, then a dashed arrow with no arrowhead into a faded box labelled scheduler, never notified, then another dashed arrow with no arrowhead into a faded box labelled screen, shows OLD value. Bottom row: a box labelled signal dot set five, an arrow into a highlighted box labelled memory updated, then a solid arrow into a highlighted box labelled scheduler notified, then a solid arrow into a highlighted box labelled screen, shows NEW value. Handwritten text between the two rows reads: same write, same moment, one phone call."
+  >
+    <svg class="wb-svg" viewBox="0 0 760 260" aria-hidden="true" focusable="false">
+      <defs>
+        <marker
+          id="zoneless-arrow"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+        </marker>
+      </defs>
+
+      <!-- top path: plain field, never notified -->
+      <rect x="15" y="55" width="150" height="55" rx="10" class="wb-node" />
+      <text x="90" y="78" text-anchor="middle" class="wb-mono wb-text--sm">plain field</text>
+      <text x="90" y="97" text-anchor="middle" class="wb-mono wb-text--sm">.value = 5</text>
+
+      <path class="wb-arrow" d="M165 82 H210" marker-end="url(#zoneless-arrow)" />
+      <rect x="210" y="55" width="150" height="55" rx="10" class="wb-node--lit" />
+      <text x="285" y="87" text-anchor="middle" class="wb-mono wb-text--sm">memory updated</text>
+
+      <path class="wb-arrow wb-arrow--ink wb-arrow--dashed" d="M360 82 H420" />
+      <rect x="420" y="55" width="140" height="55" rx="10" class="wb-node" style="opacity: 0.45" />
+      <text x="490" y="78" text-anchor="middle" class="wb-mono wb-text--sm">scheduler</text>
+      <text x="490" y="97" text-anchor="middle" class="wb-hand" style="font-size: 13px">never notified</text>
+
+      <path class="wb-arrow wb-arrow--ink wb-arrow--dashed" d="M560 82 H610" />
+      <rect x="610" y="55" width="135" height="55" rx="10" class="wb-node" style="opacity: 0.45" />
+      <text x="677" y="78" text-anchor="middle" class="wb-mono wb-text--sm">screen</text>
+      <text x="677" y="97" text-anchor="middle" class="wb-hand" style="font-size: 13px">shows OLD value</text>
+
+      <!-- the gap, named between the two rows -->
+      <text x="380" y="145" text-anchor="middle" class="wb-hand">same write. same moment. one phone call.</text>
+
+      <!-- bottom path: signal, notified -->
+      <rect x="15" y="170" width="150" height="55" rx="10" class="wb-node" />
+      <text x="90" y="193" text-anchor="middle" class="wb-mono wb-text--sm">signal</text>
+      <text x="90" y="212" text-anchor="middle" class="wb-mono wb-text--sm">.set(5)</text>
+
+      <path class="wb-arrow" d="M165 197 H210" marker-end="url(#zoneless-arrow)" />
+      <rect x="210" y="170" width="150" height="55" rx="10" class="wb-node--lit" />
+      <text x="285" y="202" text-anchor="middle" class="wb-mono wb-text--sm">memory updated</text>
+
+      <path class="wb-arrow" d="M360 197 H420" marker-end="url(#zoneless-arrow)" />
+      <rect x="420" y="170" width="140" height="55" rx="10" class="wb-node--lit" />
+      <text x="490" y="202" text-anchor="middle" class="wb-mono wb-text--sm">scheduler notified</text>
+
+      <path class="wb-arrow" d="M560 197 H610" marker-end="url(#zoneless-arrow)" />
+      <rect x="610" y="170" width="135" height="55" rx="10" class="wb-node--lit" />
+      <text x="677" y="193" text-anchor="middle" class="wb-mono wb-text--sm">screen</text>
+      <text x="677" y="212" text-anchor="middle" class="wb-mono wb-text--sm">shows NEW value</text>
+    </svg>
+  </app-whiteboard>
+
+  <app-quiz
+    question="You click “setTimeout → plain field” once and then wait, touching nothing else. What does the screen show?"
+    [options]="setTimeoutQuizOptions"
+    followUp="Try it on the live demo further down this page — then click the signal button afterwards and watch the plain-field pill catch up in the same pass."
+  />
+
+  <app-napkin lead="the mental model —" label="A concierge, and a room full of call buttons">
+    Zone.js was a hotel with one overworked concierge who couldn't tell which room actually needed something, so they
+    compensated by walking a full circuit of every hallway the instant <em>any</em> guest event happened anywhere in the
+    building. Zoneless is the same hotel with a call button in every room: nothing happens until a guest actually
+    presses one, and the concierge visits <em>only</em> the rooms whose buttons lit up. The trade a room makes for a
+    button is that a guest who never presses it never gets visited — which is exactly the gap the picture above just
+    showed you.
+  </app-napkin>
+
+  <!-- ============ 2. THE DIALOGUE VERSION ============ -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>How did Angular ever know to check — before you told it to?</h2>
+    <p class="bf-eyebrow bf-eyebrow--olive">Same idea, one more way</p>
+    <h2>The concierge and the call buttons, staged as a conversation.</h2>
 
     <p>
-      Every other lesson in this track can quietly assume a change-detection pass happens and ask what it does once it
-      starts. This one has to answer the question they all skip: <span class="key">what actually causes one</span>? For
-      Angular's first eight years the answer was blunt — assume <em>any</em> async completion, anywhere, might matter,
-      and check <strong>everything</strong> to find out.
-    </p>
-
-    <p>
-      That blunt answer had a name: <code>Zone.js</code>. It is gone from this app, and the rest of this lesson is about
-      what replaced it, what that replacement quietly does <em>not</em> cover, and the one gap the framework's own
-      marketing copy tends to skip over.
-    </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Two values, both written from a <code>setTimeout</code> firing 300ms from now. One is a plain field (<code
-        >this.value = …</code
-      >); the other is a <code>signal</code> you call <code>.set()</code> on.
-      <strong>Both really change in memory, at the same moment.</strong> Which one do you think shows up on screen — and
-      can you say why, before you scroll down to the live version and check yourself?
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Zone.js was a concierge who patrols every hallway. Zoneless hands out room-service buttons.</h2>
-
-    <p>
-      Picture a hotel with one overworked concierge. They cannot tell which room actually needs something, so they
-      compensate by walking a full circuit of every hallway and knocking on every door — the instant <em>any</em>
-      guest event happens anywhere in the building: a phone call ends, a delivery arrives, a shower shuts off. Most
-      knocks get "we're fine, thanks." The concierge has no way to know that in advance, so the walk happens anyway,
-      every time.
-    </p>
-
-    <p>
-      Zoneless is the same hotel with a call button in every room. Nothing happens until a guest actually presses one —
-      and the concierge visits <em>only</em> the rooms whose buttons lit up. Fewer walks, and every walk means
-      something. The trade a room makes for a button, though, is that
-      <span class="bf-break">a guest who never presses it never gets visited</span> — which is exactly the shape of the
-      bug this lesson spends most of its time on.
+      You just read the hotel version. Here's the same guess-vs-told distinction acted out as an exchange between the
+      two eras themselves — worth reading even though you already know who wins, because the reasoning is what actually
+      transfers to code you haven't seen yet.
     </p>
 
     <app-remember variant="mnemonic">
@@ -214,19 +265,13 @@
         <button (click)="timeoutSignal()">setTimeout → signal</button>
       </div>
       <p class="demo__note">
-        Both timers fire 300ms after you click and both really do assign. Under <code>Zone.js</code> the patched
-        <code>setTimeout</code> would trigger a tick and you'd see both update. Here, the plain-field write renders
-        <em>nothing</em> — until something else (the signal button, say) causes a pass, and that pass re-reads the
-        now-stale field too. A value that "appears late" the moment something unrelated happens is the classic symptom
-        of a missing notification.
+        Both timers fire 300ms after you click and both really do assign — this is the exact scenario the quiz at the
+        top of the page already asked you about. Under <code>Zone.js</code> the patched <code>setTimeout</code> would
+        trigger a tick and you'd see both update. Here, the plain-field write renders <em>nothing</em> — until something
+        else (the signal button, say) causes a pass, and that pass re-reads the now-stale field too. A value that
+        "appears late" the moment something unrelated happens is the classic symptom of a missing notification.
       </p>
     </div>
-
-    <app-quiz
-      question="You click “setTimeout → plain field” once and then wait, touching nothing else. What does the screen show?"
-      [options]="setTimeoutQuizOptions"
-      followUp="Try it above — then click the signal button afterwards and watch the plain-field pill catch up in the same pass."
-    />
   </section>
 
   <!-- ============ 6. LIVE PROOF #2 — TEMPLATE EVENTS STILL SCHEDULE ============ -->

@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -61,6 +62,51 @@ const CHAIN_TALK: BubbleTurn[] = [
   {
     who: 'The whole expression',
     says: 'My value is `undefined`. Not `null` — even though the link that was actually missing here was `address`, not `user`.',
+  },
+];
+
+/**
+ * The shape block's own numbered steps — the whiteboard figure's short-circuit,
+ * restated as a sequence rather than a picture.
+ */
+const CHAIN_STOP_STEPS: FlowStep[] = [
+  { label: 'user?.', detail: 'user exists → check passes, continue.', tone: 'good' },
+  {
+    label: '.address?.',
+    detail: 'address is undefined → check FAILS. The short-circuit starts here.',
+    tone: 'warn',
+  },
+  { label: '.city', detail: 'Never runs. Not read, not evaluated — nothing.', tone: 'warn' },
+  {
+    label: 'Result: undefined',
+    detail: 'Always this value, regardless of which link actually failed.',
+    tone: 'good',
+  },
+];
+
+/**
+ * The block's crux quiz: whether `.city` runs at all once an earlier link is
+ * nullish. The distractors are the three real misreadings — that a skipped
+ * link still gets read, that optional chaining throws anyway, and that the
+ * result reports which link actually failed.
+ */
+const CHAIN_QUIZ: QuizOption[] = [
+  {
+    text: "It runs, and returns `undefined` because `address.city` doesn't exist.",
+    why: "`.city` never runs at all — there's a difference between 'reads undefined' and 'never reads anything'. The second `?.` stopped the expression before `.city` was ever reached.",
+  },
+  {
+    text: "It's skipped entirely — not read, not evaluated. The whole expression is `undefined`.",
+    correct: true,
+    why: 'Exactly. The second `?.` finds `address` nullish and short-circuits everything after it in one motion — `.city` is never part of what runs.',
+  },
+  {
+    text: "It throws, because you still can't read `.city` off `undefined`, optional chaining or not.",
+    why: "That's precisely the crash `?.` exists to prevent. The whole point of the operator is that it stops BEFORE the unsafe read, rather than attempting it and catching the failure.",
+  },
+  {
+    text: 'It returns `null`, because `address` itself was the missing link.',
+    why: '`?.` always yields `undefined` — never `null` — no matter which link in the chain actually turned out to be missing. Which link failed changes nothing about the value you get back.',
   },
 ];
 
@@ -356,21 +402,35 @@ const QUESTIONS: FaqItem[] = [
  * in, `noUncheckedIndexedAccess`, and how all of it reads in Angular
  * templates.
  *
+ * ## Shape: "The Whiteboard" (`shape: 'whiteboard'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The topic is a structural fact — one failed checkpoint goes
+ * dark, and everything downstream of it goes dark with it — which is exactly
+ * what the Whiteboard shape is for: one big figure carries it, and the prose
+ * serves the picture instead of the other way round. The opening block is: an
+ * eyebrow and a `.bf-say` naming what to look for → an open question posed
+ * *before* the figure → the checkpoint-chain figure (`app-whiteboard`) with
+ * three scribble call-outs quoting its own labels → a `.bf-answer` paragraph
+ * that answers the question outright → {@link chainStopSteps} as a numbered
+ * `app-flow` → the crux quiz ({@link chainQuizOptions}) → the
+ * motion-sensor-lights analogy on a napkin. No `app-bubbles`, `app-tape-card`
+ * or `app-receipt` inside the block.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
- * following the shape set by `expert/change-detection`. The teaching order:
+ * following the shape set by `expert/change-detection`. The teaching order
+ * after the block:
  *
- * 1. **Pose the problem first.** The lesson opens on the crash three-deep
- *    property access causes, and puts a napkin prediction in front of the
- *    reader before naming either operator.
- * 2. **Analogy, then vocabulary.** A chain of checkpoints — not one lock —
- *    gives the reader somewhere to put "short-circuits the whole tail" before
- *    that phrase appears.
- * 3. **The same idea in four modes** — a dialogue staging exactly which
- *    checkpoint stops a chain, a diagram of the two-operator idiom as a
- *    pipeline, a hand-unrolled `if`-equivalent, and two live demos.
- * 4. **The trap nobody teaches gets a section of its own.** Default
+ * 1. **The picture first, the vocabulary second.** The block answers *what*
+ *    happens to the chain; "The mental model" section right after it restates
+ *    the same fact as the checkpoint-relay analogy, reinforced by a `Bubbles`
+ *    dialogue staging exactly which checkpoint stops a chain — a second and
+ *    third mode for the same fact, not a repeat of the first.
+ * 2. **Then the mechanism, and the same idea in more modes** — a diagram of
+ *    the two-operator idiom as a pipeline, a hand-unrolled `if`-equivalent,
+ *    and two live demos.
+ * 3. **The trap nobody teaches gets a section of its own.** Default
  *    parameters and destructuring defaults look like a third spelling of
  *    `??` and are not: they trigger on `undefined` only, never on `null`,
  *    which is a live, silent bug the moment an API sends an explicit
@@ -393,6 +453,9 @@ const QUESTIONS: FaqItem[] = [
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -489,6 +552,11 @@ export class Nullish {
 
   /** The two-stage idiom, drawn as a pipeline. */
   protected readonly idiomSteps = IDIOM_STEPS;
+
+  /** The shape block's numbered steps. */
+  protected readonly chainStopSteps = CHAIN_STOP_STEPS;
+  /** The shape block's crux quiz. */
+  protected readonly chainQuizOptions = CHAIN_QUIZ;
 
   /** Sample: `user?.address?.city ?? 'Unknown'`, unrolled by hand. */
   protected readonly desugarSample = DESUGAR_SAMPLE;

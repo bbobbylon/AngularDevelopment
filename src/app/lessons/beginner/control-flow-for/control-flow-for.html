@@ -16,50 +16,77 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>The array changed. Which rows are actually the same rows?</h2>
+    <p class="bf-big">“I don't even know a row moved. Position zero is still position zero.”</p>
 
-    <p>
-      Say you're rendering a list — to-dos, search results, rows in a table. Updating the array itself is the easy part:
-      fetch new data, <code>.set()</code> a signal, done. The genuinely hard question is a different one, and it's one
-      <strong>you</strong> have to answer, not Angular: for every item that's in the collection <em>now</em>, is this
-      the <span class="key">same row you already had</span> — same DOM node, same typed-in text, same scroll position —
-      or is it something <span class="key">brand new</span>?
+    <p class="bf-say">
+      One list, one reorder, one half-typed word — and it ends up belonging to a stranger, with both tracking strategies
+      swearing they did exactly what they promised.
     </p>
 
     <p>
-      Get that wrong and nothing crashes. The list still looks correct on screen. What breaks is everything
-      <em>attached</em> to a row that Angular silently decided wasn't the one it used to be — focus, a half-typed
-      answer, a checkbox's checked state. <code>&#64;for</code> doesn't guess at the answer for you. It makes you say it
-      out loud, in a required expression called <code>track</code>.
+      The parties: <strong><code>track item.id</code></strong
+      >, which follows the data wherever it moves. <strong><code>track $index</code></strong
+      >, which only ever follows a position. And <strong>the node at hook zero</strong>, which never moved at all — it
+      just started meaning something else.
     </p>
 
-    <ul>
-      <li>What key identifies a row across two updates, so Angular can match them up? (<strong>track</strong>)</li>
-      <li>What happens to a row whose key nobody claims any more? (<strong>destroyed</strong>, not hidden)</li>
-      <li>What renders when the collection has nothing in it at all? (<code>&#64;empty</code>)</li>
-    </ul>
+    <app-bubbles [turns]="trackRoundOne" caption="Round one. Every line here is true." />
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Picture three names in a list, each with its own text box beside it, and you've just typed half a sentence into
-      the box next to the <em>second</em> name. A brand-new row arrives — not at the end, at the very top. Where does
-      your half-typed sentence end up: still riding along with the same name, or now sitting next to whichever name
-      happens to land in that same box on screen? Hold your guess — there's a live version of exactly this a few
-      sections down that will settle it either way.
+    <app-brain-power
+      question="Both tracking strategies did exactly what they promised. So whose fault is it that a half-typed note survives a prepend, now attached to the wrong row?"
+      hint="Ask what actually moved — the DOM node, or just the data being read out of it."
+    />
+
+    <app-bubbles [turns]="trackRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      <code>track</code> doesn't decide whether nodes move — it decides what Angular treats as "the same row." Track by
+      a stable id and a moved row's node moves with it. Track by <code>$index</code> and Angular simply rebinds whatever
+      node already occupies that position with fresh data — the node is a slot, not an identity, and anything it was
+      holding now belongs to whoever the data says lives there today.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'hook 0', sub: 'the half-typed word lives here' }"
+      [rings]="[
+        { label: 'track $index', sub: 'rebinds hook 0 with whatever data sits there now' },
+        { label: 'the array, reordered', sub: 'a new item now occupies the slot the old one used to' },
+      ]"
+      arrow="the node never moved — the data wearing it changed"
+      caption="Same node, same hook, new label. Nothing here is broken — the slot did exactly what a slot does."
+    />
+
+    <app-quiz
+      question="A list is tracked with `track $index`. The user has typed 'hello' into row 0's input. A new item is prepended, so what used to be row 0 is now row 1. What happens to the text 'hello'?"
+      [options]="trackArgumentQuiz"
+      followUp="There's a live version of exactly this further down — shuffle the letters and watch which strategy keeps a node's contents attached to the right item."
+    />
+
+    <app-napkin lead="the mental model —" label="A seating chart written on the floor">
+      Picture a classroom where <code>track item.id</code> writes each student's actual name on their own desk — move
+      the desks around and the name moves with them. <code>track $index</code> writes only "seat 1", "seat 2" on the
+      <em>floor</em>, once, and never updates it when the desks rotate. Whoever sits in seat 1 today wears yesterday's
+      name tag, because the floor never learned anyone moved.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>Angular is a coat check, not a row of hooks.</h2>
 
     <p>
-      Picture handing your coat to an attendant and getting back a numbered ticket. When you return, that ticket — not
-      which hook the coat happens to be hanging on — is what reunites you with it. Staff can rehang every coat in the
-      place while you're gone, and it still works, because the ticket travels with the <em>coat</em>, not with the hook.
+      That's the argument. Here's the rule it settles: picture handing your coat to an attendant and getting back a
+      numbered ticket. When you return, that ticket — not which hook the coat happens to be hanging on — is what
+      reunites you with it. Staff can rehang every coat in the place while you're gone, and it still works, because the
+      ticket travels with the <em>coat</em>, not with the hook.
     </p>
 
     <p>
@@ -75,6 +102,14 @@
       <code>$index</code>
       is just a hook number, and hook numbers don't move with anything.
     </app-remember>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Picture three names in a list, each with its own text box beside it, and you've just typed half a sentence into
+      the box next to the <em>second</em> name. A brand-new row arrives — not at the end, at the very top. Where does
+      your half-typed sentence end up: still riding along with the same name, or now sitting next to whichever name
+      happens to land in that same box on screen? Hold your guess — there's a live version of exactly this a few
+      sections down that will settle it either way.
+    </app-napkin>
 
     <app-bubbles
       [turns]="trackTalk"
@@ -236,8 +271,8 @@
     <h2>$index isn't the slow choice. It's the wrong one.</h2>
 
     <p>
-      Back to the question from the top of the page — here it is again as actual code, no hand-waving and no talk of
-      performance yet. Read it and predict what the user genuinely sees:
+      Back to the argument from the top of the page — here it is again as actual code, with real names attached, no
+      hand-waving and no talk of performance yet. Read it and predict what the user genuinely sees:
     </p>
 
     <app-predict

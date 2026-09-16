@@ -16,38 +16,133 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Reaching three properties deep is a bet that all three exist.</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">Find the checkpoint that fails — and watch everything after it go dark.</p>
 
-    <p>
-      <code>user.address.city</code> reads beautifully and fails the instant reality disagrees with your optimism. If
-      <code>address</code> hasn't been filled in yet — a brand-new signup, an API response mid-flight, a form nobody's
-      finished — JavaScript doesn't quietly return <code>undefined</code> for the missing piece. It
-      <span class="bf-break">throws</span>, and takes everything after it down with it:
-      <code>TypeError: Cannot read properties of undefined (reading 'city')</code>, on a line that looks completely
-      innocent.
+    <app-brain-power
+      question="`user?.address?.city` — `user` exists, `address` genuinely doesn't. What value does the WHOLE expression produce, and does `.city` run at all on the way there?"
+      hint="Ask which checkpoint actually stops the chain, and what a stopped chain hands back — always the same thing, no matter which checkpoint stopped it."
+    />
+
+    <app-whiteboard
+      caption="One missing link, and the whole rest of the chain goes dark — not skipped one step, dark for good."
+      alt="A left-to-right chain of four boxes: user, then a checkpoint circle, then address, then a second checkpoint circle, then city, then a result box. The user box and the first checkpoint are lit green — the check passes. The address box is marked in a warning colour, labelled undefined. The second checkpoint is marked STOPS HERE with a cross. The city box is greyed out and dashed, labelled never runs. An arrow leaves the second checkpoint directly to the result box, skipping city entirely, and the result box reads undefined."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 260" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="nullish-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <!-- user: passes -->
+        <rect x="20" y="95" width="100" height="60" rx="10" class="wb-node wb-node--lit" />
+        <text x="70" y="130" text-anchor="middle" class="wb-mono">user</text>
+
+        <path class="wb-arrow" d="M120 125 H172" marker-end="url(#nullish-head)" />
+        <circle cx="192" cy="125" r="20" class="wb-node wb-node--lit" />
+        <text x="192" y="130" text-anchor="middle" class="wb-mono wb-text--sm">?.</text>
+
+        <!-- address: nullish -->
+        <path class="wb-arrow" d="M212 125 H264" marker-end="url(#nullish-head)" />
+        <rect x="264" y="95" width="120" height="60" rx="10" class="wb-node" />
+        <text x="324" y="122" text-anchor="middle" class="wb-mono">address</text>
+        <text x="324" y="142" text-anchor="middle" class="wb-mono wb-text--sm">undefined</text>
+
+        <!-- second checkpoint: STOPS -->
+        <path class="wb-arrow" d="M384 125 H436" marker-end="url(#nullish-head)" />
+        <circle cx="456" cy="125" r="20" class="wb-node wb-node--lit" />
+        <text x="456" y="130" text-anchor="middle" class="wb-mono wb-text--sm">?.</text>
+        <text x="456" y="168" text-anchor="middle" class="wb-hand">stops here</text>
+
+        <!-- city: never runs -->
+        <path class="wb-arrow wb-arrow--dashed" d="M476 125 H528" />
+        <rect x="528" y="95" width="100" height="60" rx="10" class="wb-node" style="opacity: 0.4" />
+        <text x="578" y="122" text-anchor="middle" class="wb-mono wb-text--sm">.city</text>
+        <text x="578" y="142" text-anchor="middle" class="wb-hand">never runs</text>
+
+        <!-- short-circuit straight to the result -->
+        <path class="wb-arrow wb-arrow--ink" d="M456 145 C 456 210, 660 210, 660 155" marker-end="url(#nullish-head)" />
+        <rect x="610" y="95" width="120" height="60" rx="10" class="wb-node wb-node--lit" />
+        <text x="670" y="130" text-anchor="middle" class="wb-mono">undefined</text>
+        <text x="670" y="20" text-anchor="middle" class="wb-hand">the whole expression</text>
+      </svg>
+
+      <app-scribble
+        quote="address"
+        tone="clay"
+        text="the missing link — `undefined` in this run. That's the value the SECOND checkpoint tests, not the first."
+      />
+      <app-scribble
+        quote="stops here"
+        point="up"
+        tone="olive"
+        text="the second `?.` tests `address`, finds it nullish, and short-circuits everything after it in one motion — not just the next `.property`, the WHOLE rest of the chain."
+      />
+      <app-scribble
+        quote="never runs"
+        tone="clay"
+        text="not skipped, not read, not evaluated. The chain stopped one link earlier, and there is nothing left to run."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <code>undefined</code> — never <code>null</code>, no matter which link actually went missing. The second
+      <code>?.</code> finds <code>address</code> nullish, and that single check short-circuits the entire rest of the
+      chain: <code>.city</code> is never read, never evaluated. <code>?.</code> doesn't protect just the next property;
+      it protects everything downstream of the first missing link, in one motion.
     </p>
 
-    <p>
-      You've probably written the old fix: <code>user &amp;&amp; user.address &amp;&amp; user.address.city</code>. It
-      works. It is also three separate truthiness checks for what is really
-      <span class="key">one question, asked three times</span>: is this link nullish?
-    </p>
+    <app-flow
+      [steps]="chainStopSteps"
+      caption="The same short-circuit, seen as a sequence rather than a picture — three checkpoints in, one stop, one guaranteed answer."
+    />
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Here's the shape of the whole lesson in one guess. <code>user?.address?.city</code>, where
-      <code>address</code> genuinely doesn't exist — what value does the <strong>whole expression</strong> produce? Not
-      a crash, not <code>null</code> — say the actual value out loud, and say <em>why</em> it's that one and not the
-      other, before you read on.
+    <app-quiz
+      question="`user?.address?.city` — `user` exists, `address` is `undefined`. What actually happens to `.city`?"
+      [options]="chainQuizOptions"
+      followUp="This is the fact the whole lesson hangs on — if only one thing survives from this page, make it this one."
+    />
+
+    <app-napkin lead="the mental model —" label="Motion-sensor lights down a hallway">
+      Think of every <code>?.</code> as a motion-sensor light strung along a hallway. The moment one sensor finds
+      nothing to light — a missing link — every light past it simply never switches on. It doesn't matter how many
+      hallways are left; the outage starts at the first dark sensor, and the rest genuinely never get power, not just
+      skipped, never even asked.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2><code>?.</code> is a chain of checkpoints, not a single lock.</h2>
+
+    <p>
+      That's the picture. Here's the same idea in words: <code>user.address.city</code> reads beautifully and fails the
+      instant reality disagrees with your optimism. If <code>address</code> hasn't been filled in yet — a brand-new
+      signup, an API response mid-flight, a form nobody's finished — JavaScript doesn't quietly return
+      <code>undefined</code> for the missing piece. It <span class="bf-break">throws</span>, and takes everything after
+      it down with it: <code>TypeError: Cannot read properties of undefined (reading 'city')</code>, on a line that
+      looks completely innocent. You've probably written the old fix:
+      <code>user &amp;&amp; user.address &amp;&amp; user.address.city</code>. It works. It is also three separate
+      truthiness checks for what is really <span class="key">one question, asked three times</span>: is this link
+      nullish?
+    </p>
 
     <p>
       Picture a relay, not one locked door. <code>user?.address?.city</code> sets up a checkpoint at every
@@ -55,13 +150,6 @@
       the baton — the rest of the expression — moves on to the next checkpoint. Fail, and that guard doesn't throw you
       out. They call the whole relay off, right there, and hand back one specific answer: <code>undefined</code>. Every
       checkpoint after the failed one — every <code>.</code> and <code>()</code> still to come — never runs at all.
-    </p>
-
-    <p>
-      That last part is the one people miss. A failed checkpoint doesn't skip ahead and try the next check anyway — it
-      ends the <strong>entire</strong> relay from that point on. <code>a?.b.c.d()</code> with a nullish
-      <code>a</code> never reads <code>.b</code>, never reads <code>.c</code>, never calls <code>.d()</code>. One
-      failure, one exit, for the whole rest of the chain.
     </p>
 
     <app-remember variant="mnemonic">

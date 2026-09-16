@@ -17,15 +17,80 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Straight-line code can't say maybe.</h2>
+    <p class="bf-big">“I moved forward exactly one, like I always do.”</p>
+
+    <p class="bf-say">
+      One even number survives a function whose entire job is deleting even numbers — and every party involved did
+      exactly what it was supposed to.
+    </p>
 
     <p>
-      A script that only ever runs top to bottom can't choose between two outcomes, and it can't do something a variable
-      number of times. Both of those are things nearly every real feature needs — and both come from handing control of
-      "what runs next" to a <em>test</em> instead of to the next line down.
+      The parties: <strong><code>i</code></strong
+      >, the loop counter, which only ever tracks a position. <strong><code>splice</code></strong
+      >, which deletes one item and shifts everything after it down to close the gap. And <strong>the array</strong>,
+      which ends up renumbered mid-walk without anyone telling the counter.
+    </p>
+
+    <app-bubbles [turns]="spliceRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="i++ moved forward by exactly one, faithfully. splice shifted everything down by exactly one, faithfully. So who caused the even number that survives?"
+      hint="Ask what index this item is sitting at now — versus what index it was at before anything ran."
+    />
+
+    <app-bubbles [turns]="spliceRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      A <code>for</code> loop's counter tracks <strong>position</strong>, not identity. <code>splice</code> renumbers
+      every position after the one it removes. Combine the two and the counter's next stop is guaranteed to be wrong —
+      not sometimes, every single time a deletion happens before the end of the array. <code>filter</code> sidesteps the
+      problem entirely by never asking a counter to survive a resize.
+    </p>
+
+    <app-layers
+      [core]="{ label: '4 — slid into slot 0', sub: 'never revisited' }"
+      [rings]="[
+        { label: 'splice(0, 1)', sub: 'closed the gap — correctly' },
+        { label: 'i++ → index 1', sub: 'moved forward — correctly' },
+      ]"
+      arrow="both moved correctly, in opposite senses, over this one slot"
+      caption="Two blameless, correct operations, and a slot neither of them was ever assigned to re-check."
+    />
+
+    <app-quiz
+      question="`removeEvensBuggy([2, 4, 6, 7, 9])` runs. Exactly one even number survives in the result. Which one, and why?"
+      [options]="spliceArgumentQuiz"
+      followUp="Run it yourself on the live bench further down and watch exactly this number survive."
+    />
+
+    <app-napkin lead="the mental model —" label="Musical chairs, one referee short">
+      A <code>for</code> loop is a referee who only calls chair <em>numbers</em>, in order: "chair 0… chair 1… chair 2…"
+      <code>splice</code> is stagehands who, the instant a chair is removed, slide every remaining chair down to close
+      the gap — correctly, instantly. The referee never re-announces a number once called, so whoever just slid into the
+      now-renumbered chair 0 is never called again — not because anyone erred, but because nobody's job was to notice
+      the seats moved.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2><code>if</code>/<code>else</code> is a railway switch.</h2>
+
+    <p>
+      That's the shape of a bug where nobody was wrong. The rest of this lesson runs on a much simpler switch — one
+      condition, one fork, no room for two blameless parties to collide. One train arrives. It hits a switch — the
+      condition — and the switch sends it down exactly one of two tracks. It can never run down both, and it can never
+      sit at the junction doing nothing. Everything in the first half of this lesson —
+      <code>else if</code> chains, truthiness, the ternary, <code>&amp;&amp;</code>/<code>||</code>, even
+      <code>switch</code> itself — is just another way of asking that same fork a question.
     </p>
 
     <app-napkin lead="predict before reading on —" label="Which of these run?">
@@ -34,19 +99,6 @@
       the four make <code>if (value) &#123; … &#125;</code> actually run its block? One of them is not what most people
       guess.
     </app-napkin>
-  </section>
-
-  <!-- ============ 2. THE ANALOGY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2><code>if</code>/<code>else</code> is a railway switch.</h2>
-
-    <p>
-      One train arrives. It hits a switch — the condition — and the switch sends it down exactly one of two tracks. It
-      can never run down both, and it can never sit at the junction doing nothing. Everything in the first half of this
-      lesson — <code>else if</code> chains, truthiness, the ternary, <code>&amp;&amp;</code>/<code>||</code>, even
-      <code>switch</code> itself — is just another way of asking that same fork a question.
-    </p>
 
     <figure class="dia">
       <svg
@@ -521,9 +573,9 @@ switch (day) {{ '{' }}
     <h3>Mutating the array you're mid-loop over</h3>
 
     <p>
-      <code>splice</code> doesn't just remove an item — it <strong>shifts every later item one slot left</strong>. Do
-      that from inside a counting loop that's still climbing upward, and whatever just slid into the deleted slot gets
-      stepped straight over.
+      This is the argument from the top of the page, in code. <code>splice</code> doesn't just remove an item — it
+      <strong>shifts every later item one slot left</strong>. Do that from inside a counting loop that's still climbing
+      upward, and whatever just slid into the deleted slot gets stepped straight over.
     </p>
 
     <app-code-lab

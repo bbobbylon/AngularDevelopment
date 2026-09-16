@@ -16,6 +16,40 @@
     </p>
   </app-chapter>
 
+  <!-- ============ SHAPE: NO DUMB QUESTIONS ============ -->
+  <p class="bf-big">The child rings the bell. It never once reaches for the doorknob.</p>
+
+  <p class="bf-say">
+    An output tells the parent that something happened — nothing more. Every trap in this lesson is someone forgetting
+    that the child doesn't get a vote in what happens next.
+  </p>
+
+  <app-no-dumb-questions [items]="ndq" />
+
+  <app-brain-power
+    question="You drop the same `<app-rating>` onto two different screens, and `(rate)` does something completely different in each one — nothing about `Rating` changes at all. If the child never decides anything, where did that difference actually come from?"
+    hint="Look at which side of the binding actually has a body of code in it — an `.emit()` call, or a handler."
+  />
+
+  <app-layers
+    [core]="{ label: 'Child calls .emit(value)', sub: 'that is the entire job — nothing more' }"
+    [rings]="[{ label: 'Parent binding runs the handler', sub: 'onRate($event) — the only place behavior lives' }]"
+    arrow=".emit(4) called"
+    caption="The call starts at the child, right at the centre — and that really is the whole of what the child does. Everything about what happens next lives one layer out, inside the parent's own binding. The child can't see past its own edge; the parent, one layer out, can see all the way in, because it's the one that wrote `(rate)=&quot;onRate($event)&quot;` in the first place."
+  />
+
+  <app-quiz
+    question="A child calls `rate.emit(4)`, but the parent's template has no `(rate)` binding at all. What actually happens?"
+    [options]="silentEmitQuizOptions"
+    followUp="No listener is never an error case for an output — it's the default case a reusable component has to survive."
+  />
+
+  <app-napkin lead="the mental model —" label="A doorbell, not a door">
+    The child can ring it — "someone picked four stars" — but it can't walk in and rearrange the furniture. What happens
+    next is entirely the parent's decision, and the child neither knows nor cares. That's what makes the same child
+    reusable on a screen its author never saw: it has no opinion about the consequences of its own events.
+  </app-napkin>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -41,15 +75,15 @@
     </app-napkin>
   </section>
 
-  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <!-- ============ 2. THE DIALOGUE VERSION ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>An output is a doorbell, not a door.</h2>
+    <p class="bf-eyebrow bf-eyebrow--olive">Same idea, one more way</p>
+    <h2>Play the doorbell forward, one message at a time.</h2>
 
     <p>
-      The child can ring it — "someone picked four stars" — but it cannot walk in and rearrange the furniture. What
-      happens next is entirely the parent's decision, and the child neither knows nor cares. That is what makes the
-      child reusable in a screen it was never designed for: it has no opinion about the consequences of its own events.
+      You just read the doorbell version. Here's the same <code>emit()</code> call slowed down into a conversation
+      between the three code objects actually involved — the child, Angular's compiled binding, and the parent — so you
+      can see exactly where the message stops mattering to the one that sent it.
     </p>
 
     <app-remember variant="rule">
