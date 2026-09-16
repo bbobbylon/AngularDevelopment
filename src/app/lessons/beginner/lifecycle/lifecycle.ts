@@ -5,8 +5,9 @@ import { LifecycleChild } from './lifecycle-child/lifecycle-child';
 import { LifecycleLeakyChild } from './lifecycle-leaky-child/lifecycle-leaky-child';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /**
  * Lesson: Lifecycle Hooks — the order Angular calls them in, which ones still
@@ -18,27 +19,38 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
  * surprise people, like `ngOnChanges` running before `ngOnInit`, and content
  * hooks running before view hooks.
  *
+ * ## Shape: "The Whiteboard" (`shape: 'whiteboard'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The topic is a structural fact — one binding, two hook orders
+ * running in opposite directions — which is exactly what the Whiteboard shape is
+ * for: one big figure carries it, and the prose serves the picture instead of the
+ * other way round. The opening block is: an eyebrow and a `.bf-say` naming what to
+ * look for → an open question posed *before* the figure → the parent/child
+ * containment figure (`app-whiteboard`) with three scribble call-outs quoting its
+ * own labels → a `.bf-answer` paragraph that answers the question outright →
+ * {@link handshakeSteps} as a numbered `app-flow` → the crux quiz
+ * ({@link orderOptions}) → the building-site analogy on a napkin. No
+ * `app-bubbles`, `app-tape-card` or `app-receipt` inside the block.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
  * following the shape of the reference implementation in
- * `lessons/expert/change-detection/`. The teaching order is deliberate:
+ * `lessons/expert/change-detection/`. The teaching order after the block is
+ * deliberate:
  *
- * 1. **Pose the problem before naming hooks.** The lesson opens on "Angular
- *    creates your component — then what?" and a napkin makes the reader
- *    commit to a guess about parent/child ordering before any mechanism is
- *    explained, with a pointer to the live demo further down to check it.
- * 2. **Analogy next, mechanism after.** The building-site frame (framed
- *    outside-in, signed off inside-out) gives the reader somewhere to *put*
- *    the ordering before the hook names arrive — reinforced immediately by a
- *    `Bubbles` dialogue staging the same handshake between Angular, a parent
- *    and its child.
- * 3. **Then the same idea in several modes**: an annotated read of the real
- *    `LifecycleChild` source via `CodeLab`, a `Flow` diagram of the full
- *    order, a `Quiz` testing that exact order, a live demo logging real hook
- *    firings, and a reference table — because the retention bar is
- *    redundancy across modes, not repetition in one.
- * 4. **The modern replacement, last.** A `Compare` sets the decorator-input
+ * 1. **The picture first, the mechanism second.** The block answers *what* order
+ *    things fire in; "The mechanism" section right after it explains *why* —
+ *    Angular's tree walk calling named methods directly — and restages the exact
+ *    same handshake as a `Bubbles` dialogue between Angular, a parent and its
+ *    child, because the retention bar is redundancy across modes, not repetition
+ *    in one.
+ * 2. **Then the single-component order, kept separate.** "The full order"
+ *    section is a *different* ordering fact (the seven hooks inside one
+ *    component, not the parent/child interleaving the block already proved), with
+ *    its own mnemonic, its own `Flow` diagram, a live demo logging real hook
+ *    firings, and a reference table.
+ * 3. **The modern replacement, last.** A `Compare` sets the decorator-input
  *    pattern against its signal-based replacement, closing on the two hooks
  *    that remain genuinely necessary.
  */
@@ -52,6 +64,9 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -101,6 +116,42 @@ export class Lifecycle {
     {
       who: 'Parent',
       says: 'Now that every child under me has reported ready, my own `ngAfterViewInit` finally fires.',
+    },
+  ];
+
+  /**
+   * The shape block's own numbered steps — the parent/child handshake the
+   * whiteboard figure just drew, restated as a sequence. Deliberately only four
+   * hooks and five steps, distinct from {@link order}'s seven-hook, single-
+   * component ordering further down the page.
+   */
+  protected readonly handshakeSteps: FlowStep[] = [
+    {
+      label: 'Parent: ngOnInit',
+      detail:
+        'The parent has to exist and be initialised before it can render anything, including a child.',
+      tone: 'accent',
+    },
+    {
+      label: 'Parent renders its template → Child is created',
+      detail:
+        'The moment a `<app-child>` binding actually does something — the child instance now exists.',
+    },
+    {
+      label: 'Child: ngOnChanges → ngOnInit',
+      detail:
+        'The child runs its whole init sequence while the parent is still mid-render, nowhere near declaring its own view ready.',
+    },
+    {
+      label: 'Child: ngAfterViewInit',
+      detail: 'Reports ready first — there is nothing left inside the child to wait on.',
+      tone: 'good',
+    },
+    {
+      label: 'Parent: ngAfterViewInit',
+      detail:
+        "Fires last — a parent's view isn't ready while anything inside it, including this child, still isn't.",
+      tone: 'good',
     },
   ];
 

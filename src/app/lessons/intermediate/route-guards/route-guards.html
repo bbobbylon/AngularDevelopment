@@ -16,34 +16,124 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Can your app actually say no to a navigation?</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">Find the guard that's declared once but never asked twice.</p>
 
-    <p>
-      Click a link in Angular and, left alone, <strong>nothing stops it</strong>: the router matches a URL, builds a
-      component, and puts it on screen. If a page has to stay behind a login, or a form shouldn't be abandoned with
-      unsaved changes, <em>something</em> has to be able to interrupt that process before it finishes. A guard is
-      exactly that — a function the router asks a yes/no question at a specific moment, with the power to cancel the
-      whole thing or send it somewhere else instead.
+    <app-brain-power
+      question="`/admin` has `canActivate: [authGuard]` and no `canActivateChild`. A logged-out user pastes `/admin/settings` — a child route with no guard of its own — straight into the address bar. Does anything stop them?"
+      hint="Ask whether `canActivate` was ever asked about THIS SPECIFIC route at all — not whether the parent has one somewhere above it."
+    />
+
+    <app-whiteboard
+      caption="Same parent guard, two different endings for the child underneath it — one guard slot the parent alone owns, and one that's re-asked at every child."
+      alt="Two columns side by side, each starting from a PARENT box labelled /admin, canActivate — checked once. On the left, labelled canActivate only, an arrow leads down to a CHILD box labelled /admin/settings with no guard slot at all, marked activates, unguarded. On the right, labelled canActivate plus canActivateChild, an arrow leads down to a CHILD box labelled /admin/settings, canActivateChild — checked again, marked entry blocked if it fails. The same parent-level canActivate protects the parent in both columns, but only the right column re-asks anything at all once execution reaches the child."
+    >
+      <svg class="wb-svg" viewBox="0 0 720 380" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="route-guards-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <text x="180" y="24" text-anchor="middle" class="wb-hand">canActivate only</text>
+        <text x="540" y="24" text-anchor="middle" class="wb-hand">canActivate + canActivateChild</text>
+
+        <!-- left parent -->
+        <rect x="60" y="36" width="240" height="64" rx="10" class="wb-node" />
+        <text x="180" y="64" text-anchor="middle" class="wb-mono">/admin</text>
+        <text x="180" y="86" text-anchor="middle" class="wb-mono wb-text--sm">canActivate ✓ checked</text>
+
+        <!-- right parent -->
+        <rect x="420" y="36" width="240" height="64" rx="10" class="wb-node" />
+        <text x="540" y="64" text-anchor="middle" class="wb-mono">/admin</text>
+        <text x="540" y="86" text-anchor="middle" class="wb-mono wb-text--sm">canActivate ✓ checked</text>
+
+        <!-- arrows down -->
+        <path class="wb-arrow" d="M180 100 V 210" marker-end="url(#route-guards-head)" />
+        <path class="wb-arrow" d="M540 100 V 210" marker-end="url(#route-guards-head)" />
+
+        <!-- left child: unguarded -->
+        <rect x="60" y="216" width="240" height="70" rx="10" class="wb-node wb-node--lit" />
+        <text x="180" y="244" text-anchor="middle" class="wb-mono">/admin/settings</text>
+        <text x="180" y="266" text-anchor="middle" class="wb-mono wb-text--sm">no guard slot</text>
+        <text x="180" y="308" text-anchor="middle" class="wb-hand">activates — unguarded</text>
+
+        <!-- right child: re-checked -->
+        <rect x="420" y="216" width="240" height="70" rx="10" class="wb-node" />
+        <text x="540" y="244" text-anchor="middle" class="wb-mono">/admin/settings</text>
+        <text x="540" y="266" text-anchor="middle" class="wb-mono wb-text--sm">canActivateChild — checked again</text>
+        <text x="540" y="308" text-anchor="middle" class="wb-hand">entry blocked if it fails</text>
+      </svg>
+
+      <app-scribble
+        quote="canActivate ✓ checked"
+        text="ran exactly once, about `/admin` itself, back when this session first entered it. Neither column ever asks it a second time — it isn't declared anywhere that would let it be."
+      />
+      <app-scribble
+        quote="no guard slot"
+        tone="clay"
+        text="not a missing check that failed open — there is no check to fail. `canActivate` was never declared on this route, so nothing here has an opinion about who may enter."
+      />
+      <app-scribble
+        quote="canActivateChild — checked again"
+        point="up"
+        tone="olive"
+        text="the one guard type Angular re-asks for every child under the route that declares it. Add it to `/admin` once, and every route underneath inherits the question — not the answer."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      No — and this is the gap the left column draws. <code>canActivate</code> on <code>/admin</code> was asked exactly
+      once, about <code>/admin</code> itself, and it already said yes back when this session started. Angular has no
+      second guard slot to consult for <code>/admin/settings</code> unless the route tree explicitly gives it one —
+      <code>canActivateChild</code>. Without it, the child activates as if the parent had never been guarded at all,
+      with no error and no warning to catch it in testing.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      A route guard for <code>/admin</code> returns <code>false</code>. Does the browser's address bar change? Now
-      imagine it returns a <code>UrlTree</code> pointing at <code>/login</code> instead — does the address bar change
-      <em>then</em>? The two answers are not the same, and the reason why is most of the first half of this page.
+    <app-flow
+      [steps]="guardOrderFlow"
+      direction="vertical"
+      caption="The full order for a navigation from `/admin/edit` (dirty) to `/admin/settings` — notice CanDeactivate is checked against a completely different route than everything below it"
+    />
+
+    <app-quiz
+      question="`/admin` has `canActivate: [authGuard]` and no `canActivateChild`. A logged-out user pastes the URL `/admin/settings` — a child route of `/admin` with no guard of its own — directly into the address bar. What actually happens?"
+      [options]="cascadeQuizOptions"
+      followUp="Same gap the picture above drew — the left column is exactly this scenario."
+    />
+
+    <app-napkin lead="the mental model —" label="One badge check, reposted">
+      A <code>canActivate</code> guard is a badge check at ONE gate — pass it once, and Angular never asks it about that
+      gate again for the rest of this navigation. <code>canActivateChild</code> is the same badge check reposted at the
+      entrance to the whole terminal: declared once on the parent, but re-shown at every gate inside it. Forget to post
+      it, and every gate past the first one is wide open.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>Angular's guards are an airport security line.</h2>
 
     <p>
-      Picture a single line strung between where you are and where you're trying to go, with four checkpoints on it —
-      and, crucially, each one is asked at a <strong>different moment</strong>, not all at once.
+      That's the gap one missing checkpoint leaves. Here's the whole line it's part of: picture a single line strung
+      between where you are and where you're trying to go, with four checkpoints on it — and, crucially, each one is
+      asked at a <strong>different moment</strong>, not all at once.
     </p>
 
     <p>
@@ -52,9 +142,10 @@
       announced, not denied. <span class="term">CanActivate</span> is the ID check at the gate: you've already walked
       all the way there (the chunk is downloaded), and now someone checks whether <em>you</em>, specifically, may go
       through. <span class="term">CanActivateChild</span> is that same ID check, posted once at the entrance to a whole
-      terminal and re-applied at every gate inside it. <span class="term">CanDeactivate</span> is customs on your way
-      <strong>out</strong> — before the airport even looks at where you're headed next, it checks whether you're trying
-      to leave your current spot with something undeclared, like a form full of unsaved changes.
+      terminal and re-applied at every gate inside it — the very check the picture above just drew.
+      <span class="term">CanDeactivate</span> is customs on your way <strong>out</strong> — before the airport even
+      looks at where you're headed next, it checks whether you're trying to leave your current spot with something
+      undeclared, like a form full of unsaved changes.
     </p>
 
     <p>
@@ -376,11 +467,11 @@
     <p class="bf-eyebrow bf-eyebrow--gold">Pulling it together</p>
     <h2>Three checkpoints, one shared answer shape.</h2>
 
-    <app-flow
-      [steps]="guardOrderFlow"
-      direction="vertical"
-      caption="The full order for a navigation from `/admin/edit` (dirty) to `/admin/settings` — notice CanDeactivate is checked against a completely different route than everything below it"
-    />
+    <p>
+      You already saw the full order, and proved to yourself where the cascade gap actually bites, in the picture at the
+      top of the page. Here's the piece that picture didn't cover: what each checkpoint's <code>false</code> or redirect
+      actually does to the navigation.
+    </p>
 
     <table>
       <caption class="bf-table-caption">
@@ -416,17 +507,16 @@
     </table>
 
     <div class="warn">
-      <strong>A guard on a parent route does not automatically protect its children.</strong>
-      <code>canActivate: [authGuard]</code> on <code>/admin</code> only ever runs for <code>/admin</code> itself — a
-      child like <code>/admin/settings</code> activates completely unguarded unless the parent also declares
+      <strong
+        >Same fact as the picture above, worth restating because it's the single most missed line in a route
+        config:</strong
+      >
+      a guard on a parent route does not automatically protect its children. <code>canActivate: [authGuard]</code> on
+      <code>/admin</code> only ever runs for <code>/admin</code> itself — a child like
+      <code>/admin/settings</code> activates completely unguarded unless the parent also declares
       <code>canActivateChild</code> (or every child repeats its own <code>canActivate</code>). There is no error or
       warning when this is forgotten.
     </div>
-
-    <app-quiz
-      question="`/admin` has `canActivate: [authGuard]` and no `canActivateChild`. A logged-out user pastes the URL `/admin/settings` — a child route of `/admin` with no guard of its own — directly into the address bar. What actually happens?"
-      [options]="cascadeQuizOptions"
-    />
   </section>
 
   <!-- ============ 8B. THE RE-CHECK GAP ============ -->

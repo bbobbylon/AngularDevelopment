@@ -121,6 +121,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Reading error messages & stack traces, console.log, and the browser DevTools.',
     level: 'foundations',
     category: 'Your Dev Toolkit',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/foundations/debugging-basics/debugging-basics').then(
         (m) => m.DebuggingBasics,
@@ -188,6 +189,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'typeof, instanceof, in, discriminated unions and user-defined type guards.',
     level: 'typescript',
     category: 'Type System',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/typescript/narrowing/narrowing').then((m) => m.Narrowing),
   },
@@ -408,6 +410,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ngOnInit, ngOnChanges, ngOnDestroy and friends — when and why they fire.',
     level: 'beginner',
     category: 'Components & Templates',
+    shape: 'whiteboard',
     loadComponent: () => import('../lessons/beginner/lifecycle/lifecycle').then((m) => m.Lifecycle),
   },
   {
@@ -458,6 +461,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'provideHttpClient, GET requests and rendering the result.',
     level: 'beginner',
     category: 'HTTP',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/beginner/http-basics/http-basics').then((m) => m.HttpBasics),
   },
@@ -549,6 +553,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'CanActivate, CanMatch, CanDeactivate as functional guards.',
     level: 'intermediate',
     category: 'Routing',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/route-guards/route-guards').then((m) => m.RouteGuards),
   },
@@ -641,6 +646,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Subject, BehaviorSubject, ReplaySubject and multicasting.',
     level: 'intermediate',
     category: 'RxJS',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/intermediate/rxjs-subjects/rxjs-subjects').then((m) => m.RxjsSubjects),
   },
@@ -798,6 +804,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ChangeDetectionStrategy.OnPush, immutability and markForCheck.',
     level: 'expert',
     category: 'Runtime & Performance',
+    shape: 'argument',
     loadComponent: () => import('../lessons/expert/onpush/onpush').then((m) => m.Onpush),
   },
   {
@@ -1013,6 +1020,7 @@ export const CURRICULUM: Lesson[] = [
       'Build a filtered/sorted sales dashboard with KPIs, resource() and computed selectors.',
     level: 'projects',
     category: 'Full-Stack Angular',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/projects/data-dashboard/data-dashboard').then((m) => m.DataDashboard),
   },

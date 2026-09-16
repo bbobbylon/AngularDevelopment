@@ -1019,6 +1019,38 @@ Your Pencil, Code Magnets, Who Does What, Be the Compiler, Watch It, Toolbox, Me
 Crossword) are deferred to a later pass; the `Shape` union only ever lists shapes whose device
 set exists. Step 5 — rotating the other 99 — is the next piece of work once the pilots land.
 
+**Batch 1 of step 5, landed 2026-09-16.** First rotation batch off the worst-offender list
+(the Chapter → Napkin → Remember openers), eight lessons spread across six tracks
+(`foundations`, `typescript`, `beginner` ×2, `intermediate` ×2, `expert`, `projects`) and
+mixing all four shapes evenly so no track's neighbours repeat one:
+
+| Lesson              | Track        | Shape               | The kind of gotcha                                                 |
+| -------------------- | ------------ | -------------------- | -------------------------------------------------------------------- |
+| `debugging-basics`   | foundations  | `no-dumb-questions`  | misconception (red text feels hostile; it's a fixed 3-part report) |
+| `ts-narrowing`       | typescript   | `argument`           | tension (a predicate and the compiler are both right; nobody lied) |
+| `lifecycle`          | beginner     | `whiteboard`         | structure (parent/child hooks interleave in two opposite directions) |
+| `http-basics`        | beginner     | `receipt`            | cost (one keystroke without cancellation = one wasted round trip)  |
+| `rxjs-subjects`      | intermediate | `receipt`            | cost (three `next()` calls into a dead Subject, zero deliveries)   |
+| `route-guards`       | intermediate | `whiteboard`         | structure (`canActivate` vs `canActivateChild` cascade, side by side) |
+| `onpush`             | expert       | `argument`           | tension (the data changed; the reference didn't; both are correct) |
+| `data-dashboard`     | projects     | `no-dumb-questions`  | misconception (one write ⇒ everyone recomputes — it doesn't)       |
+
+`rxjs-subjects` got `receipt` rather than `argument` specifically because its curriculum
+neighbour `rxjs-interop` already owns `argument` — picking shape by gotcha-kind still has to
+yield to the adjacent-lessons-never-share-a-shape rule when both would otherwise fit.
+
+Each rotation replaced only the opening block (CONTRIBUTING §2C) — the analogy, mnemonic and
+dialogue devices those lessons already had were relocated into a "the mental model" section
+immediately after the block rather than deleted, so no existing teaching content was lost, just
+resequenced. Three lessons had a quiz/flow/code-lab already tightly coupled to a demo further
+down the page (`cascadeQuizOptions` + `guardOrderFlow` in `route-guards`; `bridgeSample` +
+`cancelOptions` in `http-basics`); those were moved up into the block and replaced downstream
+with a callback line, rather than duplicated. `scripts/audit-variety.mjs` and
+`scripts/audit-retention.mjs` are green for all eight (9/9 retention, unchanged from
+pre-rotation — the shapes varied the devices, they did not touch the bar). Declared-shape
+count: 4 (pilots) → 12, landing at an even 3 apiece. Remaining undeclared: 103 − 12 = **91**,
+next up for batch 2.
+
 ---
 
 ## 3. Later

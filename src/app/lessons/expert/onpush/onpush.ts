@@ -1,7 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { TickerStore } from './onpush.shared';
@@ -16,16 +17,35 @@ import { OnpushNonReader } from './onpush-non-reader/onpush-non-reader';
  * proof of the skip, the mutation trap, markForCheck vs detectChanges, and
  * how signals turn OnPush into precise per-view reactivity.
  *
+ * ## Shape: "The Argument" (`shape: 'argument'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The mutation trap is two correct parties producing a bug
+ * neither of them caused: the data genuinely changed, and the view is
+ * genuinely right that nothing marked it dirty — a tension, not a
+ * misconception, so the Argument shape fits it better than a Q&A would. The
+ * opening block is: a quoted line from the View → the scene, three parties
+ * named → {@link mutationRoundOne} (six turns, the negotiation) → a Brain
+ * Power on who's actually wrong → {@link mutationRoundTwo} (four turns;
+ * everyone says "not me", and the last voice is yours) → the named principle
+ * ("watches references, not data") → a containment figure (`app-layers`)
+ * showing how far the mutation travels → the crux quiz
+ * ({@link mutationQuizOptions}) → the sealed-envelope analogy on a napkin. No
+ * `app-code-lab`, `app-remember`, `app-tape-card`, `app-no-dumb-questions` or
+ * `app-receipt` inside the block — everything after it is free to use them,
+ * and does (including the mutate-vs-replace `Compare` and live demo in "Live
+ * proof #2", left untouched: a different mode for the same fact, not a
+ * repeat of the block).
+ *
  * ## Presentation
  *
- * Pose the problem (Default checks everything, always — what if you want it
- * to skip?), analogy before vocabulary (a smoke detector wired to five
- * specific alarms, not a patrol), then the same mechanism in four modes —
- * a dialogue between the scheduler and a view, a five-step flow diagram of
- * marking-up/checking-down, two annotated code labs, and the five live demos
- * this lesson already had, kept exactly as they were: they are the actual
- * proof, and the whole reason this lesson is the one most likely to regress
- * into NG0100 if touched carelessly.
+ * The block hooks on the mutation trap; "The mental model" section right
+ * after it backs up to the general rule — a smoke detector wired to five
+ * specific alarms, not a patrol — then the same mechanism in several more
+ * modes: a dialogue between the scheduler and a view, a five-step flow
+ * diagram of marking-up/checking-down, two annotated code labs, and the five
+ * live demos this lesson already had, kept exactly as they were: they are
+ * the actual proof, and the whole reason this lesson is the one most likely
+ * to regress into NG0100 if touched carelessly.
  */
 @Component({
   selector: 'app-lesson-onpush',
@@ -40,7 +60,9 @@ import { OnpushNonReader } from './onpush-non-reader/onpush-non-reader';
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -106,6 +128,88 @@ export class Onpush {
     { label: 'Zoneless', id: 'zoneless' },
     { label: '@defer', id: 'deferrable-views' },
     { label: 'Performance', id: 'performance' },
+  ];
+
+  // ── The shape block: the argument ───────────────────────────────────────────
+
+  /**
+   * Round one of the mutation-trap negotiation — three parties, each stating
+   * something true, none of them yet in open conflict.
+   */
+  protected readonly mutationRoundOne: BubbleTurn[] = [
+    {
+      who: 'The data',
+      says: 'My `clicks` field just went from 3 to 4. I am not what I was a second ago.',
+    },
+    {
+      who: 'The reference',
+      says: 'Maybe not. But nobody handed anyone a NEW me — same object, same address, before and after.',
+    },
+    {
+      who: 'The OnPush view',
+      says: "I don't read fields. I read whether the reference I was handed is a different one. It isn't.",
+    },
+    {
+      who: 'The data',
+      says: "I changed! Read `.clicks` right now and you'll get 4, not 3.",
+    },
+    {
+      who: 'The reference',
+      says: "They'll get 4 if they go looking. But nobody told the view to go looking — that was never the deal.",
+    },
+    {
+      who: 'The OnPush view',
+      says: "Correct. Nothing marked me dirty. So as far as I'm concerned — nothing happened.",
+    },
+  ];
+
+  /**
+   * Round two — every party but the reader points somewhere else, and the
+   * last line is the verdict the Brain Power was waiting on.
+   */
+  protected readonly mutationRoundTwo: BubbleTurn[] = [
+    {
+      who: 'The data',
+      says: 'Not me — I have the receipts. `.clicks` really is 4 now.',
+    },
+    {
+      who: 'The reference',
+      says: "Not me — I never promised to represent values. I only ever promised to notice when I'm REPLACED.",
+    },
+    {
+      who: 'The OnPush view',
+      says: 'Not me — I did exactly what the contract says: skip the check when nothing marks me dirty.',
+    },
+    {
+      who: 'You',
+      says: "It's mine. I mutated the object and expected a reference-watching system to notice a value it was never built to see.",
+    },
+  ];
+
+  /**
+   * The block's crux quiz: what an OnPush child renders after a mutation, not
+   * a replace. The distractors are the three real confusions — that the field
+   * write itself is the bug, that this is an NG0100 case, and that the skip
+   * freezes the whole app rather than one subtree.
+   */
+  protected readonly mutationQuizOptions: QuizOption[] = [
+    {
+      text: '3 — the pass ran, but this child was pruned before its bindings were ever re-read.',
+      correct: true,
+      why: 'Right. `detectChanges()` genuinely runs a pass, but an OnPush view with no dirty flag and no "traverse me" flag is pruned outright — its bindings are never re-evaluated, so the template still shows whatever `clicks` was on the last pass that DID reach it.',
+    },
+    {
+      text: '4 — the field really did change, and change detection ran.',
+      why: 'Change detection ran, but it never reached this child. Running a pass and re-checking every view are not the same thing — that gap is the entire mechanism OnPush is built on.',
+    },
+    {
+      text: 'It throws NG0100, because a bound value changed after being checked.',
+      why: 'That error fires when a value changes DURING the same pass, after Angular already read it this round. Here the child is skipped before its bindings are read at all — there is no read to contradict.',
+    },
+    {
+      text: 'Nothing renders anywhere — the whole app freezes until markForCheck() is called.',
+      why: "OnPush prunes a subtree, not the app. Every other view still checks and refreshes normally on this pass and every pass after it — only this one child's bindings stay stale.",
+    },
   ];
 
   /**

@@ -2,6 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
@@ -67,32 +69,37 @@ const BUG_CASES: BugCase[] = [
  * real walkthrough of the paused state, and the scientific method of
  * hypothesis-driven debugging.
  *
+ * ## Shape: "There Are No Dumb Questions" (`shape: 'no-dumb-questions'`)
+ *
+ * BACKLOG §2.10 / CONTRIBUTING §2C. The topic is a pile of misconceptions
+ * about what a console error even is, which is exactly what this shape is
+ * for. The chapter's `hand` line is the shape's stage line; the opening
+ * block is: the giant sentence ("the console isn't yelling at you") → a
+ * statement → {@link ndq}, eight open questions escalating from "is the
+ * console mad at me" through where each kind of error actually surfaces to
+ * the one-hop-left reading rule → a Brain Power on why the trace prints the
+ * newer call first → the call-stack containment figure (`app-layers`) that
+ * answers it → the one quiz that is the crux ({@link readingQuizOptions}) →
+ * the literal-witness analogy on a napkin. No cards, no dialogue, and no
+ * Remember until the field guide further down — the Q&A does the teaching.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`).
- * The reference implementation is `expert/change-detection`; this lesson copies
- * its section rhythm — eyebrow, declarative headline, ask-before-telling, then
- * mechanism in several modes — for an audience that has never read a stack
- * trace in anger.
+ * The reference implementation is `expert/change-detection`; everything after
+ * the shape block copies its section rhythm — eyebrow, declarative headline,
+ * ask-before-telling, then mechanism in several modes — for an audience that
+ * has never read a stack trace in anger.
  *
- * ## Teaching order
+ * ## Teaching order (after the shape block)
  *
- * 1. **Pose the panic reflex before curing it.** Nearly everyone's first
- *    instinct is to read five words and start guessing. The opening napkin
- *    hands the reader a real, unexplained error and asks them to commit to a
- *    one-sentence diagnosis before any method is taught — so the anatomy
- *    section that follows is a check against a real guess, not cold reading.
- * 2. **Analogy before vocabulary.** The "literal witness dictating a report"
- *    frame gives `name`, `message` and `stack` somewhere to land before those
- *    words appear, and defuses the (very common) belief that red text is
- *    hostile.
- * 3. **The same anatomy in three modes** — an annotated `app-code-lab`, a
- *    dialogue between "You" and "The error" (`app-bubbles`), and a containment
- *    diagram of the call stack (`app-layers`) — because a stack trace prints
+ * 1. **The same anatomy in three modes** — an annotated `app-code-lab`, a
+ *    dialogue between "You" and "The error" (`app-bubbles`), and a callback to
+ *    the shape block's own containment diagram — because a stack trace prints
  *    newest-frame-first while the calls actually happened outermost-first, and
  *    that inversion is exactly the kind of thing that survives better as a
  *    picture than as a sentence.
- * 4. **Fold in the coverage-sweep gaps as first-class sections, not
+ * 2. **Fold in the coverage-sweep gaps as first-class sections, not
  *    footnotes.** `docs/COVERAGE-SWEEP.md` flagged three high-priority gaps
  *    specific to an Angular project: (a) this lesson taught only *runtime*
  *    browser errors and never mentioned that most of a beginner's first-week
@@ -118,6 +125,8 @@ const BUG_CASES: BugCase[] = [
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -180,8 +189,51 @@ export class DebuggingBasics {
   ];
 
   /**
+   * The eight questions that ARE the lesson — the shape's spine. They escalate:
+   * the misconception that red text is hostile (1–2), where each kind of error
+   * actually surfaces and how to triage it (3–5), then the two concrete reading
+   * rules the rest of the lesson leans on (6–7), and the silent case that has no
+   * trace at all (8). Every answer talks to "you": the dialogue is gone, so the
+   * second person has to live here.
+   */
+  protected readonly ndq: readonly NdqItem[] = [
+    {
+      q: 'Every time my code breaks, red text shows up and my stomach drops. Is the console actually mad at me?',
+      a: "No — and that's the whole misconception this lesson exists to fix. Nothing in a JavaScript error is emotional. It's a fixed, three-part report — **type** (what kind of mistake), **message** (what exactly happened), **stack** (how you got there) — generated the instant the engine hits something it can't proceed past. The 'attitude' is something you're bringing to it, not something it's sending you.",
+    },
+    {
+      q: "Okay, but I read the first five words and I'm already guessing fixes. Isn't that debugging?",
+      a: "That's *reacting*, not reading. You skipped two of the three parts of the report before you'd even finished the first one. An error message doesn't get shorter if you read less of it — it just gets less useful. Read all three parts, in order, before you touch the code.",
+    },
+    {
+      q: 'I saved the file, the browser looks exactly the same, and the console is completely empty. Is my app broken?',
+      a: 'Probably not broken — probably not *compiled*. Angular checks your TypeScript and your templates before any of it runs, and if either fails, `ng serve` just keeps serving whatever last built cleanly. That check happens in your terminal and your editor, never the browser console — so an empty console right after a save is your first clue to go check the terminal, not the app.',
+    },
+    {
+      q: "Fine, I'm looking at a real stack trace now. It's ten lines deep and half of it isn't even code I wrote. Where do I even start?",
+      a: 'Skip it — literally. Scan **down** from the top for the first line naming **your own** file, and start there. Everything above it is framework code faithfully reporting that it called something, which called something, which eventually called you.',
+    },
+    {
+      q: 'Found my own frame. Which way do I read from there — up, or down?',
+      a: 'Down, for the story. Each frame called the one below it, so reading down retraces the whole chain backward to whoever started this. Scanning top-down past framework noise is for **triage** — where do I start. Reading down through your own frames is for the **story** — how did I get here. Same printed list, two different questions.',
+    },
+    {
+      q: "The message says `reading 'toFixed'`. Is `toFixed` the thing that was undefined?",
+      a: "No — and this is the single most common misread. The name in `Cannot read properties of undefined (reading 'x')` is the property you were **reading**, not the thing that was missing. The undefined thing is always **one hop to the left** of `'x'` — the thing you were reading `'x'` *from*.",
+    },
+    {
+      q: "There's a code like `NG0201` in my error. Is that a typo, or something Angular meant to print?",
+      a: "Meant to print — that `NG` prefix is Angular's own family of runtime errors, the same idea as a `TypeError` but specific to the framework. Search the code itself, not the sentence around it: `angular.dev/errors/NG0201` explains exactly what triggers it, and the sentence around it has your own variable names baked in, which nobody else's search results will match.",
+    },
+    {
+      q: 'Sometimes there is no red text at all and the page just shows a wrong number. Does that mean nothing went wrong?',
+      a: 'It means nothing **threw** — which is worse in one way: there\'s no stack trace to follow. JavaScript happily glues `"10" + 52` into `"1052"` and moves on without complaint. When the console is silent, stop reading errors and start logging **values** — check what you assumed a variable was against what it actually is.',
+    },
+  ];
+
+  /**
    * Sample: the three-part anatomy of a real, unedited error — the same one
-   * the opening napkin asks the reader to diagnose before reading on.
+   * the opening block's questions and quiz already walked through.
    */
   protected readonly errorAnatomySample = `TypeError: Cannot read properties of undefined (reading 'email')
     at showProfile (app.ts:51:24)
@@ -352,8 +404,8 @@ user.name = 'changed';
   ];
 
   /**
-   * Self-test 1 — the "left of the dot" reading rule, on a fresh chain the
-   * reader has not seen before.
+   * The shape block's crux quiz — the "left of the dot" reading rule, on a
+   * fresh chain distinct from anything the questions above walked through.
    *
    * The three wrong options are the three real confusions: borrowing the
    * property name itself, stopping one hop too early, and stopping one hop

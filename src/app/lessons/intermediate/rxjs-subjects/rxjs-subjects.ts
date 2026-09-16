@@ -4,6 +4,8 @@ import { RouterLink } from '@angular/router';
 import { AsyncSubject, BehaviorSubject, ReplaySubject, Subject, Subscription } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -71,25 +73,38 @@ function end(): Tick {
  * most misused thing in RxJS, so the lesson is organised around *choosing*
  * rather than around the API surface.
  *
- * ## Teaching order
+ * ## Shape: "The Receipt" (`shape: 'receipt'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The topic is a cost — three calls, zero deliveries, and no
+ * warning that anything went wrong — which is exactly what the Receipt shape is
+ * for. The opening block is: a statement with real numbers → {@link deadBusBill}
+ * itemised as `app-receipt` → a scribble naming the "0" gap → an `app-compare`
+ * of the same bus before and after `complete()` → "the mechanism" →
+ * {@link nextMechanismChain} as `app-chain` → the real termination code
+ * ({@link terminationSample}) via `app-code-lab` → two scribbles quoting its
+ * identifiers → a Brain Power on how you'd ever notice the drop → the crux quiz
+ * ({@link terminatedNextQuiz}) → a closing `.bf-big` that ends loud. No
+ * `app-bubbles`, `app-no-dumb-questions`, or a napkin in first position. This is
+ * deliberately a *different* self-test from {@link completedQuiz} further down
+ * the page (that one is about `BehaviorSubject` specifically, and stays tightly
+ * coupled to the four-flavour bench it tells the reader to go run).
+ *
+ * ## Teaching order after the block
  *
  * This lesson uses the brain-friendly presentation layer (`shared/brain/`,
  * `src/brain-friendly.css`), and follows the section rhythm the reference
  * implementation in `expert/change-detection` established:
  *
- * 1. **Pose the problem first.** An Observable cannot be pushed into and is
- *    cold. Both facts are stated as consequences the reader can feel — two
- *    components, two HTTP requests — before the word "Subject" appears.
- * 2. **Analogy, then vocabulary.** Recipe versus radio station. A learner who
- *    has somewhere to *put* "hot", "multicast" and "late subscriber" retains
- *    them; one who meets the words first does not.
- * 3. **Mechanism next.** A twenty-line `MiniSubject` explains multicast, the
+ * 1. **The cost first, vocabulary second.** The block hooks on the silent-drop
+ *    trap; "The mental model" section right after it backs up to what a Subject
+ *    even is — the recipe-versus-radio-station analogy, reinforced by a
+ *    `Bubbles` dialogue between the four flavours and a latecomer.
+ * 2. **Mechanism next.** A twenty-line `MiniSubject` explains multicast, the
  *    silence of `next()` after `complete()`, and why a terminated subject is
  *    dead forever — all from an array and a `for` loop.
- * 4. **Then the same idea in four modes:** a dialogue between the flavours and
- *    a latecomer, a marble timeline, a table, and a live bench that draws its
- *    own marble diagram from real subjects.
- * 5. **Every substantial snippet is annotated line by line** through
+ * 3. **Then the same idea in several more modes:** a marble timeline, a table,
+ *    and a live bench that draws its own marble diagram from real subjects.
+ * 4. **Every substantial snippet is annotated line by line** through
  *    `app-code-lab`; nothing here assumes the reader can already read it.
  *
  * ## The claims that are easy to get wrong
@@ -123,6 +138,10 @@ function end(): Tick {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -702,6 +721,64 @@ export class NotificationBus {
     {
       line: 7,
       text: '`this.events$.next(message)` is the only `next()` in the file. Note that the class pushes into `events$`, the private one, while the outside world reads `messages$`, the wrapper. Two names for one stream is the point, not an accident.',
+    },
+  ];
+
+  // ── The shape block: the receipt ────────────────────────────────────────────
+
+  /**
+   * Three calls into a completed Subject, itemised — every one billed as a
+   * silent drop. The scribble in the block quotes the total's `0`.
+   */
+  protected readonly deadBusBill: readonly ReceiptRow[] = [
+    { label: "next('retry 1') → 0 listeners notified", amount: 'silently dropped', tone: 'warn' },
+    { label: "next('retry 2') → 0 listeners notified", amount: 'silently dropped', tone: 'warn' },
+    { label: "next('retry 3') → 0 listeners notified", amount: 'silently dropped', tone: 'warn' },
+  ];
+
+  /** The total line of {@link deadBusBill}. */
+  protected readonly deadBusTotal: ReceiptRow = { label: 'exceptions thrown', amount: '0' };
+
+  /** Sample (left side of the compare): the bus, still live. */
+  readonly beforeCompleteSample = `bus.subscribe((v) => log('got', v));
+bus.next('a');   // logs: got a
+bus.next('b');   // logs: got b`;
+
+  /** Sample (right side of the compare): the same bus, one line later. */
+  readonly afterCompleteSample = `bus.complete();
+bus.next('c');   // nothing. no log line, no error, no warning.
+bus.next('d');   // same — silently gone, forever.`;
+
+  /** The shape block's own numbered steps — what `next()` checks on every call. */
+  protected readonly nextMechanismChain: readonly string[] = [
+    'next(v) called',
+    'stopped flag checked',
+    'stopped? → return, nothing happens',
+    'not stopped? → loop observers, deliver',
+  ];
+
+  /**
+   * The block's crux quiz: what happens when `next()` is called on an already-
+   * completed Subject. Distinct from {@link completedQuiz}, which is about a
+   * *new subscriber* arriving after completion, not a call to `next()` itself.
+   */
+  protected readonly terminatedNextQuiz: QuizOption[] = [
+    {
+      text: "It throws — you can't call next() on a subject that already completed.",
+      why: "The opposite of true, and that's what makes this dangerous. `next()` on a stopped subject checks a flag and returns, in silence — no exception, ever.",
+    },
+    {
+      text: 'Nothing at all — the call returns immediately, no delivery, no error, no warning.',
+      correct: true,
+      why: 'Right, and it\'s the whole trap: the call SUCCEEDS, in the sense that nothing crashes, while doing precisely nothing. If you\'re debugging "my event definitely fired and nothing happened", a completed subject upstream is the first thing to check.',
+    },
+    {
+      text: 'It queues the values and delivers them if the subject is ever reset.',
+      why: 'There\'s no queue and no reset. `complete()` clears the observer list permanently; a "new" subject is a genuinely different object, not the same one reawakened.',
+    },
+    {
+      text: 'It delivers to any listener still in the observer list at the time.',
+      why: "There isn't one — `complete()` emptied the list before this call ever ran. Every listener that was subscribed got the completion notification and was then dropped.",
     },
   ];
 
