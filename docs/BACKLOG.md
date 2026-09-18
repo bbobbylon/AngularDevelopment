@@ -1024,16 +1024,16 @@ set exists. Step 5 — rotating the other 99 — is the next piece of work once 
 (`foundations`, `typescript`, `beginner` ×2, `intermediate` ×2, `expert`, `projects`) and
 mixing all four shapes evenly so no track's neighbours repeat one:
 
-| Lesson              | Track        | Shape               | The kind of gotcha                                                 |
-| -------------------- | ------------ | -------------------- | -------------------------------------------------------------------- |
-| `debugging-basics`   | foundations  | `no-dumb-questions`  | misconception (red text feels hostile; it's a fixed 3-part report) |
-| `ts-narrowing`       | typescript   | `argument`           | tension (a predicate and the compiler are both right; nobody lied) |
-| `lifecycle`          | beginner     | `whiteboard`         | structure (parent/child hooks interleave in two opposite directions) |
-| `http-basics`        | beginner     | `receipt`            | cost (one keystroke without cancellation = one wasted round trip)  |
-| `rxjs-subjects`      | intermediate | `receipt`            | cost (three `next()` calls into a dead Subject, zero deliveries)   |
-| `route-guards`       | intermediate | `whiteboard`         | structure (`canActivate` vs `canActivateChild` cascade, side by side) |
-| `onpush`             | expert       | `argument`           | tension (the data changed; the reference didn't; both are correct) |
-| `data-dashboard`     | projects     | `no-dumb-questions`  | misconception (one write ⇒ everyone recomputes — it doesn't)       |
+| Lesson             | Track        | Shape               | The kind of gotcha                                                    |
+| ------------------ | ------------ | ------------------- | --------------------------------------------------------------------- |
+| `debugging-basics` | foundations  | `no-dumb-questions` | misconception (red text feels hostile; it's a fixed 3-part report)    |
+| `ts-narrowing`     | typescript   | `argument`          | tension (a predicate and the compiler are both right; nobody lied)    |
+| `lifecycle`        | beginner     | `whiteboard`        | structure (parent/child hooks interleave in two opposite directions)  |
+| `http-basics`      | beginner     | `receipt`           | cost (one keystroke without cancellation = one wasted round trip)     |
+| `rxjs-subjects`    | intermediate | `receipt`           | cost (three `next()` calls into a dead Subject, zero deliveries)      |
+| `route-guards`     | intermediate | `whiteboard`        | structure (`canActivate` vs `canActivateChild` cascade, side by side) |
+| `onpush`           | expert       | `argument`          | tension (the data changed; the reference didn't; both are correct)    |
+| `data-dashboard`   | projects     | `no-dumb-questions` | misconception (one write ⇒ everyone recomputes — it doesn't)          |
 
 `rxjs-subjects` got `receipt` rather than `argument` specifically because its curriculum
 neighbour `rxjs-interop` already owns `argument` — picking shape by gotcha-kind still has to
@@ -1055,16 +1055,16 @@ next up for batch 2.
 list, eight lessons across five tracks (`foundations`, `typescript`, `beginner` ×2,
 `intermediate` ×2, `expert` ×2), keeping all four shapes exactly even:
 
-| Lesson                | Track        | Shape               | The kind of gotcha                                                              |
-| ---------------------- | ------------ | -------------------- | -------------------------------------------------------------------------------- |
-| `decisions-loops`     | foundations  | `argument`           | tension (`i++` and `splice` both keep their promise; the array renumbering mid-walk is what skips an element) |
-| `ts-nullish`          | typescript   | `whiteboard`         | structure (one missing link short-circuits the WHOLE rest of an optional chain, not just the next property) |
-| `control-flow-for`    | beginner     | `argument`           | tension (`track $index` and Angular's node reuse both do exactly what they promise; a reordered row's half-typed input attaches to a stranger's data anyway) |
-| `outputs`             | beginner     | `no-dumb-questions`  | misconception (`.emit()` feels like it calls the parent's handler directly; the child never touches the parent at all) |
-| `di-providers`        | intermediate | `whiteboard`         | structure (a component's own `providers` array doesn't merge with root's — it silently forks a "singleton" into two live instances) |
-| `custom-pipes`        | intermediate | `receipt`            | cost (forty change-detection checks on one unchanged price; a getter redoes the formatting work all forty times) |
-| `zoneless`            | expert       | `no-dumb-questions`  | misconception (a plain-field write outside a signal "doesn't happen"; it happens in memory and nobody is ever told) |
-| `dynamic-components`  | expert       | `receipt`            | cost (five toasts created via `createComponent()`; four never `destroy()`ed and quietly outlive the session) |
+| Lesson               | Track        | Shape               | The kind of gotcha                                                                                                                                           |
+| -------------------- | ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `decisions-loops`    | foundations  | `argument`          | tension (`i++` and `splice` both keep their promise; the array renumbering mid-walk is what skips an element)                                                |
+| `ts-nullish`         | typescript   | `whiteboard`        | structure (one missing link short-circuits the WHOLE rest of an optional chain, not just the next property)                                                  |
+| `control-flow-for`   | beginner     | `argument`          | tension (`track $index` and Angular's node reuse both do exactly what they promise; a reordered row's half-typed input attaches to a stranger's data anyway) |
+| `outputs`            | beginner     | `no-dumb-questions` | misconception (`.emit()` feels like it calls the parent's handler directly; the child never touches the parent at all)                                       |
+| `di-providers`       | intermediate | `whiteboard`        | structure (a component's own `providers` array doesn't merge with root's — it silently forks a "singleton" into two live instances)                          |
+| `custom-pipes`       | intermediate | `receipt`           | cost (forty change-detection checks on one unchanged price; a getter redoes the formatting work all forty times)                                             |
+| `zoneless`           | expert       | `no-dumb-questions` | misconception (a plain-field write outside a signal "doesn't happen"; it happens in memory and nobody is ever told)                                          |
+| `dynamic-components` | expert       | `receipt`           | cost (five toasts created via `createComponent()`; four never `destroy()`ed and quietly outlive the session)                                                 |
 
 Same relocation discipline as batch 1: each rotation replaced only the opening block, and any
 pre-existing device that was already tightly coupled to a demo further down the page got moved
@@ -1076,6 +1076,42 @@ overlapped the new no-dumb-questions block almost verbatim. `scripts/audit-varie
 green (20 declared shapes, 5/5/5/5, no forbidden device, no shared-shape neighbours) and
 `scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. Declared-shape count: 12 → 20.
 Remaining undeclared: 103 − 20 = **83**, next up for batch 3.
+
+**Batch 3 of step 5, landed 2026-09-18.** Third rotation batch, drawn from the
+`node scripts/audit-variety.mjs` warning list (undeclared lessons whose opening pair literally
+repeats the lesson before them — the worst of the worst offenders), eight lessons across four
+tracks (`typescript`, `beginner` ×2, `intermediate` ×3, `expert` ×2), keeping all four shapes
+exactly even:
+
+| Lesson                  | Track        | Shape               | The kind of gotcha                                                                                                                                                          |
+| ----------------------- | ------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ts-interfaces`         | typescript   | `no-dumb-questions` | misconception (nothing ever writes `implements User`; structural typing checks shape, never a declared name)                                                                |
+| `signals`               | beginner     | `no-dumb-questions` | misconception ("doesn't Angular watch the field?" — reading a signal IS the subscription; nothing watches)                                                                  |
+| `form-validation`       | intermediate | `argument`          | tension (a fresh required control really is `INVALID`, and the page genuinely shows nothing wrong — `touched` is the gate, and nobody but a template author ever writes it) |
+| `builtin-directives`    | beginner     | `argument`          | tension (`*ngIf` and `*ngFor` each want the same one tag as their own stencil; nesting order is a choice, not a default Angular can guess)                                  |
+| `hydration`             | expert       | `receipt`           | cost (a destructive bootstrap discards every server-rendered node — focus, scroll position, a mid-frame `<video>` — and pays to rebuild all of it)                          |
+| `structural-directives` | intermediate | `receipt`           | cost (`[hidden]` leaves the whole component alive — subscriptions, timers, `ngOnDestroy` never called — behind invisible pixels)                                            |
+| `view-transitions`      | expert       | `whiteboard`        | structure (two photographs and a curtain between them; only an element sharing a name tag in both morphs instead of cross-fading)                                           |
+| `rxjs-operators`        | intermediate | `whiteboard`        | structure (four flattening operators, one figure — only `concatMap` makes a newer call wait behind an older one still running)                                              |
+
+Same relocation discipline as batches 1–2: each rotation replaced only the opening block, and
+any pre-existing device tightly coupled to a demo further down the page got moved into the block
+instead of duplicated, with a callback line left at its old spot — `enableSample`/`enableNotes`
+(the `provideClientHydration()` code-lab) in `hydration`, and the `choosing` decision-flow in
+`rxjs-operators`. Two lessons had a `<app-predict>` that didn't fit the new block but was too
+useful to lose: `view-transitions`' "forget one line, predict what breaks" predict moved into
+its own "The trap, predicted" section, and `rxjs-operators`' "how many results should you
+actually see" predict moved down to sit next to the live type-ahead demo it predicts, in both
+cases immediately after the relocated mental-model section. `structural-directives`' "Live #1"
+tip, which used to say "that answers the napkin question from the top of the page," was reworded
+to point at the receipt instead, since the napkin it referenced no longer exists at the top.
+`scripts/audit-variety.mjs` is green (28 declared shapes, 7/7/7/7, no forbidden device, no
+shared-shape neighbours) and `scripts/audit-retention.mjs` still shows all 103 lessons at 9/9 —
+every touched lesson gained new depth (fresh brain-power questions like the `Celsius`/
+`Fahrenheit` primitive-aliasing gotcha in `ts-interfaces`, or the "does change detection still
+walk a hidden component" question in `structural-directives`) rather than just reshuffling
+existing prose. `npm run typecheck` is green. Declared-shape count: 20 → 28. Remaining
+undeclared: 103 − 28 = **75**, next up for batch 4.
 
 ---
 

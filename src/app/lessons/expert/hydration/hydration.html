@@ -17,29 +17,111 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      The server already did the work — a finished <code>&lt;article&gt;</code>, a filled-in form, a
+      <code>&lt;video&gt;</code> already mid-frame. Skip one function call in <code>app.config.ts</code> and Angular
+      throws every bit of that away the instant it boots, then pays to build all of it again.
+    </p>
+
+    <app-receipt
+      heading="One naive bootstrap · the bill for rebuilding a page that was already right"
+      [rows]="bootBill"
+      [total]="bootBillTotal"
+      footer="hydration's entire pitch is refusing to ring up a single one of these lines"
+    />
+
+    <app-scribble
+      point="up"
+      quote="every one of them"
+      text="Not an estimate — literally every server-rendered node, including the ones that were already 100% correct. The rebuild never checks first. It just replaces."
+    />
+
+    <app-compare
+      leftTitle="Without provideClientHydration()"
+      leftTone="bad"
+      rightTitle="With provideClientHydration()"
+      rightTone="good"
+      note="Same finished HTML arrives from the server either way. One path pays to rebuild it from nothing; the other pays only to confirm it's already correct."
+    >
+      <div left>
+        <p>
+          Angular boots knowing nothing about what's already on screen. It builds its own component tree from scratch
+          and swaps every node in over the top — the mid-frame video included — whether or not anything needed to change
+          at all.
+        </p>
+      </div>
+      <div right>
+        <p>
+          Angular boots holding the map the server shipped alongside the HTML. It walks the existing DOM confirming each
+          node matches that map, <strong>adopts</strong> what's there, and never touches a node that was already right.
+        </p>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">Hydration has to be turned on — it isn't the default just because a route is server-rendered.</p>
+
+    <app-chain
+      [steps]="[
+        'server ships an ngh map',
+        'client walks the existing DOM',
+        'matching nodes claimed, not created',
+        'verified against the map',
+        'listeners attach',
+      ]"
+      label="What provideClientHydration() buys you, before the app is interactive"
+    />
+
+    <app-code-lab
+      file="app.config.ts"
+      [code]="enableSample"
+      [notes]="enableNotes"
+      notesLabel="What each provider actually does"
+    />
+
+    <app-scribble
+      quote="provideClientHydration()"
+      text="the switch itself. Leave it out of `providers` and you're back on the destructive path from the receipt above — permanently, not just until something else kicks in."
+    />
+    <app-scribble
+      quote="withEventReplay()"
+      point="up"
+      tone="olive"
+      text="buffers a click that happens in the gap between paint and hydration, then replays it once the real listener attaches. Without it, an eager click during that gap is simply lost — no error, no retry."
+    />
+
+    <app-brain-power
+      question="A hydration mismatch throws `NG0500` in dev, and production recovers on its own by destroying and rebuilding — the exact 'second render' cost the receipt above charges for. So what's the actual blast radius of ONE mismatched node: the node itself, or something bigger?"
+      hint="Ask whether the map describes a single node in isolation, or a node plus everything the walk still expects to find after it."
+    />
+
+    <app-quiz
+      question="A route is server-rendered, but `app.config.ts` never calls `provideClientHydration()`. What does the client do when it boots?"
+      [options]="bootQuizOptions"
+      followUp="The comparator further down this page lets you toggle between exactly these two paths, step by step."
+    />
+
+    <p class="bf-big">
+      You paid the server to render it once. Skip one function call, and you pay the client to render it again.
+    </p>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>The HTML is already right. Watch Angular throw it out.</h2>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>Hydration is moving into a furnished apartment.</h2>
 
     <p>
-      Server-side rendering does real work. By the time a browser paints anything, there's a finished
-      <code>&lt;article&gt;</code>, a filled-in form, maybe a <code>&lt;video&gt;</code> already mid-frame. Bootstrap
-      the client app the naive way and <span class="key">none of that survives the next few hundred milliseconds</span>
-      — Angular builds its own component tree from nothing and swaps it in over the top, node for node, whether or not
-      anything actually needed to change.
+      Here's the same comparator from the receipt above, live — flip between the two boot paths and watch which steps
+      actually cost something:
     </p>
-
-    <p>
-      That isn't hypothetical. It's what every Angular app did before hydration existed, and it's still exactly what
-      happens today the instant <code>provideClientHydration()</code> is missing from your <code>app.config.ts</code>.
-    </p>
-
-    <app-napkin lead="hang on —" label="Predict before you scroll">
-      Picture an SSR page with a <code>&lt;video&gt;</code> already playing when the JS bundle finishes downloading.
-      <strong>Without</strong> hydration, what happens to that video the instant Angular bootstraps? Flip between the
-      two paths below and check your guess against the line about media elements.
-    </app-napkin>
 
     <div class="demo">
       <p class="demo__title">Interactive — compare the two client bootstraps</p>
@@ -71,12 +153,6 @@
         jumps back to frame zero. Hydration's whole pitch is that the right-hand column costs none of it.
       </p>
     </div>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Hydration is moving into a furnished apartment.</h2>
 
     <p>
       Here's a way to hold both boot paths in your head with no Angular vocabulary at all. Imagine two ways to move into
@@ -118,20 +194,10 @@
     <h2>One walk, not one rebuild.</h2>
 
     <p>
-      Hydration has to be turned on — it isn't the default just because a route is server-rendered. This is the whole
-      provider:
-    </p>
-
-    <app-code-lab
-      file="app.config.ts"
-      [code]="enableSample"
-      [notes]="enableNotes"
-      notesLabel="What each provider actually does"
-    />
-
-    <p>
-      With that in place, the server stops being a plain HTML generator and starts annotating its output — a map of
-      exactly what it built, for the client to navigate by instead of ever calling its own create-DOM instructions:
+      The block up top already showed the whole provider and what each line buys you. With
+      <code>provideClientHydration()</code> in place, the server stops being a plain HTML generator and starts
+      annotating its output — a map of exactly what it built, for the client to navigate by instead of ever calling its
+      own create-DOM instructions:
     </p>
 
     <app-code-lab

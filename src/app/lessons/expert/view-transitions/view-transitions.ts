@@ -1,8 +1,9 @@
 import { ApplicationRef, Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab, Layers } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, Layers, Napkin } from '../../../shared/brain';
 import type { ChapterStop, CodeNote, Layer } from '../../../shared/brain';
-import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
+import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
 /**
@@ -11,6 +12,19 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
  * document.startViewTransition + ApplicationRef.tick, shared-element morphs,
  * the pseudo-element tree, and the pitfalls (duplicate names, fixed headers,
  * reduced motion).
+ *
+ * ## Shape: `whiteboard`
+ *
+ * The lesson opens on one big figure: two photograph boxes with a curtain
+ * between them, and a single named element ("card #3") whose highlighted box
+ * moves and grows from the OLD snapshot to the NEW one, joined by a dashed
+ * morph arrow. `app-brain-power` poses the question the figure is drawn to
+ * answer — what happens to an element that ISN'T named — before the reader
+ * sees it, three `app-scribble`s quote the figure's own labels, and a
+ * `.bf-answer` paragraph resolves the question outright (the `root` group).
+ * `app-flow` restates the same sequence as four numbered beats, a quiz checks
+ * the duplicate-name failure mode, and the block closes on `app-napkin` with
+ * the photograph analogy. See `docs/CONTRIBUTING.md` §2C.
  *
  * ## Presentation
  *
@@ -23,15 +37,30 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
  * between them, morphing any piece that wears the same name tag in both.
  * That framing pays for itself repeatedly: it explains why a plain signal
  * write inside the callback animates nothing (the DOM hasn't actually
- * changed when the second photo is taken — see the opening Predict), why
- * hover states and videos freeze mid-transition (you're looking at a
- * photograph, not the live element), and why a duplicate
- * `view-transition-name` is fatal (two things can't wear the same name tag
- * in one photograph).
+ * changed when the second photo is taken — see "the trap, predicted" below
+ * the shape block), why hover states and videos freeze mid-transition
+ * (you're looking at a photograph, not the live element), and why a
+ * duplicate `view-transition-name` is fatal (two things can't wear the same
+ * name tag in one photograph).
  */
 @Component({
   selector: 'app-lesson-view-transitions',
-  imports: [RouterLink, BfPage, Chapter, CodeLab, Layers, Faq, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Chapter,
+    CodeLab,
+    Layers,
+    Napkin,
+    BrainPower,
+    Scribble,
+    Whiteboard,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './view-transitions.css',
   templateUrl: './view-transitions.html',
 })
@@ -122,6 +151,31 @@ export class ViewTransitions {
     { label: 'Accessibility', id: 'a11y' },
     { label: 'Animations', id: 'animations' },
     { label: 'View Transitions' },
+  ];
+
+  /**
+   * The shape block's quiz: the duplicate-name failure mode the whiteboard's
+   * figure implies but doesn't show — checked once up front, before the
+   * remember box further down states the uniqueness rule directly.
+   */
+  protected readonly nameCollisionQuiz: QuizOption[] = [
+    {
+      text: 'The whole transition is thrown away — the DOM change still happens, but instantly, with no animation at all.',
+      correct: true,
+      why: "A `view-transition-name` is a name tag, and at most one element may wear a given tag per page at snapshot time. The browser doesn't guess which of the two you meant — it drops the entire transition and lets the navigation or DOM change happen unanimated.",
+    },
+    {
+      text: 'The browser morphs the older card into the newer one, picking whichever appeared first in the DOM.',
+      why: "There's no tie-breaking rule like this. A duplicate name isn't resolved by picking a winner — it invalidates the transition outright, for every element in it, not just the two that collided.",
+    },
+    {
+      text: 'Only the first card keeps its name tag; the second one silently loses its animation and cross-fades instead.',
+      why: 'Close to the spirit of a graceful fallback, but not what happens. The failure is all-or-nothing: the entire transition is skipped, not just the animation for the offending element.',
+    },
+    {
+      text: 'Angular throws a compile-time error before the app can even ship.',
+      why: "Nothing here is checkable at compile time — `view-transition-name` is a runtime CSS value, often computed from data the compiler can't see. The failure only shows up when two elements actually collide in the same snapshot, at runtime, in the browser.",
+    },
   ];
 
   /** Abstract code for the opening predict — a signal write with no `tick()`. */

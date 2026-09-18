@@ -1,7 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -110,25 +112,40 @@ const MISMATCHES: readonly Mismatch[] = [
  * contrast, event replay's real mechanism and limits, and incremental
  * hydration's constraints.
  *
+ * ## Shape: `receipt`
+ *
+ * The lesson opens on the concrete cost of the naive path: {@link bootBill}
+ * itemises exactly what a destructive rebuild throws away and re-pays for —
+ * every server-rendered node, focus and scroll position, a video restarted
+ * from frame zero — with `app-scribble` naming that the discard is total, not
+ * partial. `app-compare` puts the destructive and hydrated bootstraps side by
+ * side in prose, `app-chain` previews the walk in five steps, and the block's
+ * own `app-code-lab` moves {@link enableSample} up from "the mechanism"
+ * section below so the provider that prevents the whole bill sits right next
+ * to it, with two `app-scribble`s at the code naming the switch itself and the
+ * event-replay buffer. `app-brain-power` asks about the blast radius of one
+ * mismatched node (answered later, without saying so, by the predict in "when
+ * it breaks"), a quiz checks what happens with the provider missing entirely,
+ * and the block closes loud on a `.bf-big` line. See `docs/CONTRIBUTING.md`
+ * §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
  * `docs/UI-DESIGN.md` §9); shape and teaching order copied from
- * `expert/change-detection`, the reference implementation.
+ * `expert/change-detection`, the reference implementation. After the shape
+ * block, "the mental model, in full" replays the live destructive-vs-hydrated
+ * comparator and the furnished-apartment analogy at full length, then the
+ * rest of the page carries on in the order it always did:
  *
- * 1. **Pose the problem before naming it.** The lesson opens on "the HTML is
- *    already right — watch Angular throw it out", with the destructive-vs-
- *    hydrated boot comparator doing the demonstrating before any vocabulary
- *    arrives.
- * 2. **Analogy next, mechanism after.** "Moving into a furnished apartment"
- *    gives the reader somewhere to put `ngh`, node claiming and NG0500
- *    before those words show up, dramatized a second way as a dialogue
- *    between the server's HTML and the client runtime doing the walk.
- * 3. **Then the same idea in several modes** — annotated server output, a
- *    glossary of the four artifacts involved, a live comparator, a mismatch
- *    clinic, a three-way compare table — because redundancy is the retention
- *    tool, not repetition.
- * 4. **Every snippet is annotated line by line** via `app-code-lab`. Nothing
+ * 1. **Analogy, dramatized a second way.** "Moving into a furnished apartment"
+ *    gives the reader somewhere to put `ngh`, node claiming and NG0500 before
+ *    those words show up, restaged as a dialogue between the server's HTML
+ *    and the client runtime doing the walk.
+ * 2. **Then the same idea in several modes** — annotated server output, a
+ *    glossary of the four artifacts involved, a mismatch clinic, a three-way
+ *    compare table — because redundancy is the retention tool, not repetition.
+ * 3. **Every snippet is annotated line by line** via `app-code-lab`. Nothing
  *    here assumes the reader can already read the snippet.
  *
  * ## Coverage-sweep material folded in (docs/COVERAGE-SWEEP.md, `expert/hydration`)
@@ -147,8 +164,11 @@ const MISMATCHES: readonly Mismatch[] = [
     Bubbles,
     Chapter,
     CodeLab,
-    Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -161,6 +181,54 @@ const MISMATCHES: readonly Mismatch[] = [
   templateUrl: './hydration.html',
 })
 export class Hydration {
+  /**
+   * The shape block's itemised bill: what a naive, non-hydrated bootstrap
+   * actually throws away and re-pays for, drawn straight from
+   * {@link BOOT_STEPS}'s `destructive` column.
+   */
+  protected readonly bootBill: ReceiptRow[] = [
+    { label: 'Server-rendered nodes discarded', amount: 'every one of them', tone: 'warn' },
+    { label: 'Whole tree rebuilt from scratch', amount: 'flicker + layout shift', tone: 'warn' },
+    { label: 'Focus, selection, scroll position', amount: 'lost', tone: 'warn' },
+    { label: '<video> / <iframe> elements', amount: 'reload from frame zero', tone: 'warn' },
+    {
+      label: 'Bytes the server already painted',
+      amount: 'paid for, then thrown away',
+      tone: 'muted',
+    },
+  ];
+
+  /** The total line under {@link bootBill}. */
+  protected readonly bootBillTotal: ReceiptRow = {
+    label: 'TOTAL',
+    amount: 'a second full render, charged on top of the first',
+  };
+
+  /**
+   * The shape block's quiz: what actually happens with the provider missing
+   * entirely, checked once up front before the live comparator further down
+   * lets the reader toggle between both paths themselves.
+   */
+  protected readonly bootQuizOptions: QuizOption[] = [
+    {
+      text: "The full destructive rebuild — it discards the server's HTML and builds its own tree from nothing, exactly as if there had been no SSR at all.",
+      correct: true,
+      why: "Hydration isn't a default Angular falls into just because a route is server-rendered — it's an opt-in provider. Leave it out and the client bootstrap is the same destructive path an app without SSR would run, on top of HTML that didn't need to be replaced.",
+    },
+    {
+      text: 'It hydrates automatically, since the server already rendered — `provideClientHydration()` only adds optional extras like event replay.',
+      why: 'Backwards. The base call to `provideClientHydration()` is what turns adoption on at all; `withEventReplay()` and `withIncrementalHydration()` are the optional extras layered on top of it, not the other way round.',
+    },
+    {
+      text: 'It throws a build-time error, refusing to ship an SSR route without hydration configured.',
+      why: 'Nothing here is a build-time check. The app compiles and ships fine either way — the cost only shows up at runtime, in the browser, as the destructive rebuild this whole block is about.',
+    },
+    {
+      text: 'It hydrates the first paint, then falls back to rebuilding on the second render.',
+      why: 'There is no partial hydration without the provider — hydration is either configured or it is not. Without it, nothing walks the existing DOM at all; the rebuild happens on the very first client render.',
+    },
+  ];
+
   /** The two boot paths, for the toggle. */
   protected readonly boots: readonly Boot[] = ['destructive', 'hydrated'];
   /** The steps each boot path goes through. */

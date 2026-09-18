@@ -16,34 +16,102 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Why not just <code>[hidden]</code> it?</h2>
-
-    <p>
-      Angular already has <code>[hidden]</code> and <code>[style.display]</code>. Both are one binding, both are simple,
-      and both would make <code>*ngIf</code> and <code>*ngFor</code> pointless reading if that were the whole story. So
-      here is the actual question: <span class="key">what does a star do that a plain attribute binding cannot?</span>
-    </p>
-    <p>
-      It isn't "handles conditions and lists" — <code>[hidden]</code> handles the condition case just fine. The real
-      difference is what a star directive does to <strong>memory</strong>: it doesn't just paint pixels on or off, it
-      can create real nodes and destroy them, subscriptions and all.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Flip <code>[hidden]</code> on a component and the pixels vanish — right on schedule. The subscription it opened in
+      <code>ngOnInit</code>? Still delivering values. The timer? Still ticking. Nothing was ever told to stop.
     </p>
 
-    <app-napkin lead="guess first —" label="Predict before reading on">
-      Two paragraphs, side by side. One sits behind <code>[hidden]="cond"</code>, the other behind
-      <code>*appUnless="cond"</code>. Right now, both look identically hidden. Each one contains a tiny child component
-      whose <code>ngOnDestroy</code> logs a line to the console. Flip <code>cond</code> to hide both — which one logs,
-      and which one stays completely silent? There's a live version of exactly this further down the page to check
-      yourself against.
-    </app-napkin>
+    <app-receipt
+      heading="One [hidden] toggle · what's still running behind invisible pixels"
+      [rows]="hiddenBill"
+      [total]="hiddenBillTotal"
+      footer="*ngIf's whole pitch is a bill with nothing left on it — destroy means destroy"
+    />
+
+    <app-scribble
+      point="up"
+      quote="still alive"
+      text="Not paused, not suspended — genuinely still running. Change detection still walks it every cycle; its subscriptions still deliver values into a component nobody on screen can see."
+    />
+
+    <app-compare
+      leftTitle="[hidden] — hides the pixels"
+      leftTone="bad"
+      rightTitle="*appUnless / @if — removes the node"
+      rightTone="good"
+      note="Both look identically invisible on screen. Underneath, one path left a fully alive component running; the other has nothing left to bill at all."
+    >
+      <div left>
+        <p>
+          <code>[hidden]</code> only ever toggles a CSS property on the host element. The component instance stays
+          mounted, its constructor never runs again because it was never destroyed, and its <code>ngOnDestroy</code> —
+          the one place cleanup was supposed to happen — never fires.
+        </p>
+      </div>
+      <div right>
+        <p>
+          A structural directive removes the node from the DOM entirely. The component is genuinely destroyed:
+          <code>ngOnDestroy</code> fires, its subscriptions are torn down with it, and nothing about it survives until
+          the condition flips back and a fresh instance is built.
+        </p>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">A star doesn't hide anything. It decides whether the node exists at all.</p>
+
+    <app-chain
+      [steps]="[
+        'host wrapped in <ng-template>',
+        'TemplateRef + ViewContainerRef injected',
+        'createEmbeddedView() stamps it in',
+        'clear() destroys it — subscriptions included',
+      ]"
+      label="What *ngIf / @if do to the DOM, versus a display toggle"
+    />
+
+    <app-code-lab
+      file="hidden-vs-unless.ts"
+      [code]="hiddenVsUnlessSample"
+      [notes]="hiddenVsUnlessNotes"
+      notesLabel="Same child component, two different fates"
+    />
+
+    <app-scribble
+      quote="[hidden]"
+      text="only ever toggles a CSS property. `<app-child>` stays mounted, stays alive, and its `ngOnDestroy` never runs — hidden pixels, not a hidden component."
+    />
+    <app-scribble
+      quote="*appUnless"
+      point="up"
+      tone="olive"
+      text="removes the node from the DOM entirely. `<app-child>` is destroyed, `ngOnDestroy` fires, and nothing about it survives until the condition flips back."
+    />
+
+    <app-brain-power
+      question="[hidden] keeps the component mounted, and change detection still walks every mounted component on every cycle. So if that hidden component's template reads a signal that changes fifty times a second, does an invisible [hidden] block still re-render on every single write?"
+      hint="Ask whether change detection ever checks what CSS property an ancestor happens to have set before deciding to walk a component."
+    />
+
+    <app-quiz
+      question='A component sits behind `[hidden]="true"`. Its `ngOnInit` opened an RxJS subscription. Does that subscription keep delivering values while the component is hidden?'
+      [options]="hiddenBlockQuiz"
+      followUp="Live #1, further down this page, lets you toggle the real directive and watch `ngOnDestroy` fire — or not — in the console."
+    />
+
+    <p class="bf-big">Hidden pixels. A fully alive component underneath them, billed for every cycle.</p>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
     <h2>Picture a developer holding blueprints, standing on an empty lot.</h2>
 
     <p>
@@ -164,10 +232,10 @@
       </p>
     </div>
     <div class="tip">
-      Structural directives <strong>remove</strong> elements from the DOM, they don't hide them. That answers the napkin
-      question from the top of the page: the <code>[hidden]</code> paragraph's child is still alive under the hood, so
-      its <code>ngOnDestroy</code> never fires. The <code>*appUnless</code> paragraph's child is actually destroyed, so
-      it logs every time.
+      Structural directives <strong>remove</strong> elements from the DOM, they don't hide them. That's the receipt from
+      the top of the page, live: a <code>[hidden]</code> paragraph's child stays alive under the hood, so its
+      <code>ngOnDestroy</code> never fires. This <code>*appUnless</code> paragraph's child is actually destroyed, so it
+      logs every time.
     </div>
   </section>
 

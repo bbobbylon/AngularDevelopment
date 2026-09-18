@@ -4,6 +4,7 @@ import { Subject, Subscription, of, timer } from 'rxjs';
 import { debounceTime, distinctUntilChanged, map, mergeMap, switchMap } from 'rxjs/operators';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
@@ -15,29 +16,45 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
  * `catchError`, `take`/`takeUntil`, `scan`, `startWith`, and the four
  * flattening operators.
  *
+ * ## Shape: `whiteboard`
+ *
+ * The lesson opens on one big figure: four horizontal timelines, one per
+ * flattening operator, each showing the exact same moment — a second call
+ * arriving while the first is still in flight — with a different outcome per
+ * row. `app-brain-power` asks which row is the only one that can make a
+ * newer call wait behind an older one, posed before the reader sees the
+ * answer; three `app-scribble`s quote the figure's own row captions, and a
+ * `.bf-answer` paragraph resolves it outright (`concatMap`). {@link choosing}
+ * — the decision flow — moves up from "the same idea, as a timing diagram"
+ * further down, so the figure that shows WHAT each operator does sits right
+ * next to the flow that shows HOW to pick one; a quiz checks the
+ * `exhaustMap` case directly, and the block closes on `app-napkin` with the
+ * receptionist analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
  * `docs/UI-DESIGN.md` §9); shape copied from
  * `expert/change-detection/change-detection.ts`, the reference
- * implementation. Same teaching order:
+ * implementation. After the shape block, "the mental model, in full" replays
+ * the type-ahead problem and the assembly-line analogy at full length, and
+ * the original predict-before-reading napkin moves down to sit right next to
+ * the live type-ahead demo it predicts. The rest of the page carries on in
+ * the order it always did:
  *
- * 1. **Pose the problem before naming it.** The lesson opens on "type-ahead
- *    with no operators fires one request per keystroke" and asks the reader
- *    to guess the damage before any operator is named.
- * 2. **Analogy next, mechanism after.** Two analogies, in order: the pipe
- *    itself is an assembly line (every operator is a one-job machine on a
- *    belt), and the four flattening operators are four receptionists handling
- *    a second phone call while still on the first. The receptionist framing
- *    predates this migration — it already scored 9/9 on the retention audit —
- *    and is preserved rather than replaced.
- * 3. **Then the same idea in four modes**: the analogy in prose, a `TapeCard`
+ * 1. **Analogy, restaged.** Two analogies, in order: the pipe itself is an
+ *    assembly line (every operator is a one-job machine on a belt), and the
+ *    four flattening operators are four receptionists handling a second
+ *    phone call while still on the first. The receptionist framing predates
+ *    this migration — it already scored 9/9 on the retention audit — and is
+ *    preserved rather than replaced.
+ * 2. **Then the same idea in four modes**: the analogy in prose, a `TapeCard`
  *    row for the four policies, a `Bubbles` dialogue dramatising what
  *    `switchMap` actually does to the abandoned call, a marble-diagram
  *    timing comparison, and two live demos (a real type-ahead, and a
  *    switchMap-vs-mergeMap race) with the exact code behind each wired
  *    through `CodeLab`.
- * 4. **Every real snippet is annotated line by line** via `app-code-lab` —
+ * 3. **Every real snippet is annotated line by line** via `app-code-lab` —
  *    the type-ahead pipe, the race, and a hand-written pipeable operator that
  *    demystifies what `pipe()` actually calls. Illustrative pseudocode
  *    (marble diagrams, the bare assembly-line shape) stays as plain,
@@ -68,6 +85,9 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Faq,
     Flow,
     Predict,
@@ -105,6 +125,32 @@ export class RxjsOperators implements OnDestroy {
     {
       who: 'switchMap',
       says: "Doesn't matter. I told it to stop caring about the response. That's a cancelled request, not a discarded result.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the `exhaustMap` case checked directly, since
+   * it's the row most people get backwards (confusing "ignored" with
+   * "queued") — the switchMap-vs-mergeMap live race further down covers the
+   * other two.
+   */
+  protected readonly exhaustBlockQuiz: QuizOption[] = [
+    {
+      text: "Nothing — the second click's save request is never made at all; only the in-flight save from the first click completes.",
+      correct: true,
+      why: "`exhaustMap` ignores every value that arrives while an inner stream is running. The second click isn't delayed, queued or merged — it's dropped outright, as if it never happened. That's exactly the block-double-submit behaviour a Save button wants.",
+    },
+    {
+      text: 'It gets queued and fires immediately after the first save completes.',
+      why: "That's `concatMap`'s behaviour, not `exhaustMap`'s. `concatMap` queues; `exhaustMap` drops. Swap the two and a Save button meant to block double-submits quietly fires a second, delayed save instead.",
+    },
+    {
+      text: 'It runs concurrently alongside the first save.',
+      why: "That's `mergeMap` — two saves in flight at once, in whatever order their responses happen to arrive. `exhaustMap` starts nothing new while its current inner stream is still running.",
+    },
+    {
+      text: 'It cancels the first save and starts a fresh one.',
+      why: "That's `switchMap` — exactly the operator you do NOT want on a save. Cancelling a half-finished write is data loss, which is the whole reason this lesson's rule of thumb is 'reads want switchMap, writes never do.'",
     },
   ];
 

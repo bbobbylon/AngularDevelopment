@@ -16,16 +16,58 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big → .bf-say → app-no-dumb-questions
+       (6-8 items carrying the whole explanation) → app-brain-power → one figure
+       (app-layers or app-whiteboard) → one app-quiz → app-napkin with the analogy.
+       Never: app-bubbles, app-tape-card, app-receipt, app-remember — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You changed the number. Nobody told the screen.</h2>
+    <p class="bf-big">You changed the number. Nobody told the screen. Nobody was supposed to.</p>
+
+    <p class="bf-say">
+      There's no hook in JavaScript that fires when a value is read or written — so if you're picturing Angular quietly
+      "watching" a field for changes, there's nothing to watch it with. The real mechanism is stranger, and once it
+      clicks, every signals bug on this page stops being mysterious.
+    </p>
+
+    <app-no-dumb-questions [items]="ndq" />
+
+    <app-brain-power
+      question="A `computed`'s dependency list isn't declared anywhere — it's just whatever signals its body happened to read on its MOST RECENT run. So what happens to a signal an `if` skipped reading this time, that it read on the run before?"
+      hint="Ask whether the graph remembers a signal it stopped reading, or only ever knows what the last run actually touched."
+    />
+
+    <app-layers
+      [core]="{ label: 'count = signal(0)', sub: 'a box holding a value — and a mailing list' }"
+      [rings]="[{ label: 'count() called', sub: 'the call itself is what joins the mailing list' }]"
+      arrow="reading is the subscription"
+      caption="Nothing subscribes count from the outside. The box only ever learns it has a new reader because something called it — the read and the subscription are the exact same act."
+    />
+
+    <app-quiz
+      question="`count` is a signal and nothing on screen currently reads it. You call `count.set(5)` inside a click handler. At the exact moment that line runs, how much of the app recomputes?"
+      [options]="ndqBlockQuiz"
+      followUp="Laziness &amp; caching, further down, has a live counter that lets you watch this exact gap between 'written' and 'recomputed' in real time."
+    />
+
+    <app-napkin lead="the mental model —" label="A mailing list, not a doorbell">
+      A signal is a box that keeps a list of everyone who has ever read it, and tells them the moment its contents
+      change — closer to a mailing list you join by reading than a doorbell you have to remember to wire up. The full
+      picture, with the system it's modelled on, is one section down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>Angular handed you a spreadsheet.</h2>
 
     <p>
-      Assigning a value in JavaScript is a completely silent act. <code>count = 5</code> writes one slot in memory and
-      that is the end of it. No event fires. Nothing in the language will call you back. The old number is still painted
-      on the screen, the total that was calculated from it is still wrong, and
-      <strong>not one line of code has any idea.</strong>
+      Here's the silent-assignment problem from the block above, spelled out. Assigning a value in JavaScript is a
+      completely silent act — <code>count = 5</code> writes one slot in memory and that's the end of it. No event fires,
+      nothing calls you back, and the total calculated from the old number is still wrong on screen with
+      <strong>not one line of code aware anything happened:</strong>
     </p>
 
     <div class="code">
@@ -33,30 +75,14 @@
     </div>
 
     <p>
-      That is the entire problem signals exist to solve. A plain variable is a <span class="term">silent box</span>. A
+      That's the entire problem signals exist to solve. A plain variable is a <span class="term">silent box</span>. A
       signal is a box that <span class="key">keeps a list of everyone who has ever read it</span> and tells them the
       moment its contents change. Everything else on this page — <code>computed</code>, <code>effect</code>, zoneless
-      change detection — is built on that one behaviour.
-    </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Before you scroll: <strong>who does the telling?</strong> Most people guess that Angular quietly watches the field
-      and notices. It does not — there is no hook in JavaScript that fires when you read or write
-      <code>obj.count</code>, so watching is not on the menu. Hold your guess. The real answer is stranger and better,
-      and it explains every signals bug you are ever going to write.
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Angular handed you a spreadsheet.</h2>
-
-    <p>
-      You already know this system. Type <code>5</code> into cell <strong>A1</strong>. In <strong>B1</strong> type
-      <code>= A1 * 2</code>. Change A1 to <code>7</code> and B1 becomes <code>14</code> — and you never told it to. You
-      did not write an update function, subscribe to A1, or remember to refresh anything. The sheet knows that B1 read
-      A1, because <em>reading it is how the formula was written</em>.
+      change detection — is built on that one behaviour. Here's the system it's modelled on. You already know this one.
+      Type <code>5</code> into cell <strong>A1</strong>. In <strong>B1</strong> type <code>= A1 * 2</code>. Change A1 to
+      <code>7</code> and B1 becomes <code>14</code> — and you never told it to. You did not write an update function,
+      subscribe to A1, or remember to refresh anything. The sheet knows that B1 read A1, because
+      <em>reading it is how the formula was written</em>.
     </p>
 
     <p class="bf-hand bf-hand--note">that last sentence is the whole trick — reading is subscribing</p>

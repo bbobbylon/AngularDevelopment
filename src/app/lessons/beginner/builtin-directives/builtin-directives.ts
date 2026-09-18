@@ -9,8 +9,9 @@ import {
   NgSwitchDefault,
 } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
@@ -25,26 +26,40 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
  * Angular 17, in most tutorials, and in exam questions — and because the `*`
  * prefix is not obvious once you stop seeing it every day.
  *
+ * ## Shape: `argument`
+ *
+ * The lesson opens on the tension behind the one rule every beginner hits and
+ * nobody explains: `*ngIf` and `*ngFor` are each behaving exactly as designed,
+ * and neither can be blamed for the compile error that results from putting
+ * both on one tag. {@link argRoundOne} stages `*ngIf`, `*ngFor` and the
+ * element itself each stating a perfectly reasonable request that, together,
+ * can't all be granted; `app-brain-power` asks what the compiler actually
+ * refuses to do; {@link argRoundTwo} has all three deny responsibility before
+ * "You" delivers the verdict — nesting order is a choice a template author
+ * makes, not a default Angular can safely guess. `app-layers` answers the same
+ * question as a containment figure (which stencil wraps which changes how
+ * often the inner one runs), a quiz checks that consequence directly, and the
+ * block closes on `app-napkin` with the stencil analogy. See
+ * `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
  * following the shape of the reference implementation in
- * `lessons/expert/change-detection/`. The teaching order:
+ * `lessons/expert/change-detection/`. After the shape block, "the mental
+ * model, in full" replays the stencil analogy at full length, then the rest of
+ * the page carries on in the order it always did:
  *
- * 1. **Pose the problem before naming it.** The page opens on a rule every
- *    beginner hits and nobody explains — you can never put two structural
- *    directives on one element — and asks the reader to guess why before any
- *    mechanism is described.
- * 2. **Analogy before vocabulary.** An `<ng-template>` is a stencil, not a page:
- *    holding it does nothing until something presses it down. That frame gives
- *    `TemplateRef`/`ViewContainerRef` somewhere to land before those words carry
- *    any weight, staged twice — once in prose, once as a dialogue between "you",
- *    the compiler and `NgIf`.
- * 3. **The same idea in several modes.** The desugaring gets a quiz (commit to
+ * 1. **Analogy before vocabulary, restaged.** An `<ng-template>` is a stencil,
+ *    not a page: holding it does nothing until something presses it down. That
+ *    frame gives `TemplateRef`/`ViewContainerRef` somewhere to land before
+ *    those words carry any weight, staged twice — once in prose, once as a
+ *    dialogue between "you", the compiler and `NgIf`.
+ * 2. **The same idea in several modes.** The desugaring gets a quiz (commit to
  *    an answer), a `CodeLab` (the literal before/after), and a `Flow` diagram
  *    (the runtime steps) — three angles on one rewrite, because that rewrite is
  *    the single fact every other rule on this page follows from.
- * 4. **Every substantial snippet is annotated line by line** via `app-code-lab`:
+ * 3. **Every substantial snippet is annotated line by line** via `app-code-lab`:
  *    the desugared template, `*ngIf`'s else/then/as trio, `*ngFor`'s microsyntax
  *    plus its `trackBy` function, `[ngSwitch]`, and `ngClass`/`ngStyle`'s three
  *    forms.
@@ -64,8 +79,10 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -85,6 +102,86 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
 })
 export class BuiltinDirectives {
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  /**
+   * Round one of the shape block's argument: `*ngIf`, `*ngFor` and the
+   * element they both want, each stating a request that is individually
+   * reasonable and jointly impossible.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: '*ngIf',
+      says: 'I want this `<li>` turned into a stencil that presses once, or not at all, depending on `show`.',
+    },
+    {
+      who: '*ngFor',
+      says: 'I want this exact same `<li>` turned into a stencil that presses once per item in `xs`.',
+    },
+    {
+      who: 'The element',
+      says: "I'm one tag. I can become one `<ng-template>`. I cannot be two stencils stacked on the same piece of paper.",
+    },
+    {
+      who: '*ngIf',
+      says: 'Fine — then wrap yours first, mine second. Nest your stencil inside mine.',
+    },
+    {
+      who: '*ngFor',
+      says: 'Why that order and not the other one — mine outside, yours inside? Nothing about my request said I had to go last.',
+    },
+    {
+      who: 'The element',
+      says: 'And THAT is the actual compile error. Both of you are completely correct about what you want. Neither of you said which one wraps which.',
+    },
+  ];
+
+  /**
+   * Round two: all three deny responsibility for choosing a nesting order
+   * before the reader — "You" — delivers the verdict.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: '*ngIf',
+      says: 'Not me. My request was perfectly legal on its own — I never said I had to go first or second.',
+    },
+    {
+      who: '*ngFor',
+      says: 'Not me either, same defence. Wrapping a filtered list once per surviving item is a completely reasonable thing to want.',
+    },
+    {
+      who: 'The element',
+      says: "Not me — I'm not even a stencil yet at this point. I don't exist as one until ONE of you decides to make me into it.",
+    },
+    {
+      who: 'You',
+      says: "It's yours. `<ng-container>` renders nothing by itself — it exists purely so you can nest one star inside the other and choose the order out loud: `*ngIf` outside checks the condition once, then loops; `*ngFor` outside loops first, re-checking the condition on every single item. Angular refuses to guess, because guessing wrong changes what actually renders, not just how fast.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the concrete runtime consequence of nesting
+   * order, checked once up front — the desugaring section further down shows
+   * the same rewrite from the compiler's side.
+   */
+  protected readonly argBlockQuiz: QuizOption[] = [
+    {
+      text: 'Once — `*ngIf` wraps the whole loop, so its condition is checked a single time before `*ngFor` ever runs.',
+      correct: true,
+      why: '`*ngIf` is the outer stencil in this nesting, so its `<ng-template>` is created (or not) exactly once. `*ngFor` only ever runs INSIDE that outer template — it never gets a chance to ask `show` about anything itself.',
+    },
+    {
+      text: 'Once per item in `xs` — the two stencils are nested, so both conditions get checked on every iteration.',
+      why: "Nesting means the inner stencil runs inside the outer one's output — it doesn't mean the outer condition gets re-asked per inner iteration. `show` belongs to the outer `*ngIf` alone; `*ngFor` never touches it.",
+    },
+    {
+      text: 'It depends on which directive is written first in the source, not which one is nested outer.',
+      why: "Source order inside the same tag isn't legal here at all — that's the whole reason for this error in the first place. What determines the answer is which element the directive is actually attached to: the outer `<ng-container>` or the inner `<li>`.",
+    },
+    {
+      text: 'Zero times unless `xs` is non-empty.',
+      why: "`*ngIf` evaluates `show` regardless of what `xs` contains — it doesn't know `*ngFor` exists. If `show` is true and `xs` happens to be empty, `*ngIf`'s stencil still gets pressed once; `*ngFor` then simply has nothing to loop over.",
+    },
+  ];
 
   /** The Control Flow / Directives stretch of the Beginner track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

@@ -17,36 +17,121 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Type "angular" into a search box. How many network requests should that cause?</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">Find the one row where the second call never has to wait — or cancel, or share the line.</p>
 
-    <p>
-      A raw DOM <code>(input)</code> event fires once per keystroke — no waiting, no judgment, no memory of what you
-      searched a moment ago. Wire it straight to <code>this.api.search(value)</code> and typing a seven-letter word
-      fires <strong>seven separate HTTP requests</strong>, most of them for a query you'd already moved past by the time
-      the response came back. And if the third response happens to arrive after the seventh, the box briefly shows
-      results for "ang" long after you've typed "angular".
+    <app-brain-power
+      question="Only one of the four rows below can make a NEWER call wait behind an OLDER one that's still running. Which row is it, and what's the one thing it guarantees that the other three don't?"
+      hint="Ask which row is the only one where the second bar never starts before the first bar ends."
+    />
+
+    <app-whiteboard
+      caption="One ringing phone, already answered. Four receptionists, four different second calls."
+      alt="Four horizontal rows, one per operator, each with a vertical dashed line marking the moment a second call arrives partway through the first. Row switchMap: the first call's bar is cut short exactly at the arrival line and marked cancelled; the second call's bar starts immediately where the first was cut off. Row mergeMap: the first call's bar runs uninterrupted through and past the arrival line; the second call's bar starts at the arrival line and runs alongside it, overlapping. Row concatMap: the first call's bar runs to its own natural end just after the arrival line; the second call's bar starts only once the first bar ends, with no overlap. Row exhaustMap: the first call's bar runs uninterrupted through and past the arrival line; no bar at all appears for the second call, only a label reading ignored, call never made."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 400" aria-hidden="true" focusable="false">
+        <line x1="300" y1="24" x2="300" y2="376" class="wb-rule" stroke-dasharray="4 4" />
+        <text x="300" y="16" text-anchor="middle" class="wb-hand">second call arrives</text>
+
+        <!-- switchMap -->
+        <text x="20" y="66" class="wb-hand">switchMap</text>
+        <rect x="100" y="50" width="200" height="28" rx="6" class="wb-node" />
+        <text x="285" y="69" text-anchor="end" class="wb-mono wb-text--sm">✗</text>
+        <rect x="300" y="50" width="200" height="28" rx="6" class="wb-node wb-node--lit" />
+        <text x="300" y="98" text-anchor="middle" class="wb-text--sm">
+          first call cancelled — second runs immediately
+        </text>
+
+        <!-- mergeMap -->
+        <text x="20" y="156" class="wb-hand">mergeMap</text>
+        <rect x="100" y="132" width="260" height="24" rx="6" class="wb-node" />
+        <rect x="300" y="162" width="200" height="24" rx="6" class="wb-node wb-node--lit" />
+        <text x="300" y="206" text-anchor="middle" class="wb-text--sm">both run at once — concurrently</text>
+
+        <!-- concatMap -->
+        <text x="20" y="246" class="wb-hand">concatMap</text>
+        <rect x="100" y="222" width="220" height="24" rx="6" class="wb-node" />
+        <rect x="320" y="222" width="200" height="24" rx="6" class="wb-node wb-node--lit" />
+        <text x="310" y="212" text-anchor="middle" class="wb-hand wb-text--sm">waits</text>
+        <text x="310" y="266" text-anchor="middle" class="wb-text--sm">
+          second call waits, runs only after the first finishes
+        </text>
+
+        <!-- exhaustMap -->
+        <text x="20" y="336" class="wb-hand">exhaustMap</text>
+        <rect x="100" y="312" width="260" height="24" rx="6" class="wb-node" />
+        <text x="350" y="329" text-anchor="middle" class="wb-mono wb-text--sm">✗ ignored — call never made</text>
+        <text x="230" y="356" text-anchor="middle" class="wb-text--sm">
+          new value dropped while the first is in flight
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="first call cancelled — second runs immediately"
+        text="the only one of the four that actively hangs up on the first call. Every other policy at least lets it finish."
+      />
+      <app-scribble
+        point="up"
+        quote="both run at once — concurrently"
+        text="mergeMap makes no promise about ORDER either. If the second call's response happens to come back first, its result lands first — fine for independent writes, a bug for anything order-sensitive."
+      />
+      <app-scribble
+        tone="olive"
+        quote="second call waits, runs only after the first finishes"
+        text="the only policy that guarantees results arrive in the same order the calls were made — and the only one where a slow first call can make a fast second call wait behind it."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <code>concatMap</code>. It's the only policy that queues rather than cancelling, merging or dropping — the second
+      call is held back until the first one's inner stream completes, the one arrangement that guarantees arrival order
+      matches request order. The other three all trade that guarantee for something else: <code>switchMap</code> trades
+      away the first call's result entirely, <code>mergeMap</code> trades ordering for speed, and
+      <code>exhaustMap</code> trades away the second call's request outright.
     </p>
 
-    <p>
-      None of that is a bug in the browser or in HTTP. It's what happens when nothing stands between the event and the
-      request. Operators are that something — and the four you're about to meet exist entirely to answer one question:
-      <span class="key">what happens when a new value shows up before the last one finished being handled?</span>
-    </p>
+    <p>In practice you never weigh all four side by side. You ask these in order and stop at the first yes:</p>
 
-    <app-napkin lead="before you scroll —" label="Predict before reading on">
-      Of those seven keystroke-triggered requests, how many results should the user actually <em>see</em> land in the
-      box, if you did nothing else at all? There's a live version of this exact scenario further down this page — count
-      the real number against your guess.
+    <app-flow
+      [steps]="choosing"
+      caption="Note that the first question settles most cases — which is also why `switchMap` ends up pasted into places it does not belong."
+    />
+
+    <app-quiz
+      question="A 'Save' button is wired through `exhaustMap`. The first click's save request is still in flight when a second, impatient click happens. What does that second click actually do?"
+      [options]="exhaustBlockQuiz"
+      followUp="Wire the same button through `concatMap` instead, and the second click doesn't disappear — it waits and fires once the first save finishes."
+    />
+
+    <app-napkin lead="the mental model —" label="Four receptionists, one ringing phone">
+      Four receptionists, and a second call rings while each is already on the line. Hang up and take the new one
+      (<code>switchMap</code>). Put everyone on speakerphone (<code>mergeMap</code>). Take a message and call back in
+      order (<code>concatMap</code>). Let it ring out (<code>exhaustMap</code>). The fuller version — plus which one
+      actually belongs on a search box versus a submit button — is one section down.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY ONE: THE PIPE ITSELF ============ -->
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
     <h2>Every operator is a small machine bolted onto a conveyor belt.</h2>
+
+    <p>
+      Type "angular" into a search box — how many network requests should that actually cause? A raw DOM
+      <code>(input)</code> event fires once per keystroke — no waiting, no judgment, no memory of what you searched a
+      moment ago. Wire it straight to <code>this.api.search(value)</code> and typing a seven-letter word fires
+      <strong>seven separate HTTP requests</strong>, most of them for a query you'd already moved past by the time the
+      response came back. And if the third response happens to arrive after the seventh, the box briefly shows results
+      for "ang" long after you've typed "angular". None of that is a bug in the browser or in HTTP — it's what happens
+      when nothing stands between the event and the request.
+    </p>
 
     <p>
       <code>.pipe(...)</code> is the belt. Each operator you place on it is a machine with exactly one job — transform a
@@ -190,12 +275,10 @@
       </tbody>
     </table>
 
-    <p>In practice you never weigh all four. You ask these in order and stop at the first yes:</p>
-
-    <app-flow
-      [steps]="choosing"
-      caption="Note that the first question settles most cases — which is also why `switchMap` ends up pasted into places it does not belong."
-    />
+    <p>
+      The decision flow for picking between them lives in the shape block at the top of this page — the same four rows
+      drawn here as marbles, asked as yes/no questions instead.
+    </p>
   </section>
 
   <!-- ============ 6. TRY IT — TYPE-AHEAD ============ -->
@@ -203,9 +286,15 @@
     <p class="bf-eyebrow">Try it — reads want switchMap</p>
     <h2>The type-ahead from the top of this page, for real.</h2>
 
+    <app-napkin lead="before you type —" label="Predict before reading on">
+      A seven-letter word means seven keystroke-triggered requests. Before you touch the box below: how many results
+      should the user actually <em>see</em> land in it, if <code>switchMap</code> is doing its job? Commit to a number,
+      then type and count the real one.
+    </app-napkin>
+
     <p>
-      Same scenario as the very first question here. Type into the box below — fast, slow, delete and retype — and watch
-      the gap between raw keystrokes and searches actually issued.
+      Same scenario as the very first question on this page. Type into the box below — fast, slow, delete and retype —
+      and watch the gap between raw keystrokes and searches actually issued.
     </p>
 
     <div class="demo">

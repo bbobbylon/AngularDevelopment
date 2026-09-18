@@ -2,6 +2,8 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -16,23 +18,38 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * memoisation, dynamically tracked dependencies, the glitch-free guarantee,
  * `Object.is` equality and the mutation trap that falls out of it.
  *
+ * ## Shape: `no-dumb-questions`
+ *
+ * The lesson opens on the misconception every beginner brings to this topic —
+ * "doesn't Angular just watch the field?" — and lets {@link ndq} carry the
+ * whole explanation, escalating from that misconception through the push/pull
+ * split, the array-mutation trap, and the effect-as-second-source-of-truth
+ * mistake, to where it bites at work (a websocket handler mutating an array
+ * signal in place) and the one-sentence fix. `app-brain-power` poses an open
+ * question about a `computed` that skips a dependency on one run — answered,
+ * without saying so, by the `derivedSample` code-lab further down — `app-layers`
+ * answers the "who's watching" question as a containment figure (reading is
+ * literally what joins the mailing list), a quiz checks the write side of the
+ * push/pull split, and the block closes on `app-napkin` with the mailing-list
+ * analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
  * following the shape of the reference implementation in
- * `lessons/expert/change-detection/`. The teaching order is deliberate:
+ * `lessons/expert/change-detection/`. After the shape block, "the mental
+ * model, in full" replays the silent-assignment problem and the spreadsheet
+ * analogy at full length, then the rest of the page carries on in the order it
+ * always did:
  *
- * 1. **Pose the problem first.** The page opens on "you changed the number —
- *    who told the screen?" and makes the reader commit to a guess on a napkin
- *    before any API appears.
- * 2. **Analogy before vocabulary.** The spreadsheet frame arrives before the
+ * 1. **Analogy before vocabulary.** The spreadsheet frame arrives before the
  *    words *signal*, *computed* and *effect* have to carry any weight, so those
  *    words land on something the reader already owns.
- * 3. **Then the same idea in several modes** — a taped row of the three
+ * 2. **Then the same idea in several modes** — a taped row of the three
  *    primitives, annotated snippets, a dialogue between a template and a
  *    `computed`, a containment diagram of the read path, a hand-drawn diamond
  *    for glitch-freedom, and four live demos.
- * 4. **Every substantial snippet is annotated line by line** via `app-code-lab`.
+ * 3. **Every substantial snippet is annotated line by line** via `app-code-lab`.
  *
  * ## Demos on this page
  *
@@ -59,6 +76,8 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -208,6 +227,69 @@ export class Signals {
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  /**
+   * The shape block's spine: seven questions escalating from "who's watching
+   * this field" through the push/pull split, the array-mutation trap and the
+   * effect-as-second-source-of-truth mistake, to where it bites at work and
+   * the one-sentence fix. Carries the entire explanation on its own — see
+   * `NoDumbQuestions`'s own doc comment for why that is the point.
+   */
+  protected readonly ndq: NdqItem[] = [
+    {
+      q: "Nobody wired anything to `count` — no `subscribe()`, no observer, nothing. So who's watching it for changes?",
+      a: "Nobody's watching. There's no hook in JavaScript that fires when a value is read or written, so 'watching' was never on the menu. The trick runs the other way: **reading a signal is what subscribes to it.** `count()` isn't just a read — it's a call, and the call itself registers whoever is running as a consumer.",
+    },
+    {
+      q: 'OK — so if reading subscribes, what actually happens the instant I call `count.set(5)`?',
+      a: "Almost nothing, on purpose. The write bumps a version counter on the signal and marks every registered consumer 'dirty'. It does not run a single one of them. Signals **push a notification, never a recompute** — the actual work waits for whoever reads next.",
+    },
+    {
+      q: "If a write doesn't recompute anything, when does the work actually happen?",
+      a: 'On the next **read** of something dirty, and not a moment before. A `computed` nobody ever reads can sit changed-and-unread forever and its body will never run again, no matter how many times its sources change underneath it. Formulas are lazy — a formula nobody asks for never runs.',
+    },
+    {
+      q: "I called `items().push('d')` on an array signal and the screen didn't change. Is the signal broken?",
+      a: "No — and this is the single most common way a signal gets blamed for a bug it didn't cause. `push` mutates the array `items` already holds; the signal's *value* — the array **reference** — never changed. `Object.is` compares references, sees the same array, and concludes nothing happened. Nothing was lost. It was never announced. Replace it instead: `items.update(list => [...list, 'd'])`.",
+    },
+    {
+      q: "I used an `effect` to keep a second signal in sync with the first one. That's basically the same job as `computed`, right?",
+      a: "It compiles, it mostly works, and it's the wrong tool. The effect runs **after** the source changes, not during it — so for one tick, the copy disagrees with the thing it's copying. A `computed` has no such gap: it isn't stored anywhere at all, it *is* the derivation, recalculated fresh the moment something asks for it.",
+    },
+    {
+      q: 'Where does any of this actually bite someone at work?',
+      a: "A dashboard component holds `alerts = signal<Alert[]>([])`. A websocket handler does `this.alerts().push(newAlert)`, because `.push()` is the obvious method to reach for on an array. The array genuinely grows — logging it proves it — and the alert list on screen never updates, with nothing in the console explaining why. It's the array-mutation trap above, wearing a production incident instead of a demo.",
+    },
+    {
+      q: "So what's the one-sentence version of all of this?",
+      a: '**Reading subscribes, writing marks, and equality decides whether a mark ever turns into work.** Replace instead of mutating, derive with `computed` instead of an `effect`, and trust that a signal nobody reads costs nothing to change.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the write side of the push/pull split, checked
+   * once up front — the "Laziness & caching" section further down is the same
+   * gap seen from the read side, with a live counter to watch it happen.
+   */
+  protected readonly ndqBlockQuiz: QuizOption[] = [
+    {
+      text: "None of it — the write only bumps count's version and marks its (currently empty) consumer list dirty. Nothing recomputes until something reads count again.",
+      correct: true,
+      why: 'Signals push a **notification**, never a recompute. A write is cheap on purpose: it marks the graph and stops, and the actual work waits for whichever consumer reads next — which, with no template or `computed` currently reading `count`, might be never.',
+    },
+    {
+      text: 'The template re-renders immediately, since that is what a change is supposed to trigger.',
+      why: "There is no template reading `count` in this scenario, so there's nothing to re-render — and even if there were, a write still wouldn't run it synchronously. Angular schedules the re-render for later; the `set()` call itself only marks the signal dirty.",
+    },
+    {
+      text: 'Every `computed` in the component re-runs, just to be safe.',
+      why: "A `computed` only re-runs when something actually reads it while it's marked dirty. If nothing reads it, it stays dirty and unrun indefinitely — recomputing 'just in case' is exactly the pushy behaviour signals are built to avoid.",
+    },
+    {
+      text: 'Nothing — since nothing is listening, the write is silently dropped.',
+      why: "The write still happens. `count`'s stored value genuinely becomes 5, and its version counter still bumps. What doesn't happen is any recomputation — there's a difference between 'the value changed' and 'something reacted to it,' and this option collapses the two.",
+    },
+  ];
 
   /** The reactivity path a beginner walks, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

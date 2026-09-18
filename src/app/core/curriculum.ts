@@ -157,6 +157,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Describing object shapes, optional/readonly members, extension and merging.',
     level: 'typescript',
     category: 'Type System',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/typescript/interfaces/interfaces').then((m) => m.Interfaces),
   },
@@ -394,6 +395,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '*ngIf / *ngFor / *ngSwitch, ngClass, ngStyle, ng-container & ng-template.',
     level: 'beginner',
     category: 'Directives',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/beginner/builtin-directives/builtin-directives').then(
         (m) => m.BuiltinDirectives,
@@ -448,6 +450,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'signal(), computed(), effect() — Angular’s reactive primitive.',
     level: 'beginner',
     category: 'Signals',
+    shape: 'no-dumb-questions',
     loadComponent: () => import('../lessons/beginner/signals/signals').then((m) => m.Signals),
   },
   {
@@ -505,6 +508,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Built-in validators, custom validators and showing error messages.',
     level: 'intermediate',
     category: 'Forms',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/intermediate/form-validation/form-validation').then(
         (m) => m.FormValidation,
@@ -641,6 +645,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'map, filter, tap, switchMap, mergeMap, concatMap, exhaustMap.',
     level: 'intermediate',
     category: 'RxJS',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/rxjs-operators/rxjs-operators').then((m) => m.RxjsOperators),
   },
@@ -691,6 +696,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'TemplateRef, ViewContainerRef and the * micro-syntax.',
     level: 'intermediate',
     category: 'Pipes & Directives',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/intermediate/structural-directives/structural-directives').then(
         (m) => m.StructuralDirectives,
@@ -864,6 +870,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'provideClientHydration, event replay and incremental hydration.',
     level: 'expert',
     category: 'Rendering & Delivery',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/expert/hydration/hydration').then((m) => m.Hydration),
   },
   {
@@ -975,6 +982,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'withViewTransitions for smooth route-level transitions.',
     level: 'expert',
     category: 'Cross-Cutting',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/expert/view-transitions/view-transitions').then((m) => m.ViewTransitions),
   },
