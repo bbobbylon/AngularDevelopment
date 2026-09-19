@@ -2,6 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -57,19 +59,40 @@ const DEP_CHOICES: DepChoice[] = [
  * it wrong; and wiring `ng add` / `ng update` so consumers install and
  * upgrade automatically, `NodePackageInstallTask` included.
  *
+ * ## Shape: `receipt`
+ *
+ * The lesson opens on the concrete, ongoing cost of `npm publish`:
+ * {@link libraryBill} itemises what a published library signs up for
+ * forever — a locked `public-api.ts`, a `peerDependencies` promise about
+ * versions you don't control, every future breaking change needing a
+ * migration schematic — against a workspace-path import, which costs
+ * nothing. `app-scribble` names the biggest line item, `app-compare` puts
+ * the two real workflows side by side, `app-chain` previews the partial-
+ * compilation handshake that makes the contract honourable across Angular
+ * versions, and the block's own `app-code-lab` moves {@link createSample}
+ * up from "what actually ships" below, so the exact command sequence sits
+ * right next to the bill it produces. `app-brain-power` asks what happens
+ * when a consumer's installed Angular version falls outside your
+ * `peerDependencies` range, a quiz checks that renaming a public export is
+ * a major-version change, and the block closes loud on a `.bf-big` line.
+ * See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, see
- * `expert/change-detection` for the reference shape). The analogy running
- * through the whole page is a flat-pack shelf: a published library ships
- * PARTS and an instructions card, not a glued, finished object, and every
- * hard rule on this page — partial compilation, peer dependencies,
- * `public-api.ts` — is that same idea from a different angle. The dependency
- * contract in particular gets taught three ways in three different sections:
- * a dialogue (package manager negotiating with a library's package.json), a
- * live picker demo (unchanged from the lesson's original interactive), and a
- * quiz — because it is the single most exam-tested idea in this material and
- * the one every learner half-remembers wrong.
+ * `expert/change-detection` for the reference shape). After the shape
+ * block, "the mental model, in full" replays the "do you even need a
+ * published library" table and the flat-pack analogy at full length. The
+ * analogy running through the whole page is a flat-pack shelf: a published
+ * library ships PARTS and an instructions card, not a glued, finished
+ * object, and every hard rule on this page — partial compilation, peer
+ * dependencies, `public-api.ts` — is that same idea from a different angle.
+ * The dependency contract in particular gets taught three ways in three
+ * different sections: a dialogue (package manager negotiating with a
+ * library's package.json), a live picker demo (unchanged from the lesson's
+ * original interactive), and a quiz — because it is the single most
+ * exam-tested idea in this material and the one every learner
+ * half-remembers wrong.
  */
 @Component({
   selector: 'app-lesson-libraries-schematics',
@@ -81,6 +104,10 @@ const DEP_CHOICES: DepChoice[] = [
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -102,6 +129,56 @@ export class LibrariesSchematics {
   readonly activeDep = signal<DepChoice | null>(null);
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  /**
+   * The shape block's itemised bill: what publishing a library signs up
+   * for, forever, versus a workspace-path import's $0 line.
+   */
+  protected readonly libraryBill: ReceiptRow[] = [
+    {
+      label: 'public-api.ts exports',
+      amount: 'locked — a rename is now a major version',
+      tone: 'warn',
+    },
+    {
+      label: 'peerDependencies',
+      amount: "a promise about versions you don't control",
+      tone: 'warn',
+    },
+    { label: 'Every future breaking change', amount: 'needs a migration schematic', tone: 'warn' },
+    { label: 'A workspace path import instead', amount: '$0 — none of the above', tone: 'muted' },
+  ];
+
+  /** The total line under {@link libraryBill}. */
+  protected readonly libraryBillTotal: ReceiptRow = {
+    label: 'TOTAL',
+    amount: 'an ongoing contract with strangers, not a one-time command',
+  };
+
+  /**
+   * The shape block's quiz: whether renaming a public export is a breaking
+   * change, checked directly before the `ng update` predict further down
+   * runs the same "public contract, forever" idea forward.
+   */
+  protected readonly libraryBlockQuiz: QuizOption[] = [
+    {
+      text: 'A major version bump — anything public-api.ts exports is a permanent contract; renaming one symbol is indistinguishable from removing it.',
+      correct: true,
+      why: "Semver has no concept of 'just a rename.' A consumer importing `ButtonComponent` now gets a compile error the instant they update, exactly as if the export had been deleted outright — because, from the type checker's point of view, it has.",
+    },
+    {
+      text: "A minor version bump — it's just a rename, nothing was actually removed.",
+      why: "Nothing about semver tracks intent, only observable surface. `ButtonComponent` really is gone from the public API; that the replacement does the same thing internally is invisible to a consumer's build, which only sees a missing export.",
+    },
+    {
+      text: "A patch — renames don't change behaviour, only spelling.",
+      why: 'A patch promises the public API is completely unchanged. An import that compiled yesterday and fails today is the textbook definition of a breaking change, regardless of how small the edit felt to make.',
+    },
+    {
+      text: 'No version bump needed, as long as the new name is documented in the changelog.',
+      why: "A changelog entry doesn't stop a consumer's build from failing. If backward compatibility actually matters, the fix is to keep exporting the old name as an alias alongside the new one — documentation alone never substitutes for the export still existing.",
+    },
+  ];
 
   /** This is the only lesson in the Tooling category — a rail of one hides itself. */
   protected readonly stops: ChapterStop[] = [{ label: 'Libraries & Schematics' }];

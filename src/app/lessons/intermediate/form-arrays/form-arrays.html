@@ -17,27 +17,93 @@
     </p>
   </app-chapter>
 
-  <!-- === 1. THE PROBLEM === -->
-  <app-napkin lead="notice —">
-    Every invoice line item below is a whole <code>FormGroup</code>; every tag is a single plain control. Neither array
-    has a fixed number of slots — that number is decided the moment you click "+ Add", which is exactly what a
-    <code>FormGroup</code>'s named keys can't do.
-  </app-napkin>
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">"I never lost anything," says the method that quietly drops two rows out of three.</p>
 
-  <!-- === 2. ANALOGY === -->
-  <p>
-    Think of a <code>FormGroup</code> as a filing cabinet with labeled drawers — <code>title</code>, <code>email</code>,
-    <code>address</code> — you always reach in by name. A <code>FormArray</code> is more like a numbered coat-check
-    rack: items go in by <strong>position</strong>, not by name, and that position can shift every time someone drops
-    off or picks up a coat. Hook #1 always exists, but which coat is hanging on it changes — and that one fact explains
-    almost every FormArray bug in this lesson.
-  </p>
-  <app-remember variant="rule" label="If you remember one thing">
-    A <code>FormArray</code> is the <strong>same instance</strong> for its whole lifetime. Mutate it —
-    <code>push</code>, <code>removeAt</code>, <code>insert</code>, <code>clear</code> — never replace it with
-    <code>setControl('items', new FormArray([...]))</code>. Existing bindings only stay alive if the object they point
-    at stays the same.
-  </app-remember>
+    <p class="bf-say">
+      The server sends three line items. The array has one seeded row. Call one method and it throws immediately,
+      loudly, on the spot. Call the other and nothing throws at all — and two rows are simply never there.
+    </p>
+
+    <p>
+      The parties: <strong><code>patchValue()</code></strong
+      >, the forgiving one — it writes into whatever indices already exist and quietly skips the rest.
+      <strong><code>setValue()</code></strong
+      >, the strict one — it demands an exact match, length included, and throws the instant it doesn't get one. And
+      <strong>the array itself</strong>, which neither of them ever resizes.
+    </p>
+
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="patchValue() never throws, never logs, never leaves a trace. If it's silently the more dangerous of the two, why would any real codebase ever reach for it over the one that throws?"
+      hint="Ask what setValue() would do to a form the user is ALREADY halfway through filling in, versus a form you're hydrating fresh from the server."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      <code>setValue()</code> and <code>patchValue()</code> disagree on how to fail, and that disagreement is the API
+      working exactly as documented — a loud throw versus a silent skip, not a bug in either one. What neither of them
+      will ever do is resize the array to match your data. That line belongs to you, before either call, every single
+      time.
+    </p>
+
+    <app-layers
+      [core]="{ label: '1 seeded row', sub: 'the real length of the array before hydration' }"
+      [rings]="[
+        { label: 'patchValue([3 items])', sub: 'writes row 0, silently drops rows 1 and 2 — no error, no log' },
+      ]"
+      arrow="nothing tells you two rows went missing"
+      caption="The array only ever had one slot. patchValue() filled the slot that existed and said nothing about the two it couldn't — not because it failed, but because writing into what's there is the entire job it promised."
+    />
+
+    <app-quiz
+      question="The array has 1 row. The server sends 3 items. You call `itemsArray.setValue([...three items])` WITHOUT resizing first. What happens?"
+      [options]="argBlockQuiz"
+      followUp="Swap `setValue` for `patchValue` in that same call, still without resizing, and nothing throws at all — rows 2 and 3 just never appear. That silent version is the one this block opened on."
+    />
+
+    <app-napkin lead="the mental model —" label="A strict clerk and a shrugging one">
+      <code>setValue()</code> is the clerk who counts everything and refuses anything that doesn't match, out loud,
+      immediately. <code>patchValue()</code> is the clerk who restocks what fits and shrugs off the rest, in silence.
+      Handed three items for a shelf with room for one, the strict clerk saves you today. The shrugging one costs you
+      three weeks from now, when somebody finally notices row two is empty. The fuller version — plus the coat-check
+      analogy for what a <code>FormArray</code> actually is — is one section down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ THE MENTAL MODEL, IN FULL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>A FormArray is a numbered coat-check rack, not a filing cabinet.</h2>
+
+    <p>
+      Every invoice line item below is a whole <code>FormGroup</code>; every tag is a single plain control. Neither
+      array has a fixed number of slots — that number is decided the moment you click "+ Add", which is exactly what a
+      <code>FormGroup</code>'s named keys can't do.
+    </p>
+
+    <p>
+      Think of a <code>FormGroup</code> as a filing cabinet with labeled drawers — <code>title</code>,
+      <code>email</code>, <code>address</code> — you always reach in by name. A <code>FormArray</code> is more like a
+      numbered coat-check rack: items go in by <strong>position</strong>, not by name, and that position can shift every
+      time someone drops off or picks up a coat. Hook #1 always exists, but which coat is hanging on it changes — and
+      that one fact explains almost every FormArray bug in this lesson.
+    </p>
+    <app-remember variant="rule" label="If you remember one thing">
+      A <code>FormArray</code> is the <strong>same instance</strong> for its whole lifetime. Mutate it —
+      <code>push</code>, <code>removeAt</code>, <code>insert</code>, <code>clear</code> — never replace it with
+      <code>setControl('items', new FormArray([...]))</code>. Existing bindings only stay alive if the object they point
+      at stays the same.
+    </app-remember>
+  </section>
 
   <!-- === 3. SETUP === -->
   <h2>Setup — building a FormArray of groups</h2>

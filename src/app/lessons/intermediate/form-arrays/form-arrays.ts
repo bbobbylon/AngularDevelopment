@@ -16,8 +16,10 @@ import {
   type ChapterStop,
   CodeLab,
   type CodeNote,
+  Layers,
   Napkin,
 } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import {
   Compare,
   Faq,
@@ -36,6 +38,25 @@ import {
  * and removing controls, arrays of GROUPS vs arrays of PLAIN controls,
  * array-level validators, what actually happens inside push()/removeAt(),
  * and the classic track-by-index bug that makes rows "jump".
+ *
+ * ## Shape: `argument`
+ *
+ * The lesson opens on the tension between `setValue()` and `patchValue()`
+ * when the array hasn't been resized to match incoming data: one throws
+ * immediately, the other silently drops rows, and both are doing exactly
+ * what their own documentation promises. {@link argRoundOne} stages
+ * `patchValue()`, `setValue()` and the array itself each stating a truth
+ * that together explains a real, easy-to-miss data-loss bug;
+ * `app-brain-power` asks why any codebase would ever reach for the
+ * silently-dangerous one on purpose (answered, without saying so, by the
+ * hydration demo further down, which needs exactly that forgiveness);
+ * {@link argRoundTwo} has all three deny responsibility before "You" names
+ * the missing line — resizing the array is nobody's job but yours.
+ * `app-layers` answers the same split as a containment figure, a quiz checks
+ * the throw-vs-silent-skip case directly, and the block closes on
+ * `app-napkin` with a fresh clerk analogy — kept separate from the
+ * pre-existing coat-check analogy, which explains what a `FormArray` *is*
+ * rather than this specific failure mode. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-form-arrays',
@@ -47,7 +68,9 @@ import {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -413,6 +436,86 @@ protected hydrateFixed() {
 </div>`;
 
   // ── brain-friendly content ──
+
+  /**
+   * Round one of the shape block's argument: `patchValue()`, `setValue()`
+   * and the array itself, each stating a truth that together explains a
+   * real, easy-to-miss data-loss bug.
+   */
+  readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'patchValue()',
+      says: "I'm the forgiving one. Hand me a value with more rows than you've got slots for, and I just... don't complain. I fill in what fits and leave the rest alone.",
+    },
+    {
+      who: 'setValue()',
+      says: "I'm the strict one. Hand me a value that doesn't match my shape exactly — length included — and I throw, right there, immediately.",
+    },
+    {
+      who: 'The array',
+      says: 'One of you sounds friendlier. It is not the one you want.',
+    },
+    {
+      who: 'patchValue()',
+      says: 'What? I never lost anything — I just left rows 1 and 2 exactly where they were: empty. Nothing crashed.',
+    },
+    {
+      who: 'setValue()',
+      says: 'And I would have told you that on the spot, the very first time you ran the code — not three weeks later, when someone finally notices row two of every loaded invoice is blank.',
+    },
+    {
+      who: 'The array',
+      says: "Neither of you resizes me. That part was never either of your jobs — it's the one line missing before both of you get called.",
+    },
+  ];
+
+  /**
+   * Round two: all three deny responsibility for the missing resize before
+   * the reader — "You" — delivers the verdict.
+   */
+  readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: 'patchValue()',
+      says: "Not me. I did exactly what my name promises — 'patch' has never meant 'resize.'",
+    },
+    {
+      who: 'setValue()',
+      says: 'Not me either. I threw a perfectly good error, right on schedule, the one time you called me without resizing first.',
+    },
+    {
+      who: 'The array',
+      says: "Not me — I don't resize myself. Nothing in my API auto-grows me to fit an incoming value.",
+    },
+    {
+      who: 'You',
+      says: "It's mine. `clear()`, then `push()` one fresh row per item the server sent, THEN call `setValue()` or `patchValue()` — that line is the part neither of them was ever going to write for me.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the throw-vs-silent-skip split checked
+   * directly, before the live hydration demo further down lets the reader
+   * watch both failure modes side by side.
+   */
+  readonly argBlockQuiz: QuizOption[] = [
+    {
+      text: "It throws immediately — the value's length doesn't match the array's control count.",
+      correct: true,
+      why: "`setValue()` demands an exact shape match, length included, and throws the instant it doesn't get one. That throw is the point: it catches the missing resize on the spot, in dev, instead of letting it ship.",
+    },
+    {
+      text: 'It silently writes only the first item and ignores the other two.',
+      why: "That's `patchValue()`'s behaviour, not `setValue()`'s. `patchValue()` writes into whatever indices already exist and quietly skips the rest; `setValue()` refuses outright instead of doing a partial write.",
+    },
+    {
+      text: 'It automatically grows the array to three rows and sets all three.',
+      why: "Neither method ever resizes the array for you — that's the one thing they agree on. `setValue()` just refuses to proceed at all when the lengths disagree, rather than growing anything to compensate.",
+    },
+    {
+      text: 'Nothing happens until you call `updateValueAndValidity()`.',
+      why: '`setValue()` runs its shape check and throws (or succeeds) synchronously, on the spot. `updateValueAndValidity()` is a separate, later step for re-running validators — it plays no part in whether `setValue()` itself throws.',
+    },
+  ];
 
   /**
    * Chapter rail: this lesson's Forms track (intermediate level only —

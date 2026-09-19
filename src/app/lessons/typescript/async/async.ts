@@ -2,6 +2,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -43,27 +45,45 @@ function cancellableWait(ms: number, signal: AbortSignal): Promise<void> {
  * with `AbortController`, and the Promise/Observable/async-iterable three-way
  * comparison.
  *
+ * ## Shape: `receipt`
+ *
+ * The lesson opens on the concrete cost of awaiting sequentially: three
+ * independent 400ms tasks, itemised in {@link asyncBill}, run up an
+ * 1,200ms bill one `await` at a time versus a flat 400ms through
+ * `Promise.all`. `app-scribble` names the gap (the second task hasn't even
+ * been CALLED yet, let alone started), `app-compare` puts the two code
+ * shapes side by side, `app-chain` previews the four-step reason the bill
+ * adds up, and {@link raceMechanismSample} is a fresh code-lab built for the
+ * block, showing the exact moment each task starts. `app-brain-power` asks
+ * what happens to two tasks that would have succeeded when a third,
+ * `Promise.all`-joined task rejects (answered later, without saying so, by
+ * the `Promise.all` tape-card further down), a quiz checks the timing
+ * directly, and the block closes loud on a `.bf-big` line. See
+ * `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
- * following the shape set by `expert/change-detection`. The teaching order:
+ * following the shape set by `expert/change-detection`. After the shape
+ * block, "the mental model, in full" replays the claim-ticket problem and
+ * analogy at full length — including a callback to the block's own receipt
+ * pun, since the lesson has been calling a Promise "a receipt" since its
+ * first paragraph — then the rest of the page carries on in the order it
+ * always did:
  *
- * 1. **Pose the problem before naming it.** The lesson opens on "you can't
- *    have the value yet — so what do you hold instead?", with a napkin
- *    prediction to check against the live demo further down.
- * 2. **Analogy, then vocabulary.** A promise as a claim ticket — issued now,
- *    exchanged later for the thing or an apology, and the ticket never
- *    reprints itself — gives the reader somewhere to put "settles once"
- *    before that phrase is used formally.
- * 3. **The same idea in four modes** — a lifecycle diagram, a dialogue
+ * 1. **Analogy, then vocabulary, restaged.** A promise as a claim ticket —
+ *    issued now, exchanged later for the thing or an apology, and the
+ *    ticket never reprints itself — gives the reader somewhere to put
+ *    "settles once" before that phrase is used formally.
+ * 2. **The same idea in four modes** — a lifecycle diagram, a dialogue
  *    between the parts of an `await`, annotated compiled-down code, and live
  *    counters/logs the reader operates themselves.
- * 4. **Three questions, asked explicitly** — mirroring the change-detection
+ * 3. **Three questions, asked explicitly** — mirroring the change-detection
  *    lesson's structure: *when* does paused code resume (timing), *what*
  *    happens when it fails (failure), and *how* do you run several at once
  *    (combining) — because "async is confusing" almost always turns out to
  *    be one of these three questions answered with the wrong mental model.
- * 5. **Every snippet is annotated line by line** via `app-code-lab`. Nothing
+ * 4. **Every snippet is annotated line by line** via `app-code-lab`. Nothing
  *    on this page assumes the reader can already read the snippet.
  *
  * ## Demos
@@ -84,6 +104,10 @@ function cancellableWait(ms: number, signal: AbortSignal): Promise<void> {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -199,6 +223,86 @@ export class Async {
   }
 
   // ── Presentation data ────────────────────────────────────────────────────────
+
+  /**
+   * The shape block's itemised bill: three independent 400ms tasks, awaited
+   * one at a time instead of together.
+   */
+  protected readonly asyncBill: ReceiptRow[] = [
+    { label: 'taskA() — awaited alone', amount: '400ms', tone: 'muted' },
+    { label: 'taskB() — waits for A to settle first', amount: '+400ms', tone: 'warn' },
+    { label: 'taskC() — waits for B to settle first', amount: '+400ms', tone: 'warn' },
+  ];
+
+  /** The total line under {@link asyncBill}. */
+  protected readonly asyncBillTotal: ReceiptRow = {
+    label: 'TOTAL — sequential',
+    amount: '1,200ms',
+  };
+
+  /**
+   * The shape block's code-lab: the exact moment each task starts, in both
+   * strategies — built fresh for the block rather than reusing
+   * {@link createConsumeSample}, which is about the eager-executor mechanism
+   * generally, not this specific sequential-vs-parallel timing story.
+   */
+  protected readonly raceMechanismSample = `async function sequential() {
+  const a = await taskA();   // parks here — nothing else runs until A settles
+  const b = await taskB();   // taskB() is not even CALLED yet — it starts only now
+  const c = await taskC();   // same story — C starts only after B settles
+  return [a, b, c];
+}
+
+async function parallel() {
+  const pa = taskA();        // started immediately
+  const pb = taskB();        // started immediately — same instant as pa
+  const pc = taskC();        // started immediately — same instant as pa, pb
+  return Promise.all([pa, pb, pc]); // just JOINS three already-running tasks
+}`;
+
+  /** Line-by-line walkthrough of {@link raceMechanismSample}. */
+  protected readonly raceMechanismNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: "The function parks here — literally does nothing else — until `taskA()`'s promise settles. Nothing lets it peek ahead to the next line first.",
+    },
+    {
+      line: 3,
+      text: "This is the line that costs 400ms you didn't need to spend. `taskB()` — the call that actually STARTS the work — doesn't run until line 2 finishes. The task was never running in the background; it hadn't even begun.",
+    },
+    {
+      line: 9,
+      text: 'All three calls here run back to back, synchronously, before any `await` shows up. Each one starts its own 400ms timer the instant it is called.',
+    },
+    {
+      line: 12,
+      text: "`Promise.all` doesn't start anything — every task it's handed is already running by the time this line executes. It only waits for the slowest one and bundles the results in order.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the sequential timing checked directly, before
+   * the live race further down lets the reader watch both numbers land.
+   */
+  protected readonly asyncBlockQuiz: QuizOption[] = [
+    {
+      text: 'About 1,200ms — each task waits for the previous one to settle before it even starts.',
+      correct: true,
+      why: "`await taskB()` doesn't run until the line above it finishes — which means `taskB()`, the call that starts the work, doesn't run until then either. Three tasks, each waiting for the last to settle before it begins, is three 400ms waits stacked in a row.",
+    },
+    {
+      text: 'About 400ms — all three tasks start the moment the function runs, regardless of where the `await`s are.',
+      why: "That's the parallel version's timing, not this one. In THIS code, `taskB()` and `taskC()` are not called until the `await` above each of them resumes — they don't get a head start just because the function itself started early.",
+    },
+    {
+      text: 'About 400ms — `await` only pauses the caller, not the tasks themselves, so they keep running in the background regardless.',
+      why: "The tasks aren't running in the background at all — they haven't been called yet. `await` pauses the FUNCTION, and while it's paused, the next task's call — the thing that would start its timer — simply hasn't happened.",
+    },
+    {
+      text: 'It depends on which task settles first.',
+      why: "That question describes `Promise.race`, not this code. Here the order is fixed by the source: A, then B, then C, each one waiting for the last — there's no race between them to have an outcome.",
+    },
+  ];
 
   /** The Language Features track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

@@ -16,14 +16,120 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You wrote markup. Why didn't anything show up?</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">One block of markup. Zero DOM nodes of its own. Follow where its content actually ends up.</p>
+
+    <app-brain-power
+      question="The exact same &lt;ng-template&gt; block is pressed by THREE separate [ngTemplateOutlet] bindings elsewhere on the page. How many actual DOM node trees exist as a result — one shared tree, or three independent ones?"
+      hint="Ask whether pressing a rubber stamp down three times on a page leaves one mark or three."
+    />
+
+    <app-whiteboard
+      caption="One stamp. Three presses. Three completely independent prints."
+      alt="One box at the top labelled the stamp, ng-template hash greetTpl, never rendered itself. Three arrows lead down from it to three separate boxes labelled Outlet A, Outlet B and Outlet C. Each of the three boxes shows a different context object passed to it and a different rendered greeting: Outlet A with context name Ada renders Hello, Ada. Outlet B with context name Grace renders Hello, Grace. Outlet C with context name Barbara renders Hello, Barbara."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 300" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="ng-template-outlet-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <rect x="295" y="16" width="170" height="64" rx="10" class="wb-node wb-node--lit" />
+        <text x="380" y="40" text-anchor="middle" class="wb-mono wb-text--sm">&lt;ng-template #greetTpl&gt;</text>
+        <text x="380" y="60" text-anchor="middle" class="wb-text--sm">the stamp — never rendered itself</text>
+
+        <path class="wb-arrow" d="M340 80 C 260 130, 140 150, 100 176" marker-end="url(#ng-template-outlet-head)" />
+        <path class="wb-arrow" d="M380 80 V 176" marker-end="url(#ng-template-outlet-head)" />
+        <path class="wb-arrow" d="M420 80 C 500 130, 620 150, 660 176" marker-end="url(#ng-template-outlet-head)" />
+
+        <rect x="20" y="182" width="160" height="90" rx="10" class="wb-node" />
+        <text x="100" y="204" text-anchor="middle" class="wb-hand">Outlet A</text>
+        <text x="100" y="226" text-anchor="middle" class="wb-mono wb-text--sm">{{ '{' }} name: 'Ada' {{ '}' }}</text>
+        <text x="100" y="252" text-anchor="middle" class="wb-text--sm">renders "Hello, Ada"</text>
+
+        <rect x="300" y="182" width="160" height="90" rx="10" class="wb-node" />
+        <text x="380" y="204" text-anchor="middle" class="wb-hand">Outlet B</text>
+        <text x="380" y="226" text-anchor="middle" class="wb-mono wb-text--sm">{{ '{' }} name: 'Grace' {{ '}' }}</text>
+        <text x="380" y="252" text-anchor="middle" class="wb-text--sm">renders "Hello, Grace"</text>
+
+        <rect x="580" y="182" width="160" height="90" rx="10" class="wb-node" />
+        <text x="660" y="204" text-anchor="middle" class="wb-hand">Outlet C</text>
+        <text x="660" y="226" text-anchor="middle" class="wb-mono wb-text--sm">
+          {{ '{' }} name: 'Barbara' {{ '}' }}
+        </text>
+        <text x="660" y="252" text-anchor="middle" class="wb-text--sm">renders "Hello, Barbara"</text>
+      </svg>
+
+      <app-scribble
+        quote="the stamp — never rendered itself"
+        text="Zero DOM nodes come from this block directly, no matter how many times its contents get pressed elsewhere. The template only ever describes what COULD be built."
+      />
+      <app-scribble
+        point="up"
+        quote="Outlet A"
+        text="Each outlet is an independent press. Three outlets pointed at the same template produce three separate, independently-destroyable view instances — not one view shown in three places."
+      />
+      <app-scribble
+        tone="olive"
+        quote="name: 'Grace'"
+        text="Same stamp, different ink. The template's markup never changes between presses; only the context object handed to each outlet does."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      Three. Each <code>[ngTemplateOutlet]</code> binding calls <code>createEmbeddedView()</code> on its own — that's
+      three independent DOM trees, three independent view instances, each one destroyable without touching the other
+      two. The <code>&lt;ng-template&gt;</code> block only ever supplied the blueprint; every press builds its own copy
+      from it.
+    </p>
+
+    <app-flow
+      [steps]="[
+        { label: 'Declare <ng-template> once', detail: 'compiles to a blueprint — zero DOM nodes of its own.' },
+        { label: 'Bind [ngTemplateOutlet], once per press', detail: 'one binding per place you want it to appear.' },
+        { label: 'Each binding calls createEmbeddedView()', detail: 'a fresh view instance, not a shared one.' },
+        { label: 'Each press gets its own DOM tree + context', detail: 'destroying one never touches the others.' },
+      ]"
+      caption="The same four steps the whiteboard above freezes at one instant — one stamp, as many independent presses as you bind."
+    />
+
+    <app-quiz
+      question="Outlet B's host is destroyed — say, an @if guarding it flips to false. What happens to Outlet A's and Outlet C's rendered content?"
+      [options]="ngTemplateOutletQuiz"
+      followUp="The live 'one template, two outlets' demo further down this page lets you toggle each outlet independently and watch the other one stay put."
+    />
+
+    <app-napkin lead="the mental model —" label="A rubber stamp, not a mark">
+      A rubber stamp carries the whole design and leaves no mark until someone presses it down. Writing an
+      <code>&lt;ng-template&gt;</code> is carving the stamp — all the design work is done, none of the printing has
+      happened yet. The fuller version, including handing the stamp to someone else entirely, is one section down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>An &lt;ng-template&gt; is a rubber stamp.</h2>
 
     <p>
-      Try this before reading any further: put a paragraph inside <code>&lt;ng-template&gt;</code> and look at the
-      rendered page.
+      Here's the block from the top of this page again: put a paragraph inside <code>&lt;ng-template&gt;</code> and look
+      at the rendered page.
     </p>
 
     <div class="demo">
@@ -42,18 +148,6 @@
       is written inside one compiles into instructions for building a view — and instructions are not the thing itself.
       Somebody still has to carry them out.
     </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      If <code>&lt;ng-template&gt;</code> alone renders nothing, what does it actually take to make its contents show up
-      — and how many times could you make that happen from the very same block? Hold a guess before you read on; there's
-      a live check further down.
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>An &lt;ng-template&gt; is a rubber stamp.</h2>
 
     <p>
       Picture a rubber stamp. It carries the whole design, and it leaves

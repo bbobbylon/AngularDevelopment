@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -22,26 +23,39 @@ interface ParsedEntry {
  * the name-collision caveat, the everything-is-a-string trap, and the exam
  * questions. Includes a live demo that mutates this page's own query string.
  *
+ * ## Shape: `whiteboard`
+ *
+ * The lesson opens on one big figure: the four kinds of parameter drawn as
+ * four boxes, with arrows showing which three ride in the actual HTTP
+ * request and which one — the fragment — the browser strips off before the
+ * request ever leaves. `app-brain-power` asks which piece gets stripped,
+ * posed before the reader sees the figure; three `app-scribble`s quote the
+ * figure's own labels, including the correction that "never leaves the
+ * browser" describes the network boundary, not what Angular code itself can
+ * see; a `.bf-answer` paragraph resolves the open question outright.
+ * `app-flow` restates the same four mechanisms as a numbered sequence, a
+ * quiz checks the guard/fragment nuance directly, and the block closes on
+ * `app-napkin` with the postal-address analogy. See
+ * `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
- * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
- * following the teaching order recorded on the reference implementation,
- * `lessons/expert/change-detection/`:
+ * After the shape block, "the mental model, in full" replays the
+ * postal-address analogy at full length, then the rest of the page carries
+ * on in the order it always did, following the teaching order recorded on
+ * the reference implementation, `lessons/expert/change-detection/`:
  *
- * 1. **Pose the problem before naming it.** The lesson opens on one URL that
- *    *looks* like a single string, and asks the reader to guess how many
- *    genuinely different mechanisms are stapled together inside it.
- * 2. **Analogy next, mechanism after.** The postal-address frame — street
- *    address, delivery instructions, "once you're inside go to the kitchen",
- *    a note stapled to one line of the address — gives path/query/fragment/
- *    matrix somewhere to live before the router vocabulary has to carry any
- *    weight on its own.
- * 3. **Then the same idea in four modes.** Prose, a four-card visual restating
+ * 1. **Analogy, restaged.** The postal-address frame — street address,
+ *    delivery instructions, "once you're inside go to the kitchen", a note
+ *    stapled to one line of the address — gives path/query/fragment/matrix
+ *    somewhere to live before the router vocabulary has to carry any weight
+ *    on its own.
+ * 2. **Then the same idea in four modes.** Prose, a four-card visual restating
  *    the analogy, the URL-dissector live demo (unchanged from the pre-migration
  *    lesson — this is the load-bearing teaching device the migration was asked
  *    to preserve), and an annotated `app-code-lab` reading the same four things
  *    off a real `ActivatedRoute`.
- * 4. **The reuse trap gets its own two modes.** A `Bubbles` dialogue between the
+ * 3. **The reuse trap gets its own two modes.** A `Bubbles` dialogue between the
  *    router, the component, the snapshot and the observable stages the same
  *    mechanism an `app-flow` diagram lays out as steps — dialogue for the
  *    *why*, steps for the *sequence*.
@@ -66,6 +80,9 @@ interface ParsedEntry {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Faq,
     Flow,
     Predict,
@@ -76,6 +93,31 @@ interface ParsedEntry {
   styleUrl: './route-params.css',
 })
 export class RouteParams {
+  /**
+   * The shape block's quiz: whether client-side Angular code (a guard) can
+   * read the fragment even though the fragment never reaches the server —
+   * the distinction most people get backwards.
+   */
+  protected readonly fragmentQuizOptions: QuizOption[] = [
+    {
+      text: "No — a guard runs IN the browser, the same place the fragment already lives. It reads it straight off the route snapshot's `fragment` property, same as any component would.",
+      correct: true,
+      why: '"Never leaves the browser" is a statement about the network — it describes what the server, an interceptor or a backend log can see. A guard is Angular code running client-side, not a network boundary, so nothing stops it from reading `route.fragment` directly.',
+    },
+    {
+      text: "Yes — 'never leaves the browser' means no Angular code can see it, guard included.",
+      why: "This is the exact misconception the phrase invites. 'Never leaves the browser' describes the HTTP request, not the reach of client-side JavaScript. A guard, a resolver, a component — anything running in the app itself — is on the same side of that boundary as the fragment.",
+    },
+    {
+      text: 'Only if the guard is asynchronous and awaits the navigation first.',
+      why: "Sync or async makes no difference here — `route.fragment` is a plain property on the snapshot either way. Awaiting something doesn't cross the boundary that actually matters, which is client-side code versus an HTTP request.",
+    },
+    {
+      text: 'Only on the very first navigation, before Angular has taken over routing.',
+      why: "Backwards, if anything — Angular's router (and therefore any guard) only runs once Angular has taken over. The fragment is available to a guard on every navigation the router itself handles, first or not.",
+    },
+  ];
+
   /** The Routing stretch of the Intermediate track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [
     { label: 'Child Routes & Lazy Loading', id: 'router-children-lazy' },

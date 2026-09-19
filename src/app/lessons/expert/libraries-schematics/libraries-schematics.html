@@ -17,24 +17,119 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      <code>ng generate library</code> takes about thirty seconds to run. It is also the easy 5% of the job —
+      <code>npm publish</code> is the moment you stop shipping code and start signing an ongoing contract with strangers
+      who will never read your source.
+    </p>
+
+    <app-receipt
+      heading="One npm publish · what you just signed up for, forever"
+      [rows]="libraryBill"
+      [total]="libraryBillTotal"
+      footer="ng generate library is the easy 5%. This receipt is the other 95%."
+    />
+
+    <app-scribble
+      point="up"
+      quote="locked — a rename is now a major version"
+      text="Not a guideline — the actual mechanism. Everything public-api.ts exports is public forever; renaming ONE symbol is, to semver, indistinguishable from removing a whole feature."
+    />
+
+    <app-compare
+      leftTitle="Workspace library — same repo"
+      leftTone="good"
+      rightTitle="Published library — separate repos"
+      rightTone="bad"
+      note="Same Button component, two very different sets of obligations. One is versioned and built together with its consumers; the other is a promise to strangers on their own schedule."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+// tsconfig paths
+"ui-kit": ["libs/ui-kit/src/public-api.ts"]
+
+import {{ '{' }} Button {{ '}' }} from 'ui-kit';
+// built together, versioned together, zero ceremony</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+npm publish
+// now: semver, peerDependencies,
+// migration schematics, a contract
+// with people who will never read your source</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Partial compilation is what makes that contract even possible to honour across Angular versions.
+    </p>
+
+    <app-chain
+      [steps]="[
+        'ng-packagr compiles to declare-calls',
+        'consumer installs your package',
+        'their OWN build links it',
+        'their Angular version finishes assembly',
+      ]"
+      label="What partial compilation actually buys the contract"
+    />
+
+    <app-code-lab
+      file="ui-kit — from ng generate to dist/"
+      [code]="createSample"
+      [notes]="createNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-scribble
+      quote="public-api.ts"
+      text="The one file whose contents you are agreeing to support forever. Everything it exports is the receipt's biggest line item — everything it doesn't export costs nothing, because it was never part of the deal."
+    />
+    <app-scribble
+      quote="peerDependencies"
+      tone="olive"
+      text="Not a copy you ship — a promise about a copy the CONSUMER already owns. You're betting their installed Angular version satisfies a range you set months before they upgrade."
+    />
+
+    <app-brain-power
+      question="peerDependencies negotiate what the consumer already owns rather than bundling your own copy. So what happens the day a consumer's app is on Angular 17, and your library's package.json declares peerDependencies: { '&#64;angular/core': '^18.0.0' }?"
+      hint="Ask whether npm quietly installs anyway and hopes for the best, or refuses the install outright — and what that means for a team that isn't ready to upgrade Angular yet."
+    />
+
+    <app-quiz
+      question="You rename one export in public-api.ts, from ButtonComponent to ButtonWidget, with nothing left behind for the old name. Semver-wise, what kind of change is that?"
+      [options]="libraryBlockQuiz"
+      followUp="The ng update predict further down this page runs the same 'public contract, forever' idea forward: a migration schematic exists specifically to rewrite a consumer's code across exactly this kind of change."
+    />
+
+    <p class="bf-big">
+      <code>ng generate library</code> takes five minutes. Everything on this receipt is the other five years.
+    </p>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Do you even need a published library?</h2>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>A library is a flat-pack, not a finished shelf.</h2>
 
     <p>
       Every Angular codebase eventually grows a <code>Button</code>, a <code>DataTable</code>, an
-      <code>auth</code> service that more than one team wants. The reflex is <code>ng generate library</code> — but that
-      command is the easy 5% of the job. The other 95% is everything this page is actually about: what ships, what's
-      public forever, and how consumers get it onto their machines and keep it there.
+      <code>auth</code> service that more than one team wants. The reflex is <code>ng generate library</code>. What
+      ships, what's public forever, and how consumers get it onto their machines and keep it there — that's everything
+      the receipt above just itemised. First, the question it takes for granted:
     </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Two apps in the same monorepo already share a <code>Button</code> today, through a plain workspace path. A third
-      team, in a different repo with its own release schedule, wants it too. Which of those two relationships needs the
-      full machinery this page is about — <code>npm publish</code>, <code>peerDependencies</code>, migration schematics
-      — and which needs nothing more than what already works? Decide before you scroll; the table below gives it away.
-    </app-napkin>
 
     <table>
       <caption class="bf-table-caption">
@@ -61,12 +156,6 @@
         </tr>
       </tbody>
     </table>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>A library is a flat-pack, not a finished shelf.</h2>
 
     <p>
       Picture two ways to send someone a bookshelf. You could build it in your own workshop, glue it solid, and ship the
@@ -110,12 +199,10 @@
     <p class="bf-eyebrow">The mechanism</p>
     <h2>What actually ships when you run ng build.</h2>
 
-    <app-code-lab
-      file="ui-kit — from ng generate to dist/"
-      [code]="createSample"
-      [notes]="createNotes"
-      notesLabel="What each line is doing"
-    />
+    <p>
+      The shape block at the top of this page already walked the exact command sequence and what each line produces.
+      Here's what those files actually are, one by one:
+    </p>
 
     <div class="bf-grid-2">
       <app-tape-card heading="fesm2022/*.mjs" kicker="what bundlers import" tone="gold">

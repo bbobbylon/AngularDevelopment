@@ -1,7 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -55,24 +57,37 @@ const STEP_DELAY_MS = 220;
  * four ways it can end, and the "stuck loading bar" bug that comes from
  * listening for only one of them.
  *
+ * ## Shape: `no-dumb-questions`
+ *
+ * The lesson opens on the misconception this topic reliably produces —
+ * "show on `NavigationStart`, hide on `NavigationEnd`, what could go wrong"
+ * — and lets {@link ndq} carry the whole explanation, escalating from that
+ * misconception through the four-terminal-events rule, the "events narrate,
+ * they don't decide" boundary, and the redirect-disguised-as-cancel surprise,
+ * to where it bites at work and the one-sentence fix. `app-brain-power` poses
+ * an open question about which terminal event a same-URL navigation gets
+ * (answered later, without saying so, by the `NavigationSkipped` tape-card),
+ * `app-layers` answers the announcer/referee split as a containment figure, a
+ * quiz checks the loading-bar bug directly, and the block closes on
+ * `app-napkin` with the announcer analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated straight to the brain-friendly layer (see `shared/brain/` and the
- * reference implementation, `expert/change-detection`). Teaching order:
+ * reference implementation, `expert/change-detection`). After the shape
+ * block, "the mental model, in full" replays the loading-bar problem and the
+ * announcer analogy at full length. Teaching order for the rest of the page:
  *
- * 1. **Pose the problem before naming it.** A global loading bar is the
- *    concrete hook — "where do you even attach that?" — before `router.events`
- *    is named as the answer.
- * 2. **Analogy before vocabulary.** `router.events` is the stadium announcer,
+ * 1. **Analogy, restaged.** `router.events` is the stadium announcer,
  *    not the referee: it reports what a guard or resolver already decided, and
  *    a subscriber cannot change the outcome from inside a `.subscribe()`. That
  *    frame is what makes the rest of the page make sense, including why this
  *    lesson and `route-guards` are companions rather than duplicates — guards
  *    decide, this page narrates.
- * 3. **The same order, three modes**: a `<app-flow>` spine, an annotated real
+ * 2. **The same order, three modes**: a `<app-flow>` spine, an annotated real
  *    console trace via `<app-code-lab>`, and a live simulated event log the
  *    reader triggers themselves.
- * 4. **The payoff demo is a bug, not a feature.** Two progress bars driven by
+ * 3. **The payoff demo is a bug, not a feature.** Two progress bars driven by
  *    the identical simulated stream — one listens for `NavigationEnd` only,
  *    one for any terminal event — so a cancelled navigation visibly leaves one
  *    of them stuck. This is the strongest "demonstrate, don't assert" moment
@@ -102,8 +117,11 @@ const STEP_DELAY_MS = 220;
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -115,6 +133,70 @@ const STEP_DELAY_MS = 220;
   templateUrl: './router-events.html',
 })
 export class RouterEventsLesson {
+  /**
+   * The shape block's spine: seven questions escalating from the
+   * NavigationStart/NavigationEnd-only misconception through the
+   * four-terminal-events rule, the narrate-vs-decide boundary and the
+   * redirect-disguised-as-cancel surprise, to where it bites at work and
+   * the one-sentence fix. Carries the entire explanation on its own — see
+   * `NoDumbQuestions`'s own doc comment for why that is the point.
+   */
+  protected readonly ndq: NdqItem[] = [
+    {
+      q: 'I show a loading bar on `NavigationStart` and hide it on `NavigationEnd`. What could possibly go wrong?',
+      a: "A guard rejects the navigation. `NavigationStart` still fires — every attempt gets one — but the navigation never reaches `NavigationEnd`, because it didn't succeed. Nothing ever tells the bar to hide, and it's stuck until some later, unrelated navigation happens to end cleanly.",
+    },
+    {
+      q: 'So does every navigation end in exactly one event, whatever happens to it?',
+      a: 'Yes — one of exactly four: `NavigationEnd` (it worked), `NavigationCancel` (a guard said no, a resolver came back empty, or a newer navigation pre-empted it), `NavigationError` (something threw), or `NavigationSkipped` (the router never even attempted it, usually because the target URL was already the current one). A UI wired to only the first of those is wired to roughly a quarter of reality.',
+    },
+    {
+      q: 'If I see NavigationCancel in my subscriber, can I do anything from there to let the navigation through anyway?',
+      a: "No. By the time an event reaches your `.subscribe()`, the decision is already made and finished — same as shouting at a stadium announcer after the referee's whistle has already blown. Only a guard or a resolver, running BEFORE the event fires, can actually change what a navigation does.",
+    },
+    {
+      q: 'A guard redirects instead of just rejecting — surely THAT fires NavigationError, since the original request effectively failed?',
+      a: "Surprisingly, no. A guard returning a redirect fires `NavigationCancel` with `code: Redirect`, not `NavigationError`. Anything in the app watching specifically for `NavigationError` will not see this one at all — it looks, from the event stream's point of view, exactly like an ordinary cancellation.",
+    },
+    {
+      q: 'Where does any of this actually bite people at work?',
+      a: "An analytics 'page view' ping wired to `NavigationEnd` only. Every navigation a guard blocks — a logged-out user hitting `/admin`, say — silently never gets counted, because it never reaches the one event the tracker is listening for. The dashboard just quietly under-reports how often people hit the login wall, with nothing in the logs explaining the gap.",
+    },
+    {
+      q: 'withNavigationErrorHandler sounds like the tidy, centralised way to handle failures. Any surprise there?',
+      a: "One: if the handler itself returns a redirect (a `RedirectCommand`), Angular suppresses the error entirely — the navigation still ends, but as `NavigationCancel` with `code: Redirect` instead of `NavigationError`. Anything else in the app watching specifically for `NavigationError` misses it too, for the exact same reason a guard's own redirect does.",
+    },
+    {
+      q: "So what's the one-sentence fix for all of this?",
+      a: 'Handle all four terminal events — or a generic "this attempt is over" check — instead of just `NavigationEnd`, and remember `router.events` only ever narrates: if you need to allow, block or redirect a navigation, that decision belongs in a guard, never in a subscriber.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the loading-bar bug checked directly, before
+   * the live demo further down lets the reader trigger the real rejected
+   * navigation and watch the naive bar get stuck.
+   */
+  protected readonly ndqBlockQuiz: QuizOption[] = [
+    {
+      text: 'It shows, and then never hides — the navigation ends in NavigationCancel, which nothing here is listening for.',
+      correct: true,
+      why: "`NavigationStart` fires for every attempt, guard-rejected or not — so the bar still shows. The guard's `false` sends the navigation to `NavigationCancel` instead of `NavigationEnd`, and since nothing subscribes to that event, nothing ever calls `hide()`.",
+    },
+    {
+      text: 'It never shows in the first place, since the guard blocks the navigation before NavigationStart fires.',
+      why: 'Backwards — guards run AFTER `NavigationStart`, as part of the pipeline the event kicks off. The attempt has already begun, and already shown the bar, by the time any guard gets a chance to reject it.',
+    },
+    {
+      text: 'It shows and hides normally — NavigationCancel triggers the same UI cleanup as NavigationEnd automatically.',
+      why: "There's no automatic bridging between the two. `NavigationCancel` and `NavigationEnd` are simply different values on the same Observable; nothing about the router wires one to trigger handlers written for the other.",
+    },
+    {
+      text: "Angular throws a runtime error, since the bar's hide handler was never satisfied.",
+      why: 'Nothing here throws. The subscriber that only listens for `NavigationEnd` simply never runs for this navigation — a silent gap, not an error, which is exactly what makes this bug easy to ship without noticing.',
+    },
+  ];
+
   /** The Routing track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [
     { label: 'Routing Basics', id: 'routing-basics' },

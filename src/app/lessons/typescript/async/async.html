@@ -16,10 +16,111 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Three tasks, 400ms each, with nothing to do with one another. Await them one at a time and the bill comes to
+      <strong>1,200ms</strong>. Await them together and the exact same three tasks cost <strong>400ms</strong>. Same
+      work. Same machine. One extra word in the wrong place is the entire difference.
+    </p>
+
+    <app-receipt
+      heading="Three 400ms tasks · the sequential-await invoice"
+      [rows]="asyncBill"
+      [total]="asyncBillTotal"
+      footer="Promise.all charges 400ms flat for the exact same three tasks — the other 800ms was never necessary"
+    />
+
+    <app-scribble
+      point="up"
+      quote="waits for taskA to settle first"
+      text="Not because taskB needs anything taskA returns — it doesn't. It waits because `taskB()` — the call that actually STARTS the work — hasn't run yet. `await` parks the whole function on the line it's sitting on."
+    />
+
+    <app-compare
+      leftTitle="Sequential — pay for each one"
+      leftTone="bad"
+      rightTitle="Parallel — pay once"
+      rightTone="good"
+      note="Same three tasks, same taskA/taskB/taskC. One version pays their bill three times in a row; the other pays it once."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+const a = await taskA();
+const b = await taskB();
+const c = await taskC();
+// b doesn't even START until a settles</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+const [a, b, c] = await Promise.all([
+  taskA(), taskB(), taskC(),
+]);
+// all three start together, right here</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">A task starts the instant it's <em>called</em> — not the instant it's <code>await</code>ed.</p>
+
+    <app-chain
+      [steps]="[
+        'taskA() called — timer starts',
+        'await parks the function here',
+        'taskA settles, function resumes',
+        'ONLY NOW is taskB() called',
+      ]"
+      label="Why the sequential bill adds up — each task waits to even begin"
+    />
+
+    <app-code-lab
+      file="sequential-vs-parallel.ts"
+      [code]="raceMechanismSample"
+      [notes]="raceMechanismNotes"
+      notesLabel="Same three tasks, two different starting lines"
+    />
+
+    <app-scribble
+      quote="taskB() is not even CALLED yet"
+      text="This one line is the whole 800ms bill. The task was never quietly running in the background, waiting for you to get around to awaiting it — it hadn't started existing."
+    />
+    <app-scribble
+      quote="started immediately"
+      point="up"
+      tone="olive"
+      text="Calling a function that returns a Promise starts its work the instant you call it. `await` never starts anything — it only ever joins work that is already running."
+    />
+
+    <app-brain-power
+      question="Promise.all is fail-fast — the instant ANY one input rejects, the whole thing rejects. So if two of your three 400ms tasks would have SUCCEEDED, what happens to their results when the third one fails?"
+      hint="Ask whether a task that resolves AFTER the rejection already happened gets a chance to report back to anyone at all."
+    />
+
+    <app-quiz
+      question="Three independent 400ms tasks, awaited like this: `const a = await taskA(); const b = await taskB(); const c = await taskC();`. How long does the whole thing take?"
+      [options]="asyncBlockQuiz"
+      followUp="The live race further down this page times exactly this pair of strategies — run it and watch the two numbers land."
+    />
+
+    <p class="bf-big">
+      Same three tasks. One bill for 400ms. One bill for 1,200ms. The only difference is where you put the word
+      <code>await</code>.
+    </p>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You can't have the value yet. What do you hold instead?</h2>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>A Promise is a claim ticket, not the coffee.</h2>
 
     <p>
       Call a function that hits the network, and the answer isn't there. Not slow — <em>not there</em>. Nothing in
@@ -29,8 +130,9 @@
     </p>
 
     <p>
-      That stand-in is the <code>Promise</code>. Not the answer — a receipt for an answer that's coming. Everything
-      confusing on this page traces back to one of three questions about that receipt:
+      That stand-in is the <code>Promise</code>. Not the answer — a receipt for an answer that's coming, exactly like
+      the one at the top of this page. Everything confusing about Promises traces back to one of three questions about
+      that receipt:
     </p>
 
     <ul>
@@ -45,12 +147,6 @@
       that <code>await</code> has settled? Say it out loud. There's a live demo a couple of sections down, and a
       predict-the-order puzzle right after it, that will hold you to the answer.
     </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>A Promise is a claim ticket, not the coffee.</h2>
 
     <p>
       You hand over your order; the barista hands you a ticket. The ticket isn't the coffee — it's a promise

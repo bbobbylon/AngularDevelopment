@@ -1,7 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
@@ -67,23 +69,37 @@ const IMPORT_KINDS: ImportKind[] = [
  * `import()` as the engine behind lazy loading, and the fact that module
  * state is a singleton — evaluated once, shared by every importer.
  *
+ * ## Shape: `no-dumb-questions`
+ *
+ * The lesson opens on the misconception this topic reliably produces — "don't
+ * two files declaring the same `let` collide, the way two `<script>` tags
+ * would?" — and lets {@link ndq} carry the whole explanation, escalating from
+ * that misconception through the barrel/circular-import crash (and its two
+ * cheap fixes) to where it bites at work (a shared `core/index.ts` barrel
+ * that ships fine in dev and explodes in a production build weeks later) and
+ * the module-singleton trap. `app-brain-power` poses an open question about
+ * what happens when a module's top-level code throws on its first
+ * evaluation, `app-layers` answers the "private by default" question as a
+ * containment figure (the shop's back room and its one window), a quiz
+ * checks the original script-vs-module collision case, and the block closes
+ * on `app-napkin` with the shop analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`), following the shape
- * of the reference implementation in `lessons/expert/change-detection/`:
+ * of the reference implementation in `lessons/expert/change-detection/`.
+ * After the shape block, "the mental model, in full" replays the
+ * shop-with-one-window analogy at full length, then the rest of the page
+ * carries on in the order it always did:
  *
- * 1. **Pose the problem before naming it.** The page opens on two files
- *    colliding in a shared global scope — a `Napkin` asks the reader to guess
- *    which of two near-identical setups crashes — before "module" carries any
- *    weight of its own.
- * 2. **Analogy before vocabulary.** The shop-with-one-window frame, staged
- *    twice: once in prose, once as a `Bubbles` dialogue between a module and
- *    the file trying to import from it.
- * 3. **The same idea in several modes.** A before/after scope `Compare`, a
+ * 1. **Analogy, restaged.** The shop-with-one-window frame, staged twice:
+ *    once in prose, once as a `Bubbles` dialogue between a module and the
+ *    file trying to import from it.
+ * 2. **The same idea in several modes.** A before/after scope `Compare`, a
  *    row of `TapeCard`s for the three ways a specifier resolves, a hand-drawn
  *    `<svg>` of the barrel cycle, and five separate `CodeLab` walkthroughs of
  *    real module syntax.
- * 4. **Every substantial snippet is annotated line by line** via `CodeLab` —
+ * 3. **Every substantial snippet is annotated line by line** via `CodeLab` —
  *    the exports vocabulary, a barrel file, `import type`, dynamic `import()`,
  *    and the module-singleton counter all get numbered, paired notes rather
  *    than one sentence above the block.
@@ -100,8 +116,11 @@ const IMPORT_KINDS: ImportKind[] = [
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -115,6 +134,69 @@ const IMPORT_KINDS: ImportKind[] = [
 })
 export class Modules {
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  /**
+   * The shape block's spine: seven questions escalating from "don't two
+   * files collide the way two script tags would" through the barrel/
+   * circular-import crash and its two cheap fixes, to where it bites at
+   * work and the module-singleton trap. Carries the entire explanation on
+   * its own — see `NoDumbQuestions`'s own doc comment for why that is the
+   * point.
+   */
+  protected readonly ndq: NdqItem[] = [
+    {
+      q: "Two files each declare `let helper = 5;` inside a module. Don't they collide, the same way two `<script>` tags would?",
+      a: 'No — and that refusal is the whole point of a module. Every `.ts` file with an `import` or `export` gets its own private scope. `helper` in one file has nothing whatsoever to do with `helper` in another; they are not even in the same universe as far as the language is concerned.',
+    },
+    {
+      q: 'So nothing in a file is ever visible anywhere else?',
+      a: 'Only what you explicitly `export`. Everything else — every helper function, every local `const`, every bit of working state — stays back-room stock, invisible from outside and safe to rename or delete, because nothing outside could ever have depended on it.',
+    },
+    {
+      q: 'I imported a whole folder through its index.ts barrel, and my production build crashed with "Cannot access \'OrderService\' before initialization" — but it worked fine in dev. What happened?',
+      a: 'A circular import, hiding inside the barrel. Something imports the barrel, the barrel starts evaluating a file that imports the barrel again — and the barrel is already mid-evaluation, so the loader hands back the partially-built namespace instead of waiting. Dev and production bundlers are free to order modules differently, which is why only one of them happens to trip the cycle.',
+    },
+    {
+      q: 'How do I fix a cycle like that without restructuring the whole folder?',
+      a: 'Two cheap options. Import the specific file directly instead of going through the barrel — that removes the round trip entirely. Or, if the dependency is genuinely only a type, mark it `import type`: type-only imports are erased before the code ever runs, which dissolves the cycle along with them.',
+    },
+    {
+      q: 'Where does the barrel/circular-import trap actually bite people at work?',
+      a: "A shared `core/index.ts` barrel across a real Angular codebase. Someone adds a new service that happens to import something else from that same barrel. It ships fine in dev — the dev server's module order doesn't trip the cycle — and then explodes in a production build weeks later, the moment somebody else's unrelated import shifts the evaluation order just enough.",
+    },
+    {
+      q: 'I declared `let count = 0` at the top of a module, and two different files import and increment it. Do they share the same counter?',
+      a: "Yes. A module's top-level code runs exactly once, on first import — every later import is a cache hit on the same result. That makes module state the simplest singleton in the language: genuinely useful when it's deliberate, and invisible global coupling when it isn't. Angular's DI gives you the same single-instance behaviour with an injector you can override in a test, which is why a service beats a module-level `let`.",
+    },
+    {
+      q: "So what's the one-sentence fix for all of this?",
+      a: 'Private by default is the whole point — export deliberately, never import your own barrel from inside the folder it describes, and reach for a service instead of a module-level `let` the moment shared state needs to be testable.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the original script-vs-module collision,
+   * checked once up front before the fuller scope walkthrough below.
+   */
+  protected readonly ndqBlockQuiz: QuizOption[] = [
+    {
+      text: 'The two `<script>` tags — they share one global scope; the two module files never collide at all.',
+      correct: true,
+      why: 'A duplicate `let` in one shared global scope is a hard syntax collision, caught the moment the second `<script>` parses. The two module files run side by side forever, because each `.ts` file gets its own private scope — `helper` in one is a completely different binding from `helper` in the other.',
+    },
+    {
+      text: 'The two module files — modules are stricter about redeclaration than plain scripts are.',
+      why: "Backwards. Modules are what REMOVE the collision, not what tightens it. A module file's top-level scope is private to that file, so there is nothing shared for a second `let helper` to collide with.",
+    },
+    {
+      text: 'Both throw — redeclaring `let` in the same scope is always an error, script or module.',
+      why: "True only if it's actually the SAME scope. That's exactly what a module changes: two module files never share a scope in the first place, so 'the same scope' never happens, and there is nothing to redeclare into.",
+    },
+    {
+      text: "Neither throws — `let` silently allows redeclaration as long as the value doesn't change.",
+      why: "`let` never allows redeclaration in a scope it actually shares — that part is real when it applies. What is false is that the two module files share a scope at all; they don't, so the rule never gets a chance to fire for them.",
+    },
+  ];
 
   /** The stretch of the TypeScript track either side of this lesson, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

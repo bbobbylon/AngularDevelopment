@@ -16,31 +16,137 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>One URL. How many messages is it actually carrying?</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">One URL string. Four completely different mechanisms, with no visual seam between them.</p>
+
+    <app-brain-power
+      question="Path params, matrix params and query params all ride along in the URL the browser sends. Which one of the four pieces below does the browser strip off before the request even leaves for the server?"
+      hint="Ask which piece is purely an instruction to the PAGE, not to whatever is serving it."
+    />
+
+    <app-whiteboard
+      caption="/users/42;view=grid?tag=ng&amp;sort=name#bio — one string, four destinies."
+      alt="Four boxes in a row, each labelled with one kind of URL parameter: path param, slash users slash 42, read via paramMap; matrix param, semicolon view equals grid, also read via paramMap; query params, question mark tag equals ng ampersand sort equals name, read via queryParamMap; and fragment, hash bio, read via the fragment observable. Vertical arrows run down from the path, matrix and query boxes into one wide box labelled the server sees this. A separate vertical arrow runs down from the fragment box alone into a smaller box labelled never leaves the browser."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 330" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="route-params-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <rect x="10" y="24" width="170" height="86" rx="10" class="wb-node" />
+        <text x="95" y="46" text-anchor="middle" class="wb-hand">PATH PARAM</text>
+        <text x="95" y="70" text-anchor="middle" class="wb-mono wb-text--sm">/users/42</text>
+        <text x="95" y="96" text-anchor="middle" class="wb-text--sm">read via paramMap</text>
+
+        <rect x="195" y="24" width="170" height="86" rx="10" class="wb-node" />
+        <text x="280" y="46" text-anchor="middle" class="wb-hand">MATRIX PARAM</text>
+        <text x="280" y="70" text-anchor="middle" class="wb-mono wb-text--sm">;view=grid</text>
+        <text x="280" y="96" text-anchor="middle" class="wb-text--sm">paramMap — same API</text>
+
+        <rect x="380" y="24" width="170" height="86" rx="10" class="wb-node" />
+        <text x="465" y="46" text-anchor="middle" class="wb-hand">QUERY PARAMS</text>
+        <text x="465" y="70" text-anchor="middle" class="wb-mono wb-text--sm">?tag=ng&amp;sort=name</text>
+        <text x="465" y="96" text-anchor="middle" class="wb-text--sm">read via queryParamMap</text>
+
+        <rect x="565" y="24" width="170" height="86" rx="10" class="wb-node wb-node--lit" />
+        <text x="650" y="46" text-anchor="middle" class="wb-hand">FRAGMENT</text>
+        <text x="650" y="70" text-anchor="middle" class="wb-mono wb-text--sm">#bio</text>
+        <text x="650" y="96" text-anchor="middle" class="wb-text--sm">read via fragment</text>
+
+        <path class="wb-arrow" d="M95 110 V 224" marker-end="url(#route-params-head)" />
+        <path class="wb-arrow" d="M280 110 V 224" marker-end="url(#route-params-head)" />
+        <path class="wb-arrow" d="M465 110 V 224" marker-end="url(#route-params-head)" />
+        <path class="wb-arrow wb-arrow--dashed" d="M650 110 V 224" marker-end="url(#route-params-head)" />
+
+        <rect x="10" y="230" width="545" height="70" rx="10" class="wb-node" />
+        <text x="282" y="260" text-anchor="middle" class="wb-mono wb-text--sm">THE SERVER</text>
+        <text x="282" y="282" text-anchor="middle" class="wb-text--sm">receives all three of these</text>
+
+        <rect x="565" y="230" width="170" height="70" rx="10" class="wb-node wb-node--lit" />
+        <text x="650" y="260" text-anchor="middle" class="wb-mono wb-text--sm">THE BROWSER</text>
+        <text x="650" y="282" text-anchor="middle" class="wb-text--sm">never leaves this page</text>
+      </svg>
+
+      <app-scribble
+        quote="paramMap — same API"
+        text="This is the first surprise this lesson proves: a matrix param is NOT a query param. It rides along in `paramMap`, the same API as the path segment it's stapled to — not `queryParamMap`, however much it looks like a query string."
+      />
+      <app-scribble
+        point="up"
+        quote="NEVER LEAVES THIS PAGE"
+        tone="olive"
+        text="Not 'nothing can see it' — 'it's never part of the HTTP request.' An interceptor, a server log, a backend API: none of those can ever see a fragment, because they only ever see the request line. Angular code running client-side — a guard, a resolver, a component — is a different story; it lives in the browser too, and can read `route.fragment` directly."
+      />
+      <app-scribble
+        quote="THE SERVER"
+        text="Path, matrix and query all ride in the actual HTTP request line. Only the fragment is purely a browser-side instruction — 'once you're on this page, scroll here.'"
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      The <strong>fragment</strong> (<code>#bio</code>). Everything left of the <code>#</code> — path, matrix and query
+      — travels in the actual HTTP request line the browser sends. Everything after it is stripped off by the browser
+      itself before the request ever leaves: it's a purely within-page instruction, invisible to anything that only ever
+      sees that request — an interceptor, a server log, a backend API. It is <em>not</em> invisible to Angular code
+      itself, though — a guard, a resolver, a component all run in the same browser the fragment never leaves, and can
+      read it straight off <code>route.fragment</code>.
+    </p>
+
+    <app-flow
+      [steps]="[
+        { label: 'Path — which resource', detail: 'required; changing it navigates somewhere else entirely.' },
+        { label: 'Matrix — a note on one segment', detail: 'rides in paramMap, same API as the path itself.' },
+        { label: 'Query — how to view it', detail: 'optional, reorderable; read via queryParamMap.' },
+        { label: 'Fragment — where on the page', detail: 'stripped by the browser; the server never sees it.' },
+      ]"
+      caption="The order the router itself peels the string apart in — and the order this page covers each one."
+    />
+
+    <app-quiz
+      question="The fragment (#bio) never leaves the browser — it's never part of the HTTP request. Does that mean an Angular route guard, which runs entirely client-side, can never read it either?"
+      [options]="fragmentQuizOptions"
+      followUp="The live dissector further down lets you edit a real URL and watch all four pieces separate out — delete the fragment entirely and nothing about the other three changes."
+    />
+
+    <app-napkin lead="the mental model —" label="A parcel with four labels">
+      Path params are the street address — required, and changing one sends the courier somewhere else. Query params are
+      delivery instructions on the label — optional, and they never change which house it's going to. The fragment is
+      "once you're inside, go to the kitchen" — the courier never even passes that one to the depot. The fuller version,
+      with all four laid out side by side, is one section down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>A URL is a parcel with four different labels on it.</h2>
 
     <p>
-      Here's a URL: <code>/users/42;view=grid?tag=ng&amp;tag=rxjs&amp;sort=name#bio</code>. It reads as one string, and
-      that is exactly the trap — it is <strong>not</strong> one piece of information. It is four completely different
+      Here's the URL from the top of this page again:
+      <code>/users/42;view=grid?tag=ng&amp;tag=rxjs&amp;sort=name#bio</code>. It reads as one string, and that is
+      exactly the trap — it is <strong>not</strong> one piece of information. It is four completely different
       mechanisms, concatenated with no visual seam between them, and the router reads each one through a different API.
       Treat them as interchangeable, which is the natural first assumption, and you'll write code that reads a value
       from the wrong place — or worse, code that reads a value which quietly
       <span class="bf-break">went stale</span> the moment you stopped looking at it.
     </p>
-
-    <app-napkin lead="quick guess —" label="Predict before reading on">
-      Look at that URL again: <code>/users/42;view=grid?tag=ng&amp;tag=rxjs&amp;sort=name#bio</code>. Before you scroll
-      — how many genuinely <em>different kinds</em> of parameter do you think are hiding in there, and which one of them
-      do you think the server never even receives? There's a live dissector further down to check yourself against.
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>A URL is a parcel with four different labels on it.</h2>
 
     <p>
       Picture a parcel being delivered. <strong>Path params</strong> are the street address — they say

@@ -3,7 +3,9 @@ import { Component, TemplateRef, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { QuizOption } from '../../../shared/teaching';
 import { SlotHost } from './slot-host/slot-host';
 
 /**
@@ -27,17 +29,30 @@ interface Person {
  * between two templates at runtime, which is the pattern behind every
  * customisable list or table component.
  *
+ * ## Shape: `whiteboard`
+ *
+ * The lesson opens on one big figure: a single `<ng-template>` "stamp" pressed
+ * by three separate `[ngTemplateOutlet]` bindings, each with its own context
+ * ("ink") and its own independent rendered result. `app-brain-power` poses
+ * the question the figure answers — one shared DOM tree, or three independent
+ * ones? — before the reader sees it; three `app-scribble`s quote the figure's
+ * own labels, and a `.bf-answer` paragraph resolves it outright
+ * (`createEmbeddedView()`, called once per outlet). `app-flow` restates the
+ * same four steps as a numbered sequence, a quiz checks that destroying one
+ * outlet leaves the others untouched, and the block closes on `app-napkin`
+ * with the rubber-stamp analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
  * `docs/UI-DESIGN.md` §9), following the teaching order set by
- * `expert/change-detection` — the reference implementation: pose the problem
- * before naming it, give the reader an analogy to hang the vocabulary on, then
- * the same idea in four modes (dialogue, live demo, annotated code, glossary
- * diagram). The rubber-stamp analogy, the `Flow` step diagram, the context
- * mismatch `Predict`, and the view-reuse `Quiz` all carry over from the
- * pre-migration retention pass — this rewrite restructures and deepens them
- * rather than replacing them.
+ * `expert/change-detection` — the reference implementation. After the shape
+ * block, "the mental model, in full" replays the inert-`<ng-template>` demo
+ * and the rubber-stamp analogy at full length, then the same idea in four
+ * more modes (dialogue, live demo, annotated code, glossary diagram). The
+ * `Flow` step diagram, the context mismatch `Predict`, and the view-reuse
+ * `Quiz` all carry over from the pre-migration retention pass — this rewrite
+ * restructures and deepens them rather than replacing them.
  */
 @Component({
   selector: 'app-lesson-ng-template-outlet',
@@ -51,6 +66,9 @@ interface Person {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -83,6 +101,31 @@ export class NgTemplateOutletLesson {
   protected readonly vcTemplate = viewChild<TemplateRef<unknown>>('vcTpl');
 
   // ── Presentation data — the "you are here" rail ────────────────────────────
+
+  /**
+   * The shape block's quiz: whether outlets sharing one template are
+   * independent, checked directly before the live "one template, two
+   * outlets" demo further down lets the reader toggle each one themselves.
+   */
+  protected readonly ngTemplateOutletQuiz: QuizOption[] = [
+    {
+      text: "Nothing — they're independent view instances; destroying one has no effect on the others.",
+      correct: true,
+      why: 'Each `[ngTemplateOutlet]` binding called `createEmbeddedView()` on its own, building its own DOM tree from the shared blueprint. Destroying the host that owns one of those trees only ever tears down that one instance — the other two never even find out.',
+    },
+    {
+      text: 'All three disappear, since they all stem from the same &lt;ng-template&gt;.',
+      why: "The template is only ever the blueprint — it isn't part of the rendered tree at all, so it has nothing to notify. Each outlet's rendered content lives entirely inside that outlet's own view, with no live link back to the template or to sibling outlets.",
+    },
+    {
+      text: 'Angular throws, since the template still has active outlets elsewhere.',
+      why: 'Templates carry no reference count and no awareness of how many outlets are currently pointed at them. A `TemplateRef` can be read by zero, one, or a hundred outlets simultaneously, and none of them coordinate with each other.',
+    },
+    {
+      text: 'Outlet A and C freeze but stay visible until the next change-detection cycle clears them too.',
+      why: "There's no freeze-then-clear behaviour here. Outlet B's teardown happens synchronously with its own host being destroyed; A and C are never touched, on this change-detection cycle or any later one.",
+    },
+  ];
 
   /** The Components & Templates track, in curriculum order. */
   protected readonly stops: ChapterStop[] = [

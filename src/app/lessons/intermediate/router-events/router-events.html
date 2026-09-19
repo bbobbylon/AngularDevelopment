@@ -15,35 +15,63 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big → .bf-say → app-no-dumb-questions
+       (6-8 items carrying the whole explanation) → app-brain-power → one figure
+       (app-layers or app-whiteboard) → one app-quiz → app-napkin with the analogy.
+       Never: app-bubbles, app-tape-card, app-receipt, app-remember — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You want a global loading bar. Where does it even attach?</h2>
+    <p class="bf-big">A loading bar shows on every navigation. It only knows how to hide on one.</p>
 
-    <p>
-      Not a spinner inside one component — a bar across the very top of the page, the kind every big app has, that
-      appears the instant a link is clicked and disappears once the new page is ready. It can't live inside the page
-      being navigated <em>to</em>, because that page doesn't exist yet when the bar needs to appear. It has to sit
-      somewhere that outlives any single route and can see navigations as they happen, from outside.
+    <p class="bf-say">
+      <code>show()</code> on <code>NavigationStart</code>, <code>hide()</code> on <code>NavigationEnd</code>. It passes
+      every manual test — and then, the first time a real user hits a guard that rejects them, the bar never comes back
+      down.
     </p>
 
-    <p>
-      That "somewhere" is <code>router.events</code> — an <span class="key">Observable</span> on the injected
-      <code>Router</code> that emits one value per meaningful step of every navigation, success or not.
-    </p>
+    <app-no-dumb-questions [items]="ndq" />
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      A developer wires the bar with the obvious pair: show it on <code>NavigationStart</code>, hide it on
-      <code>NavigationEnd</code>. It works perfectly in every manual test they run.
-      <strong>What kind of navigation would leave that bar stuck on screen forever?</strong> There's a live version of
-      exactly this bug further down the page to check your guess against.
+    <app-brain-power
+      question="A navigation targets the exact URL you're already on — clicking a link to the current page. Given the same four-endings guarantee, which of the four terminal events does THAT one get?"
+      hint="Ask whether Angular attempts a navigation at all when the target and current URL are identical, or short-circuits before it even starts."
+    />
+
+    <app-layers
+      [core]="{ label: 'guard returns false', sub: 'the actual decision — made once, right here' }"
+      [rings]="[{ label: 'router.events emits NavigationCancel', sub: 'a narration of the decision, arriving after' }]"
+      arrow="the event fires AFTER the decision, never before"
+      caption="Nothing a subscriber does to the outer ring reaches back into the core. By the time NavigationCancel shows up in your `.subscribe()`, the guard already decided, and no amount of handling the event un-decides it."
+    />
+
+    <app-quiz
+      question="A loading bar shows on NavigationStart and hides on NavigationEnd only. A guard on the target route returns false. What happens to the bar?"
+      [options]="ndqBlockQuiz"
+      followUp="The live demo further down this page has a button that fires exactly this rejected navigation — press it and watch the naive bar next to the correct one."
+    />
+
+    <app-napkin lead="the mental model —" label="The announcer, not the referee">
+      A stadium announcer calls the game as it happens, live — but decides nothing. A referee's whistle happens first;
+      the announcer only narrates it a beat later, and shouting at the booth changes nothing about the call.
+      <code>router.events</code> is the announcer. Guards and resolvers are the referees. The fuller version is one
+      section down.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
     <h2><code>router.events</code> is the announcer, not the referee.</h2>
+
+    <p>
+      Here's the loading-bar problem from the block above, in full. Not a spinner inside one component — a bar across
+      the very top of the page, the kind every big app has, that appears the instant a link is clicked and disappears
+      once the new page is ready. It can't live inside the page being navigated <em>to</em>, because that page doesn't
+      exist yet when the bar needs to appear. It has to sit somewhere that outlives any single route and can see
+      navigations as they happen, from outside — and that "somewhere" is <code>router.events</code>, an
+      <span class="key">Observable</span> on the injected <code>Router</code> that emits one value per meaningful step
+      of every navigation, success or not.
+    </p>
 
     <p>
       A stadium announcer calls the game as it happens — <em>every</em> fan in the building hears the same call, live.

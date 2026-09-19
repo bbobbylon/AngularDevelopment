@@ -21,36 +21,63 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big → .bf-say → app-no-dumb-questions
+       (6-8 items carrying the whole explanation) → app-brain-power → one figure
+       (app-layers or app-whiteboard) → one app-quiz → app-napkin with the analogy.
+       Never: app-bubbles, app-tape-card, app-receipt, app-remember — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Two files, one shared scope — and a collision.</h2>
+    <p class="bf-big">Nothing in a file exists to any other file — until one keyword says otherwise.</p>
+
+    <p class="bf-say">
+      Every <code>.ts</code> file with an <code>import</code> or <code>export</code> is a world of its own, private by
+      default. That single fact rewrites what "collision" even means, and it's the whole reason a production build can
+      crash on a folder that worked fine yesterday.
+    </p>
+
+    <app-no-dumb-questions [items]="ndq" />
+
+    <app-brain-power
+      question="A module's top-level code runs exactly once, on first import — every later import is a cache hit on the result. So what happens if that top-level code THROWS an error the very first time it runs? Does the next importer get a fresh attempt, or something else?"
+      hint="Ask whether 'cached' means the module's VALUE is cached, or the ATTEMPT itself is cached."
+    />
+
+    <app-layers
+      [core]="{ label: 'const stock, helper fns', sub: 'the back room — private by default' }"
+      [rings]="[{ label: 'export { Thing }', sub: 'the one window the public can see through' }]"
+      arrow="export is the only door out"
+      caption="Everything inside a module file starts in the back room. Nothing reaches the street unless it is deliberately put in the window — and nothing outside can even ask what else is back there."
+    />
+
+    <app-quiz
+      question="Two plain `<script>` tags on the same page each declare `let helper = 5;`. Two separate ES module `.ts` files each do the exact same thing. Which one throws a duplicate-declaration error?"
+      [options]="ndqBlockQuiz"
+      followUp="The mental model below — a shop with one window — is the whole reason the module files never collide, however many of them declare a `helper`."
+    />
+
+    <app-napkin lead="the mental model —" label="A shop with one window">
+      Picture a module file as a shop: a back room full of stock, and exactly one window onto the street.
+      <code>export</code> is the act of putting something in that window. Everything else stays back-room stock, safe to
+      rename or delete, because nothing outside could ever have depended on it. The fuller version, plus what this buys
+      a refactor, is one section down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>A module file is a shop with one window.</h2>
 
     <p>
       Here's something most tutorials skip straight past: before modules existed, every <code>&lt;script&gt;</code> tag
       loaded onto a page ran in the exact same, single global scope. Declare a variable in one file and a second file
       with the same name doesn't get its own copy — it gets <strong>the same slot</strong>, and depending on how the two
-      collide, you get a hard crash or a silent overwrite with no warning either way.
+      collide, you get a hard crash or a silent overwrite with no warning either way. That collision is the entire
+      reason modules exist, and the fix turns out to be almost embarrassingly simple: give every file its own private
+      scope by default, and require one explicit keyword — <span class="key"><code>export</code></span> — for anything a
+      file wants to hand outside itself.
     </p>
-
-    <p>
-      That collision is the entire reason modules exist, and the fix turns out to be almost embarrassingly simple: give
-      every file its own private scope by default, and require one explicit keyword —
-      <span class="key"><code>export</code></span> — for anything a file wants to hand outside itself.
-    </p>
-
-    <app-napkin lead="quick guess —" label="Predict before reading on">
-      Two plain <code>&lt;script&gt;</code> tags on the same page each declare <code>let helper = 5;</code>. Two
-      separate module <code>.ts</code> files each do the exact same thing. One of those setups throws a
-      duplicate-declaration error the instant the page loads. The other runs forever, side by side, with nobody noticing
-      a thing. Which is which — and why?
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>A module file is a shop with one window.</h2>
 
     <p>
       The two <code>&lt;script&gt;</code> tags crash — a duplicate <code>let</code> in one shared global scope is a hard

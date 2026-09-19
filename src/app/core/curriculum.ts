@@ -239,6 +239,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ES modules, default vs named exports, barrels and path mapping.',
     level: 'typescript',
     category: 'Language Features',
+    shape: 'no-dumb-questions',
     loadComponent: () => import('../lessons/typescript/modules/modules').then((m) => m.Modules),
   },
   {
@@ -247,6 +248,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Asynchronous code, error handling and how it relates to Observables.',
     level: 'typescript',
     category: 'Language Features',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/typescript/async/async').then((m) => m.Async),
   },
   {
@@ -531,6 +533,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Adding and removing controls at runtime.',
     level: 'intermediate',
     category: 'Forms',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/intermediate/form-arrays/form-arrays').then((m) => m.FormArrays),
   },
@@ -580,6 +583,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'paramMap, queryParamMap, fragments and the withComponentInputBinding option.',
     level: 'intermediate',
     category: 'Routing',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/route-params/route-params').then((m) => m.RouteParams),
   },
@@ -590,6 +594,7 @@ export const CURRICULUM: Lesson[] = [
       'router.events from NavigationStart to End, Cancel and Error — loading bars, cancelled guards, failed chunks, and the order a navigation runs in.',
     level: 'intermediate',
     category: 'Routing',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/router-events/router-events').then(
         (m) => m.RouterEventsLesson,
@@ -728,6 +733,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Reusable template fragments with context.',
     level: 'intermediate',
     category: 'Components & Templates',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/ng-template-outlet/ng-template-outlet').then(
         (m) => m.NgTemplateOutletLesson,
@@ -1003,6 +1009,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Building reusable libraries with ng-packagr and authoring schematics.',
     level: 'expert',
     category: 'Tooling',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/expert/libraries-schematics/libraries-schematics').then(
         (m) => m.LibrariesSchematics,

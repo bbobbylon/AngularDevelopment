@@ -1113,6 +1113,47 @@ walk a hidden component" question in `structural-directives`) rather than just r
 existing prose. `npm run typecheck` is green. Declared-shape count: 20 → 28. Remaining
 undeclared: 103 − 28 = **75**, next up for batch 4.
 
+**Batch 4 of step 5, landed 2026-09-19.** Fourth rotation batch, seven lessons across three
+tracks (`typescript` ×2, `intermediate` ×4, `expert` ×1) — one short of the usual eight, since
+this was also the batch that recovered a prior session's work after a session-wide API rate
+limit killed the agent mid-round, and the seven lessons it had already finished (content written,
+verified clean, never committed) were the ones carried forward rather than padded out to a round
+number for its own sake:
+
+| Lesson                 | Track        | Shape               | The kind of gotcha                                                                                                                                                                 |
+| ---------------------- | ------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `form-arrays`          | intermediate | `argument`          | tension (`patchValue()` silently skips indices that don't exist yet, `setValue()` throws on any length mismatch — neither ever resizes the array itself, and that's on the caller) |
+| `route-params`         | intermediate | `whiteboard`        | structure (one URL carries four separate parameter mechanisms — path, matrix, query, fragment — and only the fragment never reaches the server at all)                             |
+| `router-events`        | intermediate | `no-dumb-questions` | misconception (a loading bar wired to show on `NavigationStart` and hide on `NavigationEnd` never comes back down the first time a guard rejects the navigation)                   |
+| `ng-template-outlet`   | intermediate | `whiteboard`        | structure (one `<ng-template>` pressed by three separate `[ngTemplateOutlet]` bindings produces three fully independent DOM trees, not one shared one)                             |
+| `libraries-schematics` | expert       | `receipt`           | cost (what a generated library actually commits a team to shipping publicly forever, and how consumers get it onto their machines and keep it current)                             |
+| `async`                | typescript   | `receipt`           | cost/mental model (a `Promise` is a claim ticket standing in for a value that isn't there yet, not the value itself)                                                               |
+| `modules`              | typescript   | `no-dumb-questions` | misconception (nothing in one `.ts` file exists to any other file until an `import`/`export` keyword says otherwise — which rewrites what "collision" even means)                  |
+
+Recovery, not a rewrite: rather than trust the interrupted session's own hand-off, re-read every
+one of the seven lessons' opening blocks in full against `docs/CONTRIBUTING.md` §2C's shape
+contracts before touching anything further — all seven were genuinely complete and internally
+consistent (the declared shape's device sequence present, nothing forbidden, content specific to
+that lesson rather than reshuffled boilerplate), so the only remaining work was `curriculum.ts`'s
+seven `shape:` fields (already present and correct) plus full verification, not authoring.
+`scripts/audit-variety.mjs` is green (35 declared shapes: `argument` 8, `no-dumb-questions` 9,
+`receipt` 9, `whiteboard` 9 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check` and
+`npm run typecheck` are both green across the full repo, and `npx ng build` succeeds.
+
+**One thing worth flagging honestly.** The full `npm run test:ci` run in this session's sandbox
+(1301s for 593 tests) showed 7 failures — but every one of them was a bare timeout
+(`Test timed out in 20000ms`/`60000ms`), never a content or assertion failure, and only one of
+the seven touched lessons (`libraries-schematics`) appeared among them, alongside four entirely
+untouched lessons (`testing-components`, `testing-services-http`, `task-manager`, `auth-flow`)
+and one a11y spec (`data-dashboard`) that also timed out. Re-ran `libraries-schematics`'s own
+smoke + a11y tests in isolation (`ng test --filter="libraries-schematics"`) and both passed
+cleanly in 12.66s — confirming the timeout was this session's sandbox running the full suite
+back-to-back under resource contention, not a defect this batch introduced. Worth a routine
+re-run in CI (which isn't resource-constrained the same way) rather than assumed fixed.
+
+Declared-shape count: 28 → 35. Remaining undeclared: 103 − 35 = **68**, next up for batch 5.
+
 ---
 
 ## 3. Later
