@@ -16,45 +16,77 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>A union is a value you are not allowed to touch.</h2>
+    <p class="bf-big">“I return <code>p is Cat</code>. I never said I checked.”</p>
 
-    <p>
-      You write <code>function fmt(x: string | number)</code>, and then you cannot do anything with <code>x</code>. Not
-      <code>x.trim()</code>. Not <code>x.toFixed(2)</code>. Not <code>x.length</code>. The compiler rejects all three,
-      and the error feels like an insult when you can plainly see the value in the debugger.
+    <p class="bf-say">
+      One line stubbed during a refactor, one dog treated as a cat in production, three parties in the room — and not
+      one of them broke a rule.
     </p>
 
     <p>
-      It is not being difficult. A union gives you the <strong>intersection of the members</strong>, not the union of
-      them — you may only touch what exists on <em>every</em> arm. And all <code>string</code> and
-      <code>number</code> have in common is <code>toString()</code> and <code>valueOf()</code>, neither of which is what
-      you came for. The compiler is holding two possibilities at once and refusing to guess between them, which is
-      exactly what you asked it to do when you wrote the <code>|</code>.
+      The parties: <strong>your type predicate</strong>, <code>function isCat(p: Pet): p is Cat</code>, which promises
+      the compiler a fact about <code>p</code>. <strong>The compiler</strong>, which agrees to trust that promise
+      without ever reading the function's body. And <strong>every call site</strong> — including yours — which inherits
+      that trust the instant it writes <code>if (isCat(p))</code>. Here is the negotiation, in full.
     </p>
 
-    <p>So the real question is not "how do I make the error go away". It is:</p>
+    <app-bubbles [turns]="predicateTalk" caption="Round one. Every line here is true." />
 
-    <ul>
-      <li>What counts as <strong>evidence</strong> that a value is one arm and not the other?</li>
-      <li>How long does that evidence <strong>stay valid</strong>?</li>
-      <li>And what silently <strong>throws it away</strong> without telling you?</li>
-    </ul>
+    <app-brain-power
+      question="The predicate said `p is Cat`. The compiler agreed to trust it. Neither one lied — so when `isCat` returns `true` for a dog, at 3 a.m., in production, whose bug is it?"
+      hint="Ask what each party actually promised — not what you assumed they promised."
+    />
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Here is one to commit to before you scroll. Given
-      <code>x: string | Date | null</code>, you write <code>if (typeof x === 'object')</code>.
-      <strong>Inside that branch, what does the compiler think <code>x</code> is?</strong> Say it out loud — there is a
-      live bench three sections down where you can watch the answer happen, and a quiz that will hold you to it.
+    <app-bubbles [turns]="verdictTalk" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      A type predicate is an <strong>axiom</strong>, not a proof. The compiler checks only that the claimed type is
+      plausible for the argument — never that the function's body actually verified it. Every caller inherits that trust
+      without ever agreeing to it, which is why a five-line guard deserves tests more than almost anything else you will
+      write.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'p is Cat', sub: 'trusted, never re-checked' }"
+      [rings]="[
+        { label: 'the compiler', sub: 'verified only that Cat is *possible*' },
+        { label: 'every call site', sub: 'inherits the trust, zero questions asked' },
+      ]"
+      arrow="trust flows outward — nobody past the first ring ever re-opens the claim"
+      caption="One unverified line at the centre, and two rings of code that will never know to doubt it. This is the exact shape a lying predicate travels in, all the way to production."
+    />
+
+    <app-quiz
+      question="`isCat` gets stubbed to `return true` during a refactor, and a `Dog` starts flowing through the app tagged as a `Cat`. How long before the compiler catches it?"
+      [options]="predicateTrustQuiz"
+      followUp="This is the whole lesson in one number: never, on its own. The fix is a test on the predicate itself, not a stricter compiler flag — you'll meet a louder version of this exact trap again in the type-predicates section further down."
+    />
+
+    <app-napkin lead="the mental model —" label="A notary who never reads the form">
+      A type predicate is a notary who checks that the signature line exists and is properly formatted — never that the
+      claims written above it are true. Once it is stamped, everyone downstream — the compiler, every caller, every
+      reviewer who sees <code>if (isCat(p))</code> and moves on — trusts the stamp completely, without re-reading a word
+      of what is actually inside.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MECHANISM: WHAT NARROWING IS WHEN NOBODY LIES ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mechanism</p>
     <h2>The compiler is working a shortlist of suspects.</h2>
+
+    <p>
+      That was the trust half of the story — one predicate, unverified, believed all the way down. Here is the ordinary
+      machinery underneath it, the ninety-nine percent of narrowing where nobody is lying and the compiler is just doing
+      arithmetic.
+    </p>
 
     <p>
       Picture a detective with five names on a whiteboard. They do not <em>add</em> a suspect because of new evidence —
@@ -510,10 +542,11 @@
       <span class="term">type predicate</span> is how you say what it means.
     </p>
 
-    <app-bubbles
-      [turns]="predicateTalk"
-      caption="The whole contract, in six lines. Note which party is doing the checking — and which one is only doing the trusting."
-    />
+    <p>
+      You already watched this exact negotiation happen at the top of the page — the predicate promises, the compiler
+      agrees to trust, and every call site inherits it with no questions asked. Here is the actual code that negotiation
+      was about, line by line.
+    </p>
 
     <app-code-lab
       file="guards.ts"

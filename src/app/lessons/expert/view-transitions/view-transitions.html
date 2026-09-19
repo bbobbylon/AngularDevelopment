@@ -16,36 +16,143 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>
-    <h2>Wire up a transition, forget one line. Predict what breaks.</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">Find the one element wearing the same name tag in both photographs.</p>
 
-    <p>
-      Every demo on this page grows or shuffles cards inside a helper called <code>withTransition</code>. It looks
-      almost too simple: run <code>document.startViewTransition()</code>, change a signal inside it, done. One line is
-      missing from the version on the right, and it's the one line that makes the whole thing work.
+    <app-brain-power
+      question="Both snapshots below contain a card, but neither one gives it a `view-transition-name`. When the browser dissolves from the old photograph to the new one, what happens to that unnamed card?"
+      hint="Ask whether 'no name tag' means 'skip it entirely' or 'lump it in with everything else that has no name either.'"
+    />
+
+    <app-whiteboard
+      caption="Two shutter clicks and a curtain between them — one card keeps its identity across the gap, the rest don't need to."
+      alt="Three boxes in a row. The first, labelled OLD, captured before mutation, contains a smaller highlighted box labelled card hash 3. The second, labelled behind the curtain, DOM mutates, invisible to the audience, sits between them with no highlighted contents. The third, labelled NEW, captured after mutation, contains a larger highlighted box also labelled card hash 3, moved and resized from the first box. Solid arrows run left to right through all three boxes. A dashed curved arrow loops from the highlighted box in OLD down and across to the highlighted box in NEW, labelled same name tag, morphs instead of cross-fading."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 300" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="view-transitions-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <text x="130" y="24" text-anchor="middle" class="wb-hand">shutter click one</text>
+        <text x="630" y="24" text-anchor="middle" class="wb-hand">shutter click two</text>
+
+        <rect x="30" y="40" width="200" height="140" rx="12" class="wb-node" />
+        <text x="130" y="64" text-anchor="middle" class="wb-mono">OLD</text>
+        <text x="130" y="82" text-anchor="middle" class="wb-mono wb-text--sm">captured before mutation</text>
+        <rect x="55" y="118" width="90" height="42" rx="8" class="wb-node wb-node--lit" />
+        <text x="100" y="144" text-anchor="middle" class="wb-mono wb-text--sm wb-text--on-solid">card #3</text>
+
+        <rect x="280" y="40" width="200" height="140" rx="12" class="wb-node" />
+        <text x="380" y="70" text-anchor="middle" class="wb-mono wb-text--sm">BEHIND THE CURTAIN</text>
+        <text x="380" y="90" text-anchor="middle" class="wb-mono wb-text--sm">DOM mutates —</text>
+        <text x="380" y="106" text-anchor="middle" class="wb-mono wb-text--sm">invisible to the audience</text>
+
+        <rect x="530" y="40" width="200" height="140" rx="12" class="wb-node" />
+        <text x="630" y="64" text-anchor="middle" class="wb-mono">NEW</text>
+        <text x="630" y="82" text-anchor="middle" class="wb-mono wb-text--sm">captured after mutation</text>
+        <rect x="555" y="108" width="150" height="58" rx="8" class="wb-node wb-node--lit" />
+        <text x="630" y="142" text-anchor="middle" class="wb-mono wb-text--sm wb-text--on-solid">card #3 — grown</text>
+
+        <path class="wb-arrow" d="M230 110 H 280" marker-end="url(#view-transitions-head)" />
+        <path class="wb-arrow" d="M480 110 H 530" marker-end="url(#view-transitions-head)" />
+
+        <path
+          class="wb-arrow wb-arrow--dashed"
+          d="M100 160 C 100 250, 630 250, 630 166"
+          marker-end="url(#view-transitions-head)"
+        />
+        <text x="365" y="272" text-anchor="middle" class="wb-hand">same name tag → morphs, not cross-fades</text>
+      </svg>
+
+      <app-scribble
+        quote="card #3"
+        text="wears the same `view-transition-name` in both photographs. That shared tag is the ONLY thing telling the browser these are 'the same thing' across the gap, not two unrelated elements that happen to look alike."
+      />
+      <app-scribble
+        quote="BEHIND THE CURTAIN"
+        point="up"
+        text="this is where your callback actually runs. The DOM really does change here — the audience just never sees the frame where it's mid-change."
+      />
+      <app-scribble
+        quote="morphs, not cross-fades"
+        tone="olive"
+        text="the exception, not the rule. Every element WITHOUT a shared name tag just dissolves — morphing is earned only by a tag that appears, unique, in both snapshots."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      It dissolves as part of the built-in <code>root</code> group — the default photograph-swap everything gets unless
+      you name it individually. Give an element its own <code>view-transition-name</code> and you pull it
+      <em>out</em> of that shared cross-fade into its own private pair of snapshots, which is the only thing that makes
+      it eligible to morph instead of just fade.
     </p>
 
-    <app-predict
-      prompt="You click a card. Its handler runs the code on the right — a plain signal write, no `appRef.tick()` anywhere. What do you predict happens on screen?"
-      [code]="predictCode"
-      answer="Nothing visibly animates. `startViewTransition` takes its **new** photograph the instant your callback's promise resolves, and a plain signal write only **schedules** a render — it hasn't reached the DOM yet. So the browser captures a **new** photo that's pixel-identical to the old one, cross-fades between two identical images (which looks like nothing happened), and tears the overlay down. Then, a moment later, whenever Angular's scheduler gets around to it, the card silently snaps to its grown size with zero animation. That's the entire reason this lesson's own demo calls `this.appRef.tick()` inside the callback — it forces the DOM to catch up before the second photo is taken."
+    <app-flow
+      [steps]="[
+        {
+          label: 'Capture the OLD photograph',
+          detail: 'the browser screenshots exactly what is on screen right now, pixel for pixel.',
+        },
+        {
+          label: 'Run your callback — DOM mutates',
+          detail: 'everything changes here, but behind the curtain, invisible to the audience.',
+        },
+        {
+          label: 'Capture the NEW photograph',
+          detail: 'the instant your callback returns and its promise resolves — not a moment later.',
+        },
+        {
+          label: 'Cross-fade, or morph any shared tags',
+          detail:
+            'no name tag → dissolves as part of root. A shared name tag → slides and resizes from old to new instead.',
+        },
+      ]"
+      caption="The four-beat sequence the whiteboard above freezes at one instant. Every section on this page is one of these four beats, examined closer."
     />
+
+    <app-quiz
+      question="Two different cards on the same page both get `view-transition-name: card`. What happens when the DOM changes inside `startViewTransition()`?"
+      [options]="nameCollisionQuiz"
+      followUp="The remember box further down this page names the rule directly: at most one element wearing a given name tag, per page, at snapshot time."
+    />
+
+    <app-napkin lead="the mental model —" label="Two photographs, and a dissolve between them">
+      Forget "animating the page." A photographer takes one picture, drops a curtain while the furniture gets rearranged
+      behind it, then takes a second picture — only then do the two photos get projected on top of each other and
+      dissolved together. The fuller version, with the shared name tag that turns a plain dissolve into a morph, is one
+      section down.
+    </app-napkin>
   </section>
 
-  <!-- ============ 2. THE ANALOGY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow">The mental model</p>
+    <p class="bf-eyebrow">The mental model, in full</p>
     <h2>Two photographs, and a dissolve between them.</h2>
 
     <p>
-      Forget "animating the page." Picture a photographer in a room. Before anything moves, they take a picture — that's
-      the <strong>old snapshot</strong>. Then a curtain drops: behind it, inside your callback, the furniture gets
-      rearranged — the DOM mutates, a route swaps, whatever you asked for. The audience never sees this part happen; the
-      old photograph is still all that's on screen. The instant the crew steps back, the photographer takes a second
-      picture — the <strong>new snapshot</strong>. Only then does the browser project both photos on top of each other
-      and dissolve from one to the other.
+      Here's the same idea, unhurried. Picture a photographer in a room. Before anything moves, they take a picture —
+      that's the <strong>old snapshot</strong>. Then a curtain drops: behind it, inside your callback, the furniture
+      gets rearranged — the DOM mutates, a route swaps, whatever you asked for. The audience never sees this part
+      happen; the old photograph is still all that's on screen. The instant the crew steps back, the photographer takes
+      a second picture — the <strong>new snapshot</strong>. Only then does the browser project both photos on top of
+      each other and dissolve from one to the other.
     </p>
     <p>
       If one piece of furniture — one element — wears the <em>same name tag</em> in both photographs, the browser does
@@ -59,6 +166,24 @@
       <strong>behind the curtain</strong> → capture the <strong>new</strong> photo → cross-fade (or morph any matching
       name tags) between them. Every section on this page is one of those four beats.
     </app-remember>
+  </section>
+
+  <!-- ============ 2B. THE TRAP, PREDICTED ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The trap</p>
+    <h2>Wire up a transition, forget one line. Predict what breaks.</h2>
+
+    <p>
+      Every demo on this page grows or shuffles cards inside a helper called <code>withTransition</code>. It looks
+      almost too simple: run <code>document.startViewTransition()</code>, change a signal inside it, done. One line is
+      missing from the version on the right, and it's the one line that makes the whole thing work.
+    </p>
+
+    <app-predict
+      prompt="You click a card. Its handler runs the code on the right — a plain signal write, no `appRef.tick()` anywhere. What do you predict happens on screen?"
+      [code]="predictCode"
+      answer="Nothing visibly animates. `startViewTransition` takes its **new** photograph the instant your callback's promise resolves, and a plain signal write only **schedules** a render — it hasn't reached the DOM yet. So the browser captures a **new** photo that's pixel-identical to the old one, cross-fades between two identical images (which looks like nothing happened), and tears the overlay down. Then, a moment later, whenever Angular's scheduler gets around to it, the card silently snaps to its grown size with zero animation. That's the entire reason this lesson's own demo calls `this.appRef.tick()` inside the callback — it forces the DOM to catch up before the second photo is taken."
+    />
   </section>
 
   <!-- ============ 3. THE PRIMITIVE ============ -->

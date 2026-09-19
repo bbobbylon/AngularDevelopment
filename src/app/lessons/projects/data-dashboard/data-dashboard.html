@@ -30,23 +30,48 @@
     </ul>
   </section>
 
-  <!-- ============ THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): the giant sentence → a statement → the
+       Q&A that carries the whole explanation → an open question → the figure that
+       answers it → the one quiz → the analogy on a napkin. No cards, no dialogue,
+       and no Remember until the mental-model section — the shape is the Q&A doing
+       the teaching. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Five controls. If any one of them lies, the whole page lies.</h2>
-    <p>
-      Picture the shortcut version of this dashboard: <code>totalRevenue</code>, <code>pageCount</code>,
-      <code>topRegion</code> and <code>visibleRows</code> are each their own signal, and every filter's click handler
-      writes to all four by hand. It's the obvious first design, and it even <em>works</em> — right up until you add a
-      fifth control, forget one of the four writes, or reorder two of them in a refactor. Then the total on the KPI card
-      and the total on the table quietly stop <span class="bf-break">agreeing</span>, and nothing in the type system
-      will ever tell you.
+    <p class="bf-big">Writing to one signal does not mean every selector downstream of it just got slower.</p>
+
+    <p class="bf-say">
+      Five `computed` selectors hang off this store. Change one thing, and most people assume most of them just redid
+      their work. Most of them didn't.
     </p>
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Four "shortcut" signals — <code>totalRevenue</code>, <code>pageCount</code>, <code>topRegion</code>,
-      <code>visibleRows</code> — each written by hand from every filter's click handler. Name one situation where two of
-      them end up disagreeing. Then keep reading: the design below makes that situation
-      <strong>impossible to reach</strong>, not just less likely.
+
+    <app-no-dumb-questions [items]="ndq" />
+
+    <app-brain-power
+      question="You click the Amount column header to sort by it. Of the five selectors hanging off this store, exactly how many actually redo any work?"
+      hint="Ask which selectors the click handler's write can even reach — not how many selectors exist."
+    />
+
+    <app-layers
+      [core]="{ label: '_sortKey.set()', sub: 'the one write' }"
+      [rings]="[
+        { label: 'sorted', sub: 'reads _sortKey directly → recomputes' },
+        { label: 'paginatedRows', sub: 'reads sorted → recomputes too, one hop out' },
+      ]"
+      arrow="invalidation travels only to readers, and their readers"
+      caption="Two selectors sit downstream of this write. The other three — filtered, totalPages, summary — never read _sortKey at all, so nothing about this click reaches them."
+    />
+
+    <app-quiz
+      question="You click a column header to change the sort. The store derives `filtered`, `sorted`, `totalPages`, `paginatedRows` and `summary`. Which of them actually re-run?"
+      [options]="chainOptions"
+      followUp="Dependencies are tracked per signal read, not per file. A selector is only invalidated by the signals it genuinely touched on its last run — proved again, as a dialogue this time, further down the page."
+    />
+
+    <app-napkin lead="the mental model —" label="A cc'd email chain">
+      Picture five coworkers on a chain of cc'd emails. Only the ones actually ON the thread that changed get a
+      notification — the other two keep working off their last email, correctly, because nobody looped them into this
+      particular update. That's a computed graph: invalidation travels along real "read" edges, never to everyone in the
+      building.
     </app-napkin>
   </section>
 
@@ -54,6 +79,14 @@
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>A dashboard is a production line, not a pile of state.</h2>
+    <p>
+      That's the shape of the saving. Here's the design that makes it possible: picture the shortcut version of this
+      dashboard, where <code>totalRevenue</code>, <code>pageCount</code>, <code>topRegion</code> and
+      <code>visibleRows</code> are each their own signal, and every filter's click handler writes to all four by hand.
+      It's the obvious first design, and it even <em>works</em> — right up until you add a fifth control, forget one of
+      the four writes, or reorder two of them in a refactor. Then the total on the KPI card and the total on the table
+      quietly stop <span class="bf-break">agreeing</span>, and nothing in the type system will ever tell you.
+    </p>
     <p>
       A dashboard is not a pile of state — it is
       <strong>one set of records with a line of machines bolted to it</strong>. Raw rows go in at one end. The first
@@ -220,14 +253,13 @@
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mechanism, staged as dialogue</p>
     <h2>Who actually reruns when you click a header?</h2>
+    <p>
+      You already proved this with the diagram and the quiz near the top of the page. Here's the identical fact again,
+      in a third mode — not a picture this time, but the five selectors arguing it out among themselves:
+    </p>
     <app-bubbles
       [turns]="dependencyTalk"
       caption="One header click, five selectors downstream of the sort key — and only two of them do any work."
-    />
-    <app-quiz
-      question="You click a column header to change the sort. The store derives `filtered`, `sorted`, `totalPages`, `paginatedRows` and `summary`. Which of them actually re-run?"
-      [options]="chainOptions"
-      followUp="Dependencies are tracked per signal read, not per file. A selector is only invalidated by the signals it genuinely touched on its last run."
     />
   </section>
 

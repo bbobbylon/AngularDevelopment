@@ -19,38 +19,73 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>One star, and a rule nobody explains.</h2>
+    <p class="bf-big">"Turn me into a stencil," say two different stars — pointed at the exact same tag.</p>
 
-    <p>
-      Here's a rule you'll hit in your first hour of reading legacy Angular:
-      <strong>you can never put two structural directives on the same element.</strong> Not a style-guide preference — a
-      compile error. Memorise the rule on its own and it's a trap waiting for a tired afternoon. Know <em>why</em>, and
-      the mistake stops being conceivable, because you'll be able to see exactly what each star is trying to do to your
-      markup.
+    <p class="bf-say">
+      Not a style-guide preference. A compile error, every time: you can never put two structural directives on the same
+      element. Both requests are completely reasonable on their own. Put them on the same tag and the compiler refuses
+      outright, rather than just picking an order for you.
     </p>
 
-    <div class="note">
-      These directives live in <code>&#64;angular/common</code>. A standalone component imports the ones it uses
-      (<code>NgIf</code>, <code>NgFor</code>, …) — or the whole <code>CommonModule</code> in an NgModule app. Forget the
-      import and current Angular stops you at compile time with <code>NG8103</code>; older versions treated the
-      <code>*ngIf</code> as an unknown attribute and rendered the element unconditionally, with no error at all. Either
-      way, <code>&#64;if</code> has nothing to forget — that's one of its quieter advantages.
-    </div>
+    <p>
+      The parties: <strong><code>*ngIf</code></strong
+      >, which wants a stencil pressed once or not at all. <strong><code>*ngFor</code></strong
+      >, which wants a stencil pressed once per item. And <strong>the element</strong> itself — one tag, asked to become
+      two different stencils at once.
+    </p>
 
-    <app-napkin lead="quick guess —" label="Predict before scrolling">
-      You're allowed to put <code>*ngIf</code> on any element you like. You're allowed to put <code>*ngFor</code> on any
-      element you like. Before you scroll: why can't you put <em>both</em> on the <strong>same</strong> element — what
-      would actually have to happen for <code>&lt;li *ngIf="show" *ngFor="let x of xs"&gt;</code> to make sense, and why
-      can the compiler not just pick an order for you?
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="Both `*ngIf` and `*ngFor` are behaving exactly as designed — so what does the compiler actually refuse to do here, and why won't it just pick an order for you?"
+      hint="Ask what changes about the OUTPUT depending on which one wraps the other — not just whether the markup is legal."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      A star doesn't wrap a stencil — it <em>makes</em> one, out of the exact tag it's written on. Two stars on one tag
+      are two requests to turn the <strong>same element</strong> into two different stencils, and there's only one
+      element to give. <code>&lt;ng-container&gt;</code> fixes it by handing the second star an empty tag of its own —
+      one that renders nothing, so nesting costs nothing but a decision about which order.
+    </p>
+
+    <app-layers
+      [core]="{ label: '<li>…</li>', sub: 'the one real element, pressed at the very centre' }"
+      [rings]="[
+        { label: '*ngIf stencil — outer', sub: 'checked once, before the loop ever runs' },
+        { label: '*ngFor stencil — inner', sub: 'presses once per surviving item' },
+      ]"
+      arrow="which one wraps which is a choice, not a default"
+      caption="Nest `*ngIf` outside and Angular checks the condition once, then loops. Swap the two rings — `*ngFor` outside — and it loops first, checking the condition fresh on every single item instead. Same two stencils, two genuinely different amounts of work."
+    />
+
+    <app-quiz
+      question="`<ng-container *ngIf='show'><li *ngFor='let x of xs'>{{
+        '{{'
+      }} x {{ '}}' }}</li></ng-container>` — `*ngIf` is the OUTER stencil here. While Angular renders this list, how many times does it evaluate `show`?"
+      [options]="argBlockQuiz"
+      followUp="Swap which directive sits on the `<ng-container>` and which sits on the `<li>`, and the answer changes — that swap is the entire reason the compiler won't guess an order for you."
+    />
+
+    <app-napkin lead="the mental model —" label="Two stencils, one piece of paper">
+      A stencil is a cut-out shape, not ink on the page — nothing appears until something presses it down. Both
+      <code>*ngIf</code> and <code>*ngFor</code> want to turn the <strong>same</strong> element into their own stencil,
+      and one piece of paper can only become one stencil at a time. <code>&lt;ng-container&gt;</code> is a second,
+      invisible sheet for the second star to press. The fuller version, with the real desugaring, is one section down.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
     <h2>An <code>&lt;ng-template&gt;</code> is a stencil, not a page.</h2>
 
     <p>

@@ -2,8 +2,9 @@ import { Component, InjectionToken, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 // ── Live-demo primitives ────────────────────────────────────────────────────
@@ -114,6 +115,21 @@ const CLONED_LOGGER = new InjectionToken<LoggerBase>('CLONED_LOGGER');
  * deeper with a live self/skipSelf/host playground and its own worked
  * `forwardRef` example, so this page keeps those sections tight and links
  * onward rather than re-building the same live proof twice.
+ *
+ * ## Shape: `whiteboard`
+ *
+ * Opens on the exam-favourite trap this lesson's own quiz bank kept testing in
+ * isolation: a component's `providers` array duplicating a `providedIn: 'root'`
+ * registration silently forks a "singleton" into two independent instances.
+ * `app-brain-power` poses the "how many instances, who gets which" question
+ * before the reader sees the picture; `app-whiteboard` draws root's instance A
+ * and `Dashboard`'s own instance B side by side, never synced; `.bf-answer`
+ * spells out the count; `app-flow` replays it as a sequence; the existing
+ * {@link duplicateProviderQuiz} — previously stranded alone in the pitfalls
+ * section — now sits inside the block where the picture that explains it
+ * lives; and the block closes on the request-slip-and-filing-cabinet analogy
+ * that used to open "The mental model" as prose. See `docs/CONTRIBUTING.md`
+ * §2C.
  */
 @Component({
   selector: 'app-lesson-di-providers',
@@ -127,8 +143,12 @@ const CLONED_LOGGER = new InjectionToken<LoggerBase>('CLONED_LOGGER');
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
@@ -511,7 +531,37 @@ parent = inject(FormGroup, { skipSelf: true });         // the parent's instance
   ];
 
   /**
-   * Self-test 2 — the classic "I added it to `providers` just to be safe" bug.
+   * The whiteboard's duplicate-instance fork, replayed as a sequence rather
+   * than a picture — the shape block's own redundancy-in-a-different-mode
+   * beat.
+   */
+  protected readonly duplicateProviderSteps: FlowStep[] = [
+    {
+      label: 'Root builds instance A',
+      detail: 'The first time anything outside `Dashboard` injects `Notifier`',
+    },
+    {
+      label: "Dashboard's own providers run",
+      detail: 'Angular reads `providers: [Notifier]` while building that one element injector',
+      tone: 'accent' as const,
+    },
+    {
+      label: 'Root builds instance B',
+      detail:
+        'The first time anything inside `Dashboard` injects `Notifier` — not by asking root first',
+    },
+    {
+      label: 'Both live on, unaware',
+      detail: 'Instance A everywhere else, instance B inside Dashboard — forever, with no error',
+      tone: 'good' as const,
+    },
+  ];
+
+  /**
+   * Self-test 2 — the classic "I added it to `providers` just to be safe" bug,
+   * and the exact trap the whiteboard block above draws as a picture: a
+   * component's own `providers` duplicating a `providedIn: 'root'`
+   * registration doesn't merge — it silently forks the "singleton" in two.
    *
    * The `why` on the correct option is doing the real work here — this is the
    * "why is my state not shared?" trap the pitfalls list below promises, made

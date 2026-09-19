@@ -11,6 +11,7 @@ import {
   Napkin,
   TapeCard,
 } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import {
   Compare,
   Faq,
@@ -35,14 +36,29 @@ import {
  * the child-route guard-cascade trap, verified against `@angular/router`'s own type
  * declarations rather than assumed.
  *
+ * ## Shape: "The Whiteboard" (`shape: 'whiteboard'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The topic is structural — one guard slot that runs once, and a
+ * second one that Angular re-asks at every child — which is exactly what the
+ * Whiteboard shape is for: one big figure carries it, and the prose serves the
+ * picture instead of the other way round. The opening block is: an eyebrow and a
+ * `.bf-say` naming what to look for → an open question posed *before* the figure
+ * → a two-column containment figure (`app-whiteboard`) with three scribble
+ * call-outs quoting its own labels → a `.bf-answer` paragraph that answers the
+ * question outright → {@link guardOrderFlow} as a numbered `app-flow` → the crux
+ * quiz ({@link cascadeQuizOptions}) → the airport-badge analogy on a napkin. No
+ * `app-bubbles`, `app-tape-card` or `app-receipt` inside the block.
+ *
  * ## Presentation
  *
- * Teaching order follows `expert/change-detection`, the reference implementation of the
- * brain-friendly layer: pose the problem before naming it, give the reader an analogy to
- * hang the vocabulary on, then teach the one mechanism that trips people up — how the
- * checkpoints fit into a single navigation — four different ways: a dialogue between the
- * router and the guards, a diagram of the execution order for a nested route, an
- * annotated dump of the router's own pipeline, and three live demos the reader drives.
+ * Teaching order after the block follows `expert/change-detection`, the reference
+ * implementation of the brain-friendly layer: the block answers *what* happens
+ * (and what doesn't); "The mental model" section right after it gives the reader
+ * the full airport-security analogy to hang the rest of the vocabulary on, then
+ * teaches the one mechanism that trips people up — how the checkpoints fit into
+ * a single navigation — several more ways: a dialogue between the router and the
+ * guards, an annotated dump of the router's own pipeline, and three live demos
+ * the reader drives.
  *
  * @see intermediate/resolvers — the very next checkpoint after every guard has passed.
  *   Its own guard/redirect note (why a `UrlTree` beats `router.navigate()`) is the exact
@@ -58,6 +74,9 @@ import {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,

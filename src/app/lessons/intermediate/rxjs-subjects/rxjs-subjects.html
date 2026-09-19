@@ -17,46 +17,101 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You cannot speak into an Observable.</h2>
-
-    <p>
-      Everything in the previous two lessons flowed one way. You <em>described</em> a producer —
-      <code>interval()</code>, <code>http.get()</code>, <code>fromEvent()</code> — and then you subscribed and watched
-      it run. At no point were you allowed to reach in from the side and say "and now, a 7". There is no
-      <code>next()</code> on an <code>Observable</code>. There is nowhere to put one.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (before vs after) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      You call <code>next()</code> into a completed Subject three times, expecting three deliveries. Here's the bill:
+      three attempts, zero deliveries, zero errors, zero warnings — and nothing in the console to tell you any of that
+      happened.
     </p>
 
-    <p>
-      That is a problem the moment your values come from something the observable does not own. A button in one
-      component. A message off a WebSocket. A toast that any of forty places might want to raise. You have a value and
-      an audience, and the tool you know about only works when the producer and the subscription are the same piece of
-      code.
+    <app-receipt
+      heading="Three calls to a dead bus"
+      [rows]="deadBusBill"
+      [total]="deadBusTotal"
+      footer="a completed Subject is not paused. It is gone — and it never says so."
+    />
+
+    <app-scribble
+      point="up"
+      quote="0"
+      text="Not a bug you'll catch with a try/catch — there's nothing to catch. The subject just quietly declines every call for the rest of its life."
+    />
+
+    <app-compare
+      leftTitle="Before complete() — every next() delivers"
+      leftTone="good"
+      rightTitle="After complete() — every next() vanishes"
+      rightTone="bad"
+      note="Same bus, same next() call, same syntax. The only difference is one line that ran in between."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ beforeCompleteSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ afterCompleteSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say"><code>complete()</code> doesn't pause the subject. It closes the door and throws away the key.</p>
+
+    <app-chain [steps]="nextMechanismChain" label="What next() actually checks, on every single call" />
+
+    <app-code-lab
+      file="termination.ts"
+      [code]="terminationSample"
+      [notes]="terminationNotes"
+      notesLabel="Line by line — including the line that does nothing"
+    />
+
+    <app-scribble
+      quote="bus.next('pong')"
+      text="the silent line. Three words of comment do more explaining than the code — nothing throws, because nothing is checking for a failure; the stopped flag just quietly says no."
+    />
+    <app-scribble
+      quote="B error feed dropped"
+      point="up"
+      text="subscribed AFTER the failure, and handed the stored error before it has read a single value. A terminated subject isn't silent to newcomers — it's loudly, permanently finished."
+    />
+
+    <app-brain-power
+      question="A completed Subject's next() call doesn't throw, doesn't warn, doesn't queue. So how would you EVER find out, in a real app, that a call to next() went nowhere?"
+      hint="Ask what RxJS itself still knows, even after everyone's gone — there's a flag for exactly this, sampled live in the bench further down."
+    />
+
+    <app-quiz
+      question="A Subject is completed. Something still calls next() on it three more times, expecting to hear about it. What actually happens?"
+      [options]="terminatedNextQuiz"
+      followUp="Run exactly that on the live bus further down — publish, complete, publish twice more — and watch the log print nothing under those last two lines."
+    />
+
+    <p class="bf-big verdict">
+      Three calls, zero deliveries, zero errors, zero warnings. <code>complete()</code> isn't a pause button — it's the
+      only button, and there's no undo.
     </p>
-
-    <p>And there is a second, quieter problem sitting next to it:</p>
-
-    <ul>
-      <li>An Observable is <strong>cold</strong> — the producer is built <em>inside</em> the subscribe call.</li>
-      <li>So two subscribers do not share a run. They get <strong>two runs</strong>.</li>
-      <li>Which means two timers, two WebSocket connections, or <span class="bf-break">two HTTP requests</span>.</li>
-    </ul>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Commit to this before you scroll. A stream emits <code>1</code>, then <code>2</code>, then <code>3</code>. Only
-      <em>now</em> does a second subscriber arrive. <strong>What should it be told?</strong> Write down an answer — and
-      then notice that you cannot, because "it depends" is the honest response and the thing it depends on is the whole
-      of this lesson. There are four different right answers below, and a live bench that will show you all four at
-      once.
-    </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>An Observable is a recipe. A Subject is a radio station.</h2>
+
+    <p>
+      That's the cost of a door nobody can open twice. Here's the fact underneath it: an Observable has no
+      <code>next()</code> to call in the first place. Everything in the previous two lessons flowed one way — you
+      <em>described</em> a producer and then subscribed and watched it run. A <strong>Subject</strong> is both an
+      Observable and an Observer at once, which is the only reason <code>next()</code> exists on one at all.
+    </p>
 
     <p>
       Hand two people the same recipe and you get two dinners. The recipe is not the food; it is instructions for making
@@ -390,16 +445,16 @@
 
     <p>
       The cruel part is how quiet the failure is. Calling <code>next()</code> on a terminated Subject does not throw,
-      does not warn and does not queue. It returns.
+      does not warn and does not queue. It returns. You already read the exact code for that — the receipt at the top of
+      the page priced it at zero deliveries — so here's the one question that code-lab left open:
     </p>
 
-    <app-code-lab
-      file="termination.ts"
-      [code]="terminationSample"
-      [notes]="terminationNotes"
-      notesLabel="Line by line — including the line that does nothing"
-      prompt="After line 6, is `bus.closed` true — and is there any way to get this bus working again?"
-      output="closed is FALSE, and no. Only subject.unsubscribe() sets closed to true; error() and complete() set a separate isStopped flag instead. Either way the observer list is emptied and the ending is stored, so every future subscriber is handed it the moment it arrives. You cannot restart a terminated Subject — you replace it."
+    <app-predict
+      prompt="After line 6 of that same termination.ts, is `bus.closed` true — and is there any way to get this bus working again?"
+      code="const bus = new Subject<string>();
+bus.error(new Error('feed dropped'));
+bus.next('pong');   // line 6"
+      answer="closed is FALSE, and no. Only subject.unsubscribe() sets closed to true; error() and complete() set a separate isStopped flag instead. Either way the observer list is emptied and the ending is stored, so every future subscriber is handed it the moment it arrives. You cannot restart a terminated Subject — you replace it."
       revealLabel="Reveal the answer"
     />
 

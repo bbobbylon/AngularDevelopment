@@ -17,9 +17,11 @@ import {
   type ChapterStop,
   CodeLab,
   type CodeNote,
+  Layers,
   Napkin,
   TapeCard,
 } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import {
   Compare,
   Faq,
@@ -65,21 +67,37 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
  * `updateOn`, and the sync-then-async gate that decides whether an async
  * validator ever gets asked at all.
  *
+ * ## Shape: `argument`
+ *
+ * The lesson opens on the tension this topic reliably produces: a brand-new
+ * required control is genuinely `INVALID` from its first render, and the page
+ * genuinely shows nothing wrong until the user visits and leaves the field —
+ * and nobody involved did anything wrong. {@link argRoundOne} stages the
+ * Validator, the control and the template each stating a truth that, together,
+ * looks like a contradiction; `app-brain-power` asks whose fault the silence
+ * is; {@link argRoundTwo} has all three deny it before "You" delivers the
+ * verdict — the gating condition is something a template author writes, not
+ * something Angular decides. `app-layers` answers the same split as a
+ * containment figure (errors and the touched gate exist on the control at the
+ * same instant), a quiz checks which flag is doing the gating, and the block
+ * closes on `app-napkin` with the sticky-note-pad analogy. See
+ * `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
  * `docs/UI-DESIGN.md` §9), following the teaching order recorded on
- * `expert/change-detection`: pose the problem before naming it — a brand-new
- * required control is already invalid, so why doesn't the box start out red? —
- * then an analogy that carries the mechanism (a sticky-note pad stuck to every
- * control), then the same idea in more than one mode: a dialogue between a
- * control, its validators and the template that decides whether to repeat what
- * they said; two annotated `app-code-lab` blocks for the custom and cross-field
- * validators; a `app-compare` panel putting the cross-field validator in the
- * wrong place next to the right one; a `app-tape-card` grid of the four places
- * a validator can actually attach; and the two live demos this lesson already
- * had, now built on the same touched/dirty story the opening napkin asks the
- * reader to predict.
+ * `expert/change-detection`. After the shape block, "the mental model, in
+ * full" replays the sticky-note-pad analogy at full length, then the rest of
+ * the page carries on in the order it always did: the same idea in more than
+ * one mode — {@link mergeTalk}, a second dialogue between a control, its
+ * validators and the template, restaging the same gate from the merge
+ * mechanism's own angle; two annotated `app-code-lab` blocks for the custom
+ * and cross-field validators; a `app-compare` panel putting the cross-field
+ * validator in the wrong place next to the right one; a `app-tape-card` grid
+ * of the four places a validator can actually attach; and the two live demos
+ * this lesson already had, now built on the same touched/dirty story the
+ * block's quiz already commits the reader to.
  *
  * @see intermediate/reactive-forms — the form model these validators attach to.
  * @see intermediate/async-validators — the async path, once the sync gate below opens.
@@ -94,8 +112,10 @@ function passwordsMatch(group: AbstractControl): ValidationErrors | null {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -147,6 +167,88 @@ export class FormValidation {
   });
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  /**
+   * Round one of the shape block's argument: the Validator, the control and
+   * the template, each stating a truth that together reads like a
+   * contradiction — a brand-new required control is genuinely invalid, and
+   * genuinely shows nothing.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'The Validator',
+      says: 'I ran the instant this control was created — required, and the empty string is zero characters. Fail. I did my job.',
+    },
+    {
+      who: 'The control',
+      says: "I heard him. I've been carrying `errors: { required: true }` and `status: 'INVALID'` since my very first render. I haven't hidden anything.",
+    },
+    {
+      who: 'The template',
+      says: "Then why would I show anything? Nobody has touched this field yet. Painting it red before a user has even looked at it isn't honesty — it's yelling at someone for a mistake they haven't had the chance to make.",
+    },
+    {
+      who: 'The Validator',
+      says: "Not my department. I only ever answer 'valid or not.' What you DO with that answer was never mine to decide.",
+    },
+    {
+      who: 'The control',
+      says: 'And I just carry the flags — invalid AND untouched AND pristine, all three, all at once. I never said which one you were supposed to look at.',
+    },
+    {
+      who: 'The template',
+      says: 'So I picked one myself: `*ngIf="control.invalid && control.touched"`. Nobody assigned me that job. I gave it to myself, the day someone got tired of the wall-of-red-on-load complaint.',
+    },
+  ];
+
+  /**
+   * Round two: all three deny responsibility for the gate before the reader
+   * — "You" — delivers the verdict. The template's line in round one already
+   * gave the answer away; this round just makes the reader say it.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: 'The Validator',
+      says: 'Not me. I only ever say yes or no — I have no opinion on who gets to hear it.',
+    },
+    {
+      who: 'The control',
+      says: "Not me. I just hold whatever's true — errors, touched, dirty, pristine — I don't rank them for you.",
+    },
+    {
+      who: 'The template',
+      says: 'Not really me either — I only render whatever condition I was GIVEN. Somebody wrote that condition into me.',
+    },
+    {
+      who: 'You',
+      says: '`*ngIf="control.invalid && control.touched"` is a line you write, every single time, in every template. Angular ships the `touched` flag; it never decides for you when to act on it. Skip that clause, and validity alone drives the message — red before the first keystroke.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: which flag is doing the gating in the demo below,
+   * checked once up front before the block's own quiz further down tests the
+   * touched-vs-dirty distinction in more depth.
+   */
+  protected readonly argBlockQuiz: QuizOption[] = [
+    {
+      text: '`control.touched` — false until the field has been focused and then blurred at least once.',
+      correct: true,
+      why: '`touched` is the flag a template author has to check deliberately — Angular never wires it to a message for you. `control.invalid && control.touched` is why the message waits for a visit-and-leave instead of appearing on load.',
+    },
+    {
+      text: '`control.valid` — it starts `false`, so the error message has nothing to key off yet.',
+      why: "`valid` is the inverse of `invalid` — checking it would show the message when the control IS valid, which is backwards. It's not the flag doing the gating here at all; `invalid` already drives the error text, and something else decides whether that text is shown.",
+    },
+    {
+      text: '`control.pristine` — true until the value changes, and the template checks for that instead.',
+      why: "Close, but it's the wrong half of the same idea. `pristine` tracks the **value**, not focus — it would gate on typing, not on visiting the field. `touched` is what actually flips here, on blur, which is why clicking in and immediately back out (no typing at all) is enough to reveal the message.",
+    },
+    {
+      text: "There's no flag — Angular waits for the form's first submit event automatically.",
+      why: 'Angular has no such built-in wait. `submitted`-style gating is a pattern you can build yourself on top of the form, but nothing here is wired to a submit event — the demo reveals its error on blur, well before any submit button exists.',
+    },
+  ];
 
   /** The Forms track, for the "you are here" rail — this lesson's own position. */
   protected readonly stops: ChapterStop[] = [

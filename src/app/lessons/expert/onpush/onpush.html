@@ -18,36 +18,78 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Default checks everything, always. What if you don't want that?</h2>
+    <p class="bf-big">“Same object. Same me. I don't care what you scribbled inside me.”</p>
 
-    <p>
-      <a routerLink="/change-detection">Default change detection</a> is thorough and indiscriminate: every pass walks
-      every view, whether or not that view's own data had anything to do with why the pass started. Fine for a small
-      tree. Expensive for a dashboard with hundreds of rows, most of which never change on any given click.
-      <code>OnPush</code> is Angular's answer — but it isn't a faster version of the same check. It's a
-      <span class="key">promise</span> that lets Angular skip a view outright.
+    <p class="bf-say">
+      One click, one mutated field, one honest disagreement — between the data that changed, the reference that didn't,
+      and the view caught in between.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      A parent holds two signals: <code>value</code>, fed into an <code>OnPush</code> child's <code>[input]</code>, and
-      <code>pokes</code>, read only by the parent's own template — never passed anywhere. You click a button that
-      updates <code>pokes</code> alone. Before you scroll: does the <code>OnPush</code> child's self-check counter move?
+    <p>
+      The parties: <strong>the data</strong>, <code>user.clicks</code>, which really did go from 3 to 4.
+      <strong>The reference</strong>, <code>this.user</code>, which is still the exact same object in memory it always
+      was. And <strong>the <code>OnPush</code> view</strong>, which was only ever promised one thing to watch, and it
+      isn't either of the other two.
+    </p>
+
+    <app-bubbles [turns]="mutationRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="The data insists it changed. The view insists nothing happened. Neither one is lying. So who's actually wrong here?"
+      hint="Ask what OnPush actually promised to watch — a value, or a reference. Those are two different promises."
+    />
+
+    <app-bubbles [turns]="mutationRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      <code>OnPush</code> doesn't watch data. It watches <strong>references</strong>. A mutation, by definition, leaves
+      the reference exactly where it was — so <code>Object.is(before, after)</code> reads <code>true</code>, and
+      <code>true</code> is the one answer that never marks a view dirty. <code>replace()</code> isn't a style
+      preference; it's the only signal the contract is able to receive.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'clicks: 3 → 4', sub: 'the value, mutated in place' }"
+      [rings]="[
+        { label: 'this.user (the reference)', sub: 'same object — Object.is() says true' },
+        { label: 'OnPush child', sub: 'sees the same reference, skips the check entirely' },
+      ]"
+      arrow="the change never reaches past the first ring"
+      caption="The mutation happened at the centre and got nowhere. Nothing about it ever reaches the reference, so nothing about it ever reaches the view."
+    />
+
+    <app-quiz
+      question="`this.user.clicks++` runs, then `fixture.detectChanges()` runs immediately after. The OnPush child's template reads `user.clicks`. What renders?"
+      [options]="mutationQuizOptions"
+      followUp="The demo further down lets you run exactly this — mutate a few times, then replace once, and watch the exact moment the child catches up."
+    />
+
+    <app-napkin lead="the mental model —" label="A sealed envelope">
+      The input is a sealed envelope taped to the child's door. <code>OnPush</code> checks exactly one thing: is this
+      the <strong>same envelope</strong> as last time — same address, not same contents? Scribble a new message inside
+      the same envelope and the check still says "same envelope", nothing to open. Tape a <strong>new</strong> envelope
+      to the door, and the check says "different envelope" — worth a look.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>A smoke detector, not a night patrol.</h2>
 
     <p>
-      Picture Default change detection as a night patrol: someone walks every hallway, every round, whether or not
-      anything is actually wrong. <code>OnPush</code> is a smoke detector instead — it does nothing, ever, until one of
-      a short, fixed list of alarms actually trips it. No alarm, no matter how real the change behind it, means the
-      detector stays silent and nobody comes.
+      That's the shape of the disagreement. Here's the rule it falls out of: picture Default change detection as a night
+      patrol — someone walks every hallway, every round, whether or not anything is actually wrong.
+      <code>OnPush</code> is a smoke detector instead — it does nothing, ever, until one of a short, fixed list of
+      alarms actually trips it. No alarm, no matter how real the change behind it, means the detector stays silent and
+      nobody comes.
     </p>
 
     <p>

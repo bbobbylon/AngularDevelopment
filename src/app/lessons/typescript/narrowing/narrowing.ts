@@ -1,7 +1,8 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { highlight } from '../../../shared/highlighter';
@@ -460,22 +461,37 @@ function use(x: string | null) {
  * assertion functions as *unchecked promises*, exhaustiveness via `never`, and
  * the five ways narrowing is lost or silently becomes a lie.
  *
+ * ## Shape: "The Argument" (`shape: 'argument'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The topic is two correct parties producing a bug neither of them
+ * caused: a type predicate that only ever claims plausibility, and a compiler that
+ * trusts that claim completely — which is a tension, not a misconception, so the
+ * Argument shape fits it better than a Q&A would. The opening block is: a quoted
+ * line from the lying predicate → the scene, three parties named → {@link
+ * predicateTalk} (six turns, the negotiation) → a Brain Power on whose bug it
+ * actually is → {@link verdictTalk} (four turns; everyone says "not me", and the
+ * last voice is yours) → the named principle ("an axiom, not a proof") → a
+ * containment figure (`app-layers`) showing how far the trust travels unchecked →
+ * the crux quiz ({@link predicateTrustQuiz}) → the notary analogy on a napkin. No
+ * `app-code-lab`, `app-remember`, `app-tape-card`, `app-no-dumb-questions` or
+ * `app-receipt` inside the block — everything after it is free to use them, and
+ * does.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
- * following the shape set by `expert/change-detection`. The teaching order is
- * deliberate:
+ * following the shape set by `expert/change-detection`. The teaching order after
+ * the block is deliberate:
  *
- * 1. **Pose the problem first.** The lesson opens on "why can't I call anything
- *    on a union?" and puts a napkin prediction in front of the reader before any
- *    mechanism is named.
- * 2. **Analogy, then vocabulary.** The shortlist-of-suspects frame gives the
- *    reader somewhere to put "control-flow analysis" before that phrase appears.
- *    Every later section is a variation on crossing names off the list.
- * 3. **The same idea in four modes** — a flow diagram, a live bench whose chips
- *    visibly go out, annotated code, and a dialogue between the compiler and a
- *    lying guard.
- * 4. **The traps are load-bearing, not decoration.** Every claim about *when*
+ * 1. **The trust story first, the ordinary mechanism second.** The block hooks on
+ *    the advanced trap; "The mechanism" section right after it backs up to what
+ *    narrowing *is* when nobody is lying — the shortlist-of-suspects analogy gives
+ *    the reader somewhere to put "control-flow analysis" before that phrase
+ *    appears, and every later section is a variation on crossing names off the
+ *    list.
+ * 2. **The same idea in four modes** — the block's dialogue, a flow diagram, a
+ *    live bench whose chips visibly go out, and annotated code.
+ * 3. **The traps are load-bearing, not decoration.** Every claim about *when*
  *    narrowing survives was verified against `tsc` 5.9 in strict mode rather
  *    than recalled, because the folklore in this area is measurably wrong — an
  *    arbitrary call and an `await` do not reset narrowing, and saying they do
@@ -496,8 +512,10 @@ function use(x: string | null) {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -800,6 +818,56 @@ export class Narrowing {
     {
       who: 'The compiler',
       says: '…then every caller narrows to `Cat` with my full blessing, and you find out in production. You signed for it.',
+    },
+  ];
+
+  /**
+   * Round two of the negotiation — every party but the reader points somewhere
+   * else, and the last line is the verdict the Brain Power was waiting on.
+   */
+  protected readonly verdictTalk: BubbleTurn[] = [
+    {
+      who: 'Your function',
+      says: 'Not me — I told you `Cat` was *possible*. I never told you I verified it.',
+    },
+    {
+      who: 'The compiler',
+      says: "Not me. I trust every predicate the moment its shape checks out — that's the whole deal, not a bug in me.",
+    },
+    {
+      who: 'Every call site',
+      says: 'Not me. I just wrote `if (isCat(p))`, exactly the way the docs said to.',
+    },
+    {
+      who: 'You',
+      says: "It's mine. I wrote a predicate that lies, and everyone downstream believed it — because believing it is the entire point of writing one.",
+    },
+  ];
+
+  /**
+   * The shape block's crux quiz: how long an unverified predicate survives
+   * before anything in the toolchain notices. The three wrong answers are the
+   * three real places a learner assumes a re-check must be happening — on every
+   * call, on every build, or at the first "obviously wrong" runtime value — and
+   * each `why` names which imagined re-check does not exist.
+   */
+  protected readonly predicateTrustQuiz: QuizOption[] = [
+    {
+      text: "Immediately — the compiler re-checks a predicate's body every time it's called.",
+      why: 'Backwards. The compiler verifies a type predicate exactly once, at its declaration, and only that the claimed type is plausible. It never reopens the body at any call site, so a stub like `return true` is invisible to it forever.',
+    },
+    {
+      text: 'Never, on its own — nothing about `strict` mode or a stricter tsconfig catches this.',
+      correct: true,
+      why: 'Right. A type predicate is an axiom the compiler takes on faith; no compiler flag makes it re-verify a function body. The only thing that catches a lying predicate is a test written against the predicate itself.',
+    },
+    {
+      text: 'At the next build, because TypeScript re-runs control-flow analysis on every function.',
+      why: "Control-flow analysis runs at every call site, tracking what has already been narrowed — it never re-examines whether a predicate's own claim is true. That check happened once, at the function's declaration, and only asked 'is Cat a legal type for p', never 'does this body prove it'.",
+    },
+    {
+      text: "As soon as a caller passes something that clearly isn't a Cat.",
+      why: 'The compiler has no runtime — it never sees what a caller "clearly" passes. That\'s the whole soundness hole: `isCat` returning `true` for a `Dog` compiles perfectly and only fails once the wrong code actually executes.',
     },
   ];
 

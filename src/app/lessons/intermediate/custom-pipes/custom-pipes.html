@@ -16,47 +16,93 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Where does formatting for the screen actually live?</h2>
-
-    <p>
-      Say you need to show <code>"3m ago"</code> instead of a raw ISO timestamp. Nothing stops you from formatting it in
-      the component — a getter, a method called from the template, or a field you write to when the data arrives. All
-      three work. All three also share a problem you will not notice until the component is checked a lot:
-      <span class="key">none of them remember the answer they gave last time</span>.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Forty change-detection checks land on an ordinary component in one ordinary second — and the price sitting inside
+      it never once changes. A getter cooks it fresh anyway, every single time.
     </p>
 
-    <ul>
-      <li>
-        A <strong>getter</strong> re-runs its whole body on every single read — and a template reads it once per
-        binding, per check.
-      </li>
-      <li>
-        A <strong>method call</strong> in a binding, <code>{{ '{{' }} formatPrice(price) {{ '}}' }}</code>, is exactly
-        the same cost with worse syntax.
-      </li>
-      <li>
-        Formatting <strong>at the source</strong> — storing <code>"$4.00"</code> instead of <code>4</code> — throws the
-        real number away, so the next thing that needs to do math with it can't.
-      </li>
-    </ul>
+    <app-receipt
+      heading="One second, one unchanged price, forty checks"
+      [rows]="formatBill"
+      [total]="formatBillTotal"
+      footer="every check billed to the getter · only the first one was ever necessary"
+    />
 
-    <p>
-      A pipe is the fourth option, and it is the only one of the four that can be genuinely cheap — because, unlike a
-      getter, a <span class="term">pure</span> pipe is allowed to remember its last answer and skip the work entirely
-      when nothing has changed. That single fact is most of this lesson.
+    <app-scribble
+      point="up"
+      quote="1 of 40"
+      text="Thirty-nine of those forty checks asked the exact same question and got back the exact same answer. A getter has no memory of its own — it can't tell 'nothing changed' from 'a check just happened' — so it redoes the work regardless, every single time."
+    />
+
+    <app-compare
+      leftTitle="A getter — real work on every read"
+      leftTone="bad"
+      rightTitle="A pure pipe — real work once, cached after"
+      rightTone="good"
+      note="Same unchanged price, same forty checks. One pays every time; the other pays once and remembers."
+    >
+      <div left>
+        <div class="code">
+          <pre data-lang="ts">{{ getterCostSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre data-lang="ts">{{ pipeCostSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Angular never even calls <code>transform()</code> on a cache hit — it checks first, and only calls your code when
+      the check fails.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Picture a component checked forty times a second — nothing exotic, that's just forty clicks somewhere in a
-      Default-strategy app. Its template has <code>{{ '{{' }} getFormattedPrice() {{ '}}' }}</code>, a getter that
-      formats a number as currency. How many times does the formatting logic inside that getter actually run in that one
-      second? Now guess again for <code>{{ '{{' }} price | currency {{ '}}' }}</code> on the same component, the same
-      forty checks, formatting the exact same unchanged <code>price</code>. Both lines show identical text on screen.
-      They do not cost the same — keep reading to find out why.
-    </app-napkin>
+    <app-chain [steps]="pipeCacheChain" label="What happens before transform() ever runs" />
+
+    <app-code-lab
+      file="how a pure pipe's cache actually works (rebuilt, not the real internals)"
+      [code]="pureMemoSample"
+      [notes]="pureMemoNotes"
+      notesLabel="Line by line"
+    />
+
+    <app-scribble
+      quote="==="
+      tone="clay"
+      text="reference equality — the strictest kind. Two arrays with identical contents are two different objects to this check unless they are the literal same one in memory."
+    />
+    <app-scribble
+      quote="pipeInstance.transform(arg)"
+      point="up"
+      tone="olive"
+      text="the one line that costs anything. Every other line in this snippet is bookkeeping around deciding whether execution ever reaches this one."
+    />
+
+    <app-brain-power
+      question="The cache is exactly one slot — one input, one output, per binding. So what happens the instant a SECOND, completely separate `{{
+        '{{'
+      }} price | appCurrency {{ '}}' }}` binding shows up somewhere else in the same template, formatting a different price?"
+      hint="Ask whether the two bindings share one pipe INSTANCE, or Angular hands each of them its own."
+    />
+
+    <app-quiz
+      question="The receipt above showed forty checks and one real transform() call. Which single change would push that number back up toward forty again, with nothing else about the component changing?"
+      [options]="receiptCacheMissQuiz"
+      followUp="This is the exact trap the tape cards further down this page name three different ways of walking into — a fresh literal argument is the most common one in real code."
+    />
+
+    <p class="bf-big">
+      Forty checks. One real answer. The other thirty-nine were the bouncer waving you through on sight.
+    </p>
   </section>
 
   <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
@@ -65,12 +111,12 @@
     <h2>A pure pipe is a bouncer with exactly one Polaroid.</h2>
 
     <p>
-      Picture a bouncer at a door who is only allowed to hold <strong>one photo</strong> at a time. Someone walks up;
-      the bouncer compares their face against the photo. Different person? Take a new photo, replace the old one, let
-      them through after doing the actual work of checking ID. <em>Same</em> person as the photo — recognisably,
-      unmistakably the same, not just similar — and the bouncer waves them through on sight, no ID check, no new photo.
-      That is the entire deal a pure pipe offers Angular: one slot of memory, one comparison, and real work only on a
-      miss.
+      That's the cost of a "getter" that never remembers. Here's the picture underneath it: picture a bouncer at a door
+      who is only allowed to hold <strong>one photo</strong> at a time. Someone walks up; the bouncer compares their
+      face against the photo. Different person? Take a new photo, replace the old one, let them through after doing the
+      actual work of checking ID. <em>Same</em> person as the photo — recognisably, unmistakably the same, not just
+      similar — and the bouncer waves them through on sight, no ID check, no new photo. That is the entire deal a pure
+      pipe offers Angular: one slot of memory, one comparison, and real work only on a miss.
     </p>
 
     <p>

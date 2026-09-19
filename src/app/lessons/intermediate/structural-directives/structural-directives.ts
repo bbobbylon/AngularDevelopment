@@ -2,8 +2,10 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { UnlessDirective } from './unless-directive/unless-directive';
 import { RepeatDirective } from './repeat-directive/repeat-directive';
-import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -19,24 +21,40 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * real traps (two structural directives on one element, forgetting to clear,
  * when to prefer built-in @if/@for).
  *
+ * ## Shape: `receipt`
+ *
+ * The lesson opens on the concrete cost of reaching for `[hidden]` instead of
+ * a real structural directive: {@link hiddenBill} itemises exactly what stays
+ * running behind invisible pixels — the component instance, its subscriptions,
+ * its timers, all still alive because `ngOnDestroy` never fires — with
+ * `app-scribble` naming that "still alive" means genuinely still running, not
+ * paused. `app-compare` puts `[hidden]` and a structural directive side by
+ * side in prose, `app-chain` previews the four-step pipeline, and a fresh
+ * `app-code-lab` ({@link hiddenVsUnlessSample}) shows the same child component
+ * behind both, with two `app-scribble`s at the code. `app-brain-power` asks
+ * whether change detection still walks a hidden-but-mounted component (it
+ * does — nothing in the lesson answers this directly, on purpose), a quiz
+ * checks whether a hidden component's subscription keeps delivering, and the
+ * block closes loud on a `.bf-big` line. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
  * `docs/UI-DESIGN.md` §9), copying the teaching order documented on
- * `ChangeDetection` — the reference implementation:
+ * `ChangeDetection` — the reference implementation. After the shape block,
+ * "the mental model, in full" replays the blueprint-and-building-lot analogy
+ * at full length, then the rest of the page carries on in the order it
+ * always did:
  *
- * 1. **Pose the problem before naming it.** The lesson opens on "why not just
- *    `[hidden]` it?" and makes the reader commit to a guess (which paragraph's
- *    child gets destroyed) before any mechanism is described.
- * 2. **Analogy next, mechanism after.** The blueprint-and-building-lot frame for
- *    `TemplateRef`/`ViewContainerRef` gives the reader somewhere to put those two
- *    words before they show up as `inject()` calls.
- * 3. **Then the same idea in several modes** — a dialogue between the two
+ * 1. **Analogy, restaged.** The blueprint-and-building-lot frame for
+ *    `TemplateRef`/`ViewContainerRef` gives the reader somewhere to put those
+ *    two words before they show up as `inject()` calls.
+ * 2. **Then the same idea in several modes** — a dialogue between the two
  *    injected handles, a containment diagram for why only one star fits on one
  *    element, a seven-step flow, annotated source via `app-code-lab`, and two
  *    live directives (`*appUnless`, `*appRepeat`) — because the retention bar is
  *    redundancy across modes, not repetition in one.
- * 4. **Every non-trivial snippet is annotated line by line** via `app-code-lab`.
+ * 3. **Every non-trivial snippet is annotated line by line** via `app-code-lab`.
  *    Nothing here assumes the reader can already parse the snippet.
  *
  * This lesson already scored 9/9 on the retention audit before this migration;
@@ -52,8 +70,11 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Chapter,
     CodeLab,
     Layers,
-    Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -72,6 +93,87 @@ export class StructuralDirectives {
     { label: 'Custom Pipes', id: 'custom-pipes' },
     { label: 'Attribute Directives', id: 'attribute-directives' },
     { label: 'Structural Directives' },
+  ];
+
+  /**
+   * The shape block's itemised bill: what stays running behind an invisible
+   * `[hidden]` component, versus what a real structural directive leaves
+   * behind (nothing).
+   */
+  protected readonly hiddenBill: ReceiptRow[] = [
+    { label: 'DOM nodes', amount: 'still in the tree', tone: 'warn' },
+    { label: 'Component instance', amount: 'still alive', tone: 'warn' },
+    { label: 'Subscriptions opened in ngOnInit', amount: 'still delivering', tone: 'warn' },
+    { label: 'Timers / intervals', amount: 'still ticking', tone: 'warn' },
+    { label: 'ngOnDestroy', amount: 'never called', tone: 'muted' },
+  ];
+
+  /** The total line under {@link hiddenBill}. */
+  protected readonly hiddenBillTotal: ReceiptRow = {
+    label: 'TOTAL',
+    amount: 'one fully-alive component, wearing invisible pixels',
+  };
+
+  /**
+   * The shape block's code-lab: the same child component behind `[hidden]`
+   * and behind `*appUnless`, so the receipt's claim is something the reader
+   * can trace line by line rather than take on faith.
+   */
+  protected readonly hiddenVsUnlessSample = `@Component({ selector: 'app-child', template: \`<p>I'm alive.</p>\` })
+class Child {
+  private sub = interval(1000).subscribe(() => console.log('tick'));
+  ngOnDestroy() {
+    console.log('Child destroyed — subscription torn down');
+  }
+}
+
+// Parent template — same child, two different fates:
+<p [hidden]="cond"><app-child /></p>
+<p *appUnless="cond"><app-child /></p>`;
+
+  /** Line-by-line walkthrough of {@link hiddenVsUnlessSample}. */
+  protected readonly hiddenVsUnlessNotes: CodeNote[] = [
+    {
+      line: 3,
+      text: 'Opened once, in ngOnInit territory — the constructor/field-initialiser equivalent. Nothing about `[hidden]` ever calls unsubscribe on this, because nothing about `[hidden]` ever destroys the component that owns it.',
+    },
+    {
+      line: 4,
+      text: 'The one place cleanup belongs. Angular calls this automatically — but only when the component is actually destroyed, not when it merely becomes invisible.',
+    },
+    {
+      line: 10,
+      text: "`[hidden]` toggles a CSS property on the host `<p>`. `<app-child>` inside it is never told to stop existing — line 3's `tick` keeps logging, hidden or not.",
+    },
+    {
+      line: 11,
+      text: '`*appUnless` removes the node entirely when `cond` is true. `<app-child>` is destroyed, line 4 runs, and the `tick` logging stops for good — until the condition flips and a fresh instance is built.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: whether a subscription opened by a hidden
+   * component keeps delivering, checked once up front — Live #1 further down
+   * lets the reader watch the real destroy/no-destroy split in the console.
+   */
+  protected readonly hiddenBlockQuiz: QuizOption[] = [
+    {
+      text: 'Yes — [hidden] only ever changes a CSS property; the component instance, and everything it started, is still alive.',
+      correct: true,
+      why: "`[hidden]` never touches the component tree. The instance stays mounted exactly as before, so anything it started in `ngOnInit` — a subscription, a timer, a socket — keeps running, whether or not anyone can see the pixels it's meant to be updating.",
+    },
+    {
+      text: 'No — Angular pauses change detection, and therefore every subscription, on any subtree marked [hidden].',
+      why: "There's no such pause. `[hidden]` is a plain attribute binding with no special meaning to change detection or to RxJS — it's invisible to both. The component keeps being checked and keeps receiving values exactly as if it were on screen.",
+    },
+    {
+      text: 'No — the subscription is automatically unsubscribed the moment display:none is applied.',
+      why: 'Nothing watches for `display: none` and reacts to it. Unsubscribing only happens where you write it — typically `ngOnDestroy` — and `[hidden]` never triggers that lifecycle hook at all.',
+    },
+    {
+      text: 'It depends on whether the subscription was created inside the template or the component class.',
+      why: "A template binding can't open an RxJS subscription on its own — only component (or directive) code can, in a lifecycle hook or a field initialiser. Wherever it's created, the same rule applies: it keeps running until something explicitly tears it down.",
+    },
   ];
 
   /**

@@ -17,41 +17,62 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big → .bf-say → app-no-dumb-questions
+       (6-8 items carrying the whole explanation) → app-brain-power → one figure
+       (app-layers or app-whiteboard) → one app-quiz → app-napkin with the analogy.
+       Never: app-bubbles, app-tape-card, app-receipt, app-remember — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Why does this object satisfy the interface? You never told it to.</h2>
+    <p class="bf-big">Nobody signed anything. TypeScript let it in anyway.</p>
+
+    <p class="bf-say">
+      No <code>implements</code>, no shared ancestor, not even the same file as <code>interface User</code> — and the
+      object below satisfies it on the very first try, every time it's checked. That's not a loophole the compiler
+      missed. It's the entire rule this lesson is about.
+    </p>
+
+    <app-no-dumb-questions [items]="ndq" />
+
+    <app-brain-power
+      question="A `Celsius` type alias and a `Fahrenheit` type alias both collapse to plain `number` the instant TypeScript finishes compiling. If shape really is ALL that ever gets checked, what stops you from handing a Fahrenheit reading straight into a function that expects Celsius?"
+      hint="Ask whether `number` cares what alias you called it by — or whether the alias is even still there once the compiler is done."
+    />
+
+    <app-layers
+      [core]="{ label: '{ id: 1, name: Ada, nickname: A }', sub: 'the object — three real fields' }"
+      [rings]="[{ label: 'interface User { id, name }', sub: 'the checklist only ever asks about two of them' }]"
+      arrow="checked field by field"
+      caption="The ring only ever reaches as deep as its own checklist goes. `id` and `name` get compared and pass; `nickname` sits outside what the ring asked about at all — not rejected, just never in question."
+    />
+
+    <app-quiz
+      question="`const raw = { id: 1, name: 'Ada', role: 'admin' }; const u: User = raw;` — and `User` only declares `id` and `name`. Does this compile?"
+      [options]="ndqBlockQuiz"
+      followUp="Change nothing but HOW that same value arrives — write the exact same three fields as a fresh literal, right there in the assignment — and the verdict flips. The 'narrower rule' section further down names that exception in full, with a live checker to try it yourself."
+    />
+
+    <app-napkin lead="the mental model —" label="A hiring checklist, not a signed contract">
+      Picture a hiring manager holding a checklist, not a bouncer checking an ID. They read every resume that lands on
+      the desk and ask one question of each: does it tick every box? They don't care whose letterhead it's printed on,
+      and they don't care whether the applicant has ever heard of the checklist at all. Tick every box and you're hired
+      — the fuller version of this, with the mechanism underneath it, is one section down.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
+    <h2>TypeScript reads a resume like a hiring checklist, not a bouncer checking an ID.</h2>
 
     <p>
-      Look closely at the last line below. Nowhere does it say <code>implements User</code>. Nowhere is there a class at
-      all. And yet it compiles, cleanly, every time.
+      Here's the object from the block above, in full — nowhere does it say <code>implements User</code>, nowhere is
+      there a class at all, and yet it compiles, cleanly, every time:
     </p>
 
     <div class="code">
       <pre>{{ openingSample }}</pre>
     </div>
-
-    <p>
-      In a language like Java or C#, that line would not compile without a class somewhere declaring, in writing, "I am
-      a <code>User</code>." TypeScript never asks for that declaration. So the real question this lesson exists to
-      answer is not "is this legal" — it plainly is — but
-      <span class="key">what is actually being checked here, if not a name?</span>
-    </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Here's one object with an extra field nobody asked for:
-      <code>{{ '{' }} id: 1, name: 'Ada', debug: true {{ '}' }}</code
-      >. Do you think it satisfies <code>interface User {{ '{' }} id: number; name: string {{ '}' }}</code
-      >? Now imagine that exact object was written directly as a literal, right where a <code>User</code> is expected,
-      instead of being stored in a variable first — does your answer change? Hold both guesses. There's a live checker
-      further down that will settle them.
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>TypeScript reads a resume like a hiring checklist, not a bouncer checking an ID.</h2>
 
     <p>
       You've probably heard "if it walks like a duck and quacks like a duck…" — and most explanations stop right there,

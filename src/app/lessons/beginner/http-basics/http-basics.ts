@@ -2,8 +2,10 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Subject, catchError, of, switchMap } from 'rxjs';
-import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
@@ -42,25 +44,39 @@ interface RandomUser {
  *   cancelling the previous request the instant a new one starts, and the
  *   request/response counters here make the cancellation countable.
  *
+ * ## Shape: "The Receipt" (`shape: 'receipt'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. The topic is a cost — five keystrokes, five wasted round trips —
+ * which is exactly what the Receipt shape is for. The opening block is: a
+ * statement with real numbers → {@link searchBill} itemised as `app-receipt` →
+ * a scribble naming the "1 of 5" gap → an `app-compare` of the naive subscribe
+ * against `switchMap` → "the mechanism" → {@link cancelChain} as `app-chain` →
+ * the real `switchMap` code ({@link bridgeSample}) via `app-code-lab` → two
+ * scribbles quoting its identifiers → a Brain Power on what happens when the
+ * *component* dies mid-request rather than a keystroke superseding it → the
+ * crux quiz ({@link cancelOptions}) → a closing `.bf-big` that ends loud. No
+ * `app-bubbles`, `app-no-dumb-questions`, or a napkin in first position.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
  * following the shape of the reference implementation in
- * `lessons/expert/change-detection/`. The teaching order:
+ * `lessons/expert/change-detection/`. The teaching order after the block:
  *
- * 1. **Pose the problem before naming it.** The page opens on "you called
- *    `http.get()` — the Network tab stayed empty," with a `Napkin` tease that
- *    withholds its answer until the concrete self-test further down.
- * 2. **Analogy before mechanism.** The recipe-card frame (`get()` writes the
- *    recipe, `subscribe()` cooks it) is staged twice — once in prose, once as
- *    a three-way `Bubbles` dialogue between the code, `get()` and
- *    `subscribe()` — before "cold Observable" has to carry any weight alone.
- * 3. **Then the same idea in several modes.** A `Flow` diagram of the six-step
+ * 1. **The cost first, "cold Observable" second.** The block hooks on the
+ *    wasted-request trap; "The mental model" section right after it backs up
+ *    to what a cold Observable actually *is* — the recipe-card frame (`get()`
+ *    writes the recipe, `subscribe()` cooks it), staged twice: once in prose,
+ *    once as a three-way `Bubbles` dialogue between the code, `get()` and
+ *    `subscribe()`.
+ * 2. **Then the same idea in several modes.** A `Flow` diagram of the six-step
  *    request/response lifecycle, an `app-layers` containment diagram of the
  *    interceptor chain, a `TapeCard` row of the mechanism's other facts, two
- *    full live demos against a real API, an `app-compare` of Promise vs
- *    Observable, and four `app-code-lab` walkthroughs of real HTTP code.
- * 4. **Every snippet is annotated line by line** via `app-code-lab` — nobody
+ *    full live demos against a real API (the second restaging the block's own
+ *    `switchMap` counters as a live, clickable version), an `app-compare` of
+ *    Promise vs Observable, and several more `app-code-lab` walkthroughs of
+ *    real HTTP code.
+ * 3. **Every snippet is annotated line by line** via `app-code-lab` — nobody
  *    reading this for the first time is assumed to be able to parse
  *    `catchError`, `switchMap` or a typed generic on sight.
  *
@@ -80,8 +96,11 @@ interface RandomUser {
     Chapter,
     CodeLab,
     Layers,
-    Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -160,6 +179,48 @@ export class HttpBasics {
       who: 'subscribe()',
       says: 'Got it — building the real `HttpRequest` now, dispatching it, and I will call you back with exactly one response before I finish.',
     },
+  ];
+
+  // ── The shape block: the receipt ────────────────────────────────────────────
+
+  /**
+   * A typical naive search box, itemised — five keystrokes, five separate
+   * round trips. Illustrative timings, kept plausible rather than exact; the
+   * `warn` tone marks the one row whose response is actually used.
+   */
+  protected readonly searchBill: readonly ReceiptRow[] = [
+    { label: '"a" → GET /users?q=a', amount: '204 ms', tone: 'muted' },
+    { label: '"ap" → GET /users?q=ap', amount: '187 ms', tone: 'muted' },
+    { label: '"app" → GET /users?q=app', amount: '231 ms', tone: 'muted' },
+    { label: '"appl" → GET /users?q=appl', amount: '166 ms', tone: 'muted' },
+    { label: '"apple" → GET /users?q=apple', amount: '198 ms', tone: 'warn' },
+  ];
+
+  /** The total line of {@link searchBill}. */
+  protected readonly searchBillTotal: ReceiptRow = {
+    label: 'responses actually used',
+    amount: '1 of 5',
+  };
+
+  /** Sample (left side of the compare): every keystroke fires and stays subscribed. */
+  readonly noCancelSample = `searchInput$.subscribe((q) =>
+  this.http.get<User[]>(\`/api/users?q=\${q}\`).subscribe((r) => this.results.set(r)),
+);
+// every keystroke fires its own request AND keeps its own subscription open`;
+
+  /** Sample (right side of the compare): switchMap cancels the previous request. */
+  readonly switchMapSample = `searchInput$
+  .pipe(switchMap((q) => this.http.get<User[]>(\`/api/users?q=\${q}\`)))
+  .subscribe((r) => this.results.set(r));
+// a new keystroke unsubscribes — and aborts — whichever request was still in flight`;
+
+  /** The shape block's own numbered steps — what happens on the next keystroke. */
+  protected readonly cancelChain: readonly string[] = [
+    'keystroke',
+    'switchMap',
+    'unsubscribe previous',
+    'AbortController.abort()',
+    'subscribe new',
   ];
 
   /** The cold-Observable trap, posed before the note that explains it. */

@@ -16,59 +16,118 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): eyebrow → say → an open question, posed
+       BEFORE the figure → app-whiteboard with three scribble call-outs → the answer,
+       spelled out → app-flow for the numbered steps → one quiz → the analogy on a
+       napkin. Never: app-bubbles, app-tape-card, app-receipt — scripts/audit-variety.mjs
+       checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Angular creates your component. Then what?</h2>
+    <p class="bf-eyebrow">The whole ordering, in one picture</p>
+    <p class="bf-say">Find the moment the child finishes before the parent has even said it's ready.</p>
 
-    <p>
-      Say you need to fetch some data as soon as a component is ready, react every time one particular
-      <code>&#64;Input()</code> changes, and clean up a subscription right before the component disappears. That's three
-      completely different moments in one component's life, and
-      <span class="key">a single constructor cannot cover any of them</span> — it runs once, before Angular has bound a
-      single input, and long before there's a view to speak of.
-    </p>
-
-    <p>
-      So Angular exposes the moments themselves. Seven of them, each with its own method name, called in a fixed order
-      every single time. Before any of those names show up, it's worth committing to a guess about the trickiest part of
-      that order — the part people get backwards in interviews.
-    </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      A parent component renders a child in its template. Both implement every hook there is. Which fires first — the
-      parent's <code>ngOnInit</code>, or the child's? And once both exist, which one reports "my view is ready" first —
-      parent, or child? Guess both before you scroll. There's a live demo further down that logs every hook exactly as
-      it fires, so you can check yourself against it.
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. THE ANALOGY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Think of it as a building site: framed outside-in, signed off inside-out.</h2>
-
-    <p>
-      Construction runs <strong>outside-in</strong>. The frame goes up before there are rooms, and a room cannot be
-      built before the floor it sits on. That's creation: a parent has to exist before it can render a child, so a
-      parent's <code>ngOnInit</code> always fires before its child's even gets a chance to run.
-    </p>
-
-    <p>
-      Sign-off runs <strong>inside-out</strong>. Each room gets inspected, then the floor, then the whole building —
-      because a floor isn't finished while a room on it is unfinished. That's <code>ngAfterViewInit</code>: children
-      report ready first, and the parent last, every time.
-    </p>
-
-    <app-remember variant="mnemonic">
-      <strong>CID, then Content, then View, then Destroy.</strong> <u>C</u>hanges, <u>I</u>nit, <u>D</u>oCheck — then
-      the content pair, then the view pair, then destroy. Content always comes before View.
-    </app-remember>
-
-    <app-bubbles
-      [turns]="mechanismTalk"
-      caption="The handshake a single `<app-child>` binding actually sets off. Notice the child never gets to say 'ready' until the parent asks it to exist."
+    <app-brain-power
+      question="Angular creates a parent, then renders its template — and that's what creates the child — so the parent's own `ngOnInit` obviously fires first. Given that, does the parent's `ngAfterViewInit` also fire before the child's?"
+      hint="Ask what a parent's view being 'ready' actually depends on."
     />
+
+    <app-whiteboard
+      caption="One binding, two clocks: creation runs down the left in ①②, and 'ready' runs back up the right in ③④ — in the opposite order."
+      alt="Two boxes stacked vertically inside a dashed region labelled the parent's template: PARENT above, CHILD nested below it, showing the child is rendered by the parent. A solid arrow runs down the left from PARENT to CHILD, labelled renders template, creates child — PARENT's box reads ngOnInit, first, CHILD's box reads ngOnInit, second. A second solid arrow runs back up the right side from CHILD to PARENT, labelled reports ready — a label near CHILD reads ngAfterViewInit, third, and a label near PARENT reads ngAfterViewInit, fourth. So creation runs top to bottom, parent first, and readiness runs bottom to top, child first — the two arrows travel in opposite directions."
+    >
+      <svg class="wb-svg" viewBox="0 0 720 380" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="lifecycle-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+          <marker
+            id="lifecycle-head-ink"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head wb-head--ink" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <!-- the outer template region the child is rendered inside -->
+        <rect x="140" y="140" width="440" height="196" rx="14" class="wb-node" />
+        <text x="164" y="168" class="wb-text wb-text--sm">the parent's own template</text>
+
+        <!-- PARENT, above the template it renders -->
+        <rect x="210" y="26" width="220" height="70" rx="10" class="wb-node" />
+        <text x="320" y="54" text-anchor="middle" class="wb-mono">PARENT</text>
+        <text x="320" y="76" text-anchor="middle" class="wb-mono wb-text--sm">ngOnInit — ①</text>
+
+        <!-- CHILD, nested inside the template region -->
+        <rect x="260" y="218" width="200" height="70" rx="10" class="wb-node wb-node--lit" />
+        <text x="360" y="246" text-anchor="middle" class="wb-mono">CHILD</text>
+        <text x="360" y="268" text-anchor="middle" class="wb-mono wb-text--sm">ngOnInit — ②</text>
+
+        <!-- down the left: creation, outside-in -->
+        <path class="wb-arrow" d="M250 96 V 217" marker-end="url(#lifecycle-head)" />
+        <text x="150" y="158" class="wb-hand">renders template →</text>
+        <text x="150" y="176" class="wb-hand">creates child</text>
+
+        <!-- up the right: "ready", inside-out -->
+        <path class="wb-arrow wb-arrow--ink" d="M470 217 V 96" marker-end="url(#lifecycle-head-ink)" />
+        <text x="500" y="205" class="wb-mono">ngAfterViewInit — ③</text>
+        <text x="500" y="72" class="wb-mono">ngAfterViewInit — ④</text>
+        <text x="560" y="158" class="wb-hand">reports ready ↑</text>
+      </svg>
+
+      <app-scribble
+        quote="ngOnInit — ①"
+        text="fires before the child even exists — a parent has to be initialised before it can render the template that creates it."
+      />
+      <app-scribble
+        quote="ngOnInit — ②"
+        text="runs while the PARENT is still mid-render. The child's whole init sequence finishes long before the parent has said anything about being 'ready'."
+      />
+      <app-scribble
+        quote="ngAfterViewInit — ③"
+        point="up"
+        tone="olive"
+        text="fires first, not last — a parent's view can't be 'ready' while a child inside it still isn't. The child always reports in before ④ ever fires."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      No — and this is the part everyone gets backwards. A parent's <code>ngAfterViewInit</code> cannot fire until every
+      child underneath it has already reported ready, which means the child's own <code>ngAfterViewInit</code> — step
+      three above — has to happen before the parent's, step four. Creation runs outside-in because a parent has to exist
+      before it can render a child; readiness runs inside-out because a parent's view is never "complete" while
+      something inside it still isn't.
+    </p>
+
+    <app-flow
+      [steps]="handshakeSteps"
+      caption="The same four hooks, seen as a sequence rather than a picture — creation running one way, readiness running back the other."
+    />
+
+    <app-quiz
+      question="A parent component renders a child in its template. In what order do `Parent.ngOnInit`, `Child.ngOnInit`, `Parent.ngAfterViewInit` and `Child.ngAfterViewInit` fire?"
+      [options]="orderOptions"
+      followUp="Practical consequence: if a parent needs to measure or read something from a child, `ngAfterViewInit` is the first moment that's safe — the child is fully ready by then, and not a hook earlier."
+    />
+
+    <app-napkin lead="the mental model —" label="A building site">
+      Construction runs <strong>outside-in</strong> — the frame goes up before there are rooms, and a room can't be
+      built before the floor it sits on. Sign-off runs <strong>inside-out</strong> — each room gets inspected, then the
+      floor, then the whole building, because a floor isn't finished while a room on it is unfinished. A component's
+      lifecycle is both of those, running in the two opposite directions this page just drew.
+    </app-napkin>
   </section>
 
   <!-- ============ 3. THE MECHANISM ============ -->
@@ -80,7 +139,8 @@
       There's no <code>EventEmitter</code> or observable hiding underneath a lifecycle hook. Angular's change-detection
       tree walk simply invokes <code>instance.ngOnInit()</code>, <code>instance.ngDoCheck()</code>
       and so on directly, in a fixed order, on every component that has a method by that exact name. Here's the actual
-      child component the demo below is built on, read line by line.
+      child component the demo below is built on, read line by line — and, further down, the same handshake as a
+      conversation instead of a picture.
     </p>
 
     <app-code-lab
@@ -115,6 +175,17 @@
         what makes it expensive by nature.
       </app-tape-card>
     </div>
+
+    <p>
+      You've already seen this handshake as a picture. Here it is again as a conversation between the three parties
+      involved — Angular, the parent and the child — because the same fact survives better in a second mode than in a
+      repeat of the first.
+    </p>
+
+    <app-bubbles
+      [turns]="mechanismTalk"
+      caption="The handshake a single `<app-child>` binding actually sets off. Notice the child never gets to say 'ready' until the parent asks it to exist."
+    />
   </section>
 
   <!-- ============ 4. THE FULL ORDER ============ -->
@@ -122,15 +193,19 @@
     <p class="bf-eyebrow">The full order</p>
     <h2>Seven hooks, four moments.</h2>
 
+    <p>
+      The picture and the quiz at the top covered how a <em>parent and child</em> interleave. This is the other ordering
+      fact — the one inside a <em>single</em> component, from birth to destruction.
+    </p>
+
+    <app-remember variant="mnemonic">
+      <strong>CID, then Content, then View, then Destroy.</strong> <u>C</u>hanges, <u>I</u>nit, <u>D</u>oCheck — then
+      the content pair, then the view pair, then destroy. Content always comes before View.
+    </app-remember>
+
     <app-flow
       [steps]="order"
       caption="The middle five repeat on every change-detection pass. Only the constructor, `ngOnInit` and `ngOnDestroy` happen exactly once."
-    />
-
-    <app-quiz
-      question="A parent component renders a child in its template. In what order do `Parent.ngOnInit`, `Child.ngOnInit`, `Parent.ngAfterViewInit` and `Child.ngAfterViewInit` fire?"
-      [options]="orderOptions"
-      followUp="Practical consequence: if a parent needs to measure or read something from a child, `ngAfterViewInit` is the first moment that's safe — the child is fully ready by then, and not a hook earlier."
     />
   </section>
 

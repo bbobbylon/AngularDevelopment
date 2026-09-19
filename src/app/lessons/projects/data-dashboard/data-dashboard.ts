@@ -1,7 +1,9 @@
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
@@ -349,6 +351,22 @@ class SalesStore {
  * state, with the table, the page count and the summary all computed. Nothing is
  * kept in sync by hand, because nothing is duplicated.
  *
+ * ## Shape: "There Are No Dumb Questions" (`shape: 'no-dumb-questions'`)
+ *
+ * BACKLOG §2.10 / CONTRIBUTING §2C. The topic is the single most persistent
+ * misconception about `computed()` — that writing to one signal reruns every
+ * selector hanging off the store — which is exactly what this shape is for.
+ * The opening block is: the giant sentence → a statement → {@link ndq}, eight
+ * open questions that carry the whole explanation, escalating from the
+ * misconception to where it bites in a code review to the store/derive rule →
+ * a Brain Power left open → a containment figure (`app-layers`) showing how
+ * far one write actually travels → the one quiz that is the crux
+ * ({@link chainOptions}) → an email-chain analogy on a napkin. No cards, no
+ * dialogue, and no Remember until the mental-model section — the Q&A does the
+ * teaching. {@link dependencyTalk} restages the identical fact in a third
+ * mode (dialogue) further down the page, deliberately after the quiz has
+ * already tested it once.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/` + `shared/teaching/`; see
@@ -375,8 +393,11 @@ class SalesStore {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -393,6 +414,47 @@ export class DataDashboard {
     { label: 'Task Manager', id: 'task-manager' },
     { label: 'Auth Flow', id: 'auth-flow' },
     { label: 'Data Dashboard' },
+  ];
+
+  /**
+   * The eight questions that ARE the shape block — escalating from the
+   * misconception, to where it bites in a code review, to the store/derive
+   * rule that fixes it. Every answer talks to "you": the dialogue is gone
+   * from the block on purpose, so the second person has to live here.
+   */
+  protected readonly ndq: readonly NdqItem[] = [
+    {
+      q: "I've got a raw signal and five `computed` selectors hanging off it. Write to the signal once — don't all five have to recompute?",
+      a: 'No, and this is the single biggest misconception about `computed()`. Angular tracks dependencies **per read**, not per store. A selector that never reads the signal you wrote has nothing to invalidate — its cache stands exactly as it was.',
+    },
+    {
+      q: 'Okay, so how does it actually know which ones to skip?',
+      a: 'Every `computed()` remembers exactly which signals it read the LAST time it ran. Write to `_sortKey` and only the selectors that called `this._sortKey()` inside their own function body get marked stale — `filtered`, which never touches the sort key, is untouched.',
+    },
+    {
+      q: 'So clicking a column header to sort... does that really cost less than changing a filter?',
+      a: 'Yes, measurably. Sorting invalidates `sorted` and `paginatedRows` — two selectors. Changing a filter invalidates `filtered` too, and everything downstream of it: `sorted`, `totalPages`, `paginatedRows`, AND `summary`. Same store, same kind of click, five times the recomputation for one filter versus one sort.',
+    },
+    {
+      q: 'Where does assuming "everything recomputes" actually bite someone at work?',
+      a: 'In a review, arguing against splitting one big `computed` into several smaller ones — "why bother, it all reruns anyway". It doesn\'t. A wide `computed` that reads five signals it barely needs drags itself into invalidations that have nothing to do with it; splitting it the way this store does is a real, measurable performance decision, not tidiness.',
+    },
+    {
+      q: 'If I store `totalRevenue` as its own signal instead of deriving it, what actually goes wrong?',
+      a: 'Nothing, right up until you add a fifth filter or reorder two lines in a refactor and forget one of the writes. Then the KPI card and the table quietly disagree, and nothing in the type system will ever catch it — because you told the compiler they were two unrelated facts, not one.',
+    },
+    {
+      q: 'Is `totalPages` really that different from `paginatedRows`? They both sound like "the pagination stuff".',
+      a: 'Completely different dependencies, which is the whole point. `totalPages` reads only `filtered().length` — a count, so sorting can never change it. `paginatedRows` reads `sorted()` — the actual order — so it DOES recompute on a sort. Grouping them by vibe ("pagination") instead of by what they read is exactly the instinct that produces a `computed` doing more work than it needs to.',
+    },
+    {
+      q: 'Does "derive, don\'t store" mean I should never use a plain signal?',
+      a: 'No — the page number itself IS a plain signal, on purpose. The rule isn\'t "never store", it\'s store the **decision** (what you picked) and derive the **consequence** (what falls out of that decision). A page number is a decision; a page count is a consequence of the data.',
+    },
+    {
+      q: "This chain is five `computed`s deep. Isn't a long chain just slow?",
+      a: 'Depth isn\'t the cost — width is. Each link caches, so a five-stage chain where nothing changed costs five cheap "did anything I read change?" checks and zero actual recomputation. What costs you is a selector reading a signal it doesn\'t need, which is the mistake the whole store is built to avoid.',
+    },
   ];
 
   /**

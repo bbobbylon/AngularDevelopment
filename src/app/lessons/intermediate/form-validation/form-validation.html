@@ -17,35 +17,68 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>A required field is invalid the instant it's created. So why isn't it already red?</h2>
+    <p class="bf-big">"I'm invalid. I have been since the moment I was born." — the control, entirely truthfully.</p>
 
-    <p>
-      Create <code>new FormControl('', Validators.required)</code> and, before anything else happens, that control
-      already has <code>errors: &#123; required: true &#125;</code>. Nobody clicked into it. Nobody typed anything. The
-      validator ran the moment the control existed, because that is simply what a validator <em>is</em> — a function
-      that gets asked "any complaints?" and the empty string already fails <code>required</code>.
+    <p class="bf-say">
+      Nobody clicked into the field. Nobody typed anything. And yet the page shows nothing wrong — not one red message —
+      until the user visits it and leaves again. Same control, same validator, same result underneath. So why the
+      silence?
     </p>
 
     <p>
-      And yet the demo further down this page doesn't show a single red message on load. You have to click into the
-      username field and click back out again before anything appears.
-      <span class="key">Same control, same validator, same result</span> — so something else entirely is deciding
-      whether the user ever gets told.
+      The parties: <strong>the Validator</strong>, which only ever answers yes or no. <strong>The control</strong>,
+      which just carries whatever is true — valid or not, touched or not, all at once. And
+      <strong>the template</strong>, which is the only one of the three that decides what a human actually sees.
     </p>
 
-    <app-napkin lead="quick guess —" label="Predict before you scroll">
-      Two things are true at once here: the control really is <code>INVALID</code> from the first render, and the page
-      shows nothing wrong until you visit and leave the field. What flag do you think is standing between "invalid" and
-      "displayed as invalid"? "Which flag decides whether the user actually sees it?" further down names it exactly.
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="Three parties, zero mistakes — so who decided a brand-new, already-invalid field should show the user nothing at all?"
+      hint="Ask which of the three actually WROTE the condition that keeps the message hidden — and who taught them to write it."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      Validity and display are two separate questions, and only one of them is Angular's to answer. Whether a control is
+      <code>invalid</code> is a fact, computed by its validators the instant the control exists. Whether a user ever
+      <em>sees</em> that fact is a UX decision, gated behind whichever flag a template chooses to check —
+      <code>touched</code>, <code>dirty</code>, both, or neither. Angular ships the flags. It never wires them to a
+      template for you.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'errors: { required: true }', sub: 'true from the very first render' }"
+      [rings]="[{ label: 'touched: false', sub: 'the gate a template chooses to check, and when' }]"
+      arrow="both exist at the same instant"
+      caption="The pad of complaints and the permission to show them live on the same control at the same time, and neither one waits for the other. A template decides which of the two it reads."
+    />
+
+    <app-quiz
+      question="A brand-new required field is `INVALID` from the first render. The demo below shows nothing wrong until you click into the field and back out again. Which single flag is doing the gating?"
+      [options]="argBlockQuiz"
+      followUp="`touched` flips on blur, not on a change to the value — that distinction is what the next quiz on this page, further down, is actually testing."
+    />
+
+    <app-napkin lead="the mental model —" label="A pad of sticky notes, and a rule about who's allowed to read it">
+      Every control carries a small pad of sticky notes — one note per failed validator, written the instant it fails.
+      Being <code>invalid</code> just means the pad has at least one note on it. Whether the page lets a
+      <em>human</em> see that pad is an entirely separate rule, one a template writes for itself. The fuller version,
+      sticky notes and all, is one section down.
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL, IN FULL ============ -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model, in full</p>
     <h2>Every control carries a small pad of sticky notes.</h2>
 
     <p>

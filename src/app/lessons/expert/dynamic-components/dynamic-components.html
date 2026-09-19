@@ -15,28 +15,100 @@
     </p>
   </app-chapter>
 
-  <!-- === 1. THE PROBLEM === -->
-  <p>
-    Most of the time a template already knows what it's showing — a <code>&lt;user-card&gt;</code>, a
-    <code>&lt;price-tag&gt;</code>, written by hand, once. But sometimes the component itself is a piece of
-    <strong>data</strong>: a CMS returns a block type string, a notification carries a severity, a plugin registers a
-    widget your app has never heard of at build time. You can't write an <code>&#64;if</code>/<code>&#64;else if</code>
-    chain for components that don't exist yet.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <p class="bf-say">
+    Five toasts got created this session with <code>createComponent()</code>. One of them was ever told to
+    <code>destroy()</code>.
   </p>
-  <app-napkin lead="try this —">
-    Scroll down to <strong>Demo 1</strong> and swap between Info, Warning and Success a few times before reading on.
-    Notice: nothing in Angular's template says <em>which</em> component renders — that decision is made by a plain
-    value, at runtime, and the template just points at it.
-  </app-napkin>
+
+  <app-receipt
+    heading="Five toasts created, one intentionally closed"
+    [rows]="toastBill"
+    [total]="toastBillTotal"
+    footer="every toast billed to createComponent() · only one was ever destroyed"
+  />
+
+  <app-scribble
+    point="up"
+    quote="4 of 5"
+    text="Four separate subtrees, each still holding whatever it opened when it mounted — a timer, a subscription, an interval — because nothing ever called `.destroy()` on them. `NgComponentOutlet` would have torn every one of these down automatically the moment its binding changed; `createComponent()` handed you the open door and walked away."
+  />
+
+  <app-compare
+    leftTitle="No cleanup — every toast stacks on the last"
+    leftTone="bad"
+    rightTitle="Destroy the old one before creating the next"
+    rightTone="good"
+    note="Same createComponent() call. One version leaves four toasts running forever; the other leaves none."
+  >
+    <div left>
+      <div class="code">
+        <pre data-lang="ts">{{ toastLeakSample }}</pre>
+      </div>
+    </div>
+    <div right>
+      <div class="code">
+        <pre data-lang="ts">{{ toastFixedSample }}</pre>
+      </div>
+    </div>
+  </app-compare>
+
+  <p class="bf-eyebrow">The mechanism</p>
+  <p class="bf-say">
+    <code>destroy()</code> doesn't just remove a DOM node — it tears down the whole subtree Angular built underneath it,
+    subscriptions included.
+  </p>
+
+  <app-chain [steps]="leakChain" label="What actually keeps a skipped toast alive" />
+
+  <app-code-lab
+    file="toast.service.ts — the fix, annotated"
+    [code]="leakFixSample"
+    [notes]="leakFixNotes"
+    notesLabel="Line by line"
+  />
+
+  <app-scribble
+    quote="this.ref?.destroy()"
+    tone="olive"
+    text="the entire fix, in one call — precise teardown of exactly the instance this field is holding, before a new one takes its place. Optional chaining makes the very first call, with nothing mounted yet, a safe no-op."
+  />
+  <app-scribble
+    quote="onDestroy(() => (this.ref = null))"
+    point="up"
+    tone="clay"
+    text="easy to skip, and skipping it doesn't remove the danger — it just moves it. The field still looks populated after a destroy from anywhere else, so a later call believes there's a live component when there is not."
+  />
+
+  <app-brain-power
+    question="NgComponentOutlet tears down its component automatically the instant its bound class changes. createComponent() never does that on its own — yet both APIs build the exact same kind of ComponentRef underneath. So what is NgComponentOutlet actually DOING that your own code isn't, when you reach for createComponent() instead?"
+    hint="Ask who is holding the reference in each case, and who is actually watching it for a reason to call destroy()."
+  />
+
+  <app-quiz
+    question="You call `this.vcr.createComponent(ToastCmp)` twice in a row, with no `clear()` or `destroy()` between the calls. What renders?"
+    [options]="quizOptions"
+    followUp="This is the exact bill the receipt above just itemised — the other half of the habit is calling destroy() before creating, not only when you're done."
+  />
+
+  <p class="bf-big">
+    Four toasts. One <code>.destroy()</code>. The other three are still running — and still billing you for it.
+  </p>
 
   <!-- === 2. ANALOGY === -->
   <p>
-    Think of <code>NgComponentOutlet</code> as a furnished rental: you tell the leasing office who's moving in, and they
-    handle move-in, move-out, and cleanup automatically — you never get a key of your own.
-    <code>createComponent()</code> is building your own house instead — put it in any container, even
-    <code>document.body</code> — but nobody manages it for you. You wire the utilities (inputs) yourself, you answer the
-    door yourself (subscribe to outputs), and you're the one who has to remember to lock up (<code>destroy()</code>)
-    when you leave, or the bills — leaked subscriptions, a DOM node nobody's tracking — keep running.
+    That's the cost of forgetting the key. Here's the picture underneath it: think of <code>NgComponentOutlet</code> as
+    a furnished rental — you tell the leasing office who's moving in, and they handle move-in, move-out, and cleanup
+    automatically, and you never get a key of your own. <code>createComponent()</code> is building your own house
+    instead — put it in any container, even <code>document.body</code> — but nobody manages it for you. You wire the
+    utilities (inputs) yourself, you answer the door yourself (subscribe to outputs), and you're the one who has to
+    remember to lock up (<code>destroy()</code>) when you leave, or the bills — leaked subscriptions, a DOM node
+    nobody's tracking — keep running.
   </p>
   <app-remember variant="mnemonic">
     Bind the class, own nothing. Call <code>createComponent()</code>, own everything — cleanup included.
@@ -133,11 +205,11 @@ this.ref.setInput('message', 'Updated!');
       </div>
     </div>
   </app-compare>
-  <app-quiz
-    question="You call `this.vcr.createComponent(ToastCmp)` twice in a row, with no `clear()` between the calls. What renders?"
-    [options]="quizOptions"
-    followUp="This is the other half of the `vcr.clear()` habit: call it before creating, not just when destroying."
-  />
+  <p style="font-size: 0.9rem; color: var(--text-muted)">
+    You already answered this exact scenario in the quiz at the top of the page: calling
+    <code>createComponent()</code> twice with nothing between the calls stacks a second instance rather than replacing
+    the first — the other half of the <code>vcr.clear()</code> habit, right here in Demo 2's own code.
+  </p>
 
   <h2>Where does the create call actually go?</h2>
   <p>

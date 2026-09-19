@@ -1,7 +1,8 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -29,20 +30,36 @@ interface Task {
  * difference between tracking by identity and tracking by position is
  * visible as DOM behaviour, not theory.
  *
+ * ## Shape: "The Argument" (`shape: 'argument'`, CONTRIBUTING §2C)
+ *
+ * BACKLOG §2.10. `track item.id` and `track $index` are each exactly correct
+ * about their own contract — one follows data, the other follows a position —
+ * and a half-typed note ending up on the wrong row is what happens when they
+ * collide, not a bug in either. A tension, not a misconception, so the
+ * Argument shape fits it better than a Q&A would. The opening block is: a
+ * quoted line from `track $index` → the scene, three parties named →
+ * {@link trackRoundOne} (six turns, the negotiation) → a Brain Power on whose
+ * fault the mix-up is → {@link trackRoundTwo} (four turns; everyone says "not
+ * me", and the last voice is yours) → the named principle ("a slot, not an
+ * identity") → a containment figure (`app-layers`) → the crux quiz
+ * ({@link trackArgumentQuiz}) → the seating-chart analogy on a napkin. No
+ * `app-code-lab`, `app-remember`, `app-tape-card`, `app-no-dumb-questions` or
+ * `app-receipt` inside the block — everything after it is free to use them,
+ * and does (including {@link trackTalk}, a second dialogue restaging the same
+ * fact from the coat-check analogy's own angle).
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`,
  * `src/brain-friendly.css`), following the teaching order set out in
  * `lessons/expert/change-detection/`:
  *
- * 1. **Pose the problem before naming it.** A collection just changed — so
- *    for every item in it now, is this an existing row or a new one? The
- *    reader commits to a guess about a half-typed note surviving a prepend,
- *    a few sections before any demo settles it.
- * 2. **Analogy before vocabulary.** `track` is framed as a coat-check ticket
- *    against a numbered hook, then restaged as a short argument between the
- *    two tracking strategies before a single demo runs.
- * 3. **Then the same idea in several modes**: a dialogue, an annotated
+ * 1. **The argument first, the coat-check analogy second.** The block hooks
+ *    on the collision itself; "The mental model" section right after it
+ *    backs up to `track` framed as a coat-check ticket against a numbered
+ *    hook, with the original predict-before-reading-on napkin and a second
+ *    dialogue restaging the same rule from the analogy's own angle.
+ * 2. **Then the same idea in several more modes**: an annotated
  *    live-looking snippet, a keyed-diff flow diagram, a live task list, a
  *    live two-column identity-vs-position demo, and a before/after key
  *    table.
@@ -57,8 +74,10 @@ interface Task {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -78,6 +97,88 @@ export class ControlFlowFor {
     { label: '@for' },
     { label: '@switch', id: 'control-flow-switch' },
     { label: '@let', id: 'let-block' },
+  ];
+
+  // ── The shape block: the argument ───────────────────────────────────────────
+
+  /**
+   * Round one of the track negotiation — three parties, each stating
+   * something true, none of them yet in open conflict.
+   */
+  protected readonly trackRoundOne: BubbleTurn[] = [
+    {
+      who: 'track item.id',
+      says: 'I staple a real, permanent number to your data. Shuffle the array all you like — I still know exactly which node belongs to which item.',
+    },
+    {
+      who: 'track $index',
+      says: "I don't look at your data at all. I only know positions — you're hook 0, you're hook 1, and that's the whole of what I remember.",
+    },
+    {
+      who: 'The node at hook zero',
+      says: "Doesn't matter which of you is watching. I'm still sitting right here, at hook zero, holding whatever the user just typed into me.",
+    },
+    {
+      who: 'track item.id',
+      says: 'Then when a row moves from position two to position zero, do you move its node to match?',
+    },
+    {
+      who: 'track $index',
+      says: "No — I don't even know a row moved. Position zero is still position zero. I just rebind whatever's sitting there now with fresh data and call it done.",
+    },
+    {
+      who: 'The node at hook zero',
+      says: "So my half-typed word just got handed someone else's label. I never moved. The DATA around me did.",
+    },
+  ];
+
+  /**
+   * Round two — every party but the reader points somewhere else, and the
+   * last line is the verdict the Brain Power was waiting on.
+   */
+  protected readonly trackRoundTwo: BubbleTurn[] = [
+    {
+      who: 'track item.id',
+      says: 'Not me — nobody asked me to track this list. I was never wired in.',
+    },
+    {
+      who: 'track $index',
+      says: 'Not me — I never claimed to follow data. Position zero is position zero; I said so from the start.',
+    },
+    {
+      who: 'The node at hook zero',
+      says: "Not me — I'm exactly where I've always been. I didn't request a new label.",
+    },
+    {
+      who: 'You',
+      says: "It's mine. I told Angular to track by position on a list that reorders, and a position-tracker doing its one job perfectly is precisely how a stranger's data ends up in a node that still remembers what you typed.",
+    },
+  ];
+
+  /**
+   * The block's crux quiz: what happens to typed text under `track $index`
+   * after a prepend. The distractors are the three real misreadings — that
+   * text follows "its" item, that Angular clears stale state on its own, and
+   * that this is a duplicate-key failure rather than a correctness one.
+   */
+  protected readonly trackArgumentQuiz: QuizOption[] = [
+    {
+      text: "It moves with 'its' row to position 1, DOM node included.",
+      why: "`track $index` never moves nodes to follow data — it has no concept of 'its' row. The node stays exactly where it was; only the bound data around it changes.",
+    },
+    {
+      text: 'It stays in the DOM node at position 0 — which now renders a completely different item.',
+      correct: true,
+      why: "Right. `track $index` defines row 0 as 'whatever is at position 0'. The node never moved, so anything typed into it — including the half-finished note — now belongs to whoever the data says lives there today.",
+    },
+    {
+      text: 'Angular clears it, since the underlying item changed.',
+      why: 'Angular has no idea a plain, unbound `<input>` even has a value — it only rebinds the attributes YOU bound, like `placeholder`. Manually-typed text is invisible to it and is never cleared on your behalf.',
+    },
+    {
+      text: 'It throws a duplicate-key error.',
+      why: "`$index` keys are unique by construction — every row gets a different position, so there's no collision to throw on. Duplicate keys are a different failure mode entirely, the one you get from a badly-chosen `track item.id`.",
+    },
   ];
 
   /**

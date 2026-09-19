@@ -1,7 +1,9 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 import { highlight } from '../../../shared/highlighter';
@@ -67,25 +69,38 @@ const CANDIDATES: CandidateShape[] = [
  * the interface-only superpower, callable/index/generic/hybrid signatures, and
  * what `implements` really checks.
  *
+ * ## Shape: `no-dumb-questions`
+ *
+ * The lesson opens on the misconception this topic reliably produces — "so
+ * something has to declare the relationship, right?" — and lets {@link ndq}
+ * carry the entire explanation, escalating from "no `implements` anywhere, yet
+ * it compiles" through the literal-vs-variable excess-property split, to where
+ * this bites at work (two unrelated types turning out interchangeable) and the
+ * one-line fix (nominal branding, when you actually need it). `app-brain-power`
+ * poses an open question about primitive aliases (`Celsius`/`Fahrenheit`, both
+ * secretly `number`), `app-layers` answers the shape question as a containment
+ * figure (the checklist only reaches as deep as its own fields ask), a quiz
+ * checks the variable-vs-literal case, and the block closes on `app-napkin`
+ * with the hiring-checklist analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`),
  * following the shape set by `expert/change-detection` and `typescript/narrowing`.
- * The teaching order is deliberate:
+ * After the shape block, "the mental model, in full" replays the same object
+ * from the block against the hiring-checklist analogy at full length, then the
+ * rest of the page carries on in the order it always did:
  *
- * 1. **Pose the problem first.** The lesson opens on an object satisfying an
- *    interface it never declared, and asks the reader to notice how strange
- *    that should be before naming the mechanism that makes it unremarkable.
- * 2. **Analogy, then vocabulary.** A hiring checklist — matched by field, not
+ * 1. **Analogy, then vocabulary.** A hiring checklist — matched by field, not
  *    by letterhead — gives "structural typing" somewhere to attach before the
  *    term appears, and goes one level past the "duck typing" cliché into the
  *    actual mechanism: a member-by-member walk, with one narrow, separately
  *    named exception.
- * 3. **The same idea in four modes** — a dialogue between the interface, the
+ * 2. **The same idea in four modes** — a dialogue between the interface, the
  *    object and the compiler; a hand-drawn diagram with arrows landing on
  *    matching fields (and one that doesn't); annotated code; and a live
  *    checker the reader can feed both a variable and a fresh literal.
- * 4. **The excess-property check gets its own paragraph and its own predict**,
+ * 3. **The excess-property check gets its own paragraph and its own predict**,
  *    per the brief — it is a narrower rule bolted onto structural typing, not
  *    structural typing itself, and treating the two as one idea is the most
  *    common way this topic gets mis-taught.
@@ -102,8 +117,11 @@ const CANDIDATES: CandidateShape[] = [
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Predict,
@@ -148,6 +166,69 @@ export class Interfaces {
     { label: 'Generics', id: 'ts-generics' },
     { label: 'Enums', id: 'ts-enums' },
     { label: 'Narrowing', id: 'ts-narrowing' },
+  ];
+
+  /**
+   * The shape block's spine: seven questions escalating from "nothing declared
+   * the relationship, so how is this legal" through the literal-vs-variable
+   * excess-property split, to where this actually bites at work and the
+   * one-sentence fix. Carries the entire explanation on its own — see
+   * `NoDumbQuestions`'s own doc comment for why that is the point.
+   */
+  protected readonly ndq: NdqItem[] = [
+    {
+      q: "Nothing here says `implements User`. Shouldn't SOMETHING have to declare that relationship before it's legal?",
+      a: "No — and that refusal is the whole lesson. TypeScript never checks for a declaration at all. It checks the object's **shape**: does it have every field the interface lists, with a compatible type in each? Tick every box and you're in, whether or not the object has ever heard of `User`.",
+    },
+    {
+      q: "That feels like a loophole. Doesn't Java or C# require the declaration?",
+      a: "They do, and that's the point of comparison, not a loophole in TypeScript. Java and C# are **nominal**: a class is only a `Point` if it wrote `implements Point`, in writing, once. TypeScript is **structural** by design: compatibility is recomputed from the shape every single time, and no declaration is ever cached or required.",
+    },
+    {
+      q: "I gave the object an extra field the interface never asked for. Doesn't over-delivering fail the check?",
+      a: "Not through a variable, it doesn't. `const x = { id: 1, name: 'Ada', nickname: 'A' }; const u: User = x;` compiles cleanly — `nickname` is simply invisible through the `User` lens. Structural typing only ever asks 'do you have what I need,' never 'do you have ONLY what I need.'",
+    },
+    {
+      q: 'But I tried that exact object as a fresh literal instead of a variable, and TypeScript flagged the extra field. Which is it?',
+      a: "Both, and the difference is the **path**, not the data. `const u: User = { id: 1, name: 'Ada', nickname: 'A' };` — a literal written right there in the assignment — gets a stricter second pass called the excess-property check, because an unrecognised key on a brand-new object is almost always a typo. Store that identical object in a variable first and the check never runs; ordinary structural comparison takes over, extra fields and all.",
+    },
+    {
+      q: "Where does the loophole-that-isn't actually bite people at work?",
+      a: "Two unrelated domain types that happen to share a shape become silently interchangeable. Pass an `Invoice` where a `Receipt` was expected — no error, no warning — because TypeScript only ever compared fields, and if both happen to declare `amount: number` and `date: Date`, that's a match as far as the compiler is concerned. It never asked whether the two concepts should be swappable.",
+    },
+    {
+      q: 'Wait — so if `Car` and `Boat` both happen to declare `wheels: number` and `drive(): void`, a `Car` type-checks as a `Boat`?',
+      a: "Yes, on the spot, with nothing linking the two declarations at all. Rename either interface and the answer doesn't change — TypeScript never records or checks which name a value was built against. All that survives to comparison time is the shape.",
+    },
+    {
+      q: "So what's the one-line fix, if I actually need two same-shaped types to stay apart?",
+      a: "Brand one of them — add a property no real data would ever have, like `readonly __brand: 'UserId'`, so the shapes genuinely diverge. That's the whole trick behind TypeScript's 'nominal typing' pattern: it isn't a language feature, it's structural typing given a field to disagree about on purpose.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the same variable-vs-literal split the excess-
+   * property section below covers in full, checked once up front so the
+   * reader commits to an answer before the deeper explanation arrives.
+   */
+  protected readonly ndqBlockQuiz: QuizOption[] = [
+    {
+      text: 'Yes — `raw` has every field `User` asks for; the extra `role` is simply invisible through the `User` lens.',
+      correct: true,
+      why: '`raw` is a variable, not a fresh literal, so it never faces the excess-property check. Once a value has a binding of its own, TypeScript compares it to `User` structurally — and structural typing was never bothered by extra fields in the first place.',
+    },
+    {
+      text: 'No — `role` is a property `User` never declared, so TypeScript rejects the assignment.',
+      why: "This is the excess-property check's rule, applied to the wrong case. That stricter pass only fires on a **fresh literal** written directly in the assignment. `raw` already exists as its own variable by the time it meets `User`, so the stricter check never runs.",
+    },
+    {
+      text: 'Only if `role` is declared as optional on `User`.',
+      why: "`User` doesn't need to mention `role` at all, optional or otherwise. Structural typing only checks that every field `User` **does** ask for is present and compatible — it has nothing to say about fields it never listed.",
+    },
+    {
+      text: 'It depends on whether `strict` mode is enabled in `tsconfig.json`.',
+      why: 'Structural typing itself is not a strictness flag — it is how TypeScript compares object types, on or off. `strict` changes things like implicit `any` and null-checking; it has no effect on whether extra fields through a variable are allowed.',
+    },
   ];
 
   /** Sample for the opening puzzle: a value that satisfies `User` unasked. */

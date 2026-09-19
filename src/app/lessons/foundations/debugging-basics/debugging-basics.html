@@ -17,52 +17,53 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): the giant sentence → a statement → the
+       Q&A that carries the whole explanation → an open question → the figure that
+       answers it → the one quiz → the analogy on a napkin. No cards, no dialogue,
+       and no Remember until the field guide — the shape is the Q&A doing the
+       teaching. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Something just broke. Now what?</h2>
-
-    <p>
-      Here's the reflex almost everyone starts with: the screen turns red, the eyes skip straight to the first few
-      words, and the hands go back to poking at the code. That is not <em>reading</em> an error — that's reacting to
-      one, and it throws away nearly everything the error was trying to tell you.
+    <p class="bf-big">
+      The console isn't yelling at you. It's dictating a report — you've just been skipping two thirds of it.
     </p>
 
-    <p>
-      An error message in JavaScript is not a vague complaint. It is a precise,
-      <span class="key">three-part report</span>, generated the instant something the engine cannot proceed past
-      happens, and it always contains — in order — what <strong>kind</strong> of mistake this was, exactly
-      <strong>what</strong> went wrong, and the exact trail of function calls that led to it. Nothing about that report
-      is trying to be difficult. It is trying to save you time, and most of the frustration people feel while debugging
-      is really frustration at not having read the whole thing.
+    <p class="bf-say">
+      Type. Message. Stack. Every error you will ever see is built from exactly those three things, in exactly that
+      order — the rest is you deciding how much of it to actually read.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Here's a real one, unedited: <code>TypeError: Cannot read properties of undefined (reading 'email')</code>, with a
-      trace ending <code>at showProfile (app.ts:51:24)</code>. Before you read a single word of the next section — can
-      you already say, in one sentence, roughly what went wrong and where you'd look first?
-      <strong>Hold that guess.</strong> You'll check it against the actual method in a moment.
-    </app-napkin>
-  </section>
+    <app-no-dumb-questions [items]="ndq" />
 
-  <!-- ============ 2. THE MENTAL MODEL ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>The computer isn't attacking you. It's dictating a report.</h2>
+    <app-brain-power
+      question="The trace prints `showProfile` first and `onClick` second — but `onClick` is the one that started everything, and `showProfile` only exists because `onClick` called it. So why does the trace put the newer call on top instead of the one that kicked things off?"
+      hint="Ask which one is still running, right now, at the moment of the crash — that's not the same question as which one started first."
+    />
 
-    <p>
+    <app-layers
+      [core]="{ label: 'reading .email', sub: 'off something undefined' }"
+      [rings]="[
+        { label: 'onClick', sub: 'where the click started' },
+        { label: 'showProfile', sub: 'running when it happened' },
+      ]"
+      arrow="the call travels inward, frame by frame"
+      caption="The trace lists the innermost, most-recent frame first — `showProfile`, still running when it crashed — and works outward to `onClick`, the one that started it all. This diagram draws it the way the calls actually happened, outside-in. That's the whole Brain Power answer: the trace is ordered by what's still running, not by what happened first."
+    />
+
+    <app-quiz
+      question="`Cannot read properties of undefined (reading 'toFixed')` on the line `order.items[0].price.toFixed(2)`. Name the exact thing that was undefined."
+      [options]="readingQuizOptions"
+      followUp="You'll see this exact left-of-the-dot rule doing the diagnosis again in the anatomy section just ahead — and once more, live, in the field guide further down."
+    />
+
+    <app-napkin lead="the mental model —" label="A very literal witness">
       Picture a very literal-minded witness at the scene of a small accident — not hostile, not embarrassed, just
-      relentlessly precise. Ask what happened and they will not soften it, summarize it, or spare your feelings: they
-      will name the <em>category</em> of thing that went wrong, describe the exact moment in careful detail, and then
-      recite, from memory, every single step that led them to be standing there. That is a JavaScript error, almost
-      exactly. The "attitude" beginners read into red console text is entirely imagined — it is the most literal, least
-      judgmental record of a mistake you will ever get.
-    </p>
-
-    <app-remember variant="mnemonic">
-      <strong>Type, message, stack.</strong> WHAT kind of mistake, WHAT exactly happened, and HOW you got there. Every
-      JavaScript error is built from exactly these three pieces, in exactly this order, every single time.
-    </app-remember>
+      relentlessly precise. Ask what happened and they won't soften it or spare your feelings: they'll name the
+      <em>category</em> of thing that went wrong, describe the exact moment in detail, and recite, from memory, every
+      step that led them to be standing there. That's a JavaScript error, almost exactly — type, message, stack, in that
+      order, every single time. The "attitude" you read into red console text is entirely yours; the report itself is
+      the least judgmental thing in the room.
+    </app-napkin>
   </section>
 
   <!-- ============ 3. COMPILE TIME VS RUNTIME ============ -->
@@ -140,7 +141,10 @@
     <p class="bf-eyebrow">Reading the report</p>
     <h2>One error, three parts — read it line by line.</h2>
 
-    <p>Time to check the guess you made at the top of the page. Here's that exact error again, in full.</p>
+    <p>
+      You already met this exact error's shape in the questions above. Here it is again, in full, matched line by line
+      to what actually happened.
+    </p>
 
     <app-code-lab
       file="console — uncaught error"
@@ -150,9 +154,9 @@
     />
 
     <p>
-      Match that against your guess. If you said something like "some profile-related object is missing an email, and it
-      happened while <code>showProfile</code> was running, triggered from a click" — that's the whole method, and you
-      just did it without a diagram.
+      If you can already say "some profile-related object is missing an email, and it happened while
+      <code>showProfile</code> was running, triggered from a click" — that's the whole method, and you just did it
+      without a diagram.
     </p>
   </section>
 
@@ -172,17 +176,12 @@
       caption="Notice it never says whose fault this is — only where it was standing when it happened. That's a different question, and it's exactly what the field guide further down makes you answer, case by case."
     />
 
-    <p>Here's the same idea, drawn as what actually happened rather than as what got printed:</p>
-
-    <app-layers
-      [core]="{ label: 'reading .email', sub: 'off something undefined' }"
-      [rings]="[
-        { label: 'onClick', sub: 'where the click started' },
-        { label: 'showProfile', sub: 'running when it happened' },
-      ]"
-      arrow="the call travels inward, frame by frame"
-      caption="This is the same nesting the trace printed — just upside down. The trace lists the **innermost** frame first (closest to the crash, `showProfile`) and works outward to `onClick`; this diagram draws it the way the calls actually happened, outside in. Reading the trace top-down is for triage; reading this picture outside-in is for the story."
-    />
+    <p>
+      That containment picture from the top of the page is the same idea, drawn as what actually happened rather than as
+      what got printed: <code>onClick</code> on the outside because it started first, <code>showProfile</code>
+      nested inside it because it ran second and crashed while still running. Reading the printed trace top-down is for
+      triage; reading that picture outside-in is for the story.
+    </p>
   </section>
 
   <!-- ============ 6. ANGULAR'S OWN ERROR CODES ============ -->
@@ -335,11 +334,10 @@
       </tbody>
     </table>
 
-    <app-quiz
-      question="`Cannot read properties of undefined (reading 'toFixed')` on the line `order.items[0].price.toFixed(2)`. Name the exact thing that was undefined."
-      [options]="readingQuizOptions"
-      followUp="Same rule as the anatomy section above: whatever sits immediately left of the named property is the thing that was missing."
-    />
+    <p>
+      Same rule as the quiz at the top of the page: whatever sits immediately left of the named property is the thing
+      that was missing — every one of these five bugs, silent one included, answers to it.
+    </p>
 
     <app-remember variant="rule">
       Reading <code>Cannot read properties of undefined (reading 'x')</code>: the undefined thing is always

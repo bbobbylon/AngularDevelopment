@@ -1,8 +1,10 @@
 import { DatePipe } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { RateEvent } from './outputs.shared';
@@ -23,15 +25,28 @@ import { Rating } from './rating/rating';
  * an RxJS subject, has no `.subscribe()` for consumers, and is completed for you
  * when the component is destroyed.
  *
+ * ## Shape: `no-dumb-questions`
+ *
+ * The lesson opens on the misconception this topic reliably produces — "doesn't
+ * `.emit()` call the parent directly?" — and lets {@link ndq} carry the entire
+ * explanation, escalating from that misconception through the service-as-event-bus
+ * anti-pattern actually seen at work, to the one-sentence fix. `app-brain-power`
+ * poses an open question about where behavior for the *same* child differs across
+ * two parents, `app-layers` answers it as a containment figure (the child can't see
+ * out past its own edge; the parent's binding, one layer out, can see all the way
+ * in), a quiz checks the "no listener" case, and the block closes on `app-napkin`
+ * with the doorbell analogy. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer — see `expert/change-detection` for the
  * reference shape this copies: pose the problem before naming it, an analogy
- * before the mechanism, then the same idea again in several modes. Here that
- * means the child/parent problem first, the doorbell analogy, the mechanism as
- * two `<app-code-lab>` panels (the child's side, then the parent's), a live
- * demo, a table against `input()` (the missing signal this migration adds), and
- * a comparison of `output()` against the classic `@Output() EventEmitter`.
+ * before the mechanism, then the same idea again in several modes. After the
+ * shape block, the lesson replays the doorbell idea as a dialogue
+ * ({@link mechanismTalk}), then the child/parent problem, the mechanism as two
+ * `<app-code-lab>` panels (the child's side, then the parent's), a live demo, a
+ * table against `input()` (the missing signal this migration adds), and a
+ * comparison of `output()` against the classic `@Output() EventEmitter`.
  *
  * @see beginner/inputs — the other half of the contract; the table below
  * compares them directly.
@@ -46,8 +61,11 @@ import { Rating } from './rating/rating';
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -59,6 +77,68 @@ import { Rating } from './rating/rating';
   styleUrl: './outputs.css',
 })
 export class Outputs {
+  /**
+   * The shape block's spine: six to eight questions escalating from the child-
+   * calls-the-parent-directly misconception, through the service-as-event-bus
+   * anti-pattern, to the one-sentence fix. Carries the entire explanation on
+   * its own — see `NoDumbQuestions`'s own doc comment for why that is the point.
+   */
+  protected readonly ndq: NdqItem[] = [
+    {
+      q: "Doesn't `child.emit(value)` call the parent's handler directly?",
+      a: "No — and that's the whole lesson in one sentence. The child calls `.emit()` on **its own** emitter; Angular's compiler is what wires that emitter to whichever `(rate)=\"onRate($event)\"` binding the parent's template happens to have. The child holds no reference to the parent, its method, or even whether anyone is listening at all.",
+    },
+    {
+      q: "So what happens if nobody's listening — does `.emit()` throw?",
+      a: "Nothing happens, and nothing throws. If the parent's template has no `(rate)` binding, the call still runs, still finishes, and the value goes **nowhere**. That's not a bug — it's the point. A component that could tell whether it had an audience would start having opinions about one, and that's exactly the coupling outputs exist to avoid.",
+    },
+    {
+      q: 'Could I put an `output()` on a plain `@Injectable` service, so any component anywhere can react to it?',
+      a: 'You can write it, and it will compile — `output()` only needs *an* injection context to construct itself, and a DI-built service has one. What it can\'t do is the one thing an output exists for: `(saved)="…"` binding syntax only exists for fields the compiler finds while processing an `@Component`/`@Directive` class. A plain `@Injectable` never goes through that step, so the emitter runs forever, talking to an empty room.',
+    },
+    {
+      q: "I've actually seen that at work — a `NotificationService` with an output on it, used like an app-wide event bus. Why did it seem to work?",
+      a: "Because nothing throws, and the code that calls `.emit()` genuinely runs. The mistake is invisible until someone goes looking for the listener and finds there isn't one — and can't be. The fix is a `Subject` on the service if other code needs to react to **each occurrence**, or a `signal` if it just needs to read **the current state**. `output()` has exactly one legal home: an actual component or directive.",
+    },
+    {
+      q: "Okay — so what *is* `$event`, inside the parent's handler?",
+      a: 'The exact payload the child passed to `.emit()`, typed as whatever the output declared — here a `RateEvent`. Nothing wraps it, nothing translates it. It shares its name with DOM event bindings purely by convention, and mixing the two up is the single most common trip in this lesson.',
+    },
+    {
+      q: "If the child can't reach the parent, how does two-way `[(value)]` binding work — doesn't that go both directions?",
+      a: "It still only ever goes one way at a time, twice. `[(value)]` is sugar for an input `value` plus an output `valueChange` — `model()` generates exactly that pair — and the square-bracket-parens syntax wires both bindings for you. Nothing about the underlying mechanism changes; you're just looking at two one-way wires stapled together.",
+    },
+    {
+      q: 'What actually breaks if I name my output `click` or `change`?',
+      a: 'It collides with the **real** DOM event of the same name on the host element. A parent that writes `(click)="…"` expecting your custom output can end up wired to an ordinary mouse click instead — or both fire, depending on what else is bound. It\'s the kind of bug that only shows up once the component ships inside a page that already has a click handler sitting on it.',
+    },
+    {
+      q: "So what's the one line that fixes basically all of these?",
+      a: 'Name the output for the **event**, not the reaction to it (`rate`, never `onRate`); put it only on a component or directive, never a service; and remember it can only announce — it never decides. Everything else above is just a specific way of forgetting that one sentence.',
+    },
+  ];
+
+  /** The block's own quiz: the "no listener" case the misconception in {@link ndq} sets up. */
+  protected readonly silentEmitQuizOptions: QuizOption[] = [
+    {
+      text: 'Angular throws NG0304 — "output has no listener."',
+      why: 'There is no such error. Angular never checks whether an output binding exists anywhere for a given emitter — it has no way to know, and it does not try.',
+    },
+    {
+      text: 'The value queues up and fires the moment a `(rate)` binding does exist.',
+      why: '`output()` does not buffer. There is no queue, no replay, no "catch up later" — the moment passes and the value is gone.',
+    },
+    {
+      text: 'The nearest ancestor with a matching output name receives it, the way a DOM event bubbles.',
+      why: 'Outputs are not DOM events and do not bubble. A `(rate)` binding only ever connects to the exact `<app-rating>` element it is written on.',
+    },
+    {
+      text: 'Nothing — the call runs, finishes, and the value goes nowhere.',
+      correct: true,
+      why: 'This is the whole lesson in one outcome. `.emit()` never checks for a listener before running, because checking would mean the child could develop an opinion about whether it has one — and that opinion is exactly what keeps a component reusable.',
+    },
+  ];
+
   /** The "you are here" rail — the local neighbourhood of the beginner track. */
   protected readonly stops: ChapterStop[] = [
     { label: 'Lifecycle', id: 'lifecycle' },
@@ -231,23 +311,29 @@ export class SessionState {
   readonly isSaved = signal(false);
 }`;
 
-  /** The doubts this lesson reliably leaves behind. */
+  /**
+   * The doubts this lesson reliably leaves behind. Deliberately distinct from
+   * {@link ndq}: that block already carries the emit-reaches-the-parent
+   * misconception and the service-as-event-bus anti-pattern, so this closer
+   * covers doubts that only surface once the reader has already sat with the
+   * mechanism for a while.
+   */
   protected readonly questions: FaqItem[] = [
     {
-      q: 'If inputs update automatically, why do I have to call `.emit()` myself?',
-      a: "Because an output isn't a value Angular is watching — it's a decision your code makes. An input changes because the parent's binding re-evaluates on every check; an output only fires the instant you call `.emit()`, because 'something happened' is an event, not a fact about a signal. Skip the call and nothing is ever emitted — there's no automatic path standing in for it.",
+      q: "Is `.emit()` synchronous — does the parent's handler run before `.emit()` itself returns?",
+      a: "Yes. There's no microtask hop, no scheduling, nothing async hiding in there — `.emit()` calls the parent's handler in the same call stack, synchronously, before the line after `.emit()` in the child ever runs. If you need to see a side effect land immediately after emitting, it already has.",
     },
     {
-      q: 'Does `.emit()` reach into the parent and run its handler?',
-      a: "No — the child never touches the parent at all. `.emit()` just notifies Angular's own event-binding machinery, which is what actually calls `onRate($event)` on the parent's behalf. The child holds no reference to the parent, its method, or even whether anything is listening.",
+      q: 'Can two different parents bind to the same child output at once?',
+      a: "Yes, as long as they're two separate elements. Drop the exact same `<app-rating (rate)=\"...\">` into two different templates and each gets its own independent binding to its own handler — the child's `.emit()` doesn't know or care how many places it's used, only that this one call belongs to whichever single template this particular element sits in.",
     },
     {
-      q: 'What happens if I emit and nothing is bound to it?',
-      a: 'Nothing — and that is on purpose. `.emit()` with zero listeners is a safe no-op, the same way shouting into an empty room does not error. That is part of what keeps a component reusable: it never needs to know or care whether this particular screen wired anything up.',
+      q: "If I rename an output, does every parent's binding update with it?",
+      a: 'No — and TypeScript won\'t catch the mismatch either. `(rate)="onRate($event)"` is just text inside the template; renaming the child\'s `rate` output to `starPicked` silently breaks every existing `(rate)` binding, and you find out at runtime (the handler stops firing) rather than at compile time.',
     },
     {
-      q: 'Is `$event` always the DOM event, like in `(click)="log($event)"`?',
-      a: "Only for real DOM event bindings. On a custom output like `(rate)=\"onRate($event)\"`, `$event` is whatever you passed to `.emit()` — here a `RateEvent`, not a `MouseEvent`. Angular reuses the same `$event` name for both because from the template's point of view they are both 'the thing that came with this event', but the type is entirely up to whoever declared the output.",
+      q: 'What if the event genuinely carries no data — does the output still need a type?',
+      a: "Declare `output<void>()` for a bare notification (this lesson's `(cleared)` output is exactly that) and call `.emit()` with no argument. The parent's handler still runs on the notification itself; `$event` is simply `void`, and there's nothing to unpack.",
     },
   ];
 

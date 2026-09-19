@@ -14,41 +14,103 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You called <code>http.get()</code>. The Network tab stayed empty.</h2>
-
-    <p>
-      Here's the thing that trips up everyone arriving from <code>fetch</code>:
-      <code>this.http.get('/api/posts')</code> returns something immediately, and yet nothing goes out over the network.
-      No request, no error, no clue that anything happened at all — the line just quietly returns a value and moves on.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Type five characters into a search box wired straight to <code>http.get()</code>, and you didn't send one request
+      — you sent five, one per keystroke, and only the last one ever reached the screen.
     </p>
 
-    <p>
-      That value is not a promise of data on its way. It is a <span class="term">cold Observable</span>: a description
-      of a request that <em>could</em> be made, sitting inert until something specifically asks it to run. Three
-      questions fall out of that one fact, and between them they cover almost every HTTP bug a beginner hits:
+    <app-receipt
+      heading="Five keystrokes into a naive search box"
+      [rows]="searchBill"
+      [total]="searchBillTotal"
+      footer="every row billed to the network · only the last billed to the screen"
+    />
+
+    <app-scribble
+      point="up"
+      quote="1 of 5"
+      text="Four full round trips — DNS, server time, all of it — for characters the user had already typed past by the time the answer came back. Not a bug in `http.get()`. Just what happens when nothing tells the old ones to stop."
+    />
+
+    <app-compare
+      leftTitle="No cancellation — every keystroke pays in full"
+      leftTone="bad"
+      rightTitle="switchMap — only the latest keystroke pays"
+      rightTone="good"
+      note="Same Subject, same http.get() call. One operator is the entire difference between five bills and one."
+    >
+      <div left>
+        <div class="code">
+          <pre data-lang="ts">{{ noCancelSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre data-lang="ts">{{ switchMapSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Unsubscribing isn't bookkeeping. For an HTTP Observable it reaches all the way down to the actual network
+      connection.
     </p>
 
-    <ul>
-      <li>What actually has to happen before a request is sent at all?</li>
-      <li>What happens if two different places in the app ask for the same thing?</li>
-      <li>What happens to a request that outlives its usefulness — cancelled, or its component destroyed?</li>
-    </ul>
+    <app-chain [steps]="cancelChain" label="What switchMap actually does on the next keystroke" />
 
-    <app-napkin lead="notice —" label="Predict before reading on">
-      Component A calls <code>this.http.get('/api/posts')</code> and stores the result somewhere shared. Component B,
-      elsewhere entirely, reads that same value and calls <code>.subscribe()</code> on it too, just to be safe.
-      <strong>How many network requests fire?</strong> There's a concrete version of this question — with a real answer
-      — a little further down.
-    </app-napkin>
+    <app-code-lab
+      file="posts.component.ts"
+      [code]="bridgeSample"
+      [notes]="bridgeNotes"
+      notesLabel="Two jobs, two lines"
+    />
+
+    <app-scribble
+      quote="switchMap"
+      text="the operator doing the cancelling — but only because it unsubscribes the previous inner Observable. The actual abort lives in HttpClient's teardown, not in switchMap itself."
+    />
+    <app-scribble
+      quote="loadUser$"
+      point="up"
+      text="a Subject, not a direct call — turning 'the user clicked' into a stream is what gives switchMap something to attach a cancellation policy to in the first place."
+    />
+
+    <app-brain-power
+      question="switchMap cancels the PREVIOUS request the instant a new one starts. So what happens to a request that's still in flight when the component itself gets destroyed mid-search — no new keystroke, just gone?"
+      hint="Cancellation isn't a power switchMap owns personally. Ask what unsubscribe actually does, and who else can trigger one."
+    />
+
+    <app-quiz
+      question="A request is in flight and you unsubscribe from it — because `switchMap` superseded it, or because the component was destroyed. What happens to the network call?"
+      [options]="cancelOptions"
+      followUp="Practical upshot: navigating away from a page mid-load does not leave orphaned requests draining the connection pool, as long as you subscribed through `toSignal`, the `async` pipe, or `takeUntilDestroyed()`. There's a live counter further down that makes this exact saving countable."
+    />
+
+    <p class="bf-big verdict">
+      Five keystrokes, five bills. One <code>switchMap</code>, one bill — the same one the screen actually shows.
+    </p>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>Think of <code>http.get()</code> as a recipe card, not a meal.</h2>
+
+    <p>
+      That's the cost of a recipe nobody ever told to stop cooking. Here's the fact underneath it:
+      <code>this.http.get('/api/posts')</code> returns something immediately, and yet nothing goes out over the network
+      — no request, no error, no clue that anything happened at all. The value it hands back is not a promise of data on
+      its way. It's a <span class="term">cold Observable</span>: a description of a request that <em>could</em> be made,
+      sitting inert until something specifically asks it to run.
+    </p>
 
     <p>
       A recipe card is a written-down description of a meal that could be made. It sits there doing nothing until
@@ -412,16 +474,11 @@ providers: [provideHttpClient(withFetch())]</pre>
 
     <p>
       Because a request is an Observable, the same teardown logic that runs when any Observable is unsubscribed applies
-      here too. The <code>async</code> pipe and <code>toSignal</code> unsubscribe for you; a hand-rolled
+      here too. You already read the exact code for this — the same <code>loadUser$</code> and
+      <code>switchMap</code> from the receipt at the top of the page — and proved to yourself which one really does the
+      cancelling. The <code>async</code> pipe and <code>toSignal</code> unsubscribe for you; a hand-rolled
       <code>.subscribe()</code> needs <code>takeUntilDestroyed()</code> to do the same.
     </p>
-
-    <app-code-lab
-      file="posts.component.ts"
-      [code]="bridgeSample"
-      [notes]="bridgeNotes"
-      notesLabel="Two jobs, two lines"
-    />
 
     <app-remember variant="rule">
       <code>toSignal</code> and the <code>async</code> pipe unsubscribe for you. A hand-written
@@ -448,14 +505,9 @@ providers: [provideHttpClient(withFetch())]</pre>
     </div>
     <div class="note">
       <code>requestCount</code> can climb faster than <code>responseCount</code> — the gap is every request that got
-      superseded and unsubscribed before its response arrived.
+      superseded and unsubscribed before its response arrived. It's the same gap the receipt at the top of the page
+      billed you for, just counted live instead of itemised.
     </div>
-
-    <app-quiz
-      question="A request is in flight and you unsubscribe from it — because `switchMap` superseded it, or because the component was destroyed. What happens to the network call?"
-      [options]="cancelOptions"
-      followUp="Practical upshot: navigating away from a page mid-load does not leave orphaned requests draining the connection pool, as long as you subscribed through `toSignal`, the `async` pipe, or `takeUntilDestroyed()`."
-    />
   </section>
 
   <!-- ============ 10. PITFALLS ============ -->
