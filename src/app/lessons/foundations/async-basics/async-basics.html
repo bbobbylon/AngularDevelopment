@@ -16,30 +16,46 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>What happens while your code is busy?</h2>
+    <p class="bf-big">JavaScript never waits — it starts slow work, keeps going, and deals with the result later.</p>
 
-    <p>
-      Picture one line of code that genuinely takes two seconds to run — no network, no timer, just a slow calculation.
-      While it runs, <span class="key">nothing else on the lane can move</span>: not a click, not a scroll, not the
-      theme toggle at the top of this page. If JavaScript really did stand still and wait for slow things, the whole
-      page would freeze for exactly as long as the wait.
+    <p class="bf-say">
+      Async code doesn't get its own thread, its own timeline, or a pause button. It gets exactly one thing: a place in
+      line for the <strong>same one lane</strong> every other line of your code already runs on.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Would you bet on "the page freezes" or "everything still works fine" while that slow line runs? Keep your answer
-      in mind — the rest of this page is the reason you're right either way, because the language that actually ships
-      never lets that two-second freeze happen at all.
+    <app-no-dumb-questions [items]="asyncQuestions" />
+
+    <app-brain-power
+      question="A synchronous loop takes three full seconds to finish — no network, no timer, just heavy math. While it runs, a user clicks a button on the page. What happens to that click, and when?"
+      hint="Ask whether the lane is ever free WHILE that loop is running — not before it, not after it."
+    />
+
+    <app-layers
+      [core]="{ label: 'The call stack', sub: 'one lane — the only place your code actually RUNS' }"
+      [rings]="[{ label: 'Task & microtask queues', sub: 'every deferred callback waits here, not next to your code' }]"
+      arrow="nothing enters the stack until it's completely empty"
+      caption="A finished fetch() doesn't interrupt anything — it just gets a spot in the queue, same as a click or a timer, waiting for the one lane to go idle."
+    />
+
+    <app-quiz
+      question="That same three-second synchronous loop is running. A user clicks a button. What actually happens to the click?"
+      [options]="freezeQuizOptions"
+      followUp="The freeze was never about async vs. sync as a label — it's about how long the ONE lane stays busy. Async code avoids the freeze by never occupying the lane for the whole wait; a genuinely slow synchronous loop occupies it completely, and nothing — not even a click — gets a turn until it's done."
+    />
+
+    <app-napkin lead="the mental model —" label="One burner, a lot of pots">
+      There's exactly one burner on this stove. Put a pot on to boil and walk away to chop vegetables — the water
+      doesn't need the burner to itself while it heats, it just needs the burner to notice it later. The burner is never
+      idle, and it's never touching two pots in the same instant either. It's just never standing frozen, staring at any
+      one pot, when there's chopping it could be doing instead.
     </app-napkin>
-
-    <p>
-      So JavaScript never waits. It starts slow work, keeps going, and deals with the result <strong>later</strong>.
-      Every tool on this page — <span class="term">callbacks</span>, <span class="term">Promises</span>,
-      <span class="term">async</span>/<span class="term">await</span> — is a different way of saying the same sentence:
-      <em>"I'll let you know when it's done."</em>
-    </p>
   </section>
 
   <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->

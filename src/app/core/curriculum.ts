@@ -75,6 +75,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Why slow tasks run asynchronously: callbacks, promises and async/await.',
     level: 'foundations',
     category: 'Programming from Zero',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/foundations/async-basics/async-basics').then((m) => m.AsyncBasics),
   },
@@ -134,6 +135,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'How types prevent bugs, what a framework gives you, and how to use this app.',
     level: 'foundations',
     category: 'Web Basics',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/foundations/why-typescript-angular/why-typescript-angular').then(
         (m) => m.WhyTypescriptAngular,
@@ -713,6 +715,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ng-content, multi-slot projection, ngProjectAs and contentChild queries.',
     level: 'intermediate',
     category: 'Components & Templates',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/content-projection/content-projection').then(
         (m) => m.ContentProjection,
@@ -798,6 +801,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Spies, provideHttpClientTesting and HttpTestingController.',
     level: 'intermediate',
     category: 'Testing',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/intermediate/testing-services-http/testing-services-http').then(
         (m) => m.TestingServicesHttp,
@@ -896,6 +900,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Signal stores, NgRx concepts and choosing an architecture.',
     level: 'expert',
     category: 'Architecture',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/expert/state-management/state-management').then((m) => m.StateManagement),
   },
@@ -926,6 +931,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Implementing ControlValueAccessor for first-class form integration.',
     level: 'expert',
     category: 'Forms',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/expert/control-value-accessor/control-value-accessor').then(
         (m) => m.ControlValueAccessorLesson,
@@ -937,6 +943,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Multi providers, @Optional/@Self/@SkipSelf/@Host, forwardRef and hierarchies.',
     level: 'expert',
     category: 'Dependency Injection',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/expert/di-advanced/di-advanced').then((m) => m.DiAdvanced),
   },

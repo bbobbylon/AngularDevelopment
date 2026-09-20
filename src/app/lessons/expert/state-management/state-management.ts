@@ -2,6 +2,7 @@ import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 
@@ -133,6 +134,24 @@ class TodoStore {
  * Lesson: State Management — where a value should live, who is allowed to
  * change it, and when a plain signal store stops being enough.
  *
+ * ## Shape: `argument`
+ *
+ * The lesson opens on two components that each declare their own
+ * `signal<CartItem[]>` field and quietly disagree about what's in the cart —
+ * CartPage's view is right, CartIcon's is stale, and neither signal is
+ * malfunctioning. {@link argRoundOne} stages CartPage's signal, CartIcon's
+ * signal and the two components each stating a truth that together explains
+ * the bug; `app-brain-power` asks what's missing when neither signal is
+ * broken; {@link argRoundTwo} has both signals deny responsibility before
+ * "You" names the missing piece — one shared signal, not two that happen to
+ * share a field name. `app-layers` answers the same split as a containment
+ * figure (one `CartStore` instance, two readers), a quiz checks the
+ * shared-instance case directly, and the block closes on `app-napkin` with a
+ * wristwatch-vs-wall-clock analogy — kept separate from the bank-teller
+ * analogy just below, which explains the *write* side (private/readonly/
+ * named-method) rather than this block's *read* side (one instance, not two).
+ * See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (see `shared/brain/` and
@@ -177,6 +196,7 @@ class TodoStore {
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Predict,
@@ -202,6 +222,86 @@ export class StateManagement {
     { label: 'Dynamic Components', id: 'dynamic-components' },
     { label: 'Host Directives', id: 'host-directives' },
     { label: 'NgModules & Standalone', id: 'ngmodules-migration' },
+  ];
+
+  /**
+   * The shape block's first round: CartPage's signal, CartIcon's signal and
+   * the two components each stating a true fact that, together, explains why
+   * the badge is stale without either signal having misbehaved.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: "CartPage's signal",
+      says: 'One `update()` call and I changed — CartPage read me right after, in its own template, and got the new array. That is the entire contract I promised.',
+    },
+    {
+      who: "CartIcon's signal",
+      says: "I promised the exact same contract, and I've kept it too — I still say zero, because nothing has ever called `.set()` or `.update()` on me. Not once.",
+    },
+    {
+      who: 'CartPage',
+      says: 'Hang on — I called `this.items.update(list => [...list, mug])`. The mug is really in there. I can see it right now.',
+    },
+    {
+      who: 'CartIcon',
+      says: "I called `this.items()` too, in my badge's interpolation, a hundred times since you clicked. It's not that I'm not reading. I'm reading something.",
+    },
+    {
+      who: 'CartPage',
+      says: 'Wait. Is your `items` even the same object as mine?',
+    },
+    {
+      who: "CartIcon's signal",
+      says: 'We were never the same object. Each of you declared your own `private readonly items = signal<CartItem[]>([])`, in your own class. I am not a copy of theirs — I only happen to have the same name.',
+    },
+  ];
+
+  /**
+   * The shape block's second round: everyone denies responsibility before
+   * "You" names the missing piece — one shared signal, not two that share a
+   * field name.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: "CartPage's signal",
+      says: "Not me. I notified every reader I have the instant I changed. That's the whole job description.",
+    },
+    {
+      who: "CartIcon's signal",
+      says: 'Not me either. I cannot announce a change that was never made to me — there is nothing to announce.',
+    },
+    {
+      who: 'CartPage',
+      says: 'Not me. I did the work. The mug really is sitting in an array, right now, correctly.',
+    },
+    {
+      who: 'You',
+      says: "It's mine. Two components can't share a value by each declaring their own copy of it — a signal only ever knows about writes made through it directly. The fix isn't a better update() call. It's one CartStore, injected by both, so there's exactly one signal between them.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the shared-instance case, checked directly
+   * against the two-separate-signals bug the block opened on.
+   */
+  protected readonly argBlockQuiz: QuizOption[] = [
+    {
+      text: 'It updates to match — both components got the SAME CartStore instance from the root injector, so `store.items()` is one signal, read twice.',
+      correct: true,
+      why: "`providedIn: 'root'` means the injector builds exactly one CartStore and hands that same instance to every injector that asks — CartPage and CartIcon are reading one signal, not two, so CartIcon's next render sees the update.",
+    },
+    {
+      text: 'Nothing changes — CartIcon would still need to manually re-fetch the count.',
+      why: "That's the two-separate-signals bug, not this scenario. A single shared, root-provided signal notifies every current reader automatically; nothing needs to poll or re-fetch.",
+    },
+    {
+      text: "It throws, because two components can't read the same signal at the same time.",
+      why: 'A signal supports any number of simultaneous readers — that is the entire point of exposing one publicly. Nothing about two components reading it is a conflict.',
+    },
+    {
+      text: 'It depends on which component was constructed first.',
+      why: 'Construction order plays no part here. The root injector builds CartStore once, on first request, and every later request — regardless of order — gets that same instance back.',
+    },
   ];
 
   /**

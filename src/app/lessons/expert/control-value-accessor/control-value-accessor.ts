@@ -2,8 +2,9 @@ import { JsonPipe } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { StarRating } from './star-rating/star-rating';
@@ -15,6 +16,24 @@ import { QtyStepper } from './qty-stepper/qty-stepper';
  * quantity stepper that also validates itself), the two directions of the
  * bridge, how `formControlName` finds the accessor under the hood, and the
  * classic mistakes (missing `onChange`, the echo loop, forgotten `multi: true`).
+ *
+ * ## Shape: `argument`
+ *
+ * The lesson opens on the echo loop itself: `writeValue`, `onChange` and
+ * `FormControl` each did their own job correctly, and the bug is only in the
+ * one call connecting two of them. {@link argRoundOne} stages all three
+ * insisting they behaved exactly as documented; `app-brain-power` asks where
+ * it went wrong if nobody did anything wrong; {@link argRoundTwo} has all
+ * three deny responsibility before "You" names the one line that should
+ * never have existed. `app-layers` answers the same split as a call-cascade
+ * figure, the block's quiz is {@link quizOptions} — relocated from its
+ * original spot in the "echo loop" section further down, which now leaves a
+ * callback line instead of asking the identical question twice — and the
+ * block closes on `app-napkin` with a microphone-feedback analogy, kept
+ * deliberately separate from the "translator who must never talk to
+ * themselves" analogy in the mental-model section just below, which explains
+ * the full four-method contract rather than just this one failure mode. See
+ * `docs/CONTRIBUTING.md` §2C.
  *
  * ## Presentation
  *
@@ -38,7 +57,9 @@ import { QtyStepper } from './qty-stepper/qty-stepper';
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -91,6 +112,62 @@ export class ControlValueAccessorLesson {
     { label: 'Form Arrays', id: 'form-arrays' },
     { label: 'Signal Forms', id: 'signal-forms' },
     { label: 'Custom Controls (CVA)' },
+  ];
+
+  /**
+   * The shape block's first round: `writeValue`, `onChange` and
+   * `FormControl` each insisting — correctly — that they did their own job
+   * right, which is exactly what makes the echo loop hard to spot from
+   * inside any single method.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'writeValue',
+      says: 'The form asked me to render 4. I rendered 4. My job is done.',
+    },
+    {
+      who: 'onChange',
+      says: 'Right after that, someone called ME with 4 too. I did what I always do — reported it to the form as a change.',
+    },
+    {
+      who: 'FormControl',
+      says: 'And I did what I always do when onChange fires — updated my value and marked myself dirty. As far as I can tell, a user just typed 4.',
+    },
+    {
+      who: 'writeValue',
+      says: 'Nobody typed anything. I was the one who called onChange — from inside myself, right after I finished rendering.',
+    },
+    {
+      who: 'onChange',
+      says: "I can't tell the difference between 'a user pressed a key' and 'writeValue called me directly.' I only know one thing: I was invoked with 4.",
+    },
+    {
+      who: 'FormControl',
+      says: 'So from where I stand, this looks exactly like a real edit. I have no way to see that it came from my own setValue() bouncing back.',
+    },
+  ];
+
+  /**
+   * The shape block's second round: everyone denies responsibility before
+   * "You" names the one call that should never have existed.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: 'writeValue',
+      says: 'Not me — rendering the value the form hands me is literally my one job.',
+    },
+    {
+      who: 'onChange',
+      says: "Not me — I report whatever I'm called with. Nobody told me to check who called me.",
+    },
+    {
+      who: 'FormControl',
+      says: 'Not me — I can only react to the callback I was given. I have no way to see inside your component.',
+    },
+    {
+      who: 'You',
+      says: "It's mine. writeValue is IN — model to view, render only. onChange is OUT — view to model, report only. I wired the IN method to call the OUT one directly, the one connection this contract exists to prevent. Delete that line, and every party above goes back to doing exactly the job it already had.",
+    },
   ];
 
   /**

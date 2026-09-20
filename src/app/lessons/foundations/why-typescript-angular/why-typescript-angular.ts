@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, type ReceiptRow, Scribble } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -111,6 +112,20 @@ const total = price * 1.2;`,
  * to React and Vue; how the two tools are designed around each other (`strictTemplates`);
  * and the curriculum map that sends the reader into the rest of the app.
  *
+ * ## Shape: `receipt`
+ *
+ * The lesson opens on the itemised cost of catching the exact same typo at four different
+ * moments: {@link catchTimingBill} bills three free-or-cheap rows against the one plain
+ * JavaScript actually reaches by default, `app-scribble` names that default, and
+ * `app-compare` shows a fresh example — a misspelled status literal against a union type,
+ * deliberately **not** the `greet`/`user`/`price` bug-hunt examples further down the page,
+ * whose entire point is a later "the extension alone isn't the safety" reveal this block
+ * must not spoil. `app-chain` names the mechanism, `app-brain-power` asks what TypeScript
+ * actually checked, and the block's own quiz ({@link catchTimingQuizOptions}) checks it
+ * directly. The old bar-chart SVG that used to illustrate this same "four moments" idea was
+ * retired in favour of {@link Receipt} — the same story, told with the shared component
+ * instead of hand-rolled `.dia-*` markup. See `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer (`shared/brain/`, `src/brain-friendly.css`), copying
@@ -141,6 +156,10 @@ const total = price * 1.2;`,
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -174,6 +193,80 @@ export class WhyTypescriptAngular {
     { label: 'How the Web Works', id: 'how-the-web-works' },
     { label: 'The DOM & Events', id: 'dom-and-events' },
     { label: 'Why TypeScript & Angular?' },
+  ];
+
+  /** The shape block's itemised bill: four moments the same typo can be caught. */
+  protected readonly catchTimingBill: ReceiptRow[] = [
+    { label: 'Caught as you type — a red squiggle', amount: '~0 sec' },
+    { label: 'Caught at build — the compiler refuses to finish', amount: '~30 sec' },
+    {
+      label: "Caught at runtime, mid-test — you're the one who hits it",
+      amount: 'minutes',
+      tone: 'warn',
+    },
+    {
+      label: 'Caught in production — a user hits it first',
+      amount: 'hours, after the fact',
+      tone: 'warn',
+    },
+  ];
+
+  /** The shape block's receipt total — where plain JavaScript lands by default. */
+  protected readonly catchTimingBillTotal: ReceiptRow = {
+    label: 'where plain JavaScript defers this bug to, left alone',
+    amount: 'the last row, every time',
+  };
+
+  /** The shape block's compare, left side: the typo ships, unremarked, forever. */
+  protected readonly statusJsSample = `function setStatus(status) {
+  badge.textContent = status;
+}
+
+setStatus('compelte');
+// runs. No error, ever —
+// the badge just says "compelte" forever.`;
+
+  /** The shape block's compare, right side: a union type catches it before it ships. */
+  protected readonly statusTsSample = `type Status = 'pending' | 'active' | 'complete';
+
+function setStatus(status: Status) {
+  badge.textContent = status;
+}
+
+setStatus('compelte');
+// never compiles — red squiggle
+// the moment you type this line`;
+
+  /** The shape block's mechanism, named as a pipeline. */
+  protected readonly catchTimingChainSteps: readonly string[] = [
+    'name the exact allowed strings, as a union type',
+    'compiler checks every call site against it',
+    "'compelte' isn't one of the three allowed values",
+    'refuses to finish — the typo never ships at all',
+  ];
+
+  /**
+   * The shape block's quiz: what a type mismatch actually checks — the type,
+   * never the specific value.
+   */
+  protected readonly catchTimingQuizOptions: QuizOption[] = [
+    {
+      text: "That the STRING 'compelte' isn't one of the three literal values the Status type allows — never the runtime behaviour of setStatus().",
+      correct: true,
+      why: 'TypeScript never ran setStatus() to find out what it would do — it compared the literal type of the argument against the union type of the parameter, entirely at compile time, and stopped there.',
+    },
+    {
+      text: "That badge.textContent doesn't exist — the real bug is inside the function body, not the call.",
+      why: 'badge.textContent is completely valid; the flagged line is the CALL, not the function body. The mismatch is between what setStatus() promises to accept and what this specific call actually passed.',
+    },
+    {
+      text: 'That setStatus() would throw an exception if it were actually called with this argument.',
+      why: 'TypeScript never executes setStatus() to check that — compile-time checking never runs anything at all. It compares declared types against each other, full stop.',
+    },
+    {
+      text: "That 'compelte' is misspelled English, which TypeScript's compiler can detect.",
+      why: "TypeScript has no idea what correct English spelling is. It only knows the three literal strings the Status type named as allowed — 'compelte' fails because it isn't one of THOSE three, not because a dictionary flagged it.",
+    },
   ];
 
   /**

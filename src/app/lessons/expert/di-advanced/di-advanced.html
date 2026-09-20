@@ -16,29 +16,119 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>You call inject(Beacon). Which one do you get?</h2>
-
-    <p>
-      Ask a beginner lesson and the answer is easy: there's one <code>Beacon</code>, provided once, and
-      <code>inject(Beacon)</code> finds it. But a real app provides the <em>same</em> service at a dozen different
-      levels — a component here, a lazy route there, root as the fallback everywhere else. The moment that's true,
-      <span class="key">"which instance do I get?" stops having one answer</span> and starts depending on exactly where
-      you're standing when you ask, and exactly which words you put after the comma.
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      One <code>inject(Beacon)</code> call. Two entire trees to search, in a strict order — and a
+      <code>NullInjectorError</code> only means <strong>both</strong> came up empty.
     </p>
 
-    <p>
-      That's the whole of advanced DI. Not new concepts so much as new ways to answer one question more precisely:
-      <strong>where, exactly, should this search start and stop?</strong>
+    <app-brain-power
+      question="A component three levels deep calls inject(Beacon). Nothing on its own element provides one. Its grandparent does. Root ALSO provides a completely different Beacon. Which instance wins — and how much of the picture below does the walk have to cross to find out?"
+      hint="Ask whether the walk is even capable of noticing root exists before every single floor of the building has already said no."
+    />
+
+    <app-whiteboard
+      caption="This component → parent → grandparent — THEN, only on a miss, out into the street."
+      alt="A building with three stacked floors, labelled this component, parent and grandparent from bottom to top, with an arrow climbing from the bottom floor upward. The grandparent floor is highlighted. At the roof, the arrow bends and continues rightward into a street with three further stops in a row: route environment injector, root injector, and platform injector. The grandparent floor is where the arrow stops; the three street stops are drawn fainter, showing they were never reached for this particular call."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 300" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="di-advanced-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <rect x="20" y="196" width="160" height="70" rx="8" class="wb-node" />
+        <text x="100" y="224" text-anchor="middle" class="wb-hand">THIS COMPONENT</text>
+        <text x="100" y="246" text-anchor="middle" class="wb-text--sm">own element injector</text>
+
+        <rect x="20" y="112" width="160" height="70" rx="8" class="wb-node" />
+        <text x="100" y="140" text-anchor="middle" class="wb-hand">PARENT</text>
+        <text x="100" y="162" text-anchor="middle" class="wb-text--sm">no Beacon provider here</text>
+
+        <rect x="20" y="28" width="160" height="70" rx="8" class="wb-node wb-node--lit" />
+        <text x="100" y="56" text-anchor="middle" class="wb-hand">GRANDPARENT</text>
+        <text x="100" y="78" text-anchor="middle" class="wb-text--sm">provides Beacon — walk stops here</text>
+
+        <path class="wb-arrow" d="M100 196 V 98" marker-end="url(#di-advanced-head)" />
+
+        <path class="wb-arrow" d="M180 63 H 260" marker-end="url(#di-advanced-head)" />
+
+        <g style="opacity: 0.45">
+          <rect x="270" y="28" width="150" height="60" rx="8" class="wb-node" />
+          <text x="345" y="52" text-anchor="middle" class="wb-hand wb-text--sm">ROUTE ENVIRONMENT</text>
+          <text x="345" y="72" text-anchor="middle" class="wb-text--sm">never reached this call</text>
+
+          <rect x="440" y="28" width="150" height="60" rx="8" class="wb-node" />
+          <text x="515" y="52" text-anchor="middle" class="wb-hand wb-text--sm">ROOT</text>
+          <text x="515" y="72" text-anchor="middle" class="wb-text--sm">its own Beacon, unused here</text>
+
+          <rect x="610" y="28" width="140" height="60" rx="8" class="wb-node" />
+          <text x="680" y="52" text-anchor="middle" class="wb-hand wb-text--sm">PLATFORM</text>
+          <text x="680" y="72" text-anchor="middle" class="wb-text--sm">almost nothing lives here</text>
+
+          <path class="wb-arrow" d="M420 58 H 435" marker-end="url(#di-advanced-head)" />
+          <path class="wb-arrow" d="M590 58 H 605" marker-end="url(#di-advanced-head)" />
+        </g>
+      </svg>
+
+      <app-scribble
+        quote="GRANDPARENT"
+        point="up"
+        text="This is where the walk **stops**. Everything to the right of it — route, root, platform — is never even asked, no matter what it provides."
+      />
+      <app-scribble
+        quote="ROOT"
+        tone="clay"
+        text="Root's own Beacon is real and it IS registered — it just never gets a turn, because the element chain already answered first."
+      />
+      <app-scribble
+        quote="PLATFORM"
+        tone="olive"
+        point="up"
+        text="The very last stop, shared across every Angular app on the page. A **NullInjectorError** means the walk crossed the entire picture and still found nothing."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      The <strong>grandparent's</strong> instance. The walk climbs the element-injector chain first — this component,
+      then parent, then grandparent — and stops the instant one of them answers. Root's own <code>Beacon</code> is never
+      even considered, because the environment chain (route, then root, then platform) only gets asked once the
+      <em>entire</em> element chain has already come back empty. "Which one wins" was never a contest between the two
+      providers — the closer one was never given competition.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Below, a lesson component provides one <code>Beacon</code>. Two children both call <code>inject(Beacon)</code> —
-      one of them <em>also</em> provides its own. <strong>Do the two children get the same instance?</strong> Does your
-      answer change for the one with its own provider? There's a live proof a few paragraphs down to check yourself
-      against.
+    <app-flow
+      [steps]="wholeWalkFlowSteps"
+      caption="The walk always stops at the FIRST yes — however far out that ends up being."
+    />
+
+    <app-quiz
+      question="Component C provides nothing for Beacon. Its parent P provides one. Root ALSO provides a Beacon — a completely different instance. What does C's plain inject(Beacon) resolve to?"
+      [options]="wholeWalkQuizOptions"
+      followUp="Root is checked dead last, only after the entire element-injector chain has already failed — being 'the most common place to provide something' has no bearing on when it gets asked."
+    />
+
+    <app-napkin lead="the mental model —" label="A relay hand-off, not a broadcast">
+      <code>inject()</code> doesn't shout the request to every provider in the app and take whichever answers first —
+      that would make "closest" meaningless. It's a relay: the request is handed to the nearest possible provider, and
+      only if that one has nothing does it get passed one level further out. The walk always stops at the first yes,
+      however far out that ends up being — never at the loudest one, and never at the most global one.
     </app-napkin>
   </section>
 
@@ -93,6 +183,12 @@
       up empty?" differently. Four short cards, then three real components proving each answer against real instance
       ids.
     </p>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Below, a lesson component provides one <code>Beacon</code>. Two children both call <code>inject(Beacon)</code> —
+      one of them <em>also</em> provides its own. <strong>Do the two children get the same instance?</strong> Does your
+      answer change for the one with its own provider? There's a live proof right after this to check yourself against.
+    </app-napkin>
 
     <div class="bf-grid-2">
       <app-tape-card heading="optional" kicker="inject(T, { optional: true })" tone="gold">

@@ -2,8 +2,9 @@ import { Component, InjectionToken, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { Beacon } from './di-advanced.shared';
 import { DiChildOwn } from './di-child-own/di-child-own';
 import { DiChildBare } from './di-child-bare/di-child-bare';
@@ -24,6 +25,22 @@ const FEATURE = new InjectionToken<string>('FEATURE');
  * `makeEnvironmentProviders`, the two modern initializer functions, forwardRef,
  * and — the mix-up worth being precise about — a declaration-order cycle
  * against a real, unfixable construction cycle.
+ *
+ * ## Shape: `whiteboard`
+ *
+ * The lesson opens on the default resolution walk drawn as one picture: a
+ * three-floor element-injector building with the arrow climbing to wherever a
+ * provider is actually found, then continuing — fainter, unreached — into the
+ * environment chain's three street stops. `app-brain-power` is posed before
+ * the figure so the reader has to predict which of two same-token providers
+ * wins before {@link Whiteboard} answers it; three {@link Scribble} call-outs
+ * name the stopping point, the unused root provider and the almost-never-hit
+ * platform injector; `.bf-answer` spells the resolution out in prose,
+ * {@link wholeWalkFlowSteps} gives the same order as a numbered list, and the
+ * block's own quiz ({@link wholeWalkQuizOptions}) checks the exact
+ * two-providers-for-one-token case. The predict-napkin that used to open the
+ * page moved down to sit immediately before "The proof" section's live demo,
+ * which is the thing it actually predicts. See `docs/CONTRIBUTING.md` §2C.
  *
  * ## Presentation
  *
@@ -47,8 +64,12 @@ const FEATURE = new InjectionToken<string>('FEATURE');
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
@@ -83,6 +104,53 @@ export class DiAdvanced {
     { label: 'Services & DI', id: 'services-di' },
     { label: 'DI Providers', id: 'di-providers' },
     { label: 'Advanced DI' },
+  ];
+
+  /**
+   * The shape block's numbered walk — the same five stops the whiteboard
+   * figure draws, restated as an ordered list for the reader who wants the
+   * sequence spelled out in words rather than read off a picture.
+   */
+  protected readonly wholeWalkFlowSteps: FlowStep[] = [
+    { label: "This element's own injector", detail: 'checked first, every single call.' },
+    {
+      label: 'Every DOM ancestor, in order',
+      detail: 'element injector chain — mirrors the template nesting exactly.',
+    },
+    { label: 'Route environment injector', detail: 'only once the whole element chain is empty.' },
+    {
+      label: 'Root injector',
+      detail: "where providedIn: 'root' lives — almost everything ends up here.",
+    },
+    {
+      label: 'Platform injector',
+      detail: 'last stop, shared by every Angular app sharing the page.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: two providers for the same token, at two
+   * different distances, checked against the walk's actual stopping rule
+   * rather than "which one is more common."
+   */
+  protected readonly wholeWalkQuizOptions: QuizOption[] = [
+    {
+      text: "The parent's Beacon — the element-injector chain is exhausted before the environment chain (route, then root, then platform) is ever consulted.",
+      correct: true,
+      why: "C's own injector has nothing, so the walk climbs to P — which does. The walk stops there. Root's Beacon is real and registered, but it never gets a turn, because the element chain already answered first.",
+    },
+    {
+      text: "Root's Beacon — providedIn: 'root' is the default location, so it's checked first.",
+      why: "It's the default location for WHERE you'd register something with no other opinion, not the first place a lookup checks. The walk always starts at the calling element and climbs outward; root is near the END of that walk, not the start.",
+    },
+    {
+      text: 'It throws — two providers for the same token anywhere in the app is a conflict.',
+      why: "Providing the same token at two different levels is completely normal — it's exactly how a component overrides a default for its own subtree. Nothing about it conflicts; the closer one simply wins.",
+    },
+    {
+      text: "It depends on which provider was registered first — P's or root's.",
+      why: 'Registration order across levels plays no part. Distance from the calling element is the only thing that decides it, and P is closer than root by definition.',
+    },
   ];
 
   /**

@@ -1154,6 +1154,60 @@ re-run in CI (which isn't resource-constrained the same way) rather than assumed
 
 Declared-shape count: 28 → 35. Remaining undeclared: 103 − 35 = **68**, next up for batch 5.
 
+**Batch 5 of step 5, landed 2026-09-20.** Fifth rotation batch, seven lessons across three
+tracks (`expert` ×3, `foundations` ×2, `intermediate` ×2). `audit-variety.mjs`'s warning list
+was empty going in — the worst-offender queue batches 1–3 drew from is worked down — so every
+lesson here was chosen by reading its actual content and asking which of the four shapes its
+real gotcha is, not from a ranked list. `argument` was one behind the other three shapes at the
+start of the session (8 vs. 9/9/9) and got two of the seven; the rest split across the other
+shapes by fit, landing one lesson short of perfectly even (11/11 vs. 10/10) rather than forcing
+a tie:
+
+| Lesson                   | Track        | Shape               | The kind of gotcha                                                                                                                                                                   |
+| ------------------------ | ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `state-management`       | expert       | `argument`          | tension (two components each declare their own `signal<CartItem[]>` field; both signals work exactly as documented, and the bug is that a shared field name isn't a shared instance) |
+| `control-value-accessor` | expert       | `argument`          | tension (`writeValue`, `onChange` and `FormControl` each behave exactly as documented; the echo loop is the one call connecting IN to OUT, not a bug in either method)               |
+| `di-advanced`            | expert       | `whiteboard`        | structure (one `inject()` call walks two entire trees in a strict order — the element chain, then the environment chain — and a `NullInjectorError` means both came up empty)        |
+| `testing-services-http`  | intermediate | `receipt`           | cost (a test green for eight months, one assertion written, zero times executed — `flush()` is what turns "compiles" into "actually ran")                                            |
+| `content-projection`     | intermediate | `whiteboard`        | structure (a projected node keeps the PARENT's view-encapsulation attribute forever; moving into a child's DOM changes where it's drawn, never who compiled it)                      |
+| `async-basics`           | foundations  | `no-dumb-questions` | misconception (a synchronous loop really does freeze the page; async code never gets a separate thread, only a place in line for the same one lane)                                  |
+| `why-typescript-angular` | foundations  | `receipt`           | cost (the same typo caught free-as-you-type vs. hours-later-in-production — TypeScript's whole job is dragging that total back to the first row)                                     |
+
+Five of the seven relocated a pre-existing device instead of duplicating it, continuing batches
+3–4's discipline: `di-advanced`'s "hang on" predict-napkin moved down to sit immediately before
+the live modifier demo it actually predicts; `control-value-accessor` relocated its own napkin
+the same way, and separately moved its existing echo-loop quiz UP into the block (a callback
+`<div class="tip">` now sits at its old spot in the "echo loop" section instead of a second copy
+of the same question); `testing-services-http` relocated an `app-compare` + `app-predict` pair
+up into the block for the same reason, leaving one callback line where the pair used to sit and
+keeping the deeper `coldOptions` quiz in place since it is a genuinely different bug (a cold
+observable never subscribed to, not a silent pass); `content-projection` folded its old napkin's
+exact question into the block's own `app-brain-power`, word for word, rather than dropping it.
+`why-typescript-angular` retired a hand-rolled `.dia-*` SVG bar chart entirely in favour of
+`app-receipt` telling the identical "four moments" story with the shared component instead of
+bespoke markup — and deliberately did **not** reuse its own `greet`/`user`/`price` bug-hunt
+examples in the block's compare, since their whole point is a later "the file extension alone
+isn't the safety" reveal the block would have spoiled; it invented a fresh `setStatus`/union-type
+example instead. Two lessons had a stale in-page callback ("answers the napkin question above")
+pointing at content the rotation removed — reworded in place rather than left dangling, in
+`why-typescript-angular` and `content-projection`.
+
+One real build warning surfaced and was fixed, not waved off: relocating
+`testing-services-http`'s only `app-napkin` usage out of the template left `Napkin` imported but
+unused, and `npx ng build` caught it as `NG8113` — removed from both the import and the
+`@Component` imports array, confirmed with a clean rebuild.
+
+`scripts/audit-variety.mjs` is green (42 declared shapes: `argument` 10, `no-dumb-questions` 10,
+`receipt` 11, `whiteboard` 11 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check` (after
+`prettier --write` on the 13 touched files — Prettier's own reformatting, re-verified clean
+afterward), `npm run typecheck`, and `npx ng build` (0 warnings after the `Napkin` fix) are all
+green. `npm run test:ci` ran the full suite clean in this session — **28/28 test files, 593/593
+tests passing**, no timeouts and no flakiness this time, unlike the sandbox contention batch 4
+flagged.
+
+Declared-shape count: 35 → 42. Remaining undeclared: 103 − 42 = **61**, next up for batch 6.
+
 ---
 
 ## 3. Later

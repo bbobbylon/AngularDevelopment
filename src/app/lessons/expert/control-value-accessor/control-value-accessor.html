@@ -17,28 +17,75 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Your component doesn't speak forms.</h2>
+    <p class="bf-big">
+      "4," <code>writeValue</code> renders. "4," <code>onChange</code> reports. "4," <code>writeValue</code> renders
+      again — nobody has typed anything since the first 4.
+    </p>
 
-    <p>
-      Drop <code>formControlName="rating"</code> onto a native <code>&lt;input&gt;</code> and it just works. Drop the
-      exact same attribute onto your own <code>&lt;app-star-rating&gt;</code> and Angular throws, instantly:
-      <span class="bf-break">"No value accessor for form control name: 'rating'."</span> Both are components under the
-      hood — <code>&lt;input&gt;</code> is just one Angular already knows how to talk to.
+    <p class="bf-say">
+      A <code>writeValue(4)</code> is only supposed to <strong>paint</strong> four stars. This one also calls
+      <code>onChange(4)</code> — and now the form believes a user just entered 4, when the write was entirely
+      programmatic.
     </p>
 
     <p>
-      So the real question isn't "why does this fail" — it's
-      <span class="key">what does an input have that your component doesn't, yet</span>?
+      The parties: <strong><code>writeValue</code></strong
+      >, whose whole job is rendering what the form hands it. <strong><code>onChange</code></strong
+      >, whose whole job is reporting a value back to the form. And <strong><code>FormControl</code></strong
+      >, which reacts to whatever <code>onChange</code> tells it, with no way to see where that call actually came from.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      A native <code>&lt;input&gt;</code> does two jobs for the forms system: it <strong>renders</strong> a value it's
-      given, and it <strong>reports</strong> a value the user typed. Before you scroll — how many separate methods do
-      you think Angular needs from a component to cover both jobs, plus the "leave me alone, I'm disabled" case? Try to
-      name them, not just the count.
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="writeValue rendered correctly. onChange reported correctly. FormControl reacted correctly to what it was told. Every single step did its own job right — so where did this actually go wrong?"
+      hint="Ask not what each method did, but what called what — and whether that call was ever supposed to exist."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      <code>writeValue</code> and <code>onChange</code> each behaved exactly as documented — the bug is not in either
+      method, it is in the one call connecting them. A <code>ControlValueAccessor</code> is a contract about a
+      <strong>direction that never runs backward</strong>: model-to-view methods render, they never report;
+      view-to-model methods report, they never render. Cross that line once, and every party downstream reacts correctly
+      to a value nobody actually entered.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'setValue(4) — one call, from the form itself', sub: 'a programmatic write, not a user action' }"
+      [rings]="[
+        {
+          label: 'writeValue(4) renders 4 stars — then calls onChange(4)',
+          sub: 'the one line this whole bug lives in',
+        },
+        {
+          label: 'FormControl treats it as a real edit',
+          sub: 'dirty becomes true, touched state changes, valueChanges emits',
+        },
+      ]"
+      arrow="one call, echoed all the way back to where it started"
+      caption="Nothing outside writeValue's own body knows the difference between 'the form told me to render this' and 'the user typed this.' The only place that distinction can be preserved is inside writeValue itself — by never making the second call."
+    />
+
+    <app-quiz
+      question="Your control calls this.onChange(v) from inside writeValue(v). What's the actual symptom?"
+      [options]="quizOptions"
+      followUp="This is exactly why writeValue only renders — never repeat a diplomat's own sentence back to them, the rule the mental model below puts a name to."
+    />
+
+    <app-napkin lead="the mental model —" label="A microphone standing too close to its own speaker">
+      Play a microphone's own pickup back out of a nearby speaker, and the sound loops through the system again and
+      again — not because the microphone or the speaker malfunctioned, but because an output stage got connected back
+      into its own input. <code>writeValue</code> and <code>onChange</code> are the same arrangement: each one is fine
+      in isolation, and the feedback squeal only starts once one calls the other directly.
     </app-napkin>
   </section>
 
@@ -77,6 +124,13 @@
   <section>
     <p class="bf-eyebrow">The mechanism</p>
     <h2>Four methods. Only two directions.</h2>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      A native <code>&lt;input&gt;</code> does two jobs for the forms system: it <strong>renders</strong> a value it's
+      given, and it <strong>reports</strong> a value the user typed. Before you scroll — how many separate methods do
+      you think Angular needs from a component to cover both jobs, plus the "leave me alone, I'm disabled" case? Try to
+      name them, not just the count.
+    </app-napkin>
 
     <p>
       Strip away the ceremony and a <code>ControlValueAccessor</code> is four methods sorted into two directions. Here
@@ -333,11 +387,10 @@ writeValue(v: number) {{ '{' }}
       answer="reset() calls writeValue(null), and null.trim() throws — a TypeError the moment someone resets a form that worked fine until then. Always normalize first: this.text = (v ?? '').trim()."
     />
 
-    <app-quiz
-      question="Your control calls this.onChange(v) from inside writeValue(v). What's the actual symptom?"
-      [options]="quizOptions"
-      followUp="This is exactly why writeValue only renders — never repeat a diplomat's own sentence back to them."
-    />
+    <div class="tip">
+      Already checked yourself against this exact bug at the top of the page — the wrong-vs-right code above is the
+      literal source of the microphone-and-speaker feedback loop the block opened on.
+    </div>
   </section>
 
   <!-- ============ 9. CVA VS PLAIN INPUT/OUTPUT ============ -->

@@ -7,6 +7,7 @@ import { TabGroup } from './tab-group/tab-group';
 import { BadgeHost } from './badge-host/badge-host';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -19,6 +20,22 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * and the content queries (`contentChild()` / `contentChildren()`) that let a component
  * find what was projected into it.
  *
+ * ## Shape: `whiteboard`
+ *
+ * The lesson opens on the styling question drawn as one picture: a caller's
+ * `<strong>` element, tagged with the PARENT's `_ngcontent` attribute the
+ * moment it's compiled, moving into Callout's rendered DOM without that tag
+ * ever changing. `app-brain-power` poses the styling question before the
+ * figure; three {@link Scribble} call-outs name the attribute that never
+ * changes, the scoped rule that can never match it, and the split between
+ * position and ownership; `.bf-answer` spells the answer out, and
+ * {@link wholePictureFlow} restates the same order as a numbered list. The
+ * block's own quiz ({@link viewScopeQuizOptions}) checks the attribute
+ * directly. The predict-napkin that used to open the page is now this
+ * block's own `app-brain-power` question, word for word — nothing was lost,
+ * only reshaped into the device the block actually uses. See
+ * `docs/CONTRIBUTING.md` §2C.
+ *
  * ## Presentation
  *
  * Migrated to the brain-friendly layer — see `shared/brain/` and
@@ -26,8 +43,9 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * implementation this shape is copied from. The teaching order:
  *
  * 1. **Pose the problem before naming it.** A component author cannot write an
- *    input for "arbitrary markup" — the lesson opens on that impossibility, and
- *    on a napkin prediction about styling, before `<ng-content>` is named.
+ *    input for "arbitrary markup" — the lesson opens on that impossibility,
+ *    drawn as one picture of the styling question, before `<ng-content>` is
+ *    named.
  * 2. **Analogy next, mechanism after.** The picture-frame analogy gives the reader
  *    somewhere to put "the child never builds what it hosts" before any API
  *    vocabulary appears, then says the same thing a second way as a five-line
@@ -64,6 +82,9 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -84,6 +105,53 @@ export class ContentProjection {
     { label: 'View Queries', id: 'view-queries' },
     { label: 'ng-template & ngTemplateOutlet', id: 'ng-template-outlet' },
     { label: 'View Encapsulation', id: 'view-encapsulation' },
+  ];
+
+  /** The shape block's numbered restatement of the whiteboard figure. */
+  protected readonly wholePictureFlow: FlowStep[] = [
+    {
+      label: "Parent's template compiles",
+      detail:
+        "the caller's <strong> gets tagged _ngcontent-parent right here, before Callout is even involved.",
+    },
+    {
+      label: '<ng-content> marks a spot, nothing more',
+      detail:
+        "Callout's template names WHERE projected content goes — it never rebuilds or retags what arrives.",
+    },
+    {
+      label: "The node moves into Callout's DOM",
+      detail: 'position changes. The _ngcontent-parent attribute travels with it, unchanged.',
+    },
+    {
+      label: "Callout's scoped styles are checked",
+      detail:
+        'every rule in callout.css was rewritten to require [_ngcontent-callout] — a tag this node never carries.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: which view's encapsulation attribute a projected
+   * node carries, checked directly against the figure.
+   */
+  protected readonly viewScopeQuizOptions: QuizOption[] = [
+    {
+      text: "The parent's — the attribute was assigned when the parent's template compiled, and projection never reassigns it.",
+      correct: true,
+      why: "Angular tags every element with its OWN template's view-encapsulation attribute at compile time. Content projection only changes where a node is drawn in the DOM tree — it never recompiles the node under a different component's template, so the attribute it started with is the attribute it keeps.",
+    },
+    {
+      text: "Callout's — once a node is physically inside Callout's DOM, Callout's scoped styles apply to it like any other descendant.",
+      why: "That's the exact misconception this block exists to correct. Scoped styles match on the ATTRIBUTE Angular stamped at compile time, not on DOM position — and a projected node's attribute was stamped by the parent, before Callout ever saw it.",
+    },
+    {
+      text: 'Neither — a projected node carries no view-encapsulation attribute at all.',
+      why: "It carries one — just not Callout's. Every element in an emulated-encapsulation view gets tagged with SOME component's attribute, and for projected content that's always the template that originally compiled it.",
+    },
+    {
+      text: 'It depends on whether Callout uses ViewEncapsulation.Emulated or ViewEncapsulation.None.',
+      why: "Callout's own encapsulation mode decides how Callout's OWN styles get scoped — it has no effect on an attribute that was already assigned to the projected node before Callout was ever involved.",
+    },
   ];
 
   // ── The mental model ──────────────────────────────────────────────────────

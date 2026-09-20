@@ -16,33 +16,67 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Two components need the same answer. Where does it actually live?</h2>
+    <p class="bf-big">"I have four items," says CartPage. "I have zero," says CartIcon. Both are telling the truth.</p>
 
-    <p>
-      Picture two components that have never met. <strong>CartIcon</strong>, in the header, shows a badge with the
-      number of items in the cart. <strong>CartPage</strong> shows the full list, with an "Add to cart" button. Click
-      that button, and the badge has to change too — even though neither one has a parent that passes anything down
-      between them.
+    <p class="bf-say">
+      <strong>CartPage</strong> just called <code>update()</code> on its own <code>signal&lt;CartItem[]&gt;</code> and
+      its template repainted immediately — four items, right there. <strong>CartIcon</strong>, in the header, reads what
+      it thinks is the same count and still shows zero, a hundred change-detection passes later. Neither component is
+      broken. Neither signal is broken either.
     </p>
 
     <p>
-      That's <span class="key">state</span> in its plainest form: a value that changes over time, which more than one
-      part of the UI needs to agree on. The moment two components need the same answer, an <code>&#64;Input</code>
-      stops being enough — there's no parent in the middle to hand it through.
+      The parties: <strong>CartPage's signal</strong>, which did exactly what a signal promises — changed, and told its
+      own template. <strong>CartIcon's signal</strong>, which also did exactly what a signal promises — nothing ever
+      wrote to it, so it never had anything to announce. And <strong>the two components</strong>, who assumed that
+      declaring a field with the same name was the same thing as sharing a value.
     </p>
 
-    <p>
-      Three questions decide the whole architecture from here: where does this value live, who's allowed to write it,
-      and when do you need more ceremony than a class with some signals? This page takes them in that order.
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="Both signals worked correctly, exactly as designed — CartPage's really did change, and CartIcon's really was never written to. Neither one is buggy. So what actually went missing, and whose job was it to build it?"
+      hint="Ask how many signal.update() calls CartIcon's own field has ever received, versus how many CartPage's has."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      A signal is not magic — it is a box that remembers who is reading it and tells them when it changes. Two boxes
+      with the same field name are still two boxes; nothing about the name makes them the same instance. When two
+      components need to agree, there has to be exactly one signal between them, living somewhere both can reach — which
+      is the entire reason a service exists.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      If <code>CartIcon</code> and <code>CartPage</code> each declared their <em>own</em>
-      <code>signal&lt;CartItem[]&gt;([])</code>, what would the badge show after you click "Add to cart" on the page?
-      What do you think has to change about that setup before the two views can agree on anything?
+    <app-layers
+      [core]="{ label: 'One CartStore instance', sub: 'created once, by whichever injector actually provides it' }"
+      [rings]="[
+        { label: 'CartPage', sub: 'inject(CartStore) — reads store.items()' },
+        { label: 'CartIcon', sub: 'inject(CartStore) — reads the SAME store.items()' },
+      ]"
+      arrow="one signal, two readers — never two signals that happen to share a name"
+      caption="Both components ask their injector for a CartStore. As long as that injector hands back the same instance to both — which providedIn: 'root' guarantees — there is exactly one items signal left for them to agree on."
+    />
+
+    <app-quiz
+      question="CartPage and CartIcon each `inject(CartStore)`, where `CartStore` is `@Injectable({ providedIn: 'root' })`. CartPage calls `store.addItem(mug)`. What does CartIcon's badge show on its next render?"
+      [options]="argBlockQuiz"
+      followUp="Swap that shared, root-provided CartStore back out for two components each declaring their own `private readonly items = signal<CartItem[]>([])`, and you're back to the bug this block opened on — one signal changing has no way to reach a completely different signal that only happens to share its name."
+    />
+
+    <app-napkin lead="the mental model —" label="Two wristwatches, or one clock on the wall">
+      Give <code>CartPage</code> and <code>CartIcon</code> their own wristwatch — their own
+      <code>signal(...)</code> field — and no amount of tapping one watch's face makes the other move; they were never
+      connected. Put one clock on the wall instead, owned by a shared <code>providedIn: 'root'</code> service, and every
+      glance from either side of the room reads the same face, updated the instant its one hand moves. The fix was never
+      "push harder" on CartPage's watch. It was never having two separate watches to begin with.
     </app-napkin>
   </section>
 

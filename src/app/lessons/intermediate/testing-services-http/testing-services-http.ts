@@ -10,8 +10,8 @@ import {
   type CodeNote,
   type Layer,
   Layers,
-  Napkin,
 } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, type ReceiptRow, Scribble } from '../../../shared/shapes';
 import {
   Compare,
   Faq,
@@ -26,6 +26,23 @@ import {
 
 /**
  * Lesson: Testing Services & HTTP — the half of testing that needs no DOM.
+ *
+ * ## Shape: `receipt`
+ *
+ * The lesson opens on the itemised cost of a test that has been green for
+ * eight months without ever running its own assertion: {@link silentTestBill}
+ * bills one written assertion against zero executions, `app-scribble` names
+ * the gap, and `app-compare` — relocated here from its original spot deeper
+ * in the "full control over the network" section, which now leaves a callback
+ * line instead of showing the identical `silentSample`/`fixedSample` pair
+ * twice — shows the wrong test next to the fixed one. `app-chain` names the
+ * five-step mechanism, `app-code-lab` annotates {@link fixedSample} line by
+ * line, `app-brain-power` asks what `http.verify()` does and does not catch,
+ * and the block's own quiz ({@link silentTestQuizOptions}) checks the
+ * unflushed-and-unverified case directly — distinct from `coldOptions`
+ * further down the page, which is a different bug (a cold observable never
+ * subscribed to) than this block's silent-pass bug. See
+ * `docs/CONTRIBUTING.md` §2C.
  *
  * ## Presentation
  *
@@ -71,7 +88,10 @@ import {
     Chapter,
     CodeLab,
     Layers,
-    Napkin,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -89,6 +109,66 @@ export class TestingServicesHttp {
   protected readonly stops: ChapterStop[] = [
     { label: 'Testing Components', id: 'testing-components' },
     { label: 'Testing Services & HTTP' },
+  ];
+
+  /** The shape block's itemised bill: what the silent test actually cost. */
+  protected readonly silentTestBill: ReceiptRow[] = [
+    { label: "CI runs where 'fetches a user' reported green", amount: '200+' },
+    { label: 'assertions written inside the test', amount: '1' },
+    { label: 'times that assertion has ever executed', amount: '0', tone: 'warn' },
+  ];
+
+  /** The shape block's receipt total — the number that should not add up. */
+  protected readonly silentTestBillTotal: ReceiptRow = {
+    label: 'bugs this test has ever caught',
+    amount: '0',
+  };
+
+  /**
+   * Line-by-line walkthrough of {@link fixedSample}, the shape block's
+   * mechanism code-lab.
+   */
+  protected readonly fixedSampleNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'Still cold until this fires. `.subscribe()` is what turns the description of a request into an actual one — nothing before this line has sent anything.',
+    },
+    {
+      line: 3,
+      text: 'The assertion. Identical to the broken version — the bug was never in this line.',
+    },
+    {
+      line: 6,
+      text: '`flush(...)` is the one addition that matters: it delivers a response synchronously, which is what makes the callback above — and the assertion inside it — actually run on this same tick.',
+    },
+    {
+      line: 9,
+      text: 'The seatbelt. If ANY expectOne() in this file is left unflushed when the test ends, verify() fails the suite outright instead of letting a forgotten request pass silently.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the unflushed-and-unverified case, checked
+   * directly against the receipt's own numbers.
+   */
+  protected readonly silentTestQuizOptions: QuizOption[] = [
+    {
+      text: 'It passes. The subscribe callback holding the assertion never fires, and nothing in the suite is set up to notice the request was left unhandled either.',
+      correct: true,
+      why: 'Exactly the bill at the top of the page: one assertion written, zero times executed. Without flush(), the callback never runs; without afterEach(() => http.verify()), nothing else in the suite is watching for an unhandled request either.',
+    },
+    {
+      text: 'It fails immediately — expectOne() throws if the request is never flushed before the test function returns.',
+      why: 'expectOne() only takes a matching request off the rail and hands it back; it never demands you do anything further with it. Nothing about calling it alone throws.',
+    },
+    {
+      text: "It hangs until the test runner's default timeout expires.",
+      why: 'There is no timer or promise anywhere in this loop — everything here is synchronous. A test with nothing to wait on cannot hang; it simply finishes, having checked nothing.',
+    },
+    {
+      text: 'It passes on this run, but afterEach(() => http.verify()) catches it on the very next test.',
+      why: "verify() isn't in this suite in the scenario as described — and even where it is present, it runs at the END of the SAME test, checked against that test's own unhandled requests, not a future one.",
+    },
   ];
 
   /**

@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions, type NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -11,6 +12,22 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * async/await with each code block dissected line by line, promise states,
  * parallel vs sequential awaits, and the forgotten-await bug. The groundwork
  * for `HttpClient` and Observables later.
+ *
+ * ## Shape: `no-dumb-questions`
+ *
+ * The lesson opens on {@link asyncQuestions}, six escalating misconceptions —
+ * "doesn't a slow line just freeze the page" (yes, if it's truly synchronous),
+ * through the sequential-await slowdown and the stale-response race, to the
+ * fix — carrying the whole explanation before any API name arrives.
+ * `app-brain-power` poses the three-second-loop question the block's own
+ * `app-quiz` ({@link freezeQuizOptions}) later checks directly; `app-layers`
+ * answers it as a simple stack-and-queue figure — deliberately a higher zoom
+ * level than the event loop's own sync/microtask/macrotask breakdown further
+ * down the page, which this block does not try to pre-empt. The block closes
+ * on `app-napkin` with a one-burner-many-pots analogy, kept separate from the
+ * buzzer analogy in the mental-model section just below, which explains the
+ * three async TOOLS rather than this block's single question of whether the
+ * page freezes. See `docs/CONTRIBUTING.md` §2C.
  *
  * ## Presentation
  *
@@ -23,12 +40,12 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  *
  * ## Teaching order, and why it is this order
  *
- * 1. **Pose the freeze before naming the fix.** The opening napkin asks the
- *    reader to imagine one slow, blocking line of code and predict what
- *    happens to everything else on the page — clicks, scrolling, the theme
- *    toggle — before "single-threaded" or "async" is ever said. A reader who
- *    has committed to a guess reads the mechanism that follows as
- *    confirmation, not as new information.
+ * 1. **Pose the freeze before naming the fix.** The opening shape block asks
+ *    the reader, through a run of escalating questions, to imagine one slow,
+ *    blocking line of code and predict what happens to everything else on the
+ *    page — clicks, scrolling, the theme toggle — before "single-threaded" or
+ *    "async" is named as the reason. A reader who has committed to a guess
+ *    reads the mechanism that follows as confirmation, not as new information.
  * 2. **The buzzer analogy before any API name.** Callbacks, promises and
  *    async/await are one idea wearing three different outfits, and the
  *    analogy is what lets a reader recognise that before the syntax
@@ -60,6 +77,8 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -198,6 +217,63 @@ export class AsyncBasics {
     { label: 'Arrays & Objects', id: 'arrays-objects-basics' },
     { label: 'Decisions & Loops', id: 'decisions-loops' },
     { label: 'Async' },
+  ];
+
+  /**
+   * The shape block's spine: six questions escalating from "doesn't slow code
+   * just freeze the page" through the sequential-await slowdown and the
+   * stale-response race, to the fix — carrying the whole explanation before
+   * any API name arrives.
+   */
+  protected readonly asyncQuestions: NdqItem[] = [
+    {
+      q: "Doesn't a slow line of code just freeze the whole page while it runs?",
+      a: 'If it\'s genuinely **synchronous** — a heavy loop, no network, no timer — yes, actually. You have exactly one lane, and while that lane is busy, nothing else on it can move: not a click, not a scroll, not a repaint. "JavaScript never blocks" only applies to *async* work — the slow parts you\'d actually reach for, like a network request.',
+    },
+    {
+      q: 'So async code runs on a separate thread instead, which is why it doesn’t block?',
+      a: "No — same one lane, same one thread. What changes is *when* your code gets a turn on it. `fetch()` hands the networking off to the browser itself, not to JavaScript, and your code after `await` doesn't run again until that lane is free — never at the same time as anything else you're doing.",
+    },
+    {
+      q: 'While I’m "waiting" for a fetch, is my function just paused there, frozen mid-line?',
+      a: "No — it's not paused, it's **finished**, for now. `await` doesn't freeze a function in place the way a breakpoint does; it hands control back immediately, the rest of your program keeps running, and only once the response arrives does the *rest* of that function get scheduled — as a brand-new turn, not a resumed one.",
+    },
+    {
+      q: 'If I fire off two fetch() calls and await each one, do they at least happen together?',
+      a: "Not if you await the first before starting the second — the second `fetch()` doesn't even *execute* until the first one has resolved. Sequential awaits are the single most common accidental 2x slowdown in real code, and nothing about the syntax warns you it's happening.",
+    },
+    {
+      q: "Worst case, my page is just a little slower than it could be — that's the real risk?",
+      a: 'There’s a sharper one: fire two requests without awaiting between them, and the network makes no promise about which comes back first. The **last response to land wins** — not the last one you sent — so a slow answer to an old search can overwrite a fast answer to a newer one, with zero errors thrown.',
+    },
+    {
+      q: 'How do you actually stop a late response from winning?',
+      a: "Give every request an identity — a ticket number, an `AbortController` — and when a response lands, check whether it's still the *most recent* one you care about before doing anything with it. A stale response gets ignored, no matter how late it wanders in.",
+    },
+  ];
+
+  /**
+   * The shape block's quiz: the three-second synchronous loop, checked
+   * against the exact question `app-brain-power` opened on.
+   */
+  protected readonly freezeQuizOptions: QuizOption[] = [
+    {
+      text: "It sits unprocessed until the loop finishes — the click handler can't run until the one lane is free again.",
+      correct: true,
+      why: "A genuinely synchronous loop occupies the one lane completely for its whole three seconds. The click event is noticed and queued, but nothing — not even a click — gets a turn on the lane until whatever's currently running finishes.",
+    },
+    {
+      text: "It's dropped entirely — JavaScript can only register events that happen while it's idle.",
+      why: 'The browser still records the click; it just cannot hand it to your code until the lane frees up. Nothing about a busy lane makes the browser stop listening.',
+    },
+    {
+      text: 'It interrupts the loop immediately, since user input always takes priority over running code.',
+      why: 'Nothing in JavaScript can interrupt a currently-running synchronous block — that is precisely what "one lane, run to completion" means. Priority only decides queue ORDER once the lane is free, never mid-execution.',
+    },
+    {
+      text: 'It runs in parallel, on a separate thread, since event listeners run off the main thread by default.',
+      why: 'There is no second thread here. Click handling shares the exact same one lane as everything else your JavaScript does.',
+    },
   ];
 
   /**

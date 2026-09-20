@@ -17,92 +17,70 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Every bug gets caught somewhere. The timing is the whole story.</h2>
-
-    <p>
-      Here's an uncomfortable fact about writing code: you are going to make mistakes. Not might — will, today, more
-      than once. That isn't a confession, it's a property of typing at a keyboard faster than you can think through
-      every consequence. The only real variable is <span class="key">when the mistake gets caught</span> — and that
-      timing matters more than almost anything else you'll learn this year.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      The exact same typo can be caught in four different places. Three of them cost you nothing at all. Left alone,
+      plain JavaScript only ever reaches the fourth.
     </p>
 
-    <figure class="dia">
-      <svg
-        viewBox="0 0 760 280"
-        role="img"
-        aria-label="Bar chart of four moments a bug can be caught, in increasing order of cost. As you type: free, shortest bar, a red squiggle. At build: cheap, short bar, the build fails. At runtime while testing: annoying, medium bar, you crash while at the keyboard. In production: expensive, tallest bar, a user just hit it."
-        class="dia__svg"
-      >
-        <defs>
-          <marker
-            id="wta-cost-arrow"
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path d="M 0 0 L 10 5 L 0 10 z" class="dia-head" />
-          </marker>
-        </defs>
+    <app-receipt
+      heading="The same typo · wherever plain JavaScript happens to catch it"
+      [rows]="catchTimingBill"
+      [total]="catchTimingBillTotal"
+      footer="TypeScript's one job is dragging that total back up to the first row"
+    />
 
-        <!-- baseline -->
-        <line x1="60" y1="205" x2="710" y2="205" class="dia-rule" stroke-width="1.5" opacity="0.5" />
+    <app-scribble
+      point="up"
+      quote="the last row"
+      text="Not a worst case — the **default**. Nothing about plain JavaScript nudges a mistake toward an earlier row; it simply never looks until the line actually executes."
+    />
 
-        <!-- bar 1: as you type -->
-        <rect x="75" y="170" width="130" height="35" rx="10" class="dia-bar dia-bar--good" />
-        <text x="140" y="150" text-anchor="middle" class="dia-bar-label">As you type</text>
-        <text x="140" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--good">free</text>
-        <text x="140" y="248" text-anchor="middle" class="dia-bar-detail">a red squiggle</text>
+    <app-compare
+      leftTitle="Plain JavaScript — caught at the last row, if ever"
+      rightTitle="TypeScript — caught at the first row"
+      leftTone="bad"
+      rightTone="good"
+      note="Same two lines of logic. Only one of these two columns ever runs with the typo still in it."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ statusJsSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ statusTsSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
 
-        <!-- bar 2: at build -->
-        <rect x="235" y="140" width="130" height="65" rx="10" class="dia-bar dia-bar--good" />
-        <text x="300" y="120" text-anchor="middle" class="dia-bar-label">At build</text>
-        <text x="300" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--good">cheap</text>
-        <text x="300" y="248" text-anchor="middle" class="dia-bar-detail">the build fails</text>
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">One type is the entire distance between those two columns.</p>
 
-        <!-- bar 3: at runtime, testing -->
-        <rect x="395" y="100" width="130" height="105" rx="10" class="dia-bar dia-bar--warn" />
-        <text x="460" y="80" text-anchor="middle" class="dia-bar-label">At runtime</text>
-        <text x="460" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--warn">annoying</text>
-        <text x="460" y="248" text-anchor="middle" class="dia-bar-detail">you're testing it live</text>
+    <app-chain [steps]="catchTimingChainSteps" label="What one type buys you" />
 
-        <!-- bar 4: in production -->
-        <rect x="555" y="50" width="130" height="155" rx="10" class="dia-bar dia-bar--bad" />
-        <text x="620" y="30" text-anchor="middle" class="dia-bar-label">In production</text>
-        <text x="620" y="228" text-anchor="middle" class="dia-bar-cost dia-bar-cost--bad">expensive</text>
-        <text x="620" y="248" text-anchor="middle" class="dia-bar-detail">a user just hit it</text>
+    <app-brain-power
+      question="TypeScript flagged 'compelte' without ever running setStatus() — not one line of the function body executed. So what did it actually check: the VALUE 'compelte', or something else about it?"
+      hint="Ask whether TypeScript would catch this exact mistake if the call passed a variable holding the misspelled string, instead of the literal 'compelte'."
+    />
 
-        <!-- hand-drawn cost arrow -->
-        <path d="M 90 265 C 300 278, 480 278, 690 265" class="dia-rule" fill="none" marker-end="url(#wta-cost-arrow)" />
-        <text x="390" y="277" text-anchor="middle" class="dia-hand" dy="-6">cost climbs the whole way →</text>
-      </svg>
-      <figcaption>
-        Four moments the exact same typo can be caught, read left to right. Every step to the right costs more — and
-        JavaScript, on its own, defers almost everything all the way to the last bar.
-      </figcaption>
-    </figure>
+    <app-quiz
+      question="TypeScript flags setStatus('compelte') before any of your code runs. What did it actually check?"
+      [options]="catchTimingQuizOptions"
+      followUp="Pass a variable holding that same misspelled string instead of the literal, and the exact same error fires — TypeScript never needed to know it was specifically that literal. Types, never values, are what compile-time checking ever sees."
+    />
 
-    <p>
-      The debugging lesson's entire field guide — TypeErrors, ReferenceErrors, the silent string-math bug — is a
-      catalogue of JavaScript letting mistakes through until the moment they explode, or worse, the moment they
-      <span class="bf-break">quietly don't</span>.
-      <strong>TypeScript's one job is to drag those errors to the far left of that chart.</strong> Nothing else it does
-      matters as much as that sentence.
+    <p class="bf-big">
+      A bug TypeScript catches costs you a red squiggle. The same bug, left to plain JavaScript, costs you a production
+      incident with your name on it.
     </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Here's a function with a real bug:
-      <code>function greet(name) &#123; return 'Hi ' + name.toUpperCase(); &#125;</code> called as
-      <code>greet(42)</code>. In plain JavaScript, when does this actually fail — as you type it, when the file loads,
-      or only once that exact line runs? And here's the sharper question: what changes the moment you rename the file
-      from <code>.js</code> to <code>.ts</code>, with nothing else edited? Hold both answers in your head — there's a
-      live version of exactly this bug two sections down, and the second question has a real sting in it.
-    </app-napkin>
   </section>
 
   <!-- ============ 2. THE MENTAL MODEL ============ -->
@@ -154,10 +132,10 @@
     </app-compare>
 
     <p>
-      Which answers half of the napkin question from the top of the page: renaming <code>greet.js</code> to
-      <code>greet.ts</code> and changing nothing else buys you <strong>exactly nothing</strong>. There's no bouncer
-      without a guest list — <code>function greet(name)</code> with no annotation still lets anything through, because
-      there's nothing written down to check it against.
+      Which puts a sharp point on the <code>greet</code> example from the top of the page: renaming
+      <code>greet.js</code> to <code>greet.ts</code> and changing nothing else buys you
+      <strong>exactly nothing</strong>. There's no bouncer without a guest list — <code>function greet(name)</code> with
+      no annotation still lets anything through, because there's nothing written down to check it against.
       <span class="bf-break">The file extension isn't the safety. The annotations are.</span> Keep that in your pocket —
       it's the whole subject of the honest counterweight two sections from now.
     </p>

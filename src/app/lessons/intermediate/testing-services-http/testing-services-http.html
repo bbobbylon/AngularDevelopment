@@ -15,30 +15,90 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
-  <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>This test has been green for eight months. It has never once run.</h2>
-
-    <p>
-      Picture a test called <code>fetches a user</code>. It has passed on every commit for as long as anyone can
-      remember — local runs, CI, all of it. Nobody has ever seen it fail. Here's the part that should worry you: it has
-      never once evaluated the <span class="key">assertion written inside it</span>, on any of those runs.
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      A test called <code>fetches a user</code> has reported green on every commit for eight months — local runs, CI,
+      all of it. Nobody has ever seen it fail. It has also never once evaluated the assertion written inside it.
     </p>
 
-    <p>
-      That isn't a hypothetical. It's the single easiest mistake to make anywhere in this area of testing, and by the
-      end of this page you'll be able to spot it on sight. For now, just hold the question: how does a test manage to
-      stay green without the check inside it ever actually running?
-    </p>
+    <app-receipt
+      heading="'fetches a user' · eight months of CI history"
+      [rows]="silentTestBill"
+      [total]="silentTestBillTotal"
+      footer="a green checkmark, for eight months, on a check that never once ran"
+    />
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Keep an answer in your head, even a vague one. The rest of this page is Angular's answer, in five parts: what a
-      service test looks like with nothing faked at all, what <code>HttpTestingController</code> actually controls, how
-      interceptors sit inside that control, how far RxJS testing needs to go, and the shape that keeps all of it
-      readable a year from now. There's a real, working version of that broken test waiting partway down this page — and
-      a chance to prove, for yourself, exactly why it never had to run.
-    </app-napkin>
+    <app-scribble
+      point="up"
+      quote="0"
+      text="Not almost never — **literally zero**. The `subscribe` callback holding the `expect()` was never invoked, because nothing ever delivered a response into it."
+    />
+
+    <app-compare
+      leftTitle="Wrong — passes, asserts nothing"
+      leftTone="bad"
+      rightTitle="Right — flush, then verify"
+      rightTone="good"
+      note="Both compile. Only one of them can actually fail."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ silentSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ fixedSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <app-predict
+      prompt="The expected name is wrong on purpose in the left-hand version above. Pass, or fail?"
+      [code]="silentSample"
+      answer="It passes — green, fast, and completely worthless. The subscribe callback holding your assertion never ran, because nothing ever delivered a response to it. expectOne only takes the ticket off the rail; without a flush, the observable never emits, the callback never fires, and an expectation that is never evaluated cannot fail."
+      revealLabel="Reveal whether it passed"
+    />
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">Two fixes, not one — and only one of them can be seen from inside the test itself.</p>
+
+    <app-chain
+      [steps]="[
+        'subscribe() sends the request',
+        'expectOne() intercepts it',
+        'flush() delivers the response',
+        'the callback — and its assertion — finally runs',
+        'afterEach(http.verify()) catches anything left unflushed',
+      ]"
+      label="What turns a silent pass into a real one"
+    />
+
+    <app-code-lab
+      file="user.api.spec.ts — the fixed version"
+      [code]="fixedSample"
+      [notes]="fixedSampleNotes"
+      notesLabel="What each line is actually responsible for"
+    />
+
+    <app-brain-power
+      question="Delete the entire subscribe() callback from the fixed test — keep only the getUser() call, the flush(), and afterEach(() =&gt; http.verify()). No assertion anywhere in the file. Does verify() catch that?"
+      hint="Ask what verify() actually checks: the requests that were made, or the assertions that were written."
+    />
+
+    <app-quiz
+      question="A suite has `http.expectOne('/api/users/1')` with no `.flush(...)` call anywhere, and no `afterEach(() => http.verify())` in the file. What actually happens when the test runs?"
+      [options]="silentTestQuizOptions"
+      followUp="Same bill as the one at the top of the page: one assertion written, zero times executed, and this time nothing in the suite is even set up to notice the request was left unhandled."
+    />
+
+    <p class="bf-big">Green is not the same as checked. Green is just what happens when nothing ran at all.</p>
   </section>
 
   <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
@@ -188,31 +248,11 @@
       predicate form doesn't have that problem, because it never compares strings at all.
     </div>
 
-    <app-compare
-      leftTitle="Wrong — passes, asserts nothing"
-      leftTone="bad"
-      rightTitle="Right — flush, then verify"
-      rightTone="good"
-      note="Both compile. Only one of them can actually fail."
-    >
-      <div left>
-        <div class="code">
-          <pre>{{ silentSample }}</pre>
-        </div>
-      </div>
-      <div right>
-        <div class="code">
-          <pre>{{ fixedSample }}</pre>
-        </div>
-      </div>
-    </app-compare>
-
-    <app-predict
-      prompt="The expected name is wrong on purpose. Pass, or fail?"
-      [code]="silentSample"
-      answer="It passes — green, fast, and completely worthless. The subscribe callback holding your assertion never ran, because nothing ever delivered a response to it. expectOne only takes the ticket off the rail; without a flush, the observable never emits, the callback never fires, and an expectation that is never evaluated cannot fail. There are two fixes, and you want both: flush a response, so the callback actually runs — and put afterEach(() => http.verify()) in the suite, which fails the test outright for leaving an unhandled request behind. That single line is the closest thing this area has to a seatbelt — it's what converts a silently-empty test into a loud one."
-      revealLabel="Reveal whether it passed"
-    />
+    <div class="tip">
+      Already checked yourself against the silent-pass bug at the top of the page — the receipt's wrong-vs-right compare
+      is the exact same <code>fetches a user</code> test this section has been building toward. This next bug is a
+      different one: not a silent pass, but a same-URL match that still comes back empty.
+    </div>
 
     <app-quiz
       question="A test calls `api.getUser(1)` and then `http.expectOne('/api/users/1')`, which fails with *Expected one matching request, found none*. The URL in the service is definitely right. What is wrong?"

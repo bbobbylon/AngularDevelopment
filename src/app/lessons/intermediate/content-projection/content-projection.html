@@ -17,28 +17,118 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>How do you let someone else's markup live inside your component?</h2>
-
-    <p>
-      Say you're building <code>&lt;app-callout&gt;</code> — a bordered box for a warning message. Simple enough, until
-      you ask what actually goes <em>inside</em> it. Sometimes it's a sentence. Sometimes it's a sentence with a link.
-      Sometimes it's a whole little form. You cannot write a <code>message: string</code>
-      input for all of that, and you certainly cannot anticipate every combination in advance.
-    </p>
-    <p>
-      What you actually want is stranger than an input: you want the <strong>caller</strong> to hand you real markup —
-      components, event bindings, structural directives, all of it — and for your job to be nothing more than deciding
-      where that markup lands. That's not a value passed in. It's <span class="term">a hole left open on purpose</span>.
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      A caller writes <code>&lt;strong&gt;</code> inside <code>&lt;app-callout&gt;</code>. Callout's own stylesheet has
+      a rule for <code>strong</code>. The node ends up sitting right there, inside Callout's rendered DOM. The rule
+      still never touches it.
     </p>
 
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Suppose Callout's own stylesheet has a rule targeting <code>strong</code>. The caller writes
-      <code>&lt;app-callout&gt;&lt;strong&gt;Heads up!&lt;/strong&gt;&lt;/app-callout&gt;</code>. Does the caller's
-      <code>&lt;strong&gt;</code> pick up Callout's style? Commit to an answer before you read the next section — it
-      explains exactly why.
+    <app-brain-power
+      question="Callout's stylesheet has a rule targeting `strong`. The caller writes `<app-callout><strong>Heads up!</strong></app-callout>`. Does the caller's `<strong>` pick up Callout's style?"
+      hint="Ask which component's TEMPLATE actually contained that `<strong>` tag when Angular compiled it — not which component's DOM it ends up positioned inside."
+    />
+
+    <app-whiteboard
+      caption="One element. Two attributes decide two completely different things."
+      alt="Two boxes. The left box is labelled Parent's template and contains a strong element tagged with the attribute underscore ngcontent dash parent. An arrow labelled handed in, unchanged runs from this box into the right box, labelled Callout's rendered DOM. Inside the right box, the same strong element appears, still carrying the underscore ngcontent dash parent attribute, sitting next to Callout's own paragraph, which carries a different attribute, underscore ngcontent dash callout. Callout's own stylesheet rule, strong colour red, is shown scoped only to the underscore ngcontent dash callout attribute, with a line showing it cannot match the projected strong element because that element never carries that attribute."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 300" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="content-projection-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <rect x="20" y="30" width="230" height="130" rx="10" class="wb-node" />
+        <text x="135" y="54" text-anchor="middle" class="wb-hand">PARENT'S TEMPLATE</text>
+        <text x="135" y="90" text-anchor="middle" class="wb-mono wb-text--sm">
+          &lt;strong&gt;Heads up!&lt;/strong&gt;
+        </text>
+        <text x="135" y="112" text-anchor="middle" class="wb-text--sm">tagged _ngcontent-parent</text>
+        <text x="135" y="134" text-anchor="middle" class="wb-text--sm">by the parent's OWN compile step</text>
+
+        <path class="wb-arrow" d="M255 95 H 335" marker-end="url(#content-projection-head)" />
+        <text x="295" y="82" text-anchor="middle" class="wb-text--sm">handed in, unchanged</text>
+
+        <rect x="345" y="20" width="395" height="220" rx="10" class="wb-node" />
+        <text x="542" y="44" text-anchor="middle" class="wb-hand">CALLOUT'S RENDERED DOM</text>
+
+        <rect x="365" y="60" width="180" height="70" rx="8" class="wb-node wb-node--lit" />
+        <text x="455" y="84" text-anchor="middle" class="wb-mono wb-text--sm">
+          &lt;strong&gt;Heads up!&lt;/strong&gt;
+        </text>
+        <text x="455" y="106" text-anchor="middle" class="wb-text--sm">STILL _ngcontent-parent</text>
+        <text x="455" y="122" text-anchor="middle" class="wb-text--sm">— position changed, scope did not</text>
+
+        <rect x="365" y="150" width="180" height="70" rx="8" class="wb-node" />
+        <text x="455" y="174" text-anchor="middle" class="wb-mono wb-text--sm">&lt;p&gt;…own markup…&lt;/p&gt;</text>
+        <text x="455" y="196" text-anchor="middle" class="wb-text--sm">tagged _ngcontent-callout</text>
+
+        <rect x="565" y="60" width="155" height="160" rx="8" class="wb-node" />
+        <text x="642" y="84" text-anchor="middle" class="wb-hand wb-text--sm">CALLOUT.CSS</text>
+        <text x="642" y="110" text-anchor="middle" class="wb-mono wb-text--sm">strong &#123; color: red &#125;</text>
+        <text x="642" y="132" text-anchor="middle" class="wb-text--sm">rewritten to match ONLY</text>
+        <text x="642" y="150" text-anchor="middle" class="wb-text--sm">[_ngcontent-callout]</text>
+        <text x="642" y="180" text-anchor="middle" class="wb-text--sm">the projected strong</text>
+        <text x="642" y="198" text-anchor="middle" class="wb-text--sm">never carries that tag</text>
+      </svg>
+
+      <app-scribble
+        quote="_ngcontent-parent"
+        point="up"
+        text="This attribute never changes. The node **physically moved** into Callout's DOM; its style scope did not move with it."
+      />
+      <app-scribble
+        quote="strong &#123; color: red &#125;"
+        tone="clay"
+        text="Angular rewrites every rule in Callout's own stylesheet to require `[_ngcontent-callout]`. A node that doesn't carry that attribute can never match it — no matter where it's sitting."
+      />
+      <app-scribble
+        quote="CALLOUT'S RENDERED DOM"
+        tone="olive"
+        point="up"
+        text="Position and style scope are decided by **two different things**. Where a node sits in the DOM tree says nothing about whose view-encapsulation attribute it carries."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <strong>No.</strong> The caller's <code>&lt;strong&gt;</code> was written — and compiled — inside the
+      <em>parent's</em> template, so Angular tagged it with the parent's view-encapsulation attribute before it ever
+      reached Callout. Projection changes where that node is <em>drawn</em>. It never changes which template
+      <em>owns</em> it, and Callout's scoped styles only ever match its own attribute.
+    </p>
+
+    <app-flow
+      [steps]="wholePictureFlow"
+      caption="The node's position changes once. Its style scope was decided before that ever happened."
+    />
+
+    <app-quiz
+      question="Which component's view-encapsulation attribute does the caller's projected `<strong>` carry, once it's sitting inside Callout's rendered DOM?"
+      [options]="viewScopeQuizOptions"
+      followUp="Later on this page you'll see the reverse trap too — a projected node whose OWN authored styles still work fine, because those were never scoped to Callout in the first place either."
+    />
+
+    <app-napkin lead="the mental model —" label="A hotel room, not a house guest's suitcase">
+      A hotel decorates the room — paint, curtains, the framed art bolted to the wall. It has zero say over what's
+      inside a guest's suitcase, even once that suitcase is sitting open in the middle of the room. Position and
+      ownership are different things, and moving something into a space never transfers who's allowed to redecorate it.
     </app-napkin>
   </section>
 
@@ -54,10 +144,10 @@
     </p>
     <p>
       Hold onto that and three otherwise-baffling behaviours become obvious. The child's styles do not reach the
-      projected content, because the frame did not print the photo — which answers the napkin question above:
-      <strong>no</strong>, Callout's <code>strong</code> rule never touches it. The child cannot use
-      <code>viewChild</code> to find it, because a view query searches only what the child itself drew. And the photo
-      gets printed whether or not the frame ever hangs on a wall — which is the trap a few sections down.
+      projected content, because the frame did not print the photo — the same <code>_ngcontent</code> reasoning the
+      whiteboard above just walked through, in a different picture. The child cannot use <code>viewChild</code> to find
+      it, because a view query searches only what the child itself drew. And the photo gets printed whether or not the
+      frame ever hangs on a wall — which is the trap a few sections down.
     </p>
 
     <app-bubbles
