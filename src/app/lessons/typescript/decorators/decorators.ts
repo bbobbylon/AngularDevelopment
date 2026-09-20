@@ -20,6 +20,7 @@ import {
   type QuizOption,
   Remember,
 } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 
 // ---- Live demo 1: evaluation vs application order ------------------------
 // Factories run top-down as expressions; the decorators they return apply
@@ -125,6 +126,23 @@ class FibMemo {
  * application order, practical custom decorators, AOT (why @Component never
  * runs in a production build), emitDecoratorMetadata history, the TC39
  * stage-3 dialect, and the decorator→signal-function migration map.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 6)
+ *
+ * Opens as `whiteboard`: a structural gotcha, not a misconception or a cost —
+ * ONE mechanism (factories evaluate top-down, the decorators they return
+ * apply bottom-up) drawn as two columns that run in opposite directions.
+ * `app-brain-power` is posed before the figure ("which one runs first" has
+ * two different correct answers depending on WHICH pass you mean);
+ * `app-whiteboard` draws both passes with three `app-scribble` call-outs;
+ * `app-flow` reuses the existing {@link orderFlow} (already this exact
+ * story, so relocated rather than duplicated); the block's own
+ * {@link orderQuizOptions} tests application order at CALL time — the
+ * sharper, second half of the confusion the existing {@link aotQuizOptions}
+ * (kept, later in the page) does not touch. The pre-existing opening napkin
+ * and gift-wrapping analogy relocate into a new, properly labelled "mental
+ * model" section right after the block, rather than being duplicated. See
+ * `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-ts-decorators',
@@ -140,6 +158,9 @@ class FibMemo {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   styleUrl: './decorators.css',
   templateUrl: './decorators.html',
@@ -480,6 +501,36 @@ private url  = inject(API_URL);`;
     {
       line: 9,
       text: '`ɵcmp` — the compiled component definition: your template turned into instructions, your metadata turned into static config. This is what Angular actually runs.',
+    },
+  ];
+
+  /**
+   * The shape block's quiz: application order at CALL time, not evaluation
+   * order at class-definition time — the second, sharper half of the same
+   * confusion the block's figure draws. The distractors are the three ways
+   * people carry the wrong half of the lesson forward: assuming the
+   * "closest wraps first" rule means closest RUNS first at call time
+   * (backwards — closest means innermost, so it runs LAST), conflating
+   * evaluation order with application order, and assuming stacked
+   * decorators are simply unordered.
+   */
+  protected readonly orderQuizOptions: QuizOption[] = [
+    {
+      text: "Second's — it's the innermost wrapper, so its own logging runs before anything else gets a turn.",
+      why: "Backwards. Being innermost means Second's wrapper is the LAST thing control reaches on the way in, not the first — First's wrapper is what actually receives the call.",
+    },
+    {
+      text: "First's — decorators apply bottom-up, so First's wrapper ends up OUTERMOST, and an outer wrapper's own code always runs before it calls into what it wraps.",
+      correct: true,
+      why: "Exactly the shape the figure draws: Second's decorator applies first (step 3) but ends up on the INSIDE, closest to the real method; First's applies second (step 4) but ends up wrapping everything, on the OUTSIDE. Call `method()` and you hit the outside layer first — First's — exactly like `First(Second(method))` read from the outside in.",
+    },
+    {
+      text: "Whichever decorator's FACTORY evaluated first — First's, since factories run top-down.",
+      why: 'That answers a different question. Factory evaluation (steps 1–2) happens once, at class-definition time, long before anyone calls `method()`. Which wrapper answers a real call is decided by application order (steps 3–4) instead — the two passes this whole block exists to keep separate.',
+    },
+    {
+      text: "It's not guaranteed — stacked decorators can apply in either order depending on the engine.",
+      why: 'Fully deterministic, and specified: decorators always apply bottom-up, closest-to-the-target first, every engine, every time. Nothing here is a coin flip.',
     },
   ];
 

@@ -232,6 +232,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'How TypeScript decorators work and why Angular relies on them.',
     level: 'typescript',
     category: 'Language Features',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/typescript/decorators/decorators').then((m) => m.Decorators),
   },
@@ -411,6 +412,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Transforming display values: date, currency, number, percent, json, slice, async.',
     level: 'beginner',
     category: 'Pipes',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/beginner/pipes/pipes').then((m) => m.Pipes),
   },
   {
@@ -445,6 +447,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '@Injectable, providedIn, the inject() function and sharing state.',
     level: 'beginner',
     category: 'Dependency Injection',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/beginner/services-di/services-di').then((m) => m.ServicesDi),
   },
@@ -524,6 +527,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Server-side / asynchronous validation with Observables.',
     level: 'intermediate',
     category: 'Forms',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/intermediate/async-validators/async-validators').then(
         (m) => m.AsyncValidators,

@@ -15,23 +15,129 @@
     </p>
   </app-chapter>
 
-  <!-- === 1. ASK BEFORE TELLING === -->
-  <app-napkin lead="guess —">
-    Does <code>&#64;Component(&#123;...&#125;)</code> actually <em>run</em> when your app boots in production? Hold that
-    answer — the "What Angular actually does" section below settles it for good.
-  </app-napkin>
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Two decorators, one method. The factories log <strong>1</strong> then <strong>2</strong>. The decorators those
+      factories returned apply <strong>3</strong> then <strong>4</strong> — same two decorators, opposite order.
+    </p>
 
-  <!-- === 2. ANALOGY === -->
-  <p>
-    Think of a decorator as a gift-wrapping counter: the box (your method) goes in, wrapping paper (extra behavior) goes
-    on <strong>once</strong>, and what comes back out looks the same from outside but does something extra when it's
-    opened — called. Wrap the same box twice, <code>&#64;First() &#64;Second()</code>, and you get two layers of paper,
-    applied closest-first and opened from the outside in.
-  </p>
-  <app-remember variant="hook">
-    A decorator isn't special syntax — it's a plain function, called once at class-definition time, with a
-    target-specific signature.
-  </app-remember>
+    <app-brain-power
+      question="@First() sits ABOVE @Second() on the same method. Which one's FACTORY — the plain () call — runs first? And which one's DECORATOR — the function that factory returned — wraps the method first? Those are not the same answer."
+      hint="One pass reads the source top to bottom. The other applies like nested calls, innermost first — read `First(Second(method))` and ask which name sits closest to the parentheses around `method`."
+    />
+
+    <app-whiteboard
+      caption="Two passes over the same two lines — and they run in opposite directions."
+      alt="A two-column diagram. The left column, headed factories evaluate top to bottom, has two stacked boxes connected by a downward arrow: box one, First open paren close paren factory evaluated, reads the source top to bottom; box two, Second open paren close paren factory evaluated, the next line down. The right column, headed decorators apply bottom to top, also has two stacked boxes connected by a downward arrow, but the top box is highlighted: box three, Second's decorator applied, closest to method, wraps first; box four, First's decorator applied, wraps what Second already wrapped. A diagonal arrow crosses from box two, at the bottom of the left column, to box three, at the top of the right column, showing the pivot from reading order to application order."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 260" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="ts-decorators-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <text x="180" y="20" text-anchor="middle" class="wb-hand wb-text--sm">FACTORIES — TOP TO BOTTOM</text>
+        <rect x="20" y="30" width="320" height="70" rx="8" class="wb-node" />
+        <text x="180" y="58" text-anchor="middle" class="wb-mono wb-text--sm">1. First() factory evaluated</text>
+        <text x="180" y="80" text-anchor="middle" class="wb-text--sm">reads the source top to bottom</text>
+
+        <rect x="20" y="150" width="320" height="70" rx="8" class="wb-node" />
+        <text x="180" y="178" text-anchor="middle" class="wb-mono wb-text--sm">2. Second() factory evaluated</text>
+        <text x="180" y="200" text-anchor="middle" class="wb-text--sm">the next line down</text>
+
+        <path class="wb-arrow" d="M180 100 V 148" marker-end="url(#ts-decorators-head)" />
+
+        <text x="580" y="20" text-anchor="middle" class="wb-hand wb-text--sm">DECORATORS — BOTTOM TO TOP</text>
+        <rect x="420" y="30" width="320" height="70" rx="8" class="wb-node wb-node--lit" />
+        <text x="580" y="58" text-anchor="middle" class="wb-mono wb-text--sm">3. Second's decorator applied</text>
+        <text x="580" y="80" text-anchor="middle" class="wb-text--sm">closest to method() — wraps FIRST</text>
+
+        <rect x="420" y="150" width="320" height="70" rx="8" class="wb-node" />
+        <text x="580" y="178" text-anchor="middle" class="wb-mono wb-text--sm">4. First's decorator applied</text>
+        <text x="580" y="200" text-anchor="middle" class="wb-text--sm">wraps what Second already wrapped</text>
+
+        <path class="wb-arrow" d="M580 100 V 148" marker-end="url(#ts-decorators-head)" />
+
+        <path class="wb-arrow" d="M340 185 L 420 65" marker-end="url(#ts-decorators-head)" />
+      </svg>
+
+      <app-scribble
+        quote="1. First() factory evaluated"
+        text="Just a plain function call. Runs the instant the parser reaches this line — **before** anything has been decorated at all."
+      />
+      <app-scribble
+        quote="3. Second's decorator applied"
+        point="up"
+        tone="olive"
+        text="Application runs **bottom-up**: the decorator textually closest to `method()` wraps it first, before First's decorator ever sees the result."
+      />
+      <app-scribble
+        quote="4. First's decorator applied"
+        tone="clay"
+        text="Wraps what Second already wrapped — this line is literally `First(Second(method))`, read from the outside in."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <strong>Different answers.</strong> <code>First()</code>'s factory runs first — step 1, reading top to bottom. But
+      <code>Second</code>'s decorator applies first — step 3, wrapping bottom-up, innermost first. Two independent
+      passes over the identical two lines, running in opposite directions: that is the entire subject of this lesson.
+    </p>
+
+    <app-flow
+      caption="Factories evaluate top-down (1, 2); the decorators they returned apply bottom-up (3, 4)."
+      [steps]="orderFlow"
+    />
+
+    <app-quiz
+      question="@First() @Second() method() {} — both wrap the method with logging, before and after calling through. When you actually CALL method() later, whose 'before' log prints first?"
+      [options]="orderQuizOptions"
+      followUp="Scroll to 'Factories, and the two orderings everyone mixes up' below for the live log this exact figure was traced from."
+    />
+
+    <app-napkin lead="the mental model —" label="Two people wrapping the same gift">
+      Picture two people wrapping one gift, one after the other. Whoever wraps <strong>last</strong> is the layer you
+      see <strong>first</strong> when you tear it open — the outside paper. <code>First</code>'s decorator is that
+      final, outside layer, even though <code>First</code> was the one whose factory ran at the very start.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>A decorator is a gift-wrapping counter, not special syntax.</h2>
+
+    <p>
+      Think of a decorator as a gift-wrapping counter: the box (your method) goes in, wrapping paper (extra behavior)
+      goes on <strong>once</strong>, and what comes back out looks the same from outside but does something extra when
+      it's opened — called. Wrap the same box twice, <code>&#64;First() &#64;Second()</code>, and you get two layers of
+      paper, applied closest-first and opened from the outside in — precisely the reversal the figure above just proved.
+    </p>
+    <app-remember variant="hook">
+      A decorator isn't special syntax — it's a plain function, called once at class-definition time, with a
+      target-specific signature.
+    </app-remember>
+    <app-napkin lead="guess —" label="Predict before reading on">
+      Does <code>&#64;Component(&#123;...&#125;)</code> actually <em>run</em> when your app boots in production? Hold
+      that answer — the "What Angular actually does" section further down settles it for good.
+    </app-napkin>
+  </section>
 
   <!-- === 3. THE FIVE TARGETS === -->
   <h2>The five targets — as Angular uses them</h2>

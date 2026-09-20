@@ -19,7 +19,103 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Type <code>admin</code> into a username field with no debounce. Five keystrokes after the first — five separate
+      700ms "server" checks, and four of them for a username nobody was ever going to submit.
+    </p>
+
+    <app-receipt
+      heading="Typing 'admin' · one keystroke at a time, no debounce"
+      [rows]="keystrokeBillRows"
+      [total]="keystrokeBillTotal"
+      footer="for one username the user actually meant to submit"
+    />
+
+    <app-scribble
+      point="up"
+      tone="clay"
+      quote="5 server checks"
+      text="Four of those five checked a username **nobody was ever going to submit** — 'a', 'ad', 'adm', 'admi' — each one a real 700ms round trip the very next keystroke immediately made pointless."
+    />
+
+    <app-compare
+      leftTitle="Wrong — no debounce, updateOn: 'change'"
+      leftTone="bad"
+      rightTitle="Right — wait for a pause, then check"
+      rightTone="good"
+      note="Both check the exact same thing. Only one of them waits to see if you're actually done typing first."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ defineSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ debounceSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Cancelling a stale check stops it from ever <strong>answering</strong>. It does nothing about whether the check
+      already went <strong>out</strong> — those are two different moments, and only one of them is what a debounce
+      actually prevents.
+    </p>
+
+    <app-chain
+      [steps]="[
+        'keystroke',
+        'status → PENDING',
+        'previous check cancelled',
+        'new check subscribed — the request goes out HERE',
+        'server responds (~700ms)',
+        'status settles',
+      ]"
+      label="One keystroke's whole trip — cancellation happens before the new request, not instead of it"
+    />
+
+    <app-code-lab
+      file="abstract_model.ts — simplified"
+      [code]="underTheHoodSample"
+      [notes]="underTheHoodNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-scribble
+      quote="cancelExistingSubscription()"
+      text="Runs **first**, on every revalidation — but it only severs the PREVIOUS check's subscription. It has no power over a request that check already sent."
+    />
+    <app-scribble
+      quote="this.status = PENDING"
+      point="up"
+      tone="olive"
+      text="Set synchronously, immediately — before the Observable has done anything. The request that follows goes out on this same line, not 700ms later."
+    />
+
+    <app-brain-power
+      question="A debounced validator still eventually calls the server for the value you settled on. So why does debouncing reduce the total number of requests at all, instead of just delaying every one of them by 400ms?"
+      hint="Ask what happens to a pending timer(400) the instant a NEWER keystroke arrives before those 400ms are up — not what happens to a request already in flight."
+    />
+
+    <app-quiz
+      question="You type 'admin' into the naive field with no pauses at all — five keystrokes after the first. With no debounce and updateOn: 'change', how many separate server checks actually fire, even though every one but the last gets cancelled before it can answer?"
+      [options]="requestCountQuizOptions"
+      followUp="The live demo further down counts exactly this in real time — type into the naive field and watch 'checks fired' climb once per keystroke."
+    />
+
+    <p class="bf-big">Debounce doesn't make a check cheaper. It makes there be one.</p>
+  </section>
+
+  <!-- ============ 2. THE PROBLEM, IN FULL ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
     <h2>Can a validator ever answer "not yet"?</h2>
@@ -46,7 +142,7 @@
     </app-napkin>
   </section>
 
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
+  <!-- ============ 3. ANALOGY BEFORE VOCABULARY ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>A sync validator checks ID at the door. An async one calls head office.</h2>
@@ -199,6 +295,7 @@
   </section>
 
   <!-- ============ 7. THE FIX ============ -->
+  <!-- kept as 7 -->
   <section>
     <p class="bf-eyebrow">The fix</p>
     <h2>Debounce the request, or you've built a spam bot.</h2>
@@ -251,7 +348,7 @@
     </div>
   </section>
 
-  <!-- ============ 7B. EDIT MODE: CHECKING AGAINST YOURSELF ============ -->
+  <!-- ============ 8. EDIT MODE: CHECKING AGAINST YOURSELF ============ -->
   <section>
     <p class="bf-eyebrow">The one every "how would you check a username" interview misses</p>
     <h2>On an edit form, the validator has to let you keep your own name.</h2>
@@ -318,7 +415,7 @@
     </div>
   </section>
 
-  <!-- ============ 8. THE SILENT FAILURE ============ -->
+  <!-- ============ 9. THE SILENT FAILURE ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Spot the silent failure</p>
     <h2>This validator looks correct. Why does an available username hang forever?</h2>
@@ -331,23 +428,16 @@
     />
   </section>
 
-  <!-- ============ 9. UNDER THE HOOD ============ -->
+  <!-- ============ 10. UNDER THE HOOD, IN FULL ============ -->
   <section>
     <p class="bf-eyebrow">Under the hood</p>
     <h2>What does updateValueAndValidity() actually do?</h2>
 
     <p>
-      Every value change on a reactive form control funnels through one method. Simplified from Angular's own
-      <code>AbstractControl</code> source (<code>&#64;angular/forms</code>), here is the part that matters for async
-      validators:
+      Every value change on a reactive form control funnels through one method — the annotated source is already up in
+      the shape block at the top of the page, since it's the actual mechanism behind the keystroke receipt shown there.
+      One line from it matters more than any other for what follows:
     </p>
-
-    <app-code-lab
-      file="abstract_model.ts — simplified"
-      [code]="underTheHoodSample"
-      [notes]="underTheHoodNotes"
-      notesLabel="What each line is doing"
-    />
 
     <div class="tip">
       <strong>Common shorthand, and where it stops being exactly true:</strong> "the async validator must complete" is
@@ -362,7 +452,7 @@
     </div>
   </section>
 
-  <!-- ============ 10. THE STATE MACHINE ============ -->
+  <!-- ============ 11. THE STATE MACHINE ============ -->
   <section>
     <p class="bf-eyebrow">The state machine</p>
     <h2>Four statuses, one field.</h2>
@@ -396,7 +486,7 @@
     </div>
   </section>
 
-  <!-- ============ 11. THE SUBMIT-BUTTON TRAP ============ -->
+  <!-- ============ 12. THE SUBMIT-BUTTON TRAP ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">The one that bites in code review</p>
     <h2>Why does a submit button ignore PENDING?</h2>
@@ -443,7 +533,7 @@
     </app-remember>
   </section>
 
-  <!-- ============ 12. SCALING UP ============ -->
+  <!-- ============ 13. SCALING UP ============ -->
   <section>
     <p class="bf-eyebrow">Scaling up</p>
     <h2>What happens with two async validators on one control?</h2>
@@ -461,7 +551,7 @@
     />
   </section>
 
-  <!-- ============ 13. SELF-TEST ============ -->
+  <!-- ============ 14. SELF-TEST ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Self-test</p>
     <h2>Spot the bug before you scroll.</h2>
@@ -469,7 +559,7 @@
     <app-quiz [question]="polarityQuizQuestion" [options]="polarityQuizOptions" [followUp]="polarityQuizFollowUp" />
   </section>
 
-  <!-- ============ 14. FIELD NOTES ============ -->
+  <!-- ============ 15. FIELD NOTES ============ -->
   <section>
     <p class="bf-eyebrow">Field notes</p>
     <h2>What actually goes wrong in code review?</h2>
@@ -514,13 +604,13 @@
     </ul>
   </section>
 
-  <!-- ============ 15. QUESTIONS ============ -->
+  <!-- ============ 16. QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
     <app-faq [items]="questions" />
   </section>
 
-  <!-- ============ 16. RECAP ============ -->
+  <!-- ============ 17. RECAP ============ -->
   <section>
     <p class="bf-eyebrow">Before you go</p>
     <h2>Five things to remember.</h2>

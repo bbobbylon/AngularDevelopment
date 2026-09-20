@@ -2,8 +2,9 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { CartService, CounterService, LifecycleLog } from './services-di.shared';
 import { CartIndicator } from './cart-indicator/cart-indicator';
 import { CounterWidget } from './counter-widget/counter-widget';
@@ -43,6 +44,21 @@ import { CounterWidget } from './counter-widget/counter-widget';
  * scoped providers, when (and whether) a service's `ngOnDestroy` actually
  * runs, `inject()` in a base class, and the circular-dependency error two
  * services can produce.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 6)
+ *
+ * Opens as `whiteboard`: a structural gotcha (WHERE a class is registered
+ * decides how many instances exist), not a misconception or a cost.
+ * `app-brain-power` is posed before the figure; `app-whiteboard` draws the
+ * two registration scopes side by side — one shared root instance versus two
+ * independent component-scoped ones — with three `app-scribble` call-outs;
+ * {@link registrationFlow} restates it as three numbered steps; the block's
+ * own {@link blockQuizOptions} checks both halves in one question, distinct
+ * from the existing {@link cartQuizOptions} (kept later, testing only the
+ * root-singleton half against a live demo). The pre-existing "predict before
+ * reading on" napkin and the hotel-front-desk analogy relocate into the
+ * mental-model section right after the block instead of being duplicated.
+ * See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-services-di',
@@ -57,9 +73,13 @@ import { CounterWidget } from './counter-widget/counter-widget';
     TapeCard,
     Compare,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     CartIndicator,
     CounterWidget,
   ],
@@ -95,6 +115,55 @@ export class ServicesDi {
     { label: 'Services & DI' },
     { label: 'DI Providers', id: 'di-providers' },
     { label: 'Advanced DI', id: 'di-advanced' },
+  ];
+
+  /**
+   * The shape block's numbered restatement of the whiteboard figure — the
+   * same story, as three steps rather than a picture.
+   */
+  protected readonly registrationFlow: FlowStep[] = [
+    {
+      label: "Register at root — @Injectable({ providedIn: 'root' })",
+      detail: 'One instance, built lazily on the first inject() anywhere in the whole app.',
+    },
+    {
+      label: 'Register on a component — providers: [Service]',
+      detail: 'A brand-new element injector, and a brand-new instance, for THAT component alone.',
+      tone: 'accent',
+    },
+    {
+      label: 'Two components, two providers: [Service] arrays',
+      detail: "Two separate instances. 'Same class' and 'same object' are different questions.",
+      tone: 'warn',
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — checks both halves of the registration
+   * story in one question, before the page narrows to live demos of each
+   * half separately. The distractors are the two ways a reader flattens the
+   * distinction: assuming `inject()` always returns a singleton, and
+   * assuming a `providers` array never shares — both ignore that the
+   * ANSWER depends on which registration each class actually used.
+   */
+  protected readonly blockQuizOptions: QuizOption[] = [
+    {
+      text: 'Both pairs share state — inject() always hands back the one instance a class has.',
+      why: "inject() doesn't know or care whether a class is a singleton. It just walks the injector tree and returns whatever it finds FIRST — and what it finds depends entirely on where that class was registered.",
+    },
+    {
+      text: 'The CartService pair shares one instance; the CounterService pair gets two separate ones — registration location decides it, not the inject() call.',
+      correct: true,
+      why: "Exactly the split the figure draws. providedIn: 'root' puts exactly one CartService on the root injector, so every inject() call from anywhere walks up to that same object. CounterService has no providedIn at all — each component's own providers: [CounterService] array creates a fresh element injector, and a fresh instance, every time.",
+    },
+    {
+      text: 'Neither pair shares state — a providers array always creates a new instance regardless of where it sits.',
+      why: "True for CounterService, false for CartService. providedIn: 'root' is also a providers-style registration, just at the very top of the tree — and it deliberately builds only ONE instance for the whole app, not one per consumer.",
+    },
+    {
+      text: 'It depends on which component calls inject() first.',
+      why: "Call order is irrelevant. What decides sharing is fixed the moment each service is DEFINED — providedIn: 'root' versus a component's own providers array — long before anyone calls inject() at all.",
+    },
   ];
 
   /**

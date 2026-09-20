@@ -31,6 +31,8 @@ import {
   type QuizOption,
   Remember,
 } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 
 const TAKEN = ['admin', 'root', 'ada'];
 
@@ -116,6 +118,22 @@ function uniqueUsernameForEdit(originalValue: string, onCheckStart?: () => void)
  * @see intermediate/reactive-forms — the form model these attach to.
  * @see intermediate/form-validation — synchronous validators, which async ones run after.
  * @see intermediate/form-arrays — next in the Forms track.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 6)
+ *
+ * Opens as `receipt`: the topic genuinely is a cost, itemised in
+ * {@link keystrokeBillRows} — five keystrokes typing "admin", five separate
+ * 700ms server checks, four of them for a username nobody was ever going to
+ * submit. The compare panel reuses the existing {@link defineSample} (wrong
+ * side) and {@link debounceSample} (right side) rather than new code; the
+ * `app-code-lab` RELOCATES the existing {@link underTheHoodSample}/
+ * {@link underTheHoodNotes} up from the page's own "Under the hood" section
+ * (a short callback note sits at the old spot) because it's the actual
+ * mechanism the receipt's numbers come from. The block's own
+ * {@link requestCountQuizOptions} checks the specific "does cancelling stop
+ * the request from being SENT" misconception the live demo's counters prove
+ * wrong; the existing {@link polarityQuizOptions} (kept later) tests a
+ * different bug entirely. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-async-validators',
@@ -134,6 +152,10 @@ function uniqueUsernameForEdit(originalValue: string, onCheckStart?: () => void)
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   templateUrl: './async-validators.html',
   styleUrl: './async-validators.css',
@@ -510,6 +532,47 @@ forkJoin([uniqueUsername()(control), bannedWordCheck()(control)])
     { label: 'Async Validators' },
     { label: 'FormArray', id: 'form-arrays' },
     { label: 'Signal Forms', id: 'signal-forms' },
+  ];
+
+  // ── Shape block: the receipt ────────────────────────────────────────────────
+
+  /** The itemised bill: one keystroke, one 700ms server check, every time. */
+  protected readonly keystrokeBillRows: ReceiptRow[] = [
+    { label: "'a'", amount: '1 check' },
+    { label: "'ad'", amount: '1 check' },
+    { label: "'adm'", amount: '1 check' },
+    { label: "'admi'", amount: '1 check' },
+    { label: "'admin'", amount: '1 check', tone: 'warn' },
+  ];
+
+  /** The total the bill above adds up to. */
+  protected readonly keystrokeBillTotal: ReceiptRow = { label: 'TOTAL', amount: '5 server checks' };
+
+  /**
+   * The shape block's own quiz — the specific misconception the receipt's
+   * numbers exist to correct: that cancelling a stale check stops it from
+   * ever having been SENT. The distractors are the ways a reader could read
+   * "AbstractControl cancels the previous check" and conclude the wrong
+   * thing about cost rather than correctness.
+   */
+  protected readonly requestCountQuizOptions: QuizOption[] = [
+    {
+      text: 'One — AbstractControl cancels the earlier checks, so they never actually go out in the first place.',
+      why: 'Cancellation unsubscribes the Observable — it stops a stale answer from ever reaching setErrors(). It does nothing to a request that already left before the next keystroke arrived, which for this validator is every single one of them.',
+    },
+    {
+      text: 'Five — one full check fires per keystroke; cancellation only stops the ANSWER from arriving, never the request from going out.',
+      correct: true,
+      why: "Exactly what the receipt above counts. uniqueUsername's tap() fires the instant something subscribes — synchronously, before the 700ms delay even starts — so by the time the next keystroke cancels this one, the request is already gone. Debouncing is what stops the request from being SENT; cancellation only stops a late answer from being heard.",
+    },
+    {
+      text: 'Five, but only the final one is a real network call — the rest are silently skipped.',
+      why: 'Nothing is skipped. Every one of the five keystrokes independently triggers updateValueAndValidity(), and every one calls the async validator factory fresh — four wasted 700ms round trips, not four no-ops.',
+    },
+    {
+      text: 'It depends on the network — a fast enough connection could let earlier checks finish before being cancelled, cutting the count.',
+      why: 'Request COUNT has nothing to do with round-trip speed — five keystrokes fire five checks regardless of how fast any of them come back. Speed only changes whether a given check finishes before the next keystroke cancels it, not whether it was sent.',
+    },
   ];
 
   /**

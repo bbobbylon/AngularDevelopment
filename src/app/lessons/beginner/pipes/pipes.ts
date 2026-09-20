@@ -18,6 +18,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 
 /**
  * Lesson: Built-in Pipes — formatting values in the template, and the pipe most
@@ -76,6 +78,21 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  *
  * @see lessons/intermediate/custom-pipes — writing your own pure and impure
  * pipes with `@Pipe` and `transform()`.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 6)
+ *
+ * Opens as `receipt`: the topic genuinely IS a cost — one line that reads
+ * like a single request and is actually three. {@link asyncBillRows}/
+ * {@link asyncBillTotal} itemise it, a scribble names the gap, a compare
+ * panel contrasts three bare `| async` bindings against the `as`-reused
+ * fix, a chain restates the pure/impure check, and a small
+ * {@link asyncFlagSample} shows the one flag (`pure: false`) responsible —
+ * deliberately smaller than the fuller {@link asyncPipeShapeSample} kept
+ * later in the page for the full `AsyncPipe` contract. The block's quiz
+ * RELOCATES the existing {@link asyncQuizOptions} up from the "three
+ * bindings vs one" demo further down (same question, same live demo to
+ * try it against) rather than duplicating a second one, leaving a callback
+ * line at its old spot. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-pipes',
@@ -104,6 +121,10 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     SlicePipe,
     KeyValuePipe,
     AsyncPipe,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   // DatePipe is also injected directly (see `datePipe` below), to prove it is
   // an ordinary class — that only works if it is also registered here.
@@ -283,6 +304,67 @@ export class Pipes {
    * neighbours.
    */
   protected readonly stops: ChapterStop[] = [{ label: 'Built-in Pipes' }];
+
+  // ── Shape block: the receipt ────────────────────────────────────────────────
+
+  /** The itemised bill: three identical-looking bindings, three separate subscriptions. */
+  protected readonly asyncBillRows: ReceiptRow[] = [
+    { label: 'a: coldSource() | async', amount: '1 subscription' },
+    { label: 'b: coldSource() | async', amount: '1 subscription' },
+    { label: 'c: coldSource() | async', amount: '1 subscription', tone: 'warn' },
+  ];
+
+  /** The total the bill above adds up to. */
+  protected readonly asyncBillTotal: ReceiptRow = { label: 'TOTAL', amount: '3 network requests' };
+
+  /** The compare panel's wrong side: three bare `| async` bindings on one source. */
+  protected readonly asyncBillWrongSample = `<span>{{ coldSource() | async }}</span>
+<span>{{ coldSource() | async }}</span>
+<span>{{ coldSource() | async }}</span>
+<!-- three separate AsyncPipe instances — three separate subscriptions -->`;
+
+  /** The compare panel's right side: subscribe once, reuse the captured value. */
+  protected readonly asyncBillRightSample = `@if (coldSource() | async; as v) {
+  <span>{{ v }}</span>
+  <span>{{ v }}</span>
+  <span>{{ v }}</span>
+}
+<!-- ONE subscription; every {{ v }} below it is a plain interpolation -->`;
+
+  /**
+   * A deliberately small standalone sample — just the one flag that makes
+   * `async` different from every other pipe on this page. The fuller,
+   * genuinely simplified `AsyncPipe` implementation (with the subscribe
+   * logic, the reference check, teardown) is {@link asyncPipeShapeSample}
+   * further down; this one exists only to make `pure: false` and what it
+   * skips visible in four lines.
+   */
+  protected readonly asyncFlagSample = `@Pipe({ name: 'async', pure: false })   // ← the one flag
+export class AsyncPipe {
+  transform(source: Observable<unknown> | null) {
+    if (source !== this.lastSource) {      // still checked...
+      this.lastSource = source;
+      this.subscribeTo(source);            // ...but a NEW source always triggers this
+    }
+    return this.lastValue;                 // whatever has arrived so far
+  }
+}`;
+
+  /** Line-by-line walkthrough of {@link asyncFlagSample}. */
+  protected readonly asyncFlagNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: '`pure: false` is the single line that separates `async` from every text or number pipe on this page — it tells Angular never to trust a cached result and to call `transform()` on every pass that reaches it, comparison or not.',
+    },
+    {
+      line: 4,
+      text: "This `!==` check is real, but it isn't the purity system's comparison — Angular already decided to call `transform()` regardless of `pure: false`. This is the PIPE deciding, on its own, whether the source it was just handed is a new one worth resubscribing to.",
+    },
+    {
+      line: 6,
+      text: 'A genuinely new `Observable` reference — like the fresh one each `| async` in the compare panel above gets — makes this branch run, and `subscribeTo` starts a brand-new subscription for it.',
+    },
+  ];
 
   /** What happens, in order, when one `value | pipeName:arg` expression is checked. */
   protected readonly transformSteps: FlowStep[] = [

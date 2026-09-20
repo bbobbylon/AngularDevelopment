@@ -17,40 +17,137 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow">The problem</p>
-    <h2>Two components need a cart. Who owns it?</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Two services, both one signal and a couple of methods — as similar as two classes get. Put two consumers of one on
+      a page and they show the <strong>same</strong> number. Put two consumers of the other on a page and they count in
+      <strong>perfect isolation</strong>.
+    </p>
+
+    <app-brain-power
+      question="CartService and CounterService look almost identical on paper. Both are injected the exact same way — inject(CartService), inject(CounterService), same syntax, same field shape. So what actually decides whether two components end up sharing one, or each getting their own?"
+      hint="Ask WHERE each class registers itself — not what's written inside the class."
+    />
+
+    <app-whiteboard
+      caption="Two registrations. One converges on a single object; the other never wires anything together at all."
+      alt="Two columns. The left column, headed providedIn root, shows two small boxes, component A and component B, each with a downward arrow pointing into one larger, highlighted box below labelled root injector, one CartService. The right column, headed providers colon service on the component, shows two small boxes, widget A and widget B, each with its own downward arrow pointing into its OWN separate box below it: widget A's own CounterService, and widget B's own CounterService. The two boxes on the right are not connected to each other in any way."
+    >
+      <svg class="wb-svg" viewBox="0 0 760 260" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="services-di-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <text x="180" y="18" text-anchor="middle" class="wb-hand wb-text--sm">PROVIDEDIN: 'ROOT'</text>
+        <rect x="20" y="30" width="120" height="46" rx="8" class="wb-node" />
+        <text x="80" y="58" text-anchor="middle" class="wb-text--sm">Component A</text>
+        <rect x="220" y="30" width="120" height="46" rx="8" class="wb-node" />
+        <text x="280" y="58" text-anchor="middle" class="wb-text--sm">Component B</text>
+
+        <rect x="50" y="150" width="260" height="80" rx="8" class="wb-node wb-node--lit" />
+        <text x="180" y="182" text-anchor="middle" class="wb-mono wb-text--sm">ROOT INJECTOR</text>
+        <text x="180" y="206" text-anchor="middle" class="wb-text--sm">ONE CartService</text>
+
+        <path class="wb-arrow" d="M80 76 L150 148" marker-end="url(#services-di-head)" />
+        <path class="wb-arrow" d="M280 76 L210 148" marker-end="url(#services-di-head)" />
+
+        <text x="580" y="18" text-anchor="middle" class="wb-hand wb-text--sm">
+          PROVIDERS: [SERVICE] (ON THE COMPONENT)
+        </text>
+        <rect x="430" y="30" width="140" height="46" rx="8" class="wb-node" />
+        <text x="500" y="58" text-anchor="middle" class="wb-text--sm">Widget A</text>
+        <rect x="610" y="30" width="140" height="46" rx="8" class="wb-node" />
+        <text x="680" y="58" text-anchor="middle" class="wb-text--sm">Widget B</text>
+
+        <rect x="430" y="150" width="140" height="80" rx="8" class="wb-node" />
+        <text x="500" y="180" text-anchor="middle" class="wb-mono wb-text--sm">Widget A's OWN</text>
+        <text x="500" y="202" text-anchor="middle" class="wb-text--sm">CounterService</text>
+
+        <rect x="610" y="150" width="140" height="80" rx="8" class="wb-node" />
+        <text x="680" y="180" text-anchor="middle" class="wb-mono wb-text--sm">Widget B's OWN</text>
+        <text x="680" y="202" text-anchor="middle" class="wb-text--sm">CounterService</text>
+
+        <path class="wb-arrow" d="M500 76 V 148" marker-end="url(#services-di-head)" />
+        <path class="wb-arrow" d="M680 76 V 148" marker-end="url(#services-di-head)" />
+      </svg>
+
+      <app-scribble
+        quote="ROOT INJECTOR — ONE CartService"
+        tone="olive"
+        text="Every `inject(CartService)` call, from anywhere, walks up to this **exact same object** — first one built it lazily, every request since has gotten the identical answer back."
+      />
+      <app-scribble
+        quote="Widget A's OWN CounterService"
+        point="up"
+        tone="clay"
+        text="`providers: [CounterService]` on the component creates a **brand-new** element injector per instance. Widget A's copy has never heard of Widget B's."
+      />
+      <app-scribble
+        quote="Widget B's OWN CounterService"
+        point="up"
+        text="Same class, same code — a **second, completely separate** object. Nothing connects the two boxes on this side, unlike the left."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <strong>Where each class registers itself.</strong> <code>CartService</code>'s
+      <code>providedIn: 'root'</code> puts exactly one instance on the root injector, and every
+      <code>inject()</code> call from anywhere in the app walks up to that same object. <code>CounterService</code> has
+      no <code>providedIn</code> at all — a component's own <code>providers: [CounterService]</code> array creates a
+      fresh element injector, and a fresh instance, every single time that component is created. Same shape of class.
+      Completely different lifetime.
+    </p>
+
+    <app-flow caption="The same split, as three numbered steps instead of a picture." [steps]="registrationFlow" />
+
+    <app-quiz
+      question="Two completely different services — CartService (providedIn: 'root') and CounterService (providers: [CounterService] on the component) — both inject()-ed the exact same way. Put two consumers of EACH on one page. What's actually true?"
+      [options]="blockQuizOptions"
+      followUp="The two live demos further down let you click both scenarios yourself — the root cart updates everywhere at once, the counter widgets never move each other."
+    />
+
+    <app-napkin lead="the mental model —" label="A photocopier's address, not its buttons">
+      A photocopier bolted to one office floor makes copies for that floor alone. The exact same model, bolted instead
+      into the building's shared lobby, makes copies for everyone who walks past. Same buttons, same
+      <code>inject()</code>-shaped request — the room it's bolted into is what decides who ends up sharing the output.
+    </app-napkin>
+  </section>
+
+  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <section>
+    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
+    <h2>Angular runs the front desk. You never cut your own key.</h2>
 
     <p>
-      Try the obvious approach: every component that needs a cart just writes
-      <code>new CartService()</code> inside itself. It compiles. It even looks like it works — for about five seconds,
-      until you put two components on the same page that are both supposed to show the cart, and they show two different
-      numbers, because they each built their <em>own</em> object and neither has ever heard of the other. Worse, you can
-      never swap in a fake cart for a test: <code>new</code> hard-wires you to
-      <span class="bf-break">this exact class, forever</span>.
+      Try the obvious approach: every component that needs a cart just writes <code>new CartService()</code> inside
+      itself. It compiles. It even looks like it works — for about five seconds, until you put two components on the
+      same page that are both supposed to show the cart, and they show two different numbers, because they each built
+      their <em>own</em> object and neither has ever heard of the other. Worse, you can never swap in a fake cart for a
+      test: <code>new</code> hard-wires you to <span class="bf-break">this exact class, forever</span>.
     </p>
 
     <p>
       Dependency injection is a straightforward flip. A class stops building its own dependencies and instead
       <span class="key">asks for them</span> — "I need a <code>CartService</code>" — and something else, the
-      <span class="term">injector</span>, decides what to hand back. Sometimes that's a brand-new object, built to
-      order. Sometimes it's the exact same object every other asker already has. The whole of this lesson is that one
-      decision, and how you control it.
+      <span class="term">injector</span>, decides what to hand back, exactly as the figure above just proved live.
     </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Further down are two <code>&lt;app-cart-indicator&gt;</code> badges, and later, two
-      <code>&lt;app-counter-widget&gt;</code> counters. Both pairs inject a service that looks about the same on paper —
-      one signal, a couple of methods that change it. Before you scroll: do you think both pairs will behave the same
-      way? There's a real, clickable answer coming in the next two sections.
-    </app-napkin>
-  </section>
-
-  <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
-  <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
-    <h2>Angular runs the front desk. You never cut your own key.</h2>
 
     <p>
       Picture a hotel. You don't forge your own room key at a hardware store — you go to the front desk and ask for one.
@@ -102,6 +199,12 @@
       injector for one, and <em>where you asked from</em> — which floor's desk — decides whether you get the one shared
       key or a fresh one cut just for you.
     </app-remember>
+
+    <app-napkin lead="hang on —" label="Predict before reading on">
+      Further down are two <code>&lt;app-cart-indicator&gt;</code> badges, and later, two
+      <code>&lt;app-counter-widget&gt;</code> counters — the live version of the figure above. Before you scroll to
+      them: which pair do you expect to move together, and which pair stays isolated?
+    </app-napkin>
   </section>
 
   <!-- ============ 3. DEFINING A SERVICE ============ -->

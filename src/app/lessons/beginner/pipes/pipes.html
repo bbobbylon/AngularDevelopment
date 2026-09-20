@@ -17,7 +17,90 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM ============ -->
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      One <code>| async</code> binding on a cold, HTTP-shaped source. Three of them on one page, all showing the same
+      data. That reads like <strong>one</strong> request. It's three.
+    </p>
+
+    <app-receipt
+      heading="Three `| async` bindings · one cold source"
+      [rows]="asyncBillRows"
+      [total]="asyncBillTotal"
+      footer="for one line that reads like a single value"
+    />
+
+    <app-scribble
+      point="up"
+      tone="clay"
+      quote="3 network requests"
+      text="Not a bug — **three separate `AsyncPipe` instances**, one per `| async` usage in the template, each subscribing entirely on its own. Nothing here shares anything."
+    />
+
+    <app-compare
+      leftTitle="Wrong — three separate | async bindings"
+      leftTone="bad"
+      rightTitle="Right — @if (…; as v), reused three times"
+      rightTone="good"
+      note="Both render the identical three numbers on screen. Only one of them asks for the data once."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ asyncBillWrongSample }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ asyncBillRightSample }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      A pure pipe compares first — same reference as last time, skip the call. <code>async</code> never compares at all;
+      it just runs, on every pass that reaches it, and decides for itself whether to resubscribe.
+    </p>
+
+    <app-chain
+      [steps]="[
+        'transform() called',
+        'pure pipe: same input as last time?',
+        'yes → skip, hand back the cached result',
+        'async (impure): never asks — always runs',
+        'new source? subscribe. same source? just return the cached value',
+      ]"
+      label="What happens on every single pass that reaches a pipe"
+    />
+
+    <app-code-lab
+      file="async.pipe.ts — the one flag"
+      [code]="asyncFlagSample"
+      [notes]="asyncFlagNotes"
+      notesLabel="The four lines the receipt above actually runs on"
+    />
+
+    <app-brain-power
+      question="A pure pipe skips transform() outright when the input is === what it saw last time. async runs transform() on every pass regardless — so what would 'skip it' even mean for a pipe wrapping a subscription, and who would be left waiting if it did?"
+      hint="Ask what transform() is actually doing on the passes where nothing new has arrived — and what a skipped call would leave undone."
+    />
+
+    <app-quiz
+      question="Three separate `coldSource() | async` bindings, plus one `@if (coldSource() | async; as v)` block reusing `v` three times — same cold observable throughout. How many times does the producer function run in total, across both patterns?"
+      [options]="asyncQuizOptions"
+      followUp="Press reset in the live demo further down, then count the two rows for yourself."
+    />
+
+    <p class="bf-big">Reading one line does not mean asking once. Count the pipes, not the sentences.</p>
+  </section>
+
+  <!-- ============ 2. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
     <h2>You have a number. The user needs to see a price.</h2>
@@ -49,7 +132,7 @@
     </app-napkin>
   </section>
 
-  <!-- ============ 2. THE MENTAL MODEL ============ -->
+  <!-- ============ 3. THE MENTAL MODEL ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The mental model</p>
     <h2>You've used this symbol before.</h2>
@@ -92,7 +175,7 @@
     </app-remember>
   </section>
 
-  <!-- ============ 3. THE MECHANISM ============ -->
+  <!-- ============ 4. THE MECHANISM ============ -->
   <section>
     <p class="bf-eyebrow">The mechanism</p>
     <h2>A pipe is a class. That's the whole trick.</h2>
@@ -138,7 +221,7 @@
     </div>
   </section>
 
-  <!-- ============ 4. TEXT & NUMBER PIPES ============ -->
+  <!-- ============ 5. TEXT & NUMBER PIPES ============ -->
   <section>
     <p class="bf-eyebrow">The everyday set</p>
     <h2>Text and numbers, formatted where they're read.</h2>
@@ -219,7 +302,7 @@
     </div>
   </section>
 
-  <!-- ============ 5. THE DATE PIPE ============ -->
+  <!-- ============ 6. THE DATE PIPE ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">The date pipe</p>
     <h2>The bug that ships to production.</h2>
@@ -312,7 +395,7 @@
     </div>
   </section>
 
-  <!-- ============ 6. LOCALE ============ -->
+  <!-- ============ 7. LOCALE ============ -->
   <section>
     <p class="bf-eyebrow">A correction</p>
     <h2>Locale-aware pipes don't call <code>Intl</code>.</h2>
@@ -342,7 +425,7 @@ providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
     </p>
   </section>
 
-  <!-- ============ 7. CONTAINERS ============ -->
+  <!-- ============ 8. CONTAINERS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">Pipes for containers</p>
     <h2><code>json</code> and <code>keyvalue</code> play by a different rule.</h2>
@@ -387,7 +470,7 @@ providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
     </p>
   </section>
 
-  <!-- ============ 8. PURITY ============ -->
+  <!-- ============ 9. PURITY ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--gold">Purity</p>
     <h2>Pure by default. Four exceptions, each for its own reason.</h2>
@@ -502,7 +585,7 @@ providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
     />
   </section>
 
-  <!-- ============ 9. ASYNC ============ -->
+  <!-- ============ 10. ASYNC ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">The pipe nobody taught you</p>
     <h2><code>async</code> subscribes so you don't have to.</h2>
@@ -605,16 +688,13 @@ providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
       </p>
     </div>
 
-    <app-quiz
-      question="Three `{{
-        '{{'
-      }} coldSource() | async {{ '}}' }}` bindings, plus one `@if (coldSource() | async; as v)` block reusing `v` three times — same cold observable throughout. How many times does the producer function run in total, across both patterns?"
-      [options]="asyncQuizOptions"
-      followUp="Press reset above, then count the two rows for yourself."
-    />
+    <p class="tip">
+      This is the exact question the receipt at the top of the page already put a number on — the quiz for it lives up
+      there, right after the fix. Press reset on the demo above, then count the two rows for yourself.
+    </p>
   </section>
 
-  <!-- ============ 10. WHERE | DOESN'T WORK ============ -->
+  <!-- ============ 11. WHERE | DOESN'T WORK ============ -->
   <section>
     <p class="bf-eyebrow">Exam traps</p>
     <h2>Three places <code>|</code> quietly doesn't do what you expect.</h2>
@@ -666,13 +746,13 @@ providers: [{{ '{' }} provide: LOCALE_ID, useValue: 'fr' {{ '}' }}]</pre>
     </div>
   </section>
 
-  <!-- ============ 11. QUESTIONS ============ -->
+  <!-- ============ 12. QUESTIONS ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--blue">Questions from the back row</p>
     <app-faq [items]="questions" />
   </section>
 
-  <!-- ============ 12. RECAP ============ -->
+  <!-- ============ 13. RECAP ============ -->
   <section>
     <p class="bf-eyebrow">Before you go</p>
     <h2>Five things to remember.</h2>

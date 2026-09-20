@@ -1208,6 +1208,42 @@ flagged.
 
 Declared-shape count: 35 → 42. Remaining undeclared: 103 − 42 = **61**, next up for batch 6.
 
+**Batch 6 of step 5, landed 2026-09-20.** Fourth-consecutive rate-limit recovery round: the
+agent finished the content for all four lessons below (writing/fact-checking/wiring each one)
+before a session-wide API rate limit killed it, so the recovery work was re-verifying and
+re-wiring rather than re-authoring — the exact pattern batch 4's recovery established. Four
+lessons across three tracks (`beginner` ×2, `intermediate` ×1, `typescript` ×1):
+
+| Lesson             | Track        | Shape       | The kind of gotcha                                                                                                                                                                          |
+| ------------------- | ------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pipes`             | beginner     | `receipt`   | cost (three separate `\| async` bindings on one cold, HTTP-shaped source read like one value on the page — they're three independent `AsyncPipe` subscriptions, three separate network requests) |
+| `services-di`       | beginner     | `whiteboard`| structure (`CartService` and `CounterService` are injected with identical syntax — `inject()`, same shape — but one's `providedIn: 'root'` converges every consumer on one instance while the other's component-level `providers: [Service]` gives each consumer its own, fully isolated copy) |
+| `async-validators`  | intermediate | `receipt`   | cost (typing "admin" with no debounce fires 5 separate 700ms server round trips, one per keystroke — 4 of them checking a username nobody was ever going to submit)                          |
+| `decorators`        | typescript   | `whiteboard`| structure (`@First()` above `@Second()` on the same method: their *factories* — the plain `()` calls — evaluate top to bottom, but the *decorators* those factories return apply bottom to top, so the same two decorators run in opposite order depending which pass you're asking about) |
+
+**Recovery specifics.** Three of the four lessons (`pipes`, `services-di`, `decorators`) already
+had their `curriculum.ts` `shape:` field set when the crash was discovered; `async-validators`
+did not, even though its HTML/TS content was fully written and its data bindings were complete
+(verified by grepping every `[prop]="x"` reference in the template against a matching `readonly x`
+in the `.ts` file — all present). Added the missing `shape: 'receipt'` entry rather than
+re-authoring anything. Also investigated an apparent red flag before trusting the file: the new
+"THE SHAPE — The Receipt" opening block sits at the top of `async-validators.html`, but a much
+later, pre-existing section is *also* literally titled "3. THE SHAPE" — a coincidental naming
+collision (that older section describes an `AsyncValidatorFn`'s TypeScript contract, unrelated to
+the CONTRIBUTING §2C page-opening convention) rather than a duplicated or half-finished edit,
+confirmed by comparing against `pipes.html`'s identical old-numbered-sections-continue-after-the-
+new-block structure from this same batch.
+
+`scripts/audit-variety.mjs` is green (46 declared shapes: `argument` 10, `no-dumb-questions` 10,
+`receipt` 13, `whiteboard` 13 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check` (ran
+`prettier --write` on the four touched HTML/TS files first — none had been formatted yet when the
+crash hit — then re-verified clean across the full repo), `npm run typecheck`, and `npx ng build`
+(0 warnings, checked explicitly this time after batch 5's `NG8113` catch) are all green. `npm run
+test:ci` — every test file and test passing, no timeouts.
+
+Declared-shape count: 42 → 46. Remaining undeclared: 103 − 46 = **57**, next up for batch 7.
+
 ---
 
 ## 3. Later
