@@ -15,6 +15,65 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      "I built you a brand-new HttpParams," says .set(). "I'm still holding the old one," says the signal.
+    </p>
+
+    <p class="bf-say">
+      You call <code>demoParams().set('sort', 'desc')</code> right before rendering the URL.
+      <strong>HttpParams</strong> builds a new object, correctly, with <code>sort=desc</code> inside it. And
+      <strong>demoParams</strong>, the signal on screen, is still holding the exact object it had a moment ago — no
+      <code>sort</code> anywhere.
+    </p>
+
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="HttpParams built the new object exactly right. demoParams never lied about what it's holding. Neither one is broken — so who actually lost sort=desc?"
+      hint="Ask what happened to the RETURN VALUE of .set() on the line that called it — not whether .set() ran correctly."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      Immutable isn't broken — it's a method that returns a new value <strong>instead of</strong> changing the old one,
+      and a return value nobody captures simply evaporates. The bug was never inside <code>.set()</code>. It was in
+      discarding what <code>.set()</code> handed back.
+    </p>
+
+    <app-layers
+      [core]="{
+        label: 'demoParams().set(\'sort\', \'desc\')',
+        sub: 'evaluates completely — a new HttpParams really is built',
+      }"
+      [rings]="[
+        { label: 'the new HttpParams', sub: 'correct: sort=desc — discarded the instant this line ends' },
+        { label: 'demoParams (the signal)', sub: 'never written to — still the OLD object' },
+      ]"
+      arrow="nothing on this line captures the return value"
+      caption="HttpParams did its half correctly and demoParams did its half correctly. The gap is the line itself: a call whose result nothing ever kept."
+    />
+
+    <app-quiz
+      question="Every HttpParams method — .set(), .append(), .delete() — returns a NEW instance and leaves the original untouched. You write `params.set('page', '2');` on its own line, with nothing capturing the result. What happens to params itself?"
+      [options]="paramsBlockQuiz"
+      followUp="The live params demo further down this page is this exact call — click the wrong-way button and watch the URL stay put."
+    />
+
+    <app-napkin lead="the mental model —" label="A photocopier, not a whiteboard eraser">
+      A photocopier makes a corrected copy of a page and hands it to you — it never edits the original sitting in the
+      tray. Walk away without taking the copy, and the original in the tray is exactly what it always was. That's every
+      <code>HttpParams</code> method: a photocopier, never an eraser.
+    </app-napkin>
+  </section>
+
   <!-- === 1. THE PROBLEM === -->
   <app-napkin lead="notice —">
     The four write verbs below all share one shape: <code>(url, body, options?)</code>. GET and DELETE don't — they drop
@@ -36,14 +95,15 @@
     not like an array or object: every method that <em>looks</em> mutating — <code>.set()</code>,
     <code>.append()</code> — actually leaves the original alone and hands you back a brand-new instance instead. Think
     of <code>'abc'.toUpperCase()</code>: it doesn't rewrite <code>'abc'</code>, it returns <code>'ABC'</code> for you to
-    keep. Forget to keep the return value and the change simply never happened — no error, no warning, just silence.
+    keep. Forget to keep the return value and the change simply never happened — no error, no warning, just silence. You
+    just watched this exact argument play out at the top of the page — HttpParams and its own signal, both correct, and
+    a return value that nobody kept.
   </p>
   <app-remember variant="mnemonic" label="If you remember one thing">
     <code>HttpParams</code> methods <strong>return</strong>, they don't <strong>mutate</strong>. If a
     <code>.set()</code> call isn't on the right-hand side of an assignment (or inside a <code>signal.update()</code>),
     it did nothing.
   </app-remember>
-  <app-bubbles [turns]="bridgeTalk" caption="the exact bug the live demo below reproduces on click" />
 
   <!-- === 4. TRY IT — REAL NETWORK CALLS === -->
   <h2>Try it — real network calls</h2>

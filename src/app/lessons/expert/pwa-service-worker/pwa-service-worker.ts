@@ -1,9 +1,10 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, Napkin } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { Faq, Flow, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
@@ -94,6 +95,26 @@ interface SimState {
  * checked in — nobody gets moved mid-stay, only at checkout (a reload). It
  * explains atomicity, hash verification, the one-tab-one-version rule, and
  * why `VERSION_READY` means "built and inspected," not "occupied."
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `whiteboard`: a structural gotcha (two full versions genuinely
+ * exist at once, and only one of them is ever the version a given tab is
+ * actually running) rather than a misconception or a cost. `app-brain-power`
+ * is posed before the figure; `app-whiteboard` draws v1 (lit — the one
+ * actually executing) beside v2 (fully cached and hash-verified, but not
+ * running) with a single dashed door between them, plus three
+ * `app-scribble` call-outs. {@link engineFlow} — the pre-existing "deploy,
+ * from the worker's point of view" Flow — relocates up into the block to
+ * restate the same figure as five numbered steps, rather than sitting
+ * beside a near-duplicate further down; its old section keeps its bullet
+ * list and a short callback instead. The block's own {@link
+ * versionGapQuiz} checks the general "which version is THIS tab running"
+ * case, distinct from the existing {@link quizOptions} (the specific
+ * "what's true right now when VERSION_READY fires" question, kept next to
+ * the live lifecycle simulator). The pre-existing opening predict is folded
+ * into the block's own brain-power instead of being asked twice. See
+ * `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-pwa-service-worker',
@@ -105,9 +126,12 @@ interface SimState {
     CodeLab,
     Faq,
     Flow,
-    Predict,
+    Napkin,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   styleUrl: './pwa-service-worker.css',
   templateUrl: './pwa-service-worker.html',
@@ -266,6 +290,31 @@ export class PwaServiceWorker {
     },
     { label: 'Ready', detail: 'v2 fully cached and verified — not occupied yet', tone: 'good' },
     { label: 'Guests stay put', detail: 'open tabs keep serving v1 until they reload' },
+  ];
+
+  /**
+   * The shape block's own quiz — which version a specific, already-open tab
+   * is actually executing, distinct from {@link quizOptions} (what
+   * VERSION_READY itself guarantees), kept next to the live simulator.
+   */
+  protected readonly versionGapQuiz: QuizOption[] = [
+    {
+      text: 'v2 — a hash-verified version replaces the running one automatically once it is ready.',
+      why: 'Nothing about "ready" forces a switch. The worker never touches a version that a tab is actively executing — that is the entire point of building the new wing off to the side.',
+    },
+    {
+      text: 'v1, still — nothing about VERSION_READY forces an already-open tab to switch on its own.',
+      correct: true,
+      why: "Right. That tab keeps running v1's already-loaded JavaScript no matter how long v2 has been sitting fully cached and verified. Only activateUpdate() plus a reload moves it.",
+    },
+    {
+      text: 'It alternates — the worker serves whichever version answers a given request fastest.',
+      why: "There's no per-request alternation. One tab, one running version, for the entire time that tab stays open.",
+    },
+    {
+      text: 'Neither — the tab goes offline until it reloads.',
+      why: 'The tab keeps working the whole time, fully served from its already-cached v1 files. Nothing about a background download interrupts it.',
+    },
   ];
 
   /** Options for the VERSION_READY self-test. */

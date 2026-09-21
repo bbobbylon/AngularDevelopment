@@ -16,6 +16,56 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">Pick and Omit don't see your union's three arms — they only ever see the ONE key they share.</p>
+
+    <p class="bf-say">
+      <code>Pick</code> and <code>Omit</code> both start the exact same way: they read <code>keyof T</code> before
+      touching anything else. For a plain object that's obvious. For a union, it is <strong>not</strong> the union of
+      every arm's keys — it's the <strong>intersection</strong>, the one field every arm happens to share.
+    </p>
+
+    <app-no-dumb-questions [items]="unionFlattenQuestions" />
+
+    <app-brain-power
+      question="ApiState is Loading | Loaded | Failed, and you write Omit&lt;ApiState, 'id'&gt;. TypeScript accepts it with no red squiggle anywhere. So where did data and message — fields that genuinely exist on two of the three arms — actually go?"
+      hint="Ask what keyof computes for a UNION before Omit ever gets a turn — not what Omit itself does once it starts."
+    />
+
+    <app-layers
+      [core]="{
+        label: 'keyof ApiState → \'status\' | \'id\'',
+        sub: 'the INTERSECTION of all three arms, computed before Omit ever runs',
+      }"
+      [rings]="[
+        { label: 'Loading', sub: 'status, id' },
+        { label: 'Loaded', sub: 'status, id, data' },
+        { label: 'Failed', sub: 'status, id, message' },
+      ]"
+      arrow="only a key present on EVERY ring survives to reach Omit"
+      caption="data belongs to Loaded alone; message belongs to Failed alone. Neither one is common to all three rings, so keyof drops both before Omit ever sees your key list."
+    />
+
+    <app-quiz
+      question="type Shape = { status: 'a'; x: number } | { status: 'b'; y: string }. What does keyof Shape evaluate to?"
+      [options]="keyofUnionBlockQuiz"
+      followUp="The deeper walkthrough further down this page runs this exact mechanism against a real ApiState union, code and all."
+    />
+
+    <app-napkin lead="the mental model —" label="One shared badge, two private toolbags">
+      Two delivery vans share the same depot ID badge, but each carries its own toolbag, packed differently. Ask "what
+      does the FLEET have in common" and the honest answer is just the badge — neither toolbag counts, even though both
+      vans genuinely own one. Ask <code>keyof</code> what a union shares, and you get the shared badge. Never either
+      van's private cargo.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

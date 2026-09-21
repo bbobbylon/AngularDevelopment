@@ -1,9 +1,10 @@
 import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower } from '../../../shared/shapes';
 
 /**
  * One commit in a demo history.
@@ -45,11 +46,12 @@ interface RepoFile {
  *
  * ## Teaching order, and why it is this order
  *
- * 1. **Pose the trap before naming it.** The opening napkin asks the reader to
- *    guess what happens when two people edit the exact same line, and
- *    deliberately withholds the answer until the merge-conflicts section — the
- *    curiosity gap is what makes the mechanical answer, once it finally arrives,
- *    worth remembering.
+ * 1. **Pose the trap before naming it.** The opening shape block stages the
+ *    exact "two people edit the same line" scenario as an argument between
+ *    the two branches and Git itself, and deliberately withholds the
+ *    mechanical answer until the merge-conflicts section further down — the
+ *    curiosity gap is what makes that answer, once it finally arrives, worth
+ *    remembering.
  * 2. **A kitchen analogy before any command name.** "Counter, tray, plated
  *    meal" gives working-directory/staging/history somewhere to attach before
  *    the vocabulary itself shows up — a diagram and a live simulator then say
@@ -66,6 +68,26 @@ interface RepoFile {
  * 5. **Every command sample is annotated line by line**, terminal-transcript
  *    style, via `app-code-lab` — nothing here assumes the reader has ever typed
  *    a Git command before, because the entire audience has not.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `argument`: a tension between three parties who are each
+ * individually correct — HEAD's branch, which genuinely did commit a valid
+ * line; the other branch, which also genuinely did; and Git, which compared
+ * them correctly and found a real, irreconcilable disagreement. {@link
+ * argRoundOne} stages the two branches each declaring their edit correct and
+ * Git explaining why it cannot pick one; `app-brain-power` asks who actually
+ * gets to decide; {@link argRoundTwo} has all three deny fault before "You"
+ * names the real answer — nobody upstream of the person resolving it could
+ * possibly know which sentence is wanted. `app-layers` restates the same
+ * split as a containment figure (one conflicted line, two honest edits), a
+ * quiz checks the general mechanism, and the block closes on `app-napkin`
+ * with a two-editors-one-paragraph analogy. The pre-existing "predict before
+ * reading on" napkin's exact question is folded into the block instead of
+ * being duplicated — its guess IS this block's opening tension, staged as a
+ * dialogue instead of asked and held. The "before Git existed" motivation
+ * section relocates, unchanged, to sit right after the block. See
+ * `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-git-basics',
@@ -75,6 +97,7 @@ interface RepoFile {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
     Compare,
@@ -82,6 +105,7 @@ interface RepoFile {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
   ],
   templateUrl: './git-basics.html',
   styleUrl: './git-basics.css',
@@ -426,10 +450,91 @@ git branch -d login-page`;
     },
   ];
 
+  // ── The shape block — the argument between two branches and Git ────────
+
+  /**
+   * Round one of the shape block's dialogue: both branches declare their edit
+   * correct, and Git explains why it cannot pick one.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'HEAD (main)',
+      says: "I changed line 1 to `Welcome back`. I committed it. That's a correct, complete commit.",
+    },
+    {
+      who: 'login-page',
+      says: 'I changed the exact same line to `Hello again`. Also committed. Also a correct, complete commit.',
+    },
+    {
+      who: 'Git',
+      says: 'I was asked to combine you two into one file. Every other line matches perfectly. Only line 1 disagrees.',
+    },
+    {
+      who: 'HEAD (main)',
+      says: "So take mine — I've been sitting on `main` this whole time.",
+    },
+    {
+      who: 'login-page',
+      says: "Being on `main` isn't a tiebreaker. I finished my edit before anyone even looked.",
+    },
+    {
+      who: 'Git',
+      says: "I don't have a rule for 'main' or 'first'. I compare bytes, and neither commit's bytes are wrong. I stop, right here.",
+    },
+  ];
+
+  /**
+   * Round two: everyone denies fault, and "You" names the piece none of the
+   * other three parties could ever have supplied.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: 'HEAD (main)',
+      says: 'Not my fault. I never even knew a branch called `login-page` existed.',
+    },
+    {
+      who: 'login-page',
+      says: "Not my fault either. I never knew about HEAD's edit — I branched off before it happened.",
+    },
+    {
+      who: 'Git',
+      says: 'Not my fault. I have no opinion about English sentences, only about which bytes changed where — and I did my actual job: I stopped instead of guessing.',
+    },
+    {
+      who: 'You',
+      says: "It's not a fault at all. It's a decision only I can make — keep `Welcome back`, keep `Hello again`, or write the line fresh. Nobody upstream of me could possibly know which one I actually want.",
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — the general mechanism, not the specific
+   * `login.html` example, which the deeper {@link conflictSample} walkthrough
+   * further down the page still owns.
+   */
+  protected readonly mergeBlockQuiz: QuizOption[] = [
+    {
+      text: 'Git keeps whichever commit has the more recent timestamp and discards the other.',
+      why: 'Git never compares timestamps to resolve a conflict. Two commits touching the same line are treated as equally valid — and equally silent about which one you actually want.',
+    },
+    {
+      text: 'Git silently keeps whatever `HEAD` (the branch you have checked out) already says, and throws the incoming branch away.',
+      why: 'That would make merging pointless — nothing from the other branch would ever arrive. Git does the opposite of silently picking a side: it stops and shows you both.',
+    },
+    {
+      text: 'Git detects the overlapping line, halts the merge, and writes BOTH versions into the file for you to resolve by hand.',
+      correct: true,
+      why: 'Exactly what the three-party argument above ends on: nobody upstream of you can know which sentence is wanted, so Git hands you both and waits.',
+    },
+    {
+      text: 'Git refuses to run the merge at all until one of the two branches is deleted.',
+      why: 'The merge does run — right up to the exact line that disagrees. Deleting a branch is never required; resolving the conflicted lines and committing is.',
+    },
+  ];
+
   /**
    * Sample: a real merge conflict, exactly as Git writes it into the file —
-   * the honest, mechanical answer to the napkin question posed at the top of
-   * the page.
+   * the honest, mechanical answer the shape block at the top of the page
+   * argued its way toward.
    */
   protected readonly conflictSample = `<<<<<<< HEAD
 <h1>Welcome back</h1>

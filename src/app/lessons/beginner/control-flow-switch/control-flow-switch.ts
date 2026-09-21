@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 // ── Types used by the live demos ──────────────────────────────────────────────
 
@@ -81,6 +83,24 @@ enum RequestStatus {
  *    `s`: re-asserting `s.kind` as `never` fails to compile once `s` itself has
  *    narrowed to nothing, even though the switch is genuinely exhaustive — see
  *    **Why two `@let`s?** in the questions section.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `no-dumb-questions`: this lesson's traps are almost entirely
+ * misconceptions about a mechanism the reader assumes works like a plain
+ * JavaScript `switch` (coercion, fallthrough, re-evaluating the expression
+ * per case) rather than a structural split or a cost. {@link switchQuestions}
+ * escalates from "does it re-run the expression per case" through the
+ * coercion trap, the silent duplicate-case bug, the enum-on-the-class trap,
+ * and the `@default never;` re-checks-the-expression-not-the-value gotcha,
+ * to where the coercion trap actually costs a real app something.
+ * `app-whiteboard` draws the same "first match wins, top to bottom, nothing
+ * after it is even looked at" idea as a picture instead of prose, with three
+ * `app-scribble` call-outs; the block's own {@link firstMatchBlockQuiz}
+ * checks that general mechanism, distinct from the existing {@link
+ * orderQuizOptions} (the specific `'2'` vs `2` case, kept in place next to
+ * its own live demo) and {@link exhaustivenessQuizOptions} (kept in place
+ * next to the exhaustiveness demo). See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-control-flow-switch',
@@ -98,11 +118,76 @@ enum RequestStatus {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './control-flow-switch.html',
   styleUrl: './control-flow-switch.css',
 })
 export class ControlFlowSwitch {
+  // ── The shape block — misconceptions about how @switch actually works ──
+
+  /**
+   * The block's own escalating Q&A: what the reader assumes `@switch` does
+   * because a plain JavaScript `switch` does it, and what actually happens
+   * instead — coercion, fallthrough, per-case re-evaluation, the enum trap,
+   * and `@default never;`'s exact-expression rule.
+   */
+  protected readonly switchQuestions: NdqItem[] = [
+    {
+      q: '`@switch (status())` — does Angular call `status()` again for every `@case` it checks?',
+      a: 'No — evaluated **exactly once**, the moment the switch runs. Every `@case` below compares against that one snapshot with strict `===`. Nothing re-reads `status()` again, no matter how many cases there are.',
+    },
+    {
+      q: "`status` is holding the string `'1'`. Somewhere in the switch there's a `@case (1)` — the number one. Close enough to match?",
+      a: "No — `===` never coerces. `'1'` is a string, `1` is a number; different type is an automatic mismatch no matter how the two values print on screen. This case is skipped entirely, and the switch keeps checking after it, same as any other failed case.",
+    },
+    {
+      q: "I accidentally wrote two `@case ('loading')` blocks. Does Angular warn me about the duplicate?",
+      a: "Nothing catches it at build time. Cases are checked top to bottom, and the **first** match wins — the second `@case ('loading')` is silently dead code, forever, and nothing in the tooling tells you.",
+    },
+    {
+      q: 'I switched on `RequestStatus.Loading` — a real enum member, correctly imported at the top of the file. Why does the template say it does not exist?',
+      a: 'Because a template can only read members of the **component instance**, never a bare module-level import — no matter how many `@case` blocks reference it. Add `protected readonly RequestStatus = RequestStatus;` to the class, and the exact same `@case` compiles unchanged.',
+    },
+    {
+      q: 'I switched on `s.kind`, which narrows perfectly well on its own. Why does `@default never;` still refuse to compile there?',
+      a: 'Because `@default never;` re-checks the **exact expression** written in the `@switch (...)` parentheses, not the value it originally read from. By the time every case is handled, `s` itself has correctly narrowed to nothing — but nothing has no `.kind` left to re-read. Capture the field on its own first (`@let kind = shape().kind`), switch on that, and there is no further property access left to trip over.',
+    },
+    {
+      q: 'Where does the coercion trap above actually cost a real app something?',
+      a: "Anywhere a status arrives typed loosely — an HTTP response, a raw form value, a third-party enum with different casing than yours. Compare a string `'2'` against a numeric `@case (2)` and you don't get a build error; you get a silently-skipped branch and a UI stuck on `@default`, which reads like a data bug, not the one-character type mismatch it actually is.",
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — the general "first match wins, top to
+   * bottom" mechanism, distinct from {@link orderQuizOptions} (the specific
+   * `'2'` vs `2` case) and {@link exhaustivenessQuizOptions} (`@default
+   * never;`), both kept in place next to their own live demos.
+   */
+  protected readonly firstMatchBlockQuiz: QuizOption[] = [
+    {
+      text: "All five — Angular checks every arm to make sure there's no later duplicate before rendering.",
+      why: 'There is no such safety pass. `@switch` stops the instant it finds a match; a later duplicate is never detected, checked, or warned about.',
+    },
+    {
+      text: 'Exactly two — the one that failed and the one that matched. The remaining three are never evaluated at all.',
+      correct: true,
+      why: 'Right. `@switch` walks the arms top to bottom and stops the search the instant one agrees. Everything after that point — matching or not — is never even looked at on this pass.',
+    },
+    {
+      text: 'Just one — the matching arm is found directly, the way a key look-up in an object would find it.',
+      why: "`@switch` isn't a key look-up. It compares each `@case` in source order with `===`, one at a time, until one agrees — which is exactly why order can decide the outcome when two cases could both match.",
+    },
+    {
+      text: 'It depends on whether a `@default` exists further down in the same switch.',
+      why: 'A `@default` changes what renders when nothing matches earlier — it has no effect on how many arms get checked once an earlier one already has.',
+    },
+  ];
+
   // ── Demo 1: the basic state machine ────────────────────────────────────────
 
   /** The state in the basic `@switch` demo. */

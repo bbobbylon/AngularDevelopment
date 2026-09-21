@@ -15,6 +15,54 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      A component isn't visible just because it exists. A service usually is, whether you meant it or not.
+    </p>
+
+    <p class="bf-say">
+      Two components, <code>UserCard</code> and <code>PriceTag</code>, sit in two feature modules that import the exact
+      same list of other modules. <code>UserCard</code>'s template renders fine. <code>PriceTag</code>'s throws
+      <code>'app-price-tag' is not a known element</code>. Here's every question that fact reliably raises, answered up
+      front.
+    </p>
+
+    <app-no-dumb-questions [items]="scopeQuestions" />
+
+    <app-brain-power
+      question="AuthService lives in SharedModule's providers, NOT its exports. AdminModule imports SharedModule and injects AuthService — and it just works, no error anywhere. UserCard, declared in that SAME SharedModule and also left out of exports, throws the moment AdminModule's template tries to use it. Same module, same 'forgot to export' mistake — so why does one silently work and the other loudly fail?"
+      hint="Ask whether exports has ANY jurisdiction over providers at all — not whether you forgot to add something to a list."
+    />
+
+    <app-layers
+      [core]="{ label: 'SharedModule', sub: 'one metadata object, two completely independent rulebooks' }"
+      [rings]="[
+        { label: 'exports — template scope', sub: 'UserCard left out → invisible to every importer' },
+        { label: 'providers — injector scope', sub: 'AuthService reaches the WHOLE app, regardless of exports' },
+      ]"
+      arrow="exports has zero jurisdiction over providers"
+      caption="Both arrays live on the same @NgModule. Only one of them ever checks the guest list."
+    />
+
+    <app-quiz
+      question="A module's providers array registers AuthService, and its exports array is completely empty. Another module imports it and injects AuthService. What happens?"
+      [options]="scopeBlockQuiz"
+      followUp="Section 3 below walks the same asymmetry through a real @NgModule, array by array."
+    />
+
+    <app-napkin lead="the mental model —" label="A guest list, and a power grid that ignores it">
+      A clubhouse's guest list decides who can walk through the front door into the meeting room — that's a template.
+      The electricity in the walls doesn't check that list at all: every clubhouse on the street draws from the same
+      grid the moment it's wired in, guest list or not — that's a provider. One wall, two completely different rules.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -37,13 +85,6 @@
         >)
       </li>
     </ul>
-
-    <app-napkin lead="quick — before we go further" label="Predict before reading on">
-      Two components, <code>UserCard</code> and <code>PriceTag</code>, sit in two feature modules that import the
-      <em>exact same list</em> of other modules. <code>UserCard</code>'s template renders fine. <code>PriceTag</code>'s
-      throws <code>'app-price-tag' is not a known element</code>. What's the one fact that decides which one works — can
-      you name it before the next section spells it out?
-    </app-napkin>
   </section>
 
   <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->

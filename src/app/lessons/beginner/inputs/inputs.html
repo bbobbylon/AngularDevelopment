@@ -15,6 +15,84 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → scribbles at the code → app-brain-power → one quiz →
+       a closing .bf-big that ends loud. Never: app-bubbles, app-no-dumb-questions, or
+       app-napkin in first position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      A child declares <code>size = input(0)</code> — no transform. The parent writes the plain attribute
+      <code>size="42"</code>, no brackets. Ask the child for <code>size() + 1</code>, and the register doesn't ring up
+      <code>43</code>.
+    </p>
+
+    <app-receipt
+      heading="size() + 1 · what the child actually got"
+      [rows]="coercionBill"
+      [total]="coercionBillTotal"
+      footer="not addition — concatenation, and nothing threw"
+    />
+
+    <app-scribble
+      point="up"
+      quote="'421'"
+      tone="clay"
+      text="Not a typo, not a rounding error — **string concatenation**. `+` glued two strings together character by character, because `size()` was never a number to begin with."
+    />
+
+    <app-compare
+      leftTitle="No transform — reads the raw text"
+      leftTone="bad"
+      rightTitle="transform: numberAttribute — coerces first"
+      rightTone="good"
+      note="Same attribute, same parent markup. Only the transform decides what size() is actually holding."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+size = input(0);
+&lt;app-counter size="42" /&gt;
+size() + 1;   // '421'</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+size = input(0, {{ '{' }} transform: numberAttribute {{ '}' }});
+&lt;app-counter size="42" /&gt;
+size() + 1;   // 43</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">A bound value crosses the template boundary as text — nothing decides otherwise for you.</p>
+
+    <app-chain [steps]="coercionChainSteps" label="How size='42' becomes size()" />
+
+    <app-code-lab
+      file="counter.ts — broken, then fixed"
+      [code]="concatSample"
+      [notes]="concatNotes"
+      notesLabel="Same call, same markup — only the transform changed"
+    />
+
+    <app-brain-power
+      question="Both versions of size are declared the same way, input(0), and Angular never complains about either one — no red squiggle, no console warning, no thrown error. So why does size() + 1 sometimes do real math and sometimes glue two strings together?"
+      hint="Ask what TYPE a bare template attribute is — before anything about input() or transform gets involved at all."
+    />
+
+    <app-quiz
+      question='A child declares `count = input(0)` — no transform. The parent writes the plain HTML attribute `&lt;app-counter count="7" /&gt;` — no square brackets. What does `count() + 1` evaluate to?'
+      [options]="concatBlockQuiz"
+      followUp="The live coercion demo further down this page is the fixed version of this exact call — type a number and watch size + 1 do real math."
+    />
+
+    <p class="bf-big">'42' + 1 is '421'. Not a bug in your math — a bug in what size() was ever holding.</p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

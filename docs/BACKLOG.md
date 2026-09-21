@@ -1214,12 +1214,12 @@ before a session-wide API rate limit killed it, so the recovery work was re-veri
 re-wiring rather than re-authoring — the exact pattern batch 4's recovery established. Four
 lessons across three tracks (`beginner` ×2, `intermediate` ×1, `typescript` ×1):
 
-| Lesson             | Track        | Shape       | The kind of gotcha                                                                                                                                                                          |
-| ------------------- | ------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pipes`             | beginner     | `receipt`   | cost (three separate `\| async` bindings on one cold, HTTP-shaped source read like one value on the page — they're three independent `AsyncPipe` subscriptions, three separate network requests) |
-| `services-di`       | beginner     | `whiteboard`| structure (`CartService` and `CounterService` are injected with identical syntax — `inject()`, same shape — but one's `providedIn: 'root'` converges every consumer on one instance while the other's component-level `providers: [Service]` gives each consumer its own, fully isolated copy) |
-| `async-validators`  | intermediate | `receipt`   | cost (typing "admin" with no debounce fires 5 separate 700ms server round trips, one per keystroke — 4 of them checking a username nobody was ever going to submit)                          |
-| `decorators`        | typescript   | `whiteboard`| structure (`@First()` above `@Second()` on the same method: their *factories* — the plain `()` calls — evaluate top to bottom, but the *decorators* those factories return apply bottom to top, so the same two decorators run in opposite order depending which pass you're asking about) |
+| Lesson             | Track        | Shape        | The kind of gotcha                                                                                                                                                                                                                                                                             |
+| ------------------ | ------------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pipes`            | beginner     | `receipt`    | cost (three separate `\| async` bindings on one cold, HTTP-shaped source read like one value on the page — they're three independent `AsyncPipe` subscriptions, three separate network requests)                                                                                               |
+| `services-di`      | beginner     | `whiteboard` | structure (`CartService` and `CounterService` are injected with identical syntax — `inject()`, same shape — but one's `providedIn: 'root'` converges every consumer on one instance while the other's component-level `providers: [Service]` gives each consumer its own, fully isolated copy) |
+| `async-validators` | intermediate | `receipt`    | cost (typing "admin" with no debounce fires 5 separate 700ms server round trips, one per keystroke — 4 of them checking a username nobody was ever going to submit)                                                                                                                            |
+| `decorators`       | typescript   | `whiteboard` | structure (`@First()` above `@Second()` on the same method: their _factories_ — the plain `()` calls — evaluate top to bottom, but the _decorators_ those factories return apply bottom to top, so the same two decorators run in opposite order depending which pass you're asking about)     |
 
 **Recovery specifics.** Three of the four lessons (`pipes`, `services-di`, `decorators`) already
 had their `curriculum.ts` `shape:` field set when the crash was discovered; `async-validators`
@@ -1228,7 +1228,7 @@ did not, even though its HTML/TS content was fully written and its data bindings
 in the `.ts` file — all present). Added the missing `shape: 'receipt'` entry rather than
 re-authoring anything. Also investigated an apparent red flag before trusting the file: the new
 "THE SHAPE — The Receipt" opening block sits at the top of `async-validators.html`, but a much
-later, pre-existing section is *also* literally titled "3. THE SHAPE" — a coincidental naming
+later, pre-existing section is _also_ literally titled "3. THE SHAPE" — a coincidental naming
 collision (that older section describes an `AsyncValidatorFn`'s TypeScript contract, unrelated to
 the CONTRIBUTING §2C page-opening convention) rather than a duplicated or half-finished edit,
 confirmed by comparing against `pipes.html`'s identical old-numbered-sections-continue-after-the-
@@ -1243,6 +1243,96 @@ crash hit — then re-verified clean across the full repo), `npm run typecheck`,
 test:ci` — every test file and test passing, no timeouts.
 
 Declared-shape count: 42 → 46. Remaining undeclared: 103 − 46 = **57**, next up for batch 7.
+
+**Batch 7 of step 5, landed 2026-09-21.** `audit-variety.mjs`'s warning list was empty going
+in (the worst-offender queue has been fully worked down since batch 3), so every lesson here
+was chosen by reading its actual content and asking which of the four shapes its real gotcha
+is — never from a ranked list, and never to force a round number. `argument` and
+`no-dumb-questions` were three behind `receipt`/`whiteboard` at the start of the session
+(10/10 vs. 13/13), so the search deliberately leaned toward those two shapes first, but two
+lessons (`dom-and-events`, `pwa-service-worker`) still landed on `whiteboard` and one
+(`inputs`) on `receipt` because that was the shape their actual gotcha earned — evenness lost
+to fit exactly as it should. Eight lessons across five tracks (`foundations` ×2, `typescript`
+×1, `beginner` ×2, `intermediate` ×1, `expert` ×2):
+
+| Lesson                | Track        | Shape               | The kind of gotcha                                                                                                                                                                              |
+| --------------------- | ------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dom-and-events`      | foundations  | `whiteboard`        | structure (one click on the innermost of three nested boxes fires six listeners — three walking down through capture, three walking back up through bubble — never at the same instant)         |
+| `git-basics`          | foundations  | `argument`          | tension (HEAD's branch really did commit a correct line; the other branch really did too; Git compared them correctly and found a real, irreconcilable disagreement — nobody made a mistake)    |
+| `ts-utility-types`    | typescript   | `no-dumb-questions` | misconception (`Pick`/`Omit` read `keyof T` as the INTERSECTION of a union's arms, computed before either utility runs — so `Omit<ApiState, 'id'>` silently flattens three variants into one)   |
+| `control-flow-switch` | beginner     | `no-dumb-questions` | misconception (a reader assumes `@switch` behaves like a plain JS `switch` — coercion, fallthrough, per-case re-evaluation — and every one of those assumptions is wrong)                       |
+| `inputs`              | beginner     | `receipt`           | cost (`size = input(0)` with no transform, a bare `size="42"` attribute, and `size() + 1` doesn't ring up `43` — it rings up `'421'`, string concatenation nobody asked for)                    |
+| `http-crud`           | intermediate | `argument`          | tension (`HttpParams` genuinely builds a correct new object every `.set()` call; the signal genuinely was never written to — the return value nobody captured is the only thing at fault)       |
+| `pwa-service-worker`  | expert       | `whiteboard`        | structure (two full app versions exist at once — v1 running, v2 fully cached and hash-verified — and only a reload ever moves a specific tab from one to the other)                             |
+| `ngmodules-migration` | expert       | `no-dumb-questions` | misconception (`exports` governs template scope and stops there; `providers` ignores it completely — the same "forgot to export" mistake throws for a component and does nothing for a service) |
+
+Five of the eight relocated a pre-existing device instead of duplicating it, continuing
+batches 3–6's discipline. `dom-and-events`' new whiteboard figure ties directly into its own
+untouched `app-layers` ring diagram and live capture/bubble toggle further down — genuinely
+different modes on the same mechanism, not a repeat — and its stale "old version of this
+lesson only told half of it" transition line was reworded to point at the new block instead.
+`git-basics` folded its top-of-page "predict before reading on" napkin's exact merge-conflict
+guess into the new argument block (the guess IS the block's opening tension now, staged as a
+dialogue instead of asked and held), and reworded the merge-conflicts section's stale "remember
+the napkin from the top" callback to reference the argument instead. `control-flow-switch`
+folded its own "hang on — predict before reading on" napkin (the `'1'` vs `1` coercion guess)
+into the block's own Q&A rather than asking the identical question twice with two different
+numbers. `pwa-service-worker` moved its pre-existing `engineFlow` five-step `app-flow` — "a
+deploy, from the worker's point of view" — up into the block as the shape's own required Flow
+device, leaving a one-line callback in its old section instead of a near-duplicate; its
+opening `app-predict` (the "does a 9am tab get a 2pm fix" question) was folded into the new
+block's own `app-brain-power` and answer paragraph rather than sitting unresolved right above
+an already-resolved question. `ngmodules-migration` deliberately did **not** cannibalize its
+existing six-scenario interactive "click a chip, predict, then reveal" picker — that stayed
+exactly where it was, since a click-to-explore device and an open Q&A list are different enough
+modes to both earn a place on the same page — and instead wrote a fresh Q&A pulling the same
+misconceptions through a different lens (the exact NG6007/NG6008 error codes, the "why does one
+silently work and the other loudly fail" framing the interactive picker doesn't ask).
+`http-crud`'s block fully **replaced** rather than relocated its old two-party `bridgeTalk`
+dialogue between "You" and `HttpParams`: the new three-party version (`HttpParams`, the
+`demoParams` signal, and "You") argues the identical `.set()`-return-value bug more precisely,
+so the old field and its single usage were deleted outright instead of sitting beside a
+near-duplicate.
+
+Two real build-breaking bugs surfaced during verification, both caught and fixed before
+committing, not waved off. First, a literal `@switch`/`@case`/`@default` typed directly into
+element content — once in a `.bf-big` paragraph, four more times inside a whiteboard SVG's
+`<text>` labels — is not inert text to Angular's template compiler; it tried to parse each one
+as the start of a real control-flow block and `prettier --check` refused to even format the
+file (`SyntaxError: Incomplete block "case"`). All five were escaped as `&#64;case`/`&#64;switch`/
+`&#64;default`, the same way the rest of this codebase already writes an `@`-prefixed block
+name inside prose. Second, `pwa-service-worker`'s new block added an `<app-napkin>` to the
+template without adding `Napkin` to the component's `imports` array — the page had never used
+a napkin before this batch, so nothing existing would have caught it — and `npx ng build`
+correctly refused with `NG8001: 'app-napkin' is not a known element`. This is exactly the
+`Napkin`-left-out class of bug batch 5's `NG8113` postmortem flagged, mirrored: there it was an
+import left in after its last usage was deleted, here it is a usage added without its import.
+Both confirm the same lesson from opposite directions — checking the build's actual output,
+not just its exit code, is what catches either direction.
+
+`scripts/audit-variety.mjs` is green (54 declared shapes: `argument` 12, `no-dumb-questions`
+13, `whiteboard` 15, `receipt` 14 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check` (after
+`prettier --write` on the sixteen touched HTML/TS files, plus this doc), `npm run typecheck`,
+and `npx ng build` (0 warnings, confirmed by grepping the build log for "WARNING" rather than
+trusting the exit code alone) are all green.
+
+**One thing worth flagging honestly.** `npm run test:ci`'s full run (1157s) showed 6
+failures out of 593 tests — but every single one is a bare `Test timed out in 20000ms`, with
+zero content or assertion errors anywhere in the log (confirmed by grepping for
+`expect(`/`AssertionError`/`TypeError`/`ReferenceError` and finding nothing). The six —
+`testing-components`, `testing-services-http`, `libraries-schematics`, `task-manager`,
+`auth-flow`, `data-dashboard` — are **not** among this batch's eight touched lessons, and
+four of the six (`testing-components`, `testing-services-http`, `task-manager`, `auth-flow`)
+are the exact sandbox-contention set batch 4's postmortem first flagged and batches since
+have kept seeing; `libraries-schematics` timed out under the same contention in batch 4 too.
+`data-dashboard` timing out is new to this specific list, but it is the same failure mode
+(a 20s mount timeout, nothing asserted wrong) on another untouched lesson, not a different
+kind of problem. Consistent with the standing guidance: a timeout-only failure with no
+content error, on a lesson this batch didn't touch, is this sandbox's known pattern, not a
+regression to chase.
+
+Declared-shape count: 46 → 54. Remaining undeclared: 103 − 54 = **49**, next up for batch 8.
 
 ---
 

@@ -18,6 +18,80 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">&#64;switch looks exactly like the JavaScript switch you already know. It isn't one.</p>
+
+    <p class="bf-say">
+      No <code>break</code>, no fall-through, no coercion — and a handful of rules that only show up once you go looking
+      for them. Here's every question this page reliably gets asked, answered up front.
+    </p>
+
+    <app-no-dumb-questions [items]="switchQuestions" />
+
+    <app-brain-power
+      question="Four @case arms sit in a row. The second one matches. How many of the four does Angular actually evaluate before it stops?"
+      hint="Ask what happens the INSTANT a match is found — not what happens before it."
+    />
+
+    <app-whiteboard
+      caption="First match wins, top to bottom — everything after it is never even looked at."
+      alt="A vertical list of four case arms in source order. The first, case string quote one unquote, is marked skipped, type mismatch. The second, case number one, is highlighted as the match: build this one. The third and fourth arms, case idle and default, are marked never evaluated: the search already stopped."
+    >
+      <svg class="wb-svg" viewBox="0 0 620 340" aria-hidden="true" focusable="false">
+        <rect x="160" y="10" width="300" height="56" rx="10" class="wb-node" />
+        <text x="310" y="34" text-anchor="middle" class="wb-mono wb-text--sm">&#64;case ('1')</text>
+        <text x="310" y="52" text-anchor="middle" class="wb-text--sm">string — type mismatch, skip</text>
+
+        <rect x="160" y="90" width="300" height="56" rx="10" class="wb-node wb-node--lit" />
+        <text x="310" y="114" text-anchor="middle" class="wb-mono wb-text--sm">&#64;case (1)</text>
+        <text x="310" y="132" text-anchor="middle" class="wb-text--sm">number — MATCH, build this one</text>
+
+        <rect x="160" y="170" width="300" height="56" rx="10" class="wb-node" opacity="0.45" />
+        <text x="310" y="194" text-anchor="middle" class="wb-mono wb-text--sm">&#64;case ('idle')</text>
+        <text x="310" y="212" text-anchor="middle" class="wb-text--sm">never evaluated</text>
+
+        <rect x="160" y="250" width="300" height="56" rx="10" class="wb-node" opacity="0.45" />
+        <text x="310" y="274" text-anchor="middle" class="wb-mono wb-text--sm">&#64;default</text>
+        <text x="310" y="292" text-anchor="middle" class="wb-text--sm">never evaluated either</text>
+      </svg>
+
+      <app-scribble
+        quote="type mismatch, skip"
+        tone="clay"
+        text="Not close enough — `===` fails on **type** before it even looks at value. A string case can never match a number switch, no matter what it prints as."
+      />
+      <app-scribble
+        quote="MATCH, build this one"
+        tone="olive"
+        text="The **first** arm that agrees on both type and value, checked top to bottom. Everything below this line stops mattering the instant this one hits."
+      />
+      <app-scribble
+        quote="never evaluated"
+        point="up"
+        tone="accent"
+        text="Not skipped — never even **looked at**. A duplicate `@case ('idle')` sitting down here would be dead code forever, and nothing warns you."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="A @switch has five @case arms. The second one matches. How many of the five are actually evaluated?"
+      [options]="firstMatchBlockQuiz"
+      followUp="The live demo further down this page runs this exact 'idle vs loading vs the rest' search — watch the order for yourself."
+    />
+
+    <app-napkin lead="the mental model —" label="A sign-in sheet, checked top to bottom">
+      A receptionist checks a visitor list from the top, looking for an exact match on name AND badge number. The first
+      row that agrees on both stops the search completely — even if a later row also would have matched. Everyone below
+      that row is never looked at, whether they'd have matched or not.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -41,13 +115,6 @@
       <code>&#64;switch</code> is Angular's answer to that specific shape — one value, several exact possibilities. You
       write the value once and list the values it might equal.
     </p>
-
-    <app-napkin lead="hang on —" label="Predict before reading on">
-      Here is the question the rest of this page turns on. <code>status</code> is holding the <em>string</em>
-      <code>'1'</code>. Somewhere in a switch there is a <code>&#64;case (1)</code> — the <em>number</em> one. Does that
-      case match? Hold your answer — there is a live version further down that will settle it either way, and the reason
-      behind whichever answer you gave is worth understanding before you read on.
-    </app-napkin>
   </section>
 
   <!-- ============ 2. ANALOGY BEFORE VOCABULARY ============ -->
@@ -129,7 +196,7 @@
       [code]="basicSwitchSample"
       [notes]="basicSwitchNotes"
       notesLabel="Line by line"
-      prompt="Back to the napkin at the top — is `status()` holding the string `'1'` ever going to match a `@case (1)` block?"
+      prompt="Back to the block at the top of the page — is `status()` holding the string `'1'` ever going to match a `@case (1)` block?"
       output="No — never. `@switch` compares with strict `===`: same type AND same value. The number `1` and the string `'1'` fail the type half immediately, no matter how many times you check. This is the single most common reason a switch renders nothing when you're sure it should match — see **Number vs string cases** in the pitfalls table further down."
       revealLabel="Reveal the answer"
     />

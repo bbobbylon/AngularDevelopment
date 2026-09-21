@@ -17,6 +17,61 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">"Welcome back," says your branch. "Hello again," says theirs. Both committed. Both are right.</p>
+
+    <p class="bf-say">
+      You and a teammate each branched off the same file and, without talking first, both rewrote line 1 of
+      <code>login.html</code>. <strong>Your branch</strong> (<code>HEAD</code>) says <code>Welcome back</code>.
+      <strong>Their branch</strong> (<code>login-page</code>) says <code>Hello again</code>. And <strong>Git</strong>,
+      asked to combine the two into one file, has to decide which sentence survives.
+    </p>
+
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="HEAD's edit was genuinely correct. login-page's edit was genuinely correct. Git compared the two correctly and found a real disagreement. Nobody made a mistake — so who actually decides which sentence survives?"
+      hint="Ask which of the three parties has ever read English — knows what the line is SUPPOSED to say, not just what bytes changed."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      A merge conflict is not Git failing — it is Git correctly refusing to guess. Two honest commits touched the exact
+      same line, and there is no byte-level rule for which English sentence a human being actually wants. So Git does
+      the only correct thing: it stops, writes both versions into the file for you to see, and hands the decision to the
+      one party who can actually read them.
+    </p>
+
+    <app-layers
+      [core]="{ label: 'login.html, line 1', sub: 'the exact same line, two honest edits' }"
+      [rings]="[
+        { label: 'HEAD — main', sub: 'commit: Welcome back' },
+        { label: 'login-page', sub: 'commit: Hello again' },
+      ]"
+      arrow="git compares byte-for-byte — it has no rule for which ENGLISH sentence you want"
+      caption="Both commits are individually valid. Git has no way to rank 'Welcome back' against 'Hello again' — only a human reading the file can."
+    />
+
+    <app-quiz
+      question="Two branches change the exact same line of the exact same file, each in a syntactically valid way. What does `git merge` actually do?"
+      [options]="mergeBlockQuiz"
+      followUp="The 'famous scary thing' section further down this page shows exactly what that looks like inside a real file, marker lines and all."
+    />
+
+    <app-napkin lead="the mental model —" label="Two editors, one paragraph">
+      Two editors hand back the same paragraph, each with a different, equally correct rewrite. A word processor's
+      "combine changes" feature doesn't have an opinion about English — it staples both rewrites into the file, side by
+      side, and leaves the actual judgment call to the one person who knows what the paragraph is supposed to say: you.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -51,13 +106,6 @@
         </p>
       </div>
     </app-compare>
-
-    <app-napkin lead="quick guess —" label="Predict before reading on">
-      You and a teammate both edit the exact same line of the exact same file, on your own separate copies, without
-      talking to each other first. Later, you try to combine your work into one file. What do you think actually happens
-      — does Git pick one version automatically, silently keep both, or something else entirely? Hold your guess; the
-      "famous scary thing" section further down has the real, mechanical answer.
-    </app-napkin>
   </section>
 
   <!-- ============ 2. THE MENTAL MODEL ============ -->
@@ -360,9 +408,10 @@
     <h2>A merge conflict is a question, not an error.</h2>
 
     <p>
-      Remember the napkin from the top of this page? Here's the honest, mechanical answer: Git does not guess. If both
-      branches changed the exact same lines, it stops the merge and edits the file itself to show you
-      <em>both</em> versions, side by side, right inside the file.
+      Remember the argument at the top of this page — HEAD, login-page and Git, all insisting they weren't wrong? Here
+      is exactly what that disagreement looks like inside a real file. Git does not guess. If both branches changed the
+      exact same lines, it stops the merge and edits the file itself to show you <em>both</em> versions, side by side,
+      right inside the file.
     </p>
 
     <app-code-lab

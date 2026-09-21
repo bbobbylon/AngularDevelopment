@@ -11,6 +11,7 @@ import {
   type ChapterStop,
   CodeLab,
   type CodeNote,
+  Layers,
   Napkin,
 } from '../../../shared/brain';
 import {
@@ -24,6 +25,7 @@ import {
   type QuizOption,
   Remember,
 } from '../../../shared/teaching';
+import { BrainPower } from '../../../shared/shapes';
 
 /**
  * A post from the demo API. `id` is optional because a POST body does not carry
@@ -43,6 +45,25 @@ const API = 'https://jsonplaceholder.typicode.com/posts';
  * options (params/headers/observe/responseType), a live demo that makes REAL
  * network calls against jsonplaceholder, and a second live demo that proves
  * HttpParams' immutability gotcha using nothing but a signal.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `argument`: a tension between three parties who are each
+ * individually correct — `HttpParams`, which genuinely does build a new,
+ * correct object every time `.set()` is called; the `demoParams` signal,
+ * which genuinely was never written to; and You, who called `.set()` and let
+ * its return value evaporate. {@link argRoundOne} stages `HttpParams`
+ * insisting it built the new object and `demoParams` insisting nobody wrote
+ * to it; `app-brain-power` asks who actually lost `sort=desc`; {@link
+ * argRoundTwo} has both objects deny fault before "You" names the real
+ * culprit — a return value nobody captured. `app-layers` restates the same
+ * split as a containment figure (the new object built, then discarded, right
+ * next to the untouched signal); the block's own {@link paramsBlockQuiz}
+ * checks the general "call a method, capture nothing" case. This block
+ * replaces the page's old two-party `bridgeTalk` dialogue between "You" and
+ * `HttpParams`, which argued the identical bug — the block's three-party
+ * version supersedes it rather than sitting beside a near-duplicate. See
+ * `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-http-crud',
@@ -53,6 +74,7 @@ const API = 'https://jsonplaceholder.typicode.com/posts';
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     Compare,
     Faq,
@@ -60,6 +82,7 @@ const API = 'https://jsonplaceholder.typicode.com/posts';
     Predict,
     Quiz,
     Remember,
+    BrainPower,
   ],
   styleUrl: './http-crud.css',
   templateUrl: './http-crud.html',
@@ -377,28 +400,80 @@ http.get(url, { observe: 'response', responseType: 'text' });`;
     { label: 'httpResource()', id: 'http-resource' },
   ];
 
+  // ── The shape block — the argument between HttpParams and its own signal ──
+
   /**
-   * Bridge dialogue: why the "wrong way" button in the params demo does
-   * nothing, tied to the same immutability rule as a JS string.
+   * Round one of the shape block's dialogue: `HttpParams` insists it built
+   * the new object correctly; `demoParams` insists nobody ever wrote to it.
    */
-  readonly bridgeTalk: BubbleTurn[] = [
+  readonly argRoundOne: BubbleTurn[] = [
     {
       who: 'You',
-      says: "I called `demoParams().set('sort', 'desc')` right before rendering. Why didn't the URL change?",
+      says: "I called `demoParams().set('sort', 'desc')` right before rendering. The URL should show sort=desc now.",
     },
     {
       who: 'HttpParams',
-      says: "I didn't change. `.set()` never mutates me — it always hands back a *new* `HttpParams` and leaves the original exactly as it was.",
+      says: 'I did my job. I built a brand-new `HttpParams` with `sort=desc` inside it — correctly, completely.',
     },
-    { who: 'You', says: 'So the new one I just built… vanished?' },
+    {
+      who: 'demoParams',
+      says: "I'm still holding the exact object I had a moment ago. Nobody has ever told me to hold anything else.",
+    },
+    { who: 'You', says: 'But HttpParams just said it built the new one!' },
     {
       who: 'HttpParams',
-      says: "Since nothing captured it, yes. Same rule as a string — `'abc'.toUpperCase()` doesn't touch `'abc'`, it hands you back `'ABC'` to keep.",
+      says: 'I did build it. I only ever hand back what I build — I never claimed anyone would keep it.',
     },
-    { who: 'You', says: 'So I need to write the result back somewhere.' },
+    {
+      who: 'demoParams',
+      says: "And I never claimed anything either. Nobody wrote to me, so there's nothing new for me to be holding.",
+    },
+  ];
+
+  /**
+   * Round two: both objects deny fault before "You" names the piece neither
+   * of them could ever have supplied.
+   */
+  readonly argRoundTwo: BubbleTurn[] = [
     {
       who: 'HttpParams',
-      says: "Exactly — `signal.update(p => p.set(...))` takes whatever I return and stores it. That's the entire fix.",
+      says: "Not me. `.set()` is what immutable MEANS — I return, I never mutate. That's the entire contract.",
+    },
+    {
+      who: 'demoParams',
+      says: "Not me either. I can't lose a value that was never handed to me in the first place.",
+    },
+    {
+      who: 'HttpParams',
+      says: "Really, not me. Call `.set()` a hundred times and discard the result every time — I'll build a hundred correct objects you never keep.",
+    },
+    {
+      who: 'You',
+      says: "It's mine. I called `.set()` and let its return value evaporate. The fix isn't blaming an object in this chain — it's writing the result back: `demoParams.update(p => p.set('sort', 'desc'))`.",
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — the general "call an immutable method,
+   * capture nothing" case, not this page's specific `sort` param.
+   */
+  readonly paramsBlockQuiz: QuizOption[] = [
+    {
+      text: '`params` now includes `page=2` — `.set()` modifies the object in place.',
+      why: '`HttpParams` methods never mutate. `.set()` always builds and returns a brand-new instance, leaving the one it was called on completely untouched.',
+    },
+    {
+      text: 'params is completely unchanged — the new instance with page=2 was built and immediately discarded.',
+      correct: true,
+      why: 'Exactly the argument above: `HttpParams` did its job correctly, and `params` never lied about what it holds. The new object simply had nowhere to land.',
+    },
+    {
+      text: "A runtime error — you can't call `.set()` without assigning its result somewhere.",
+      why: 'It runs cleanly and produces a perfectly valid `HttpParams` object. Nothing about the call itself requires you to keep what it returns — which is exactly why the mistake is silent.',
+    },
+    {
+      text: 'params becomes `undefined`, since `.set()` consumes the object it was called on.',
+      why: '`.set()` reads from `params` to build the new copy; it never empties or invalidates the original. `params` keeps whatever it already had.',
     },
   ];
 

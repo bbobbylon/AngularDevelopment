@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
@@ -53,6 +54,25 @@ interface BubbleHit {
  *    `focusin`/`focusout` do. A small live demo makes the gap failure visible
  *    rather than asserted, right after the delegation paragraph that depends
  *    on bubbling working.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `whiteboard`: a structural gotcha (one click visits every ancestor
+ * TWICE, in two disciplined legs, never once) rather than a misconception or
+ * a cost. `app-brain-power` is posed before the figure — "six listeners
+ * exist, how many fire?" — then `app-whiteboard` draws the same three nested
+ * boxes the live demo further down uses (outer/middle/inner), a solid arrow
+ * numbered 1-2-3 walking down through capture, a dashed arrow numbered 4-5-6
+ * walking back up through bubble, with three `app-scribble` call-outs.
+ * {@link propagationFlow} restates it as five numbered steps; the block's own
+ * {@link propagationBlockQuiz} checks the full six-listener picture, distinct
+ * from the existing {@link orderQuizOptions} (kept in place further down,
+ * which only ever tested the capture-off default and is tied directly to the
+ * interactive toggle demo). The pre-existing "DOM vs. file" problem section
+ * and its predict-before-reading napkin relocate down to their own section
+ * right after the block, unchanged, since that is a different — and still
+ * worth keeping — opening question, not the block's gotcha. See
+ * `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-dom-and-events',
@@ -72,6 +92,9 @@ interface BubbleHit {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './dom-and-events.html',
   styleUrl: './dom-and-events.css',
@@ -369,6 +392,64 @@ input.setAttribute('value', 'x');  // only THIS line touches the attribute`;
    * keystroke, with no signal or state needed at all.
    */
   protected noop(): void {}
+
+  // ── The shape block — one click, six listeners, two legs ───────────────
+
+  /**
+   * The opening block's own figure restated as five numbered steps — the
+   * same capture-then-bubble journey the {@link Whiteboard} figure draws,
+   * in words instead of arrows.
+   */
+  protected readonly propagationFlow: FlowStep[] = [
+    {
+      label: '1–2. Capture reaches outer, then middle',
+      detail: 'walking IN, toward the target — the leg almost nothing listens on',
+      tone: 'accent',
+    },
+    {
+      label: '3. Capture arrives at inner',
+      detail: 'the last stop on the way in — the target itself',
+    },
+    {
+      label: 'AT inner — the target',
+      detail: 'both phases can fire here, in the order they were registered',
+    },
+    {
+      label: '4–5. Bubble leaves inner, passes middle',
+      detail: 'walking back OUT, the exact same two boxes, in reverse',
+      tone: 'warn',
+    },
+    {
+      label: '6. Bubble reaches outer',
+      detail: 'the journey ends where capture began — one event, six calls, never at once',
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — checks the WHOLE six-listener picture
+   * (both legs, both directions), distinct from {@link orderQuizOptions}
+   * further down, which only ever tested the capture-off default and is
+   * tied directly to the interactive toggle demo beside it.
+   */
+  protected readonly propagationBlockQuiz: QuizOption[] = [
+    {
+      text: 'Only the three bubble-phase listeners fire — a capture-phase listener only runs if nothing else is registered.',
+      why: 'Capture-phase listeners are not a fallback. They run on every dispatch that reaches them, on their own leg, regardless of what else is registered anywhere else on the tree.',
+    },
+    {
+      text: 'All six fire: capture walks outer → middle → inner, then bubble walks inner → middle → outer.',
+      correct: true,
+      why: 'Exactly the two legs the figure draws. One event object, six separate calls, strictly sequenced — never both legs at once, and never out of this order.',
+    },
+    {
+      text: 'All six fire, but the browser is free to pick either leg first.',
+      why: "There's no freedom here — capture is defined to run inward before the target, bubble outward after. Nothing about dispatch order is left to the browser's discretion.",
+    },
+    {
+      text: 'Only three fire — registering a bubble listener on a box after its capture listener overwrites the earlier one.',
+      why: 'addEventListener never overwrites a differently-configured listener on the same element — capture and bubble are registered separately, and both stick. Nothing here gets silently replaced.',
+    },
+  ];
 
   // ── Bubbling and capture ────────────────────────────────────────────────
 

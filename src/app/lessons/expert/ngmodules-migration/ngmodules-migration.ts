@@ -1,9 +1,11 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * One "is this in scope?" scenario: the question, the answer, and why.
@@ -93,6 +95,25 @@ const SCENARIOS: ScopeScenario[] = [
  * @see beginner/ngmodules — the introductory `@NgModule` anatomy this lesson assumes.
  * @see intermediate/http-interceptors — the functional-interceptor API the migration trap here revolves around.
  * @see expert/libraries-schematics — building and migrating a library, the next step after an app.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `no-dumb-questions`: this lesson's traps are almost entirely
+ * misconceptions about which of the four `@NgModule` arrays governs a given
+ * question — never a cost, and the structural split (template scope vs.
+ * injector scope) is itself explained as a doubt a learner would voice, not
+ * as a diagram-first mechanism. {@link scopeQuestions} escalates from the
+ * "declared there, no export" error (the single most filed NgModule mistake)
+ * through the providers-ignore-exports asymmetry, NG6007 (declared in two
+ * modules), NG6008 (a standalone component declared instead of imported),
+ * to the migration's one genuinely silent failure — a re-exported directive
+ * a deleted module used to carry. `app-layers` restates the template-scope
+ * vs. injector-scope split as a containment figure; the block's own {@link
+ * scopeBlockQuiz} checks the general providers-ignore-exports mechanism
+ * directly. This is deliberately a FRESH Q&A, not a rewrite of the
+ * pre-existing {@link SCENARIOS} interactive picker further down the page
+ * (click a scenario, predict, then reveal) — genuinely different modes on
+ * the same material, kept both. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-ngmodules-migration',
@@ -108,11 +129,76 @@ const SCENARIOS: ScopeScenario[] = [
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Layers,
+    NoDumbQuestions,
   ],
   styleUrl: './ngmodules-migration.css',
   templateUrl: './ngmodules-migration.html',
 })
 export class NgmodulesMigration {
+  // ── The shape block — misconceptions about which array governs what ────
+
+  /**
+   * The block's own escalating Q&A: the "declared there, no export" error,
+   * the providers-ignore-exports asymmetry, NG6007, NG6008, and the
+   * migration's one genuinely silent failure.
+   */
+  protected readonly scopeQuestions: NdqItem[] = [
+    {
+      q: "I declared UserCard in SharedModule but never added it to exports. AdminModule imports SharedModule and uses <app-user-card> in a template. I DID declare it somewhere — why does Angular say it's not a known element?",
+      a: 'Because declarations are private by default. Declaring a component only makes it visible **inside** the module that declared it — importing a module gives you only its `exports`, nothing from its private declarations list. This exact error is the single most common `NgModule` mistake there is.',
+    },
+    {
+      q: "So if I add UserCard to SharedModule's exports too, does that fix it?",
+      a: "Yes — `exports` is a module's public template API. Add `UserCard` there and `AdminModule`'s import now genuinely reaches it. Declared-and-exported is the entire shared-UI pattern.",
+    },
+    {
+      q: "AuthService lives in SharedModule's `providers` array, and it is NOT in `exports`. AdminModule imports SharedModule and injects AuthService anyway — that should fail the exact same way UserCard did, right?",
+      a: "No — and this is the trap that confused everyone for a decade. `exports` only governs **template** scope: components, directives, pipes. `providers` ignores it completely. An eagerly-loaded module's providers merge straight into the app-wide injector the instant the module loads, exported or not.",
+    },
+    {
+      q: 'UserCard got added to the `declarations` array of BOTH FeatureAModule and FeatureBModule by accident. What happens?',
+      a: "A build error — `NG6007`. A declarable can belong to exactly **one** module's declarations, ever. The old fix was declaring it once in a shared module and importing that everywhere; today it usually means making the component standalone instead.",
+    },
+    {
+      q: "I'm migrating StatCard to standalone. LegacyModule still needs to use it — do I put StatCard in LegacyModule's declarations, the way I would for one of its own components?",
+      a: "No — that throws `NG6008`. A standalone component is never **declared**, only **imported**, exactly like you'd import another `NgModule`'s exports. Put it in `LegacyModule`'s `imports` array instead. This interop is what makes migrating a codebase one file at a time possible at all.",
+    },
+    {
+      q: 'My migration removed FeatureModule, and its templates went blank — no error anywhere, nothing in the console. What actually happened?',
+      a: "FeatureModule was probably re-exporting a directive it never declared itself — `CommonModule`'s `NgIf`, say, or a shared UI module's component — and a standalone component needs its **own** `imports` array naming every dependency directly. Deleting the module that used to carry that re-export silently drops it; nothing throws, because \"this template just doesn't use that directive\" is a perfectly valid state too.",
+    },
+    {
+      q: 'Is there a rule for telling apart which of these mistakes actually throws versus which one fails silently?',
+      a: 'Template scope throws — an unknown element or a missing directive is caught immediately and loudly, at build or at runtime. The providers asymmetry and a lost re-export never throw at all; both just quietly behave differently than you expected. That gap — loud failures for templates, silent ones for everything providers touch — is exactly why this page keeps coming back to it.',
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — the general providers-ignore-exports
+   * mechanism, checked directly rather than through one specific scenario.
+   */
+  protected readonly scopeBlockQuiz: QuizOption[] = [
+    {
+      text: 'It throws — nothing was exported, so AuthService should be invisible outside the module.',
+      why: "That's the template-scope rule, and providers don't follow it. `exports` has no jurisdiction over the injector at all.",
+    },
+    {
+      text: 'It works — providers merges into the app-wide injector the moment the module loads, completely independent of exports.',
+      correct: true,
+      why: "Right. An eagerly-loaded module's `providers` reach the entire app's injector regardless of what — or whether anything — that module exports.",
+    },
+    {
+      text: 'It works, but only from inside the exact same module that declared the service.',
+      why: 'Providers are not scoped to their declaring module at all once loaded eagerly — that would make dependency injection nearly useless across a real app. Any consumer with access to the injector can request the service.',
+    },
+    {
+      text: 'It depends on whether the module is imported eagerly or lazy-loaded — eager works, lazy throws.',
+      why: 'Eager versus lazy changes WHICH injector the providers end up registered on — not whether `exports` gates visibility. Either way, `exports` never enters the picture for a provider.',
+    },
+  ];
+
   /**
    * The scope scenarios.
    */

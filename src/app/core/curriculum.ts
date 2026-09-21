@@ -85,6 +85,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'The page as a tree, event handlers, and the problem Angular solves.',
     level: 'foundations',
     category: 'Web Basics',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/foundations/dom-and-events/dom-and-events').then((m) => m.DomAndEvents),
   },
@@ -114,6 +115,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Commits, branches, push/pull and GitHub — a time machine for your code.',
     level: 'foundations',
     category: 'Your Dev Toolkit',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/foundations/git-basics/git-basics').then((m) => m.GitBasics),
   },
@@ -203,6 +205,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Partial, Required, Readonly, Pick, Omit, Record, Exclude, ReturnType and more.',
     level: 'typescript',
     category: 'Advanced Types',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/typescript/utility-types/utility-types').then((m) => m.UtilityTypes),
   },
@@ -381,6 +384,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Multi-branch rendering with @switch / @case / @default.',
     level: 'beginner',
     category: 'Control Flow',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/beginner/control-flow-switch/control-flow-switch').then(
         (m) => m.ControlFlowSwitch,
@@ -430,6 +434,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Passing data in with signal input() and the @Input decorator, required & transforms.',
     level: 'beginner',
     category: 'Component Communication',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/beginner/inputs/inputs').then((m) => m.Inputs),
   },
   {
@@ -612,6 +617,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'POST/PUT/PATCH/DELETE, headers, params and typed responses.',
     level: 'intermediate',
     category: 'HTTP',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/intermediate/http-crud/http-crud').then((m) => m.HttpCrud),
   },
@@ -893,6 +899,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '@angular/service-worker, caching strategies and offline support.',
     level: 'expert',
     category: 'Rendering & Delivery',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/expert/pwa-service-worker/pwa-service-worker').then(
         (m) => m.PwaServiceWorker,
@@ -1009,6 +1016,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Understanding NgModules and migrating to standalone APIs.',
     level: 'expert',
     category: 'Architecture',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/expert/ngmodules-migration/ngmodules-migration').then(
         (m) => m.NgmodulesMigration,

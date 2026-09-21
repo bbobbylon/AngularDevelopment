@@ -16,17 +16,100 @@
     </p>
   </app-chapter>
 
-  <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
   <section>
-    <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>
-    <h2>A tab has been open since 9am. You deploy a fix at 2pm.</h2>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      A user opened the app at 9:00am and has never reloaded, navigated, or closed the tab. You ship a critical fix at
+      2:00pm. The worker downloads and hash-verifies it within seconds. <strong>Their tab still doesn't have it</strong>
+      — possibly ever, for that one tab.
+    </p>
 
-    <p>The service worker downloads and verifies the new version in the background almost immediately. So:</p>
-
-    <app-predict
-      prompt="A user opened the app at 9:00am and has never reloaded, navigated, or closed the tab. You ship a critical fix at 2:00pm. When does their tab get it?"
-      answer="Not automatically — possibly never, for that tab. The worker downloads and hash-verifies v2 in the background, but the OPEN tab keeps running v1's already-loaded JavaScript until the tab reloads or navigates, even long after v2 is fully `ready`. If nothing ever triggers a check and nothing polls, a dashboard like this could run v1 indefinitely. That's exactly why long-lived tabs need an explicit `checkForUpdate()` poll, and why `VERSION_READY` exists as a safe moment to *prompt* rather than a moment to *switch*."
+    <app-brain-power
+      question="v2 is fully downloaded and hash-verified within seconds of the 2pm deploy — VERSION_READY has already fired. So when does the tab that's been open since 9am actually start running it?"
+      hint="Ask what has to happen to THAT SPECIFIC TAB — not what has to finish on the server or inside the worker."
     />
+
+    <app-whiteboard
+      caption="Two full versions exist at once. Only one of them is ever the version a given tab is actually running."
+      alt="Two boxes side by side. The left box, v1, is highlighted as RUNNING — serving every tab that is already open. The right box, v2, shows as fully cached and hash-verified, but not running. A single dashed door connects them, labelled: only crossed by activateUpdate() plus a reload — never automatic."
+    >
+      <svg class="wb-svg" viewBox="0 0 620 260" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="pwa-shape-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head wb-head--ink" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <rect x="30" y="70" width="240" height="100" rx="12" class="wb-node wb-node--lit" />
+        <text x="150" y="106" text-anchor="middle" class="wb-mono wb-text--sm">v1 — RUNNING</text>
+        <text x="150" y="128" text-anchor="middle" class="wb-text--sm">serving every open tab,</text>
+        <text x="150" y="146" text-anchor="middle" class="wb-text--sm">right now</text>
+
+        <rect x="350" y="70" width="240" height="100" rx="12" class="wb-node" />
+        <text x="470" y="106" text-anchor="middle" class="wb-mono wb-text--sm">v2 — READY</text>
+        <text x="470" y="128" text-anchor="middle" class="wb-text--sm">fully cached + hash-verified.</text>
+        <text x="470" y="146" text-anchor="middle" class="wb-text--sm">NOT running.</text>
+
+        <path class="wb-arrow wb-arrow--dashed wb-arrow--ink" d="M350 120 L272 120" marker-end="url(#pwa-shape-head)" />
+        <text x="311" y="105" text-anchor="middle" class="wb-hand wb-text--sm">the only door</text>
+        <text x="311" y="200" text-anchor="middle" class="wb-text--sm">activateUpdate() + reload</text>
+        <text x="311" y="218" text-anchor="middle" class="wb-text--sm">— never automatic</text>
+      </svg>
+
+      <app-scribble
+        quote="v1 — RUNNING"
+        tone="olive"
+        text="Every tab that was already open keeps executing **this** version's JavaScript, no matter how long it's been open or how ready v2 becomes."
+      />
+      <app-scribble
+        quote="v2 — READY"
+        tone="accent"
+        text="Fully built and hash-verified against the manifest. **'Ready' describes the cache, not any running tab.**"
+      />
+      <app-scribble
+        quote="activateUpdate() + reload"
+        point="up"
+        tone="clay"
+        text="The only door between the two, and nothing crosses it on its own. Your own code has to call it — and only a reload actually starts executing v2."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <strong>Not automatically — possibly never, for that tab.</strong> The worker downloads and hash-verifies v2 in
+      the background, but the open tab keeps running v1's already-loaded JavaScript until it reloads or navigates, even
+      long after v2 is fully <code>ready</code>. If nothing ever triggers a check and nothing polls, a long-lived
+      dashboard like this could run v1 indefinitely. That's exactly why long-lived tabs need an explicit
+      <code>checkForUpdate()</code> poll, and why <code>VERSION_READY</code> exists as a safe moment to
+      <em>prompt</em> rather than a moment to <em>switch</em>.
+    </p>
+
+    <app-flow caption="A deploy, from the worker's point of view" [steps]="engineFlow" />
+
+    <app-quiz
+      question="A tab has been open since 9am with no reload and no navigation. You deploy a fix at 2pm and the worker finishes downloading and hash-verifying it within seconds. At 5pm, still no reload — which version is that tab's JavaScript actually executing?"
+      [options]="versionGapQuiz"
+      followUp="The live simulator further down this page walks the exact same five stages — watch READY light up a full step before ACTIVATED."
+    />
+
+    <app-napkin lead="the mental model —" label="A room, already checked into">
+      A guest already checked into room 214 keeps that exact room for their whole stay, no matter how many times the
+      lobby renovates. The new wing only ever gets used at check-in or checkout — never by knocking on a door that's
+      already occupied.
+    </app-napkin>
   </section>
 
   <!-- ============ 2. THE ANALOGY ============ -->
@@ -93,10 +176,9 @@
     <p>
       <code>ng build</code> generates <code>ngsw.json</code> — the blueprint from the analogy above, an immutable
       manifest listing every cacheable file with its content hash. The generic <code>ngsw-worker.js</code> engine reads
-      it and treats each manifest as one <strong>app version</strong>:
+      it and treats each manifest as one <strong>app version</strong> — the same five-step deploy the whiteboard at the
+      top of the page just drew:
     </p>
-
-    <app-flow caption="A deploy, from the worker's point of view" [steps]="engineFlow" />
 
     <ul>
       <li>

@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { CoerceDemo } from './coerce-demo/coerce-demo';
 import { Badge } from './badge/badge';
 
@@ -57,6 +59,21 @@ import { Badge } from './badge/badge';
  * half of parent/child communication.
  * @see beginner/services-di — the alternative to a long prop chain: shared
  * state neither side "owns" the way a parent owns an input.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `receipt`: a concrete cost, not a misconception or a structural
+ * split — `size = input(0)` looks numeric, Angular never complains, and
+ * `size() + 1` still comes out `'421'` instead of `43`. {@link
+ * coercionBill} itemises exactly where the string survives; `app-scribble`
+ * names the gap; `app-compare` sets the broken call beside the fixed one;
+ * `app-chain` restates the same crossing as a four-step pipeline; a fresh,
+ * block-only {@link concatSample} walks both versions side by side, distinct
+ * from the existing {@link transformSample} code-lab and {@link
+ * coercionTrapSample} predict (the `disabled="false"` boolean trap), both
+ * kept in place further down. The block's own {@link concatBlockQuiz}
+ * checks the general "bare attribute, no brackets" case rather than
+ * repeating either. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-inputs',
@@ -76,10 +93,99 @@ import { Badge } from './badge/badge';
     Remember,
     Badge,
     CoerceDemo,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   templateUrl: './inputs.html',
 })
 export class Inputs {
+  // ── The shape block — the '42' + 1 = '421' bill ─────────────────────────
+
+  /** The itemised bill: a plain attribute's text surviving all the way to `+`. */
+  protected readonly coercionBill: ReceiptRow[] = [
+    { label: 'parent writes', amount: 'size="42" (no brackets)' },
+    { label: 'size() reads back', amount: "'42' — still a string", tone: 'warn' },
+    { label: 'size() + 1, expected', amount: '43' },
+  ];
+
+  /** The bill's total — the number the register actually shows. */
+  protected readonly coercionBillTotal: ReceiptRow = {
+    label: 'size() + 1, ACTUAL',
+    amount: "'421'",
+    tone: 'warn',
+  };
+
+  /** The pipeline a bound value crosses on its way to becoming `size()`. */
+  protected readonly coercionChainSteps: readonly string[] = [
+    'parent writes size="42"',
+    'crosses the template boundary as text',
+    'no transform: the text lands as-is',
+    "size() returns '42' — never became a number",
+  ];
+
+  /**
+   * Block-only sample: the broken call and the fixed call, side by side. Kept
+   * separate from {@link transformSample} (general transform syntax) and
+   * {@link coercionTrapSample} (the boolean `disabled="false"` trap) further
+   * down — this one is scoped tightly to the receipt's own `+ 1` anomaly.
+   */
+  protected readonly concatSample = `// no transform — size holds whatever text arrived
+size = input(0);
+// parent: <app-counter size="42" />
+size() + 1;                              // '42' + 1 → '421' (string concat)
+
+// transform: numberAttribute coerces FIRST
+size = input(0, { transform: numberAttribute });
+// parent: <app-counter size="42" />
+size() + 1;                              // 42 + 1 → 43 (real math)`;
+
+  /** Line-by-line walkthrough of {@link concatSample}. */
+  protected readonly concatNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: '`input(0)` — a numeric-looking default, and no `transform`. Nothing here tells Angular to convert anything on the way in.',
+    },
+    {
+      line: 4,
+      text: 'A bare HTML attribute — `size="42"`, no square brackets — is always literal text, and it is NEVER checked against `size`\'s declared type. TypeScript has no way to catch this; it never even sees a template attribute string.',
+    },
+    {
+      line: 7,
+      text: '`transform: numberAttribute` runs on the incoming text before the signal stores anything — the exact same `size="42"` attribute, coerced this time.',
+    },
+    {
+      line: 9,
+      text: "Same call, same parent markup, same declared default — only the transform changed, and that alone is the entire difference between `'421'` and `43`.",
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — the general "bare attribute" case, distinct
+   * from the boolean `disabled="false"` trap {@link timingOptions}' sibling
+   * predict already covers further down.
+   */
+  protected readonly concatBlockQuiz: QuizOption[] = [
+    {
+      text: '8 — Angular converts numeric-looking attribute text automatically.',
+      why: 'Angular never inspects an attribute string to guess whether it "looks like" a number. Without a `transform`, whatever text arrived is exactly what the signal holds.',
+    },
+    {
+      text: "'71' — count() is still holding the string '7', and + concatenates two strings.",
+      correct: true,
+      why: "Right. `count(0)` with no transform hands back whatever text the bare attribute carried — `'7'` — and `'7' + 1` is string concatenation, not addition.",
+    },
+    {
+      text: 'A build error — TypeScript catches the type mismatch before it ever ships.',
+      why: 'It compiles cleanly, which is exactly the trap. A bare, unbracketed attribute is plain DOM text — TypeScript\'s template checker never sees it as an expression to type-check at all, only a bracketed `[count]="…"` binding gets that scrutiny.',
+    },
+    {
+      text: 'NaN — JavaScript refuses to add a string and a number.',
+      why: '`+` on a string and a number never refuses — it converts the number to a string and concatenates. `NaN` is what a MINUS would have produced here, not a plus.',
+    },
+  ];
+
   // ── Presentation data ──────────────────────────────────────────────────────
 
   /** The Component Communication pair plus its neighbours, for the "you are here" rail. */

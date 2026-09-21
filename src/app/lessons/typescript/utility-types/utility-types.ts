@@ -5,6 +5,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * The shape the utility-type demos transform.
@@ -71,6 +73,24 @@ type UserKey = (typeof USER_KEYS)[number];
  * Two, both signal-driven, both carried over unchanged from the previous
  * version of this lesson: the Pick/Omit key-by-key selector, and the
  * `Partial<User>` patch-and-merge bench.
+ *
+ * ## Page shape (BACKLOG §2.10 step 5, batch 7)
+ *
+ * Opens as `no-dumb-questions`: a misconception, not a cost or a structural
+ * split. The reasonable assumption — that `Pick`/`Omit` just work per-arm on
+ * a union the way a mapped type would — is wrong, and the reason is a fact
+ * about `keyof` that never gets said out loud until it bites: `keyof` of a
+ * union is the INTERSECTION of every arm's keys, computed before Pick or
+ * Omit ever run. {@link unionFlattenQuestions} escalates through that
+ * misconception to where it actually costs a codebase something (a
+ * discriminated-union state type, silently flattened) to the fix
+ * (`DistributiveOmit`) to why `Exclude`/`Extract` never had this problem at
+ * all. `app-layers` restates the same split as a containment figure; the
+ * block's own {@link keyofUnionBlockQuiz} checks the general `keyof`-of-a-
+ * union mechanism directly, distinct from the existing {@link omitTypoQuiz}
+ * (Omit's separate, unrelated typo-acceptance trap) and the deeper
+ * `ApiState`/`DistributiveOmit` code-lab walkthrough further down, both kept
+ * in place rather than duplicated. See `docs/CONTRIBUTING.md` §2C.
  */
 @Component({
   selector: 'app-lesson-ts-utility-types',
@@ -90,11 +110,77 @@ type UserKey = (typeof USER_KEYS)[number];
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
   ],
   templateUrl: './utility-types.html',
   styleUrl: './utility-types.css',
 })
 export class UtilityTypes {
+  // ── The shape block — the union-flattening misconception ───────────────
+
+  /**
+   * The block's own escalating Q&A: the reasonable assumption, why it's
+   * wrong, where it costs a real codebase something, the fix, and why
+   * `Exclude`/`Extract` never had this problem to begin with.
+   */
+  protected readonly unionFlattenQuestions: NdqItem[] = [
+    {
+      q: "My `ApiState` is `Loading | Loaded | Failed`. `Omit<ApiState, 'id'>` should just drop `id` from each of the three variants, right?",
+      a: "That's the reasonable assumption, and it's not what happens. `Pick` and `Omit` both read `keyof T` first — and `keyof` of a union is the **intersection** of every arm's keys, not the union of them. Only `status` and `id` are common to all three of your variants; everything arm-specific never even reaches Omit.",
+    },
+    {
+      q: "So what does `Omit<ApiState, 'id'>` actually produce?",
+      a: "One flat object — `{ status: 'loading' | 'loaded' | 'error' }` — not three narrower variants. `data` (only on `Loaded`) and `message` (only on `Failed`) were never candidates for Omit at all. They dropped out the moment `keyof` ran, before Omit did anything with your key list.",
+    },
+    {
+      q: 'Is `Pick` any safer, since it keeps keys instead of dropping them?',
+      a: "No — arguably it's the more honest place to blame, because Omit is *defined* as `Pick<T, Exclude<keyof T, K>>`. Every flattening bug Omit produces, it inherited straight from Pick underneath. Pick isn't the safe half of the pair; it's the mechanism the whole problem runs through.",
+    },
+    {
+      q: 'Where does this actually bite, at work?',
+      a: "Anywhere your app's state is modelled as a discriminated union — exactly the shape a `switch (state.status)` narrows on. Reach for `Omit<YourUnion, 'id'>` to build an \"everything but the id\" version for a form or a log line, and you silently get one merged type with only the shared fields left. Nothing about the build breaks. The type is just quietly, confidently wrong.",
+    },
+    {
+      q: "Why doesn't `Exclude` have the same problem? It's a utility type too.",
+      a: "It's about where `T` sits. `Exclude<T, U>` is `T extends U ? never : T` — a **bare conditional over a naked type parameter** — and TypeScript automatically distributes a bare conditional over a union: it runs the check once per member and unions the survivors back. `Pick`/`Omit` wrap `T` **inside** a mapped type (`{ [P in K]: T[P] }`), and once a type parameter sits inside a mapped type it's no longer naked, so that automatic distribution never kicks in.",
+    },
+    {
+      q: 'So how do you actually get the per-variant version you wanted?',
+      a: 'Distribute it yourself, one extra line: `type DistributiveOmit<T, K extends keyof any> = T extends unknown ? Omit<T, K> : never`. `T extends unknown` is always true — that IS the trick — it forces TypeScript to run the check once per union member instead of once for the whole union, the same pattern the mapped-and-conditional lesson builds from scratch.',
+    },
+    {
+      q: 'Is this a TypeScript bug, then?',
+      a: 'No — Pick and Omit are *defined* to read `keyof T`, and `keyof` of a union really is the intersection. That\'s correct, documented, load-bearing behaviour. The only bug is ever in the assumption that a generic named "Pick" or "Omit" automatically knows your `T` is secretly three different shapes.',
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — the general `keyof`-of-a-union mechanism,
+   * distinct from {@link omitTypoQuiz} (a different Omit trap entirely) and
+   * from the deeper `ApiState` code-lab walkthrough further down, which
+   * this block does not duplicate.
+   */
+  protected readonly keyofUnionBlockQuiz: QuizOption[] = [
+    {
+      text: "`'status' | 'x' | 'y'` — every key from every arm, unioned together.",
+      why: 'That would be true for a mapped type looping over each arm separately. `keyof` of a union does the opposite: it keeps only what every arm shares.',
+    },
+    {
+      text: "`'status'` — only the key present on every single arm.",
+      correct: true,
+      why: "Right. `keyof` of a union is the intersection of the arms' keys — the one field guaranteed to exist no matter which arm you actually have. `x` and `y` each belong to only one arm, so neither survives.",
+    },
+    {
+      text: '`never` — `keyof` cannot be evaluated on a union type at all.',
+      why: 'It evaluates cleanly; TypeScript never refuses this. The result is just narrower than most people expect, not absent.',
+    },
+    {
+      text: "`'status' | 'x' | 'y'`, but only when the union is used inside a mapped type.",
+      why: 'Being inside a mapped type changes whether something DISTRIBUTES over a union — it has no effect on what `keyof` itself returns for that union.',
+    },
+  ];
+
   // ── Demo 1: live Partial patch ─────────────────────────────────────────────
 
   /**

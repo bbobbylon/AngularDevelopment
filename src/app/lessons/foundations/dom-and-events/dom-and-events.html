@@ -15,6 +15,128 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Wire <strong>six</strong> listeners onto three nested boxes — a capture-phase one and a bubble-phase one on each
+      of <code>outer</code>, <code>middle</code> and <code>inner</code> — then click the innermost box
+      <strong>once</strong>. Nothing about that click is random. Every one of the six fires, in an order that never
+      changes.
+    </p>
+
+    <app-brain-power
+      question="Six listeners exist — capture AND bubble, on all three boxes. You click the innermost one, exactly once. How many of the six actually fire, and in what order?"
+      hint="The event visits every ancestor TWICE, but only once per direction. Count the legs, not the boxes."
+    />
+
+    <app-whiteboard
+      caption="One click, six listeners, two legs — down through capture, then straight back up through bubble."
+      alt="A vertical stack of three boxes labelled outer, middle and inner, with inner highlighted as the target. A solid downward arrow on the left, numbered 1, 2 and 3, runs from above outer down through middle to inner, labelled capture. A dashed upward arrow on the right, numbered 4, 5 and 6, runs from inner back up through middle to outer, labelled bubble — the exact same two boxes, retraced in reverse."
+    >
+      <svg class="wb-svg" viewBox="0 0 620 380" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="dae-shape-head"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+          <marker
+            id="dae-shape-head-ink"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path class="wb-head wb-head--ink" d="M0 0 L10 5 L0 10 Z" />
+          </marker>
+        </defs>
+
+        <text x="150" y="18" text-anchor="middle" class="wb-hand wb-text--sm">CAPTURE ↓</text>
+        <text x="470" y="18" text-anchor="middle" class="wb-hand wb-text--sm">BUBBLE ↑</text>
+
+        <rect x="210" y="40" width="200" height="60" rx="10" class="wb-node" />
+        <text x="310" y="76" text-anchor="middle" class="wb-mono wb-text--sm">outer</text>
+
+        <rect x="210" y="160" width="200" height="60" rx="10" class="wb-node" />
+        <text x="310" y="196" text-anchor="middle" class="wb-mono wb-text--sm">middle</text>
+
+        <rect x="210" y="280" width="200" height="60" rx="10" class="wb-node wb-node--lit" />
+        <text x="310" y="310" text-anchor="middle" class="wb-mono wb-text--sm">inner</text>
+        <text x="310" y="328" text-anchor="middle" class="wb-text--sm">the target</text>
+
+        <path class="wb-arrow" d="M150 30 L150 305" marker-end="url(#dae-shape-head)" style="--bf-dash: 275" />
+        <text x="130" y="72" text-anchor="end" class="wb-mono wb-text--sm">1</text>
+        <text x="130" y="192" text-anchor="end" class="wb-mono wb-text--sm">2</text>
+        <text x="130" y="298" text-anchor="end" class="wb-mono wb-text--sm">3</text>
+
+        <path
+          class="wb-arrow wb-arrow--dashed wb-arrow--ink"
+          d="M470 305 L470 30"
+          marker-end="url(#dae-shape-head-ink)"
+        />
+        <text x="490" y="298" text-anchor="start" class="wb-mono wb-text--sm">4</text>
+        <text x="490" y="192" text-anchor="start" class="wb-mono wb-text--sm">5</text>
+        <text x="490" y="72" text-anchor="start" class="wb-mono wb-text--sm">6</text>
+      </svg>
+
+      <app-scribble
+        quote="1 → 2 → 3"
+        tone="clay"
+        text="The **capture** leg. Almost nothing you write listens here by default — Angular's own `(click)` syntax has no way to even ask for it."
+      />
+      <app-scribble
+        quote="inner — the target"
+        tone="accent"
+        text="Both phases fire here, back to back. Whichever one was **registered first** on this exact element runs first."
+      />
+      <app-scribble
+        quote="4 → 5 → 6"
+        point="up"
+        tone="olive"
+        text="The **bubble** leg — the default. Every `(click)` you've written anywhere on this page has been listening here, and only here."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <strong>All six fire — never at the same instant.</strong> Capture walks inward first: <code>outer</code>, then
+      <code>middle</code>, then <code>inner</code>. The event is then <em>at</em> the target, where both of its own
+      listeners fire in the order you registered them. Then bubble walks the exact same two boxes back
+      <strong>outward</strong>, in reverse: <code>inner</code>, <code>middle</code>, <code>outer</code>. One event
+      object, six separate calls, and a strict order that never changes.
+    </p>
+
+    <app-flow caption="The same journey, as five numbered steps instead of a picture." [steps]="propagationFlow" />
+
+    <app-quiz
+      question="Three nested boxes — outer, middle, inner — each wired with BOTH a capture-phase and a bubble-phase click listener (six listeners total). You click the innermost box. How many of those six fire, and in what order?"
+      [options]="propagationBlockQuiz"
+      followUp="The live toggle further down this page is this exact six-listener setup — flip capture on and off and watch the log confirm both legs yourself."
+    />
+
+    <app-napkin lead="the mental model —" label="A guard who checks every floor, twice">
+      A security guard starts on the roof and walks down the stairwell to the vault in the basement, checking every
+      floor on the way past — that's capture. At the vault, she does her actual job. Then she walks back
+      <strong>up</strong> the exact same stairwell to the roof, checking every floor again on the way out — that's
+      bubble. Two trips past every desk, opposite directions, for one single visit to the vault. Register a listener on
+      a floor without saying which direction you mean, and by default you only ever hear about her on the way back
+      <em>out</em>.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -416,12 +538,13 @@
     <h2>An event doesn't fire on one element. It fires on all of them.</h2>
 
     <p>
-      Here's the part that surprises people, and the old version of this lesson only told half of it. A click on a
-      deeply nested element doesn't just fire there — it travels through the <strong>entire</strong> ancestor chain,
-      <em>twice</em>. First inward, from <code>document</code> down to the target: the
-      <span class="term">capture</span> phase. Then it fires <strong>at</strong> the target. Then outward again, target
-      back up to <code>document</code>: the <span class="term">bubble</span> phase — the leg almost everything you write
-      actually listens on.
+      The whiteboard at the top of this page drew it with three boxes. Here's the same journey again, this time as
+      concentric rings, plus every mechanism the picture couldn't show: which side each method actually stops, why
+      <code>focus</code> breaks the pattern, and the live toggle that lets you flip which leg you're watching. A click
+      on a deeply nested element travels through the <strong>entire</strong> ancestor chain, <em>twice</em>. First
+      inward, from <code>document</code> down to the target: the <span class="term">capture</span> phase. Then it fires
+      <strong>at</strong> the target. Then outward again, target back up to <code>document</code>: the
+      <span class="term">bubble</span> phase — the leg almost everything you write actually listens on.
     </p>
 
     <app-layers
