@@ -17,6 +17,85 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      <code>enum Status {{ '{' }} Idle, Loading, Done {{ '}' }}</code> — three members, written once. Run
+      <code>Object.keys(Status)</code> against what that compiles to, and it doesn't hand back <code>3</code>.
+    </p>
+
+    <app-receipt
+      heading="Object.keys(Status) · what actually shipped"
+      [rows]="enumBill"
+      [total]="enumBillTotal"
+      footer="you declared three members — you were billed for six keys"
+    />
+
+    <app-scribble
+      point="up"
+      quote="6"
+      tone="clay"
+      text="Not a typo. Every numeric enum member is written into the compiled object **twice** — once forward (`Idle → 0`) and once in reverse (`0 → 'Idle'`). Three members, six keys, and nothing warns you."
+    />
+
+    <app-compare
+      leftTitle="enum — the object really ships"
+      leftTone="bad"
+      rightTitle="const enum — nothing ships at all"
+      rightTone="good"
+      note="Same declaration, one keyword different. Only const enum keeps TypeScript's usual promise to erase itself."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+enum Status {{ '{' }} Idle, Loading, Done {{ '}' }}
+Status.Idle;                 // reads a REAL object
+Object.keys(Status).length;  // 6</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+const enum Status {{ '{' }} Idle, Loading, Done {{ '}' }}
+Status.Idle;                 // inlined to the literal 0
+// no Status object exists to call Object.keys on</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">A regular enum is the one declaration TypeScript actually keeps — as a real, running object.</p>
+
+    <app-chain [steps]="enumChainSteps" label="What enum Status { … } actually compiles to" />
+
+    <app-code-lab
+      file="enums.ts — proving the bill"
+      [code]="enumBillSample"
+      [notes]="enumBillNotes"
+      notesLabel="The same six keys, read back with real code"
+    />
+
+    <app-brain-power
+      question="A string enum — enum Role { Admin = 'ADMIN' } — only ever gets a name-to-value entry, never a reverse one. So does its compiled object have three keys, or six?"
+      hint="Ask what a reverse entry would even mean once a member's NAME and its VALUE could collide."
+    />
+
+    <app-quiz
+      question="enum Status { Idle, Loading, Done } compiles with no const. How many keys does Object.keys(Status) actually return?"
+      [options]="enumBillQuiz"
+      followUp="The compiled-output panel further down this page shows the exact IIFE that builds this object, line by line."
+    />
+
+    <p class="bf-big">
+      Three members ordered. Six keys delivered. <code>const</code> is the only way to send the bill back.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

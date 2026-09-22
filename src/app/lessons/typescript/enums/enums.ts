@@ -2,6 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -75,6 +77,17 @@ enum Role {
  * the class-side re-export is what makes `@if (role() === Role.Admin)`
  * compile at all — flip it off in the code sample and watch the reasoning,
  * not the demo, since the actual failure only happens at build time.
+ *
+ * ## Page shape — "The Receipt" (BACKLOG §2.10 step 5)
+ *
+ * The opening block is an itemised bill: three members declared,
+ * `Object.keys(Status)` rings up six. That is a cost, not a mechanism, which
+ * is exactly what `app-receipt` is for — see `docs/CONTRIBUTING.md` §2C. The
+ * block's own code sample and quiz are deliberately fresh, not the
+ * `numericEnumSample`/`quizOptions1` pair used later for the full IIFE
+ * walkthrough — same running example (`Status`), a different device, a
+ * different job: the block proves the *count*, the later section explains
+ * the *mechanism* that produces it.
  */
 @Component({
   selector: 'app-lesson-ts-enums',
@@ -86,6 +99,10 @@ enum Role {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -171,6 +188,88 @@ export class Enums {
   protected readonly Role = Role;
 
   // ── Presentation data ────────────────────────────────────────────────────
+
+  // -- Page-shape block: "The Receipt" --
+
+  /**
+   * The bill: three members declared, six keys shipped. The three `warn`
+   * rows are the reverse-map entries nobody wrote by hand — the surprise the
+   * whole block exists to name.
+   */
+  protected readonly enumBill: ReceiptRow[] = [
+    { label: 'Status.Idle', amount: '0' },
+    { label: 'Status.Loading', amount: '1' },
+    { label: 'Status.Done', amount: '2' },
+    { label: 'Status[0]', amount: "'Idle'", tone: 'warn' },
+    { label: 'Status[1]', amount: "'Loading'", tone: 'warn' },
+    { label: 'Status[2]', amount: "'Done'", tone: 'warn' },
+  ];
+
+  /** The total line: what `Object.keys(Status).length` actually returns. */
+  protected readonly enumBillTotal: ReceiptRow = {
+    label: 'Object.keys(Status).length',
+    amount: '6',
+    tone: 'warn',
+  };
+
+  /** The compile pipeline, named in one line before the code proves it. */
+  protected readonly enumChainSteps: readonly string[] = [
+    'enum Status {…}',
+    'compiler emits an IIFE',
+    'forward entries: name → number',
+    'reverse entries: number → name',
+    'var Status — a real object, shipped',
+  ];
+
+  /** Sample: reading the bill back with real code, and the one-line fix for iterating it. */
+  protected readonly enumBillSample = `enum Status { Idle, Loading, Done }
+
+Object.keys(Status);
+// [ '0', '1', '2', 'Idle', 'Loading', 'Done' ]  — six, not three
+
+Object.keys(Status).filter((k) => isNaN(Number(k)));
+// [ 'Idle', 'Loading', 'Done' ] — only the NAME keys survive`;
+
+  /** Line-by-line walkthrough of {@link enumBillSample}. */
+  protected readonly enumBillNotes: CodeNote[] = [
+    {
+      line: 1,
+      text: 'Three members, no `const`. That one missing keyword is what keeps the compiled object alive at runtime — see the compare above.',
+    },
+    {
+      line: 3,
+      text: '`Object.keys()` reads the compiled object back — the same object `Status.Idle` resolves against.',
+    },
+    {
+      line: 4,
+      text: "Six entries, not three: three forward (`'Idle'`, `'Loading'`, `'Done'`) and three reverse, printed as the numeric **strings** `'0'`, `'1'`, `'2'` — `Object.keys` always returns strings, even for a numeric key.",
+    },
+    {
+      line: 6,
+      text: "`isNaN(Number(k))` is true only for a key that isn't a plain number, so this filter keeps the three name keys and drops the three reverse ones — the one-liner every numeric-enum iteration needs and almost nobody remembers to write.",
+    },
+  ];
+
+  /** The block's own quiz — the count, not yet the mechanism that produces it. */
+  protected readonly enumBillQuiz: QuizOption[] = [
+    {
+      text: '3 — one key per member, same as any plain object.',
+      why: "True for a **string** enum, or a plain object literal. A numeric enum's compiled object is double-keyed — the receipt above counts all six.",
+    },
+    {
+      text: '6 — the reverse map means every member appears as both a name and a number.',
+      correct: true,
+      why: "Right. `Idle: 0, Loading: 1, Done: 2` and `0: 'Idle', 1: 'Loading', 2: 'Done'` — six keys from three members, which is exactly why iterating a numeric enum's names needs the `isNaN(Number(k))` filter above.",
+    },
+    {
+      text: '0 — enum is type-only syntax, so Object.keys sees nothing.',
+      why: "A regular enum compiles to a genuine `var` holding a genuine object — that's the whole point of this lesson. `const enum` is the flavour that erases; plain `enum` does not.",
+    },
+    {
+      text: 'It throws, because enum members are read-only.',
+      why: '`Object.keys` only reads, and nothing about a numeric enum is actually frozen at runtime — nothing here throws.',
+    },
+  ];
 
   /** The Type System track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

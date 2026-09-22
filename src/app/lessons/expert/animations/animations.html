@@ -16,6 +16,81 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Two boxes, same visible motion, same <code>.3s</code> duration. One of them makes the browser recompute the whole
+      page's geometry <strong>every single frame</strong>. The other doesn't touch geometry at all.
+    </p>
+
+    <app-receipt
+      heading="One moving box · the bill for one animation frame"
+      [rows]="frameBill"
+      [total]="frameBillTotal"
+      footer="transform/opacity would have skipped straight to the last line"
+    />
+
+    <app-scribble
+      point="up"
+      quote="Layout"
+      tone="clay"
+      text="The line that turns a cheap animation into an expensive one. Animate `height`, `width`, `top` or `margin` and the browser can't just redraw a layer — it has to recompute where **everything downstream** sits, on every single frame."
+    />
+
+    <app-compare
+      leftTitle="height — pays Layout and Paint"
+      leftTone="bad"
+      rightTitle="transform: scaleY() — pays Composite only"
+      rightTone="good"
+      note="Same visible motion. Only the property being animated decides which pipeline stages run."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+.panel {{ '{' }} height: 0; transition: height .3s; {{ '}' }}
+.panel.open {{ '{' }} height: 240px; {{ '}' }}</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+.panel {{ '{' }} transform: scaleY(0); transition: transform .3s; {{ '}' }}
+.panel.open {{ '{' }} transform: scaleY(1); {{ '}' }}</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">Every frame walks the same four stages — a fix just decides how many of them actually run.</p>
+
+    <app-chain [steps]="frameChainSteps" label="The pipeline a naively-animated property pays in full" />
+
+    <app-code-lab
+      file="panel.css — same result, two different bills"
+      [code]="frameBillSample"
+      [notes]="frameBillNotes"
+      notesLabel="Same .3s animation, two very different pipelines"
+    />
+
+    <app-brain-power
+      question="Both panels end at the same visible height, animated over the same .3s. One pays all four pipeline stages, every frame; the other pays one. Which property is the expensive version actually animating, and why does the cheap version never need to ask 'where does everything else on the page sit now'?"
+      hint="Ask what LAYOUT means: does the compositor need to know any OTHER element's position to slide or fade just this one?"
+    />
+
+    <app-quiz
+      question="A card's box-shadow is animated on hover. Does that reach the Layout stage the way animating height does?"
+      [options]="frameBillQuiz"
+      followUp="The Web Vitals section further down this page names the exact properties that skip every stage but Composite."
+    />
+
+    <p class="bf-big">Four pipeline stages, paid every single frame — for a box that only ever needed to slide.</p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>

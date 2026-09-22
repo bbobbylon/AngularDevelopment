@@ -16,6 +16,49 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      Angular's protection stops exactly at the edge of a template binding. Everything past that edge is yours.
+    </p>
+
+    <p class="bf-say">
+      XSS, CSRF, token storage, secrets — six different sub-topics on this page, all traceable back to that one
+      boundary. Here's every question it reliably gets asked, answered up front.
+    </p>
+
+    <app-no-dumb-questions [items]="protectionQuestions" />
+
+    <app-brain-power
+      question="The exact same attacker string reaches your DOM two ways: once through [innerHTML], once through this.el.nativeElement.innerHTML. One gets stripped. One executes for real. What's different between the two paths — the string, or something else entirely?"
+      hint="Ask which of the two calls Angular's COMPILER ever actually sees."
+    />
+
+    <app-layers
+      [core]="protectionCore"
+      [rings]="protectionRings"
+      arrow="the sanitizer only ever sees a value that passes THROUGH a binding — nothing else reaches it"
+      caption="Same string, same destination, two different roads. Only one of them runs through the checkpoint at all."
+    />
+
+    <app-quiz
+      question="A route guard blocks an anonymous user from /dashboard. With DevTools open, can that user still make the protected component render?"
+      [options]="protectionQuiz"
+      followUp="The auth-guard section further down this page shows exactly why the redirect has to be returned as data, not fired as a side effect."
+    />
+
+    <app-napkin lead="the mental model —" label="A bouncer at the door, not a bodyguard">
+      A bouncer checks everyone entering the club — but once you're past the door, nothing stops a friend from handing
+      you something dangerous in the bathroom. Angular's sanitizer is the bouncer at the template's front door;
+      <code>nativeElement</code>, a route guard, and a copy-pasted third-party widget are all rooms it never patrols.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

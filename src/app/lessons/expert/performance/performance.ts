@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -82,6 +83,15 @@ interface FruitRow {
  * @see expert/change-detection — the CD mechanism this lesson assumes.
  * @see expert/onpush — all five OnPush re-check triggers, live.
  * @see expert/deferrable-views — every `@defer` trigger and block in depth.
+ *
+ * ## Page shape — "The Whiteboard" (BACKLOG §2.10 step 5)
+ *
+ * The opening block draws the track-identity demo's real bug as one before/
+ * after figure — the same reorder, tracked two ways, one DOM node landing on
+ * the right row and one landing on whichever row now sits in its old slot —
+ * before the live demo further down runs it for real. `docs/CONTRIBUTING.md`
+ * §2C. The block's own quiz and flow are new content: this page had no
+ * track-identity quiz before this pass.
  */
 @Component({
   selector: 'app-lesson-performance',
@@ -92,6 +102,9 @@ interface FruitRow {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -233,6 +246,55 @@ export class Performance {
   }
 
   // ── Presentation data ─────────────────────────────────────────────────────
+
+  // -- Page-shape block: "The Whiteboard" --
+
+  /** What a reorder actually does, contrasted at the one step that diverges. */
+  protected readonly reorderFlow: FlowStep[] = [
+    {
+      label: 'Array reorders',
+      detail: 'shuffleFruit() swaps entries — the DATA is correct either way.',
+    },
+    {
+      label: '@for diffs old vs new',
+      detail: 'using whatever the track expression returns for each row.',
+    },
+    {
+      label: 'track: item.id → same identity, moved',
+      detail: 'Angular matches by id and repositions the EXISTING node — nothing destroyed.',
+      tone: 'good',
+    },
+    {
+      label: 'track: $index → identity implied by position',
+      detail: 'Angular has no id to match on, so it treats every row as though it changed.',
+      tone: 'warn',
+    },
+    {
+      label: 'Only one keeps the DOM honest',
+      detail: 'the array was never wrong — the question is which DOM node ends up holding what.',
+    },
+  ];
+
+  /** The block's own quiz — predicting the track-identity bug before the demo runs it. */
+  protected readonly wbTrackQuiz: QuizOption[] = [
+    {
+      text: "It's attached to whichever row's data is now in position 2 — same slot, regardless of which name landed there.",
+      correct: true,
+      why: "Right. `track $index` tracks POSITION, not the row's identity. Angular reuses whatever DOM node already sits at index 2 for whatever data now occupies that slot — the `<input>`, and anything typed into it, stays put while the name beside it changes.",
+    },
+    {
+      text: 'It follows whichever fruit was originally in position 2, wherever that fruit moved to.',
+      why: "That's what `track item.id` would do. `track $index` has no idea which fruit is which — position is the only thing it tracks.",
+    },
+    {
+      text: "It's cleared — Angular resets every input's value on any reorder.",
+      why: 'Angular resets nothing by default. The DOM node — and whatever is inside it — survives a reorder exactly when the track expression says the row at that position is the same row as before.',
+    },
+    {
+      text: 'It depends on whether the input uses [(ngModel)] or a plain value attribute.',
+      why: "The binding style on the input has no say here — which DOM node gets reused is decided entirely by the track expression's identity, before any binding even runs.",
+    },
+  ];
 
   /** The Runtime & Performance track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

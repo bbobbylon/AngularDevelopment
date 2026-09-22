@@ -2,6 +2,7 @@ import { Component, ElementRef, effect, signal, viewChild } from '@angular/core'
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { ToggleChild } from './toggle-child/toggle-child';
@@ -69,6 +70,18 @@ interface User {
  * - **refs get evicted too**: a `viewChild()` (`refBox`) pointed inside the
  *   `@if` branch, `undefined` while it's false, and reacted to with an
  *   `effect()` rather than polled from `ngOnInit`.
+ *
+ * ## Page shape — "The Whiteboard" (BACKLOG §2.10 step 5)
+ *
+ * The opening block draws the destroy-vs-hide split as one figure — three
+ * layers (DOM node, component instance, local state) crossed out under
+ * `@if`, intact under `[hidden]` — before a single demo runs, per
+ * `docs/CONTRIBUTING.md` §2C. Its own `app-flow` and quiz are fresh, not
+ * {@link schedulingSteps}/{@link schedulingOptions} used later, which cover a
+ * different question entirely (WHEN a condition reruns, not what survives
+ * the day it does). `evictionTalk` stays in its original section below the
+ * block — a dialogue and a figure are different enough modes to both earn a
+ * place on the page.
  */
 @Component({
   selector: 'app-lesson-control-flow-if',
@@ -80,6 +93,9 @@ interface User {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -204,6 +220,49 @@ export class ControlFlowIf {
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "The Whiteboard" --
+
+  /** What happens, in order, the instant an @if condition flips to false. */
+  protected readonly destroyFlow: FlowStep[] = [
+    { label: 'Condition reruns', detail: '`ɵɵconditional` re-evaluates and picks the OTHER slot.' },
+    {
+      label: 'The active view is destroyed',
+      detail: 'DOM nodes removed; `ngOnDestroy` fires on every component inside.',
+      tone: 'warn',
+    },
+    {
+      label: 'State goes with it',
+      detail: 'Fields, signals, subscriptions — all garbage the instant the instance is gone.',
+      tone: 'warn',
+    },
+    {
+      label: 'Flip back true',
+      detail: 'A BRAND NEW instance is built from nothing — not the one that just left.',
+      tone: 'accent',
+    },
+  ];
+
+  /** The block's own quiz — predicting the destroy, before a single demo has run. */
+  protected readonly wbQuiz: QuizOption[] = [
+    {
+      text: 'The same text — Angular remembers form values across a re-render.',
+      why: "There's no re-render to remember across — the `<input>` isn't updated, it's destroyed. There is no mechanism anywhere in Angular that preserves DOM state through that.",
+    },
+    {
+      text: "Empty. It's a brand-new <input>, built from nothing — same as the rest of the branch.",
+      correct: true,
+      why: "Right. `@if (false)` doesn't hide the branch, it deletes it — DOM, component instances, and anything they held. Flipping back true builds a fresh copy with no memory of the one that left.",
+    },
+    {
+      text: 'The text, but only if [(ngModel)] is bound to the input.',
+      why: '`[(ngModel)]` writes into a signal or field on a component — a component that, in this scenario, was just destroyed along with everything it owned. Binding style changes nothing about whether the branch survives.',
+    },
+    {
+      text: 'It depends on whether the <input> has a name attribute.',
+      why: 'A `name` attribute matters for `<form>` submission, not for whether `@if` keeps or discards a branch. Every attribute on a destroyed node disappears with it regardless.',
+    },
+  ];
 
   /** The Control Flow track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

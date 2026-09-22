@@ -187,6 +187,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Numeric & string enums, const enums, and when a union of literals is better.',
     level: 'typescript',
     category: 'Type System',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/typescript/enums/enums').then((m) => m.Enums),
   },
   {
@@ -345,6 +346,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '[(ngModel)] and the model() signal — banana-in-a-box explained.',
     level: 'beginner',
     category: 'Data Binding',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/beginner/two-way-binding/two-way-binding').then((m) => m.TwoWayBinding),
   },
@@ -365,6 +367,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Conditional rendering with the built-in @if block and the as alias.',
     level: 'beginner',
     category: 'Control Flow',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/beginner/control-flow-if/control-flow-if').then((m) => m.ControlFlowIf),
   },
@@ -585,6 +588,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Pre-fetching data before navigation and static route data.',
     level: 'intermediate',
     category: 'Routing',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/resolvers/resolvers').then((m) => m.Resolvers),
   },
@@ -651,6 +655,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Observables, observers, subscriptions and the push model.',
     level: 'intermediate',
     category: 'RxJS',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/rxjs-observables/rxjs-observables').then(
         (m) => m.RxjsObservables,
@@ -864,6 +869,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Bundle budgets, lazy loading, track functions, pure pipes and profiling.',
     level: 'expert',
     category: 'Runtime & Performance',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/expert/performance/performance').then((m) => m.Performance),
   },
@@ -973,6 +979,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'XSS protection, DomSanitizer, trusted types and CSP.',
     level: 'expert',
     category: 'Cross-Cutting',
+    shape: 'no-dumb-questions',
     loadComponent: () => import('../lessons/expert/security/security').then((m) => m.Security),
   },
   {
@@ -997,6 +1004,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'The animations API, triggers, states, transitions and keyframes.',
     level: 'expert',
     category: 'Cross-Cutting',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/expert/animations/animations').then((m) => m.Animations),
   },

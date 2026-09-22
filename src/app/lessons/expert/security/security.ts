@@ -13,6 +13,7 @@ import { RouterLink } from '@angular/router';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
+import { BrainPower, type NdqItem, NoDumbQuestions } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -50,6 +51,16 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * unpacked), the XSRF token's silent gaps on absolute URLs and GET/HEAD, and a
  * live proof that leaving the template layer leaves Angular's protection behind
  * with it.
+ *
+ * ## Page shape — "There Are No Dumb Questions" (BACKLOG §2.10 step 5)
+ *
+ * The opening block is seven open questions carrying the whole "protection
+ * ends at the template binding" idea across all six sub-topics up front, per
+ * `docs/CONTRIBUTING.md` §2C. Its own figure ({@link protectionCore}/
+ * {@link protectionRings}) and quiz are fresh — not {@link defenseCore}/
+ * {@link defenseRings} or {@link contextQuizOptions}/{@link escapeQuizOptions}
+ * used later, which stay paired with their own sections. `sanitizerTalk`
+ * stays in its original section below the block.
  */
 @Component({
   selector: 'app-lesson-security',
@@ -64,6 +75,8 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -156,6 +169,76 @@ export class Security {
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /** The seven questions this lesson reliably gets asked, carrying the whole explanation. */
+  protected readonly protectionQuestions: NdqItem[] = [
+    {
+      q: 'If Angular sanitizes automatically, does that mean every string my app ever touches is safe?',
+      a: "No — only strings that pass through a compiled template **binding**. The moment code reaches the DOM another way — `nativeElement.innerHTML`, a careless `Renderer2` call, a third-party widget — Angular's compiler never sees it, so the sanitizer never gets a chance to run.",
+    },
+    {
+      q: 'So DomSanitizer really does nothing unless I go out of my way to call it?',
+      a: "It runs automatically for every template binding, no call needed — `[innerHTML]`, `[href]`, `[src]` are all checked for you. It's the raw platform APIs that skip it, not ordinary bindings.",
+    },
+    {
+      q: "Is bypassSecurityTrustHtml the 'official' way to render a user's bio, since it comes from Angular itself?",
+      a: '**The opposite.** `bypassSecurityTrust*` means "I, the developer, vouch this string has nothing attacker-controlled in it" — a user\'s own bio is the definition of attacker-controlled. Plain `[innerHTML]` IS the tool for untrusted-but-wanted markup; the sanitizer does the work for you there.',
+    },
+    {
+      q: 'Does the sanitizer protect against SQL injection or other backend attacks too?',
+      a: 'No — it only ever touches what gets written into the DOM in your browser. Your backend needs its own defenses regardless of anything Angular does client-side.',
+    },
+    {
+      q: "My app doesn't use cookie-based sessions. Do I still need to think about CSRF?",
+      a: "If every mutating request carries a header token you attach yourself, you're already immune — CSRF specifically exploits credentials the browser attaches *for* you. The moment any cookie-based session enters your app, even just for a 'remember me' flag, that immunity is gone.",
+    },
+    {
+      q: 'Is localStorage really unsafe if my app has zero XSS bugs today?',
+      a: "That's a bet on a negative you can never fully prove, across every dependency you ship today and every one you add later. A single vulnerable package with page access can read `localStorage` directly; it can't read an `HttpOnly` cookie no matter how it got in.",
+    },
+    {
+      q: 'A route guard just blocked an anonymous user from /dashboard. Is the route actually secure now?',
+      a: 'A guard is a UX control, not a security boundary — it runs entirely in your browser, where anyone with DevTools open can see, and even step past, it. It keeps your UI honest; only your backend independently checking every request makes anything actually binding.',
+    },
+  ];
+
+  /** The figure: where a value has to travel through for the sanitizer to ever see it. */
+  protected readonly protectionCore: Layer = {
+    label: 'Your DOM',
+    sub: 'where an attack would land',
+  };
+
+  /** The one boundary that decides whether the sanitizer ever runs at all. */
+  protected readonly protectionRings: Layer[] = [
+    { label: 'A template binding — [innerHTML] / [href] / [src]', sub: 'the sanitizer runs here' },
+    {
+      label: 'nativeElement.innerHTML — raw platform access',
+      sub: 'the sanitizer never even runs',
+    },
+  ];
+
+  /** The block's own quiz — the guard-as-UX-control fact, a fresh angle from the later quizzes. */
+  protected readonly protectionQuiz: QuizOption[] = [
+    {
+      text: 'No — canActivate makes it structurally impossible for the protected component to ever render.',
+      why: 'A guard is ordinary JavaScript running in the browser, same as any other client-side code — nothing about it is enforced by the platform the way, say, a CORS policy is.',
+    },
+    {
+      text: 'Yes — a guard runs entirely in the browser, and someone with DevTools open can see, and even step past, it. It keeps the UI honest; only the backend can make a check actually binding.',
+      correct: true,
+      why: 'Right. This is exactly why every protected API call has to independently verify the token server-side — a route guard denying entry says nothing about whether the backend would.',
+    },
+    {
+      text: 'No — Angular strips canActivate logic out of the production bundle entirely.',
+      why: 'Guard code ships in the bundle like any other application code; there is no build step that removes route-guard logic from what the browser downloads.',
+    },
+    {
+      text: 'Only if withXsrfConfiguration was never set up for the app.',
+      why: 'XSRF protection and route guards solve two unrelated problems — one is about forged cross-site requests, the other is about who gets to see a component. Configuring one has no bearing on the other.',
+    },
+  ];
 
   /** The Cross-Cutting track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

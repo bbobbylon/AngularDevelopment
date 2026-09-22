@@ -1334,6 +1334,82 @@ regression to chase.
 
 Declared-shape count: 46 → 54. Remaining undeclared: 103 − 54 = **49**, next up for batch 8.
 
+**Batch 8 of step 5, landed 2026-09-22.** Same discipline as batch 7: every lesson here was
+chosen by reading its actual content and asking which of the four shapes its real gotcha
+is, never from a ranked list and never to force a round number. `argument` was three behind
+`whiteboard` at the start of the session (12 vs. 15), so the search leaned toward it, but
+only one lesson (`two-way-binding`) actually earned it — the other seven's real gotchas were
+misconceptions, costs and structures, and forcing them into `argument` anyway would have
+been exactly the mistake `docs/CONTRIBUTING.md` §2C warns against ("it's a Spring page so it
+gets the Argument"). Eight lessons across four tracks (typescript ×1, beginner ×2,
+intermediate ×2, expert ×3):
+
+| Lesson             | Track        | Shape               | The kind of gotcha                                                                                                                                                                  |
+| ------------------ | ------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ts-enums`         | typescript   | `receipt`           | cost (three members declared, `Object.keys(Status)` rings up six — the compiled reverse map nobody asked for)                                                                       |
+| `two-way-binding`  | beginner     | `argument`          | tension (the Stepper, the `[(x)]` sugar and the parent are all individually blameless for a negative quantity reaching state — none of them was ever holding the rule)              |
+| `control-flow-if`  | beginner     | `whiteboard`        | structure (`@if (false)` doesn't hide a branch, it destroys the DOM node, the component instance and its state; `[hidden]` leaves all three standing)                               |
+| `resolvers`        | intermediate | `no-dumb-questions` | misconception (a resolver's Observable has to _complete_, not just emit — `catchError` alone never fixes a stream that simply never finishes)                                       |
+| `rxjs-observables` | intermediate | `no-dumb-questions` | misconception (an Observable is lazy and remembers nothing between subscriptions — two subscribers to one cold source is two full re-runs of the producer, not one shared result)   |
+| `performance`      | expert       | `whiteboard`        | structure (`track $index` reuses a DOM node by POSITION on a reorder; `track item.id` moves the real node by IDENTITY — same array, two different bugs in the DOM)                  |
+| `security`         | expert       | `no-dumb-questions` | misconception (Angular's sanitizer only ever sees a value that passes through a compiled template binding — `nativeElement.innerHTML` and a route guard both sit outside that edge) |
+| `animations`       | expert       | `receipt`           | cost (one naively-animated `height` pays all four rendering-pipeline stages, every frame; `transform`/`opacity` pays one)                                                           |
+
+Every block was built fresh rather than lifted wholesale from an existing device on the
+page, but five of the eight deliberately left a pre-existing dialogue/figure/flow in its
+original section instead of relocating or duplicating it, because the two devices were
+different enough modes to both earn a place: `resolvers`' `resolverTalk` bubbles stayed
+where they were (the block's own quiz asks a different question — parallel-resolver
+timing — from `resolverTalk`'s completion framing); `rxjs-observables`' `contractTalk`
+bubbles and its full "recipe" analogy section stayed put, with the block's own napkin using
+a shorter, distinct restatement of the same image rather than repeating the section's
+prose verbatim; `security`'s `sanitizerTalk` bubbles stayed in the mental-model section,
+and the block's own `app-layers` figure and quiz are fresh content, not the `defenseCore`/
+`defenseRings` pair or `contextQuizOptions`/`escapeQuizOptions` used later in the page;
+`control-flow-if`'s `evictionTalk` bubbles stayed in the analogy section below the block.
+Two lessons' blocks are **genuinely new content**, not just a new device around an old
+fact: `performance` had no track-identity quiz anywhere on the page before this pass (its
+existing quizzes cover `computed()` memoization and INP), and `ts-enums`'s receipt reuses
+the page's running `Status` example but writes its own code sample, quiz and chain rather
+than relocating `numericEnumSample`/`quizOptions1`, which stay paired with the full IIFE
+walkthrough later on the page — the block proves the _count_ (six keys from three
+members), the later section explains the _mechanism_ that produces it, and the author
+judged that worth two devices rather than one relocated.
+
+No build-breaking bugs surfaced this round — the two classes of bug batch 7's postmortem
+flagged (a literal `@case`/`@switch` typed into element content, and a new device added to
+a template without its import) were both checked for proactively before running any gate:
+every new component tag was cross-referenced against its lesson's `imports` array by hand
+before the first `npx ng build`, and none of the eight blocks' prose or SVG `<text>` needed
+an `@`-prefixed token.
+
+`scripts/audit-variety.mjs` is green (62 declared shapes: `argument` 13, `no-dumb-questions`
+16, `whiteboard` 17, `receipt` 16 — no forbidden device, no shared-shape neighbours).
+`npm run format:check` (after `prettier --write` on the sixteen touched HTML/TS files),
+`npm run typecheck`, and `npx ng build --configuration production` (0 warnings, confirmed
+by grepping the build log for "warning" rather than trusting the exit code alone) are all
+green.
+
+**`npm run test:ci`'s full run (1250s) showed 9 failures out of 593 tests, and every one is
+a bare `Test timed out in 20000ms`/`60000ms` (plus one cascading `Axe is already running`
+on `auth-flow`'s a11y check, itself downstream of `task-manager`'s a11y timeout leaving a
+scan in flight) — zero content or assertion errors.** Seven of the nine —
+`testing-components`, `testing-services-http`, `libraries-schematics`, `task-manager`,
+`auth-flow` (both the smoke and the a11y failures) and `data-dashboard` — are the exact
+sandbox-contention set prior batches' postmortems have already flagged and kept seeing,
+none of them touched by this batch. The eighth, `security`, **is** one of this batch's
+eight lessons and had not appeared in that list before, so per the batch instructions it
+was not waved off: rerun in isolation with `--filter="security mounts and renders
+content"`, it passed in 1.44s against a 20s timeout (full command: `npx ng test
+--watch=false --filter="..."`). The other six smoke failures and both a11y failures were
+re-run the same way, in two grouped `--filter` calls, and every one passed cleanly
+(6/6 and 2/2, both well under their timeouts) — confirming all nine are this sandbox's
+known resource-contention pattern (mounting ~120 other lesson components earlier in the
+same full-suite run tips an otherwise-fast mount over its timeout), not a regression this
+batch introduced.
+
+Declared-shape count: 54 → 62. Remaining undeclared: 103 − 62 = **41**, next up for batch 9.
+
 ---
 
 ## 3. Later

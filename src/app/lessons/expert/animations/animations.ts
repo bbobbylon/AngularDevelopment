@@ -2,7 +2,9 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /**
@@ -28,10 +30,37 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * the director's *and* the in-betweener's job on the main thread), and why
  * only `transform`/`opacity` are cheap (the in-betweener can only work for
  * free when the poses it's handed don't require redrawing the scene).
+ *
+ * ## Page shape — "The Receipt" (BACKLOG §2.10 step 5)
+ *
+ * The opening block itemises the rendering pipeline as a bill: four stages
+ * paid, every frame, by a naively-animated property, versus one paid by
+ * `transform`/`opacity` — a real cost, which is exactly what `app-receipt` is
+ * for (`docs/CONTRIBUTING.md` §2C). Its own code sample and quiz are
+ * deliberately fresh, not `pipelineCheap`/`pipelineExpensive`/`quizOptions`
+ * used later for the full Web Vitals walkthrough — same underlying
+ * mechanism, a different device asking a different question (the block asks
+ * "does `box-shadow` reach Layout"; the later quiz asks which properties are
+ * cheap at all).
  */
 @Component({
   selector: 'app-lesson-animations',
-  imports: [RouterLink, BfPage, Chapter, CodeLab, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Chapter,
+    CodeLab,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
+    Compare,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './animations.css',
   templateUrl: './animations.html',
 })
@@ -91,6 +120,72 @@ export class Animations {
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "The Receipt" --
+
+  /** The bill: four pipeline stages, paid every frame, by one naively-animated box. */
+  protected readonly frameBill: ReceiptRow[] = [
+    { label: 'Style', amount: 'recalculates which rules apply' },
+    {
+      label: 'Layout',
+      amount: 'recomputes geometry — this element AND everything it displaces',
+      tone: 'warn',
+    },
+    { label: 'Paint', amount: 'redraws pixels into a new layer', tone: 'warn' },
+    { label: 'Composite', amount: 'GPU assembles the frame' },
+  ];
+
+  /** The total line: how many stages a naive animation pays, every single frame. */
+  protected readonly frameBillTotal: ReceiptRow = {
+    label: 'stages paid, every single frame',
+    amount: '4',
+    tone: 'warn',
+  };
+
+  /** The pipeline, named in one line before the code proves which stages a fix skips. */
+  protected readonly frameChainSteps: readonly string[] = ['Style', 'Layout', 'Paint', 'Composite'];
+
+  /** Sample: the identical visual result, animated two ways with two very different bills. */
+  protected readonly frameBillSample = `/* pays Style → Layout → Paint → Composite, every frame */
+.panel { height: 0; transition: height .3s; }
+.panel.open { height: 240px; }
+
+/* pays Style → Composite only — Layout and Paint never run */
+.panel { transform: scaleY(0); transform-origin: top; transition: transform .3s; }
+.panel.open { transform: scaleY(1); }`;
+
+  /** Line-by-line walkthrough of {@link frameBillSample}. */
+  protected readonly frameBillNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: '`height` is a **layout** property — the browser cannot know how tall the box now is without recomputing where every element below it sits. That recompute reruns on every single animation frame, not once.',
+    },
+    {
+      line: 6,
+      text: '`transform: scaleY()` never changes the geometry the rest of the page reasons about — as far as Layout is concerned, this box is still its original size. `transform-origin: top` just moves the pivot so it grows downward instead of from the centre; the property doing the real work is still `transform` alone.',
+    },
+  ];
+
+  /** The block's own quiz — a different trap from the later compositor-properties one. */
+  protected readonly frameBillQuiz: QuizOption[] = [
+    {
+      text: 'Yes — anything animated forces Layout to re-run.',
+      why: 'Layout is specifically about **geometry** — where things sit and how big they are. `box-shadow` changes neither, so it never reaches this stage, no matter how often it repaints.',
+    },
+    {
+      text: "No — box-shadow never changes any element's geometry, so Layout never runs. But it DOES force Paint every frame, since the shadow's pixels have to be redrawn.",
+      correct: true,
+      why: "Exactly. `box-shadow` skips Layout but not Paint — on a large or complex element that repaint is real cost, just a smaller bill than Layout's, and a much bigger one than `transform`/`opacity`'s.",
+    },
+    {
+      text: "No, and it's free — the compositor handles box-shadow exactly like transform.",
+      why: 'Only `transform` and `opacity` skip straight to Composite. `box-shadow` still has to be repainted into a layer first — cheaper than a Layout-triggering property, but not free.',
+    },
+    {
+      text: 'It depends on whether the shadow is declared in px or a CSS custom property.',
+      why: 'The unit the value is written in has no bearing on which pipeline stages run — that is decided entirely by which visual property is changing.',
+    },
+  ];
 
   /** The Cross-Cutting track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

@@ -1,8 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
-import type { ChapterStop, CodeNote } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { Stepper } from './stepper/stepper';
@@ -17,6 +18,18 @@ import { Stepper } from './stepper/stepper';
  * pitfalls that show up in exams and code review.
  *
  * The Stepper below is a real child component used by several live demos.
+ *
+ * ## Page shape — "The Argument" (BACKLOG §2.10 step 5)
+ *
+ * The opening block dramatizes the clamping demo below it as a dispute
+ * between three blameless parties — the Stepper, the `[(x)]` sugar, and the
+ * parent — over how a negative quantity reached state with nobody having
+ * broken a rule. `app-bubbles` × 2 split by `app-brain-power` is the
+ * required shape (`docs/CONTRIBUTING.md` §2C); its own dialogue and figure
+ * are fresh, not the emission-rules `childWriteFlow`/`parentWriteFlow`
+ * material used later — same mechanism, a different question (the block
+ * asks whose fault an unclamped value is; the later section asks which
+ * write direction emits at all).
  *
  * ## Presentation
  *
@@ -40,8 +53,12 @@ import { Stepper } from './stepper/stepper';
     FormsModule,
     Stepper,
     BfPage,
+    Bubbles,
     Chapter,
     CodeLab,
+    Layers,
+    Napkin,
+    BrainPower,
     Faq,
     Flow,
     Predict,
@@ -157,6 +174,93 @@ export class TwoWayBinding {
   protected readonly agree = signal(false);
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "The Argument" --
+
+  /**
+   * Round one: each party states its own contract, and every statement is
+   * true. Nobody lies here — that is what makes the block an argument and
+   * not a bug report.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'Stepper',
+      says: 'dec() ran again. value is -5 now. I called update() — figuring out the number and calling update() is my whole job.',
+    },
+    {
+      who: '[(value)] sugar',
+      says: 'Child emitted -5. My contract says every emission becomes the new value, immediately, no exceptions — that is the entire deal `[(x)]` offers.',
+    },
+    {
+      who: 'Parent',
+      says: 'I wrote `[(value)]="qty"` specifically so I would NOT have to handle each change by hand. Sugar handled it.',
+    },
+    {
+      who: 'Stepper',
+      says: 'Nobody ever told me negative quantities were illegal. I only know how to count up and down.',
+    },
+    {
+      who: '[(value)] sugar',
+      says: "Nobody told ME either. I'm sugar for `[value]` + `(valueChange)` — I save you two lines of typing, I don't add a rule.",
+    },
+    {
+      who: 'Parent',
+      says: 'And I never got a chance to look at the number before it landed in `qty` — that is precisely what `[(x)]` promises to skip.',
+    },
+  ];
+
+  /**
+   * Round two: everyone denies fault, correctly, until the verdict lands on
+   * the one party who was never even in the conversation — the developer.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    { who: 'Stepper', says: 'Not me — updating the count IS my job, sane or not.' },
+    {
+      who: '[(value)] sugar',
+      says: "Not me — I'm syntax, not a validator. I was never handed a rule to enforce.",
+    },
+    {
+      who: 'Parent',
+      says: 'Not me — I trusted the binding to hand me a good number, the same as any other.',
+    },
+    {
+      who: 'You',
+      says: "It's on me. `[(value)]` was never going to stop -5 — it has no seam for a rule. The moment one is needed, the fusion comes apart: `[value]` stays, `(valueChange)` routes through code I write, and MY code decides what's allowed through.",
+    },
+  ];
+
+  /** The figure: the same dispute, restated as containment instead of dialogue. */
+  protected readonly argCore: Layer = {
+    label: 'qty — the value in state',
+    sub: 'whatever the last emission said, unexamined',
+  };
+
+  /** The two rings the value passed through with nobody stopping to look at it. */
+  protected readonly argRings: Layer[] = [
+    { label: 'Stepper.dec()', sub: 'computed -5, called update() — correctly' },
+    { label: '[(value)] sugar', sub: 'carried [value] + (valueChange), unmodified — correctly' },
+  ];
+
+  /** The block's own quiz — the fix the verdict points to, not yet demonstrated live. */
+  protected readonly argQuiz: QuizOption[] = [
+    {
+      text: 'Nothing needs to change — model() writes through .set(), and .set() validates automatically.',
+      why: "`.set()` only stores whatever it's handed. It has no idea a `Stepper` is even meant to represent a quantity, let alone that quantities can't go negative — there is no validation built into the signal itself.",
+    },
+    {
+      text: 'Give the Stepper a `min` input and trust every future caller to set it.',
+      why: 'That helps the ONE component that remembers to pass it, and does nothing for the sugar itself — a caller who forgets `min`, or a different child component entirely, hits the exact same gap.',
+    },
+    {
+      text: 'Split the banana: bind `[value]="qty()" (valueChange)="setQty($event)"`, and put the floor inside setQty().',
+      correct: true,
+      why: 'Right — this is the verdict the argument reaches. The fused form has no seam for a rule; unglue the two pipes and the outbound one runs through code the parent owns.',
+    },
+    {
+      text: 'Switch from model() to plain @Output(), which clamps values below zero by default.',
+      why: '`@Output()` is even less opinionated than `model()` — it is the legacy building block `model()` generates for you, not a stricter version of it. Neither one clamps anything on its own.',
+    },
+  ];
 
   /** The Data Binding track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

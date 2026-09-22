@@ -8,9 +8,12 @@ import {
   type ChapterStop,
   CodeLab,
   type CodeNote,
+  Layers,
+  type Layer,
   Napkin,
   TapeCard,
 } from '../../../shared/brain';
+import { BrainPower, type NdqItem, NoDumbQuestions } from '../../../shared/shapes';
 import {
   Faq,
   type FaqItem,
@@ -52,6 +55,17 @@ import {
  *   it ever reaches a resolver. Its analogy (an airport security line) is deliberately
  *   a different frame from this lesson's restaurant one, so the two lessons reinforce
  *   each other instead of repeating the same picture.
+ *
+ * ## Page shape — "There Are No Dumb Questions" (BACKLOG §2.10 step 5)
+ *
+ * The opening block is seven open questions carrying the whole "complete, not
+ * emit" explanation up front, per `docs/CONTRIBUTING.md` §2C. Its quiz is
+ * deliberately a different angle (parallel-resolver timing) from
+ * {@link quizOptions} further down the page (whether `catchError` alone
+ * unblocks a non-completing stream) — two genuinely different traps, not one
+ * trap asked twice. `resolverTalk` stays in its original section below the
+ * block; a dialogue and a Q&A spine are different enough modes to both earn a
+ * place on the page.
  */
 @Component({
   selector: 'app-lesson-resolvers',
@@ -61,8 +75,11 @@ import {
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Faq,
     Flow,
     Predict,
@@ -160,6 +177,73 @@ export class Resolvers {
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /** The seven questions this lesson reliably gets asked, carrying the whole explanation. */
+  protected readonly resolverQuestions: NdqItem[] = [
+    {
+      q: "My resolver's Observable definitely emits a value — so why is navigation just sitting there?",
+      a: "Because the router isn't waiting for a value, it's waiting for `complete()`. An `HttpClient` call completes the instant it emits, but a `BehaviorSubject`, an `interval`, or a live socket can emit forever without ever completing — and the router has no timeout and nothing in the console. It just waits.",
+    },
+    {
+      q: "Doesn't wrapping the resolver in catchError protect against a stream that never completes?",
+      a: '`catchError` only intervenes when the source **errors**. A stream that neither errors nor completes never reaches it — the callback sits there unused while your navigation hangs regardless. You need `first()` (or `take(1)`) for completion, and `catchError` for errors; they guard two completely different failure modes.',
+    },
+    {
+      q: 'If two resolvers sit on the same route, does the slower one block the faster one?',
+      a: "They run in **parallel**, not one after another — but navigation waits for both, so the route is only ever as fast as its slowest key regardless. Parallel execution doesn't mean the fast one lets you in early.",
+    },
+    {
+      q: 'The resolver already fetched the data — why does my component still need input.required<User>()?',
+      a: "That's not a second fetch, it's just how the component **receives** what already arrived. `required` also makes Angular guarantee a value exists before the component ever renders, so there's no `undefined` state to guard against the way a component-level fetch would have.",
+    },
+    {
+      q: "I clicked the exact link I'm already on. Does the resolver run again?",
+      a: "Not by default — Angular treats a navigation to the same URL as a no-op. Combine `runGuardsAndResolvers: 'always'` with `onSameUrlNavigation: 'reload'` on the route if you want a 'refresh' click to actually refetch.",
+    },
+    {
+      q: 'My endpoint realistically always succeeds. Do I still need catchError?',
+      a: 'Yes. An uncaught error becomes a `NavigationError` that strands the user with nothing on screen and nothing in the URL bar. A `catchError` that redirects to a friendly fallback costs one line and turns a dead end into a page.',
+    },
+    {
+      q: 'Can a resolver skip the data question entirely and just redirect?',
+      a: 'Yes — return a `RedirectCommand`/`UrlTree` straight away, no data involved. Useful when the redirect DECISION itself needs data a synchronous guard has no way to reach in time.',
+    },
+  ];
+
+  /** The figure: what the router is actually waiting on, restated as containment. */
+  protected readonly resolveCore: Layer = {
+    label: 'UserPage — not created yet',
+    sub: 'the router is waiting on exactly one signal',
+  };
+
+  /** The one ring that matters: emitting is not the promise the router is holding out for. */
+  protected readonly resolveRings: Layer[] = [
+    { label: 'HTTP request emits a value', sub: 'a value alone unblocks nothing' },
+    { label: 'complete() fires', sub: 'THIS is what the router is actually waiting on' },
+  ];
+
+  /** The block's own quiz — parallel-resolver timing, a different trap from {@link quizOptions}. */
+  protected readonly resolveTimingQuiz: QuizOption[] = [
+    {
+      text: '200ms — navigation proceeds as soon as the fastest key resolves.',
+      why: 'Resolvers run in parallel, but the ROUTER waits for every key on the route before it proceeds — a fast key finishing early buys nothing on its own.',
+    },
+    {
+      text: '2000ms — navigation waits for the SLOWEST key, since all of them have to finish.',
+      correct: true,
+      why: 'Right. Parallel means they start together, not that the navigation can proceed piecemeal — the route is only ever as fast as its slowest resolve key, exactly like a page that waits on its slowest network request.',
+    },
+    {
+      text: '2200ms — the two keys run one after another, so their times add up.',
+      why: "They don't run sequentially. Every `resolve` key on a route starts at the same moment; the times don't stack, the slower one just sets the pace.",
+    },
+    {
+      text: 'Instantly — resolvers only run after the component has already rendered.',
+      why: 'The opposite is true: a resolver runs BEFORE the component is created, precisely so it never has to render in a loading state. Nothing here happens after render.',
+    },
+  ];
 
   /** The Routing track, reusing `route-guards`' stop list so the rail stays consistent. */
   protected readonly stops: ChapterStop[] = [

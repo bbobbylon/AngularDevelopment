@@ -16,6 +16,49 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      A resolver's promise to the router is exactly one word: complete — not emit, not arrive, not succeed.
+    </p>
+
+    <p class="bf-say">
+      Every trap on this page traces back to that single word. Here's every question it reliably gets asked, answered up
+      front.
+    </p>
+
+    <app-no-dumb-questions [items]="resolverQuestions" />
+
+    <app-brain-power
+      question="An HttpClient call and a live WebSocket both emit real, correct data through a resolver. Only one of them lets navigation through. Which one, and why does emitting a value not settle it either way?"
+      hint="Ask which of the two ever stops talking — not which one talks first."
+    />
+
+    <app-layers
+      [core]="resolveCore"
+      [rings]="resolveRings"
+      arrow="the router acts on complete(), never on next() alone"
+      caption="A value arriving is not the signal the router is holding out for. Completion is — and only one of these two sources ever sends it."
+    />
+
+    <app-quiz
+      question="Two resolve keys sit on the same route: user (200ms) and permissions (2000ms). Roughly how long until the navigation actually completes?"
+      [options]="resolveTimingQuiz"
+      followUp="The two-panel flicker demo further down this page runs the identical navigation two ways — with and without a resolver — so you can watch where the wait actually goes."
+    />
+
+    <app-napkin lead="the mental model —" label="A kitchen ticket, not a shout">
+      Calling an order out across a kitchen isn't the same as the ticket being done — the chef has to mark it complete
+      and hand it through the window before the server can serve it. A resolver's Observable works the same way:
+      emitting a value is the shout. <code>complete()</code> is the ticket actually crossing the window.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

@@ -17,6 +17,104 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Flip one boolean to <code>false</code>, then back to <code>true</code>. Behind one API, everything inside that
+      branch is gone forever the instant it happens. Behind the other, nothing so much as blinked.
+    </p>
+
+    <app-brain-power
+      question="A text box sits inside a branch. Flip the branch to false, then back to true. Is your typed text still there — and does the answer depend on whether the branch is @if or [hidden]?"
+      hint="Ask what @if's job actually is: hiding a branch from view, or deciding whether it EXISTS at all."
+    />
+
+    <app-whiteboard
+      caption="Same three layers, two different outcomes — @if throws all three away; [hidden] leaves every one of them standing."
+      alt="Two columns of three stacked boxes labelled DOM node, component instance and local state. The left column, headed at-if false, has all three boxes faded and marked destroyed: removed, ngOnDestroy fires, and garbage. The right column, headed hidden false, has the same three boxes lit and marked still alive: display none, still running, untouched."
+    >
+      <svg class="wb-svg" viewBox="0 0 660 360" aria-hidden="true" focusable="false">
+        <text x="170" y="24" text-anchor="middle" class="wb-hand wb-text--sm">&#64;if (open) — FALSE</text>
+        <text x="490" y="24" text-anchor="middle" class="wb-hand wb-text--sm">[hidden] — FALSE</text>
+
+        <rect x="60" y="46" width="220" height="62" rx="10" class="wb-node" opacity="0.4" />
+        <text x="170" y="72" text-anchor="middle" class="wb-mono wb-text--sm">DOM node</text>
+        <text x="170" y="92" text-anchor="middle" class="wb-text--sm">✕ removed</text>
+
+        <rect x="60" y="132" width="220" height="62" rx="10" class="wb-node" opacity="0.4" />
+        <text x="170" y="158" text-anchor="middle" class="wb-mono wb-text--sm">Component instance</text>
+        <text x="170" y="178" text-anchor="middle" class="wb-text--sm">✕ ngOnDestroy fires</text>
+
+        <rect x="60" y="218" width="220" height="62" rx="10" class="wb-node" opacity="0.4" />
+        <text x="170" y="244" text-anchor="middle" class="wb-mono wb-text--sm">Local state</text>
+        <text x="170" y="264" text-anchor="middle" class="wb-text--sm">✕ garbage</text>
+
+        <text x="170" y="306" text-anchor="middle" class="wb-hand wb-text--sm">ALL THREE: DESTROYED</text>
+
+        <rect x="380" y="46" width="220" height="62" rx="10" class="wb-node wb-node--lit" />
+        <text x="490" y="72" text-anchor="middle" class="wb-mono wb-text--sm">DOM node</text>
+        <text x="490" y="92" text-anchor="middle" class="wb-text--sm">display: none</text>
+
+        <rect x="380" y="132" width="220" height="62" rx="10" class="wb-node wb-node--lit" />
+        <text x="490" y="158" text-anchor="middle" class="wb-mono wb-text--sm">Component instance</text>
+        <text x="490" y="178" text-anchor="middle" class="wb-text--sm">still running</text>
+
+        <rect x="380" y="218" width="220" height="62" rx="10" class="wb-node wb-node--lit" />
+        <text x="490" y="244" text-anchor="middle" class="wb-mono wb-text--sm">Local state</text>
+        <text x="490" y="264" text-anchor="middle" class="wb-text--sm">untouched</text>
+
+        <text x="490" y="306" text-anchor="middle" class="wb-hand wb-text--sm">ALL THREE: STILL ALIVE</text>
+      </svg>
+
+      <app-scribble
+        quote="✕ removed"
+        tone="clay"
+        text="Not paused, not cached — the DOM node is torn out of the tree completely. There is nothing left for the browser to even hide."
+      />
+      <app-scribble
+        quote="✕ ngOnDestroy fires"
+        tone="accent"
+        text="The full teardown lifecycle runs on the way out. Any timer or subscription this component set up gets exactly one chance to clean up here — or it leaks."
+      />
+      <app-scribble
+        quote="display: none"
+        point="up"
+        tone="olive"
+        text="The entire opposite bet. The node is still in the DOM, the component is still running, and nothing about its state was ever asked to reset."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <code>&#64;if (false)</code> doesn't pause a branch — it <strong>deletes</strong> it. The DOM, the component
+      instance and every signal or subscription inside are gone, and flipping the condition back to
+      <code>true</code> builds a stranger wearing the same markup. <code>[hidden]</code> never leaves the room at all:
+      same instance, same scroll position, same half-typed input, the entire time.
+    </p>
+
+    <app-flow
+      caption="What actually happens, in order, the instant @if's condition flips to false."
+      [steps]="destroyFlow"
+    />
+
+    <app-quiz
+      question="A text box sits inside @if (open()). Type into it, flip open to false, then back to true. What's in the box now?"
+      [options]="wbQuiz"
+      followUp="The live demo further down this page is this exact setup — type something, toggle it, and watch for yourself."
+    />
+
+    <app-napkin lead="the mental model —" label="Evicted vs. blinds drawn">
+      A landlord who evicts a tenant changes the locks and clears the room — whoever moves in next starts from nothing.
+      A landlord who just closes the blinds leaves the tenant exactly where they were, invisible from the hallway.
+      <code>&#64;if</code> is the first landlord. <code>[hidden]</code> is the second.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

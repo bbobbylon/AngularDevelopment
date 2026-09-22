@@ -16,6 +16,47 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">Nothing an Observable describes has happened yet. Subscribing is the only thing that runs it.</p>
+
+    <p class="bf-say">
+      Every surprise on this page — a duplicated request, a doubled network call, a timer that won't stop — traces back
+      to that one sentence. Here's every question it reliably gets asked, answered up front.
+    </p>
+
+    <app-no-dumb-questions [items]="observableQuestions" />
+
+    <app-brain-power
+      question="Two components call the exact same service method, which returns the exact same Observable object. Each one subscribes. Did the HTTP request fire once, or twice?"
+      hint="Ask what a cold Observable actually remembers between two separate .subscribe() calls — not what it returns."
+    />
+
+    <app-layers
+      [core]="obsCore"
+      [rings]="obsRings"
+      arrow="each subscribe() reruns the producer from the top — the Observable itself remembers nothing about the last run"
+      caption="Same variable, same Observable object, two subscribers — and two completely separate executions, with two different results."
+    />
+
+    <app-quiz
+      question="A component builds const obs$ = this.http.get(...) in ngOnInit, but nothing in the template ever binds to it and nothing calls .subscribe(). How many HTTP requests actually go out?"
+      [options]="obsLazyQuiz"
+      followUp="The subscribe/unsubscribe bench further down this page is the live version of exactly this — nothing happens until you click Start."
+    />
+
+    <app-napkin lead="the mental model —" label="A recipe card, not a meal">
+      A recipe sitting in a drawer does nothing by itself. Two different cooks following the exact same card each make
+      their own meal from scratch — neither one gets to eat what the other made, unless they specifically agree to share
+      one pot.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

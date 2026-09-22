@@ -15,6 +15,60 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      "I called update(). Figuring out the number is my whole job," says the Stepper. It isn't wrong.
+    </p>
+
+    <p class="bf-say">
+      A Stepper's <code>dec()</code> button has no floor — click it enough and <code>value</code> goes negative. Three
+      parties touch that number on the way into your component's state: the <strong>Stepper</strong>, who computes it;
+      the <strong>[(value)] sugar</strong>, who carries it; and the <strong>parent</strong>, who trusts it.
+    </p>
+
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="The Stepper did its job. The sugar did its job. The parent did its job. So how did -5 make it all the way into a quantity field — and whose job was it to stop it?"
+      hint="Ask which of the three parties was ever HANDED a rule about what counts as valid — not which one touched the number."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      Two-way binding sugar has no opinion about what a value should be — it only agrees to carry whatever the child
+      hands it, unmodified, in both directions. The instant a value needs a rule, the fusion has to come apart:
+      <code>[x]</code> stays exactly as it was; <code>(xChange)</code> routes through code you write instead of straight
+      into state.
+    </p>
+
+    <app-layers
+      [core]="argCore"
+      [rings]="argRings"
+      arrow="nowhere in this chain is there a validation step — the sugar has no seam for one"
+      caption="Every stop along the way did its documented job. The rule was never anyone's job until you write it."
+    />
+
+    <app-quiz
+      question="A Stepper's dec() lets value go negative. The parent binds it with [(value)]='qty'. What's the actual fix that stops a negative number from ever reaching qty?"
+      [options]="argQuiz"
+      followUp="The clamping demo further down this page is this exact fix, live — type past zero and watch it hold."
+    />
+
+    <app-napkin lead="the mental model —" label="A conveyor belt with no inspector">
+      A factory belt carries whatever the machine upstream places on it straight through to packaging — there is no
+      built-in inspection point. If a defective part needs catching, someone has to physically install an inspection
+      station into the belt; the belt itself was never going to grow one. Splitting the banana is installing that
+      station.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>

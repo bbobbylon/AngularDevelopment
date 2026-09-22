@@ -3,7 +3,8 @@ import { Component, OnDestroy, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, Subscription, interval, shareReplay, take, tap } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
-import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
+import { BrainPower, type NdqItem, NoDumbQuestions } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -52,6 +53,14 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  * @see intermediate/rxjs-subjects — observables you can push into.
  * @see intermediate/rxjs-interop — `toSignal`, the modern alternative to
  *   consuming a stream with `| async` at all.
+ *
+ * ## Page shape — "There Are No Dumb Questions" (BACKLOG §2.10 step 5)
+ *
+ * The opening block is seven open questions carrying the laziness/cold-
+ * duplication explanation up front, per `docs/CONTRIBUTING.md` §2C. Its quiz
+ * is a fresh question (a subscribe-less Observable) rather than
+ * {@link coldQuiz}/{@link asyncQuiz} further down, which stay paired with
+ * their own live demos exactly where they were.
  */
 @Component({
   selector: 'app-lesson-rxjs-observables',
@@ -65,6 +74,8 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
     Compare,
     Faq,
     Flow,
@@ -242,6 +253,73 @@ export class RxjsObservables implements OnDestroy {
   }
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /** The seven questions this lesson reliably gets asked, carrying the whole explanation. */
+  protected readonly observableQuestions: NdqItem[] = [
+    {
+      q: "I called this.http.get(...) and assigned it to a variable — shouldn't the request already be on its way?",
+      a: 'No — an Observable is **lazy**. `http.get()` builds a description of a request and does nothing else; nothing goes out until something calls `.subscribe()` on it, directly or through `| async`.',
+    },
+    {
+      q: 'I subscribed to the same Observable from two different components. Was that one request, or two?',
+      a: "Two. A cold Observable re-runs its entire producer for **every single subscription** — calling the same method, or even holding the exact same Observable object, doesn't share one execution unless something explicitly shares it.",
+    },
+    {
+      q: 'Two `| async` bindings in my template read the exact same expression. Surely Angular reuses one subscription?',
+      a: "It doesn't. Every `| async` you write gets its own `AsyncPipe` instance, and each one subscribes independently the moment it's created — two bindings, two runs, two network calls for an HTTP source.",
+    },
+    {
+      q: 'If subscribing re-runs the producer, how do I actually SHARE one execution between subscribers?',
+      a: 'Pipe the source through `shareReplay(1)` and hand out the shared Observable instead of the raw one — every subscriber joins that one execution instead of starting a fresh one.',
+    },
+    {
+      q: 'Does calling .subscribe() twice on the exact same Observable VARIABLE count as sharing?',
+      a: 'No — the variable is just a reference to the recipe, not to a run of it. Two `.subscribe()` calls on the identical variable are still two separate executions, unless that Observable was built with something like `shareReplay`.',
+    },
+    {
+      q: 'My component reads a value and I never called .subscribe() anywhere I can find. Where did that come from?',
+      a: 'Almost certainly the async pipe. `| async` in a template is a subscribe call in disguise — it runs the producer, updates the view on every emission, and unsubscribes automatically when the binding is destroyed.',
+    },
+    {
+      q: 'If a request already fired once, does calling .subscribe() a second time reuse that result?',
+      a: 'Not unless the Observable was built to share it. A plain cold Observable has no memory of a previous run — every `.subscribe()` starts the whole recipe over from the top.',
+    },
+  ];
+
+  /** The figure: two subscribers, one cold source, two separate executions. */
+  protected readonly obsCore: Layer = {
+    label: 'coldSource$ — the recipe',
+    sub: 'inert the whole time nobody is subscribed',
+  };
+
+  /** The two subscriptions that each re-run the producer from the top. */
+  protected readonly obsRings: Layer[] = [
+    { label: 'subscribe() — Subscriber A', sub: 'producer runs → a fresh execution id' },
+    { label: 'subscribe() — Subscriber B', sub: 'producer runs AGAIN → a DIFFERENT execution id' },
+  ];
+
+  /** The block's own quiz — the base laziness fact, before either demo runs. */
+  protected readonly obsLazyQuiz: QuizOption[] = [
+    {
+      text: 'One — building the Observable already sent the request.',
+      why: 'Building an Observable never runs anything. `new Observable(fn)` — or `http.get()`, which is built from one — just stores `fn`; nothing inside it executes until `.subscribe()` is called.',
+    },
+    {
+      text: 'Zero — nothing ever subscribed, so nothing ever ran.',
+      correct: true,
+      why: "Right. An Observable with no subscriber is a recipe sitting in a drawer, forever. This is the entire meaning of `lazy`, and it's the fact every trap later on this page traces back to.",
+    },
+    {
+      text: 'One, but only once change detection first runs.',
+      why: "Change detection has nothing to do with when an Observable's producer runs — that is decided entirely by `.subscribe()`, called explicitly or through `| async`. Nothing here is waiting on a CD pass.",
+    },
+    {
+      text: 'It depends on whether the component uses OnPush.',
+      why: "Change-detection strategy decides whether a **view** gets re-checked; it has no say over whether an Observable's producer ever runs at all. That's a different axis entirely.",
+    },
+  ];
 
   /** The RxJS track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

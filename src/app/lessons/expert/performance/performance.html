@@ -15,6 +15,97 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Four rows, one shuffle. The array ends up right either way — <code>track</code> only decides which
+      <strong>DOM node</strong> a name lands next to, and one choice gets that wrong every single time.
+    </p>
+
+    <app-brain-power
+      question="You type a note into row 2's input, then shuffle the array. Where does that note end up — attached to the fruit that was in position 2, or attached to whatever fruit is NOW in position 2?"
+      hint="Ask what track $index actually knows about a row: its NAME, or just where it currently sits?"
+    />
+
+    <app-whiteboard
+      caption="Same shuffle, two outcomes — item.id moves the real node with its row; $index leaves the node exactly where it was and lets a stranger's name sit next to it."
+      alt="Three rows of three boxes each. The top row, labelled before, shows Apple with a typed note, Banana, and Cherry, in that order. The middle row, labelled after shuffle, track dollar-index, shows the same three names reordered to Cherry, Apple, Banana, but the typed note has stayed in the first slot — now sitting next to Cherry instead of Apple. The bottom row, labelled after shuffle, track item dot id, shows the identical reorder, but the typed note has moved along with Apple to its new slot."
+    >
+      <svg class="wb-svg" viewBox="0 0 620 340" aria-hidden="true" focusable="false">
+        <text x="20" y="30" class="wb-hand wb-text--sm">BEFORE</text>
+        <rect x="120" y="8" width="140" height="46" rx="8" class="wb-node" />
+        <text x="190" y="36" text-anchor="middle" class="wb-mono wb-text--sm">Apple 📝</text>
+        <rect x="280" y="8" width="140" height="46" rx="8" class="wb-node" />
+        <text x="350" y="36" text-anchor="middle" class="wb-mono wb-text--sm">Banana</text>
+        <rect x="440" y="8" width="140" height="46" rx="8" class="wb-node" />
+        <text x="510" y="36" text-anchor="middle" class="wb-mono wb-text--sm">Cherry</text>
+
+        <text x="20" y="120" class="wb-hand wb-text--sm">AFTER — track $index</text>
+        <rect x="120" y="98" width="140" height="46" rx="8" class="wb-node" opacity="0.55" />
+        <text x="190" y="126" text-anchor="middle" class="wb-mono wb-text--sm">Cherry 📝</text>
+        <rect x="280" y="98" width="140" height="46" rx="8" class="wb-node" opacity="0.55" />
+        <text x="350" y="126" text-anchor="middle" class="wb-mono wb-text--sm">Apple</text>
+        <rect x="440" y="98" width="140" height="46" rx="8" class="wb-node" opacity="0.55" />
+        <text x="510" y="126" text-anchor="middle" class="wb-mono wb-text--sm">Banana</text>
+        <text x="190" y="160" text-anchor="middle" class="wb-text--sm">note stuck in slot 1 — wrong fruit now</text>
+
+        <text x="20" y="222" class="wb-hand wb-text--sm">AFTER — track item.id</text>
+        <rect x="120" y="200" width="140" height="46" rx="8" class="wb-node wb-node--lit" />
+        <text x="190" y="228" text-anchor="middle" class="wb-mono wb-text--sm">Cherry</text>
+        <rect x="280" y="200" width="140" height="46" rx="8" class="wb-node wb-node--lit" />
+        <text x="350" y="228" text-anchor="middle" class="wb-mono wb-text--sm">Apple 📝</text>
+        <rect x="440" y="200" width="140" height="46" rx="8" class="wb-node wb-node--lit" />
+        <text x="510" y="228" text-anchor="middle" class="wb-mono wb-text--sm">Banana</text>
+        <text x="350" y="262" text-anchor="middle" class="wb-text--sm">note moved WITH Apple — right fruit</text>
+      </svg>
+
+      <app-scribble
+        quote="note stuck in slot 1"
+        tone="clay"
+        text="The DOM node itself never moved — only the label painted onto it changed. Whatever was typed stays attached to slot 1, which is now Cherry's row, not Apple's."
+      />
+      <app-scribble
+        quote="note moved WITH Apple"
+        point="up"
+        tone="olive"
+        text="Angular matched this row by its **id**, not by where it happened to sit — so the real DOM node, note and all, travelled to Apple's new slot."
+      />
+      <app-scribble
+        quote="track $index"
+        tone="accent"
+        text="`$index` costs nothing to read — no property lookup, nothing computed. It's also not an identity, just 'whichever row is here right now'."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      <code>track $index</code> reuses DOM nodes by <strong>position</strong>, so a reorder leaves every node exactly
+      where it was and lets a new name sit down next to it — <code>&lt;input&gt;</code>, scroll position, CSS
+      transitions, all attached to the wrong row. <code>track item.id</code> reuses nodes by <strong>identity</strong>,
+      so the real element — and everything inside it — moves with its row instead.
+    </p>
+
+    <app-flow caption="The same reorder, at the one step where the two choices diverge." [steps]="reorderFlow" />
+
+    <app-quiz
+      question="Four rows render with @for (item of items(); track $index). You type 'call mom' into row 2's input, then shuffle the array. Where does 'call mom' end up?"
+      [options]="wbTrackQuiz"
+      followUp="The live shuffle demo further down this page is this exact setup, side by side — type a note and watch which one keeps it."
+    />
+
+    <app-napkin lead="the mental model —" label="A name tag vs. a seating chart">
+      Swap two place cards at a dinner table and the guests haven't moved — only the labels have.
+      <code>track $index</code> is the place-card swap: the seat (the DOM node) stays put, whoever's name is on it now
+      inherits whatever was left at that seat. <code>track item.id</code> actually moves the guest, water glass and all,
+      to wherever their name card ends up.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
