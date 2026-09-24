@@ -8,9 +8,12 @@ import {
   type ChapterStop,
   CodeLab,
   type CodeNote,
+  Layers,
+  type Layer,
   Napkin,
   TapeCard,
 } from '../../../shared/brain';
+import { BrainPower } from '../../../shared/shapes';
 import {
   Compare,
   Faq,
@@ -67,8 +70,10 @@ import { CounterDemo } from './counter-demo/counter-demo';
     Bubbles,
     Chapter,
     CodeLab,
+    Layers,
     Napkin,
     TapeCard,
+    BrainPower,
     Compare,
     Faq,
     Flow,
@@ -87,6 +92,84 @@ export class TestingComponents {
   protected readonly stops: ChapterStop[] = [
     { label: 'Testing Components' },
     { label: 'Testing Services & HTTP', id: 'testing-services-http' },
+  ];
+
+  // -- Page-shape block: "The Argument" --
+
+  /**
+   * Round one: each party states its own contract, truthfully, with no
+   * villain in the room yet.
+   */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'Component',
+      says: 'I called count.set(5). My internal state is exactly 5 right now — go check component.count() yourself.',
+    },
+    {
+      who: 'DOM',
+      says: "I'm still showing 4. Nobody has called detectChanges() since your state changed, and a signal write doesn't reach me on its own.",
+    },
+    {
+      who: 'Test',
+      says: 'I read fixture.nativeElement.textContent right after the state change, and it said 4. I reported exactly what was actually there.',
+    },
+    {
+      who: 'Component',
+      says: 'And I did my job. The signal changed the instant .set() ran — that part was never in question.',
+    },
+    {
+      who: 'DOM',
+      says: 'And I did mine. I only repaint when something calls detectChanges(), or the fixture is in autoDetectChanges mode. Nobody made that call here.',
+    },
+    {
+      who: 'Test',
+      says: 'And I did mine too. I asked the DOM what it currently shows, honestly, and reported precisely that.',
+    },
+  ];
+
+  /**
+   * Round two: everyone reiterates their innocence, and the fourth,
+   * unperformed step gets named by the one party who was actually
+   * responsible for calling it — the reader.
+   */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    { who: 'Component', says: 'Not me. My state was correct the whole time.' },
+    { who: 'DOM', says: "Not me — I'm not psychic. I update on command, and no command arrived." },
+    { who: 'Test', says: 'Not me — I asked honestly, and I reported honestly.' },
+    {
+      who: 'You',
+      says: 'None of you. fixture.detectChanges() was never called again after the state change. That missing step was never any of your jobs — it was mine.',
+    },
+  ];
+
+  /** The bug's own quiz — the verdict, checked before the page's later quiz runs the exact scenario live. */
+  protected readonly argQuiz: QuizOption[] = [
+    {
+      text: 'The component — .set() should push the new value straight into the DOM.',
+      why: "A signal write only ever updates the signal's own stored value. Pushing that value onto the screen is change detection's job, and in a test, nothing runs change detection until you call detectChanges() yourself.",
+    },
+    {
+      text: 'The DOM — it should poll for state changes automatically.',
+      why: 'That would mean re-rendering constantly, on a timer, whether or not anything actually changed — expensive and unnecessary. The DOM updates on command, via detectChanges(), and that design is correct; nothing here is a DOM bug.',
+    },
+    {
+      text: 'The test — asserting against fixture.nativeElement.textContent is the wrong way to check a rendered value.',
+      why: 'Reading nativeElement is the normal, correct way to check what actually rendered — once it has actually been told to render. The assertion itself did nothing wrong; it just ran before the screen had a reason to update.',
+    },
+    {
+      text: 'None of them — the missing step is a detectChanges() call the test never made.',
+      correct: true,
+      why: "Right. Every party kept its own contract. The gap is a step that belongs to none of the three: re-synchronizing the DOM with the component's current state is something YOU have to trigger explicitly, every time, in a test.",
+    },
+  ];
+
+  /** The component instance's own state — the innermost ring nothing outside it can see without a bridge. */
+  protected readonly argCore: Layer = { label: 'component.count()', sub: 'already 5' };
+
+  /** The two rings a value has to cross before a test can see it — each stale until told otherwise. */
+  protected readonly argRings: Layer[] = [
+    { label: 'ComponentFixture', sub: "hasn't been asked to check anything" },
+    { label: 'nativeElement (DOM)', sub: 'still painted from the LAST detectChanges()' },
   ];
 
   /**

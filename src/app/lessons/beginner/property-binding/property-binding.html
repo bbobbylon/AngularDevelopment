@@ -14,6 +14,93 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      An input's markup and its live contents start out identical. One keystroke is all it takes to split them apart —
+      silently, forever.
+    </p>
+
+    <p class="bf-say">
+      Every DOM property has a same-named attribute that looks like it, and for one render they even agree. Here's every
+      question that agreement leaves behind, answered before you hit it for real.
+    </p>
+
+    <app-no-dumb-questions [items]="bindingQuestions" />
+
+    <app-brain-power
+      question="A login form's &lt;input [value]='draft()'&gt; gets checked by an old Selenium suite right after a tester types a password into it, using driver.find_element(...).get_attribute('value'). Does that assertion see what the tester just typed — or something else?"
+      hint="Ask whether Selenium's get_attribute reads the box, or the label stapled to it when the page first loaded."
+    />
+
+    <app-whiteboard
+      caption="Same input, two moments — the label freezes at load; the box keeps changing underneath it."
+      alt="Two panels showing the same input at two points in time. Left panel, labeled on load, shows an attribute box reading gradient dot g i f directly above a property box reading the same value — both match. Right panel, labeled after you type, shows the attribute box unchanged, still reading gradient dot g i f and marked frozen, while the property box below it is lit and now reads a new value, marked live and drifted."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 300" aria-hidden="true" focusable="false">
+        <text x="170" y="24" text-anchor="middle" class="wb-hand wb-text--sm">ON LOAD</text>
+        <text x="490" y="24" text-anchor="middle" class="wb-hand wb-text--sm">AFTER YOU TYPE</text>
+
+        <rect x="60" y="46" width="220" height="66" rx="10" class="wb-node" />
+        <text x="170" y="72" text-anchor="middle" class="wb-mono wb-text--sm">ATTRIBUTE (label)</text>
+        <text x="170" y="94" text-anchor="middle" class="wb-text--sm">gradient.gif</text>
+
+        <rect x="60" y="136" width="220" height="66" rx="10" class="wb-node wb-node--lit" />
+        <text x="170" y="162" text-anchor="middle" class="wb-mono wb-text--sm">PROPERTY (box)</text>
+        <text x="170" y="184" text-anchor="middle" class="wb-text--sm">gradient.gif</text>
+
+        <text x="170" y="228" text-anchor="middle" class="wb-hand wb-text--sm">MATCH — nothing has changed yet</text>
+
+        <rect x="380" y="46" width="220" height="66" rx="10" class="wb-node" opacity="0.5" />
+        <text x="490" y="72" text-anchor="middle" class="wb-mono wb-text--sm">ATTRIBUTE (label)</text>
+        <text x="490" y="94" text-anchor="middle" class="wb-text--sm">gradient.gif — frozen</text>
+
+        <rect x="380" y="136" width="220" height="66" rx="10" class="wb-node wb-node--lit" />
+        <text x="490" y="162" text-anchor="middle" class="wb-mono wb-text--sm">PROPERTY (box)</text>
+        <text x="490" y="184" text-anchor="middle" class="wb-text--sm">my-photo.png — live</text>
+
+        <text x="490" y="228" text-anchor="middle" class="wb-hand wb-text--sm">
+          DRIFTED — the label never got the memo
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="ATTRIBUTE (label)"
+        tone="clay"
+        text="Frozen the instant the element was created. Typing into the field doesn't reach back and reprint it — nothing does, short of Angular re-running the binding itself."
+      />
+      <app-scribble
+        quote="PROPERTY (box)"
+        tone="olive"
+        text="What's genuinely inside the input right now. Every keystroke writes here directly — the DOM's own live state, never a copy of it."
+      />
+      <app-scribble
+        quote="DRIFTED"
+        point="up"
+        tone="accent"
+        text="Not a bug — the attribute was never wired to update again. Reading it after this point tells you what the box USED to hold, not what it holds now."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="Selenium's get_attribute('value') reads an input's value ATTRIBUTE, never its live property. A tester types a brand-new password into a field bound with [value]='draft()', then immediately calls get_attribute('value'). What comes back?"
+      [options]="ndqQuiz"
+      followUp="The DevTools predict just below this block is the same trap, live in your own browser instead of a test runner."
+    />
+
+    <app-napkin lead="the mental model —" label="A driver's license photo, not you right now">
+      A license photo is accurate the day it's taken and never updates again — whoever's checking it has to look up from
+      the card to see who's actually standing there. An input's <code>value</code> attribute is that photo: correct at
+      load, then frozen forever after. Its <code>value</code> property is the person standing in front of you, changing
+      with every keystroke. Read the photo to see how someone looked. Read the person to know who they are right now.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>

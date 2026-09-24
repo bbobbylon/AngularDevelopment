@@ -17,6 +17,108 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Two composed directives and the host component itself can all reach for the exact same DOM property. Nobody throws
+      an error. Something still has to win.
+    </p>
+
+    <app-brain-power
+      question="hostDirectives: [ToneRed, ToneBlue] — the component itself declares no host binding of its own. Which colour paints the card: red, blue, or some blend of both?"
+      hint="Ask whether the compiler resolves this by import order, by alphabetical order, or by POSITION in the array."
+    />
+
+    <app-whiteboard
+      caption="Same collision, two setups — one is settled by array position alone; the other is settled before array position ever gets a say."
+      alt="Two panels, each a column of three stacked boxes. Left panel, labeled hostDirectives ToneRed then ToneBlue with no host binding, shows array index zero ToneRed, faded, background red, above array index one ToneBlue, lit, background blue, above a third box marked no host binding, nothing to add, captioned blue wins, later in the array. Right panel, labeled the same two directives plus the component's own host binding, shows array index zero ToneRed, faded, above array index one ToneBlue, now also faded, above FancyCard's own host binding, lit, background green, captioned green wins, the host's own binding beats them all."
+    >
+      <svg class="wb-svg" viewBox="0 0 680 300" aria-hidden="true" focusable="false">
+        <text x="170" y="20" text-anchor="middle" class="wb-hand wb-text--sm">
+          [ToneRed, ToneBlue] — no host binding
+        </text>
+        <text x="510" y="20" text-anchor="middle" class="wb-hand wb-text--sm">+ FancyCard's own host binding</text>
+
+        <rect x="50" y="38" width="240" height="52" rx="10" class="wb-node" opacity="0.4" />
+        <text x="170" y="58" text-anchor="middle" class="wb-mono wb-text--sm">array[0] · ToneRed</text>
+        <text x="170" y="78" text-anchor="middle" class="wb-text--sm">background: red</text>
+
+        <rect x="50" y="102" width="240" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="170" y="122" text-anchor="middle" class="wb-mono wb-text--sm">array[1] · ToneBlue</text>
+        <text x="170" y="142" text-anchor="middle" class="wb-text--sm">background: blue</text>
+
+        <rect x="50" y="166" width="240" height="52" rx="10" class="wb-node" opacity="0.25" />
+        <text x="170" y="186" text-anchor="middle" class="wb-mono wb-text--sm">(no host binding)</text>
+        <text x="170" y="206" text-anchor="middle" class="wb-text--sm">nothing to add</text>
+
+        <text x="170" y="240" text-anchor="middle" class="wb-hand wb-text--sm">BLUE WINS — later in the array</text>
+
+        <rect x="390" y="38" width="240" height="52" rx="10" class="wb-node" opacity="0.4" />
+        <text x="510" y="58" text-anchor="middle" class="wb-mono wb-text--sm">array[0] · ToneRed</text>
+        <text x="510" y="78" text-anchor="middle" class="wb-text--sm">background: red</text>
+
+        <rect x="390" y="102" width="240" height="52" rx="10" class="wb-node" opacity="0.4" />
+        <text x="510" y="122" text-anchor="middle" class="wb-mono wb-text--sm">array[1] · ToneBlue</text>
+        <text x="510" y="142" text-anchor="middle" class="wb-text--sm">background: blue</text>
+
+        <rect x="390" y="166" width="240" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="510" y="186" text-anchor="middle" class="wb-mono wb-text--sm">FancyCard's own host binding</text>
+        <text x="510" y="206" text-anchor="middle" class="wb-text--sm">background: green</text>
+
+        <text x="510" y="240" text-anchor="middle" class="wb-hand wb-text--sm">GREEN WINS — beats them all</text>
+      </svg>
+
+      <app-scribble
+        quote="array[1] · ToneBlue"
+        tone="clay"
+        text="Position in the array is the ENTIRE rule here — not import order, not which class name comes first alphabetically. Swap the two entries and red wins instead."
+      />
+      <app-scribble
+        quote="(no host binding)"
+        point="up"
+        tone="accent"
+        text="Nothing here to out-rank anybody, so whichever composed directive is listed LAST simply wins outright, with nothing above it."
+      />
+      <app-scribble
+        quote="FancyCard's own host binding"
+        tone="olive"
+        text="The one binding that's never in the array at all — and it doesn't need to be. The host component's own `host` metadata sits a level ABOVE every composed directive, always."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      Three sources can all reach for the exact same DOM property, and Angular resolves the collision with one fixed
+      rule, checked in order: the host's own binding wins if it declares one; otherwise, whichever host directive was
+      listed <strong>last</strong> in the array wins. Import order, alphabetical order, which class was written first —
+      none of that ever enters into it.
+    </p>
+
+    <app-flow
+      [steps]="precedenceRaceFlow"
+      caption="The resolution order, as an actual sequence — not three isolated facts to memorize separately."
+    />
+
+    <app-quiz
+      question="hostDirectives: [ToneBlue, ToneRed] — note the order, swapped from the setup above — and the component still adds no host binding of its own. Which colour paints the card now?"
+      [options]="precedenceRaceQuiz"
+      followUp="The live demo further down this page runs the un-swapped version — hover it and check your reasoning against what actually renders."
+    />
+
+    <app-napkin lead="the mental model —" label="Three coats of paint, applied in order">
+      Paint the wall red, then paint over it in blue, and blue is what you see when you walk in — not because blue is a
+      "better" colour, only because it went on last. <code>hostDirectives</code> resolves a binding collision exactly
+      the same way: later in the array is the same as painted later. And a coat that was never in that can at all — the
+      wall's own base coat, the component's <strong>own</strong> host binding — goes on separately, over everything
+      else, no matter what order the other coats were listed in.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

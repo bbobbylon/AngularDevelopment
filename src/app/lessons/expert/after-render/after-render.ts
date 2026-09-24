@@ -10,6 +10,8 @@ import {
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -55,6 +57,10 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -170,6 +176,62 @@ export class AfterRender {
     { label: '@defer', id: 'deferrable-views' },
     { label: 'Performance', id: 'performance' },
     { label: 'afterRender' },
+  ];
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /**
+   * The block's own Q&A spine — the "is the DOM ready" misconception,
+   * escalating from the surface confusion through a real production crash to
+   * the one habit that avoids it. Deliberately distinct copy from
+   * {@link questions} below, which closes the page with a different set.
+   */
+  protected readonly readinessQuestions: NdqItem[] = [
+    {
+      q: "ngOnInit already sees my compiled template. Isn't the DOM ready by then?",
+      a: "No — 'compiled' and 'painted' are two completely different moments. Read an element's width inside `ngOnInit` and you get `0`: change detection hasn't finished writing it into the actual page yet. Your template describing a slot for an element is not the browser having laid that element out.",
+    },
+    {
+      q: "Fine, I'll measure in ngAfterViewInit instead — the children exist by then, right?",
+      a: "They exist, but you're still reading mid-check, before the browser has necessarily settled layout — and on the server, `document` either has no real layout engine behind it at all, or doesn't recognize a browser-only API your code assumes exists. Every SSR request crashes the same way, every time, until someone notices.",
+    },
+    {
+      q: 'Where does that actually bite you at work?',
+      a: "A chart library initialized in `ngAfterViewInit` that reads a canvas's real pixel width works fine in every local `ng serve` you've ever run — and throws on the FIRST real SSR request in production, because `document` on the server has no layout engine to answer that question. It's a 100%-reproducible crash that somehow never shows up until deploy day.",
+    },
+    {
+      q: 'I wrote a signal inside afterEveryRender to save a measurement. Why did my page freeze?',
+      a: "Because you built a loop. `afterEveryRender` runs after EVERY render; writing a signal your own template reads marks that view dirty, which schedules another render, which reruns the hook, which writes the signal again — forever. Write straight to the DOM (`textContent`, a ref) inside these hooks instead, and only touch a signal once you're certain nothing downstream reads it back.",
+    },
+    {
+      q: 'Does SSR just skip these hooks, then?',
+      a: "'Skip' implies it tried and declined. It's stricter than that: the callback is never invoked at all — not skipped, not caught, never called. Code that depends on `afterNextRender`/`afterEveryRender`/`afterRenderEffect` simply doesn't run on the server, full stop. Ordinary lifecycle hooks like `ngAfterViewInit` are a different story — those DO run on the server, which is exactly why the crash above happens inside one of them.",
+    },
+    {
+      q: 'How do you stop losing time to this class of bug?',
+      a: "Treat `ngOnInit`/`ngAfterViewInit` as 'the template exists', never 'the DOM is ready'. Reach for `afterNextRender` the moment you need a real measurement or a browser-only API, and never write a signal inside a render hook unless you've checked that nothing the hook itself reads depends on it.",
+    },
+  ];
+
+  /** The block's own quiz — the SSR crash, checked before the page's live measuring demo further down proves the fix. */
+  protected readonly readinessQuiz: QuizOption[] = [
+    {
+      text: "There's no real browser layout engine behind document on the server — an API the code assumes exists either doesn't exist there or returns nothing meaningful.",
+      correct: true,
+      why: "Right. The server has no real layout engine behind `document` at all in most setups — a canvas measurement API that's always been there in the browser simply isn't, and the code has never had a reason to guard against that until now.",
+    },
+    {
+      text: "ngAfterViewInit doesn't run at all during SSR, so canvas is undefined.",
+      why: "That's true of the afterRender family — afterNextRender/afterEveryRender/afterRenderEffect are genuinely browser-only and never invoked on the server. ngAfterViewInit is an ordinary lifecycle hook; it runs on the server exactly like it does in the browser, which is precisely why this crash happens INSIDE it instead of the hook simply being skipped.",
+    },
+    {
+      text: 'SSR runs every lifecycle hook twice, and the second call is the one that fails.',
+      why: "Hooks aren't run twice for this reason — the crash happens on the very first, and only, server-side call, the moment the code reaches a browser API document can't answer on this platform.",
+    },
+    {
+      text: 'The chart library needs updating — this is a library compatibility issue, not an Angular one.',
+      why: "It can look that way, but the actual cause is platform-agnostic: ANY code reading a browser-only layout API inside a hook that also runs server-side crashes the same way, chart library or not. Swapping libraries wouldn't fix code that still assumes a DOM measurement that isn't really there.",
+    },
   ];
 
   /**

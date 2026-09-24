@@ -16,6 +16,86 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Fix one typo in an English string with no custom id — not a word of meaning touched, just a stray letter. Here's
+      the bill for that one keystroke.
+    </p>
+
+    <app-receipt
+      heading="One typo fixed · what the next build actually does"
+      [rows]="idBill"
+      [total]="idBillTotal"
+      footer="you fixed a typo. you did not touch a single word of meaning."
+    />
+
+    <app-scribble
+      point="up"
+      quote="NEW hash"
+      tone="clay"
+      text="Not a bug in the tooling — this is the id working exactly as designed. With no custom id, the id IS a hash of the source text, so ANY edit — even one that changes nothing about the meaning — produces a different hash, and the old hash's translations have nowhere left to attach."
+    />
+
+    <app-compare
+      leftTitle="No custom id — the id is the text"
+      leftTone="bad"
+      rightTitle="&#64;&#64;stableId — the id is yours"
+      rightTone="good"
+      note="Same English text on screen either way. Only one of the two survives a typo fix with every translation still attached."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+&lt;h1 i18n&gt;Welcome back!&lt;/h1&gt;
+&lt;!-- id = hash("Welcome back!") --&gt;
+&lt;!-- edit the text → id changes → old translations orphaned --&gt;</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+&lt;h1 i18n="&#64;&#64;homeGreeting"&gt;Welcome back!&lt;/h1&gt;
+&lt;!-- id = homeGreeting, always --&gt;
+&lt;!-- edit the text → id is UNCHANGED → translations stay attached --&gt;</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">Here's exactly what changes, and what doesn't, on the next rebuild — for each kind of id.</p>
+
+    <app-chain [steps]="idOrphanChainSteps" label="What happens on every rebuild when a message has no custom id" />
+
+    <app-code-lab
+      file="welcome.component.html — before and after a harmless edit"
+      [code]="idStabilitySample"
+      [notes]="idStabilityNotes"
+      notesLabel="One word added. Two very different outcomes."
+    />
+
+    <app-brain-power
+      question="The English text changes from 'Welcome back!' to 'Welcome back, friend!' — same meaning, just warmer. Does the French translation already on file survive that edit, or does it silently vanish?"
+      hint="Ask what the message id actually IS when nobody pinned one — and whether that id cares about MEANING, or only about the literal characters."
+    />
+
+    <app-quiz
+      question="A message HAS a custom id, &#64;&#64;homeGreeting. Someone edits the English source text — a full reword, same meaning. Does the message's id itself change?"
+      [options]="idStabilityQuiz"
+      followUp="The live demo further down this page lets you edit the source text yourself and watch an UNPINNED id change in real time — compare it against what a custom id does instead."
+    />
+
+    <p class="bf-big">
+      One typo. Zero words of meaning changed. Every unpinned translation for that string, gone the next time someone
+      builds.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 import { Elevate } from './elevate/elevate';
@@ -54,6 +55,9 @@ import { ToneCardOwn } from './tone-card-own/tone-card-own';
     Layers,
     Napkin,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
     Flow,
@@ -92,6 +96,57 @@ export class HostDirectives {
     { label: 'Dynamic Components', id: 'dynamic-components' },
     { label: 'Directive Composition' },
     { label: 'NgModules Migration', id: 'ngmodules-migration' },
+  ];
+
+  // -- Page-shape block: "The Whiteboard" --
+
+  /** The resolution order for a binding collision between composed host directives and the host's own binding. */
+  protected readonly precedenceRaceFlow: FlowStep[] = [
+    {
+      label: "Every composed directive's host binding registers",
+      detail: 'Same element, same DOM property, on more than one directive at once — no error yet.',
+    },
+    {
+      label: 'The compiler resolves the array, in order',
+      detail:
+        'Position 0 first, position 1 last — nothing about import order or naming enters into it.',
+      tone: 'accent',
+    },
+    {
+      label: 'The LAST host directive in the array wins',
+      detail: '...unless one more source is about to outrank it.',
+    },
+    {
+      label: 'Does the host declare its OWN binding on that property?',
+      detail: 'A totally separate question from array order.',
+      tone: 'warn',
+    },
+    {
+      label: "If it does, the host's binding wins outright",
+      detail: "Every time, regardless of what's composed beneath it.",
+      tone: 'good',
+    },
+  ];
+
+  /** The block's own quiz — the swapped-order case, checked before the live demo further down confirms it. */
+  protected readonly precedenceRaceQuiz: QuizOption[] = [
+    {
+      text: 'Still blue — the FIRST directive listed always wins.',
+      why: "Backwards. The array resolves with the LAST entry winning, not the first — that's exactly why swapping the order in this question flips the answer from the un-swapped setup above.",
+    },
+    {
+      text: 'Red — ToneRed is now the LAST entry in the array.',
+      correct: true,
+      why: 'Right. Swap the array order and the winner swaps with it — this is purely positional. Nothing about ToneRed or ToneBlue as classes changed; only where each one sits in the list.',
+    },
+    {
+      text: 'A compile error — two directives binding the same host property is not allowed.',
+      why: "It compiles fine. Angular resolves the collision deterministically at runtime instead of refusing to build — there's a well-defined winner, so there's nothing to reject.",
+    },
+    {
+      text: "It's undefined behavior — Angular doesn't guarantee an order for this.",
+      why: 'The order is guaranteed and deterministic: array position, later wins, host binding beats everything. Nothing here is left to chance.',
+    },
   ];
 
   /**

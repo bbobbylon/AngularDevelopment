@@ -4,8 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
 /**
  * Lesson: Template-Driven Forms — the form model Angular builds FOR you, straight
@@ -53,8 +55,13 @@ import type { FaqItem, QuizOption } from '../../../shared/teaching';
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
     Compare,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
@@ -116,6 +123,91 @@ export class TemplateForms {
     { label: 'FormArray', id: 'form-arrays' },
     { label: 'Signal Forms', id: 'signal-forms' },
     { label: 'Custom Controls (CVA)', id: 'control-value-accessor' },
+  ];
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /**
+   * The block's own Q&A spine — the two unrelated ways a submit button goes
+   * silent, escalating into a production framing and the one habit that
+   * shortens the debugging loop. Deliberately distinct copy from
+   * {@link questions} below, which closes the page with a different set.
+   */
+  protected readonly silenceQuestions: NdqItem[] = [
+    {
+      q: "I forgot `(ngSubmit)` on my `<form>`. Why doesn't clicking Submit even throw an error?",
+      a: "`NgForm` still calls `preventDefault()` on the native submit event for you, so the page never reloads — that part always works. It still emits `ngSubmit`; you just never subscribed to it. An `EventEmitter` nobody's listening to fires into silence, and there is no warning anywhere for an unused output.",
+    },
+    {
+      q: 'My `(ngSubmit)` IS wired up correctly this time. Why does clicking Submit still do nothing?',
+      a: "A completely different bug wearing the exact same symptom. `required`/`email`/`minlength` are ALSO real HTML attributes, and the browser's own native validation blocks the submit event before Angular's `ngSubmit` ever fires — no console error, because from Angular's point of view, nothing was ever attempted. Add `novalidate` to the `<form>` tag so only Angular's validation runs.",
+    },
+    {
+      q: 'I logged `f.value` inside `ngOnInit()` and got `{}`. Is the form broken?',
+      a: 'No — you just asked too early. A control registers itself with `ngForm` in a **microtask**, which runs after `ngOnInit()` has already finished. Read it from `ngAfterViewInit()` instead, or subscribe to `f.valueChanges` and stop guessing at timing entirely.',
+    },
+    {
+      q: 'Where does that actually bite you at work?',
+      a: "A sign-up flow where a 'Next' button goes silently unresponsive because someone deleted `(ngSubmit)` in a refactor, and QA reports 'the button doesn't work' with zero repro steps — because there's genuinely nothing to see: no red error, no failed network call, just a click that goes nowhere.",
+    },
+    {
+      q: 'I set `id="email"` on my input. Why doesn\'t `f.value` have an `email` key?',
+      a: '`id` and `name` do two unrelated jobs. `id` only pairs the field with its `<label for>` — the forms machinery never reads it. Only `name` (plus `ngModelGroup` nesting) decides what key shows up in the value object.',
+    },
+    {
+      q: '`[(ngModel)]="query"` vs. bare `ngModel` with no brackets — what actually changes?',
+      a: 'Brackets-and-parens fuses two bindings together: value in, AND a write-back to `query` on every change. Bare `ngModel` — no brackets — only ever feeds `f.value`; your component field never updates, no matter how much you type into the box.',
+    },
+    {
+      q: 'How do you stop losing an afternoon to this class of bug?',
+      a: "Treat a form's silence as suspicious, never reassuring. If a submit handler should have run and nothing happened — no network call, no state change — check for a missing `(ngSubmit)` first, then check whether native `required`/`email` validation is blocking the event before Angular ever gets a turn.",
+    },
+  ];
+
+  /** What changes, top to bottom, when narrowing down which silent failure you're actually looking at. */
+  protected readonly silenceFlow: FlowStep[] = [
+    {
+      label: 'Click Submit and watch the page',
+      detail:
+        'Did it flicker or reload? If yes, NgForm never even ran preventDefault() — a bigger problem than either bug here.',
+    },
+    {
+      label: 'Check the `<form>` tag for (ngSubmit)',
+      detail: "Missing? That's the whole bug — add the binding and stop.",
+      tone: 'accent',
+    },
+    {
+      label: 'It IS bound — check for active required / email / pattern',
+      detail: 'Native validation intercepts the submit event before Angular sees it, silently.',
+      tone: 'warn',
+    },
+    {
+      label: 'Add novalidate to the `<form>` tag',
+      detail:
+        'Hands ALL validation to Angular — the standard fix once native validation is the real cause.',
+      tone: 'good',
+    },
+  ];
+
+  /** The block's own quiz — telling the two silent failures apart from one symptom. */
+  protected readonly silenceQuiz: QuizOption[] = [
+    {
+      text: 'submit() has a bug and is silently swallowing an exception.',
+      why: "A thrown exception inside a template event handler doesn't vanish quietly — it surfaces in the console via Angular's own error handling. Silence this total points somewhere the handler was never reached at all.",
+    },
+    {
+      text: "The browser's own native validation is blocking the submit event before Angular's ngSubmit ever fires.",
+      correct: true,
+      why: "Right. `required`/`email` are real HTML attributes the browser enforces on its own, and it blocks an invalid form's submit event before any JavaScript listener — Angular's included — gets a turn. Nothing in Angular ever finds out a submission was attempted.",
+    },
+    {
+      text: "ngModel isn't registered yet because you're checking too early, inside ngOnInit().",
+      why: "That timing trap is real, but it's a different bug entirely — it explains an empty `f.value` read at the wrong moment, not a Submit click that visibly does nothing.",
+    },
+    {
+      text: 'FormsModule is missing from the imports array.',
+      why: 'A missing `FormsModule` fails LOUDLY — a build-time NG8002 on `ngModel` itself. This scenario already compiles and renders fine, so the module is present.',
+    },
   ];
 
   /**

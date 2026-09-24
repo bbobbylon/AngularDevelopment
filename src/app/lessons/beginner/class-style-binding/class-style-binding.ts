@@ -3,6 +3,8 @@ import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -51,6 +53,10 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Chapter,
     CodeLab,
     Napkin,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -99,6 +105,103 @@ export class ClassStyleBinding {
     { label: 'Event Binding', id: 'event-binding' },
     { label: 'Two-Way Binding', id: 'two-way-binding' },
     { label: 'Class & Style' },
+  ];
+
+  // -- Page-shape block: "The Receipt" --
+
+  /**
+   * What 100 no-op change-detection passes actually cost each binding kind,
+   * given the identical object bound to both. `[class]` compiles to a
+   * reference-checked instruction, so only the first pass does anything;
+   * `ngClass`/`ngStyle` are each their own `ngDoCheck()`, which Angular calls
+   * unconditionally on every pass that reaches the directive.
+   */
+  protected readonly costBill: ReceiptRow[] = [
+    {
+      label: '[class] — ɵɵclassMap, reference-checked',
+      amount: '×1 (pass one only)',
+      tone: 'muted',
+    },
+    { label: 'ngClass — KeyValueDiffer.diff()', amount: '×100', tone: 'warn' },
+    { label: 'ngStyle — a second, separate differ', amount: '×100', tone: 'warn' },
+  ];
+
+  /** The bill's total — 200 object walks for a class list that never moved. */
+  protected readonly costBillTotal: ReceiptRow = {
+    label: 'TOTAL object walks for zero visual change',
+    amount: '200',
+  };
+
+  /** What `NgClass` runs on every single pass, whether or not anything changed. */
+  protected readonly ngClassChainSteps: readonly string[] = [
+    'ngDoCheck() fires',
+    'differ.diff(obj)',
+    'walk every key',
+    'patch DOM if changed',
+  ];
+
+  /**
+   * Sample: a simplified sketch of `NgClass`'s own lifecycle hook next to the
+   * compiled instruction `[class]` gets instead. Approximate, not Angular's
+   * literal source — the point is the shape of the two mechanisms, not a
+   * byte-for-byte reproduction.
+   */
+  protected readonly differCostSample = `// Roughly what NgClass does internally on every check:
+class NgClass {
+  private differ = this.differs.find(this.rawClass).create();
+
+  ngDoCheck(): void {
+    // Angular calls this on every pass that reaches the directive —
+    // unconditionally, whether the object reference changed or not.
+    const changes = this.differ.diff(this.rawClass);
+    if (changes) {
+      changes.forEachChangedItem((r) => this.toggle(r.key, r.currentValue));
+    }
+  }
+}
+
+// Compare: what [class]="{ ... }" compiles to instead.
+function Box_Update(rf: RenderFlags, ctx: Box) {
+  if (rf & RenderFlags.Update) {
+    ɵɵclassMap(ctx.classes()); // ONE call, memoized against the last reference
+  }
+}`;
+
+  /** Line-by-line notes for {@link differCostSample}. */
+  protected readonly differCostNotes: CodeNote[] = [
+    {
+      line: 5,
+      text: "`ngDoCheck()` is Angular's own change-detection hook — it fires on every pass that reaches this directive, no exceptions, and there is no reference-equality shortcut checked before it runs.",
+    },
+    {
+      line: 8,
+      text: "`differ.diff(this.rawClass)` walks every key in the object, every single time it's called — even on a pass where `this.rawClass` is the literal same object reference as last pass, the differ has no way to know that without walking it first.",
+    },
+    {
+      line: 18,
+      text: '`ɵɵclassMap` checks the incoming reference FIRST. Same object as last pass means the call is a no-op before it ever looks at a single key — the memoization `ngDoCheck()` never gets.',
+    },
+  ];
+
+  /** The block's own quiz — which binding pays for a no-op check, and which doesn't. */
+  protected readonly costQuiz: QuizOption[] = [
+    {
+      text: 'Neither — Angular skips both bindings automatically once nothing on the component has changed.',
+      why: "Angular doesn't know 'nothing changed' in advance for either one — that's exactly what each mechanism has to determine, and they determine it differently. `[class]` finds out cheaply (a reference check); `ngClass` finds out expensively (a full walk).",
+    },
+    {
+      text: 'Both — a re-render always re-evaluates every binding on the element, class or otherwise.',
+      why: "Re-evaluating the EXPRESSION (`isOn()`) is unavoidable for both. What differs is what happens next: `[class]` compares the resulting object's reference and stops there when it repeats; `ngClass`'s `ngDoCheck()` has no such shortcut and walks the object regardless.",
+    },
+    {
+      text: '[ngClass] — its ngDoCheck() walks the object on every pass, with no reference check first.',
+      correct: true,
+      why: 'Right. `ɵɵclassMap` is a compiled instruction with a memo check built in — an unchanged object reference makes it a no-op. `ngClass` is an imported directive whose `ngDoCheck()` Angular calls unconditionally, and the differ inside it can only tell nothing changed by walking every key and confirming that.',
+    },
+    {
+      text: '[class] — object bindings are always more expensive than directive bindings.',
+      why: 'Backwards. `[class]` compiles straight into the update function the template compiler already generates; `ngClass` is the one that needs an extra import and runs its own general-purpose differ on top of that.',
+    },
   ];
 
   /**

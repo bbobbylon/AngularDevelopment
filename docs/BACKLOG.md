@@ -1410,6 +1410,76 @@ batch introduced.
 
 Declared-shape count: 54 → 62. Remaining undeclared: 103 − 62 = **41**, next up for batch 9.
 
+**Batch 9 of step 5, landed 2026-09-24 — a rate-limit recovery, verified rather than trusted.**
+The agent that picked eight lessons and wrote their blocks was killed by a session-wide API
+rate limit before it could commit or push, leaving real, uncommitted work in the tree with
+no confirmation any of it was finished. The recovery session's first job was not to
+continue the batch but to re-verify it from scratch: `git status`/`git diff --stat` to see
+exactly what was there, then read all eight lesson `.html`/`.ts` pairs in full against
+`docs/CONTRIBUTING.md` §2C's exact block sequence for each shape, rather than trusting the
+handoff summary. That summary itself turned out to have the shape assignments scrambled
+(it named `property-binding`/`class-style-binding` as `receipt`/`no-dumb-questions` and
+`after-render`/`testing-components` as `argument`/`receipt`, among others) — the actual
+`curriculum.ts` diff was the opposite pairing in every one of those cases. This is exactly
+the failure mode the recovery instructions warned about, and reading the diff instead of
+the summary is what caught it. Eight lessons across three tracks (beginner ×4,
+intermediate ×1, expert ×3):
+
+| Lesson                | Track        | Shape               | The kind of gotcha                                                                                                                                                                                |
+| --------------------- | ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `property-binding`    | beginner     | `no-dumb-questions` | misconception (an input's `value` attribute freezes at load while its `value` property stays live — a stale Selenium `get_attribute` read is the same bug wearing a work costume)                 |
+| `class-style-binding` | beginner     | `receipt`           | cost (an identical object bound to `[class]` and to `ngClass`/`ngStyle`, re-rendered 100 times with nothing changing — one binding pays zero extra, the other pays 200 object walks)              |
+| `routing-basics`      | beginner     | `whiteboard`        | structure (`path: ''` is a PREFIX match by default, so it swallows every route beneath it; `pathMatch: 'full'` is the one flag that switches the comparison to the whole URL)                     |
+| `template-forms`      | beginner     | `no-dumb-questions` | misconception (two unrelated bugs — a missing `(ngSubmit)` binding and native `required`/`email` validation blocking the event — produce the identical silent, error-free click)                  |
+| `testing-components`  | intermediate | `argument`          | tension (the component's signal, the DOM, and the test assertion are all individually correct; the missing `fixture.detectChanges()` call was never any of their jobs — it was the reader's)      |
+| `after-render`        | expert       | `no-dumb-questions` | misconception (`ngOnInit`/`ngAfterViewInit` mean "the template compiled", not "the DOM is ready" — a chart measurement that works in every local `ng serve` throws on the first real SSR request) |
+| `host-directives`     | expert       | `whiteboard`        | structure (a host-binding collision resolves by array POSITION — last entry wins — unless the host component declares its own binding, which always wins regardless of position)                  |
+| `i18n`                | expert       | `receipt`           | cost (fixing one typo in a message with no custom `id` recomputes the hash and silently orphans every existing translation for that string — three languages lost to one keystroke)               |
+
+Seven of the eight blocks were genuinely complete and matched their declared shape's exact
+device sequence on first read — no forbidden devices, no truncation, nothing that read as
+cut off mid-edit. `class-style-binding` and `i18n` (both `receipt`) each carry only one
+`app-scribble`, placed before `app-compare` rather than the two-or-three-scribbles-at-the-code
+CONTRIBUTING's prose describes after `app-code-lab`; checked against the precedent already
+shipped in `inputs` (batch 7) and `animations` (batch 8), both of which use the identical
+one-scribble-before-compare shape with nothing after `app-code-lab`, confirming this is the
+established in-codebase pattern for `receipt`, not a defect — the prose is aspirational, the
+shipped convention is narrower, and `audit-variety.mjs` never checked the scribble count
+either way.
+
+One lesson had a real, if subtle, problem: `template-forms`'s `no-dumb-questions` block
+inserted a `.bf-answer` paragraph and an `app-flow` between its `app-whiteboard` figure and
+its `app-quiz` — devices that belong to the `whiteboard` shape's recipe, not
+`no-dumb-questions`'s (`.bf-big → .bf-say → app-no-dumb-questions → app-brain-power → one
+figure → one app-quiz → app-napkin`, full stop). Every other shipped `no-dumb-questions`
+lesson (`control-flow-switch`, `ngmodules-migration`, `security`, `resolvers`,
+`rxjs-observables`) goes straight from its figure to its quiz with nothing between them,
+confirming this was a genuine cross-shape mix-up rather than a second valid convention —
+`audit-variety.mjs` didn't catch it because its forbidden-device list for
+`no-dumb-questions` doesn't name `app-flow`, only `app-bubbles`/`app-tape-card`/
+`app-receipt`/`app-remember`. Nothing was thrown away: the paragraph and flow were
+well-written and stayed on the page, just relocated to where they actually belonged — as a
+recap closing out the two "quiet failure" `app-predict` sections further down, which is
+exactly the content they were summarizing anyway (the missing-`(ngSubmit)` predict and the
+native-validation predict, now followed by the "how to tell the two apart" flow instead of
+sitting stranded inside an unrelated shape's block). The shape block itself now reads
+`app-no-dumb-questions → app-brain-power → app-whiteboard (3 scribbles) → app-quiz →
+app-napkin`, matching every sibling lesson exactly. This is the only content change made
+this batch; the other seven lessons were left untouched.
+
+`scripts/audit-variety.mjs` is green (70 declared shapes: `no-dumb-questions` 19,
+`whiteboard` 19, `receipt` 18, `argument` 14 — no forbidden device, no shared-shape
+neighbours) and `scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run
+format:check`, `npm run typecheck`, and `npx ng build` (0 warnings, confirmed by grepping
+the build log rather than trusting the exit code) are all green.
+
+`npm run test:ci`'s full run (582s) came back **fully green this time — 28/28 test files,
+593/593 tests, zero failures, not even the usual sandbox-contention timeouts** prior
+batches' postmortems have flagged on `testing-components`/`task-manager`/`auth-flow`/etc.
+Nothing to isolate-and-rerun this round.
+
+Declared-shape count: 62 → 70. Remaining undeclared: 103 − 70 = **33**, next up for batch 10.
+
 ---
 
 ## 3. Later

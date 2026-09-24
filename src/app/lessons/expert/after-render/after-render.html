@@ -16,6 +16,85 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      Your template compiling is not your DOM existing. Three lifecycle hooks quietly disagree about which moment you're
+      actually in, and only one of them is ever telling the truth.
+    </p>
+
+    <p class="bf-say">
+      "The DOM should be ready by now" is the assumption that gets people here. Here's every question that assumption
+      leaves behind, answered before it costs you a production incident.
+    </p>
+
+    <app-no-dumb-questions [items]="readinessQuestions" />
+
+    <app-brain-power
+      question="A chart-initializing line inside ngAfterViewInit runs fine on every local ng serve session anyone has ever tried. The first time SSR is turned on, it throws on the very first request. What actually changed between those two environments that the code never accounted for?"
+      hint="Ask what document actually IS on a server with no browser attached — and whether a real layout engine is part of that answer."
+    />
+
+    <app-whiteboard
+      caption="Same measurement, three different moments to ask for it — only the last one is guaranteed to be real."
+      alt="Three stacked boxes. First, ngOnInit, faded, marked width equals zero, template compiled but nothing painted yet. Second, ngAfterViewInit, marked mid-check, layout not necessarily settled, crashes on the server. Third, afterNextRender, lit, marked real measured width in pixels, guaranteed painted, browser only. Caption below reads only the third row is guaranteed real."
+    >
+      <svg class="wb-svg" viewBox="0 0 460 260" aria-hidden="true" focusable="false">
+        <rect x="60" y="30" width="340" height="56" rx="10" class="wb-node" opacity="0.4" />
+        <text x="230" y="52" text-anchor="middle" class="wb-mono wb-text--sm">ngOnInit</text>
+        <text x="230" y="74" text-anchor="middle" class="wb-text--sm">width = 0 — nothing painted yet</text>
+
+        <rect x="60" y="98" width="340" height="56" rx="10" class="wb-node" opacity="0.65" />
+        <text x="230" y="120" text-anchor="middle" class="wb-mono wb-text--sm">ngAfterViewInit</text>
+        <text x="230" y="142" text-anchor="middle" class="wb-text--sm">mid-check — maybe settled, maybe not</text>
+
+        <rect x="60" y="166" width="340" height="56" rx="10" class="wb-node wb-node--lit" />
+        <text x="230" y="188" text-anchor="middle" class="wb-mono wb-text--sm">afterNextRender</text>
+        <text x="230" y="210" text-anchor="middle" class="wb-text--sm">real width, guaranteed painted</text>
+
+        <text x="230" y="242" text-anchor="middle" class="wb-hand wb-text--sm">
+          ONLY THE THIRD ROW IS GUARANTEED REAL
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="width = 0"
+        tone="clay"
+        text="Not a bug, not a race condition you lost — the browser genuinely has not laid this element out yet. Change detection hasn't finished writing it into the page."
+      />
+      <app-scribble
+        quote="mid-check"
+        point="up"
+        tone="accent"
+        text="Better than ngOnInit, but still not risk-free — and on the server, document either has no real layout engine behind it at all, or doesn't recognize a browser-only API your code assumes exists."
+      />
+      <app-scribble
+        quote="afterNextRender"
+        tone="olive"
+        text="The one guarantee among the three: browser-only, by contract, and it never runs until the browser has actually painted something."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="A chart component reads canvas.offsetWidth inside ngAfterViewInit. It works in every local ng serve session anyone has run. The first time SSR is turned on, it throws on literally the first request. What's actually different in that one environment?"
+      [options]="readinessQuiz"
+      followUp="The live 'first correct measurement' demo further down this page shows the fix — the same read, moved into afterNextRender."
+    />
+
+    <app-napkin lead="the mental model —" label="A doorbell that only rings once the truck arrives">
+      <code>ngOnInit</code> is the moment the shipping label gets printed — the order is confirmed, everything that
+      SHOULD arrive is decided. It is not the moment the truck actually pulls up. Asking <code>document</code> for a
+      measurement inside <code>ngOnInit</code> is knocking on an empty driveway and being confused nobody answers — the
+      truck, the browser's actual paint, simply isn't there yet. <code>afterNextRender</code> is the doorbell that only
+      rings once it has.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

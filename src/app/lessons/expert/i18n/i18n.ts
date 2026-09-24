@@ -2,6 +2,8 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -77,6 +79,10 @@ function hashId(text: string): string {
     CodeLab,
     Napkin,
     TapeCard,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
     Compare,
     Faq,
     Flow,
@@ -207,6 +213,96 @@ export class I18n {
     { label: 'Accessibility', id: 'a11y' },
     { label: 'Animations', id: 'animations' },
     { label: 'View Transitions', id: 'view-transitions' },
+  ];
+
+  // -- Page-shape block: "The Receipt" --
+
+  /**
+   * What one harmless typo fix actually costs when a message has no custom
+   * id — every existing translation is keyed to a hash of the OLD text, and
+   * that hash is gone the instant the text changes at all.
+   */
+  protected readonly idBill: ReceiptRow[] = [
+    { label: 'Source text — one character changed', amount: '1 edit', tone: 'muted' },
+    { label: 'Message id — recomputed from the text', amount: 'NEW hash', tone: 'warn' },
+    { label: 'French translation — orphaned', amount: 'falls back to English', tone: 'warn' },
+    { label: 'German translation — orphaned', amount: 'falls back to English', tone: 'warn' },
+    { label: 'Spanish translation — orphaned', amount: 'falls back to English', tone: 'warn' },
+  ];
+
+  /** The bill's total — three languages lost to one keystroke. */
+  protected readonly idBillTotal: ReceiptRow = {
+    label: 'TOTAL translations silently lost',
+    amount: '3 languages, from 1 typo',
+  };
+
+  /** What happens, in order, on every rebuild when a message has no custom id. */
+  protected readonly idOrphanChainSteps: readonly string[] = [
+    'source text edited',
+    'hash recomputed',
+    'old id vanishes',
+    'translation lookup misses',
+    'silent fallback to source',
+  ];
+
+  /**
+   * Sample: the exact same harmless edit, once with no id (orphaned) and once
+   * with a pinned id (unaffected).
+   */
+  protected readonly idStabilitySample = `<!-- NO custom id — the id IS the text -->
+<h1 i18n>Welcome back!</h1>
+<!-- extracted id: 8f2a91c3… (a hash of "Welcome back!") -->
+
+<!-- One word added. Meaning unchanged. -->
+<h1 i18n>Welcome back, friend!</h1>
+<!-- extracted id: 4b7e02d1… ← a DIFFERENT hash -->
+<!-- messages.fr.xlf still has a <trans-unit> for 8f2a91c3 —
+     nobody is looking for that id anymore. It's orphaned. -->
+
+<!-- THE FIX — pin the id so the text can change safely -->
+<h1 i18n="@@homeGreeting">Welcome back, friend!</h1>
+<!-- extracted id: homeGreeting — exactly what it was before the edit -->
+<!-- messages.fr.xlf's entry for homeGreeting still matches -->`;
+
+  /** Line-by-line notes for {@link idStabilitySample}. */
+  protected readonly idStabilityNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'No custom id, so the extractor hashes the source text itself. This id is a pure function of the characters in the message — it knows nothing about what the message MEANS.',
+    },
+    {
+      line: 6,
+      text: 'The wording gets warmer, not different in meaning — but the hash function has no concept of meaning. A different string in, a different hash out, every time, with no exceptions.',
+    },
+    {
+      line: 8,
+      text: 'The translation file still holds an entry for the OLD id. Nothing deletes it, and nothing complains — it just stops being reachable, because nothing in the new build asks for that id anymore.',
+    },
+    {
+      line: 12,
+      text: '`@@homeGreeting` makes the id a constant you chose, not a computation over the text. Editing the words on this line has zero effect on the id — which is the entire reason pinning one exists.',
+    },
+  ];
+
+  /** The block's own quiz — testing the fix, not the failure the page's later quiz already covers. */
+  protected readonly idStabilityQuiz: QuizOption[] = [
+    {
+      text: 'Yes, but only if the edit changes the word count.',
+      why: "A custom id is never recomputed from the text at all — word count, character count, none of it matters. That's the entire difference from the no-id case.",
+    },
+    {
+      text: 'Yes — every message id, custom or not, is a hash of the current source text.',
+      why: "That's true only WITHOUT a custom id. The moment you pin one with `@@name`, the id becomes a fixed value you chose — the extractor stops hashing the text for that message entirely.",
+    },
+    {
+      text: 'No — a custom id is fixed by you and never recomputed from the text, which is the entire point of pinning one.',
+      correct: true,
+      why: 'Right. `@@homeGreeting` stays `homeGreeting` no matter how many times the English wording changes underneath it — the translation file entry for that id keeps matching, edit after edit.',
+    },
+    {
+      text: 'It depends on whether the build runs with --localize.',
+      why: 'Id computation happens at extraction time, before any locale-specific build step runs — --localize controls how many bundles get produced from the extracted messages, not how their ids are derived.',
+    },
   ];
 
   /**

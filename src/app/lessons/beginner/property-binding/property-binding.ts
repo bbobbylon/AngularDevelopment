@@ -1,7 +1,9 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
+import { BfPage, Chapter, CodeLab, Napkin } from '../../../shared/brain';
 import type { ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -37,7 +39,22 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
  */
 @Component({
   selector: 'app-lesson-property-binding',
-  imports: [RouterLink, BfPage, Chapter, CodeLab, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Chapter,
+    CodeLab,
+    Napkin,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
+    Faq,
+    Flow,
+    Predict,
+    Quiz,
+    Remember,
+  ],
   styleUrl: './property-binding.css',
   templateUrl: './property-binding.html',
 })
@@ -61,6 +78,62 @@ export class PropertyBinding {
   protected readonly span = signal(2);
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /**
+   * The block's own Q&A spine — six questions escalating from the surface
+   * misconception ("aren't these the same thing?") through a real production
+   * failure mode to the one-habit fix. Deliberately distinct copy from
+   * {@link questions} below, which closes the page with a different set.
+   */
+  protected readonly bindingQuestions: NdqItem[] = [
+    {
+      q: 'Isn\'t `[prop]="x"` just shorthand for writing `prop="{{ x }}"`?',
+      a: "No — they compile to two different instructions. Interpolation always writes a **string** attribute; `[prop]` writes the DOM property with whatever type `x` really is. Bind a number through interpolation and you get the string `'48'`. Bind it with `[prop]` and you get the real number `48`. Same-looking markup, a different type landing on the other side.",
+    },
+    {
+      q: "You typed a brand-new value into a bound `<input>`. Why does DevTools' Elements panel still show the OLD one?",
+      a: "Because the Elements panel shows you the **attribute** — the label from when the element was created — and typing never reprints that label. Your keystrokes are updating the input's live `value` property instead. DevTools' Properties tab (or `el.value` in the console) is where you'd see what's actually in the box right now.",
+    },
+    {
+      q: 'Where does that actually bite you at work?',
+      a: "Automated tests. Selenium's `get_attribute('value')` reads the attribute, not the property — a test that types into a field and immediately asserts on `get_attribute('value')` can see the field's ORIGINAL contents, not what it just typed, and fail for a reason that has nothing to do with your component's logic. You'll lose a real afternoon to this exact bug at some point.",
+    },
+    {
+      q: 'So `disabled="false"` should un-disable a button, right?',
+      a: "It won't. For a boolean attribute like `disabled`, **presence is the only thing that counts** — the attribute doesn't read what string you wrote inside the quotes, only whether it's there at all. `[disabled]=\"false\"` sets the live boolean property instead, and that one actually listens to `true`/`false`.",
+    },
+    {
+      q: "If properties are the 'real' thing, why does `[attr.*]` exist at all?",
+      a: "Because a few labels have no box behind them. ARIA attributes, `colspan`, SVG-specific attributes and your own `data-*` names have no matching DOM property — there's nothing for `[prop]` to write to. `[attr.*]` is the only tool that reaches them, and it's also the only one that can remove a label entirely: bind it to `null` and Angular calls `removeAttribute` — something a property binding has no equivalent for.",
+    },
+    {
+      q: 'How do you keep this straight without memorizing a table?',
+      a: 'Default to `[prop]` for almost everything you write. Reach for `[attr.*]` only when the compiler tells you to — a missing-property error on something like `colspan` or `aria-*`. And when you need to know what a value actually is right now — in a test, in the console, in a bug report — read the property, never the markup.',
+    },
+  ];
+
+  /** The block's own quiz — the Selenium trap, predicted before the DevTools predict below proves the same thing live. */
+  protected readonly ndqQuiz: QuizOption[] = [
+    {
+      text: 'The password the tester just typed — Selenium reads whatever is really in the box.',
+      why: "That's what reading the live property (`.get_property('value')`, or `el.value` in a browser console) would return. `get_attribute('value')` deliberately reads the attribute — the frozen label — not the live property, so it does not see this.",
+    },
+    {
+      text: "Whatever the field's value attribute was when the page first rendered — not the new password.",
+      correct: true,
+      why: 'Right. The attribute is set once, at creation, from the initial binding. Typing into the field only ever changes the live property; nothing re-writes the attribute afterward, so an attribute read stays stuck on the original value.',
+    },
+    {
+      text: 'An error, because the element has already changed since the page loaded.',
+      why: "No error — the attribute genuinely still exists, it's just stale. `get_attribute` succeeds and returns a real (wrong) answer, which is exactly what makes this bug so easy to miss: nothing looks broken.",
+    },
+    {
+      text: 'It depends on whether change detection has run since the keystroke.',
+      why: 'Change detection decides when Angular re-checks its OWN bindings — it has no effect here, because nothing in this scenario ever asks Angular to write the attribute again in the first place.',
+    },
+  ];
 
   /** The Data Binding track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

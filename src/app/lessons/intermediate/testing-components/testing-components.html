@@ -14,6 +14,59 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      "I called count.set(5)," says the component. "Check for yourself — that part isn't in question."
+    </p>
+
+    <p class="bf-say">
+      A test reads the screen right after that call and finds the number <strong>4</strong>. Three parties touch this
+      failure on the way to your assertion: the <strong>component</strong>, who owns the state; the
+      <strong>DOM</strong>, who paints it; and the <strong>test</strong>, who reads it back.
+    </p>
+
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="The component's signal is 5. The screen still says 4. The test honestly reports what the screen says. So which of the three actually made a mistake?"
+      hint="Ask whether any of the three broke its OWN contract — or whether a fourth step, nobody's job so far, was simply never performed."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      A component's state and the DOM it produces are two separate things in a test, kept in sync only by an explicit
+      call. Nothing here runs a real app's change-detection loop for you — <code>TestBed</code> hands you a component
+      and a screen and waits for you to say when the screen should catch up.
+    </p>
+
+    <app-layers
+      [core]="argCore"
+      [rings]="argRings"
+      arrow="detectChanges() is the only thing that pushes a change through every ring"
+      caption="Three separate rings, three separate moments a value can go stale in — and one call that's the only bridge between any of them."
+    />
+
+    <app-quiz
+      question="component.count() correctly returns 5 the instant .set(5) runs. fixture.nativeElement still shows 4. Which of the three — the component, the DOM, or the test assertion — actually made a mistake?"
+      [options]="argQuiz"
+      followUp="The quiz further down this page runs the exact bug live — decide your answer here first."
+    />
+
+    <app-napkin lead="the mental model —" label="A stunt double who only moves on 'action'">
+      A stunt double doesn't react to the director's private notes — they move the instant someone actually calls
+      <strong>action</strong>, and not one frame before. Your component's state can change in the script all it wants;
+      the double standing on set — the DOM — holds its exact last pose until <code>detectChanges()</code> calls action
+      again.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

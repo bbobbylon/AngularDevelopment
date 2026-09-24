@@ -16,6 +16,99 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      Two completely different bugs make the exact same Submit button do exactly nothing — and neither one leaves a
+      single line in the console.
+    </p>
+
+    <p class="bf-say">
+      Template-driven forms are quiet by design. That's wonderful right up until something's actually wrong and stays
+      just as quiet. Here's every question that silence leaves behind.
+    </p>
+
+    <app-no-dumb-questions [items]="silenceQuestions" />
+
+    <app-brain-power
+      question="Two different forms, both missing something, both do absolutely nothing when you click Submit — no error either time. What are the two completely different things that could be missing, and how would you even tell which one you're looking at?"
+      hint="Ask whether the bug lives in what Angular is listening for, or in what the browser refuses to let through in the first place."
+    />
+
+    <app-whiteboard
+      caption="Same click, same silence, two unrelated mechanisms — one never gets heard, the other never gets through the door."
+      alt="Two columns of three stacked boxes. Left column, headed missing ngSubmit, shows click Submit, then NgForm preventDefault runs marked page never reloads, then ngSubmit fires unheard marked no subscriber no error, captioned silent — nothing ran, nothing was ever wrong with your handler. Right column, headed native validation blocks it, shows click Submit, then browser checks required or email marked before Angular sees anything, then ngSubmit never fires at all marked blocked at the DOM not in Angular, captioned silent for a completely different reason."
+    >
+      <svg class="wb-svg" viewBox="0 0 680 300" aria-hidden="true" focusable="false">
+        <text x="170" y="20" text-anchor="middle" class="wb-hand wb-text--sm">MISSING (ngSubmit)</text>
+        <text x="510" y="20" text-anchor="middle" class="wb-hand wb-text--sm">NATIVE VALIDATION BLOCKS IT</text>
+
+        <rect x="50" y="38" width="240" height="46" rx="10" class="wb-node" />
+        <text x="170" y="66" text-anchor="middle" class="wb-text--sm">click Submit</text>
+
+        <rect x="50" y="98" width="240" height="46" rx="10" class="wb-node wb-node--lit" />
+        <text x="170" y="120" text-anchor="middle" class="wb-mono wb-text--sm">preventDefault() runs</text>
+        <text x="170" y="136" text-anchor="middle" class="wb-text--sm">page never reloads</text>
+
+        <rect x="50" y="158" width="240" height="46" rx="10" class="wb-node" opacity="0.5" />
+        <text x="170" y="180" text-anchor="middle" class="wb-mono wb-text--sm">ngSubmit fires, unheard</text>
+        <text x="170" y="196" text-anchor="middle" class="wb-text--sm">no subscriber, no error</text>
+
+        <text x="170" y="234" text-anchor="middle" class="wb-hand wb-text--sm">SILENT — nothing ever ran</text>
+
+        <rect x="390" y="38" width="240" height="46" rx="10" class="wb-node" />
+        <text x="510" y="66" text-anchor="middle" class="wb-text--sm">click Submit</text>
+
+        <rect x="390" y="98" width="240" height="46" rx="10" class="wb-node wb-node--lit" />
+        <text x="510" y="120" text-anchor="middle" class="wb-mono wb-text--sm">browser checks required / email</text>
+        <text x="510" y="136" text-anchor="middle" class="wb-text--sm">before Angular sees anything</text>
+
+        <rect x="390" y="158" width="240" height="46" rx="10" class="wb-node" opacity="0.5" />
+        <text x="510" y="180" text-anchor="middle" class="wb-mono wb-text--sm">ngSubmit never fires at all</text>
+        <text x="510" y="196" text-anchor="middle" class="wb-text--sm">blocked at the DOM</text>
+
+        <text x="510" y="234" text-anchor="middle" class="wb-hand wb-text--sm">
+          SILENT — a different reason entirely
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="ngSubmit fires, unheard"
+        tone="clay"
+        text="The event genuinely fires — a real emit happens. Nobody subscribed, so it lands nowhere, and an EventEmitter with zero listeners never complains about that."
+      />
+      <app-scribble
+        quote="browser checks required / email"
+        point="up"
+        tone="accent"
+        text="This is the browser's OWN native validation — the same behavior any plain, Angular-free form has always had. It runs before your event listeners get a turn at all."
+      />
+      <app-scribble
+        quote="ngSubmit never fires at all"
+        tone="olive"
+        text="Angular genuinely never finds out a submit was attempted — there's nothing to catch, because nothing reached it. That's why `novalidate` on the &lt;form&gt; tag is the fix, not a change to your handler."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="A signup form has (ngSubmit)='submit(f.value)' correctly bound, and an empty required email field. You click Submit. Nothing happens — no console error, no network call. What's the most likely cause?"
+      [options]="silenceQuiz"
+      followUp="The two predicts further down this page walk both silent-failure paths live, one at a time — decide your own answer there before either is revealed."
+    />
+
+    <app-napkin lead="the mental model —" label="A doorman who never tells you why the door stayed shut">
+      Two doors, both shut, both silent. One has no bell wired to it at all — you knock, nobody ever hears it, and
+      nothing tells you that. The other has a doorman standing in front of it who turns you away before you even reach
+      the door — you never got as far as knocking. From where you're standing, outside, both look exactly the same:
+      nothing happened.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
@@ -382,6 +475,17 @@
       can "do nothing" on click with no console error and no breakpoint hit in your handler: sometimes the handler was
       never called at all.
     </div>
+
+    <p class="bf-answer">
+      Same visible result, both times — a click that does nothing — from two mechanisms that share no code at all. One
+      trips over a missing binding; the other never leaves the DOM in the first place. Reading the console won't tell
+      you which: neither one writes anything there.
+    </p>
+
+    <app-flow
+      [steps]="silenceFlow"
+      caption="How to tell the two apart, in the order that actually narrows it down fastest."
+    />
   </section>
 
   <!-- ============ 10. UNDER THE HOOD ============ -->

@@ -326,6 +326,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '[property], [attr.*], and the difference between DOM properties and attributes.',
     level: 'beginner',
     category: 'Data Binding',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/beginner/property-binding/property-binding').then(
         (m) => m.PropertyBinding,
@@ -356,6 +357,7 @@ export const CURRICULUM: Lesson[] = [
     summary: '[class.x], [style.x], [ngClass] and [ngStyle] for dynamic presentation.',
     level: 'beginner',
     category: 'Data Binding',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/beginner/class-style-binding/class-style-binding').then(
         (m) => m.ClassStyleBinding,
@@ -474,6 +476,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Defining routes, router-outlet, routerLink and routerLinkActive.',
     level: 'beginner',
     category: 'Routing',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/beginner/routing-basics/routing-basics').then((m) => m.RoutingBasics),
   },
@@ -493,6 +496,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ngModel, ngForm, and basic validation the template-first way.',
     level: 'beginner',
     category: 'Forms',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/beginner/template-forms/template-forms').then((m) => m.TemplateForms),
   },
@@ -805,6 +809,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'TestBed, ComponentFixture, querying the DOM and change detection.',
     level: 'intermediate',
     category: 'Testing',
+    shape: 'argument',
     loadComponent: () =>
       import('../lessons/intermediate/testing-components/testing-components').then(
         (m) => m.TestingComponents,
@@ -879,6 +884,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Running DOM work safely after the framework renders.',
     level: 'expert',
     category: 'Runtime & Performance',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/expert/after-render/after-render').then((m) => m.AfterRender),
   },
@@ -939,6 +945,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'hostDirectives for composing behavior onto components.',
     level: 'expert',
     category: 'Architecture',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/expert/host-directives/host-directives').then((m) => m.HostDirectives),
   },
@@ -988,6 +995,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'i18n attributes, $localize, extraction and locale builds.',
     level: 'expert',
     category: 'Cross-Cutting',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/expert/i18n/i18n').then((m) => m.I18n),
   },
   {

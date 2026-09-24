@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
 
@@ -62,6 +63,9 @@ interface DemoRoute {
     Quiz,
     Remember,
     TapeCard,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './routing-basics.html',
   styleUrl: './routing-basics.css',
@@ -75,6 +79,59 @@ export class RoutingBasics {
     { label: 'Resolvers', id: 'resolvers' },
     { label: 'Route Params', id: 'route-params' },
     { label: 'Navigation Events', id: 'router-events' },
+  ];
+
+  // -- Page-shape block: "The Whiteboard" --
+
+  /** What changes, step by step, the moment `pathMatch: 'full'` is added to an empty-path route. */
+  protected readonly pathMatchFlow: FlowStep[] = [
+    {
+      label: "Scan reaches path: ''",
+      detail: 'Same first row, same URL — nothing about the scan itself has changed yet.',
+    },
+    {
+      label: 'The comparison target changes',
+      detail:
+        "Without the flag: 'does the URL START WITH this?' With it: 'does the URL EQUAL this, in full?'",
+      tone: 'accent',
+    },
+    {
+      label: '/about is compared',
+      detail:
+        "'' is a prefix of /about (always true) — but /about is not EQUAL to '' (only true when the flag is set).",
+      tone: 'warn',
+    },
+    {
+      label: 'Row one either claims it or steps aside',
+      detail:
+        'No flag: row one wins, every time. With the flag: row one declines, and the scan continues.',
+    },
+    {
+      label: 'The next matching row finally gets a turn',
+      detail: "'about' → About only ever runs once row one has legitimately said no.",
+      tone: 'good',
+    },
+  ];
+
+  /** The block's own quiz — the fixed table, checked before the broken one is revealed in the predict below. */
+  protected readonly pathMatchQuizOptions: QuizOption[] = [
+    {
+      text: 'Home — pathMatch only matters for redirects that have child routes, not simple top-level ones like this.',
+      why: "pathMatch applies to any route with an empty path — redirect or not, top-level or nested. It isn't scoped to routes with children; it's exactly this route it changes.",
+    },
+    {
+      text: "About — pathMatch: 'full' makes '' match ONLY when the entire remaining URL is empty, so /about no longer satisfies row one and falls through to the row that actually names it.",
+      correct: true,
+      why: "Right. Prefix matching (the default) treats '' as a prefix of every URL. pathMatch: 'full' switches the comparison to the WHOLE remaining URL rather than just its start — one flag, and row one stops claiming traffic that was never meant for it.",
+    },
+    {
+      text: 'Still Home, because the router already redirects before pathMatch is ever checked.',
+      why: "pathMatch is part of deciding whether a route matches AT ALL — it isn't a separate step that runs after a redirect has already fired. Nothing redirects here until some route actually matches first.",
+    },
+    {
+      text: 'A router error, because two routes now compete for the same URL.',
+      why: 'No conflict, and no error. The router still stops at the FIRST match in a top-down scan — pathMatch only changes whether row one is willing to claim /about in the first place.',
+    },
   ];
 
   /**

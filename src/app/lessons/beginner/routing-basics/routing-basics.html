@@ -16,6 +16,105 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      One flag on one route decides whether every URL in your app quietly gets swallowed by the very first row, or
+      whether the other rows ever get a turn at all.
+    </p>
+
+    <app-brain-power
+      question="A route table starts with { path: '', redirectTo: 'home' } — no pathMatch — followed by routes for /about and /users/:id. You navigate to /about. Which component renders?"
+      hint="Ask what an empty string actually matches by default: an EXACTLY empty URL, or a PREFIX that every URL starts with."
+    />
+
+    <app-whiteboard
+      caption="Same four-row table, one flag different — one version swallows every route beneath row one; the other lets each row take its turn."
+      alt="Two panels showing the same three-row route table. Left panel, labeled no pathMatch, prefix default, shows row one, empty string arrow Home, lit and marked matches slash about too, above two greyed rows for about arrow About and users colon id arrow User, both marked unreachable, with a caption reading everything falls into row one. Right panel, labeled pathMatch full, shows row one, empty string arrow Home, marked empty U R L only, above two lit rows for about arrow About and users colon id arrow User, both marked reached finally, with a caption reading each route gets its own turn."
+    >
+      <svg class="wb-svg" viewBox="0 0 680 320" aria-hidden="true" focusable="false">
+        <text x="170" y="22" text-anchor="middle" class="wb-hand wb-text--sm">NO pathMatch (prefix, default)</text>
+        <text x="510" y="22" text-anchor="middle" class="wb-hand wb-text--sm">pathMatch: 'full'</text>
+
+        <rect x="50" y="40" width="240" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="170" y="60" text-anchor="middle" class="wb-mono wb-text--sm">'' → Home</text>
+        <text x="170" y="80" text-anchor="middle" class="wb-text--sm">matches /about too</text>
+
+        <rect x="50" y="104" width="240" height="52" rx="10" class="wb-node" opacity="0.4" />
+        <text x="170" y="124" text-anchor="middle" class="wb-mono wb-text--sm">about → About</text>
+        <text x="170" y="144" text-anchor="middle" class="wb-text--sm">unreachable</text>
+
+        <rect x="50" y="168" width="240" height="52" rx="10" class="wb-node" opacity="0.4" />
+        <text x="170" y="188" text-anchor="middle" class="wb-mono wb-text--sm">users/:id → User</text>
+        <text x="170" y="208" text-anchor="middle" class="wb-text--sm">unreachable</text>
+
+        <text x="170" y="246" text-anchor="middle" class="wb-hand wb-text--sm">EVERYTHING FALLS INTO ROW ONE</text>
+
+        <rect x="390" y="40" width="240" height="52" rx="10" class="wb-node" />
+        <text x="510" y="60" text-anchor="middle" class="wb-mono wb-text--sm">'' → Home</text>
+        <text x="510" y="80" text-anchor="middle" class="wb-text--sm">empty URL only</text>
+
+        <rect x="390" y="104" width="240" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="510" y="124" text-anchor="middle" class="wb-mono wb-text--sm">about → About</text>
+        <text x="510" y="144" text-anchor="middle" class="wb-text--sm">reached, finally</text>
+
+        <rect x="390" y="168" width="240" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="510" y="188" text-anchor="middle" class="wb-mono wb-text--sm">users/:id → User</text>
+        <text x="510" y="208" text-anchor="middle" class="wb-text--sm">reached, finally</text>
+
+        <text x="510" y="246" text-anchor="middle" class="wb-hand wb-text--sm">EACH ROUTE GETS ITS OWN TURN</text>
+      </svg>
+
+      <app-scribble
+        quote="'' → Home"
+        tone="clay"
+        text="An empty string is a prefix of every URL there is — /about, /users/7, all of it. Without pathMatch, this row claims them all before the scan ever reaches row two."
+      />
+      <app-scribble
+        quote="unreachable"
+        point="up"
+        tone="accent"
+        text="Not broken code, not a typo — these routes are written correctly. They simply never get a turn, because the scan already stopped one row up."
+      />
+      <app-scribble
+        quote="pathMatch: 'full'"
+        tone="olive"
+        text="One flag, added to exactly one row, and the whole right-hand table starts working. Nothing else in the file changes."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      By default, <code>path: ''</code> doesn't mean "the URL is empty" — it means "the URL starts with nothing", which
+      every URL trivially does. <code>pathMatch: 'full'</code> is the one flag that switches the comparison from a
+      <strong>prefix</strong> check to a <strong>whole-URL</strong> check, and it's the entire difference between the
+      left panel and the right one.
+    </p>
+
+    <app-flow
+      [steps]="pathMatchFlow"
+      caption="What changes, step by step, the moment pathMatch: 'full' is added to that one row."
+    />
+
+    <app-quiz
+      question="You add pathMatch: 'full' to { path: '', redirectTo: 'home' }, ahead of routes for /about and /users/:id. You navigate to /about. Which component renders, and why does one flag change anything at all?"
+      [options]="pathMatchQuizOptions"
+      followUp="The predict further down this page shows the BROKEN version of this exact table, live — decide your answer there before it's revealed."
+    />
+
+    <app-napkin lead="the mental model —" label="A lock that opens for any key that merely starts right">
+      Picture a lock that, by default, pops open for any key whose first groove matches — the rest barely matters.
+      That's prefix matching: <code>path: ''</code> is a key with <strong>no grooves at all</strong>, so every key ever
+      cut satisfies it first. <code>pathMatch: 'full'</code> swaps in a different lock — one that only opens for a key
+      matching tooth for tooth, all the way to the end. Suddenly the empty key only opens the empty door.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

@@ -14,6 +14,91 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → two/three scribbles at the code → app-brain-power →
+       one quiz → a closing .bf-big that ends loud. Never: app-bubbles,
+       app-no-dumb-questions, or app-napkin in first position — scripts/audit-variety.mjs
+       checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Bind the identical object to <code>[class]</code> and to <code>[ngClass]</code>. Re-render both 100 times with
+      nothing about the classes ever changing. One of them does zero extra work after the first pass. The other does two
+      hundred.
+    </p>
+
+    <app-receipt
+      heading="100 no-op change-detection passes · same object, two bindings"
+      [rows]="costBill"
+      [total]="costBillTotal"
+      footer="you imported two directives to re-prove, 200 times, what the compiler already finished on pass one"
+    />
+
+    <app-scribble
+      point="up"
+      quote="200"
+      tone="clay"
+      text="Not a typo. `ngClass` and `ngStyle` are each their own `ngDoCheck()`, and Angular guarantees that hook fires on **every** pass that reaches this element — whether or not anything you're diffing actually moved."
+    />
+
+    <app-compare
+      leftTitle="ngClass / ngStyle — walks the object every pass"
+      leftTone="bad"
+      rightTitle="[class] / [style] — a compiled, memoized instruction"
+      rightTone="good"
+      note="Same rendered output, every time. Only one side keeps re-proving what it already knew."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+[ngClass]="{{ '{' }} active: isOn() {{ '}' }}"
+// own ngDoCheck(), own differ,
+// runs on EVERY pass, unconditionally</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+[class]="{{ '{' }} active: isOn() {{ '}' }}"
+// ONE compiled instruction
+// skipped once the object reference repeats</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">Here's why the counts land so differently — what each one is actually built from.</p>
+
+    <app-chain
+      [steps]="ngClassChainSteps"
+      label="What ngClass runs — unconditionally — on every single change-detection pass"
+    />
+
+    <app-code-lab
+      file="ngclass-internals.ts — roughly what runs, and what doesn't"
+      [code]="differCostSample"
+      [notes]="differCostNotes"
+      notesLabel="One lifecycle hook with no memo check, next to one that has one"
+    />
+
+    <app-brain-power
+      question="Both bindings below produce the identical class list on the identical element, every single render. On a pass where the bound object is byte-for-byte the same reference as last time, does either one skip its own work — and if so, which?"
+      hint="Ask which of the two is a compiled instruction with a memo check built in, and which is a directive lifecycle hook with none."
+    />
+
+    <app-quiz
+      question="A settings panel re-renders every keystroke typed somewhere else in the app — 40 times a minute — and its own class list never changes. Which binding style pays a real, repeated cost for every one of those unrelated checks: [class]='{...}', or [ngClass]='{...}' bound to the identical object?"
+      [options]="costQuiz"
+      followUp="The compiled-instruction walkthrough further down this page (`mechanismSample`) shows the exact call `[class]` gets for free — no differ, no import, no ngDoCheck()."
+    />
+
+    <p class="bf-big">
+      Same three classes on screen, either way. One binding checks a reference and stops. The other proves it from
+      scratch — every single pass, forever.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
