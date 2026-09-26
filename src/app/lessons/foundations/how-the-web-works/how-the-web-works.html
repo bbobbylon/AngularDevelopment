@@ -15,6 +15,107 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      The server has already answered. The complete HTML is sitting in the browser's memory this instant. Watch where
+      the screen actually is while that's true — because "arrived" and "appeared" turn out to be two different moments,
+      separated by however long one single file takes to show up.
+    </p>
+
+    <app-brain-power
+      question="The response has fully arrived — the browser is holding the complete HTML in memory, right now. True or false: the page appears on screen at that exact moment?"
+      hint="Ask what the browser still has to DO with that HTML before any of it becomes a pixel."
+    />
+
+    <app-whiteboard
+      caption="Full HTML, sitting in memory. A blank screen, sitting right next to it. Only a stylesheet or a plain script stands between the two."
+      alt="Two panels. Top panel, labeled in memory right now, shows the complete HTML text, already arrived. Bottom panel, labeled on screen right now, shows a blank rectangle. Between them, an arrow labeled parsing pauses here passes through a box marked link rel stylesheet or plain script tag, captioned parsing does not resume, and nothing paints, until that one file finishes downloading."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 260" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="how-the-web-works-block-arrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 Z" class="wb-head" />
+          </marker>
+        </defs>
+
+        <text x="320" y="24" text-anchor="middle" class="wb-hand wb-text--sm">IN MEMORY RIGHT NOW</text>
+        <rect x="60" y="36" width="520" height="44" rx="10" class="wb-node wb-node--lit" />
+        <text x="320" y="63" text-anchor="middle" class="wb-mono wb-text--sm">
+          &lt;html&gt;…&lt;/html&gt; — fully arrived, complete
+        </text>
+
+        <path d="M320,80 L320,110" class="wb-arrow" marker-end="url(#how-the-web-works-block-arrow)" />
+
+        <rect x="180" y="112" width="280" height="40" rx="8" class="wb-node" />
+        <text x="320" y="137" text-anchor="middle" class="wb-mono wb-text--sm">
+          &lt;link rel="stylesheet"&gt; — parsing pauses here
+        </text>
+
+        <path d="M320,152 L320,182" class="wb-arrow" marker-end="url(#how-the-web-works-block-arrow)" />
+
+        <text x="320" y="206" text-anchor="middle" class="wb-hand wb-text--sm">ON SCREEN RIGHT NOW</text>
+        <rect x="60" y="216" width="520" height="34" rx="10" class="wb-node" opacity="0.5" />
+        <text x="320" y="238" text-anchor="middle" class="wb-text--sm">— blank —</text>
+      </svg>
+
+      <app-scribble
+        quote="fully arrived, complete"
+        tone="clay"
+        text="This is the part everyone assumes is the finish line. It isn't — it's just the moment the browser has something to start reading."
+      />
+      <app-scribble
+        quote="parsing pauses here"
+        point="up"
+        tone="accent"
+        text="A stylesheet (or a plain, non-deferred script) makes the browser refuse to keep reading the rest of the HTML until that one file is fully downloaded."
+      />
+      <app-scribble
+        quote="blank"
+        tone="olive"
+        text="Not because the server was slow — it already answered. The delay is entirely inside the browser, waiting on one file, after the response was already sitting in memory."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      False. Arriving is not painting. The instant the parser hits a render-blocking file, it stops reading the HTML it
+      already has — in full — and waits for that one file, however long that takes, before a single further pixel can
+      change.
+    </p>
+
+    <app-flow
+      [steps]="renderBlockFlow"
+      caption="The exact four steps between 'HTML fully in memory' and 'something on screen' — notice how much of it has nothing to do with the network."
+    />
+
+    <app-quiz
+      question="A document's &lt;head&gt; has &lt;script src='analytics.js'&gt;&lt;/script&gt; and, right after it, &lt;script src='app.js' defer&gt;&lt;/script&gt; — both referencing equally slow files. Which one delays first paint?"
+      [options]="deferQuizOptions"
+      followUp="The head-of-document sample further down this page dissects all three tags side by side — a stylesheet, a plain script, and a deferred one — line by line."
+    />
+
+    <app-napkin lead="the mental model —" label="A letter in the mailbox is not a letter you've read">
+      HTML landing in the browser's memory is a letter landing in your mailbox — it exists, complete, right there. But
+      you still have to walk out, open the envelope, and read it line by line before any of it changes what you do. And
+      if line three says "first, go get this signed at the post office" — a stylesheet, a plain script — you set the
+      letter down and leave, no matter how long it's already been sitting in your hand.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

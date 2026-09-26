@@ -16,6 +16,101 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure (app-layers or app-whiteboard) → one app-quiz →
+       app-napkin with the analogy. Thread "you"/"your" through every answer. Never:
+       app-bubbles, app-tape-card, app-receipt, app-remember — scripts/audit-variety.mjs
+       checks exactly that span. -->
+  <section>
+    <p class="bf-big"><code>if (score = 100)</code> reads like a question. It is a command — and it always says yes.</p>
+
+    <p class="bf-say">
+      One equals sign is the single most repeated exam trap in this entire track, because it isn't a typo that breaks
+      anything: it's completely legal JavaScript that quietly does the wrong job. Here's every question that gap leaves
+      behind, answered before you meet it live a few sections down.
+    </p>
+
+    <app-no-dumb-questions [items]="assignmentQuestions" />
+
+    <app-brain-power
+      question="`let attempts = 0;` then `if (attempts = 5) { attempts++; }`. Predict two things before you scroll: does the code inside the braces run, and what does `attempts` equal once this line has finished?"
+      hint="Ask what `(attempts = 5)` actually hands to the `if` — not what you'd want it to check."
+    />
+
+    <app-whiteboard
+      caption="The condition never gets asked a question. It gets handed an answer it just wrote itself."
+      alt="Two panels connected by an arrow. Left panel, labeled the line as written, shows if open paren score equals 100 close paren. Right panel, labeled what actually happens, in order: step one, score is assigned 100, replacing whatever it held; step two, the if reads that same 100 back out; step three, 100 is truthy, so the branch always runs. A note below reads score now permanently holds 100, whether it started at 0 or anything else."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 220" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="programming-basics-assign-arrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 Z" class="wb-head" />
+          </marker>
+        </defs>
+
+        <text x="150" y="22" text-anchor="middle" class="wb-hand wb-text--sm">THE LINE AS WRITTEN</text>
+        <rect x="30" y="36" width="240" height="46" rx="10" class="wb-node wb-node--lit" />
+        <text x="150" y="64" text-anchor="middle" class="wb-mono wb-text--sm">if (score = 100)</text>
+
+        <path d="M150,84 L150,108" class="wb-arrow" marker-end="url(#programming-basics-assign-arrow)" />
+
+        <text x="150" y="128" text-anchor="middle" class="wb-hand wb-text--sm">WHAT ACTUALLY HAPPENS</text>
+
+        <rect x="30" y="140" width="240" height="34" rx="8" class="wb-node" />
+        <text x="150" y="162" text-anchor="middle" class="wb-mono wb-text--sm">1. score ← 100 (assign)</text>
+
+        <rect x="330" y="36" width="280" height="34" rx="8" class="wb-node" />
+        <text x="470" y="58" text-anchor="middle" class="wb-mono wb-text--sm">2. if reads that same 100 back</text>
+
+        <rect x="330" y="80" width="280" height="34" rx="8" class="wb-node wb-node--lit" />
+        <text x="470" y="102" text-anchor="middle" class="wb-mono wb-text--sm">3. 100 is truthy → branch runs</text>
+
+        <rect x="330" y="140" width="280" height="34" rx="8" class="wb-node" opacity="0.85" />
+        <text x="470" y="162" text-anchor="middle" class="wb-text--sm">score is now 100. permanently.</text>
+      </svg>
+
+      <app-scribble
+        quote="score ← 100"
+        tone="clay"
+        text="This is the whole trap: `=` never compares in JavaScript. It stores. The parentheses around it don't turn it into a question — they just decide WHEN the store happens."
+      />
+      <app-scribble
+        quote="branch runs"
+        point="up"
+        tone="accent"
+        text="Every time, no matter what `score` held a moment earlier. The `if` was never given the old value to compare — only the new one it just wrote."
+      />
+      <app-scribble
+        quote="permanently"
+        tone="olive"
+        text="Nothing rolls back once the `if` is done. The overwrite is a real, lasting side effect of a line that reads like it only checks."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="`let attempts = 0;` then the line `if (attempts = 1) { console.log('go'); }` runs. What does `attempts` equal immediately afterward, and did `'go'` print?"
+      [options]="assignBugQuizOptions"
+      followUp="The Predict a few sections down runs the identical trap on `score` and `100` instead — trace it yourself there before it reveals the answer."
+    />
+
+    <app-napkin lead="the mental model —" label="A hand that shoves, not a hand that checks">
+      <code>===</code> is a hand held out flat, asking "is this already what's in the box?" — it never touches the
+      contents. <code>=</code> is a different hand entirely: it reaches in, shoves a new value into the box, and only
+      then does the <code>if</code> glance at what's now sitting there. One symbol short of the question you meant to
+      ask, and the box has already changed before anyone answers.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

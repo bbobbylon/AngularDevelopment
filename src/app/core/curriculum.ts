@@ -19,6 +19,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Client vs server, HTML/CSS/JS, web pages vs web apps, and what a SPA is.',
     level: 'foundations',
     category: 'Web Basics',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/foundations/how-the-web-works/how-the-web-works').then(
         (m) => m.HowTheWebWorks,
@@ -30,6 +31,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'What code is, plus numbers, strings, booleans, variables and assignment.',
     level: 'foundations',
     category: 'Programming from Zero',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/foundations/programming-basics/programming-basics').then(
         (m) => m.ProgrammingBasics,
@@ -52,6 +54,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Ordered lists and labelled groups — the shape of almost all app data.',
     level: 'foundations',
     category: 'Programming from Zero',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/foundations/arrays-objects-basics/arrays-objects-basics').then(
         (m) => m.ArraysObjectsBasics,

@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 
 /**
  * One stage of the page-load journey, from typing a URL to pixels on screen.
@@ -138,15 +139,72 @@ const STATUS_CODES: StatusCode[] = [
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './how-the-web-works.html',
   styleUrl: './how-the-web-works.css',
 })
 export class HowTheWebWorks {
+  // ── Shape: "The Whiteboard" opener ──────────────────────────────────────────
+
+  /**
+   * The condensed 4-step version of {@link pageLoadFlow}, zoomed in on only the
+   * render-blocking stretch the shape block's figure draws — a fresh, shorter
+   * pass over the same fact rather than the full seven-stop pipeline repeated
+   * early.
+   */
+  protected readonly renderBlockFlow: FlowStep[] = [
+    { label: 'HTML starts parsing', detail: 'Top to bottom, building the DOM as it reads' },
+    {
+      label: 'Hits `<link rel="stylesheet">`',
+      detail: 'A render-blocking file — the browser refuses to guess the final styles',
+      tone: 'warn',
+    },
+    {
+      label: 'Parsing pauses',
+      detail: 'Nothing else happens on this tab until that one file finishes downloading',
+      tone: 'warn',
+    },
+    {
+      label: 'File arrives → parsing resumes → paints',
+      detail: 'Pixels finally change — however long that one file took, the screen was blank',
+      tone: 'good',
+    },
+  ];
+
+  /**
+   * The shape block's own self-test — the `defer` half of
+   * {@link headBlockingSample} rather than the stylesheet half the Predict
+   * further down already covers, so this is a fresh angle on the identical
+   * rule: a file's presence isn't what blocks paint, a file's SCHEDULING is.
+   */
+  protected readonly deferQuizOptions: QuizOption[] = [
+    {
+      text: 'Neither delays first paint — a `<script>` tag never blocks rendering, only a stylesheet does.',
+      why: 'A plain `<script>` tag is exactly as render-blocking as a stylesheet — parsing stops dead until it downloads AND runs. Only the deferred one is exempt.',
+    },
+    {
+      text: 'The plain `<script src="analytics.js">` does; the `defer`red one does not.',
+      correct: true,
+      why: 'A plain script pauses parsing immediately — download, then run, then resume reading the HTML. `defer` downloads in the background and only runs after parsing has already finished, so it never gets a chance to block anything.',
+    },
+    {
+      text: 'Both delay first paint identically, because both are scripts referencing the same slow file.',
+      why: "Same file, same slowness — completely different scheduling. `defer` is the one attribute standing between the two outcomes; the file's own download time is not what determines whether paint waits.",
+    },
+    {
+      text: 'Neither delays paint, because scripts only affect behavior, never rendering.',
+      why: 'A plain script absolutely affects rendering — by stopping the parser that builds what gets rendered. `defer` is the exception, not the rule.',
+    },
+  ];
+
   /**
    * The journey stages.
    */
   protected readonly steps = JOURNEY;
+
   /**
    * The status codes.
    */

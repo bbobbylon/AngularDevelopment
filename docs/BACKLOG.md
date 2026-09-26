@@ -1596,6 +1596,74 @@ by grepping the log directly rather than trusting the exit code.
 
 Declared-shape count: 77 → 84. Remaining undeclared: 103 − 84 = **19**, next up for batch 12.
 
+**Batch 12 of step 5, landed 2026-09-26 — a rate-limit recovery where `curriculum.ts` itself
+was untouched.** Same failure mode as batches 9-11: the agent choosing lessons and writing
+their blocks was killed by a session-wide API rate limit before it could commit or push. This
+recovery differed from every prior one in one respect worth naming: `git diff
+src/app/core/curriculum.ts` came back completely **empty**, and `git status` didn't list the
+file as modified at all — the crashed agent had written all three lessons' shape blocks in
+full but had not reached the registration step even partially, unlike prior recoveries where
+`curriculum.ts` carried some already-written entries to cross-check against. With no existing
+`shape:` declaration to confirm, every one of the four shapes had to be genuinely considered
+against each block's actual device sequence, not just verified. `git status`/`git diff --stat`
+first, then all three lesson `.html`/`.ts` pairs read in full against `docs/CONTRIBUTING.md`
+§2C's exact block sequence for each shape. Three lessons, all in the `foundations` track:
+
+| Lesson                  | Track       | Shape               | The kind of gotcha                                                                                                                                                                                                                                              |
+| ----------------------- | ----------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `how-the-web-works`     | foundations | `whiteboard`        | structure (the response has fully arrived — the complete HTML is sitting in the browser's memory this instant — but a render-blocking stylesheet or plain script keeps the parser from ever reaching a pixel; "arrived" and "appeared" are not the same moment) |
+| `programming-basics`    | foundations | `no-dumb-questions` | misconception (`if (score = 100)` is completely legal JavaScript — one `=` assigns instead of compares, so the branch runs unconditionally and the variable is silently overwritten, permanently, with no error ever raised)                                    |
+| `arrays-objects-basics` | foundations | `no-dumb-questions` | misconception (two arrays holding identical contents are never `===`; `push` mutates in place and never moves the array's own address, which is exactly why a signal `.update()`d with `push` leaves an Angular screen stale)                                   |
+
+All three blocks were genuinely complete and matched their eventual shape's exact device
+sequence on read: `.bf-big → .bf-say → app-no-dumb-questions (6–7 items) → app-brain-power →
+one figure (app-whiteboard) → app-quiz → app-napkin` for both `no-dumb-questions` lessons, and
+`.bf-eyebrow → .bf-say → app-brain-power (posed before the figure) → app-whiteboard (3
+scribbles) → .bf-answer → app-flow → app-quiz → app-napkin` for `how-the-web-works`'s
+`whiteboard`. No forbidden device in any of the three blocks, nothing that read as cut off
+mid-edit, and the `<app-*>`-vs-`imports:` cross-check the batch-10/11 postmortems recommend
+(every template tag resolved against the component's own PascalCase import) came back clean
+for all three on the first pass — no missing-import bug like `signals-advanced`/`ts-classes`
+had.
+
+One lesson had a real bug, unrelated to the shape content itself:
+`how-the-web-works.ts`'s diff had _deleted_ `protected readonly steps = JOURNEY;` — the
+pre-existing property backing the page's own live animated page-load walkthrough (its
+`current` computed, `play()` method, and the template's `@for (s of steps...)`/`steps.length`
+loop) — and replaced it in place with the new `deferQuizOptions` property, instead of adding
+the new property alongside it. `git diff -U20` showed the deletion and the new content landed
+in the exact same hunk: a straight substitution, not an edit to `steps` itself. `this.steps` is
+referenced in three other places the shape edit never touched, so this was not a shape-fit
+problem — the block itself was complete and correctly sequenced — it was a stray, mechanical
+line loss from the same pass. Fixed by restoring the property in its original position;
+`npx tsc --noEmit` stayed clean throughout (a template-only `steps` usage is invisible to it —
+the same tsc-can't-catch-it lesson batch 11's `ts-classes` postmortem already flagged for a
+missing import), and `npx ng build` afterward confirmed the fix compiles clean. Neither of the
+other two lessons had any equivalent collateral damage — both diffs are purely additive, zero
+removed lines.
+
+Adjacency checked against `scripts/audit-variety.mjs`'s actual definition (consecutive entries
+in `curriculum.ts` sharing a `level`, not filesystem or category order): `how-the-web-works`
+is the first `foundations` entry (`whiteboard`) and sits next to `programming-basics`
+(`no-dumb-questions` — different); `arrays-objects-basics` (`no-dumb-questions`) sits between
+the still-undeclared `functions-basics` and `decisions-loops` (`argument`) — no shared-shape
+neighbours in either direction.
+
+`scripts/audit-variety.mjs` is green (87 declared shapes: `no-dumb-questions` 27, `whiteboard`
+23, `receipt` 22, `argument` 15 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check`
+(prettier `--write` was needed first on all five changed files — the same as every prior
+batch) and `npm run typecheck` are both green.
+
+`npm run test:ci`'s full run (784s) came back fully green: 28/28 test files, 593/593 tests,
+zero failures — not even the usual sandbox-contention timeouts prior batches' postmortems have
+flagged on `task-manager`/`auth-flow`/etc. Nothing to isolate-and-rerun this round.
+
+`npx ng build --configuration production` completed clean in 20s — 0 warnings, 0 errors,
+confirmed by grepping the log directly rather than trusting the exit code.
+
+Declared-shape count: 84 → 87. Remaining undeclared: 103 − 87 = **16**, next up for batch 13.
+
 ---
 
 ## 3. Later

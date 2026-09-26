@@ -5,6 +5,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * One step of the variable-trace walkthrough: a line of code and what it does
@@ -120,11 +122,53 @@ const TRACE: TraceLine[] = [
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './programming-basics.html',
   styleUrl: './programming-basics.css',
 })
 export class ProgrammingBasics {
+  // ── Shape: "There Are No Dumb Questions" opener ─────────────────────────────
+
+  /**
+   * Every doubt `if (score = 100)` reliably leaves behind, answered before the
+   * reader hits the Predict further down this page that proves it live —
+   * escalating from "isn't that just a check?" through where it actually
+   * bites at work to the one-character fix.
+   */
+  protected readonly assignmentQuestions: NdqItem[] = [
+    {
+      q: "Wait, `if (score = 100)` — isn't that just checking whether `score` equals 100?",
+      a: 'No — and this is the whole trap. One `=` sign never compares anything in JavaScript. It **assigns**: it stores `100` into `score` right there, inside the parentheses, then hands the `if` the value it just stored.',
+    },
+    {
+      q: 'So does the `if` branch even run?',
+      a: 'Every single time, no matter what `score` held a moment before. `100` is truthy, and truthy is all an `if` ever checks — it never knew there was supposed to be a comparison at all.',
+    },
+    {
+      q: 'What happens to `score` afterward, once the `if` is done?',
+      a: "It's `100` now, permanently — even if it started at `0`, or `50`, or anything else. The condition didn't just misread `score`. It overwrote it, as a side effect of code that reads exactly like an innocent check.",
+    },
+    {
+      q: 'Does JavaScript at least warn me this is happening?',
+      a: 'Not by default. `score = 100` inside a condition is completely legal syntax — no error, no console warning, nothing. Your editor or linter can flag it (most modern setups do), but the language itself stays silent.',
+    },
+    {
+      q: 'Is this only a `100`-and-`if` thing, or does it show up elsewhere?',
+      a: "Anywhere a single `=` sneaks into a spot that reads left-to-right like a question: `while (isDone = true)`, `if (name = '')`. Each one assigns first, then judges the value it just wrote — `isDone = true` is always truthy and loops forever; `name = ''` is always falsy and never even runs, and either way the variable is now overwritten for the rest of the program.",
+    },
+    {
+      q: 'Where does this actually bite at work?',
+      a: "A stray keystroke — reaching for `===` and landing one key short — inside a guard clause or a feature-flag check. The bug doesn't crash. It quietly always takes one branch, and the variable it touched is wrong for every line after it, which is exactly the kind of failure that survives code review because nothing about it *looks* broken.",
+    },
+    {
+      q: 'So how do I actually protect myself from this?',
+      a: 'Default to `===` for every comparison, never `=` or even `==` — three characters is the entire fix. If a condition ever looks suspiciously easy to satisfy, the first thing to check is whether it secretly has one equals sign instead of three.',
+    },
+  ];
   /**
    * The trace steps.
    */
@@ -434,6 +478,32 @@ let total = 5; // they can also sit at the end of a line
     {
       text: "Both throw an error, because you can't compare a string to a number.",
       why: 'Comparing mismatched types is completely legal in JavaScript and never throws — it just quietly answers `true` or `false` for you, sometimes not the answer you expected. Errors and silent wrong answers are different failure modes, and this whole lesson is about how often JavaScript picks the second one.',
+    },
+  ];
+
+  /**
+   * The shape block's own self-test — deliberately a fresh scenario from
+   * {@link assignBugSample} further down (`score` swapped for `attempts`,
+   * `100` for `1`), so a reader who reasons it out here still has something
+   * new to trace when the Predict below asks again with real code.
+   */
+  protected readonly assignBugQuizOptions: QuizOption[] = [
+    {
+      text: '`attempts` is now `1`, and the branch that ran depends on what `attempts` held before the line executed.',
+      why: "The `if` branch's choice never depended on the OLD value at all — `if (attempts = 1)` throws that old value away before it ever gets compared to anything. Only what happens AFTER matters here.",
+    },
+    {
+      text: '`attempts` is now `1`, and the truthy branch ran — every time, regardless of what `attempts` held before.',
+      correct: true,
+      why: 'One `=` assigns `1` into `attempts` first, and the `if` then judges the freshly-stored `1` — which is truthy. The branch runs unconditionally, and `attempts` is left holding `1` for every line after this one, no matter what it started as.',
+    },
+    {
+      text: 'It throws a `SyntaxError`, because `=` is not a valid comparison operator.',
+      why: '`=` inside a condition is completely legal JavaScript — it just is not doing the job the code looks like it is doing. Nothing about this raises an error, which is exactly what makes it dangerous.',
+    },
+    {
+      text: '`attempts` is unchanged, because assignments inside an `if (...)` only apply to a local copy.',
+      why: 'There is no local copy — `if (attempts = 1)` reaches into the real, outer `attempts` and overwrites it, exactly as `attempts = 1;` on its own line would. The parentheses do not protect it.',
     },
   ];
 }

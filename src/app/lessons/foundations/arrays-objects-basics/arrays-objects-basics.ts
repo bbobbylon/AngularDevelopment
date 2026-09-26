@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * The demo object's shape. Three properties of three different types, so the
@@ -94,12 +96,53 @@ function row(value: string, note: string): string {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './arrays-objects-basics.html',
   styleUrl: './arrays-objects-basics.css',
 })
 export class ArraysObjectsBasics {
-  // ── Demo 1: a live array, and the four methods read off it ─────────────────
+  // ── Shape: "There Are No Dumb Questions" opener ─────────────────────────────
+
+  /**
+   * Every doubt the reference section further down this page reliably leaves
+   * behind, answered up front — escalating from "shouldn't identical arrays be
+   * `===`?" through where it actually bites at work (the stale-screen bug) to
+   * the fix.
+   */
+  protected readonly referenceQuestions: NdqItem[] = [
+    {
+      q: "`[1, 2, 3] === [1, 2, 3]` — same three numbers, in the same order. That's `true`, right?",
+      a: "It's `false`. `===` on an array never looks at what's inside it. It only ever asks one question: are these two names pointing at the exact same array in memory? Two separate `[...]` literals build two separate arrays that merely happen to match — identical twins are still two people.",
+    },
+    {
+      q: 'So what DOES make two array names `===` each other?',
+      a: 'Only ever pointing at the one array. `const b = a` copies the arrow, not the array — now `a` and `b` are two names on the same box. Build a fresh array with `[...]` instead, even with identical contents, and you get a new box with its own address.',
+    },
+    {
+      q: "If I `.push()` a new item onto an array, does the array's own address change?",
+      a: "No — and this is the one fact the whole lesson is built on. `push` edits the array that's already there, in place. Same box, same address, one more item inside it. Nothing about the array's identity moved.",
+    },
+    {
+      q: "So why doesn't my Angular screen update after I `.push()` a to-do onto a signal's array?",
+      a: "Because Angular doesn't reread your data — it compares the new value against the stored one with `===`. `push` left the address unchanged, so `===` reports `true`, and as far as the framework can tell, nothing happened. Your data is genuinely correct. Your screen is a lie.",
+    },
+    {
+      q: "What's the actual fix, then?",
+      a: 'Build a new array instead of editing the old one: `list.update((l) => [...l, newItem])`. The spread creates a fresh box at a fresh address, `===` reports `false`, and a different address is the one thing a framework can detect cheaply.',
+    },
+    {
+      q: 'Does the same trap catch plain objects too, not just arrays?',
+      a: "Exactly the same shape: `user.name = 'Ada'` mutates the existing object in place — same address, invisible to `===`. `{ ...user, name: 'Ada' }` builds a new object instead, which is why the spread pattern shows up on objects just as often as arrays.",
+    },
+    {
+      q: 'Where does this actually bite at work?',
+      a: '"I mutated the array and nothing rendered" is one of the single most common bug reports a beginner Angular developer files — and it is never a rendering bug. It is always this: a mutation that happened correctly, on data that is now correct, behind an address that never moved.',
+    },
+  ];
 
   /**
    * The list in the array demo.
@@ -1026,6 +1069,32 @@ this.todos.update((list) => [...list, newTodo]);`;
     {
       q: 'Is `JSON.parse(JSON.stringify(obj))` a good way to copy something deeply?',
       a: 'It works, it is a well-known trick, and it quietly destroys things. Dates come back as strings, functions and `undefined` values vanish entirely, and anything that points back at itself throws. Modern browsers have `structuredClone(obj)`, which handles all of that properly — use it. Most of the time, though, you do not want a deep copy at all: you want a spread at the one or two levels you are actually changing.',
+    },
+  ];
+
+  /**
+   * The shape block's own self-test — a fresh `push`-vs-identity scenario
+   * (arrays instead of {@link referenceQuizOptions}'s already-shared `a`/`c`
+   * pair), so a reader who reasons it out here still meets a new trace in
+   * {@link referenceQuizOptions} further down.
+   */
+  protected readonly pushIdentityQuizOptions: QuizOption[] = [
+    {
+      text: '`list.length` is 4, and `list === before` is `false`.',
+      why: "`push` never builds a new array — it edits the one that's already there. The address `before` captured a moment earlier is still the exact same address `list` holds now, so `===` between them is `true`, not `false`.",
+    },
+    {
+      text: '`list.length` is 4, and `list === before` is `true`.',
+      correct: true,
+      why: "`push` mutates the array in place: the data really does grow to four items, but the array's own address never moves. `before` and `list` are still two names on the one box, so `===` reports `true` — which is exactly why a framework comparing `before` against `list` afterward would conclude nothing changed.",
+    },
+    {
+      text: '`list.length` is still 3, because `push` returns a new array rather than changing the original.',
+      why: "`push` returns the array's new length as a number, not a new array — and it does so as a side effect of editing the original in place. `list` really does have 4 items after this line.",
+    },
+    {
+      text: 'It throws, because `before` was captured before the push and is now out of date.',
+      why: "Nothing here throws. `before` is just a second name for the same array — capturing it earlier doesn't freeze it or invalidate it, it just means both names keep pointing at whatever the one array currently holds.",
     },
   ];
 }

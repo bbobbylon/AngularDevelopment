@@ -16,6 +16,97 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure (app-layers or app-whiteboard) → one app-quiz →
+       app-napkin with the analogy. Thread "you"/"your" through every answer. Never:
+       app-bubbles, app-tape-card, app-receipt, app-remember — scripts/audit-variety.mjs
+       checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      Two arrays holding the exact same numbers are never <code>===</code>. One array you just mutated always still is.
+    </p>
+
+    <p class="bf-say">
+      That single fact explains the most common bug report a beginner Angular developer ever files —
+      <strong>"I mutated the array and nothing rendered"</strong> — and it has nothing to do with rendering. Here's
+      every question that gap leaves behind, answered before you meet the live version of it a few sections down.
+    </p>
+
+    <app-no-dumb-questions [items]="referenceQuestions" />
+
+    <app-brain-power
+      question="const before = list(); list().push('new item'); console.log(list().length, list() === before). Predict both values before you scroll — and notice that the second one is not asking whether the CONTENTS match."
+      hint="Ask what push() actually returns versus what it does to the array that's already there."
+    />
+
+    <app-whiteboard
+      caption="One box, two names. Mutating through either name edits the one box everyone reads from — and its address never moves."
+      alt="One rectangle labeled the array, holding three items. Two arrows point into it from the left, one labeled list, one labeled before — both names arrive at the exact same box. A push arrow adds a fourth item inside the box, and a caption below reads: same box, same address, one more item — list equals equals equals before is still true."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 220" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="arrays-objects-ref-arrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 Z" class="wb-head" />
+          </marker>
+        </defs>
+
+        <text x="90" y="50" text-anchor="middle" class="wb-hand wb-text--sm">list</text>
+        <path d="M40,55 L220,90" class="wb-arrow" marker-end="url(#arrays-objects-ref-arrow)" />
+
+        <text x="90" y="170" text-anchor="middle" class="wb-hand wb-text--sm">before</text>
+        <path d="M40,160 L220,110" class="wb-arrow" marker-end="url(#arrays-objects-ref-arrow)" />
+
+        <rect x="230" y="60" width="260" height="80" rx="10" class="wb-node wb-node--lit" />
+        <text x="360" y="94" text-anchor="middle" class="wb-mono wb-text--sm">[ 'a', 'b', 'c' ]</text>
+        <text x="360" y="118" text-anchor="middle" class="wb-mono wb-text--sm" opacity="0.85">+ 'new item' ← push</text>
+
+        <text x="360" y="180" text-anchor="middle" class="wb-hand wb-text--sm">
+          one box, one address — list === before stays true
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="list"
+        tone="clay"
+        text="Not the array — a name pointing AT the array. Nothing about writing `list` a second time creates a second box."
+      />
+      <app-scribble
+        quote="+ 'new item' ← push"
+        point="up"
+        tone="accent"
+        text="`push` reaches into the box that's already there and adds to it. The box's address — the thing `===` actually checks — never moves."
+      />
+      <app-scribble
+        quote="stays true"
+        tone="olive"
+        text="Which is exactly the problem: a framework watching for a NEW address sees the same one both before and after, and concludes nothing happened."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="const before = list; list.push('x'); — what is list.length afterward, and what does list === before evaluate to?"
+      [options]="pushIdentityQuizOptions"
+      followUp="The reference quiz further down this page runs the identical rule against two array names built from `const c = a` instead — same fact, a fresh trace."
+    />
+
+    <app-napkin lead="the mental model —" label="Two nametags on one mailbox">
+      <code>list</code> and <code>before</code> are not two mailboxes holding matching mail — they're two nametags stuck
+      on the <strong>same</strong> mailbox. Push a letter in through either nametag and anyone reading the box finds it,
+      because there was only ever one box to find. <code>===</code> never opens the box and reads what's inside — it
+      only asks whether two nametags lead to the same address.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>
