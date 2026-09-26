@@ -5,6 +5,8 @@ import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/b
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 // ── The live bench: step through a real type evaluation ───────────────────────
 
@@ -169,6 +171,10 @@ IsNever<never> = ?`,
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './mapped-conditional.html',
   styleUrl: './mapped-conditional.css',
@@ -197,6 +203,65 @@ export class MappedConditional {
   protected nextStep(): void {
     this.step.update((s) => Math.min(s + 1, this.active().steps.length - 1));
   }
+
+  // ── Shape: "There Are No Dumb Questions" opener ─────────────────────────────
+
+  /**
+   * Every doubt distribution reliably leaves behind, answered before the
+   * reader hits it live in section 8 — escalating from "wait, it runs how
+   * many times?" through the `never` edge to the actual upside.
+   */
+  protected readonly distributionQuestions: NdqItem[] = [
+    {
+      q: "So `Exclude<'a' | 'b' | 'c', 'b'>` just runs the ternary once, on the whole union?",
+      a: "No. Because `T` is a **bare** type parameter here, the conditional **distributes** — it runs once **per member** of the union ('a', then 'b', then 'c') and reassembles whatever survives into a brand-new union.",
+    },
+    {
+      q: 'Does it matter how the union got there — I never wrote it with a literal `|` myself?',
+      a: 'Not at all. `boolean` is secretly `true | false` under the hood, so `Exclude<boolean, true>` distributes over both members and returns `false`, not `never`. Distribution runs on the union\'s **real** members, not on how confident you feel that your `T` "isn\'t really a union."',
+    },
+    {
+      q: "What if I don't want that — I want `T` treated as one whole thing, not iterated?",
+      a: 'Wrap both sides in a one-element tuple: `[T] extends [U]`. A tuple is no longer a bare type parameter, so the distribution rule simply never fires.',
+    },
+    {
+      q: '`IsNever<T> = T extends never ? true : false` — what does `IsNever<never>` actually give you?',
+      a: '`never`. Not `true`. `never` is the **empty union** — zero members to iterate over — so a distributive conditional fed `never` returns `never` itself, no matter what either branch says.',
+    },
+    {
+      q: 'That sounds like a compiler bug.',
+      a: 'It\'s the same rule working correctly at zero: "distribute over every member of the union" applied to a union with no members produces nothing at all. The fix is the same tuple wrap as above — `[T] extends [never]`.',
+    },
+    {
+      q: 'Where does this actually bite at work?',
+      a: "Any time you write your own filter-a-union helper and it's called with (or resolves to) `never` — it silently returns `never` instead of the fallback branch you wrote, and nothing tells you your own utility type just became unusable for that one input.",
+    },
+    {
+      q: 'Is there an upside, or is distribution purely a trap waiting to happen?',
+      a: 'It\'s the entire reason `Exclude`, `Extract` and `Awaited` work as one-liners at all. "Run this test on every member of a union" is exactly the loop those utilities need, and distribution gives it to you for free the moment `T` is bare — no explicit loop required.',
+    },
+  ];
+
+  /** The shape block's own quiz — the `never` edge, reveal included. */
+  protected readonly neverQuizOptions: QuizOption[] = [
+    {
+      text: '`true` — `never` trivially "extends" itself.',
+      why: 'Reasonable-sounding, and wrong: distribution intercepts before any such comparison is even made. There is nothing here to compare — the loop runs zero times.',
+    },
+    {
+      text: '`never` — a distributive conditional fed the empty union produces the empty union back.',
+      correct: true,
+      why: '`never` has zero members to distribute over, so the conditional returns `never` regardless of what either branch says. `[T] extends [never]` is the fix whenever you need `T` compared as one whole thing instead.',
+    },
+    {
+      text: '`false` — the check fails, so the false branch runs.',
+      why: "That's what would happen if the conditional ran non-distributively and `never` simply failed the `extends` test. It never gets that far — distribution empties the union out first.",
+    },
+    {
+      text: "It's a compile error — you can't write `T extends never`.",
+      why: 'It compiles fine and evaluates to something — just not either of the two branches you wrote. `never` is a completely ordinary type to extend against.',
+    },
+  ];
 
   // ── Presentation data ───────────────────────────────────────────────────
 

@@ -19,6 +19,84 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Bind <code>post.error()</code> straight into a template the moment a request fails, out of habit, and here's your
+      itemised bill for "what actually went wrong": one line, and it says nothing at all.
+    </p>
+
+    <app-receipt
+      heading="{{ '{{ post.error() }}' }} · interpolated directly"
+      [rows]="errorBill"
+      [total]="errorBillTotal"
+      footer="one line printed, zero of it usable — and the real information was never missing."
+    />
+
+    <app-scribble
+      point="up"
+      quote="[object Object]"
+      tone="clay"
+      text="Not a bug — that's `toString()` on a class instance, which is what interpolating any object falls back to. Every real field is still sitting right there on `err`, simply unread."
+    />
+
+    <app-compare
+      leftTitle="post.error() — interpolated directly"
+      leftTone="bad"
+      rightTitle="Read separately"
+      rightTone="good"
+      note="Same failed request, same HttpErrorResponse. Only one of these two actually looks at what's inside it."
+    >
+      <div left>
+        <div class="code">
+          <pre>{{ '{{ post.error() }}' }}</pre>
+        </div>
+        <p>Renders <code>[object Object]</code> — an object's default string form, not a message.</p>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>{{ '{{ post.error()?.status }}' }} — {{ '{{ post.error()?.error }}' }}</pre>
+        </div>
+        <p>The real numeric status and the server's own parsed body — a message a person can actually use.</p>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      <code>HttpErrorResponse</code> carries four real fields. Here's the same bill, this time actually itemised.
+    </p>
+
+    <app-chain [steps]="errorFieldChain" label="Everything a failed httpResource() request actually hands you" />
+
+    <app-code-lab
+      file="post-viewer.html"
+      [code]="errorReadSample"
+      [notes]="errorReadNotes"
+      notesLabel="Reading the bill instead of printing it"
+    />
+
+    <app-brain-power
+      question="statusCode() is a real Signal<number | undefined> that HttpResourceRef exposes. Does it hold 404 the moment a request fails?"
+      hint="Ask what statusCode() is documented to track — a SUCCESSFUL response's status, or every response's status, failures included?"
+    />
+
+    <app-quiz
+      question="A component reads post.error()?.status right after a failed request. What does it hold?"
+      [options]="statusReadQuizOptions"
+      followUp="The 'What's actually new' section further down this page lays out headers(), statusCode() and progress() side by side — and statusCode() specifically does NOT cover a failure. That's exactly the open question above, answered there."
+    />
+
+    <p class="bf-big">
+      <code>post.error()</code> was never empty. It was rendered as one meaningless string instead of four real fields —
+      read separately, the bill was itemised the entire time.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

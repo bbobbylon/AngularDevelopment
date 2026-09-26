@@ -13,6 +13,8 @@ import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
 import { StatCard } from './stat-card/stat-card';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * Lesson: view queries — `viewChild()` / `viewChildren()`, the `@ViewChild` /
@@ -80,6 +82,10 @@ import { StatCard } from './stat-card/stat-card';
     Quiz,
     Remember,
     StatCard,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './view-queries.html',
   styleUrl: './view-queries.css',
@@ -143,6 +149,69 @@ export class ViewQueries {
     { label: 'View Queries' },
     { label: 'ng-template', id: 'ng-template-outlet' },
     { label: 'Encapsulation', id: 'view-encapsulation' },
+  ];
+
+  // ── Shape: "There Are No Dumb Questions" opener ─────────────────────────────
+
+  /**
+   * Every doubt the two timing errors (NG0951, NG0100) reliably leave behind,
+   * answered up front — escalating from "the element is right there, how can
+   * this throw?" through the write-side trap to the actual fix.
+   */
+  protected readonly timingQuestions: NdqItem[] = [
+    {
+      q: '`viewChild.required()` just threw NG0951 — so the element I asked for must be missing, right?',
+      a: "Not necessarily. NG0951 fires from timing just as often as from a genuinely missing target — read it one moment too early and it throws exactly the same way a truly-missing element would. The message can't tell you which one happened; only the moment you read it can.",
+    },
+    {
+      q: 'But the element is RIGHT THERE in my template — no `@if`, nothing conditional. How can that throw?',
+      a: "Because `.required()` resolves at a fixed moment — after the view is built — not the moment your code happens to run. Read it from a constructor or `ngOnInit()` and that moment simply hasn't arrived yet, no matter how permanently the element sits in your markup.",
+    },
+    {
+      q: 'So when IS it safe to read?',
+      a: '`ngAfterViewInit()`, an `effect()`, `afterNextRender()`, or any event handler — anything that runs after Angular has finished building the view for the first time.',
+    },
+    {
+      q: "The optional form — `viewChild()` without `.required()` — doesn't have this problem, does it?",
+      a: 'It has the identical timing rule underneath; it just fails quietly instead of loudly. Read it too early and you get `undefined` back rather than a thrown error. `.required()` only changes what "too early" looks like — from a silent `undefined` to NG0951.',
+    },
+    {
+      q: "OK — I moved my read to `ngAfterViewInit()`. I'm safe now?",
+      a: "The **read** is safe. Writing through that result is a separate trap: use it to set a plain field the **child's own template** is bound to, and you can trigger a second error — NG0100 — even though the query itself resolved perfectly.",
+    },
+    {
+      q: 'Wait — I thought NG0100 was about accidentally mutating state during change detection. What does that have to do with a query?',
+      a: "Same wall, different direction. `ngAfterViewInit()` runs mid-pass. A write there to something the child's view already checked this pass lands one beat too late for THIS pass — not too early, like the read-side trap above.",
+    },
+    {
+      q: 'Where does this actually bite at work?',
+      a: "Anywhere a query reads a measured size or a child's exposed value and immediately assigns it to a bound field — a resize-driven layout calculation is the classic case. It works fine in dev for a while and then throws on the one pass where the timing lines up wrong.",
+    },
+    {
+      q: 'Is there a genuinely safe way to write from a query result?',
+      a: "Make the target a signal instead of a plain field written from a lifecycle hook. A signal write during a pass schedules the **next** one instead of corrupting the current one — the identical fix `expert/change-detection`'s own NG0100 section reaches for.",
+    },
+  ];
+
+  /** The shape block's own quiz — the write-side trap, reveal included. */
+  protected readonly writeTrapQuizOptions: QuizOption[] = [
+    {
+      text: "Nothing unusual — a query's read is the only risky part; anything you do with the result afterward is safe.",
+      why: 'The read genuinely is safe here. What breaks the pass is what the code does NEXT — a write that lands on a view already checked this pass.',
+    },
+    {
+      text: "NG0100 — thrown against the CHILD's own binding, because the write landed on a view Angular already finished checking this pass.",
+      correct: true,
+      why: "Exactly this. The query resolved fine; `ExpressionChangedAfterItHasBeenCheckedError` fires because the child's own template was already checked before this write reached it — one pass too late, not too early.",
+    },
+    {
+      text: 'NG0951 — the query must not have actually resolved.',
+      why: "That's the other error, and it's about READING too early. This one resolved and returned the real element — the problem is entirely on the write side, afterward.",
+    },
+    {
+      text: 'The template silently keeps its old value forever, with no error at all.',
+      why: "That's what happens in a PRODUCTION build, where the verification pass that catches this is skipped entirely. In dev mode — where this is far more likely to be caught before shipping — it throws loudly instead.",
+    },
   ];
 
   /**

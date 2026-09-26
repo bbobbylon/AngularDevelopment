@@ -16,6 +16,104 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Two controls, each subscribed to the other's <code>valueChanges</code> so they can stay in sync. One line writes
+      to just one of them. Nothing here looks dangerous — until you notice that a write is exactly the thing a
+      subscriber is listening for.
+    </p>
+
+    <app-brain-power
+      question="loopA.setValue('go') runs exactly once. loopA and loopB are each subscribed to the other's valueChanges, patching the other with no guard. How many times does valueChanges actually fire before anything settles?"
+      hint="Ask whether patchValue is a write like any other — and what a write like any other does to a subscriber listening for exactly that."
+    />
+
+    <app-whiteboard
+      caption="One write in. A count that would never stop on its own coming back out."
+      alt="Two boxes, loopA and loopB, joined by two curved arrows forming a closed loop. The arrow from loopA to loopB is labeled patchValue, no guard. The arrow from loopB to loopA is labeled patchValue, no guard, going the other way. A counter in the middle reads valueChanges fired, climbing past 40 — capped only so this page does not lock up proving the point."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 260" aria-hidden="true" focusable="false">
+        <defs>
+          <marker
+            id="reactive-forms-loop-arrow"
+            viewBox="0 0 10 10"
+            refX="8"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M0,0 L10,5 L0,10 Z" class="wb-head" />
+          </marker>
+        </defs>
+
+        <rect x="60" y="100" width="180" height="60" rx="10" class="wb-node wb-node--lit" />
+        <text x="150" y="135" text-anchor="middle" class="wb-mono">loopA</text>
+
+        <rect x="400" y="100" width="180" height="60" rx="10" class="wb-node wb-node--lit" />
+        <text x="490" y="135" text-anchor="middle" class="wb-mono">loopB</text>
+
+        <path d="M240,112 C 300,60 340,60 400,112" class="wb-arrow" marker-end="url(#reactive-forms-loop-arrow)" />
+        <text x="320" y="55" text-anchor="middle" class="wb-hand wb-text--sm">patchValue — no guard</text>
+
+        <path d="M400,148 C 340,200 300,200 240,148" class="wb-arrow" marker-end="url(#reactive-forms-loop-arrow)" />
+        <text x="320" y="222" text-anchor="middle" class="wb-hand wb-text--sm">patchValue — no guard</text>
+
+        <text x="320" y="135" text-anchor="middle" class="wb-hand">valueChanges fired: 40+</text>
+      </svg>
+
+      <app-scribble
+        quote="patchValue"
+        tone="clay"
+        text="Every patch is a write, and a write announces itself on `valueChanges` — same as any write you'd make deliberately, on purpose."
+      />
+      <app-scribble
+        quote="no guard"
+        point="up"
+        tone="accent"
+        text="`emitEvent` defaults to `true` on every write method — `setValue`, `patchValue`, `reset`, all of them. Nothing here says 'quietly' unless you ask for it."
+      />
+      <app-scribble
+        quote="40+"
+        tone="olive"
+        text="Capped here only so this demo doesn't lock the page up proving the point — the real bug has no such ceiling."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      One write becomes an unbounded chain. <code>loopA</code>'s <code>valueChanges</code> fires, and its subscriber
+      patches <code>loopB</code> — itself a write, so <code>loopB</code>'s <em>own</em> <code>valueChanges</code> fires,
+      whose subscriber patches <code>loopA</code> right back. Each patch re-triggers the sibling's own subscription,
+      synchronously, with nothing on either side ever telling the other "I already know — don't tell me again."
+    </p>
+
+    <app-flow
+      [steps]="loopFlowSteps"
+      caption="One write, traced step by step — and notice there's no step that ever says 'stop'."
+    />
+
+    <app-quiz
+      question="Same two controls, but with the fix applied: loopB.patchValue(v, { emitEvent: false }). loopA.setValue('go') runs once. How many times does valueChanges fire in total now?"
+      [options]="loopFixQuizOptions"
+      followUp="The live demo further down this page runs both versions side by side — the buggy button races to 40; the fixed button reads exactly 1."
+    />
+
+    <app-napkin lead="the mental model —" label="Two people relaying the same rumour forever">
+      Tell one person a rumour and they whisper it to a second person out of habit — fine, once. But if that second
+      person <em>also</em> whispers it straight back the instant they hear anything, and the first person does the same
+      in return, the rumour never actually stops moving — it just bounces between the two of them, each relay counting
+      as fresh news worth repeating. <code>{{ '{ emitEvent: false }' }}</code> is the agreed rule "don't relay what I
+      just told you back to me" — without it, every patch is heard as something new.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

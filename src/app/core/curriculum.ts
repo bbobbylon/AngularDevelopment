@@ -95,6 +95,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'JSON as the universal data format, parse/stringify, and what an API is.',
     level: 'foundations',
     category: 'Data & the Web',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/foundations/json-and-apis/json-and-apis').then((m) => m.JsonAndApis),
   },
@@ -171,6 +172,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Fields, constructors, public/private/protected/readonly, parameter properties.',
     level: 'typescript',
     category: 'Type System',
+    shape: 'argument',
     loadComponent: () => import('../lessons/typescript/classes/classes').then((m) => m.Classes),
   },
   {
@@ -225,6 +227,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Transforming types, infer, distributive conditionals and template literal types.',
     level: 'typescript',
     category: 'Advanced Types',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/typescript/mapped-conditional/mapped-conditional').then(
         (m) => m.MappedConditional,
@@ -519,6 +522,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'FormControl, FormGroup, FormBuilder and typed forms.',
     level: 'intermediate',
     category: 'Forms',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/reactive-forms/reactive-forms').then((m) => m.ReactiveForms),
   },
@@ -649,6 +653,7 @@ export const CURRICULUM: Lesson[] = [
       'A GET whose URL is a reactive computation — value, status, error and reload as signals; where it beats HttpClient and where it must not be used.',
     level: 'intermediate',
     category: 'HTTP',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/intermediate/http-resource/http-resource').then(
         (m) => m.HttpResourceLesson,
@@ -748,6 +753,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'viewChild / viewChildren signal queries and @ViewChild.',
     level: 'intermediate',
     category: 'Components & Templates',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/view-queries/view-queries').then((m) => m.ViewQueries),
   },
@@ -841,6 +847,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'How Zone.js triggers CD, the component tree and dirty checking.',
     level: 'expert',
     category: 'Runtime & Performance',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/expert/change-detection/change-detection').then((m) => m.ChangeDetection),
   },

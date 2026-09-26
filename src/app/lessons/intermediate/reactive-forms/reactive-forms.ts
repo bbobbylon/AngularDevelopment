@@ -14,8 +14,9 @@ import { timer } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
-import { Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
-import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 
 /**
  * Cross-field validator: it needs to read TWO sibling controls at once, so it
@@ -91,9 +92,13 @@ function usernameTaken(taken: string[]): AsyncValidatorFn {
     CodeLab,
     Napkin,
     Faq,
+    Flow,
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './reactive-forms.html',
   styleUrl: './reactive-forms.css',
@@ -737,6 +742,50 @@ on setValue / patchValue / a user keystroke via the ControlValueAccessor:
     { label: 'Async Validators', id: 'async-validators' },
     { label: 'FormArray', id: 'form-arrays' },
     { label: 'Signal Forms', id: 'signal-forms' },
+  ];
+
+  // ── Shape: "The Whiteboard" opener ──────────────────────────────────────────
+
+  /** The ping-pong loop's steps, numbered — the mechanism behind the figure. */
+  protected readonly loopFlowSteps: FlowStep[] = [
+    { label: "loopA.setValue('go')", detail: 'one deliberate write — nothing wrong yet' },
+    {
+      label: "loopA's valueChanges fires",
+      detail: 'a write always announces itself, by default',
+      tone: 'accent',
+    },
+    {
+      label: 'subscriber patches loopB',
+      detail: 'itself a write — emitEvent defaults to true here too',
+      tone: 'accent',
+    },
+    { label: "loopB's valueChanges fires", detail: 'the round trip completes', tone: 'warn' },
+    {
+      label: 'subscriber patches loopA back',
+      detail: 'and the cycle repeats — synchronously, with no queue and no cap of its own',
+      tone: 'warn',
+    },
+  ];
+
+  /** The shape block's own quiz — the fixed version, same scenario. */
+  protected readonly loopFixQuizOptions: QuizOption[] = [
+    {
+      text: "0 — { emitEvent: false } silences everything, including loopA's own write.",
+      why: "loopA.setValue('go') still announces itself once — `emitEvent: false` was only passed to the PATCH into loopB, not to the original write.",
+    },
+    {
+      text: "1 — loopA's own valueChanges still fires once, but the patch into loopB never re-announces, so the loop never starts.",
+      correct: true,
+      why: 'Exactly this. The very first write is still real and still fires. What stops is everything AFTER it — the patch into loopB carries `emitEvent: false`, so loopB changes value with no announcement, and there is nothing left to bounce back.',
+    },
+    {
+      text: '2 — one fire per control, exactly balanced.',
+      why: "loopB's value still changes — it just does so silently. There is no second `valueChanges` firing to balance against the first.",
+    },
+    {
+      text: 'It still climbs, just more slowly — emitEvent only adds a delay, not a stop.',
+      why: "`emitEvent: false` isn't a throttle, it's a switch. The subscription that would have re-fired simply has nothing to react to.",
+    },
   ];
 
   /**

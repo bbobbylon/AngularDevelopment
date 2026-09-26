@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * One JSON gotcha: the thing people write, and the thing that actually works.
@@ -93,6 +95,10 @@ const PITFALLS: JsonPitfall[] = [
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './json-and-apis.html',
   styleUrl: './json-and-apis.css',
@@ -110,6 +116,45 @@ export class JsonAndApis {
     { label: 'The DOM & Events', id: 'dom-and-events' },
     { label: 'JSON & APIs' },
     { label: 'Terminal & npm', id: 'terminal-and-npm' },
+  ];
+
+  // ── Shape: "There Are No Dumb Questions" opener ─────────────────────────────
+
+  /**
+   * Every doubt the round-trip section further down this page reliably leaves
+   * behind, answered up front before the reader hits any of them live —
+   * escalating from "isn't this just a clone?" through where it actually bites
+   * at work to the real fix.
+   */
+  protected readonly roundTripQuestions: NdqItem[] = [
+    {
+      q: 'So `JSON.parse(JSON.stringify(x))` is basically a deep clone, right?',
+      a: "For plain data — yes. The moment `x` holds a `Date`, a function, an `undefined`, a `Map` or a `Set`, no — and it fails **silently**. You get an object back. It just isn't the same shape you put in.",
+    },
+    {
+      q: 'What actually happens to a `Date`?',
+      a: "`stringify` calls the `Date`'s own `toJSON()`, which hands back an ISO **string**. `parse` never converts anything back into a `Date` — there is no JSON type for one — so what you get is a plain string that merely *looks* like a date and has none of a real `Date`'s methods.",
+    },
+    {
+      q: 'And a function on the object?',
+      a: "Gone. Not converted, not saved as source text — the key simply doesn't appear in the output at all. `parse` never even learns it existed.",
+    },
+    {
+      q: 'What about a property whose value is `undefined`?',
+      a: "Same fate as a function: dropped. That's deliberately asymmetric with `null` — `null` is a real JSON value and survives the trip intact; `undefined` isn't one, so the whole key is deleted.",
+    },
+    {
+      q: '`NaN` and `Infinity` are still numbers in JavaScript — do they make it?',
+      a: 'No. Both convert to `null`. Nothing throws and nothing warns you — you get `null` back, and if your next line compares it with `> 0` your code just quietly does the wrong thing.',
+    },
+    {
+      q: 'Where does this actually bite at work?',
+      a: 'Anywhere a model round-trips through `localStorage` or a network hop: a `Date` field silently becomes a string, a computed `NaN` becomes `null`, and the failure surfaces downstream — a `.getFullYear is not a function` thrown in a totally different component, nowhere near where the value was actually lost.',
+    },
+    {
+      q: 'So how do you actually deep-clone something with a `Date` or a `Map` inside it?',
+      a: '`structuredClone(x)` — built into every modern browser and Node. It understands `Date`, `Map`, `Set`, typed arrays and even circular references: everything `JSON.parse(JSON.stringify(x))` was only ever a workaround for.',
+    },
   ];
 
   /**
@@ -306,6 +351,32 @@ const pretty = JSON.stringify(obj, null, 2); // …or indented 2 spaces, for hum
     {
       line: 8,
       text: 'Same call, two extra arguments: `null` (no value transformer) and `2` (indent with 2 spaces). Purely cosmetic — it changes how the text *looks*, never what it means — and you will reach for it constantly while debugging in the console.',
+    },
+  ];
+
+  /**
+   * The shape block's own quiz — deliberately a different pair of losses
+   * (`NaN`/`Infinity`) from the id/when/tags/greet round trip further down this
+   * page, so the two quizzes teach the same rule from two different angles
+   * instead of repeating one.
+   */
+  protected readonly nanQuizOptions: QuizOption[] = [
+    {
+      text: '`NaN` and `Infinity` — numbers survive a JSON round trip unchanged.',
+      why: "They don't. Both are non-finite, and JSON has no way to write either one down — there's no literal for `NaN` or `Infinity` in the JSON grammar at all.",
+    },
+    {
+      text: '`null` and `null` — both non-finite numbers are converted to `null`.',
+      correct: true,
+      why: "`JSON.stringify` writes `null` for any number that isn't finite — `NaN`, `Infinity`, and `-Infinity` all land the same way. No error, no warning: the value just quietly becomes `null`, still typed `number` in your head but not in the data anymore.",
+    },
+    {
+      text: 'It throws — `JSON.stringify` refuses a non-finite number.',
+      why: 'It would be kinder if it did. `stringify` throws on exactly one thing — a circular reference. A non-finite number is converted, silently, every time.',
+    },
+    {
+      text: '`0` and `Number.MAX_VALUE`, respectively — the closest finite stand-ins.',
+      why: "A reasonable guess, and some serializers do pick a stand-in value. `JSON.stringify` doesn't attempt one — both become the exact same `null`, with nothing left to tell them apart afterward.",
     },
   ];
 

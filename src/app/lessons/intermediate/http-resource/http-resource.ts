@@ -5,6 +5,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, TapeCard } from '../../../shared/bra
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 
 /**
  * A post from the demo API — the shape `httpResource<Post>` resolves to.
@@ -79,6 +81,10 @@ interface Post {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   styleUrl: './http-resource.css',
   templateUrl: './http-resource.html',
@@ -144,6 +150,67 @@ export class HttpResourceLesson {
     { label: 'CRUD', id: 'http-crud' },
     { label: 'Interceptors', id: 'http-interceptors' },
     { label: 'httpResource()' },
+  ];
+
+  // ── Shape: "The Receipt" opener ─────────────────────────────────────────────
+
+  /** The bill for interpolating `post.error()` directly — one line, zero information. */
+  protected readonly errorBill: ReceiptRow[] = [
+    {
+      label: '{{ post.error() }} — interpolated directly',
+      amount: '[object Object]',
+      tone: 'warn',
+    },
+  ];
+
+  /** The receipt's total row — nothing was actually paid for. */
+  protected readonly errorBillTotal: ReceiptRow = { label: 'USABLE FIELDS', amount: '0' };
+
+  /** What `HttpErrorResponse` actually carries, itemised properly. */
+  protected readonly errorFieldChain: readonly string[] = ['status', 'statusText', 'url', 'error'];
+
+  /** A short code-lab: reading the bill instead of printing it. */
+  protected readonly errorReadSample = `@if (post.error(); as err) {
+  <p>{{ err.status }} — {{ err.statusText }}</p>
+  <p>{{ err.url }}</p>
+  <pre>{{ err.error | json }}</pre>
+}`;
+
+  /** Line-by-line notes for {@link errorReadSample}. */
+  protected readonly errorReadNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: '`err.status` is the real numeric HTTP status — `404`, not a string, not a guess. `err.statusText` is the short reason phrase the server sent alongside it.',
+    },
+    {
+      line: 3,
+      text: "`err.url` is the exact request URL that failed — worth logging even when the status and body already tell you what went wrong, because it's the one field that tells you WHICH request this was.",
+    },
+    {
+      line: 4,
+      text: "`err.error` is the server's own parsed response body — a real object (or string) with whatever the API actually said, not the class instance's `toString()`.",
+    },
+  ];
+
+  /** The shape block's own quiz — a different field than the receipt itself demonstrated. */
+  protected readonly statusReadQuizOptions: QuizOption[] = [
+    {
+      text: '`undefined`, always — a status only ever lives on `statusCode()`, never on `error()`.',
+      why: "Backwards. `statusCode()` is specifically documented to track a SUCCESSFUL response's status — it does NOT populate on failure. `error()?.status` is where a failure's status actually lives.",
+    },
+    {
+      text: 'The real HTTP status code — `404` — because `HttpErrorResponse` carries its own `.status`, independent of `statusCode()`.',
+      correct: true,
+      why: 'Right. `error()` holds a full `HttpErrorResponse`, and `.status` is one of its real fields — same information `statusCode()` would have carried if the request had SUCCEEDED instead.',
+    },
+    {
+      text: 'Whatever the last successful request returned.',
+      why: "`statusCode()` behaves that way — it simply doesn't update on a failure. `error()?.status`, the field this question asks about, reads the CURRENT failure's own status every time.",
+    },
+    {
+      text: 'It throws, the same way reading `value()` during the error state does.',
+      why: "That's `value()`'s behaviour, not `error()`'s. `error()` is exactly the safe, always-readable way to find out why a request failed — reading it never throws.",
+    },
   ];
 
   /** The journey one request actually takes — the concrete shape "wired to HttpClient" buys. */

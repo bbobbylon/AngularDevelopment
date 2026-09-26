@@ -16,6 +16,91 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      <code>JSON.stringify</code> and <code>JSON.parse</code> look like perfect opposites. They're only opposites for
+      the six things JSON actually understands — everything else quietly doesn't come back.
+    </p>
+
+    <p class="bf-say">
+      "Just JSON round-trip it" is the most common deep-clone trick you'll write in your first year — and the most
+      common way to lose a <code>Date</code>, a function or an <code>undefined</code> without a single error telling you
+      it happened. Here's every question that gap leaves behind, answered before it costs you a debugging session.
+    </p>
+
+    <app-no-dumb-questions [items]="roundTripQuestions" />
+
+    <app-brain-power
+      question="A component builds `{ savedAt: new Date(), total: NaN, tags: undefined }` and runs it through `JSON.parse(JSON.stringify(...))` before saving to localStorage. Predict every key that's still there afterward, and what type `savedAt` comes back as."
+      hint="Count the keys you'd get back before you scroll — it isn't three."
+    />
+
+    <app-whiteboard
+      caption="Three properties go in. One survives unchanged, one changes shape, one vanishes outright."
+      alt="Two panels. Left panel, labeled what you built, lists three properties: savedAt holding a real Date object, total holding NaN, and tags holding undefined. Right panel, labeled what JSON.parse(JSON.stringify(...)) hands back, shows savedAt now holding a plain ISO string instead of a Date, total now holding null instead of NaN, and tags missing from the object entirely — the key itself is gone."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 240" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">WHAT YOU BUILT</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">WHAT COMES BACK</text>
+
+        <rect x="50" y="40" width="220" height="44" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="66" text-anchor="middle" class="wb-mono wb-text--sm">savedAt: Date</text>
+
+        <rect x="50" y="92" width="220" height="44" rx="10" class="wb-node" />
+        <text x="160" y="118" text-anchor="middle" class="wb-mono wb-text--sm">total: NaN</text>
+
+        <rect x="50" y="144" width="220" height="44" rx="10" class="wb-node" />
+        <text x="160" y="170" text-anchor="middle" class="wb-mono wb-text--sm">tags: undefined</text>
+
+        <rect x="370" y="40" width="220" height="44" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="66" text-anchor="middle" class="wb-mono wb-text--sm">savedAt: "2026-…Z"</text>
+
+        <rect x="370" y="92" width="220" height="44" rx="10" class="wb-node" />
+        <text x="480" y="118" text-anchor="middle" class="wb-mono wb-text--sm">total: null</text>
+
+        <rect x="370" y="144" width="220" height="44" rx="10" class="wb-node" opacity="0.35" />
+        <text x="480" y="170" text-anchor="middle" class="wb-text--sm">— key is gone —</text>
+      </svg>
+
+      <app-scribble
+        quote="'2026-…Z'"
+        tone="clay"
+        text="A `Date` object became a plain **string**. `.getFullYear()` on the way in worked; the exact same call on this value throws, because a string has no such method."
+      />
+      <app-scribble
+        quote="total: null"
+        point="up"
+        tone="accent"
+        text="Not zero, not the original `NaN` — `null`. JSON has no way to write down a non-finite number, so `stringify` substitutes the one falsy value it does have."
+      />
+      <app-scribble
+        quote="key is gone"
+        tone="olive"
+        text="Not `undefined` on the far side — **absent**. `'tags' in result` is `false`. `undefined` was never a JSON value, so `stringify` drops the key rather than writing anything for it."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="`JSON.stringify({ total: NaN, max: Infinity })` — then `JSON.parse` that string right back. What do `total` and `max` equal now?"
+      [options]="nanQuizOptions"
+      followUp="The full round-trip quiz further down this page runs the same rule against a Date, an undefined and a function together — four different faces of the exact same six-types-only limit."
+    />
+
+    <app-napkin lead="the mental model —" label="A moving truck only carries furniture">
+      JSON is a moving truck with exactly six kinds of cargo it's allowed to carry: strings, numbers, booleans,
+      <code>null</code>, arrays, plain objects. A function isn't furniture — the movers leave it on the curb without
+      asking. <code>undefined</code> isn't even freight; there's no box for "nothing," so that item never gets loaded at
+      all. And a <code>Date</code> gets <strong>photographed</strong> before it goes in the truck: what arrives at the
+      other end is the photograph — a string — not the actual clock you packed.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

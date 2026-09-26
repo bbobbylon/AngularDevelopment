@@ -16,6 +16,84 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Ten clicks on a button that changes nothing either child actually cares about. Same parent, same pass, same
+      instant — and here's the bill each of the two children rang up for it.
+    </p>
+
+    <app-receipt
+      heading="Ten no-op clicks · one tree, two strategies"
+      [rows]="noopBill"
+      [total]="noopBillTotal"
+      footer="one child paid ten times for work that changed nothing. the other paid nothing at all."
+    />
+
+    <app-scribble
+      point="up"
+      quote="10"
+      tone="clay"
+      text="Every one of those ten checks walked this child's ENTIRE binding list — not because anything in it changed, but because Default doesn't ask first. It just checks."
+    />
+
+    <app-compare
+      leftTitle="Default — checks, no question asked"
+      leftTone="bad"
+      rightTitle="OnPush — asks first"
+      rightTone="good"
+      note="Same no-op click, same pass, same tree. Only one of these two ever considers skipping."
+    >
+      <div left>
+        <p>
+          A pass reaches this view and checks every binding, unconditionally — on every single pass that reaches it.
+        </p>
+      </div>
+      <div right>
+        <p>
+          A pass reaches this view and asks one question first: did my input change, or was I marked? A "no" prunes the
+          entire subtree right there.
+        </p>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Here's exactly why — a Default view has no memory of "nothing relevant happened." Walking in and checking
+      unconditionally <em>is</em> the entire strategy.
+    </p>
+
+    <app-chain [steps]="strategyChainSteps" label="What separates the two strategies, one step at a time" />
+
+    <app-code-lab
+      file="default-child.ts vs on-push-child.ts"
+      [code]="strategySample"
+      [notes]="strategyNotes"
+      notesLabel="One line of config, one very different bill"
+    />
+
+    <app-brain-power
+      question="Both children sit in the exact same parent, and the same no-op click reaches both of them during the very same pass. One counter climbs. One doesn't. Is Default the slow one, or is OnPush skipping work it should be doing?"
+      hint="Ask which of the two is actually behaving unusually here — checking everything it's reached, or checking only what actually asked for it."
+    />
+
+    <app-quiz
+      question="A parent has one no-op button, a Default child and an OnPush child in the same tree, and nothing else ever changes. Click the button 10 times. What do the two children's check counts read afterward?"
+      [options]="noopQuizOptions"
+      followUp="The live demo further down this page runs exactly this — click the no-op button a few times and watch the two counters diverge in real time."
+    />
+
+    <p class="bf-big">
+      Ten clicks. Ten checks paid for by the Default child, doing nothing every single time. The OnPush child paid zero
+      — not because it's special, but because nobody ever told it anything actually changed.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

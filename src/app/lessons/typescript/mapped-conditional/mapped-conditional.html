@@ -18,6 +18,103 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      A conditional type fed a bare union doesn't run once. It runs once <strong>per member</strong> — and the one time
+      that union has <em>zero</em> members, "once per member" quietly means zero times too.
+    </p>
+
+    <p class="bf-say">
+      This single rule — <span class="term">distribution</span> — is what makes <code>Exclude</code>,
+      <code>Extract</code> and half the standard library work as one-liners. It's also the rule behind the single most
+      surprising result on this page. Here's every question it raises, answered before you meet it live.
+    </p>
+
+    <app-no-dumb-questions [items]="distributionQuestions" />
+
+    <app-brain-power
+      question="type Weird&lt;T&gt; = T extends string ? 1 : T extends number ? 2 : 3; — what is Weird&lt;any&gt;? It genuinely is not just one of 1, 2 or 3."
+      hint="Ask what `any` does to the CHECKED side of a conditional — does it pick a branch, or refuse to pick at all?"
+    />
+
+    <app-whiteboard
+      caption="Three inputs, three separate trips through the same test — never one trip through all three."
+      alt="Three boxes labeled a, b and c, each feeding into the same test, extends quote b quote question mark. Box a passes through unchanged. Box b is replaced with never. Box c passes through unchanged. An arrow gathers all three outputs into one final union box labeled a pipe c — never is simply absent from it, not listed and crossed out."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 240" aria-hidden="true" focusable="false">
+        <text x="320" y="20" text-anchor="middle" class="wb-hand wb-text--sm">Exclude&lt;'a' | 'b' | 'c', 'b'&gt;</text>
+
+        <rect x="20" y="42" width="120" height="40" rx="8" class="wb-node" />
+        <text x="80" y="67" text-anchor="middle" class="wb-mono wb-text--sm">'a'</text>
+
+        <rect x="20" y="96" width="120" height="40" rx="8" class="wb-node" />
+        <text x="80" y="121" text-anchor="middle" class="wb-mono wb-text--sm">'b'</text>
+
+        <rect x="20" y="150" width="120" height="40" rx="8" class="wb-node" />
+        <text x="80" y="175" text-anchor="middle" class="wb-mono wb-text--sm">'c'</text>
+
+        <rect x="200" y="42" width="160" height="40" rx="8" class="wb-node wb-node--lit" />
+        <text x="280" y="67" text-anchor="middle" class="wb-text--sm">extends 'b'? no</text>
+
+        <rect x="200" y="96" width="160" height="40" rx="8" class="wb-node wb-node--lit" />
+        <text x="280" y="121" text-anchor="middle" class="wb-text--sm">extends 'b'? yes</text>
+
+        <rect x="200" y="150" width="160" height="40" rx="8" class="wb-node wb-node--lit" />
+        <text x="280" y="175" text-anchor="middle" class="wb-text--sm">extends 'b'? no</text>
+
+        <rect x="420" y="42" width="120" height="40" rx="8" class="wb-node" />
+        <text x="480" y="67" text-anchor="middle" class="wb-mono wb-text--sm">'a'</text>
+
+        <rect x="420" y="96" width="120" height="40" rx="8" class="wb-node" opacity="0.3" />
+        <text x="480" y="121" text-anchor="middle" class="wb-mono wb-text--sm">never</text>
+
+        <rect x="420" y="150" width="120" height="40" rx="8" class="wb-node" />
+        <text x="480" y="175" text-anchor="middle" class="wb-mono wb-text--sm">'c'</text>
+
+        <text x="320" y="220" text-anchor="middle" class="wb-hand wb-text--sm">
+          reassembled → 'a' | 'c' — 'never' contributes nothing
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="extends 'b'? yes"
+        tone="clay"
+        text="This check runs three separate times, not once — each member of the union gets its own trip through the exact same ternary."
+      />
+      <app-scribble
+        quote="never"
+        point="up"
+        tone="accent"
+        text="`never` in a union contributes literally nothing — `'a' | never | 'c'` and `'a' | 'c'` are the identical type. That is how the excluded member simply disappears from the result."
+      />
+      <app-scribble
+        quote="reassembled"
+        tone="olive"
+        text="Feed this same mechanism a union with ZERO members — `never` itself — and the reassembly step has nothing to gather. The result is `never`, not one of the two branches."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="type IsNever&lt;T&gt; = T extends never ? true : false; — what is IsNever&lt;never&gt;?"
+      [options]="neverQuizOptions"
+      followUp="The live bench further down this page has this exact case queued up as `IsNever<never>` — step through it there and watch the compiler stop after zero iterations instead of one."
+    />
+
+    <app-napkin lead="the mental model —" label="A mail merge with an empty address list">
+      A mail-merge letter run against three addresses prints three letters, one per address, each individually checked
+      against your filter rule. Run the exact same merge against a completely <strong>empty</strong> address list and
+      you don't get one letter printed with a blank address — you get zero letters, because there was nothing to iterate
+      over in the first place. A distributive conditional fed <code>never</code> behaves exactly like that empty list:
+      not a result from either branch, just nothing at all.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

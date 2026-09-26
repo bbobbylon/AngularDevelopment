@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin, TapeCard } from '../
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 import { OnPushChild } from './on-push-child/on-push-child';
 import { DefaultChild } from './default-child/default-child';
 import { DetachChild } from './detach-child/detach-child';
@@ -61,6 +63,10 @@ import { DetachChild } from './detach-child/detach-child';
     OnPushChild,
     DefaultChild,
     DetachChild,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   styleUrl: './change-detection.css',
   templateUrl: './change-detection.html',
@@ -133,6 +139,86 @@ export class ChangeDetection {
     { label: 'Zoneless', id: 'zoneless' },
     { label: '@defer', id: 'deferrable-views' },
     { label: 'Performance', id: 'performance' },
+  ];
+
+  // ── Shape: "The Receipt" opener ─────────────────────────────────────────────
+
+  /** The bill for ten no-op clicks, one child per strategy, same parent tree. */
+  protected readonly noopBill: ReceiptRow[] = [
+    { label: 'Default child — template checks', amount: '10', tone: 'warn' },
+    { label: 'OnPush child — template checks', amount: '0', tone: 'muted' },
+  ];
+
+  /** The receipt's total row. */
+  protected readonly noopBillTotal: ReceiptRow = {
+    label: 'CHECKS PAID FOR ZERO RELEVANT CHANGES',
+    amount: '10',
+  };
+
+  /** What actually separates the two strategies, one step at a time. */
+  protected readonly strategyChainSteps: readonly string[] = [
+    'pass arrives at the view',
+    'Default: check — no question asked',
+    'OnPush: dirty, or input changed?',
+    'no → prune the whole subtree',
+  ];
+
+  /** The two children's decorators, side by side — the entire cause of the bill above. */
+  protected readonly strategySample = `// Default child — no changeDetection set:
+@Component({ selector: 'app-cd-default-child' })
+export class DefaultChild {
+  ngDoCheck() { this.checks.update(n => n + 1); }   // fires on EVERY reachable pass
+}
+
+// OnPush child:
+@Component({
+  selector: 'app-cd-onpush-child',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class OnPushChild {
+  readonly value = input(0);
+  ngDoCheck() { this.checks.update(n => n + 1); }   // fires only when THIS view is dirty
+}`;
+
+  /** Line-by-line notes for {@link strategySample}. */
+  protected readonly strategyNotes: CodeNote[] = [
+    {
+      line: 2,
+      text: 'No `changeDetection` line at all — that absence IS the setting. `Default` is what a component gets by simply not opting into anything.',
+    },
+    {
+      line: 4,
+      text: "`ngDoCheck` fires once per real check of THIS view. For a Default view, that's every single pass that reaches it, whether or not the click that triggered the pass had anything to do with this component.",
+    },
+    {
+      line: 10,
+      text: '`ChangeDetectionStrategy.OnPush` — one line, and the view stops being checked unconditionally. From here on it needs a reason.',
+    },
+    {
+      line: 13,
+      text: '`readonly value = input(0)` — a real input binding. This is one of the four things (input reference change, an event inside it, `markForCheck()`, a signal read) that can still make THIS `ngDoCheck` fire.',
+    },
+  ];
+
+  /** The shape block's own quiz — ten clicks, same tree, same pass, two very different bills. */
+  protected readonly noopQuizOptions: QuizOption[] = [
+    {
+      text: '10 and 10 — every check that reaches a view runs, strategy or not.',
+      why: "That's true of Default, not OnPush. Reaching a view and CHECKING it are two different things — OnPush is reached ten times and finds a reason to actually check itself zero of them.",
+    },
+    {
+      text: '10 and 0 — Default checks unconditionally every pass; OnPush finds no dirty flag and no changed input, so it prunes every single time.',
+      correct: true,
+      why: "Exactly the bill above. Default has no memory of 'nothing relevant happened' — it walks in and checks regardless. OnPush asks first, and ten honest 'no's in a row is ten prunes, not ten checks.",
+    },
+    {
+      text: '0 and 0 — a no-op click schedules no pass at all, for either strategy.',
+      why: 'Any click inside a template listener marks its view and schedules a pass — Angular cannot know in advance that your handler will turn out to do nothing.',
+    },
+    {
+      text: '1 and 0 — only the first click actually schedules anything; the rest are batched away.',
+      why: 'Nothing here gets batched — ten clicks are ten separate scheduled passes, and the Default child pays for every last one of them.',
+    },
   ];
 
   /**

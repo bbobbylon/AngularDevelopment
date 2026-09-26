@@ -19,6 +19,90 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      <code>required()</code> doesn't promise the element exists early. It promises the element exists
+      <em>at the exact moment you ask</em> — and reading one beat too soon looks identical to asking for something that
+      was never there at all.
+    </p>
+
+    <p class="bf-say">
+      An unconditional element in your template feels like a settled fact the instant you write it. A view query
+      disagrees: it has its own clock, and yours can run ahead of it. Here's every question that timing gap raises,
+      answered before it throws at you live.
+    </p>
+
+    <app-no-dumb-questions [items]="timingQuestions" />
+
+    <app-brain-power
+      question="A viewChild.required() targets a &lt;p&gt; living inside an &lt;app-stat-card&gt; child's own template — not this component's template directly. You read it at exactly the right moment, ngAfterViewInit(). Does it resolve?"
+      hint="Ask whether 'the right moment' can rescue a query aimed at the wrong PLACE."
+    />
+
+    <app-whiteboard
+      caption="Same line of code, two different clocks — yours, and the view's."
+      alt="Two panels. Left panel, labeled constructor or ngOnInit, shows a clock reading too early, above two outcomes: viewChild returns undefined, viewChild.required throws NG0951. Right panel, labeled ngAfterViewInit, shows a clock reading resolved, above one outcome: both forms return the real element."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 240" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">CONSTRUCTOR / ngOnInit</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">ngAfterViewInit</text>
+
+        <rect x="50" y="42" width="220" height="40" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="67" text-anchor="middle" class="wb-text--sm">too early — view not built yet</text>
+
+        <rect x="50" y="94" width="220" height="40" rx="10" class="wb-node" />
+        <text x="160" y="119" text-anchor="middle" class="wb-mono wb-text--sm">viewChild() → undefined</text>
+
+        <rect x="50" y="144" width="220" height="40" rx="10" class="wb-node" opacity="0.35" />
+        <text x="160" y="169" text-anchor="middle" class="wb-mono wb-text--sm">.required() → throws NG0951</text>
+
+        <rect x="370" y="42" width="220" height="40" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="67" text-anchor="middle" class="wb-text--sm">resolved — view exists</text>
+
+        <rect x="370" y="94" width="220" height="90" rx="10" class="wb-node" />
+        <text x="480" y="119" text-anchor="middle" class="wb-mono wb-text--sm">viewChild() → the element</text>
+        <text x="480" y="149" text-anchor="middle" class="wb-mono wb-text--sm">.required() → the same element</text>
+      </svg>
+
+      <app-scribble
+        quote="viewChild() → undefined"
+        tone="olive"
+        text="Forgiving. Too early just reads as 'nothing yet' — no crash, but easy to miss in dev and only notice once a user hits the timing in production."
+      />
+      <app-scribble
+        quote="throws NG0951"
+        point="up"
+        tone="clay"
+        text="Same element, same template, same moment in time — the ONLY thing that changed is which form you called. `.required()` turns 'too early' into a thrown error instead of a quiet `undefined`."
+      />
+      <app-scribble
+        quote="resolved — view exists"
+        tone="accent"
+        text="Nothing about the ELEMENT changed between the two panels. What changed is which clock tick your code happened to run on."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="A query resolves safely in ngAfterViewInit(), then the callback uses the result to set a plain title field the QUERIED CHILD's own template is bound to. What happens, in dev mode?"
+      [options]="writeTrapQuizOptions"
+      followUp="The dashboard code-lab further down this page runs this exact sequence — the read is fine; watch what the very next line does to the pass."
+    />
+
+    <app-napkin lead="the mental model —" label="A parcel locker with a strict clerk">
+      A parcel locker's app tells you the instant your package is actually inside the locker — check before that
+      notification and the app just says "not yet," patiently. Ask for a signature-required parcel the same way, though,
+      and the clerk refuses to even entertain "not yet" as an answer: too early is treated exactly like "there is no
+      parcel," full stop, no distinction offered. The parcel was always on its way. The clerk's clock and your clock
+      simply weren't showing the same time when you asked.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

@@ -16,6 +16,89 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Argument" ============
+       The opening block (CONTRIBUTING §2C): a quoted line → the scene, three parties named →
+       app-bubbles (6 turns) → an open question → app-bubbles (4 turns, "You" delivers the
+       verdict) → the named principle → one figure → one quiz → the analogy on a napkin.
+       Never: app-tape-card, app-no-dumb-questions, app-receipt, app-code-lab, app-remember —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      "I checked every door in your own source code," TypeScript says. "The one in DevTools was never mine to guard."
+    </p>
+
+    <p class="bf-say">
+      Mark a field <code>private</code> and TypeScript refuses every out-of-class read anywhere in your own files — real
+      enforcement, real red squiggles. Open your browser's console on the exact same running app and read that field
+      anyway. Nobody broke a promise. <strong>Three parties</strong> were involved the whole time —
+      <strong>TypeScript</strong>, the <strong>JavaScript</strong> your code became, and <strong>DevTools</strong>
+      reading a live object — and only one of them ever heard the word "private."
+    </p>
+
+    <app-bubbles [turns]="argRoundOne" caption="Round one. Every line here is true." />
+
+    <app-brain-power
+      question="TypeScript enforced every access correctly. JavaScript is running exactly the code it was given. DevTools is only showing an object's real properties. Nobody made a mistake — so who let vault.soft leak?"
+      hint="Ask which of the three ever actually RECEIVED the word 'private' as something to enforce, rather than as a note meant for someone else."
+    />
+
+    <app-bubbles [turns]="argRoundTwo" caption="Round two. Everyone says not me — and the last voice is yours." />
+
+    <p class="bf-principle">
+      <code>private</code> is a compile-time contract between you and the TypeScript compiler — a sign every one of your
+      own files agrees to read and obey. <code>#hard</code> compiles into a mechanism the JavaScript
+      <strong>engine itself</strong> enforces, sign or no sign, tool or no tool. One is a promise about your source. The
+      other is a promise about your program.
+    </p>
+
+    <app-whiteboard
+      caption="Same class, two fields — one guarded by agreement, one guarded by the engine."
+      alt="Two panels. Left panel, labeled vault.soft, marked private, shows an ordinary property box, with an arrow from DevTools pointing straight in labeled reads it, no resistance. Right panel, labeled vault.#hard, shows a locked box with no arrow reaching it at all, captioned no cast, no bracket access, no console command gets in."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 240" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">vault.soft — marked private</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">vault.#hard</text>
+
+        <rect x="60" y="60" width="200" height="60" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="95" text-anchor="middle" class="wb-mono">soft: 1</text>
+
+        <rect x="380" y="60" width="200" height="60" rx="10" class="wb-node" />
+        <text x="480" y="95" text-anchor="middle" class="wb-mono">#hard: 2</text>
+
+        <text x="160" y="150" text-anchor="middle" class="wb-hand wb-text--sm">DevTools reads it — no resistance</text>
+        <text x="480" y="150" text-anchor="middle" class="wb-hand wb-text--sm">
+          no cast, no bracket, no command gets in
+        </text>
+      </svg>
+
+      <app-scribble
+        quote="soft: 1"
+        tone="clay"
+        text="An ordinary JavaScript property, in every way that matters at runtime. `private` never survived compilation to say otherwise."
+      />
+      <app-scribble
+        quote="#hard: 2"
+        point="up"
+        tone="olive"
+        text="A JS-native private slot. There is no syntax — not a cast, not `obj['#hard']`, not a console command — that names this field from outside the class body."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="After TypeScript compiles the Vault class to plain JavaScript, how many of the private / #hard keywords remain anywhere in the emitted output, actually enforced?"
+      [options]="erasureQuizOptions"
+      followUp="Reread the five-keyword table further down this page with this in mind — private/protected/readonly are compile-time only at every target; #hard is the one row that's really, unconditionally, JavaScript."
+    />
+
+    <app-napkin lead="the mental model —" label="A sign on an unlocked door, and a locked one">
+      A "staff only" sign works exactly as well as everyone reading it agrees to cooperate — which is what the compiler
+      does for every line in your own source. Walk in through a different door — DevTools, a stray
+      <code>as any</code>, plain JS interop — and the sign was never a lock to begin with, just a note taped to glass.
+      <code>#hard</code> is the door with an actual keycard reader: no door in the building opens it from outside, no
+      matter which one you try.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

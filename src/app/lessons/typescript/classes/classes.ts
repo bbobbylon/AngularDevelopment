@@ -1,9 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { BfPage, Chapter, CodeLab } from '../../../shared/brain';
-import type { ChapterStop, CodeNote } from '../../../shared/brain';
+import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain';
+import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 
 /**
  * Demo class for parameter properties, `readonly`, and a getter.
@@ -108,7 +109,22 @@ class Greeter {
  */
 @Component({
   selector: 'app-lesson-ts-classes',
-  imports: [RouterLink, BfPage, Chapter, CodeLab, Faq, Flow, Predict, Quiz, Remember],
+  imports: [
+    RouterLink,
+    BfPage,
+    Bubbles,
+    Chapter,
+    CodeLab,
+    Faq,
+    Flow,
+    Napkin,
+    Predict,
+    Quiz,
+    Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
+  ],
   templateUrl: './classes.html',
   styleUrl: './classes.css',
 })
@@ -164,6 +180,77 @@ export class Classes {
     { label: 'Generics', id: 'ts-generics' },
     { label: 'Enums', id: 'ts-enums' },
     { label: 'Narrowing', id: 'ts-narrowing' },
+  ];
+
+  // ── Shape: "The Argument" opener ────────────────────────────────────────────
+
+  /** Round one: three parties, each telling the truth about their own one job. */
+  protected readonly argRoundOne: BubbleTurn[] = [
+    {
+      who: 'TypeScript',
+      says: 'I checked every access to `vault.soft` in this codebase. Nobody outside `Vault` gets past me.',
+    },
+    {
+      who: 'JavaScript',
+      says: "Checked against what? By the time I run, `soft` is just... a property. I've never heard that word.",
+    },
+    {
+      who: 'DevTools',
+      says: 'I just opened the object you handed the console. `soft: 1` — right there, same as any other field.',
+    },
+    {
+      who: 'TypeScript',
+      says: 'I never touched the code I emitted. Erasing type-only syntax is literally my entire job.',
+    },
+    {
+      who: 'JavaScript',
+      says: "I don't skip a property because a comment upstream called it private. I don't even receive that comment.",
+    },
+    {
+      who: 'DevTools',
+      says: "I don't check permissions. I show you what's actually on an object — that's the whole feature.",
+    },
+  ];
+
+  /** Round two: everyone says "not me," and the verdict is yours to deliver. */
+  protected readonly argRoundTwo: BubbleTurn[] = [
+    {
+      who: 'TypeScript',
+      says: 'Not me — I did my one job. Every line I compiled had already passed the private check.',
+    },
+    {
+      who: 'JavaScript',
+      says: "Not me — nobody ever handed me an instruction called 'private' to enforce. I only run what's left after compilation.",
+    },
+    {
+      who: 'DevTools',
+      says: "Not me — I don't invent security. I show real values on a real object. Always have.",
+    },
+    {
+      who: 'You',
+      says: 'None of you lied. `private` was a promise TypeScript kept — inside TypeScript. One step outside it, and nobody was ever guarding this object at runtime. Want an actual lock? `#hard` is the one keyword the JavaScript engine itself refuses to bypass.',
+    },
+  ];
+
+  /** The shape block's own quiz — what actually survives to the emitted JavaScript. */
+  protected readonly erasureQuizOptions: QuizOption[] = [
+    {
+      text: 'Two — both `private` and `#hard` are preserved as runtime checks.',
+      why: 'Only one of them compiles to anything the runtime actually enforces. `private` is a type-only annotation — there is nothing to emit, because there was never any JavaScript syntax to emit it AS.',
+    },
+    {
+      text: "One — only #hard survives, because it's real JavaScript syntax; `private` is erased along with every other type-only annotation.",
+      correct: true,
+      why: 'Exactly right. `#hard` is native ECMAScript, so it compiles straight through, enforced by the engine. `private` never had a JavaScript form to begin with — TypeScript checks it, then deletes the keyword and leaves an ordinary property behind.',
+    },
+    {
+      text: 'Zero — TypeScript strips all access control uniformly, `#hard` included, since erasure applies to every keyword the same way.',
+      why: "Overcorrected. Erasure only removes TYPE-ONLY syntax. `#hard` isn't a type annotation at all — it's a real JavaScript private field — so there's nothing for erasure to touch.",
+    },
+    {
+      text: 'Down-level compiling to an older JS target turns #hard into an ordinary, unguarded property too — the real lock only exists in modern output.',
+      why: 'It changes the SYNTAX, not the guarantee. Down-level emit swaps `#hard` for a WeakMap-keyed accessor that still throws for anyone outside the class — the lock survives the transform; only its shape changes.',
+    },
   ];
 
   /** Sample: field initializers, a static counter, and a getter/setter pair. */

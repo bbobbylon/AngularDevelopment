@@ -1540,6 +1540,62 @@ timeouts prior batches' postmortems have flagged on `testing-components`/`task-m
 
 Declared-shape count: 70 → 77. Remaining undeclared: 103 − 77 = **26**, next up for batch 11.
 
+**Batch 11 of step 5, landed 2026-09-26 — 7 lessons, chosen for genuine fit rather than to hit
+a target.** Only 26 lessons remained undeclared going in, and the instruction was explicit that
+fewer than 7-8 was expected and fine: every one of the 26 was read (JSDoc + template) before
+picking, and several strong-content lessons were left out on purpose because no shape's block
+sequence fit their actual gotcha without forcing it — `projects/task-manager` and
+`projects/auth-flow` in particular are long, multi-section project walkthroughs rather than a
+single-gotcha lesson, and neither had one moment that compressed cleanly into a 6-10-device
+opening block. Seven did, across four tracks:
+
+| Lesson                  | Track        | Shape               | The kind of gotcha                                                                                                                                                                                       |
+| ----------------------- | ------------ | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `json-and-apis`         | foundations  | `no-dumb-questions` | misconception ("just JSON round-trip it" quietly drops functions/`undefined`, turns a `Date` into a string, and converts `NaN`/`Infinity` to `null` — no error, ever)                                    |
+| `ts-mapped-conditional` | typescript   | `no-dumb-questions` | misconception (a conditional fed a bare union distributes — runs once per member — and the one time that union is EMPTY (`never`), "once per member" silently means zero times, not either branch)       |
+| `view-queries`          | intermediate | `no-dumb-questions` | misconception (`viewChild.required()` throws NG0951 from timing as often as from a genuinely missing target — an unconditionally-present element still throws if read one moment too early)              |
+| `http-resource`         | intermediate | `receipt`           | cost (`{{ post.error() }}` interpolated straight into a template prints one meaningless `[object Object]` line — `HttpErrorResponse` was carrying four real, itemisable fields the whole time)           |
+| `change-detection`      | expert       | `receipt`           | cost (ten no-op clicks on a button neither child cares about: the Default child pays for ten full checks; OnPush pays for zero — same tree, same pass, same instant)                                     |
+| `reactive-forms`        | intermediate | `whiteboard`        | structure (two controls subscribed to each other's `valueChanges` with no `emitEvent` guard turn one write into an unbounded synchronous ping-pong, capped at 40 only so the demo doesn't lock the page) |
+| `ts-classes`            | typescript   | `argument`          | gap between correct parties (TypeScript enforced `private` correctly, JavaScript ran exactly the code it was given, DevTools showed a real property — nobody lied, and the field still leaked)           |
+
+Every block is purely **additive** — inserted right after `</app-chapter>`, before the lesson's
+existing "1. THE PROBLEM" section, exactly the shape the batch-10 postmortem confirmed against
+`resource-api`/`rxjs-advanced`/`attribute-directives`: nothing pre-existing was rewritten, deleted
+or relocated. Content came from what each lesson already taught further down the page — the
+`http-resource` receipt's four `HttpErrorResponse` fields, the `reactive-forms` whiteboard's
+`loopA`/`loopB`/40-cap numbers, the `change-detection` receipt's `DefaultChild`/`OnPushChild`
+"template checks" counters — reframed into the shape's own device sequence rather than invented,
+so the shape block and the lesson's own later live demos corroborate each other instead of
+teaching two different versions of the same fact.
+
+One real, build-breaking bug, caught the same way batch 10's `signals-advanced` one was: `npm run
+test:ci` failed immediately with `NG8001: 'app-napkin' is not a known element` against
+`ts-classes.html` — the argument block's closing napkin was written before `Napkin` was added to
+`classes.ts`'s own `import`/`imports:` list (this lesson had never used `Napkin` before, unlike
+every other lesson touched this round, which is exactly why the per-lesson `<app-*>`-vs-`imports`
+cross-check the task called for caught six of seven clean and missed this one on the first pass —
+the check was run before the fix, not skipped). Fixed by adding `Napkin` to both the import
+statement and the component's `imports:` array; `npx tsc --noEmit` had already passed clean both
+times, since a missing template import is a template-compiler error `tsc` alone cannot see — only
+a real `ng build`/`ng test` catches it, the identical lesson three of the last four batches'
+postmortems have now independently rediscovered.
+
+`scripts/audit-variety.mjs` is green (84 declared shapes: `no-dumb-questions` 25, `whiteboard` 22,
+`receipt` 22, `argument` 15 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check` (prettier
+`--write` was needed first — every new block landed unformatted, same as every prior batch) and
+`npm run typecheck` are both green.
+
+`npm run test:ci`'s full run (629s) came back fully green: 28/28 test files, 593/593 tests, zero
+failures — not even the usual sandbox-contention timeouts prior batches' postmortems have flagged
+on `task-manager`/`auth-flow`/etc. Nothing to isolate-and-rerun this round.
+
+`npx ng build --configuration production` completed clean in 16s — 0 warnings, 0 errors, confirmed
+by grepping the log directly rather than trusting the exit code.
+
+Declared-shape count: 77 → 84. Remaining undeclared: 103 − 84 = **19**, next up for batch 12.
+
 ---
 
 ## 3. Later
