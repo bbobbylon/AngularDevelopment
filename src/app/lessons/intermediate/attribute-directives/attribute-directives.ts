@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 import { HighlightDirective } from './highlight-directive/highlight-directive';
 import { BadgeDirective } from './badge-directive/badge-directive';
 import { DemoTooltipDirective } from './demo-tooltip-directive/demo-tooltip-directive';
@@ -69,6 +71,10 @@ import { DemoTooltipDirective } from './demo-tooltip-directive/demo-tooltip-dire
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
     HighlightDirective,
     BadgeDirective,
     DemoTooltipDirective,
@@ -82,6 +88,65 @@ export class AttributeDirectives {
     { label: 'Custom Pipes', id: 'custom-pipes' },
     { label: 'Attribute Directives' },
     { label: 'Structural Directives', id: 'structural-directives' },
+  ];
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /**
+   * Escalates from the misconception ("Angular cleans up whatever I create")
+   * through where it actually bites, to the one-line fix. Carries the whole
+   * explanation on its own, so every answer threads "you"/"your".
+   */
+  protected readonly cleanupQuestions: NdqItem[] = [
+    {
+      q: 'Does Angular clean up anything a directive creates, the same way it cleans up the directive itself?',
+      a: "Only what you put **on the host**. Host bindings and host listeners are wired through Angular's own machinery, so it can undo them automatically the moment your directive's view goes away. Anything you create somewhere else is invisible to that cleanup — you own it, start to finish.",
+    },
+    {
+      q: "So a `@HostListener('mouseenter')` and a `renderer.createElement()` call get cleaned up the same way?",
+      a: 'No — and that\'s the whole trap. A host listener disappears with the element for free, no code required. A node you appended to `document.body` has no relationship to your directive\'s lifecycle at all. Nothing about it says "delete me when this directive dies" unless you write that yourself.',
+    },
+    {
+      q: 'Where does this actually bite, at work?',
+      a: "A tooltip directive on a row inside an `@if`. You hover it, the tooltip appears on `document.body`, and — before your mouse leaves — something flips the `@if` off. The row is destroyed, `mouseleave` never fires, and the tooltip node just sits there. On a fast-changing dashboard that's dozens of orphaned nodes an hour, each one still painted, forever.",
+    },
+    {
+      q: "Isn't an orphaned node just a memory leak I can live with?",
+      a: "It's worse than memory — it's **visible**. An orphaned tooltip still renders. Your users see stray floating text attached to nothing, sitting on top of whatever loads next, and the only fix they have is a full page reload.",
+    },
+    {
+      q: 'What actually fixes it?',
+      a: 'One method: `ngOnDestroy()`, calling the exact same cleanup your `mouseleave` handler already has. Anything created outside the host needs an explicit teardown path that runs no matter *how* the directive dies — a normal mouseleave, or the host vanishing out from under it mid-hover.',
+    },
+    {
+      q: 'How do I know if MY directive needs this?',
+      a: "Ask where the node you created actually lives. Appended **under the host element**? Angular already owns it — destroy the host and everything under it goes too. Appended **anywhere else** — `document.body`, a portal, a sibling container — you're on your own, and `ngOnDestroy` stops being optional.",
+    },
+    {
+      q: 'Does `Renderer2` make this automatic somehow, since it abstracts the DOM?',
+      a: "No — `Renderer2` is only a safer way to reach the DOM (it keeps working under server-side rendering, where `document` doesn't exist). It has no idea which nodes you intend to be temporary. It will happily create a node, and just as happily leave it there forever if nothing ever tells it otherwise.",
+    },
+  ];
+
+  /** The self-test for the cleanup trap — the one no other gate can see coming. */
+  protected readonly cleanupQuizOptions: QuizOption[] = [
+    {
+      text: "It disappears automatically — Angular removes anything a destroyed directive's instance created.",
+      why: "That's the exact claim this block exists to break. Angular only knows how to clean up what it wired for you — host bindings, host listeners. A node appended to `document.body` was never part of that bookkeeping.",
+    },
+    {
+      text: 'It stays on screen, orphaned on `document.body` forever — `mouseleave` never got the chance to fire, and nothing else ever calls `hide()`.',
+      correct: true,
+      why: 'Right. Destroying the host tears down the directive instance, but the tooltip `div` was appended to `document.body`, not the host — it has no parent-child relationship the framework can use to find and remove it. Without an `ngOnDestroy` that explicitly removes it, it is permanent.',
+    },
+    {
+      text: "It throws, because the destroyed directive's `mouseleave` handler tries to run against a node that no longer exists.",
+      why: 'Nothing tries to run at all. `mouseleave` simply never fires — the element it was listening on is gone, so the browser never dispatches the event. Silence, not an error, which is exactly why this bug is so easy to ship.',
+    },
+    {
+      text: 'It stays until the next change-detection pass, which sweeps away anything left behind by a destroyed component.',
+      why: 'Change detection has no concept of "anything left behind" — it walks bindings it knows about and compares values. A `document.body` node created imperatively is completely invisible to it, pass or no pass.',
+    },
   ];
 
   /**

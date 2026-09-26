@@ -17,6 +17,99 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Two different actions both put a resource into "a request is happening." They leave completely different things on
+      screen while that request is in flight — and almost every write-up of this API treats them as the same moment.
+    </p>
+
+    <app-brain-power
+      question="userResource is showing user 1. Two buttons: Next (sets userId to 2) and Reload (re-fetches userId 1, unchanged). Both start a real network request. Does the screen look the SAME while each one is in flight, or different?"
+      hint="Ask whether the resource is being asked for something NEW, or asked for the SAME thing a second time — those are not the same question to it."
+    />
+
+    <app-whiteboard
+      caption="Same 'a request is happening' moment on the outside — two different answers underneath, depending on what actually changed."
+      alt="Two panels. Left panel, labeled params change, userId.set(2), shows a status box reading loading above a value box reading undefined, cleared immediately, captioned new order, empty table. Right panel, labeled reload, same params, shows a status box reading reloading above a value box reading user 1, kept on screen, stale, captioned same order, old plate stays."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 260" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">PARAMS CHANGE — userId.set(2)</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">RELOAD() — same params</text>
+
+        <rect x="50" y="42" width="220" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="62" text-anchor="middle" class="wb-mono wb-text--sm">status()</text>
+        <text x="160" y="82" text-anchor="middle" class="wb-text--sm">'loading'</text>
+
+        <rect x="50" y="106" width="220" height="52" rx="10" class="wb-node" opacity="0.35" />
+        <text x="160" y="126" text-anchor="middle" class="wb-mono wb-text--sm">value()</text>
+        <text x="160" y="146" text-anchor="middle" class="wb-text--sm">undefined — cleared</text>
+
+        <text x="160" y="182" text-anchor="middle" class="wb-hand wb-text--sm">new order, empty table</text>
+
+        <rect x="370" y="42" width="220" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="62" text-anchor="middle" class="wb-mono wb-text--sm">status()</text>
+        <text x="480" y="82" text-anchor="middle" class="wb-text--sm">'reloading'</text>
+
+        <rect x="370" y="106" width="220" height="52" rx="10" class="wb-node" />
+        <text x="480" y="126" text-anchor="middle" class="wb-mono wb-text--sm">value()</text>
+        <text x="480" y="146" text-anchor="middle" class="wb-text--sm">user 1 — kept, stale</text>
+
+        <text x="480" y="182" text-anchor="middle" class="wb-hand wb-text--sm">same order, old plate stays</text>
+      </svg>
+
+      <app-scribble
+        quote="'loading'"
+        tone="clay"
+        text="Not a continuation of anything — a brand-new request, triggered because `params` itself changed. The only thing this shares with `'reloading'` is the name."
+      />
+      <app-scribble
+        quote="user 1 — kept, stale"
+        tone="olive"
+        text="The exact thing most explanations of `resource()` get backwards. `reload()` deliberately leaves the previous value in place, so you can DIM it instead of blanking the screen while the fresh one is fetched."
+      />
+      <app-scribble
+        quote="'reloading'"
+        point="up"
+        tone="accent"
+        text="`isLoading()` is `true` for both panels here — it cannot tell you which one you're in. Only `status()` can, which is exactly why it exists as a separate reading."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      A params change is a brand-new order: the previous stream is dropped the instant the new value is read, so there
+      is nothing stale left to show — <code>status()</code> goes to <code>'loading'</code> and <code>value()</code> goes
+      blank. <code>reload()</code> against unchanged params is asking for the same dish again: the previous stream stays
+      exactly where it is while a fresh one cooks — <code>status()</code> goes to <code>'reloading'</code> and
+      <code>value()</code> keeps returning what you already had.
+    </p>
+
+    <app-flow
+      [steps]="abortSteps"
+      caption="What a params change specifically does — contrast every step against what reload() does instead, above."
+    />
+
+    <app-quiz
+      question="userResource is showing user 1. Someone clicks Next, so userId goes from 1 to 3 — a params change, not a reload. While the new request is in flight, what does the screen show?"
+      [options]="statusQuizOptions"
+      followUp="The live demo further down this page runs both buttons side by side — watch value() actually clear on Next and actually persist on Reload."
+    />
+
+    <app-napkin lead="the mental model —" label="Same runner, two completely different orders">
+      Ask your server for a different dish and the table gets cleared before anything new arrives — you're looking at
+      bare tablecloth until the burger lands. Ask for the exact same dish again because it came out wrong, and the
+      runner leaves your current plate right where it is while a fresh one cooks, swapping it in only once it's ready.
+      <code>resource()</code> is drawing that same distinction in code: <code>status()</code> is which of those two
+      moments you're in, and <code>value()</code> is which plate is currently on your table.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

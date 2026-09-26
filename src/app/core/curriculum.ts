@@ -401,6 +401,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Computing and reusing values directly in templates with @let.',
     level: 'beginner',
     category: 'Control Flow',
+    shape: 'receipt',
     loadComponent: () => import('../lessons/beginner/let-block/let-block').then((m) => m.LetBlock),
   },
   {
@@ -711,6 +712,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Manipulating elements with @Directive, HostBinding and HostListener.',
     level: 'intermediate',
     category: 'Pipes & Directives',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/attribute-directives/attribute-directives').then(
         (m) => m.AttributeDirectives,
@@ -789,6 +791,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'linkedSignal, untracked, effect cleanup and equality functions.',
     level: 'intermediate',
     category: 'Signals',
+    shape: 'no-dumb-questions',
     loadComponent: () =>
       import('../lessons/intermediate/signals-advanced/signals-advanced').then(
         (m) => m.SignalsAdvanced,
@@ -800,6 +803,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'Async data loading with resource() / rxResource and signals.',
     level: 'intermediate',
     category: 'Signals',
+    shape: 'whiteboard',
     loadComponent: () =>
       import('../lessons/intermediate/resource-api/resource-api').then((m) => m.ResourceApi),
   },
@@ -894,6 +898,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'provideServerRendering, the server build and SEO benefits.',
     level: 'expert',
     category: 'Rendering & Delivery',
+    shape: 'whiteboard',
     loadComponent: () => import('../lessons/expert/ssr/ssr').then((m) => m.Ssr),
   },
   {
@@ -977,6 +982,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'combineLatest, forkJoin, withLatestFrom, retry, error handling, custom operators.',
     level: 'expert',
     category: 'RxJS',
+    shape: 'receipt',
     loadComponent: () =>
       import('../lessons/expert/rxjs-advanced/rxjs-advanced').then((m) => m.RxjsAdvanced),
   },
@@ -1004,6 +1010,7 @@ export const CURRICULUM: Lesson[] = [
     summary: 'ARIA, focus management, the CDK a11y module and testing.',
     level: 'expert',
     category: 'Cross-Cutting',
+    shape: 'no-dumb-questions',
     loadComponent: () => import('../lessons/expert/a11y/a11y').then((m) => m.A11y),
   },
   {

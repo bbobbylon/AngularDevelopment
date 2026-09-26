@@ -15,6 +15,90 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      A div styled exactly like a button looks perfect to every tool that can see it — and to every tool that can't, it
+      isn't a button at all.
+    </p>
+
+    <p class="bf-say">
+      Every other bug in this curriculum throws, fails a build, or leaks memory you can watch climb. This one does none
+      of that. Here's every question that silence leaves behind, answered before it happens to you live.
+    </p>
+
+    <app-no-dumb-questions [items]="paintedVsTreeQuestions" />
+
+    <app-brain-power
+      question="A &lt;div&gt; is styled identically to the real &lt;button&gt; beside it, with a click handler wired up too. Unplug the mouse and Tab through the page. What happens when you reach it?"
+      hint="Ask whether styling ever puts an element IN the accessibility tree, or only makes it LOOK like something that would be."
+    />
+
+    <app-whiteboard
+      caption="Identical on screen, two different stories underneath — one of them was never given anything for a screen reader to find."
+      alt="Two columns. Left column, labeled painted, what you see, shows a button-shaped box labeled real button and an identically button-shaped box labeled div styled as button, captioned looks identical. Right column, labeled in the tree, what a screen reader gets, shows a lit box under the real button reading role button, name Save, focusable, and beneath the div a faded box reading nothing, not in the tree, not in the tab order."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 260" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">PAINTED — what you see</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">
+          IN THE TREE — what a screen reader gets
+        </text>
+
+        <rect x="50" y="42" width="220" height="46" rx="10" class="wb-node" />
+        <text x="160" y="70" text-anchor="middle" class="wb-mono wb-text--sm">real &lt;button&gt;</text>
+
+        <rect x="50" y="100" width="220" height="46" rx="10" class="wb-node" />
+        <text x="160" y="128" text-anchor="middle" class="wb-mono wb-text--sm">div styled as button</text>
+
+        <text x="160" y="166" text-anchor="middle" class="wb-hand wb-text--sm">looks identical</text>
+
+        <rect x="370" y="42" width="220" height="46" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="64" text-anchor="middle" class="wb-mono wb-text--sm">role: button</text>
+        <text x="480" y="80" text-anchor="middle" class="wb-text--sm">name: Save · focusable</text>
+
+        <rect x="370" y="100" width="220" height="46" rx="10" class="wb-node" opacity="0.3" />
+        <text x="480" y="122" text-anchor="middle" class="wb-mono wb-text--sm">nothing</text>
+        <text x="480" y="138" text-anchor="middle" class="wb-text--sm">not in the tree, not in tab order</text>
+      </svg>
+
+      <app-scribble
+        quote="looks identical"
+        tone="accent"
+        text="The only thing your own eyes can verify. CSS makes two elements LOOK the same; it says nothing about what either one reports to a screen reader."
+      />
+      <app-scribble
+        quote="nothing"
+        point="up"
+        tone="clay"
+        text="Not a rendering bug — a semantics bug. The div was never given a role, so there's nothing here for the tree to describe. Tab past it and you'll find it isn't even stopped at."
+      />
+      <app-scribble
+        quote="role: button"
+        tone="olive"
+        text="Free, just from writing `&lt;button&gt;`. Every one of these three facts the div is missing — role, name, focusable — came from choosing the right element, not from any ARIA attribute."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="A &lt;div&gt; is styled identically to the real &lt;button&gt; beside it, with a click handler wired up too. Unplug the mouse and Tab through the page. What happens when you reach it?"
+      [options]="paintedVsTreeQuiz"
+      followUp="The live semantics demo further down this page is the exact same pair, side by side — Tab through it yourself and watch which one Tab even stops at."
+    />
+
+    <app-napkin lead="the mental model —" label="A photograph, not a phone call">
+      A sighted developer testing with a mouse takes in the page the way you take in a photograph — the div and the
+      button sit in the same glance, identical. A screen reader receives the exact same page the way you receive a phone
+      call: nothing on that call exists unless somebody actually <em>says</em> it out loud, and the div's role was never
+      spoken. Looking right and being describable are not the same test — and only one of them is available to the
+      person who wrote the code.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

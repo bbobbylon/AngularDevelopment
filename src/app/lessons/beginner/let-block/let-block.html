@@ -14,6 +14,93 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      <code>&#64;let</code> never checks whether it needs to re-run — it just re-runs, on every reachable
+      change-detection pass, no matter what triggered it. Here's the bill for a <code>&#64;let</code> that wraps
+      something pricier than a multiplication.
+    </p>
+
+    <app-receipt
+      heading="One @let, one busy component · cost per minute of clicking"
+      [rows]="recomputeBill"
+      [total]="recomputeBillTotal"
+      footer="none of those forty passes had anything to do with the list."
+    />
+
+    <app-scribble
+      point="up"
+      quote="×40"
+      tone="clay"
+      text="Not a bug — this is `@let` working exactly as designed. It has no dependency graph and no cache to consult, only a slot it overwrites. A pass that has nothing to do with `sortedRows` still re-runs it, because nothing ever asked whether it should."
+    />
+
+    <app-compare
+      leftTitle="@let — recomputed every reachable pass"
+      leftTone="bad"
+      rightTitle="computed() — recomputed only when its inputs change"
+      rightTone="good"
+      note="Same sorted list on screen either way. Only one of the two re-sorts it forty times to answer a like-button click."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+&#64;let sortedRows = [...rows()].sort(byName);
+&lt;!-- re-sorts on EVERY reachable pass —
+     the like button included --&gt;</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+protected readonly sortedRows = computed(() =&gt;
+  [...this.rows()].sort(byName));
+// re-sorts ONLY when rows() itself changes</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Here's exactly what happens to a <code>&#64;let</code> slot on every single pass that reaches it — not a special
+      case, the only case there is.
+    </p>
+
+    <app-chain
+      [steps]="recomputeChainSteps"
+      label="What every @let slot does on every reachable change-detection pass"
+    />
+
+    <app-code-lab
+      file="what @let compiles to (conceptually)"
+      [code]="underTheHoodSample"
+      [notes]="underTheHoodNotes"
+      notesLabel="What each line is doing"
+    />
+
+    <app-brain-power
+      question="One @let wraps price() * qty(). A different @let two lines later wraps a 2,000-row .sort(). Both re-run on every reachable pass — so why does only one of them show up as jank when you click somewhere unrelated?"
+      hint="Ask what's actually expensive: re-running the assignment itself, or the WORK the expression does each time it reruns."
+    />
+
+    <app-quiz
+      question="Someone claims “@let is memoized like computed(), so it's fine even in a hot loop.” What's actually true?"
+      [options]="memoQuizOptions"
+      followUp="The live price × qty bill further down this page is the same mechanism, cheap enough that the cost never shows — watch it re-run on every edit anyway."
+    />
+
+    <p class="bf-big">
+      Forty clicks on a like button. Forty full re-sorts of a list that never moved. <code>&#64;let</code> paid for
+      every one of them — <code>computed()</code> would have paid for exactly one.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

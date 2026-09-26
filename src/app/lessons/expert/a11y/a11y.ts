@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /** WCAG relative luminance of a #rrggbb color. */
 function luminance(hex: string): number {
@@ -95,6 +97,10 @@ function contrast(a: string, b: string): number {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   styleUrl: './a11y.css',
   templateUrl: './a11y.html',
@@ -166,6 +172,65 @@ export class A11y {
   protected readonly ratio = computed(() => contrast(this.fg(), this.bg()));
 
   // ── Presentation data ──────────────────────────────────────────────────────
+
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /**
+   * Escalates from the misconception ("it looks right, so it must BE right")
+   * through where it bites at work, to the fix. Carries the whole explanation
+   * on its own, so every answer threads "you"/"your".
+   */
+  protected readonly paintedVsTreeQuestions: NdqItem[] = [
+    {
+      q: 'My `<div>` looks exactly like the real button next to it — same padding, same colour, same hover state. Why would it need anything else?',
+      a: "Because a screen reader doesn't read paint — it reads the **accessibility tree**, and styling never touches that. Your div renders identical pixels and produces a completely empty entry in that tree: no role, no name, not even a stop in the Tab order. Looking identical and being structurally identical are two different claims, and CSS can only ever prove the first one.",
+    },
+    {
+      q: 'So how would I even catch that, if it compiles clean and looks right on my own screen?',
+      a: "You wouldn't, by looking — that's the whole shape of this lesson. Every other bug taught elsewhere in this curriculum throws, fails a build, or leaks memory you can watch climb. This one does none of that. The only way to catch it is to stop looking and start listening: unplug your mouse and reach for Tab, or run the exact tool built for this — axe-core, wired into this codebase's own test suite for precisely this reason.",
+    },
+    {
+      q: 'Where does this actually bite, at work?',
+      a: "A `<div>` styled as a save button ships to production looking pixel-perfect. Weeks later a keyboard-only or screen-reader user reaches your app, tabs straight past it — it was never in the focus order to begin with — and simply cannot save. No error in your logs, no failed test, no ticket with a stack trace attached. Just a user who quietly can't do the one thing your control exists for, with no signal that it ever happened.",
+    },
+    {
+      q: "Isn't `aria-hidden` basically the same thing as `display: none` — both just make something disappear?",
+      a: 'No, and conflating them is the single most common ARIA mistake there is. `display: none` removes an element from layout **and** the tree — nobody sees or hears it. `aria-hidden="true"` removes it from the tree **only**; the element stays fully visible on screen. Put it on the wrong element and you get a control a sighted user can see and click that a screen-reader user cannot discover exists at all.',
+    },
+    {
+      q: 'A toast pops up on screen reading "Saved." Screen-reader users get that too, right — it\'s right there?',
+      a: 'Only if the container is wired as a live region — `aria-live="polite"`, `role="status"`, or the CDK\'s `LiveAnnouncer`. Otherwise it\'s the fake-button bug wearing different clothes: present on screen, absent from the tree, absent from the experience.',
+    },
+    {
+      q: "What's the actual minimum fix, if you genuinely can't swap the div for a real `<button>` right now?",
+      a: 'Four separate additions, and skipping any one leaves a real gap: `tabindex="0"` so Tab can reach it at all, `role="button"` so it\'s announced as a control, a keydown handler that fires on **both** Enter and Space (`role` alone wires up neither), and your own focus/hover/disabled states, since none of that comes free either. Weigh that list against `<button>` costing zero extra code, and "just use the native element" stops sounding like a slogan.',
+    },
+    {
+      q: 'Is there a way to check this without a screen reader on hand?',
+      a: "Tab through the page with your hand off the mouse — if you can't reach something, or can't tell it's focused, neither can a keyboard user. That single habit catches the fake-button bug every time, with no assistive technology installed at all.",
+    },
+  ];
+
+  /** The self-test for the painted-vs-tree gap — the one no build or console ever flags. */
+  protected readonly paintedVsTreeQuiz: QuizOption[] = [
+    {
+      text: 'Tab lands on it and Enter activates it, exactly like the real button beside it.',
+      why: 'Nothing about styling puts an element in the Tab order. A `<div>` is not focusable by default and never becomes so just by looking like a control — this is exactly the gap the whole lesson opens on.',
+    },
+    {
+      text: 'Tab skips right past it — it was never in the tab order, and a screen reader would never have announced it as a control either.',
+      correct: true,
+      why: "Right. A plain `<div>`, however it's styled, has no role and no keyboard behaviour unless you add both yourself. It is invisible to Tab and to a screen reader's control list at the exact same time, for the exact same reason: nothing here is IN the accessibility tree as a control.",
+    },
+    {
+      text: 'The browser throws a console warning, because a click handler on a non-interactive element without a role is invalid.',
+      why: "Nothing throws, warns, or fails the build — that is the entire point of this lesson's opening line. The mistake is completely silent to every tool except one built specifically to look for it.",
+    },
+    {
+      text: 'Tab reaches it fine, but a screen reader announces it only as "unlabeled" instead of skipping it.',
+      why: '"Unlabeled" would mean it IS a recognised control missing a name — a different, smaller bug. A div with no role is not a mislabeled control; it is not a control in the tree at all, so there is nothing there for Tab or a screen reader to stop on in the first place.',
+    },
+  ];
 
   /** The Cross-Cutting track, for the "you are here" rail. */
   protected readonly stops: ChapterStop[] = [

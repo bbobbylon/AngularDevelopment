@@ -16,6 +16,107 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Whiteboard" ============
+       The opening block (CONTRIBUTING §2C): "the whole bug, in one picture" → what to look
+       for → app-brain-power posed BEFORE the figure → app-whiteboard with three scribble
+       call-outs → the answer, spelled out → app-flow for the numbered steps → one quiz →
+       the analogy on a napkin. Never: app-bubbles, app-tape-card, app-receipt —
+       scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-eyebrow">The whole bug, in one picture</p>
+    <p class="bf-say">
+      Node has no browser in it at all — no <code>window</code>, no <code>document</code>, no <code>localStorage</code>.
+      The single most common real SSR bug is code that quietly assumes otherwise, and it doesn't warn — it takes the
+      entire response down.
+    </p>
+
+    <app-brain-power
+      question="A component field initializer reads window.innerWidth. It works every time you test it with ng serve. The same component renders on a route set to RenderMode.Server. What happens the first time a real visitor requests that route?"
+      hint="Ask what process is actually running the code on that request — a browser that has always had a window, or a Node process that has never had one."
+    />
+
+    <app-whiteboard
+      caption="Same field initializer, two processes underneath it — only one of them was ever given a window to read."
+      alt="Two panels. Left panel, labeled browser, shows a component box reading width equals window dot inner width, an arrow to a lit box reading window exists, chart renders. Right panel, labeled server, Node, shows the identical component box reading width equals window dot inner width, an arrow to a box reading window undeclared, then an arrow down to a warning box reading ReferenceError, entire response fails."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 280" aria-hidden="true" focusable="false">
+        <text x="160" y="20" text-anchor="middle" class="wb-hand wb-text--sm">BROWSER</text>
+        <text x="480" y="20" text-anchor="middle" class="wb-hand wb-text--sm">SERVER — NODE</text>
+
+        <rect x="50" y="40" width="220" height="50" rx="10" class="wb-node" />
+        <text x="160" y="60" text-anchor="middle" class="wb-mono wb-text--sm">width = window.innerWidth</text>
+        <text x="160" y="78" text-anchor="middle" class="wb-text--sm">field initializer</text>
+
+        <text x="160" y="112" text-anchor="middle" class="wb-hand wb-text--sm">↓</text>
+
+        <rect x="50" y="122" width="220" height="50" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="142" text-anchor="middle" class="wb-mono wb-text--sm">window exists</text>
+        <text x="160" y="160" text-anchor="middle" class="wb-text--sm">chart renders</text>
+
+        <rect x="370" y="40" width="220" height="50" rx="10" class="wb-node" />
+        <text x="480" y="60" text-anchor="middle" class="wb-mono wb-text--sm">width = window.innerWidth</text>
+        <text x="480" y="78" text-anchor="middle" class="wb-text--sm">identical field initializer</text>
+
+        <text x="480" y="112" text-anchor="middle" class="wb-hand wb-text--sm">↓</text>
+
+        <rect x="370" y="122" width="220" height="50" rx="10" class="wb-node" opacity="0.6" />
+        <text x="480" y="142" text-anchor="middle" class="wb-mono wb-text--sm">window undeclared</text>
+        <text x="480" y="160" text-anchor="middle" class="wb-text--sm">nothing to fall back to</text>
+
+        <text x="480" y="182" text-anchor="middle" class="wb-hand wb-text--sm">↓</text>
+
+        <rect x="370" y="192" width="220" height="50" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="212" text-anchor="middle" class="wb-mono wb-text--sm">ReferenceError</text>
+        <text x="480" y="230" text-anchor="middle" class="wb-text--sm">entire response fails</text>
+      </svg>
+
+      <app-scribble
+        quote="window.innerWidth"
+        tone="accent"
+        text="Runs during construction — on the server exactly like in the browser. Nothing about a field initializer knows or cares which process it's running in."
+      />
+      <app-scribble
+        quote="window undeclared"
+        point="up"
+        tone="clay"
+        text="Not `undefined` sitting in a variable — the name `window` was never declared at all in this process. There is no fallback value to quietly read; the reference itself fails."
+      />
+      <app-scribble
+        quote="ReferenceError"
+        tone="olive"
+        text="Not a warning tucked into a console only you would see. This takes down the entire response, for every visitor who hits the route, on every single request — the first symptom anyone sees is a broken page in production."
+      />
+    </app-whiteboard>
+
+    <p class="bf-answer">
+      It throws — a <code>ReferenceError: window is not defined</code> — and that takes down the
+      <strong>entire response</strong> for every visitor who hits the route, not a warning tucked into a console only
+      you would see. <code>window</code>, <code>document</code>, <code>localStorage</code> and <code>navigator</code>
+      simply do not exist in the Node process doing the rendering, and nothing polyfills them by default. The fix is not
+      scattering existence checks everywhere — it is moving the line into a browser-only slot,
+      <code>afterNextRender()</code> or a platform guard.
+    </p>
+
+    <app-flow
+      [steps]="windowTrapFlow"
+      caption="What actually happens on the request — not two separate facts, one sequence."
+    />
+
+    <app-quiz
+      question="A component's field initializer reads window.innerWidth. It works every time you test it with ng serve. The same component renders on a route set to RenderMode.Server. What happens the first time a real visitor requests that route?"
+      [options]="windowTrapQuiz"
+      followUp="The predict further down this page runs the exact same trap against a live chart component — reveal the answer there and compare it against your reasoning here."
+    />
+
+    <app-napkin lead="the mental model —" label="The kitchen has no dining room in it">
+      A restaurant's kitchen has ovens and knives — no tablecloths, no dining-room lighting, nothing that only makes
+      sense once a guest is seated. Ask the kitchen to do something that belongs to the dining room and there is simply
+      nothing there to do it with. Node is the same kind of place: a process, a filesystem, a network stack — no
+      <code>window</code>, no <code>document</code>, no browser at all. Code that only makes sense in a browser has to
+      wait for the dining room, the same way plating a dish for a table that doesn't exist yet never works.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

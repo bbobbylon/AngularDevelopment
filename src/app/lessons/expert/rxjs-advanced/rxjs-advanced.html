@@ -15,6 +15,94 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "The Receipt" ============
+       The opening block (CONTRIBUTING §2C): a statement with numbers → app-receipt →
+       app-scribble naming the gap → app-compare (bad vs good) → "the mechanism" →
+       app-chain → app-code-lab → app-brain-power → one quiz → a closing .bf-big that
+       ends loud. Never: app-bubbles, app-no-dumb-questions, or app-napkin in first
+       position — scripts/audit-variety.mjs checks exactly that span. -->
+  <section class="receipt-block">
+    <p class="bf-say">
+      Wire a save button to <code>mergeMap</code> out of habit instead of thinking about it, and a user double-clicking
+      on slow wifi doesn't cost you a UI glitch — it costs your API real, duplicate writes. Here's the bill.
+    </p>
+
+    <app-receipt
+      heading="One save button, mergeMap · what three fast clicks actually send"
+      [rows]="mergeMapBill"
+      [total]="mergeMapBillTotal"
+      footer="three clicks, three real POSTs, no cancellation, no queue — just three writes racing to land."
+    />
+
+    <app-scribble
+      point="up"
+      quote="×3"
+      tone="clay"
+      text="Not a bug in mergeMap — this is its entire concurrency policy working exactly as documented. It runs every inner observable in parallel, on purpose, with no idea that 'save' should only ever mean one write."
+    />
+
+    <app-compare
+      leftTitle="mergeMap — runs every click"
+      leftTone="bad"
+      rightTitle="exhaustMap — ignores clicks mid-flight"
+      rightTone="good"
+      note="Same button, same double-click. Only one of the two ever lets a second write reach your API while the first is still in flight."
+    >
+      <div left>
+        <div class="code">
+          <pre>
+save$.pipe(
+  mergeMap(() =&gt; http.post('/orders', order))
+);
+// 3 clicks → 3 concurrent POSTs, no cancellation</pre>
+        </div>
+      </div>
+      <div right>
+        <div class="code">
+          <pre>
+save$.pipe(
+  exhaustMap(() =&gt; http.post('/orders', order))
+);
+// 3 clicks → 1 POST; clicks 2 and 3 are ignored entirely</pre>
+        </div>
+      </div>
+    </app-compare>
+
+    <p class="bf-eyebrow">The mechanism</p>
+    <p class="bf-say">
+      Here's exactly why — <code>mergeMap</code> has no concept of "a save is already running." It just subscribes to
+      every inner observable it's handed, the instant it's handed one.
+    </p>
+
+    <app-chain
+      [steps]="mergeMapChainSteps"
+      label="What mergeMap does to every click, whether or not the last one finished"
+    />
+
+    <app-code-lab
+      file="flattening-lab.ts"
+      [code]="labSample"
+      [notes]="labNotes"
+      notesLabel="One swapped operator, four completely different bills"
+    />
+
+    <app-brain-power
+      question="A save button is wired to mergeMap by habit. Someone double-clicks it on slow wifi. How many real POST requests does your API actually receive — and does anything on the client stop the first one?"
+      hint="Ask what mergeMap actually promises about a still-running inner observable when a new value arrives — does it cancel it, wait for it, or just start another one alongside it?"
+    />
+
+    <app-quiz
+      question="A save button's click handler is piped through mergeMap(() => http.post('/orders', order)). A user double-clicks it in under a second, and both clicks land before the first request resolves. How many real HTTP requests does your server receive?"
+      [options]="mergeMapQuizOptions"
+      followUp="The live flattening lab further down this page runs this exact race with real 1.5-second timers — set it to mergeMap, click fire a few times fast, and read the log."
+    />
+
+    <p class="bf-big">
+      Two clicks. Two real writes racing toward your database. <code>mergeMap</code> never asked whether the first one
+      was already running — deciding that was never its job.
+    </p>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED AS A PREDICTION ============ -->
   <section>
     <p class="bf-eyebrow bf-eyebrow--olive">The problem</p>

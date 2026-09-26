@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 
 /**
  * A user from the demo API.
@@ -90,6 +91,9 @@ interface User {
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   styleUrl: './resource-api.css',
   templateUrl: './resource-api.html',

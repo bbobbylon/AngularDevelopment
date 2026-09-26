@@ -15,6 +15,93 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      Typing over a <code>linkedSignal</code> doesn't store an override. It never did — you were always just watching
+      the same formula run again.
+    </p>
+
+    <p class="bf-say">
+      A <code>linkedSignal</code> looks like a writable <code>computed</code>, and that resemblance is exactly what
+      makes its reset surprising. Here's every question that surprise leaves behind, answered before it happens to you
+      live.
+    </p>
+
+    <app-no-dumb-questions [items]="resetQuestions" />
+
+    <app-brain-power
+      question="You click 'Blue' on a linkedSignal-backed picker. Someone reloads the options list, and the new list happens to still contain 'Blue' — same word, same position even. Does your pick survive the reload?"
+      hint="Ask whether the computation that produced 'Blue' the first time was ever given your old answer to compare against."
+    />
+
+    <app-whiteboard
+      caption="Same word, two different reasons it's on screen — one is your click remembered, the other is the formula agreeing with itself by coincidence."
+      alt="Two panels. Left panel, labeled before reload, shows an options box listing red comma green comma blue, above a selected box reading blue, captioned your click. Right panel, labeled after reload, shows a NEW options box listing cyan comma magenta comma yellow, above a selected box reading cyan, captioned the formula's answer, not yours — blue is simply gone, not remembered and rejected."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 260" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">BEFORE RELOAD</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">AFTER RELOAD</text>
+
+        <rect x="50" y="42" width="220" height="52" rx="10" class="wb-node" />
+        <text x="160" y="62" text-anchor="middle" class="wb-mono wb-text--sm">options()</text>
+        <text x="160" y="82" text-anchor="middle" class="wb-text--sm">Red, Green, Blue</text>
+
+        <rect x="50" y="106" width="220" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="126" text-anchor="middle" class="wb-mono wb-text--sm">selected()</text>
+        <text x="160" y="146" text-anchor="middle" class="wb-text--sm">Blue</text>
+
+        <text x="160" y="182" text-anchor="middle" class="wb-hand wb-text--sm">your click</text>
+
+        <rect x="370" y="42" width="220" height="52" rx="10" class="wb-node" opacity="0.6" />
+        <text x="480" y="62" text-anchor="middle" class="wb-mono wb-text--sm">options()</text>
+        <text x="480" y="82" text-anchor="middle" class="wb-text--sm">Cyan, Magenta, Yellow</text>
+
+        <rect x="370" y="106" width="220" height="52" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="126" text-anchor="middle" class="wb-mono wb-text--sm">selected()</text>
+        <text x="480" y="146" text-anchor="middle" class="wb-text--sm">Cyan</text>
+
+        <text x="480" y="182" text-anchor="middle" class="wb-hand wb-text--sm">the formula's answer, not yours</text>
+      </svg>
+
+      <app-scribble
+        quote="Blue"
+        tone="olive"
+        text="Genuinely your click, held onto — but only because nothing has told this `linkedSignal` to recompute yet. It's a value sitting in a slot, not a promise about what happens next."
+      />
+      <app-scribble
+        quote="options()"
+        point="up"
+        tone="clay"
+        text="The moment this changes, the whole computation reruns from nothing. It never compares against `selected()`'s current value — the one-argument form was never given that value to compare against."
+      />
+      <app-scribble
+        quote="Cyan"
+        tone="accent"
+        text="Not a fallback, not a downgrade from 'Blue' — the formula's honest, unconditional answer to `() => this.options()[0]`, run fresh. 'Blue' isn't rejected here. It's simply never asked about."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="Below is a row of colour buttons wired to a linkedSignal. You click 'Blue', then reload swaps in a brand-new list that happens to still contain 'Blue'. What does selected() show right after the reload?"
+      [options]="linkedOptions"
+      followUp="The live palette demo further down this page runs this exact reload — click a colour, press reload, and watch which value actually lands."
+    />
+
+    <app-napkin lead="the mental model —" label="A sticky note on the FORMULA, not on your answer">
+      Type over a spreadsheet formula cell by hand, and most spreadsheets remember your override until you touch
+      something else. A <code>linkedSignal</code> remembers differently: it never actually filed "Blue" away as your
+      override in the first place. The moment <code>options</code> changes, it just reruns the exact formula it always
+      had — <code>() =&gt; this.options()[0]</code> — as if your click had never happened. The override isn't
+      invalidated. It was never stored as an override to begin with.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

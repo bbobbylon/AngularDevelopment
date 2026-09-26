@@ -4,6 +4,7 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember, RichText } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Scribble, Whiteboard } from '../../../shared/shapes';
 import { HighlightCode } from '../../../shared/highlight-code.directive';
 
 /**
@@ -195,6 +196,9 @@ const PAGE_KINDS: PageKind[] = [
     Quiz,
     Remember,
     RichText,
+    BrainPower,
+    Scribble,
+    Whiteboard,
   ],
   styleUrl: './ssr.css',
   templateUrl: './ssr.html',
@@ -219,6 +223,53 @@ export class Ssr {
     { label: 'SSR' },
     { label: 'Hydration', id: 'hydration' },
     { label: 'PWA & Service Worker', id: 'pwa-service-worker' },
+  ];
+
+  // -- Page-shape block: "The Whiteboard" --
+
+  /** What happens on the request, in order — the mechanism behind {@link windowTrapQuiz}. */
+  protected readonly windowTrapFlow: FlowStep[] = [
+    { label: 'Route matches RenderMode.Server', detail: 'A real visitor request, not ng serve' },
+    {
+      label: 'Angular constructs the component in Node',
+      detail: 'The exact same class as in the browser',
+    },
+    {
+      label: 'Field initializer runs immediately',
+      detail: 'Same moment it would run client-side',
+      tone: 'accent',
+    },
+    {
+      label: '`window` is read',
+      detail: 'Node never defined it — there is nothing to fall back to',
+      tone: 'warn',
+    },
+    {
+      label: 'ReferenceError throws mid-render',
+      detail: 'The whole response fails — not just this component',
+      tone: 'warn',
+    },
+  ];
+
+  /** The self-test for the window/document trap — the crash version, not the silent one. */
+  protected readonly windowTrapQuiz: QuizOption[] = [
+    {
+      text: "It works fine — Angular polyfills `window` on the server so browser-only code doesn't need special handling.",
+      why: 'Nothing polyfills it. Node has no layout engine and no reason to fake one; `PLATFORM_ID` exists precisely because Angular expects you to branch yourself rather than pretending the server is a browser.',
+    },
+    {
+      text: 'It throws a `ReferenceError: window is not defined`, and that takes down the entire response for every visitor who hits the route.',
+      correct: true,
+      why: "Right. `window` does not exist in the Node process at all — not `undefined`, not a stub, simply never declared. Reading a property off it throws before the assignment even completes, and because this happens during the server's render of the whole page, the failure takes the entire response with it.",
+    },
+    {
+      text: 'It silently returns `undefined` for `window.innerWidth`, and the chart just renders at width 0 until the client hydrates.',
+      why: "That would be the behaviour if `window` itself existed as an empty object — it doesn't. Reading `.innerWidth` off a name that was never declared throws a `ReferenceError` immediately; there is no silent, degraded path here at all.",
+    },
+    {
+      text: "It only fails in a production deployment — `ng serve`'s dev server provides a stub `window` that a real Node SSR process does not.",
+      why: "`ng serve` on its own never renders this component on the server at all — it's a client-side dev server. The crash isn't a production-only edge case; it happens on the very first request any Node process actually serves for this route, dev or prod.",
+    },
   ];
 
   /**

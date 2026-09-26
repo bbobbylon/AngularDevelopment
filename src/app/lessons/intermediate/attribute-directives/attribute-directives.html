@@ -16,6 +16,92 @@
     </p>
   </app-chapter>
 
+  <!-- ============ THE SHAPE — "There Are No Dumb Questions" ============
+       The opening block (CONTRIBUTING §2C): .bf-big (the whole lesson in one sentence) →
+       .bf-say → app-no-dumb-questions (6-8 items, misconception → where it bites at work →
+       the fix) → app-brain-power → one figure → one app-quiz → app-napkin with the analogy.
+       Thread "you"/"your" through every answer. Never: app-bubbles, app-tape-card,
+       app-receipt, app-remember — scripts/audit-variety.mjs checks exactly that span. -->
+  <section>
+    <p class="bf-big">
+      A directive has no view of its own to clean up — which is exactly why the one thing it creates somewhere else
+      never gets cleaned up for it.
+    </p>
+
+    <p class="bf-say">
+      Angular is meticulous about tearing down anything it wired for you. It has no idea what you built by hand. Here's
+      every question that gap leaves behind, answered before you hit it live.
+    </p>
+
+    <app-no-dumb-questions [items]="cleanupQuestions" />
+
+    <app-brain-power
+      question="A tooltip directive appends its tooltip &lt;div&gt; to document.body on mouseenter and removes it on mouseleave. A row carrying that directive sits inside an &#64;if. You hover the row, then — before your mouse leaves — something flips the &#64;if off. What happens to the tooltip?"
+      hint="Ask whether mouseleave ever actually gets a chance to fire once the element it's listening on no longer exists."
+    />
+
+    <app-whiteboard
+      caption="Two nodes, two different owners — one goes with the host, one has to be told to."
+      alt="Two panels. Left panel, labeled on the host, shows a host element box containing a host binding box; an arrow labeled host destroyed points to a checkmark box reading binding removed automatically. Right panel, labeled outside the host, shows a document dot body box containing a tooltip div box with no connecting line back to the host element box drawn separately above it; an arrow labeled host destroyed points to a warning box reading tooltip div still there, still listening, orphaned."
+    >
+      <svg class="wb-svg" viewBox="0 0 640 280" aria-hidden="true" focusable="false">
+        <text x="160" y="22" text-anchor="middle" class="wb-hand wb-text--sm">ON THE HOST</text>
+        <text x="480" y="22" text-anchor="middle" class="wb-hand wb-text--sm">OUTSIDE THE HOST</text>
+
+        <rect x="50" y="42" width="220" height="56" rx="10" class="wb-node wb-node--lit" />
+        <text x="160" y="66" text-anchor="middle" class="wb-mono wb-text--sm">host element</text>
+        <text x="160" y="86" text-anchor="middle" class="wb-text--sm">host binding lives here</text>
+
+        <text x="160" y="126" text-anchor="middle" class="wb-hand wb-text--sm">host destroyed ↓</text>
+
+        <rect x="50" y="144" width="220" height="56" rx="10" class="wb-node" opacity="0.35" />
+        <text x="160" y="168" text-anchor="middle" class="wb-mono wb-text--sm">binding removed</text>
+        <text x="160" y="188" text-anchor="middle" class="wb-text--sm">automatically — no code</text>
+
+        <rect x="370" y="42" width="220" height="56" rx="10" class="wb-node" opacity="0.6" />
+        <text x="480" y="66" text-anchor="middle" class="wb-mono wb-text--sm">document.body</text>
+        <text x="480" y="86" text-anchor="middle" class="wb-text--sm">no link back to the host</text>
+
+        <text x="480" y="126" text-anchor="middle" class="wb-hand wb-text--sm">host destroyed ↓</text>
+
+        <rect x="370" y="144" width="220" height="56" rx="10" class="wb-node wb-node--lit" />
+        <text x="480" y="168" text-anchor="middle" class="wb-mono wb-text--sm">tooltip div</text>
+        <text x="480" y="188" text-anchor="middle" class="wb-text--sm">still there. still listening.</text>
+      </svg>
+
+      <app-scribble
+        quote="binding removed"
+        tone="olive"
+        text="Free. Angular wired this binding itself, so it knows exactly how to unwire it — no `ngOnDestroy` needed for anything that lives on the host."
+      />
+      <app-scribble
+        quote="no link back to the host"
+        point="up"
+        tone="clay"
+        text="This is the whole bug. A node appended to `document.body` has no parent-child relationship to the directive at all — nothing for Angular's teardown to even discover, let alone remove."
+      />
+      <app-scribble
+        quote="still there. still listening."
+        tone="accent"
+        text="Permanent, not temporary. Without an explicit `ngOnDestroy` that removes it by hand, this node outlives the directive, the row, and the component that rendered them — forever, or until the next full page load."
+      />
+    </app-whiteboard>
+
+    <app-quiz
+      question="The tooltip directive above has NO ngOnDestroy. You hover the row, the tooltip appears on document.body, and — while your mouse is still over it — the row (and the directive on it) is destroyed. What happens to the tooltip?"
+      [options]="cleanupQuizOptions"
+      followUp="The live tooltip demo further down this page has the real ngOnDestroy wired up — open DevTools' Elements panel and watch a hover-then-destroy leave nothing behind."
+    />
+
+    <app-napkin lead="the mental model —" label="A roof rack can't leave a trailer in the street">
+      A real roof rack only ever touches the car it's bolted to — tow the car away and the rack goes with it, no cleanup
+      required. A directive isn't limited that way: it can reach past its own host and drop something somewhere else in
+      the document entirely, the way a trailer gets left parked on a street corner. Angular will happily tow away the
+      car — the host element — and every rack bolted to it. It has no idea the trailer back on that corner was ever
+      connected to this directive at all.
+    </app-napkin>
+  </section>
+
   <!-- ============ 1. THE PROBLEM, POSED BEFORE IT IS NAMED ============ -->
   <section>
     <p class="bf-eyebrow">The problem</p>

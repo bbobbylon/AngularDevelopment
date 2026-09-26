@@ -5,6 +5,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin } from '../../../shared/brain
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 
 /**
  * Lesson: the @let template variable.
@@ -41,6 +43,10 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   templateUrl: './let-block.html',
   styleUrl: './let-block.css',
@@ -64,6 +70,41 @@ export class LetBlock {
     { label: '@switch', id: 'control-flow-switch' },
     { label: '@let' },
     { label: 'Built-in Directives', id: 'builtin-directives' },
+  ];
+
+  // -- Page-shape block: "The Receipt" --
+
+  /**
+   * What forty clicks on a completely unrelated button cost a `@let` that
+   * wraps something more expensive than `price() * qty()`. Every one of those
+   * clicks is a change-detection pass; every pass that reaches this template
+   * re-runs the `@let` from scratch, whether or not the list it sorts moved
+   * at all.
+   */
+  protected readonly recomputeBill: ReceiptRow[] = [
+    { label: 'Clicks on an unrelated "like" button, this minute', amount: '×40', tone: 'muted' },
+    { label: 'Change-detection passes those clicks schedule', amount: '×40', tone: 'muted' },
+    {
+      label: '@let sortedRows = […].sort() re-run, full sort each time',
+      amount: '×40',
+      tone: 'warn',
+    },
+    { label: 'Times the 2,000-row list actually changed', amount: '0', tone: 'muted' },
+  ];
+
+  /** The bill's total — forty full sorts, paid for a like count that never touched the list. */
+  protected readonly recomputeBillTotal: ReceiptRow = {
+    label: 'TOTAL full re-sorts of a list that never moved',
+    amount: '40',
+  };
+
+  /** What one reachable change-detection pass does to every `@let` slot, named as a pipeline. */
+  protected readonly recomputeChainSteps: readonly string[] = [
+    'pass reaches template',
+    'slot overwritten',
+    'expression re-run in full',
+    'no equality check',
+    'next pass: repeat',
   ];
 
   /**

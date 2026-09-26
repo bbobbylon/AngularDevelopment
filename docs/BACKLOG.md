@@ -1480,6 +1480,66 @@ Nothing to isolate-and-rerun this round.
 
 Declared-shape count: 62 → 70. Remaining undeclared: 103 − 70 = **33**, next up for batch 10.
 
+**Batch 10 of step 5, landed 2026-09-26 — another rate-limit recovery, verified rather than
+trusted.** Same failure mode as batch 9: the agent picking seven lessons and writing their
+blocks was killed by a session-wide API rate limit before it could commit or push, leaving
+real, uncommitted work in the tree with no confirmation any of it was finished. Recovery
+followed the same discipline — `git status`/`git diff --stat` first, then
+`git diff src/app/core/curriculum.ts` directly for the authoritative shape assignments rather
+than trusting any prior handoff summary, then all seven lesson `.html`/`.ts` pairs read in
+full against `docs/CONTRIBUTING.md` §2C's exact block sequence for each declared shape. Seven
+lessons across three tracks (beginner ×1, intermediate ×3, expert ×3):
+
+| Lesson                 | Track        | Shape               | The kind of gotcha                                                                                                                                                                                                                                                |
+| ---------------------- | ------------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `let-block`            | beginner     | `receipt`           | cost (`@let` recomputes on every reachable change-detection pass regardless of relevance — forty clicks on an unrelated button pay for forty full re-sorts of a 2,000-row list that never moved; `computed()` pays for exactly one)                               |
+| `attribute-directives` | intermediate | `no-dumb-questions` | misconception (Angular only auto-tears-down what it wired on the host — a node a directive appends elsewhere, e.g. `document.body`, has no relationship to the host's lifecycle and outlives it forever without a hand-written `ngOnDestroy`)                     |
+| `signals-advanced`     | intermediate | `no-dumb-questions` | misconception (`linkedSignal`'s one-argument form has no memory of a typed-over value — the moment its source changes it recomputes from nothing, discarding your pick even when the same value is still a valid option)                                          |
+| `resource-api`         | intermediate | `whiteboard`        | structure (a `params` change and a same-params `reload()` both show `status()` in a "request in flight" reading, but one clears `value()` to blank while the other keeps the stale value on screen — `isLoading()` can't tell the two apart, only `status()` can) |
+| `ssr`                  | expert       | `whiteboard`        | structure (`window`/`document` are simply never declared in the Node process running SSR — reading one off a field initializer throws a `ReferenceError` that takes down the _entire_ response, not a silently-degraded fallback)                                 |
+| `rxjs-advanced`        | expert       | `receipt`           | cost (`mergeMap` wired to a save button runs every click concurrently with no cancellation and no queue — two fast clicks are two real, duplicate `POST`s racing your database, where `exhaustMap` would have sent exactly one)                                   |
+| `a11y`                 | expert       | `no-dumb-questions` | misconception (a `<div>` styled identically to a `<button>` produces an empty entry in the accessibility tree — no role, no name, not even a stop in the Tab order — and nothing throws, fails a build, or leaks memory to flag it)                               |
+
+Six of the seven blocks were genuinely complete and matched their declared shape's exact
+device sequence on first read — no forbidden devices, no truncation, nothing that read as cut
+off mid-edit. The two `receipt` lessons (`let-block`, `rxjs-advanced`) both go straight from
+`app-code-lab` to `app-brain-power` with no scribbles at the code, matching the in-codebase
+convention batch 9 already confirmed against `class-style-binding`/`i18n`/`inputs`/
+`animations` — the prose in CONTRIBUTING is aspirational, the shipped convention is narrower,
+and this is not a defect. `resource-api`'s unusually small four-line `.ts` diff (flagged for
+extra scrutiny going in) also checked out clean: its `app-flow`/`app-quiz` reference
+`abortSteps`/`statusQuizOptions`, both pre-existing properties already written for exactly
+this params-change-vs-reload contrast, so the block needed no new data, only the three shape
+components imported and wired in — a genuine economy, not an incomplete edit.
+
+One lesson had a real, build-breaking bug: `signals-advanced.ts`'s `imports` array carried
+`BrainPower`, `NoDumbQuestions` and `Whiteboard` but never `Scribble`, even though its shape
+block's `app-whiteboard` figure uses three `<app-scribble>` call-outs. `npm run test:ci`
+caught it immediately — the build step failed with three `NG8001: 'app-scribble' is not a
+known element` errors before a single spec could run, since Angular's standalone-component
+templates only resolve a tag through the component's own `imports:` array. Confirmed this
+wasn't a second shape-mismatch problem: the block's device sequence (`.bf-big → .bf-say →
+app-no-dumb-questions → app-brain-power → app-whiteboard (3 scribbles) → app-quiz →
+app-napkin`) was already correct and complete, so this was purely a missing import, not a
+content gap. Fixed by adding `Scribble` to both the `../../../shared/shapes` import statement
+and the component's `imports:` array — the same two-line fix every other lesson in this batch
+already had right. A cross-check of every other changed lesson's template tags against its
+`imports:` array (every `<app-*>` element in all seven `.html` files resolved against the
+matching PascalCase import) turned up nothing else missing.
+
+`scripts/audit-variety.mjs` is green (77 declared shapes: `no-dumb-questions` 22, `whiteboard`
+21, `receipt` 20, `argument` 14 — no forbidden device, no shared-shape neighbours) and
+`scripts/audit-retention.mjs` still shows all 103 lessons at 9/9. `npm run format:check`,
+`npm run typecheck`, and `npx ng build` (0 warnings/errors, confirmed by grepping the build
+log rather than trusting the exit code) are all green.
+
+`npm run test:ci`'s full run (672s, after the `signals-advanced` fix) came back fully green:
+28/28 test files, 593/593 tests, zero failures — not even the usual sandbox-contention
+timeouts prior batches' postmortems have flagged on `testing-components`/`task-manager`/
+`auth-flow`/etc. Nothing to isolate-and-rerun this round.
+
+Declared-shape count: 70 → 77. Remaining undeclared: 103 − 77 = **26**, next up for batch 11.
+
 ---
 
 ## 3. Later

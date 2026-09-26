@@ -4,6 +4,8 @@ import { BfPage, Bubbles, Chapter, CodeLab, Napkin, TapeCard } from '../../../sh
 import type { BubbleTurn, ChapterStop, CodeNote } from '../../../shared/brain';
 import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, NoDumbQuestions, Scribble, Whiteboard } from '../../../shared/shapes';
+import type { NdqItem } from '../../../shared/shapes';
 
 /**
  * Lesson: Advanced Signals — the parts beyond `signal` / `computed` / `effect`.
@@ -58,11 +60,49 @@ import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    NoDumbQuestions,
+    Scribble,
+    Whiteboard,
   ],
   templateUrl: './signals-advanced.html',
   styleUrl: './signals-advanced.css',
 })
 export class SignalsAdvanced {
+  // -- Page-shape block: "There Are No Dumb Questions" --
+
+  /**
+   * Escalates from the misconception ("my override survives if it's still a
+   * valid option") through where it bites at work, to the fix. Carries the
+   * whole explanation on its own, so every answer threads "you"/"your".
+   */
+  protected readonly resetQuestions: NdqItem[] = [
+    {
+      q: "I picked 'Blue' by hand, then the options reloaded — and the new list still contains 'Blue'. Doesn't my pick survive?",
+      a: "No — and that's the one thing about `linkedSignal` almost everyone assumes wrong. The one-argument form has no memory of what you wrote. The moment its source changes, it just re-runs its computation from scratch, and whether 'Blue' happens to still be in the new list is not a question that computation was ever given a way to ask.",
+    },
+    {
+      q: 'So what actually happens to my typed-over value?',
+      a: "It's discarded completely — not degraded, not queued for reapplication. `options()` changes, `selected` re-derives `() => this.options()[0]` as if your click never happened, and reading `selected()` a moment later returns whatever that fresh computation says.",
+    },
+    {
+      q: "Isn't that a bug — shouldn't it check first?",
+      a: "It's the documented behaviour, on purpose: a select whose backing data just changed genuinely might not have your old pick as a sensible option anymore (a deleted row, a different currency). Resetting eagerly is the **safe default**. The two-argument `prev` form, further down this page, is what you reach for when you want the *other* behaviour.",
+    },
+    {
+      q: 'Where does this actually bite, at work?',
+      a: "A filters dropdown bound to a `linkedSignal`, backed by category ids from an API. You pick 'Electronics', a background refresh brings back a list where 'Electronics' is *still* the second entry, same id, same label — doesn't matter. The one-argument form re-derives 'first item' regardless, and your selection silently reverts mid-session, with no error and no warning that anything happened at all.",
+    },
+    {
+      q: "What's the fix, if I actually want the selection to survive when it's still valid?",
+      a: 'The two-argument object form. Its `computation` receives `prev` — the previous `{ source, value }` pair — so it can explicitly check whether the old pick is still in the new list and keep it if so. The shorthand was never handed that information to check with; the object form is.',
+    },
+    {
+      q: 'How is this different from a plain `computed()`?',
+      a: '`computed()` can\'t be typed over at all — no setter, so "the user picked something else" isn\'t representable. `linkedSignal` is writable like a plain `signal` *and* resets like a `computed` — which is exactly why the reset surprises people who mentally filed it under "a writable computed" and stopped there.',
+    },
+  ];
+
   /**
    * What a write actually does, including the step most mental models skip: the
    * equality check happens *after* recomputation, and a value that compares equal

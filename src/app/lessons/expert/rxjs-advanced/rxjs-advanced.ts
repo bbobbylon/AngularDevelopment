@@ -16,8 +16,10 @@ import {
 } from 'rxjs';
 import { BfPage, Bubbles, Chapter, CodeLab, Layers, Napkin } from '../../../shared/brain';
 import type { BubbleTurn, ChapterStop, CodeNote, Layer } from '../../../shared/brain';
-import { Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
+import { Compare, Faq, Flow, Predict, Quiz, Remember } from '../../../shared/teaching';
 import type { FaqItem, FlowStep, QuizOption } from '../../../shared/teaching';
+import { BrainPower, Chain, Receipt, Scribble } from '../../../shared/shapes';
+import type { ReceiptRow } from '../../../shared/shapes';
 
 /**
  * One of the four flattening strategies.
@@ -58,11 +60,16 @@ type Strategy = 'switchMap' | 'mergeMap' | 'concatMap' | 'exhaustMap';
     CodeLab,
     Layers,
     Napkin,
+    Compare,
     Faq,
     Flow,
     Predict,
     Quiz,
     Remember,
+    BrainPower,
+    Chain,
+    Receipt,
+    Scribble,
   ],
   styleUrl: './rxjs-advanced.css',
   templateUrl: './rxjs-advanced.html',
@@ -242,6 +249,56 @@ export class RxjsAdvanced {
     { label: 'Subjects', id: 'rxjs-subjects' },
     { label: 'RxJS + Signals', id: 'rxjs-interop' },
     { label: 'Advanced RxJS' },
+  ];
+
+  // -- Page-shape block: "The Receipt" --
+
+  /** What three fast clicks on a mergeMap-wired save button actually send. */
+  protected readonly mergeMapBill: ReceiptRow[] = [
+    { label: 'User clicks Save', amount: '×3', tone: 'muted' },
+    { label: 'Real POST /orders requests mergeMap fires', amount: '×3', tone: 'warn' },
+    { label: 'Requests exhaustMap would have fired instead', amount: '×1', tone: 'muted' },
+    {
+      label: 'Anything on the client that cancels the earlier two',
+      amount: 'nothing',
+      tone: 'warn',
+    },
+  ];
+
+  /** The bill's total — two writes nobody asked for, still in flight. */
+  protected readonly mergeMapBillTotal: ReceiptRow = {
+    label: 'TOTAL duplicate writes racing your database',
+    amount: '2 extra',
+  };
+
+  /** What mergeMap does to every click, in order — the mechanism behind the bill above. */
+  protected readonly mergeMapChainSteps: readonly string[] = [
+    'click fires',
+    'mergeMap subscribes',
+    'inner POST starts',
+    'next click fires',
+    'mergeMap subscribes again — no wait',
+  ];
+
+  /** The self-test for the mergeMap-on-a-save-button trap. */
+  protected readonly mergeMapQuizOptions: QuizOption[] = [
+    {
+      text: 'One — mergeMap waits for the first request to resolve before subscribing to the next inner observable.',
+      why: "That's concatMap's policy — strict order, one at a time. mergeMap makes no such promise; it subscribes to every inner observable the moment it arrives.",
+    },
+    {
+      text: 'One — mergeMap, like switchMap, cancels the first request and starts over with the second click.',
+      why: "That's switchMap's policy, and it would be worse here in a different way — cancelling a save mid-flight rather than duplicating it. mergeMap cancels nothing; it just runs both.",
+    },
+    {
+      text: 'Two — mergeMap subscribes to every inner observable immediately, with no concept of "one is already running."',
+      correct: true,
+      why: "Right. mergeMap's entire job is running inner observables in parallel. It has no memory of what's already in flight, so a second click during the first request's 1.5 seconds doesn't wait, doesn't cancel — it just starts a second, fully independent POST.",
+    },
+    {
+      text: 'Zero — mergeMap holds new clicks in a buffer until something explicitly flushes them.',
+      why: 'mergeMap has no buffering step of its own to hold anything back — every value it receives is subscribed to right away, which is exactly why "concurrent" is the word that describes it, not "queued" or "held".',
+    },
   ];
 
   /** The video-wall visual: why `combineLatest` looks silent, then fires twice. */
